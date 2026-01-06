@@ -23,7 +23,8 @@
       "name": "Code - Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [460, 300],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -64,7 +65,8 @@
           "id": "resend-credential-id",
           "name": "Resend API"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -135,7 +137,8 @@
           "id": "resend-credential-id",
           "name": "Resend API"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -150,6 +153,86 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer les informations de l'erreur\nconst error = $input.all()[0].json;\nconst execution = $execution;\n\n// Extraire les données originales si disponibles\nconst originalData = error.json || error.body || {};\n\n// Construire le message d'alerte\nconst alertMessage = {\n  type: 'workflow_error',\n  workflow: 'Leads - Formulaire d\'inscription',\n  timestamp: new Date().toISOString(),\n  executionId: execution.id,\n  error: {\n    message: error.message || error.error?.message || 'Erreur inconnue',\n    node: error.node?.name || 'Node inconnu',\n    stack: error.stack || error.error?.stack || null\n  },\n  data: {\n    nom: originalData.nom || 'N/A',\n    prenom: originalData.prenom || 'N/A',\n    email: originalData.email || 'N/A',\n    telephone: originalData.telephone || 'N/A'\n  },\n  severity: 'high',\n  actionRequired: true\n};\n\nconsole.error('Erreur workflow:', JSON.stringify(alertMessage, null, 2));\n\nreturn {\n  json: alertMessage\n};"
+      },
+      "id": "error-handler",
+      "name": "Code - Formatage Alerte Erreur",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 800],
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater l'email d'alerte pour l'équipe\nconst alert = $input.all()[0].json;\n\nconst htmlBody = `\n<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; background: #fff; }\n    .header { background: #dc2626; color: white; padding: 20px; text-align: center; }\n    .content { padding: 20px; }\n    .error-box { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; }\n    .info-box { background: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 4px; }\n    .code { background: #1f2937; color: #f9fafb; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>⚠️ ALERTE - Erreur Workflow</h1>\n      <p>TalosPrimes</p>\n    </div>\n    <div class=\"content\">\n      <h2>Une erreur s'est produite dans le workflow</h2>\n      \n      <div class=\"error-box\">\n        <p><strong>Type d'erreur :</strong> ${alert.error.message}</p>\n        <p><strong>Nœud concerné :</strong> ${alert.error.node}</p>\n      </div>\n      \n      <div class=\"info-box\">\n        <h3>Informations du lead :</h3>\n        <ul>\n          <li><strong>Nom :</strong> ${alert.data.nom}</li>\n          <li><strong>Prénom :</strong> ${alert.data.prenom}</li>\n          <li><strong>Email :</strong> ${alert.data.email}</li>\n          <li><strong>Téléphone :</strong> ${alert.data.telephone}</li>\n        </ul>\n      </div>\n      \n      <div class=\"info-box\">\n        <h3>Détails techniques :</h3>\n        <p><strong>Workflow :</strong> ${alert.workflow}</p>\n        <p><strong>Execution ID :</strong> ${alert.executionId}</p>\n        <p><strong>Date :</strong> ${new Date(alert.timestamp).toLocaleString('fr-FR')}</p>\n        <p><strong>Sévérité :</strong> ${alert.severity}</p>\n      </div>\n      \n      ${alert.error.stack ? `<div class=\"code\">${alert.error.stack}</div>` : ''}\n      \n      <p style=\"margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;\">\n        <strong>Action requise :</strong> Vérifiez les logs du workflow et corrigez l'erreur.\n      </p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nconst textBody = `\n⚠️ ALERTE - Erreur Workflow TalosPrimes\n\nUne erreur s'est produite dans le workflow \"${alert.workflow}\".\n\nERREUR :\n${alert.error.message}\nNœud : ${alert.error.node}\n\nINFORMATIONS DU LEAD :\n- Nom : ${alert.data.nom}\n- Prénom : ${alert.data.prenom}\n- Email : ${alert.data.email}\n- Téléphone : ${alert.data.telephone}\n\nDÉTAILS TECHNIQUES :\n- Execution ID : ${alert.executionId}\n- Date : ${new Date(alert.timestamp).toLocaleString('fr-FR')}\n- Sévérité : ${alert.severity}\n\nAction requise : Vérifiez les logs du workflow dans n8n.\n`;\n\nreturn {\n  json: {\n    email: process.env.EMAIL_TO_EQUIPE || 'contact@talosprimes.com',\n    subject: `🚨 ALERTE - Erreur workflow inscription - ${alert.data.prenom} ${alert.data.nom}`,\n    htmlBody: htmlBody,\n    textBody: textBody,\n    alert: alert\n  }\n};"
+      },
+      "id": "format-alert-email",
+      "name": "Code - Formatage Email Alerte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 800]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "name": "Resend API",
+          "id": "resend-credential-id"
+        },
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"{{ $env.EMAIL_FROM || 'TalosPrimes <noreply@talosprimes.com>' }}\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": \"{{ $json.htmlBody }}\",\n  \"text\": \"{{ $json.textBody }}\"\n}",
+        "options": {}
+      },
+      "id": "resend-alert",
+      "name": "Resend - Email Alerte Erreur",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 800],
+      "credentials": {
+        "headerAuth": {
+          "id": "resend-credential-id",
+          "name": "Resend API"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.API_URL || 'https://api.talosprimes.com' }}/api/alerts",
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "name": "TalosPrimes API",
+          "id": "api-credential-id"
+        },
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Code - Formatage Alerte Erreur').first().json }}",
+        "options": {}
+      },
+      "id": "api-alert",
+      "name": "HTTP Request - Alerte Plateforme",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 1000],
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -179,6 +262,15 @@
           },
           {
             "node": "Code - Formatage Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Code - Formatage Alerte Erreur",
             "type": "main",
             "index": 0
           }
@@ -249,6 +341,43 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Code - Formatage Alerte Erreur": {
+      "main": [
+        [
+          {
+            "node": "Code - Formatage Email Alerte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Formatage Email Alerte": {
+      "main": [
+        [
+          {
+            "node": "Resend - Email Alerte Erreur",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request - Alerte Plateforme",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resend - Email Alerte Erreur": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request - Alerte Plateforme": {
+      "main": [
+        []
       ]
     }
   },
