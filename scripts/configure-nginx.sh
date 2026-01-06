@@ -94,23 +94,24 @@ server {
     listen 80;
     server_name $API_SUBDOMAIN;
 
-    # CORS headers (gérés aussi par Fastify, mais ajoutés ici pour sécurité)
-    add_header 'Access-Control-Allow-Origin' '*' always;
-    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
-    add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
-
     # Gérer les requêtes OPTIONS (preflight CORS)
-    if (\$request_method = 'OPTIONS') {
-        add_header 'Access-Control-Allow-Origin' '*';
-        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
-        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type';
-        add_header 'Access-Control-Max-Age' 1728000;
-        add_header 'Content-Type' 'text/plain; charset=utf-8';
-        add_header 'Content-Length' 0;
-        return 204;
-    }
-
     location / {
+        # Répondre aux OPTIONS avant de proxy
+        if (\$request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        # CORS headers pour les autres requêtes
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
+
         proxy_pass http://localhost:$BACKEND_PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -148,6 +149,22 @@ server {
 
     # Backend API sur /api
     location /api {
+        # Gérer les requêtes OPTIONS (preflight CORS)
+        if (\$request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        # CORS headers pour les autres requêtes
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
+
         proxy_pass http://localhost:$BACKEND_PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -157,22 +174,6 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
-        
-        # CORS headers
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
-
-        # Gérer les requêtes OPTIONS (preflight CORS)
-        if (\$request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '*';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type';
-            add_header 'Access-Control-Max-Age' 1728000;
-            add_header 'Content-Type' 'text/plain; charset=utf-8';
-            add_header 'Content-Length' 0;
-            return 204;
-        }
     }
 
     # Frontend sur toutes les autres routes
@@ -218,12 +219,20 @@ else
     exit 1
 fi
 
+# Vérifier et supprimer les anciennes configurations en conflit
+echo -e "${YELLOW}🔍 Vérification des configurations existantes...${NC}"
+if [ -f /etc/nginx/sites-enabled/talosprime ]; then
+    echo -e "${YELLOW}⚠️  Ancienne configuration 'talosprime' détectée, suppression...${NC}"
+    rm -f /etc/nginx/sites-enabled/talosprime
+fi
+
 # Tester la configuration Nginx
 echo -e "${GREEN}🧪 Test de la configuration Nginx...${NC}"
 if nginx -t; then
     echo -e "${GREEN}✅ Configuration Nginx valide${NC}"
 else
     echo -e "${RED}❌ Erreur dans la configuration Nginx${NC}"
+    echo -e "${YELLOW}💡 Vérifiez les erreurs ci-dessus et les fichiers de configuration${NC}"
     exit 1
 fi
 
