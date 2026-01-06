@@ -58,7 +58,7 @@ fi
 echo -e "${GREEN}🔐 Génération des certificats SSL...${NC}"
 
 if [ ! -z "$API_SUBDOMAIN" ]; then
-    certbot --nginx -d $DOMAIN -d www.$DOMAIN -d $API_SUBDOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect
+    certbot --nginx -d $DOMAIN -d www.$DOMAIN -d $API_SUBDOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect --expand
 else
     certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect
 fi
