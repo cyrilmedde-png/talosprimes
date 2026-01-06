@@ -41,8 +41,8 @@ if [ "$HTTP_CODE" = "200" ]; then
   # Essayer plusieurs chemins possibles
   TOKEN=$(echo "$BODY" | jq -r '.data.tokens.accessToken // .data.accessToken // .tokens.accessToken // .accessToken' 2>/dev/null)
   
-  # Nettoyer le token (supprimer les espaces et retours à la ligne)
-  TOKEN=$(echo "$TOKEN" | tr -d '\n\r ')
+  # Nettoyer le token (supprimer les espaces, retours à la ligne, et guillemets)
+  TOKEN=$(echo "$TOKEN" | tr -d '\n\r ' | sed "s/^['\"]//; s/['\"]$//")
   
   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
     echo -e "${RED}❌ Erreur: Token non trouvé dans la réponse${NC}" >&2

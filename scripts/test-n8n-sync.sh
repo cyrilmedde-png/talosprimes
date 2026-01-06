@@ -48,8 +48,8 @@ if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] || [ "$TOKEN" = "empty" ]; then
   TOKEN=$(echo "$RESPONSE" | grep -o '"accessToken"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
 fi
 
-# Nettoyer le token (supprimer les espaces et retours à la ligne)
-TOKEN=$(echo "$TOKEN" | tr -d '\n\r ')
+# Nettoyer le token (supprimer les espaces, retours à la ligne, et guillemets)
+TOKEN=$(echo "$TOKEN" | tr -d '\n\r ' | sed "s/^['\"]//; s/['\"]$//")
 
 # Vérifier que le token est valide
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
