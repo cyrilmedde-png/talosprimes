@@ -12,7 +12,7 @@ export async function n8nRoutes(fastify: FastifyInstance) {
     {
       preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
     },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
         const result = await n8nService.testConnection();
 

@@ -2,7 +2,6 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
-import type { ClientFinalType, ClientFinalStatus } from '@talosprimes/shared';
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({

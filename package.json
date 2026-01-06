@@ -8,7 +8,10 @@
   ],
   "scripts": {
     "dev": "pnpm --filter platform dev & pnpm --filter client dev",
-    "build": "pnpm --recursive build",
+    "build": "pnpm --filter shared build && pnpm --filter platform build && pnpm --filter client build",
+    "build:shared": "pnpm --filter shared build",
+    "build:platform": "pnpm --filter shared build && pnpm --filter platform build",
+    "build:client": "pnpm --filter client build",
     "test": "pnpm --recursive test",
     "lint": "pnpm --recursive lint",
     "type-check": "pnpm --recursive type-check",

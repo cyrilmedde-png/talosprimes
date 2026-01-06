@@ -2,7 +2,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
-import type { UserRole } from '@talosprimes/shared';
+
+// Types locaux (en attendant que shared soit buildé)
+type UserRole = 'super_admin' | 'admin' | 'collaborateur' | 'lecture_seule';
 
 export interface JWTPayload {
   userId: string;
@@ -39,7 +41,7 @@ export async function verifyPassword(
  */
 export function generateAccessToken(payload: JWTPayload): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: env.JWT_EXPIRES_IN as string,
   });
 }
 
@@ -48,7 +50,7 @@ export function generateAccessToken(payload: JWTPayload): string {
  */
 export function generateRefreshToken(payload: JWTPayload): string {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN as string,
   });
 }
 

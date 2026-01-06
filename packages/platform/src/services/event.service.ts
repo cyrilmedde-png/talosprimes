@@ -1,6 +1,8 @@
 import { prisma } from '../config/database.js';
 import { n8nService } from './n8n.service.js';
-import type { EventExecutionStatus } from '@talosprimes/shared';
+
+// Type local (en attendant que shared soit buildé)
+type EventExecutionStatus = 'succes' | 'erreur' | 'en_attente';
 
 /**
  * Service pour émettre des événements métiers

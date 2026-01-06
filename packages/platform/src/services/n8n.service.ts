@@ -105,7 +105,7 @@ export class N8nService {
         throw new Error(`n8n API error: ${response.status} - ${errorText}`);
       }
 
-      const result = await response.json().catch(() => ({}));
+      await response.json().catch(() => ({}));
 
       console.log(`[n8n] Workflow déclenché avec succès: ${workflowLink.workflowN8nNom} (${eventType})`);
 
