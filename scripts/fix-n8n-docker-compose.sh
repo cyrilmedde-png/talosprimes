@@ -57,16 +57,16 @@ echo -e "${BLUE}📋 Modification du fichier...${NC}"
 sed -i "s/N8N_PORT=5678/N8N_PORT=443/g" "$COMPOSE_FILE"
 sed -i "s/N8N_PROTOCOL=http/N8N_PROTOCOL=https/g" "$COMPOSE_FILE"
 
-# Vérifier si N8N_HOST existe, sinon l'ajouter
+# Vérifier si N8N_HOST existe, sinon l'ajouter après N8N_PROTOCOL
 if ! grep -q "N8N_HOST" "$COMPOSE_FILE"; then
-  # Ajouter N8N_HOST après N8N_PROTOCOL
-  sed -i "/N8N_PROTOCOL/a\          - N8N_HOST=$DOMAIN" "$COMPOSE_FILE"
+  # Trouver la ligne N8N_PROTOCOL et ajouter N8N_HOST juste après (même indentation)
+  sed -i "/N8N_PROTOCOL=/a\          - N8N_HOST=$DOMAIN" "$COMPOSE_FILE"
 fi
 
-# Vérifier si WEBHOOK_URL existe, sinon l'ajouter
+# Vérifier si WEBHOOK_URL existe, sinon l'ajouter après N8N_HOST
 if ! grep -q "WEBHOOK_URL" "$COMPOSE_FILE"; then
-  # Ajouter WEBHOOK_URL après N8N_HOST
-  sed -i "/N8N_HOST/a\          - WEBHOOK_URL=https://$DOMAIN/" "$COMPOSE_FILE"
+  # Trouver la ligne N8N_HOST et ajouter WEBHOOK_URL juste après
+  sed -i "/N8N_HOST=/a\          - WEBHOOK_URL=https://$DOMAIN/" "$COMPOSE_FILE"
 fi
 
 echo -e "${GREEN}✅ Fichier modifié${NC}"
@@ -83,16 +83,42 @@ RECREATE=${RECREATE:-y}
 
 if [ "$RECREATE" = "y" ] || [ "$RECREATE" = "Y" ]; then
   echo ""
+  echo -e "${BLUE}📋 Détection de la commande docker-compose...${NC}"
+  
+  # Détecter quelle commande utiliser
+  if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+    echo "  Utilisation de: docker-compose"
+  elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+    echo "  Utilisation de: docker compose"
+  else
+    echo -e "${RED}❌ docker-compose non trouvé${NC}"
+    echo ""
+    echo "Recréez manuellement le conteneur :"
+    echo "  cd /root"
+    echo "  docker compose down"
+    echo "  docker compose up -d"
+    echo ""
+    echo "Ou utilisez docker directement :"
+    echo "  docker stop root-n8n-1"
+    echo "  docker rm root-n8n-1"
+    echo "  docker run -d --name root-n8n-1 ..."
+    exit 1
+  fi
+  
+  echo ""
   echo -e "${BLUE}📋 Arrêt et suppression du conteneur...${NC}"
   
   # Se placer dans le dossier du docker-compose
   cd "$(dirname "$COMPOSE_FILE")"
   
   # Arrêter et supprimer
-  docker-compose down 2>/dev/null || true
+  $DOCKER_COMPOSE_CMD down 2>/dev/null || true
+  sleep 2
   
   echo -e "${BLUE}📋 Recréation avec docker-compose...${NC}"
-  docker-compose up -d
+  $DOCKER_COMPOSE_CMD up -d
   
   echo ""
   echo -e "${GREEN}✅ Conteneur recréé${NC}"
