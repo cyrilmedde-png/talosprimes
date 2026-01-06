@@ -56,8 +56,10 @@ echo -e "${BLUE}📋 Modification du fichier...${NC}"
 # Corriger les fautes de frappe (httpss → https)
 sed -i "s/httpss/https/g" "$COMPOSE_FILE"
 
-# Corriger N8N_PORT (seulement si c'est 5678, pas si c'est déjà 443)
-sed -i "s/N8N_PORT=5678/N8N_PORT=443/g" "$COMPOSE_FILE"
+# IMPORTANT : N8N_PORT doit rester à 5678 (port interne dans le conteneur)
+# Le port 443 est géré par Nginx (reverse proxy)
+# NE PAS changer N8N_PORT de 5678 à 443
+# sed -i "s/N8N_PORT=5678/N8N_PORT=443/g" "$COMPOSE_FILE"  # ❌ INCORRECT
 
 # Corriger N8N_PROTOCOL (seulement si c'est http, pas si c'est déjà https)
 sed -i "s/N8N_PROTOCOL=http$/N8N_PROTOCOL=https/g" "$COMPOSE_FILE"
