@@ -39,25 +39,44 @@ if ! echo "$RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
   exit 1
 fi
 
-# Extraire le token (essayer plusieurs chemins possibles)
+# Extraire le token avec jq (le plus fiable)
 TOKEN=$(echo "$RESPONSE" | jq -r '.data.tokens.accessToken // .data.accessToken // empty' 2>/dev/null)
 
-# Si jq a échoué, essayer avec grep/sed comme fallback
+# Si jq a échoué ou retourné null/empty, essayer avec grep/sed comme fallback
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] || [ "$TOKEN" = "empty" ]; then
   # Fallback: extraire avec grep et sed
   TOKEN=$(echo "$RESPONSE" | grep -o '"accessToken"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
 fi
 
-# Nettoyer le token (supprimer les espaces, retours à la ligne, et guillemets)
-TOKEN=$(echo "$TOKEN" | tr -d '\n\r ' | sed "s/^['\"]//; s/['\"]$//")
+# Nettoyer le token de manière agressive (supprimer tout ce qui n'est pas alphanumérique, point, tiret, underscore au début/fin)
+# Un JWT commence toujours par eyJ et contient des points et tirets
+TOKEN=$(echo "$TOKEN" | sed "s/^[^a-zA-Z0-9]*//; s/[^a-zA-Z0-9._-]*$//" | tr -d '\n\r ')
 
-# Vérifier que le token est valide
-if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
-  echo -e "${RED}❌ Impossible d'obtenir un token valide${NC}"
+# Vérifier que le token est valide (commence par eyJ et contient au moins un point)
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+  echo -e "${RED}❌ Impossible d'obtenir un token valide (token vide ou null)${NC}"
   echo ""
-  echo -e "${YELLOW}Debug - Token extrait : '${TOKEN}'${NC}"
   echo -e "${YELLOW}Réponse de l'API :${NC}"
   echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+  exit 1
+fi
+
+# Vérifier le format JWT (doit commencer par eyJ et contenir des points)
+if ! echo "$TOKEN" | grep -q "^eyJ"; then
+  echo -e "${RED}❌ Token invalide : ne commence pas par 'eyJ'${NC}"
+  echo ""
+  echo -e "${YELLOW}Debug - Token extrait (premiers 50 caractères) : '${TOKEN:0:50}...'${NC}"
+  echo -e "${YELLOW}Debug - Longueur du token : ${#TOKEN} caractères${NC}"
+  echo -e "${YELLOW}Réponse de l'API :${NC}"
+  echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+  exit 1
+fi
+
+# Vérifier qu'il contient au moins un point (format JWT standard)
+if ! echo "$TOKEN" | grep -q "\."; then
+  echo -e "${RED}❌ Token invalide : format JWT incorrect (pas de point)${NC}"
+  echo ""
+  echo -e "${YELLOW}Debug - Token extrait : '${TOKEN}'${NC}"
   exit 1
 fi
 
