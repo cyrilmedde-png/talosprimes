@@ -1,6 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import { createInterface } from 'readline';
 
 const prisma = new PrismaClient();
+
+function question(rl: ReturnType<typeof createInterface>, query: string): Promise<string> {
+  return new Promise((resolve) => {
+    rl.question(query, resolve);
+  });
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -16,24 +23,17 @@ async function main() {
     eventType = args[2];
   } else {
     // Mode interactif
-    const readline = require('readline');
-    const rl = readline.createInterface({
+    const rl = createInterface({
       input: process.stdin,
       output: process.stdout,
     });
 
-    const question = (query: string): Promise<string> => {
-      return new Promise((resolve) => {
-        rl.question(query, resolve);
-      });
-    };
-
     console.log('📝 Création d\'un WorkflowLink');
     console.log('==============================\n');
 
-    workflowId = await question('Workflow ID n8n (ex: 123) : ');
-    workflowName = await question('Nom du workflow (ex: Onboarding Client) : ');
-    const eventTypeInput = await question('Type d\'événement (client.created/client.updated/client.deleted) [client.created] : ');
+    workflowId = await question(rl, 'Workflow ID n8n (ex: 123) : ');
+    workflowName = await question(rl, 'Nom du workflow (ex: Onboarding Client) : ');
+    const eventTypeInput = await question(rl, 'Type d\'événement (client.created/client.updated/client.deleted) [client.created] : ');
     eventType = eventTypeInput || 'client.created';
 
     rl.close();
@@ -112,19 +112,12 @@ async function main() {
 
   if (existing) {
     console.log(`⚠️  Un WorkflowLink existe déjà pour l'événement "${eventType}"\n`);
-    const readline = require('readline');
-    const rl = readline.createInterface({
+    const rl = createInterface({
       input: process.stdin,
       output: process.stdout,
     });
 
-    const question = (query: string): Promise<string> => {
-      return new Promise((resolve) => {
-        rl.question(query, resolve);
-      });
-    };
-
-    const update = await question('Voulez-vous le mettre à jour ? (y/n) : ');
+    const update = await question(rl, 'Voulez-vous le mettre à jour ? (y/n) : ');
     rl.close();
 
     if (update.toLowerCase() !== 'y') {
