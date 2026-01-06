@@ -1,4 +1,4 @@
-// Client API pour communiquer avec le backend
+// Client API pour communiquer avec le backend (version simple, non authentifiée)
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -25,7 +25,7 @@ async function fetchApi<T>(
       'Content-Type': 'application/json',
       ...options?.headers,
     },
-    credentials: 'include', // Pour les cookies si nécessaire
+    credentials: 'include',
   });
 
   if (!response.ok) {
