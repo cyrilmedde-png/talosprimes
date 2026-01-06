@@ -19,16 +19,21 @@ const navigation = [
   { name: 'Paramètres', href: '/dashboard/settings', icon: Cog6ToothIcon },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { clearAuth } = useAuthStore();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const handleLogout = () => {
     clearTokens();
     clearAuth();
     router.push('/login');
+  };
+
+  const handleToggle = (collapsed: boolean) => {
+    setIsCollapsed(collapsed);
+    onToggle?.(collapsed);
   };
 
   return (
@@ -37,8 +42,8 @@ export default function Sidebar() {
         fixed inset-y-0 left-0 z-40 bg-gray-900 transform transition-all duration-300 ease-in-out
         ${isCollapsed ? 'w-16' : 'w-64'}
       `}
-      onMouseEnter={() => setIsCollapsed(false)}
-      onMouseLeave={() => setIsCollapsed(true)}
+      onMouseEnter={() => handleToggle(false)}
+      onMouseLeave={() => handleToggle(true)}
     >
       <div className="flex-1 flex flex-col min-h-0 h-full">
         <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">

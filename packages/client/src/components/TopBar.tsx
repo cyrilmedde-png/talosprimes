@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 
-export default function TopBar() {
+export default function TopBar({ onVisibilityChange }: { onVisibilityChange?: (visible: boolean) => void }) {
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isVisible, setIsVisible] = useState(false);
@@ -12,25 +12,34 @@ export default function TopBar() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       // Afficher le menu si la souris est dans les 50px du haut
-      if (e.clientY < 50) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
-      }
+      const shouldBeVisible = e.clientY < 50;
+      setIsVisible(shouldBeVisible);
+      onVisibilityChange?.(shouldBeVisible);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [onVisibilityChange]);
 
   return (
     <div
       className={`
-        fixed top-0 left-0 right-0 z-30 bg-gray-900 shadow-lg transition-all duration-300 ease-in-out
+        fixed top-0 z-30 bg-gray-900 shadow-lg transition-all duration-300 ease-in-out
         ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}
       `}
-      onMouseEnter={() => setIsVisible(true)}
-      onMouseLeave={() => setIsVisible(false)}
+      style={{ 
+        left: '4rem',
+        right: '2rem',
+        width: 'calc(100% - 6rem)',
+      }}
+      onMouseEnter={() => {
+        setIsVisible(true);
+        onVisibilityChange?.(true);
+      }}
+      onMouseLeave={() => {
+        setIsVisible(false);
+        onVisibilityChange?.(false);
+      }}
     >
       <div className="flex-1 px-4 flex justify-between items-center h-16">
         <div className="flex-1 flex">
