@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser, isAuthenticated, clearTokens } from '@/lib/auth';
+import { getCurrentUser, isAuthenticated } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import type { ClientFinal } from '@talosprimes/shared';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, setUser, clearAuth } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [clients, setClients] = useState<ClientFinal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +44,6 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    clearTokens();
-    clearAuth();
-    router.push('/login');
   };
 
   if (loading) {
