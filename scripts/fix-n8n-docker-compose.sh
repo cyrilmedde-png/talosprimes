@@ -53,20 +53,31 @@ echo ""
 # Modifier le fichier
 echo -e "${BLUE}📋 Modification du fichier...${NC}"
 
-# Utiliser sed pour modifier les variables
-sed -i "s/N8N_PORT=5678/N8N_PORT=443/g" "$COMPOSE_FILE"
-sed -i "s/N8N_PROTOCOL=http/N8N_PROTOCOL=https/g" "$COMPOSE_FILE"
+# Corriger les fautes de frappe (httpss → https)
+sed -i "s/httpss/https/g" "$COMPOSE_FILE"
 
-# Vérifier si N8N_HOST existe, sinon l'ajouter après N8N_PROTOCOL
+# Corriger N8N_PORT (seulement si c'est 5678, pas si c'est déjà 443)
+sed -i "s/N8N_PORT=5678/N8N_PORT=443/g" "$COMPOSE_FILE"
+
+# Corriger N8N_PROTOCOL (seulement si c'est http, pas si c'est déjà https)
+sed -i "s/N8N_PROTOCOL=http$/N8N_PROTOCOL=https/g" "$COMPOSE_FILE"
+
+# Trouver l'indentation utilisée pour les variables d'environnement
+INDENT=$(grep -m 1 "N8N_PROTOCOL" "$COMPOSE_FILE" | sed 's/[^ ].*//' || echo "          ")
+
+# Supprimer les anciennes entrées mal indentées de N8N_HOST et WEBHOOK_URL
+sed -i '/^[[:space:]]*- N8N_HOST=/d' "$COMPOSE_FILE"
+sed -i '/^[[:space:]]*- WEBHOOK_URL=/d' "$COMPOSE_FILE"
+
+# Trouver la ligne N8N_PROTOCOL et insérer N8N_HOST et WEBHOOK_URL après
 if ! grep -q "N8N_HOST" "$COMPOSE_FILE"; then
-  # Trouver la ligne N8N_PROTOCOL et ajouter N8N_HOST juste après (même indentation)
-  sed -i "/N8N_PROTOCOL=/a\          - N8N_HOST=$DOMAIN" "$COMPOSE_FILE"
+  # Trouver la ligne N8N_PROTOCOL et ajouter après
+  sed -i "/N8N_PROTOCOL=/a\\$INDENT- N8N_HOST=$DOMAIN" "$COMPOSE_FILE"
 fi
 
-# Vérifier si WEBHOOK_URL existe, sinon l'ajouter après N8N_HOST
 if ! grep -q "WEBHOOK_URL" "$COMPOSE_FILE"; then
-  # Trouver la ligne N8N_HOST et ajouter WEBHOOK_URL juste après
-  sed -i "/N8N_HOST=/a\          - WEBHOOK_URL=https://$DOMAIN/" "$COMPOSE_FILE"
+  # Trouver la ligne N8N_HOST et ajouter après
+  sed -i "/N8N_HOST=/a\\$INDENT- WEBHOOK_URL=https://$DOMAIN/" "$COMPOSE_FILE"
 fi
 
 echo -e "${GREEN}✅ Fichier modifié${NC}"
@@ -113,9 +124,17 @@ if [ "$RECREATE" = "y" ] || [ "$RECREATE" = "Y" ]; then
   # Se placer dans le dossier du docker-compose
   cd "$(dirname "$COMPOSE_FILE")"
   
-  # Arrêter et supprimer
-  $DOCKER_COMPOSE_CMD down 2>/dev/null || true
-  sleep 2
+  # Arrêter et supprimer (forcer la suppression)
+  $DOCKER_COMPOSE_CMD down --remove-orphans 2>/dev/null || true
+  sleep 1
+  
+  # Forcer la suppression du conteneur s'il existe encore
+  if docker ps -a | grep -q "root-n8n-1"; then
+    echo "  Suppression forcée du conteneur existant..."
+    docker stop root-n8n-1 2>/dev/null || true
+    docker rm -f root-n8n-1 2>/dev/null || true
+    sleep 1
+  fi
   
   echo -e "${BLUE}📋 Recréation avec docker-compose...${NC}"
   $DOCKER_COMPOSE_CMD up -d
