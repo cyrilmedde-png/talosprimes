@@ -39,9 +39,18 @@ git commit -m "Initial commit: Architecture complète avec Fastify, Next.js, Pri
 ```
 
 **7. Ajouter le remote GitHub (remplacez VOTRE_USERNAME) :**
+
+**Option A - SSH (recommandé, nécessite une clé SSH configurée) :**
+```bash
+git remote add origin git@github.com:VOTRE_USERNAME/talosprimes.git
+```
+
+**Option B - HTTPS (nécessite un Personal Access Token) :**
 ```bash
 git remote add origin https://github.com/VOTRE_USERNAME/talosprimes.git
 ```
+
+> 💡 **Pour créer une clé SSH**, voir [GITHUB_SSH_KEY.md](./GITHUB_SSH_KEY.md)
 
 **8. Renommer la branche en 'main' :**
 ```bash
@@ -61,12 +70,20 @@ git push -u origin main
 4. Créez le repo
 5. **Puis exécutez les commandes ci-dessus**
 
-## 🔐 Personal Access Token
+## 🔐 Authentification GitHub
 
-Si GitHub vous demande un mot de passe :
+### Option 1 : Clé SSH (Recommandée)
+
+Suivez le guide : [GITHUB_SSH_KEY.md](./GITHUB_SSH_KEY.md)
+
+Une fois configuré, utilisez l'URL SSH : `git@github.com:VOTRE_USERNAME/talosprimes.git`
+
+### Option 2 : Personal Access Token
+
+Si GitHub vous demande un mot de passe (avec HTTPS) :
 1. Allez sur [github.com/settings/tokens](https://github.com/settings/tokens)
 2. Generate new token (classic)
 3. Cochez `repo`
 4. Generate
-5. **Copiez le token** et utilisez-le comme mot de passe
+5. **Copiez le token** et utilisez-le comme mot de passe lors du `git push`
 
