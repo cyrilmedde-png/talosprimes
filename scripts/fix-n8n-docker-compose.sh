@@ -80,15 +80,27 @@ if ! grep -q "WEBHOOK_URL" "$COMPOSE_FILE"; then
   sed -i "/N8N_HOST=/a\\$INDENT- WEBHOOK_URL=https://$DOMAIN/" "$COMPOSE_FILE"
 fi
 
-# Vérifier et corriger la section ports si elle expose 5678
-if grep -q "5678:5678" "$COMPOSE_FILE"; then
-  echo "  Correction du mapping de port (5678→443 pour HTTPS)..."
-  # Remplacer 5678:5678 par 443:5678 (port externe 443, interne 5678)
-  sed -i "s/5678:5678/443:5678/g" "$COMPOSE_FILE"
-fi
+# Pour HTTPS avec reverse proxy (Nginx), n8n ne doit PAS exposer de port sur le host
+# Nginx fera le reverse proxy vers le conteneur via le réseau Docker interne
 
-# Si la section ports n'existe pas mais qu'on est en HTTPS, on pourrait l'ajouter
-# Mais pour l'instant, on laisse l'utilisateur gérer cela si nécessaire
+# Vérifier et supprimer la section ports si elle existe
+if grep -q "ports:" "$COMPOSE_FILE" && grep -A 5 "ports:" "$COMPOSE_FILE" | grep -q "n8n"; then
+  echo "  Suppression du mapping de ports (HTTPS avec reverse proxy)..."
+  # Trouver la section n8n et supprimer les lignes ports
+  # On va utiliser une approche plus sûre : commenter les ports au lieu de les supprimer
+  sed -i '/^[[:space:]]*n8n:/,/^[[:space:]]*[a-z]/ {
+    /^[[:space:]]*ports:/d
+    /^[[:space:]]*-.*5678.*5678/d
+    /^[[:space:]]*-.*443.*5678/d
+  }' "$COMPOSE_FILE" || true
+  
+  # Alternative plus simple : supprimer toutes les lignes contenant "5678:5678" ou "443:5678"
+  sed -i '/5678:5678/d' "$COMPOSE_FILE"
+  sed -i '/443:5678/d' "$COMPOSE_FILE"
+  
+  # Supprimer la ligne "ports:" si elle est vide maintenant
+  sed -i '/^[[:space:]]*ports:[[:space:]]*$/,/^[[:space:]]*[a-z]/ { /^[[:space:]]*ports:[[:space:]]*$/d; }' "$COMPOSE_FILE"
+fi
 
 echo -e "${GREEN}✅ Fichier modifié${NC}"
 echo ""
