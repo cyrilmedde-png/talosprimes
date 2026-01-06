@@ -46,7 +46,47 @@ sudo ./configure-ssl.sh
 - DNS pointant vers votre serveur
 - Ports 80 et 443 ouverts
 
-### 3. `test-n8n.sh` - Test de la configuration n8n
+### 3. `configure-nginx-n8n.sh` - Configuration Nginx pour n8n
+
+Configure Nginx comme reverse proxy pour n8n avec support HTTPS.
+
+**Usage :**
+```bash
+cd /var/www/talosprimes/scripts
+sudo ./configure-nginx-n8n.sh
+```
+
+**Ce que fait le script :**
+- Détecte automatiquement le conteneur Docker n8n
+- Crée une configuration Nginx avec reverse proxy
+- Configure HTTPS si les certificats SSL existent
+- Configure les timeouts pour les longs workflows
+- Active et redémarre Nginx
+
+**Prérequis :**
+- Nginx installé
+- Conteneur Docker n8n démarré (ou sera créé plus tard)
+- Certificats SSL (optionnel, peut être ajouté après avec certbot)
+
+**Important :**
+- Le conteneur n8n ne doit **PAS** exposer de port sur le host
+- Nginx fait le reverse proxy vers le conteneur via le réseau Docker interne
+- Utilisez `fix-n8n-docker-compose.sh` pour supprimer les ports du docker-compose.yaml
+
+**Exemple complet :**
+```bash
+# 1. Configurer docker-compose.yaml (supprimer les ports)
+cd /var/www/talosprimes/scripts
+./fix-n8n-docker-compose.sh
+
+# 2. Configurer Nginx pour n8n
+sudo ./configure-nginx-n8n.sh
+
+# 3. Si SSL n'est pas encore configuré
+sudo certbot --nginx -d n8n.talosprimes.com
+```
+
+### 4. `test-n8n.sh` - Test de la configuration n8n
 
 Teste la connexion à n8n et vérifie que les workflows sont correctement configurés.
 
@@ -193,7 +233,7 @@ pm2 logs
 sudo netstat -tlnp | grep -E '3000|3001'
 ```
 
-### 4. Scripts de test n8n
+### 5. Scripts de test n8n
 
 Une suite complète de scripts pour tester et configurer l'intégration n8n.
 
@@ -207,6 +247,7 @@ Une suite complète de scripts pour tester et configurer l'intégration n8n.
 - `n8n-test-all.sh` - Test complet en une commande
 - `diagnostic-n8n.sh` - Diagnostic de la configuration n8n
 - `fix-n8n-complete.sh` - **Script automatique pour corriger tous les problèmes n8n Docker**
+- `fix-n8n-docker-compose.sh` - Corriger le fichier docker-compose.yaml pour supprimer les ports
 
 **Usage rapide :**
 ```bash
