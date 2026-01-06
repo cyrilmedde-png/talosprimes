@@ -41,10 +41,10 @@ export async function verifyPassword(
  */
 export function generateAccessToken(payload: JWTPayload): string {
   const secret = env.JWT_SECRET;
-  const expiresIn = env.JWT_EXPIRES_IN;
+  const expiresIn: string | number = env.JWT_EXPIRES_IN;
   
   const options: SignOptions = {
-    expiresIn,
+    expiresIn: expiresIn as string | number,
   };
   
   return jwt.sign(payload, secret, options);
@@ -55,10 +55,10 @@ export function generateAccessToken(payload: JWTPayload): string {
  */
 export function generateRefreshToken(payload: JWTPayload): string {
   const secret = env.JWT_REFRESH_SECRET;
-  const expiresIn = env.JWT_REFRESH_EXPIRES_IN;
+  const expiresIn: string | number = env.JWT_REFRESH_EXPIRES_IN;
   
   const options: SignOptions = {
-    expiresIn,
+    expiresIn: expiresIn as string | number,
   };
   
   return jwt.sign(payload, secret, options);
