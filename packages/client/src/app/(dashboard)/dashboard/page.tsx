@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-          <div className="bg-gray-800 overflow-hidden shadow rounded-lg border border-gray-700">
+          <div className="bg-gray-800/50 backdrop-blur-sm overflow-hidden shadow rounded-lg border border-gray-700/50">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -100,7 +100,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-gray-800 overflow-hidden shadow rounded-lg border border-gray-700">
+          <div className="bg-gray-800/50 backdrop-blur-sm overflow-hidden shadow rounded-lg border border-gray-700/50">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -122,7 +122,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-gray-800 overflow-hidden shadow rounded-lg border border-gray-700">
+          <div className="bg-gray-800/50 backdrop-blur-sm overflow-hidden shadow rounded-lg border border-gray-700/50">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -146,8 +146,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Clients List */}
-        <div className="bg-gray-800 shadow rounded-lg border border-gray-700">
-          <div className="px-4 py-5 sm:px-6 border-b border-gray-700">
+        <div className="bg-gray-800/50 backdrop-blur-sm shadow rounded-lg border border-gray-700/50">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-700/50">
             <h3 className="text-lg leading-6 font-medium text-white">Clients Finaux</h3>
             <p className="mt-1 max-w-2xl text-sm text-gray-400">
               Liste de tous vos clients
@@ -166,8 +166,8 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-700">
-                  <thead className="bg-gray-800">
+                <table className="min-w-full divide-y divide-gray-700/50">
+                  <thead className="bg-gray-800/30">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Email
@@ -180,9 +180,9 @@ export default function DashboardPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-gray-800 divide-y divide-gray-700">
+                  <tbody className="bg-transparent divide-y divide-gray-700/50">
                     {clients.map((client) => (
-                      <tr key={client.id} className="hover:bg-gray-700">
+                      <tr key={client.id} className="hover:bg-gray-800/30">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-white">{client.email}</div>
                         </td>

@@ -1,19 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { MagnifyingGlassIcon, BellIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 
 export default function TopBar() {
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <div className={`
-      sticky top-0 z-10 flex-shrink-0 bg-gray-900 shadow-lg transition-all duration-300
-      ${isCollapsed ? 'h-0 overflow-hidden' : 'h-16'}
-    `}>
+    <div
+      className={`
+        fixed top-0 left-0 right-0 z-30 bg-gray-900 shadow-lg transition-all duration-300 ease-in-out
+        ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
+      `}
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
       <div className="flex-1 px-4 flex justify-between items-center h-16">
         <div className="flex-1 flex">
           <div className="w-full flex md:ml-0">
@@ -46,23 +50,12 @@ export default function TopBar() {
             <BellIcon className="h-6 w-6" aria-hidden="true" />
           </button>
 
-          {/* Profil */}
+          {/* Rôle */}
           <div className="ml-3 relative">
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-white">{user?.email}</p>
-                <p className="text-xs text-gray-400 capitalize">{user?.role?.replace('_', ' ')}</p>
-              </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-400 capitalize">{user?.role?.replace('_', ' ')}</p>
             </div>
           </div>
-
-          {/* Bouton pour replier */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="ml-4 p-1 rounded-md text-gray-400 hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500"
-          >
-            <ChevronUpIcon className={`h-5 w-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
-          </button>
         </div>
       </div>
     </div>
