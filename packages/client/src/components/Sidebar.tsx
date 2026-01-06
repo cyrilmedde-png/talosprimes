@@ -40,7 +40,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
     <div
       className={`
         fixed inset-y-0 left-0 z-40 bg-gray-900 transform transition-all duration-300 ease-in-out
-        ${isCollapsed ? 'w-16' : 'w-64'}
+        ${isCollapsed ? 'w-16' : 'w-56'}
       `}
       onMouseEnter={() => handleToggle(false)}
       onMouseLeave={() => handleToggle(true)}

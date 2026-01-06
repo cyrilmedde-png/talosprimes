@@ -20,7 +20,7 @@ export default function DashboardLayout({
       {/* Main content */}
       <div 
         className="flex flex-col flex-1 overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ marginLeft: sidebarCollapsed ? '4rem' : '16rem' }}
+        style={{ marginLeft: sidebarCollapsed ? '4rem' : '14rem' }}
       >
         {/* Top bar */}
         <TopBar onVisibilityChange={setTopBarVisible} sidebarCollapsed={sidebarCollapsed} />
@@ -35,9 +35,9 @@ export default function DashboardLayout({
             <div 
               className="mx-auto transition-all duration-300"
               style={{ 
-                maxWidth: sidebarCollapsed ? '1200px' : 'calc(100% - 20rem)',
+                maxWidth: '1200px',
                 width: '100%',
-                paddingLeft: '2rem',
+                paddingLeft: sidebarCollapsed ? '2rem' : '4rem',
                 paddingRight: '2rem',
               }}
             >

@@ -27,13 +27,13 @@ export default function TopBar({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [onVisibilityChange]);
 
-  const menuWidth = sidebarCollapsed ? 'calc(100% - 8rem)' : 'calc(100% - 20rem)';
-  const menuLeft = sidebarCollapsed ? '4rem' : '16rem';
+  const menuWidth = sidebarCollapsed ? 'calc(100% - 8rem)' : 'calc(100% - 18rem)';
+  const menuLeft = sidebarCollapsed ? '4rem' : '14rem';
 
   return (
     <div
       className={`
-        fixed top-0 z-30 bg-gray-900 shadow-lg transition-all duration-300 ease-in-out
+        fixed top-0 z-30 bg-gray-900/95 backdrop-blur-sm transition-all duration-300 ease-in-out
         ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}
       `}
       style={{ 
