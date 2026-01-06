@@ -78,8 +78,20 @@ export default function InscriptionPage() {
         }),
       });
 
+      // Lire la réponse même en cas d'erreur pour avoir le message
+      const responseData = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error('Erreur lors de l\'envoi du formulaire');
+        // Extraire le message d'erreur de la réponse
+        const errorMessage = responseData.message || 
+                            responseData.error || 
+                            `Erreur ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      // Vérifier si la réponse indique un succès
+      if (responseData.success === false || responseData.error) {
+        throw new Error(responseData.message || responseData.error || 'Une erreur est survenue');
       }
 
       setIsSuccess(true);
@@ -91,6 +103,7 @@ export default function InscriptionPage() {
         email: '',
       });
     } catch (err) {
+      console.error('Erreur lors de l\'envoi:', err);
       setError(
         err instanceof Error 
           ? err.message 
