@@ -47,13 +47,20 @@ fi
 
 # Obtenir le réseau Docker utilisé par le conteneur
 NETWORK_NAME=""
+CONTAINER_IP=""
 if docker ps -a --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
   NETWORK_NAME=$(docker inspect "$CONTAINER_NAME" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' | head -1)
+  # Obtenir l'IP du conteneur dans le réseau
+  CONTAINER_IP=$(docker inspect "$CONTAINER_NAME" --format "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" | head -1)
   echo -e "${BLUE}📋 Réseau Docker détecté : $NETWORK_NAME${NC}"
+  if [ -n "$CONTAINER_IP" ]; then
+    echo -e "${BLUE}📋 IP du conteneur : $CONTAINER_IP${NC}"
+  fi
 else
   # Par défaut, utiliser le réseau créé par docker-compose
   NETWORK_NAME="root_default"
   echo -e "${BLUE}📋 Utilisation du réseau par défaut : $NETWORK_NAME${NC}"
+  echo -e "${YELLOW}⚠️  Conteneur non trouvé, utilisation du DNS Docker interne${NC}"
 fi
 
 # Vérifier si le certificat SSL existe
@@ -140,7 +147,8 @@ server {
 
     # Reverse proxy vers n8n
     location / {
-        proxy_pass http://$CONTAINER_NAME:$CONTAINER_PORT;
+        set \$backend "$PROXY_PASS_TARGET";
+        proxy_pass \$backend;
         proxy_http_version 1.1;
         
         proxy_set_header Upgrade \$http_upgrade;
@@ -167,7 +175,8 @@ server {
 
     # Webhook endpoint (peut nécessiter des configurations spéciales)
     location /webhook/ {
-        proxy_pass http://$CONTAINER_NAME:$CONTAINER_PORT/webhook/;
+        set \$backend "$PROXY_PASS_TARGET";
+        proxy_pass \$backend/webhook/;
         proxy_http_version 1.1;
         
         proxy_set_header Host \$host;
