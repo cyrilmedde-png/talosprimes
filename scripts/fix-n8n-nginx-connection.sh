@@ -77,13 +77,20 @@ BACKUP_FILE="${NGINX_CONFIG}.backup.$(date +%Y%m%d-%H%M%S)"
 cp "$NGINX_CONFIG" "$BACKUP_FILE"
 echo -e "${GREEN}✅ Backup créé : $BACKUP_FILE${NC}"
 
-# Remplacer le nom du conteneur par l'IP
-sed -i "s|http://${CONTAINER_NAME}:5678|http://${CONTAINER_IP}:5678|g" "$NGINX_CONFIG"
-sed -i "s|set \$backend \"http://${CONTAINER_NAME}:5678\"|set \$backend \"http://${CONTAINER_IP}:5678\"|g" "$NGINX_CONFIG"
+# Remplacer toutes les occurrences du nom du conteneur par l'IP
+sed -i "s|${CONTAINER_NAME}|${CONTAINER_IP}|g" "$NGINX_CONFIG"
 
-# Si on utilise une variable $backend, il faut aussi la mettre à jour dans les sections
-# Mais on peut aussi simplifier en utilisant directement l'IP
+# Mettre à jour la variable $backend si elle existe
 sed -i "s|set \$backend \".*\"|set \$backend \"http://${CONTAINER_IP}:5678\"|g" "$NGINX_CONFIG"
+
+# Simplifier en remplaçant directement les proxy_pass avec la variable par l'IP directe
+# Remplacer "set $backend ... proxy_pass $backend" par "proxy_pass http://IP:5678"
+sed -i "s|proxy_pass \$backend|proxy_pass http://${CONTAINER_IP}:5678|g" "$NGINX_CONFIG"
+sed -i "s|proxy_pass \$backend/|proxy_pass http://${CONTAINER_IP}:5678/|g" "$NGINX_CONFIG"
+
+# Afficher les lignes modifiées pour vérification
+echo "Configuration mise à jour :"
+grep -n "proxy_pass\|set \$backend" "$NGINX_CONFIG" | head -5 | sed 's/^/  /'
 
 echo -e "${GREEN}✅ Configuration mise à jour avec l'IP : $CONTAINER_IP${NC}"
 
