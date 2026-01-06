@@ -41,6 +41,9 @@ if [ "$HTTP_CODE" = "200" ]; then
   # Essayer plusieurs chemins possibles
   TOKEN=$(echo "$BODY" | jq -r '.data.tokens.accessToken // .data.accessToken // .tokens.accessToken // .accessToken' 2>/dev/null)
   
+  # Nettoyer le token (supprimer les espaces et retours à la ligne)
+  TOKEN=$(echo "$TOKEN" | tr -d '\n\r ')
+  
   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
     echo -e "${RED}❌ Erreur: Token non trouvé dans la réponse${NC}" >&2
     echo -e "${YELLOW}Structure de la réponse :${NC}" >&2
@@ -55,7 +58,8 @@ if [ "$HTTP_CODE" = "200" ]; then
   fi
   
   # Toujours afficher le token sur stdout (pour capture dans variables)
-  echo "$TOKEN"
+  # Sans retour à la ligne pour éviter les problèmes
+  echo -n "$TOKEN"
   exit 0
 else
   echo -e "${RED}❌ Erreur HTTP $HTTP_CODE${NC}" >&2

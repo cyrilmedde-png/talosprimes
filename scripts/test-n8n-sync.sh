@@ -24,23 +24,23 @@ echo ""
 # Étape 1: Obtenir un token
 echo -e "${BLUE}📋 Étape 1: Connexion à l'API...${NC}"
 
-# Capturer la sortie complète pour debug
-TOKEN_OUTPUT=$(./get-token.sh 2>&1)
-TOKEN=$(echo "$TOKEN_OUTPUT" | tail -n1)
+# Obtenir le token directement depuis l'API
+API_URL="${API_URL:-https://api.talosprimes.com}"
+RESPONSE=$(curl -s -X POST "$API_URL/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"groupemclem@gmail.com","password":"21052024_Aa!"}')
 
-# Debug : afficher ce qui a été capturé
-if [ -z "$TOKEN" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
+TOKEN=$(echo "$RESPONSE" | jq -r '.data.tokens.accessToken // .data.accessToken // empty' 2>/dev/null)
+
+# Nettoyer le token (supprimer les espaces et retours à la ligne)
+TOKEN=$(echo "$TOKEN" | tr -d '\n\r ')
+
+# Vérifier que le token est valide
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
   echo -e "${RED}❌ Impossible d'obtenir un token valide${NC}"
   echo ""
-  echo -e "${YELLOW}Debug - Sortie complète :${NC}"
-  echo "$TOKEN_OUTPUT"
-  echo ""
-  echo -e "${YELLOW}Test manuel de connexion :${NC}"
-  API_URL="${API_URL:-https://api.talosprimes.com}"
-  curl -s -X POST "$API_URL/api/auth/login" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"groupemclem@gmail.com","password":"21052024_Aa!"}' \
-    | jq '.' || echo "Erreur lors de la requête"
+  echo -e "${YELLOW}Réponse de l'API :${NC}"
+  echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
   exit 1
 fi
 
