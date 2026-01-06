@@ -193,9 +193,29 @@ pm2 logs
 sudo netstat -tlnp | grep -E '3000|3001'
 ```
 
+### 4. Scripts de test n8n
+
+Une suite complète de scripts pour tester et configurer l'intégration n8n.
+
+**Scripts disponibles :**
+- `get-token.sh` - Obtenir un token JWT automatiquement
+- `test-n8n-connection.sh` - Tester la connexion à n8n
+- `list-workflows.sh` - Lister les workflows configurés
+- `create-workflow-link.sh` - Créer un WorkflowLink dans la base de données
+- `test-workflow-trigger.sh` - Tester le déclenchement d'un workflow
+- `n8n-test-all.sh` - Test complet en une commande
+
+**Usage rapide :**
+```bash
+cd /var/www/talosprimes/scripts
+./n8n-test-all.sh
+```
+
+> 📚 Voir [README_N8N.md](./README_N8N.md) pour la documentation complète
+
 ## 📝 Notes importantes
 
-- Les scripts doivent être exécutés avec `sudo`
+- Les scripts doivent être exécutés avec `sudo` (sauf les scripts n8n)
 - Assurez-vous que les DNS sont configurés avant de lancer `configure-ssl.sh`
 - Après configuration SSL, mettez à jour les variables d'environnement pour utiliser HTTPS
 - Les certificats SSL sont valides pour 90 jours et se renouvellent automatiquement
