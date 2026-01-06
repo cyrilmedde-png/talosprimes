@@ -22,3 +22,20 @@ export type WorkflowStatus = 'actif' | 'inactif';
 
 export type EventExecutionStatus = 'succes' | 'erreur' | 'en_attente';
 
+// Types pour les entités
+export interface ClientFinal {
+  id: string;
+  tenantId: string;
+  type: ClientFinalType;
+  raisonSociale?: string | null;
+  nom?: string | null;
+  prenom?: string | null;
+  email: string;
+  telephone?: string | null;
+  adresse?: string | null;
+  tags: string[];
+  statut: ClientFinalStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+

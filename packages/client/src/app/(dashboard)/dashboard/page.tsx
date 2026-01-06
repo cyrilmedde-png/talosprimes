@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, isAuthenticated, clearTokens } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth-store';
 import type { User } from '@/lib/auth';
+import type { ClientFinal } from '@talosprimes/shared';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [clients, setClients] = useState<unknown[]>([]);
+  const { user, setUser, clearAuth } = useAuthStore();
+  const [clients, setClients] = useState<ClientFinal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +36,7 @@ export default function DashboardPage() {
 
       // Charger les clients
       const clientsData = await apiClient.clients.list();
-      setClients(clientsData.data.clients);
+      setClients(clientsData.data.clients as ClientFinal[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {
@@ -47,6 +49,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     clearTokens();
+    clearAuth();
     router.push('/login');
   };
 
@@ -72,25 +75,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">TalosPrimes</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">{user?.email}</span>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-red-600 hover:text-red-700"
-            >
-              Déconnexion
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
           <p className="mt-2 text-gray-600">
@@ -141,18 +126,26 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {clients.map((client: any) => (
+                    {clients.map((client) => (
                       <tr key={client.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {client.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {client.type}
+                          {client.type === 'b2b' ? 'B2B' : 'B2C'}
+                          {client.type === 'b2b' && client.raisonSociale && (
+                            <span className="ml-2 text-gray-400">({client.raisonSociale})</span>
+                          )}
+                          {client.type === 'b2c' && client.nom && client.prenom && (
+                            <span className="ml-2 text-gray-400">({client.prenom} {client.nom})</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             client.statut === 'actif' 
                               ? 'bg-green-100 text-green-800' 
+                              : client.statut === 'suspendu'
+                              ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}>
                             {client.statut}
@@ -166,7 +159,6 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </main>
     </div>
   );
 }
