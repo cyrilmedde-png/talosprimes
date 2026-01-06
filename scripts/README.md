@@ -201,14 +201,23 @@ Une suite complète de scripts pour tester et configurer l'intégration n8n.
 - `get-token.sh` - Obtenir un token JWT automatiquement
 - `test-n8n-connection.sh` - Tester la connexion à n8n
 - `list-workflows.sh` - Lister les workflows configurés
-- `create-workflow-link.sh` - Créer un WorkflowLink dans la base de données
+- `create-workflow-link-prisma.sh` - Créer un WorkflowLink dans la base de données (utilise Prisma)
 - `test-workflow-trigger.sh` - Tester le déclenchement d'un workflow
+- `test-n8n-sync.sh` - Test complet de synchronisation
 - `n8n-test-all.sh` - Test complet en une commande
+- `diagnostic-n8n.sh` - Diagnostic de la configuration n8n
+- `fix-n8n-complete.sh` - **Script automatique pour corriger tous les problèmes n8n Docker**
 
 **Usage rapide :**
 ```bash
 cd /var/www/talosprimes/scripts
 ./n8n-test-all.sh
+```
+
+**Fix automatique n8n (si URL en localhost) :**
+```bash
+cd /var/www/talosprimes/scripts
+./fix-n8n-complete.sh
 ```
 
 > 📚 Voir [README_N8N.md](./README_N8N.md) pour la documentation complète
