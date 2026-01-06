@@ -54,12 +54,37 @@ fi
 echo ""
 echo -e "${BLUE}🔍 Récupération des informations du tenant...${NC}"
 
-# Récupérer le tenant ID
-TENANT_ID=$(psql "$DATABASE_URL" -t -c "SELECT id FROM tenants WHERE nom_entreprise = 'TalosPrimes Admin' LIMIT 1;" 2>/dev/null | xargs || echo "")
+# Essayer d'abord avec l'ID fixe du seed
+TENANT_ID=$(psql "$DATABASE_URL" -t -c "SELECT id FROM tenants WHERE id = '00000000-0000-0000-0000-000000000001' LIMIT 1;" 2>/dev/null | xargs || echo "")
 
+# Si pas trouvé, chercher par nom
 if [ -z "$TENANT_ID" ]; then
-  echo -e "${RED}❌ Erreur: Tenant 'TalosPrimes Admin' non trouvé${NC}"
-  exit 1
+  TENANT_ID=$(psql "$DATABASE_URL" -t -c "SELECT id FROM tenants WHERE nom_entreprise = 'TalosPrimes Admin' LIMIT 1;" 2>/dev/null | xargs || echo "")
+fi
+
+# Si toujours pas trouvé, lister tous les tenants
+if [ -z "$TENANT_ID" ]; then
+  echo -e "${YELLOW}⚠️  Tenant 'TalosPrimes Admin' non trouvé${NC}"
+  echo ""
+  echo -e "${BLUE}Tenants disponibles dans la base de données :${NC}"
+  psql "$DATABASE_URL" -c "SELECT id, nom_entreprise, email_contact FROM tenants LIMIT 10;" 2>/dev/null || echo "Erreur lors de la requête"
+  echo ""
+  read -p "Entrez le Tenant ID manuellement (ou appuyez sur Entrée pour annuler) : " MANUAL_TENANT_ID
+  
+  if [ -z "$MANUAL_TENANT_ID" ]; then
+    echo "Annulé."
+    exit 0
+  fi
+  
+  # Vérifier que le tenant existe
+  TENANT_EXISTS=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM tenants WHERE id = '$MANUAL_TENANT_ID';" 2>/dev/null | xargs || echo "0")
+  
+  if [ "$TENANT_EXISTS" = "0" ]; then
+    echo -e "${RED}❌ Erreur: Tenant ID '$MANUAL_TENANT_ID' n'existe pas${NC}"
+    exit 1
+  fi
+  
+  TENANT_ID="$MANUAL_TENANT_ID"
 fi
 
 echo "  Tenant ID: $TENANT_ID"
