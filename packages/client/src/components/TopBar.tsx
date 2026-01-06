@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -9,11 +9,25 @@ export default function TopBar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // Afficher le menu si la souris est dans les 50px du haut
+      if (e.clientY < 50) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   return (
     <div
       className={`
         fixed top-0 left-0 right-0 z-30 bg-gray-900 shadow-lg transition-all duration-300 ease-in-out
-        ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
+        ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}
       `}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}

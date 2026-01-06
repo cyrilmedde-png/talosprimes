@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-          <div className="bg-gray-800/50 backdrop-blur-sm overflow-hidden shadow rounded-lg border border-gray-700/50">
+          <div className="bg-gray-800/20 backdrop-blur-md overflow-hidden shadow-lg rounded-lg border border-gray-700/30">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -100,7 +100,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-gray-800/50 backdrop-blur-sm overflow-hidden shadow rounded-lg border border-gray-700/50">
+          <div className="bg-gray-800/20 backdrop-blur-md overflow-hidden shadow-lg rounded-lg border border-gray-700/30">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -146,8 +146,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Clients List */}
-        <div className="bg-gray-800/50 backdrop-blur-sm shadow rounded-lg border border-gray-700/50">
-          <div className="px-4 py-5 sm:px-6 border-b border-gray-700/50">
+        <div className="bg-gray-800/20 backdrop-blur-md shadow-lg rounded-lg border border-gray-700/30">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-700/30">
             <h3 className="text-lg leading-6 font-medium text-white">Clients Finaux</h3>
             <p className="mt-1 max-w-2xl text-sm text-gray-400">
               Liste de tous vos clients
@@ -166,8 +166,8 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-700/50">
-                  <thead className="bg-gray-800/30">
+                <table className="min-w-full divide-y divide-gray-700/30">
+                  <thead className="bg-gray-800/20">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Email
@@ -180,9 +180,9 @@ export default function DashboardPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-transparent divide-y divide-gray-700/50">
+                  <tbody className="bg-transparent divide-y divide-gray-700/30">
                     {clients.map((client) => (
-                      <tr key={client.id} className="hover:bg-gray-800/30">
+                      <tr key={client.id} className="hover:bg-gray-800/20">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-white">{client.email}</div>
                         </td>
