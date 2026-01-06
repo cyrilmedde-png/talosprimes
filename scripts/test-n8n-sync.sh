@@ -30,7 +30,23 @@ RESPONSE=$(curl -s -X POST "$API_URL/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"groupemclem@gmail.com","password":"21052024_Aa!"}')
 
+# Vérifier d'abord si la réponse est valide
+if ! echo "$RESPONSE" | jq -e '.success == true' >/dev/null 2>&1; then
+  echo -e "${RED}❌ Erreur: La réponse de l'API n'indique pas un succès${NC}"
+  echo ""
+  echo -e "${YELLOW}Réponse de l'API :${NC}"
+  echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+  exit 1
+fi
+
+# Extraire le token (essayer plusieurs chemins possibles)
 TOKEN=$(echo "$RESPONSE" | jq -r '.data.tokens.accessToken // .data.accessToken // empty' 2>/dev/null)
+
+# Si jq a échoué, essayer avec grep/sed comme fallback
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] || [ "$TOKEN" = "empty" ]; then
+  # Fallback: extraire avec grep et sed
+  TOKEN=$(echo "$RESPONSE" | grep -o '"accessToken"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
+fi
 
 # Nettoyer le token (supprimer les espaces et retours à la ligne)
 TOKEN=$(echo "$TOKEN" | tr -d '\n\r ')
@@ -39,6 +55,7 @@ TOKEN=$(echo "$TOKEN" | tr -d '\n\r ')
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
   echo -e "${RED}❌ Impossible d'obtenir un token valide${NC}"
   echo ""
+  echo -e "${YELLOW}Debug - Token extrait : '${TOKEN}'${NC}"
   echo -e "${YELLOW}Réponse de l'API :${NC}"
   echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
   exit 1

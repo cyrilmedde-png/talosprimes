@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
+    "lint": "echo 'No linting configured for shared'",
     "clean": "rm -rf dist",
     "prepublishOnly": "pnpm build"
   },
