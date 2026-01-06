@@ -109,15 +109,31 @@ recreate_container() {
   )
   
   # Ajouter les volumes si existants
-  if [ -n "$volumes" ] && [ -d "$volumes" ]; then
-    docker_cmd+=("-v" "${volumes}:/home/node/.n8n")
-    echo "  Volume monté: $volumes -> /home/node/.n8n"
+  if [ -n "$volumes" ]; then
+    # Vérifier si c'est un volume Docker ou un chemin direct
+    if docker volume ls --format '{{.Name}}' | grep -q "^$(basename "$volumes" | tr '_' '-')$" 2>/dev/null; then
+      # C'est un volume Docker, utiliser le nom du volume
+      local volume_name=$(basename "$volumes" | tr '_' '-')
+      docker_cmd+=("-v" "${volume_name}:/home/node/.n8n")
+      echo "  Volume Docker monté: $volume_name -> /home/node/.n8n"
+    elif [ -d "$volumes" ]; then
+      # C'est un chemin direct
+      docker_cmd+=("-v" "${volumes}:/home/node/.n8n")
+      echo "  Volume monté: $volumes -> /home/node/.n8n"
+    else
+      echo -e "${YELLOW}  ⚠️  Volume $volumes non trouvé, création sans volume${NC}"
+    fi
   fi
   
   # Ajouter le réseau si ce n'est pas bridge par défaut
-  if [ "$network" != "bridge" ]; then
-    docker_cmd+=("--network" "$network")
-    echo "  Réseau: $network"
+  if [ "$network" != "bridge" ] && [ "$network" != "" ]; then
+    # Vérifier que le réseau existe
+    if docker network ls --format '{{.Name}}' | grep -q "^${network}$"; then
+      docker_cmd+=("--network" "$network")
+      echo "  Réseau: $network"
+    else
+      echo -e "${YELLOW}  ⚠️  Réseau $network non trouvé, utilisation de bridge${NC}"
+    fi
   fi
   
   # Ajouter les variables d'environnement
@@ -131,9 +147,24 @@ recreate_container() {
     "docker.n8n.io/n8nio/n8n"
   )
   
-  # Exécuter la commande
-  if ! "${docker_cmd[@]}" >/dev/null 2>&1; then
-    error_exit "Erreur lors de la création du conteneur. Vérifiez les logs avec: docker logs $CONTAINER_NAME"
+  # Exécuter la commande et capturer la sortie
+  echo "  Exécution de la commande Docker..."
+  local output
+  local exit_code
+  
+  output=$("${docker_cmd[@]}" 2>&1)
+  exit_code=$?
+  
+  if [ $exit_code -ne 0 ]; then
+    echo -e "${RED}❌ Erreur lors de la création du conteneur${NC}"
+    echo ""
+    echo "Sortie Docker:"
+    echo "$output" | sed 's/^/  /'
+    echo ""
+    echo "Commande exécutée:"
+    echo "  ${docker_cmd[*]}"
+    echo ""
+    error_exit "Impossible de créer le conteneur. Vérifiez les erreurs ci-dessus."
   fi
   
   echo -e "${GREEN}✅ Conteneur créé${NC}"
