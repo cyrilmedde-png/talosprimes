@@ -1,148 +1,338 @@
-# Commandes VPS - Mise à jour depuis GitHub
+# Guide de mise à jour du serveur VPS
 
-## 📥 Récupérer les changements depuis GitHub
+Ce guide vous permet de mettre à jour votre serveur avec les dernières modifications du code.
+
+---
+
+## 🚀 Mise à jour rapide (Script automatique)
+
+### Option 1 : Script complet (recommandé)
 
 ```bash
-# Aller dans le dossier du projet
 cd /var/www/talosprimes
-
-# Récupérer les derniers changements
 git pull origin main
+cd packages/client && pnpm install && pnpm build
+cd ../../packages/platform && pnpm install && pnpm build
+cd ../..
+pm2 restart all
 ```
 
-## 📦 Installer/Mettre à jour les dépendances
+### Option 2 : Commande unique
 
 ```bash
-# Installer les nouvelles dépendances
-pnpm install
-```
-
-## 🗄️ Mettre à jour la base de données
-
-```bash
-# Aller dans le package platform
-cd packages/platform
-
-# Générer le client Prisma (si le schema a changé)
-pnpm db:generate
-
-# Appliquer les changements de schema (si nécessaire)
-pnpm db:push
-```
-
-## 🌱 Créer l'utilisateur admin
-
-```bash
-# Toujours dans packages/platform
-# Exécuter le script de seed pour créer l'utilisateur admin
-pnpm db:seed
-```
-
-## 🔄 Redémarrer l'application
-
-```bash
-# Si vous utilisez PM2
-pm2 restart talosprimes-api
-
-# OU si vous démarrez manuellement
-cd /var/www/talosprimes/packages/platform
-pnpm build
-pnpm start
-```
-
-## ✅ Vérifier que tout fonctionne
-
-```bash
-# Tester le health check
-curl http://localhost:3001/health
-
-# Devrait retourner : {"status":"ok","database":"connected"}
+cd /var/www/talosprimes && git pull origin main && cd packages/client && pnpm install && pnpm build && cd ../../packages/platform && pnpm install && pnpm build && cd ../.. && pm2 restart all
 ```
 
 ---
 
-## 📋 Checklist complète (copier-coller)
+## 📋 Mise à jour étape par étape (avec vérifications)
+
+### Étape 1 : Récupérer les dernières modifications
 
 ```bash
-# 1. Récupérer les changements
 cd /var/www/talosprimes
 git pull origin main
-
-# 2. Installer les dépendances
-pnpm install
-
-# 3. Mettre à jour Prisma
-cd packages/platform
-pnpm db:generate
-pnpm db:push
-
-# 4. Créer l'utilisateur admin
-pnpm db:seed
-
-# 5. Build (si nécessaire)
-pnpm build
-
-# 6. Redémarrer avec PM2
-pm2 restart talosprimes-api
-
-# OU démarrer manuellement
-# pnpm start
 ```
 
----
-
-## 🔍 En cas d'erreur
-
-### Erreur "git pull" - Conflits
+Si vous avez des modifications locales qui entrent en conflit :
 
 ```bash
-# Si vous avez des modifications locales
+# Sauvegarder vos modifications locales
 git stash
+
+# Récupérer les modifications
 git pull origin main
+
+# Appliquer vos modifications (si nécessaire)
 git stash pop
 ```
 
-### Erreur "pnpm install" - Dépendances
+### Étape 2 : Installer les nouvelles dépendances (si nécessaire)
 
+**Backend :**
 ```bash
-# Nettoyer et réinstaller
-rm -rf node_modules
+cd /var/www/talosprimes/packages/platform
 pnpm install
 ```
 
-### Erreur Prisma
+**Frontend :**
+```bash
+cd /var/www/talosprimes/packages/client
+pnpm install
+```
+
+**Shared (si nécessaire) :**
+```bash
+cd /var/www/talosprimes/packages/shared
+pnpm install
+```
+
+### Étape 3 : Rebuilder les applications
+
+**Frontend (obligatoire si fichiers changés) :**
+```bash
+cd /var/www/talosprimes/packages/client
+pnpm build
+```
+
+**Backend (obligatoire si fichiers changés) :**
+```bash
+cd /var/www/talosprimes/packages/platform
+pnpm build
+```
+
+**Shared (si nécessaire) :**
+```bash
+cd /var/www/talosprimes/packages/shared
+pnpm build
+```
+
+### Étape 4 : Appliquer les migrations de base de données (si nécessaire)
 
 ```bash
-# Régénérer le client
-pnpm db:generate
+cd /var/www/talosprimes/packages/platform
+pnpm db:push
+# ou
+pnpm db:migrate
+```
 
-# Vérifier la connection string dans .env
-cat .env | grep DATABASE_URL
+### Étape 5 : Redémarrer les services PM2
+
+```bash
+# Redémarrer tous les services
+pm2 restart all
+
+# Ou redémarrer individuellement
+pm2 restart talosprimes-platform
+pm2 restart talosprimes-client
+
+# Vérifier le statut
+pm2 status
+
+# Voir les logs
+pm2 logs
 ```
 
 ---
 
-## 🎯 Après la mise à jour
+## 🔍 Vérifications après mise à jour
 
-Une fois tout mis à jour, vous pouvez :
+### 1. Vérifier que les services sont démarrés
 
-1. **Tester le login** :
 ```bash
-curl -X POST http://localhost:3001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "groupemclem@gmail.com",
-    "password": "21052024_Aa!"
-  }'
+pm2 status
 ```
 
-2. **Vérifier les routes** :
-```bash
-# Health check
-curl http://localhost:3001/health
+Vous devriez voir :
+- `talosprimes-platform` : `online`
+- `talosprimes-client` : `online`
 
-# Test n8n (avec token)
-curl -X GET http://localhost:3001/api/n8n/test \
-  -H "Authorization: Bearer YOUR_TOKEN"
+### 2. Vérifier les logs
+
+```bash
+# Logs en temps réel
+pm2 logs
+
+# Logs spécifiques
+pm2 logs talosprimes-platform
+pm2 logs talosprimes-client
 ```
 
+### 3. Tester l'API
+
+```bash
+curl https://api.talosprimes.com/health
+```
+
+Réponse attendue :
+```json
+{"status":"ok","database":"connected"}
+```
+
+### 4. Tester le frontend
+
+Ouvrez dans votre navigateur :
+- `https://talosprimes.com` (doit afficher le frontend)
+- `https://talosprimes.com/inscription` (nouveau formulaire)
+
+### 5. Vérifier Nginx
+
+```bash
+sudo nginx -t
+sudo systemctl status nginx
+```
+
+---
+
+## 🐛 En cas de problème
+
+### Erreur lors du git pull
+
+```bash
+# Annuler les modifications locales
+git reset --hard HEAD
+
+# Ou sauvegarder et forcer
+git stash
+git pull origin main
+```
+
+### Erreur lors du build
+
+```bash
+# Nettoyer et rebuilder
+cd /var/www/talosprimes/packages/client
+rm -rf .next node_modules
+pnpm install
+pnpm build
+
+# Même chose pour le backend
+cd ../platform
+rm -rf dist node_modules
+pnpm install
+pnpm build
+```
+
+### Service qui ne démarre pas
+
+```bash
+# Arrêter tous les services
+pm2 stop all
+
+# Supprimer et recréer
+pm2 delete all
+pm2 start ecosystem.config.js
+
+# Ou manuellement
+cd /var/www/talosprimes/packages/platform
+pm2 start "pnpm start" --name talosprimes-platform
+
+cd ../client
+pm2 start "pnpm start" --name talosprimes-client
+```
+
+### Port déjà utilisé
+
+```bash
+# Trouver le processus qui utilise le port
+sudo lsof -i :3000  # Frontend
+sudo lsof -i :3001  # Backend
+
+# Tuer le processus
+sudo kill -9 <PID>
+
+# Redémarrer PM2
+pm2 restart all
+```
+
+---
+
+## 📝 Script de mise à jour automatique
+
+Créez un script pour automatiser la mise à jour :
+
+```bash
+#!/bin/bash
+# /var/www/talosprimes/update.sh
+
+set -e
+
+echo "🔄 Mise à jour du serveur TalosPrimes..."
+
+cd /var/www/talosprimes
+
+echo "📥 Récupération des modifications..."
+git pull origin main
+
+echo "📦 Installation des dépendances..."
+cd packages/client && pnpm install
+cd ../platform && pnpm install
+cd ../shared && pnpm install
+
+echo "🏗️  Build des applications..."
+cd ../client && pnpm build
+cd ../platform && pnpm build
+
+echo "🔄 Redémarrage des services..."
+pm2 restart all
+
+echo "✅ Mise à jour terminée !"
+pm2 status
+```
+
+Rendez-le exécutable :
+
+```bash
+chmod +x /var/www/talosprimes/update.sh
+```
+
+Utilisation :
+
+```bash
+cd /var/www/talosprimes
+./update.sh
+```
+
+---
+
+## 🎯 Commandes rapides
+
+### Mise à jour complète (une commande)
+
+```bash
+cd /var/www/talosprimes && git pull origin main && cd packages/client && pnpm install && pnpm build && cd ../platform && pnpm install && pnpm build && cd ../.. && pm2 restart all && pm2 status
+```
+
+### Rebuild frontend uniquement
+
+```bash
+cd /var/www/talosprimes/packages/client && pnpm build && pm2 restart talosprimes-client
+```
+
+### Rebuild backend uniquement
+
+```bash
+cd /var/www/talosprimes/packages/platform && pnpm build && pm2 restart talosprimes-platform
+```
+
+### Redémarrer tous les services
+
+```bash
+pm2 restart all
+```
+
+---
+
+## 📅 Mise à jour automatique (Cron - Optionnel)
+
+Pour mettre à jour automatiquement tous les jours à 3h du matin :
+
+```bash
+# Éditer le crontab
+crontab -e
+
+# Ajouter cette ligne
+0 3 * * * cd /var/www/talosprimes && git pull origin main && cd packages/client && pnpm install && pnpm build && cd ../platform && pnpm install && pnpm build && cd ../.. && pm2 restart all
+```
+
+---
+
+## ✅ Checklist de mise à jour
+
+- [ ] Git pull réussi
+- [ ] Dépendances installées
+- [ ] Build frontend réussi
+- [ ] Build backend réussi
+- [ ] Services PM2 redémarrés
+- [ ] API répond (health check)
+- [ ] Frontend accessible
+- [ ] Pas d'erreurs dans les logs
+
+---
+
+## 💡 Astuces
+
+- Toujours vérifier les logs après une mise à jour : `pm2 logs`
+- En cas de doute, redémarrer tous les services : `pm2 restart all`
+- Garder une sauvegarde de la base de données avant les migrations importantes
+- Tester dans un environnement de staging si possible
