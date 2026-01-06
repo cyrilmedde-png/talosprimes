@@ -85,6 +85,9 @@ cat > "$NGINX_CONFIG" <<EOF
 # Conteneur: $CONTAINER_NAME
 # Généré le: $(date)
 
+# Resolver DNS Docker interne (127.0.0.11 est le DNS interne de Docker)
+resolver 127.0.0.11 valid=30s;
+
 server {
     listen 80;
     listen [::]:80;
@@ -97,7 +100,8 @@ server {
 
     # Fallback si pas de SSL
     location / {
-        proxy_pass http://$CONTAINER_NAME:$CONTAINER_PORT;
+        set \$backend "$PROXY_PASS_TARGET";
+        proxy_pass \$backend;
         proxy_http_version 1.1;
         
         proxy_set_header Upgrade \$http_upgrade;
