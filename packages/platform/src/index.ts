@@ -1,0 +1,89 @@
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
+import { env } from './config/env.js';
+import { prisma } from './config/database.js';
+
+// Créer l'instance Fastify
+const fastify = Fastify({
+  logger: {
+    level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+    transport:
+      env.NODE_ENV === 'development'
+        ? {
+            target: 'pino-pretty',
+            options: {
+              translateTime: 'HH:MM:ss Z',
+              ignore: 'pid,hostname',
+            },
+          }
+        : undefined,
+  },
+});
+
+// Plugins de sécurité
+await fastify.register(helmet, {
+  contentSecurityPolicy: false, // Désactivé car on gère CORS séparément
+});
+
+// CORS - Autoriser uniquement le domaine frontend
+await fastify.register(cors, {
+  origin: env.NODE_ENV === 'production' 
+    ? env.CORS_ORIGIN || 'https://app.votredomaine.com'
+    : true, // En dev, autoriser tout
+  credentials: true,
+});
+
+// Rate limiting
+await fastify.register(rateLimit, {
+  max: 100, // 100 requêtes
+  timeWindow: '1 minute', // par minute
+});
+
+// Route de santé (health check)
+fastify.get('/health', async () => {
+  // Vérifier la connexion DB
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { status: 'ok', database: 'connected' };
+  } catch (error) {
+    fastify.log.error(error, 'Database connection failed');
+    return { status: 'error', database: 'disconnected' };
+  }
+});
+
+// Route de test
+fastify.get('/', async () => {
+  return { 
+    message: 'TalosPrimes API',
+    version: '0.1.0',
+    status: 'running',
+  };
+});
+
+// Démarrer le serveur
+const start = async () => {
+  try {
+    await fastify.listen({ 
+      port: env.PORT, 
+      host: '0.0.0.0', // Écouter sur toutes les interfaces (important pour Docker/production)
+    });
+    
+    fastify.log.info(`🚀 Server running on http://0.0.0.0:${env.PORT}`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+// Gestion propre de l'arrêt
+process.on('SIGINT', async () => {
+  fastify.log.info('Shutting down server...');
+  await fastify.close();
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+start();
+

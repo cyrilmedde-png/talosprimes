@@ -1,0 +1,309 @@
+// Prisma Schema pour TalosPrimes
+// Base de données: Supabase PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum TenantStatus {
+  actif
+  suspendu
+  résilié
+}
+
+enum UserRole {
+  super_admin
+  admin
+  collaborateur
+  lecture_seule
+}
+
+enum UserStatus {
+  actif
+  inactif
+}
+
+enum ClientFinalType {
+  b2b
+  b2c
+}
+
+enum ClientFinalStatus {
+  actif
+  inactif
+  suspendu
+}
+
+enum SubscriptionStatus {
+  actif
+  annulé
+  en_retard
+  suspendu
+}
+
+enum PaymentStatus {
+  ok
+  en_retard
+  suspendu
+}
+
+enum PaymentProvider {
+  stripe
+  autre
+}
+
+enum InvoiceType {
+  facture_entreprise
+  facture_client_final
+}
+
+enum InvoiceStatus {
+  brouillon
+  envoyée
+  payée
+  en_retard
+  annulée
+}
+
+enum WorkflowStatus {
+  actif
+  inactif
+}
+
+enum EventExecutionStatus {
+  succès
+  erreur
+  en_attente
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+// Entreprise (Tenant) - Client direct de la plateforme
+model Tenant {
+  id            String        @id @default(uuid()) @db.Uuid
+  nomEntreprise String        @map("nom_entreprise")
+  siret         String?       @map("siret")
+  adressePostale String?      @map("adresse_postale") @db.Text
+  pays          String        @default("FR")
+  devise        String        @default("EUR")
+  langue        String        @default("fr")
+  emailContact  String        @map("email_contact")
+  metier        String        @map("metier")
+  statut        TenantStatus  @default(actif)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  users              User[]
+  subscription       Subscription?
+  clients            ClientFinal[]
+  invoices           Invoice[]
+  workflowLinks      WorkflowLink[]
+  eventLogs          EventLog[]
+
+  @@index([emailContact])
+  @@index([statut])
+  @@map("tenants")
+}
+
+// Utilisateur (attaché à une entreprise)
+model User {
+  id           String      @id @default(uuid()) @db.Uuid
+  tenantId     String      @map("tenant_id") @db.Uuid
+  email        String
+  passwordHash String      @map("password_hash")
+  role         UserRole    @default(collaborateur)
+  lastLoginAt  DateTime?   @map("last_login_at") @db.Timestamptz(6)
+  statut       UserStatus  @default(actif)
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+// Client Final (client de l'entreprise cliente)
+model ClientFinal {
+  id             String            @id @default(uuid()) @db.Uuid
+  tenantId       String            @map("tenant_id") @db.Uuid
+  type           ClientFinalType
+  raisonSociale  String?           @map("raison_sociale")
+  nom            String?           @map("nom")
+  prenom         String?           @map("prenom")
+  email          String
+  telephone      String?           @map("telephone")
+  adresse        String?           @map("adresse") @db.Text
+  tags           String[]          @default([]) @db.Text
+  statut         ClientFinalStatus @default(actif)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscriptions  ClientSubscription[]
+  invoices       Invoice[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@map("client_finals")
+}
+
+// Module Métier (catalogue de modules)
+model ModuleMetier {
+  id                  String   @id @default(uuid()) @db.Uuid
+  code                String   @unique
+  nomAffiché          String   @map("nom_affiché")
+  description         String?  @map("description") @db.Text
+  metierCible         String?  @map("metier_cible")
+  prixParMois         Decimal  @map("prix_par_mois") @db.Decimal(10, 2)
+  prixParUtilisateur  Decimal? @map("prix_par_utilisateur") @db.Decimal(10, 2)
+  categorie           String?  @map("categorie")
+  icone               String?  @map("icone")
+  workflowTemplates   String[] @default([]) @map("workflow_templates") @db.Text
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  workflowLinks WorkflowLink[]
+
+  @@index([code])
+  @@index([metierCible])
+  @@map("module_metiers")
+}
+
+// Abonnement Entreprise (ce que l'entreprise paye)
+model Subscription {
+  id                       String          @id @default(uuid()) @db.Uuid
+  tenantId                 String          @unique @map("tenant_id") @db.Uuid
+  modulesActives           String[]        @default([]) @map("modules_actives") @db.Text
+  montantMensuelActuel     Decimal         @map("montant_mensuel_actuel") @db.Decimal(10, 2)
+  dateDebut                DateTime        @map("date_debut") @db.Timestamptz(6)
+  dateProchainRenouvellement DateTime      @map("date_prochain_renouvellement") @db.Timestamptz(6)
+  fournisseurPaiement      PaymentProvider @map("fournisseur_paiement")
+  idAbonnementExterne      String?         @map("id_abonnement_externe")
+  statusPaiement           PaymentStatus   @default(ok) @map("status_paiement")
+  updatedAt                DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([statusPaiement])
+  @@map("subscriptions")
+}
+
+// Abonnement Client Final (ce que les clients finaux payent)
+model ClientSubscription {
+  id                       String              @id @default(uuid()) @db.Uuid
+  clientFinalId            String              @map("client_final_id") @db.Uuid
+  planInterneId            String?             @map("plan_interne_id")
+  nomPlan                  String              @map("nom_plan")
+  dateDebut                DateTime            @map("date_debut") @db.Timestamptz(6)
+  dateProchainRenouvellement DateTime          @map("date_prochain_renouvellement") @db.Timestamptz(6)
+  montantMensuel           Decimal             @map("montant_mensuel") @db.Decimal(10, 2)
+  modulesInclus            String[]            @default([]) @map("modules_inclus") @db.Text
+  statut                   SubscriptionStatus  @default(actif)
+  updatedAt                DateTime            @updatedAt @map("updated_at")
+
+  // Relations
+  clientFinal ClientFinal @relation(fields: [clientFinalId], references: [id], onDelete: Cascade)
+
+  @@index([clientFinalId])
+  @@index([statut])
+  @@index([dateProchainRenouvellement])
+  @@map("client_subscriptions")
+}
+
+// Facture
+model Invoice {
+  id                String        @id @default(uuid()) @db.Uuid
+  type              InvoiceType
+  tenantId          String        @map("tenant_id") @db.Uuid
+  clientFinalId     String?       @map("client_final_id") @db.Uuid
+  numeroFacture     String        @unique @map("numero_facture")
+  dateFacture       DateTime      @map("date_facture") @db.Timestamptz(6)
+  dateEcheance      DateTime      @map("date_echeance") @db.Timestamptz(6)
+  montantHt         Decimal       @map("montant_ht") @db.Decimal(10, 2)
+  montantTtc        Decimal       @map("montant_ttc") @db.Decimal(10, 2)
+  tvaTaux           Decimal?      @map("tva_taux") @db.Decimal(5, 2)
+  statut            InvoiceStatus @default(brouillon)
+  lienPdf           String?       @map("lien_pdf")
+  idExternePaiement String?       @map("id_externe_paiement")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([clientFinalId])
+  @@index([statut])
+  @@index([dateEcheance])
+  @@index([numeroFacture])
+  @@map("invoices")
+}
+
+// Lien Workflow n8n
+model WorkflowLink {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  moduleMetierId  String         @map("module_metier_id") @db.Uuid
+  typeEvenement   String         @map("type_evenement")
+  workflowN8nId   String         @map("workflow_n8n_id")
+  workflowN8nNom  String         @map("workflow_n8n_nom")
+  statut          WorkflowStatus @default(actif)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleMetier ModuleMetier @relation(fields: [moduleMetierId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([moduleMetierId])
+  @@index([typeEvenement])
+  @@unique([tenantId, typeEvenement])
+  @@map("workflow_links")
+}
+
+// Event Log (journalisation des événements)
+model EventLog {
+  id                    String                @id @default(uuid()) @db.Uuid
+  tenantId              String                @map("tenant_id") @db.Uuid
+  typeEvenement         String                @map("type_evenement")
+  entiteType            String                @map("entite_type")
+  entiteId              String                @map("entite_id") @db.Uuid
+  payload               Json                  @map("payload")
+  workflowN8nDeclenche  Boolean               @default(false) @map("workflow_n8n_declenche")
+  workflowN8nId         String?               @map("workflow_n8n_id")
+  statutExecution       EventExecutionStatus  @default(en_attente) @map("statut_execution")
+  messageErreur         String?               @map("message_erreur") @db.Text
+  createdAt             DateTime              @default(now()) @map("created_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([typeEvenement])
+  @@index([statutExecution])
+  @@index([createdAt])
+  @@map("event_logs")
+}
+
