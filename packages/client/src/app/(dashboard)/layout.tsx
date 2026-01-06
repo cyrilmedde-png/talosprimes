@@ -23,7 +23,7 @@ export default function DashboardLayout({
         style={{ marginLeft: sidebarCollapsed ? '4rem' : '16rem' }}
       >
         {/* Top bar */}
-        <TopBar onVisibilityChange={setTopBarVisible} />
+        <TopBar onVisibilityChange={setTopBarVisible} sidebarCollapsed={sidebarCollapsed} />
 
         {/* Page content */}
         <main 
@@ -33,11 +33,12 @@ export default function DashboardLayout({
           <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800"></div>
           <div className="relative py-6">
             <div 
-              className="mx-auto px-4 sm:px-6 md:px-8 transition-all duration-300"
+              className="mx-auto transition-all duration-300"
               style={{ 
-                maxWidth: sidebarCollapsed ? '100%' : 'calc(100% - 16rem)',
-                paddingLeft: sidebarCollapsed ? '2rem' : '1rem',
-                paddingRight: sidebarCollapsed ? '2rem' : '1rem',
+                maxWidth: sidebarCollapsed ? '1200px' : 'calc(100% - 20rem)',
+                width: '100%',
+                paddingLeft: '2rem',
+                paddingRight: '2rem',
               }}
             >
               {children}

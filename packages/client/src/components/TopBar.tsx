@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, BellIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 
-export default function TopBar({ onVisibilityChange }: { onVisibilityChange?: (visible: boolean) => void }) {
+export default function TopBar({ 
+  onVisibilityChange, 
+  sidebarCollapsed 
+}: { 
+  onVisibilityChange?: (visible: boolean) => void;
+  sidebarCollapsed?: boolean;
+}) {
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isVisible, setIsVisible] = useState(false);
@@ -21,6 +27,10 @@ export default function TopBar({ onVisibilityChange }: { onVisibilityChange?: (v
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [onVisibilityChange]);
 
+  const sidebarWidth = sidebarCollapsed ? '4rem' : '16rem';
+  const menuWidth = sidebarCollapsed ? 'calc(100% - 8rem)' : 'calc(100% - 20rem)';
+  const menuLeft = sidebarCollapsed ? '4rem' : '16rem';
+
   return (
     <div
       className={`
@@ -28,9 +38,9 @@ export default function TopBar({ onVisibilityChange }: { onVisibilityChange?: (v
         ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}
       `}
       style={{ 
-        left: '4rem',
-        right: '2rem',
-        width: 'calc(100% - 6rem)',
+        left: menuLeft,
+        width: menuWidth,
+        maxWidth: '1400px',
       }}
       onMouseEnter={() => {
         setIsVisible(true);
