@@ -1,0 +1,30 @@
+Nouvelle demande d'inscription reçue
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 Informations du lead :
+
+  Nom : {{ $json.nom }}
+  Prénom : {{ $json.prenom }}
+  Email : {{ $json.email }}
+  Téléphone : {{ $json.telephone }}
+
+⏰ Date de réception : {{ $json.timestamp }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Actions à effectuer :
+
+  • Vérifier l'email du lead
+  • Contacter le lead dans les 24-48h
+  • Ajouter le lead dans le CRM (si applicable)
+  • Préparer une présentation personnalisée
+
+🔗 Accéder au dashboard :
+  https://talosprimes.com/dashboard
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TalosPrimes - Système automatisé
+Cet email a été généré automatiquement.
+
