@@ -23,10 +23,24 @@ echo ""
 
 # Étape 1: Obtenir un token
 echo -e "${BLUE}📋 Étape 1: Connexion à l'API...${NC}"
-TOKEN=$(./get-token.sh 2>&1 | tail -n1 || echo "")
 
+# Capturer la sortie complète pour debug
+TOKEN_OUTPUT=$(./get-token.sh 2>&1)
+TOKEN=$(echo "$TOKEN_OUTPUT" | tail -n1)
+
+# Debug : afficher ce qui a été capturé
 if [ -z "$TOKEN" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
   echo -e "${RED}❌ Impossible d'obtenir un token valide${NC}"
+  echo ""
+  echo -e "${YELLOW}Debug - Sortie complète :${NC}"
+  echo "$TOKEN_OUTPUT"
+  echo ""
+  echo -e "${YELLOW}Test manuel de connexion :${NC}"
+  API_URL="${API_URL:-https://api.talosprimes.com}"
+  curl -s -X POST "$API_URL/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d '{"email":"groupemclem@gmail.com","password":"21052024_Aa!"}' \
+    | jq '.' || echo "Erreur lors de la requête"
   exit 1
 fi
 
