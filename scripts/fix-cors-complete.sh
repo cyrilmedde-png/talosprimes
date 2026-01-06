@@ -64,9 +64,25 @@ echo -e "${BLUE}📋 Contenu de .env.local :${NC}"
 cat .env.local
 echo ""
 
+# Trouver pnpm
+echo -e "${BLUE}🔍 Recherche de pnpm...${NC}"
+if command -v pnpm &> /dev/null; then
+    PNPM_CMD="pnpm"
+elif [ -f /usr/local/bin/pnpm ]; then
+    PNPM_CMD="/usr/local/bin/pnpm"
+elif [ -f ~/.local/share/pnpm/pnpm ]; then
+    PNPM_CMD="$HOME/.local/share/pnpm/pnpm"
+else
+    # Essayer avec npm qui devrait être disponible
+    echo -e "${YELLOW}⚠️  pnpm non trouvé, utilisation de npm...${NC}"
+    PNPM_CMD="npm"
+fi
+
+echo -e "${GREEN}✅ Utilisation de : $PNPM_CMD${NC}"
+
 # Rebuild le frontend
 echo -e "${BLUE}🔨 Build du frontend...${NC}"
-if pnpm build; then
+if $PNPM_CMD build; then
     echo -e "${GREEN}✅ Build réussi${NC}"
 else
     echo -e "${RED}❌ Erreur lors du build${NC}"
@@ -124,7 +140,15 @@ if pm2 restart talosprimes-client; then
 else
     echo -e "${YELLOW}⚠️  Frontend non trouvé dans PM2, démarrage...${NC}"
     cd "$FRONTEND_DIR"
-    pm2 start "pnpm start" --name "talosprimes-client" --cwd "$FRONTEND_DIR" || true
+    # Trouver pnpm pour le démarrage
+    if command -v pnpm &> /dev/null; then
+        PNPM_START="pnpm start"
+    elif [ -f /usr/local/bin/pnpm ]; then
+        PNPM_START="/usr/local/bin/pnpm start"
+    else
+        PNPM_START="npm start"
+    fi
+    pm2 start "$PNPM_START" --name "talosprimes-client" --cwd "$FRONTEND_DIR" || true
 fi
 
 # Redémarrer le backend
