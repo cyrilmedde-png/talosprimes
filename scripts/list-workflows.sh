@@ -15,10 +15,10 @@ NC='\033[0m'
 # Obtenir le token si non fourni
 if [ -z "$1" ]; then
   echo -e "${YELLOW}⚠️  Aucun token fourni, tentative de connexion automatique...${NC}"
-  TOKEN=$(./get-token.sh 2>/dev/null || echo "")
+  TOKEN=$(./get-token.sh 2>&1 | tail -n1 || echo "")
   
-  if [ -z "$TOKEN" ]; then
-    echo -e "${RED}❌ Impossible d'obtenir un token${NC}"
+  if [ -z "$TOKEN" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
+    echo -e "${RED}❌ Impossible d'obtenir un token valide${NC}"
     echo "Usage: ./list-workflows.sh [TOKEN]"
     exit 1
   fi

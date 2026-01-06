@@ -23,10 +23,11 @@ echo ""
 
 # Étape 1: Obtenir un token
 echo -e "${BLUE}📋 Étape 1: Connexion à l'API...${NC}"
-TOKEN=$(./get-token.sh 2>/dev/null || echo "")
+# Capturer seulement la dernière ligne (le token) en laissant les messages s'afficher
+TOKEN=$(./get-token.sh 2>&1 | tail -n1 || echo "")
 
-if [ -z "$TOKEN" ]; then
-  echo -e "${RED}❌ Impossible d'obtenir un token${NC}"
+if [ -z "$TOKEN" ] || [ "${TOKEN:0:5}" != "eyJh" ]; then
+  echo -e "${RED}❌ Impossible d'obtenir un token valide${NC}"
   exit 1
 fi
 
