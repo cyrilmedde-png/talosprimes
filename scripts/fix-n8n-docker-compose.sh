@@ -80,6 +80,16 @@ if ! grep -q "WEBHOOK_URL" "$COMPOSE_FILE"; then
   sed -i "/N8N_HOST=/a\\$INDENT- WEBHOOK_URL=https://$DOMAIN/" "$COMPOSE_FILE"
 fi
 
+# Vérifier et corriger la section ports si elle expose 5678
+if grep -q "5678:5678" "$COMPOSE_FILE"; then
+  echo "  Correction du mapping de port (5678→443 pour HTTPS)..."
+  # Remplacer 5678:5678 par 443:5678 (port externe 443, interne 5678)
+  sed -i "s/5678:5678/443:5678/g" "$COMPOSE_FILE"
+fi
+
+# Si la section ports n'existe pas mais qu'on est en HTTPS, on pourrait l'ajouter
+# Mais pour l'instant, on laisse l'utilisateur gérer cela si nécessaire
+
 echo -e "${GREEN}✅ Fichier modifié${NC}"
 echo ""
 
@@ -133,6 +143,24 @@ if [ "$RECREATE" = "y" ] || [ "$RECREATE" = "Y" ]; then
     echo "  Suppression forcée du conteneur existant..."
     docker stop root-n8n-1 2>/dev/null || true
     docker rm -f root-n8n-1 2>/dev/null || true
+    sleep 1
+  fi
+  
+  # Vérifier si le port 5678 est utilisé et arrêter le processus
+  echo "  Vérification du port 5678..."
+  PORT_PID=$(lsof -ti:5678 2>/dev/null || true)
+  if [ -n "$PORT_PID" ]; then
+    echo "  Port 5678 utilisé par le processus $PORT_PID, arrêt..."
+    kill -9 "$PORT_PID" 2>/dev/null || true
+    sleep 1
+  fi
+  
+  # Vérifier s'il y a d'autres conteneurs n8n qui utilisent le port
+  EXISTING_CONTAINER=$(docker ps -a --filter "publish=5678" --format "{{.Names}}" | head -1)
+  if [ -n "$EXISTING_CONTAINER" ]; then
+    echo "  Arrêt du conteneur $EXISTING_CONTAINER qui utilise le port 5678..."
+    docker stop "$EXISTING_CONTAINER" 2>/dev/null || true
+    docker rm -f "$EXISTING_CONTAINER" 2>/dev/null || true
     sleep 1
   fi
   
