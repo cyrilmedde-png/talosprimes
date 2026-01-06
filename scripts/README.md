@@ -46,6 +46,39 @@ sudo ./configure-ssl.sh
 - DNS pointant vers votre serveur
 - Ports 80 et 443 ouverts
 
+### 3. `test-n8n.sh` - Test de la configuration n8n
+
+Teste la connexion à n8n et vérifie que les workflows sont correctement configurés.
+
+**Usage :**
+```bash
+cd /var/www/talosprimes/scripts
+./test-n8n.sh YOUR_JWT_TOKEN
+```
+
+**Ce que fait le script :**
+- Teste la connexion à n8n via l'API
+- Liste les workflows configurés
+- Crée un client de test pour déclencher un workflow
+
+**Prérequis :**
+- Backend démarré et accessible
+- Token JWT valide (obtenu via `/api/auth/login`)
+- Variables d'environnement n8n configurées dans `packages/platform/.env`
+
+**Exemple complet :**
+```bash
+# 1. Obtenir un token
+TOKEN=$(curl -s -X POST https://api.talosprimes.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"groupemclem@gmail.com","password":"21052024_Aa!"}' \
+  | jq -r '.data.accessToken')
+
+# 2. Tester n8n
+cd /var/www/talosprimes/scripts
+./test-n8n.sh $TOKEN
+```
+
 ## 🚀 Installation complète (étape par étape)
 
 ### Étape 1 : Installer Nginx
