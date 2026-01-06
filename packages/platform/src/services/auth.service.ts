@@ -40,28 +40,26 @@ export async function verifyPassword(
  * Génère un access token JWT
  */
 export function generateAccessToken(payload: JWTPayload): string {
-  const secret = env.JWT_SECRET;
-  const expiresIn: string | number = env.JWT_EXPIRES_IN;
-  
-  const options: SignOptions = {
-    expiresIn: expiresIn as string | number,
-  };
-  
-  return jwt.sign(payload, secret, options);
+  return jwt.sign(
+    payload,
+    env.JWT_SECRET,
+    {
+      expiresIn: env.JWT_EXPIRES_IN,
+    } as SignOptions
+  );
 }
 
 /**
  * Génère un refresh token JWT
  */
 export function generateRefreshToken(payload: JWTPayload): string {
-  const secret = env.JWT_REFRESH_SECRET;
-  const expiresIn: string | number = env.JWT_REFRESH_EXPIRES_IN;
-  
-  const options: SignOptions = {
-    expiresIn: expiresIn as string | number,
-  };
-  
-  return jwt.sign(payload, secret, options);
+  return jwt.sign(
+    payload,
+    env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    } as SignOptions
+  );
 }
 
 /**
