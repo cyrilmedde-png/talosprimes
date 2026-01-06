@@ -1,0 +1,272 @@
+{
+  "name": "Leads - Formulaire d'inscription (Resend + Twilio)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "inscription",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook - Réception formulaire",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "inscription"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validation des données reçues\nconst data = $input.all()[0].json;\n\nconst errors = [];\n\nif (!data.nom || typeof data.nom !== 'string' || !data.nom.trim()) {\n  errors.push('Le nom est requis');\n}\n\nif (!data.prenom || typeof data.prenom !== 'string' || !data.prenom.trim()) {\n  errors.push('Le prénom est requis');\n}\n\nif (!data.telephone || typeof data.telephone !== 'string' || !data.telephone.trim()) {\n  errors.push('Le téléphone est requis');\n} else if (!/^[0-9+\\s\\-()]+$/.test(data.telephone)) {\n  errors.push('Format de téléphone invalide');\n}\n\nif (!data.email || typeof data.email !== 'string' || !data.email.trim()) {\n  errors.push('L\\'email est requis');\n} else if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(data.email)) {\n  errors.push('Format d\\'email invalide');\n}\n\nif (errors.length > 0) {\n  throw new Error(`Validation échouée: ${errors.join(', ')}`);\n}\n\nreturn {\n  json: {\n    ...data,\n    validated: true,\n    dateReception: new Date().toISOString()\n  }\n};"
+      },
+      "id": "validation-node",
+      "name": "Code - Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater les données pour Resend\nconst data = $input.all()[0].json;\n\nconst htmlBody = `\n<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; background: #fff; }\n    .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center; }\n    .content { padding: 30px; }\n    .info-box { background: #f9fafb; border-left: 4px solid #4f46e5; padding: 15px; margin: 20px 0; }\n    .highlight { background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0; }\n    .footer { background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p>Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <p><strong>Bonjour ${data.prenom} ${data.nom},</strong></p>\n      <p>Nous avons bien reçu votre demande d'inscription sur <strong>TalosPrimes</strong>.</p>\n      <div class=\"info-box\">\n        <p><strong>Vos informations :</strong></p>\n        <ul>\n          <li><strong>Nom :</strong> ${data.nom}</li>\n          <li><strong>Prénom :</strong> ${data.prenom}</li>\n          <li><strong>Email :</strong> ${data.email}</li>\n          <li><strong>Téléphone :</strong> ${data.telephone}</li>\n        </ul>\n      </div>\n      <div class=\"highlight\">\n        <p>Notre équipe va examiner votre demande et vous recontactera dans un délai de <strong>24 à 48 heures</strong>.</p>\n      </div>\n      <p>Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nconst textBody = `Bonjour ${data.prenom} ${data.nom},\n\nNous avons bien reçu votre demande d'inscription sur TalosPrimes.\n\nVos informations :\n- Nom : ${data.nom}\n- Prénom : ${data.prenom}\n- Email : ${data.email}\n- Téléphone : ${data.telephone}\n\nNotre équipe va examiner votre demande et vous recontactera dans un délai de 24 à 48 heures.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    email: data.email,\n    subject: \"Demande d'inscription TalosPrimes - Confirmation\",\n    htmlBody: htmlBody,\n    textBody: textBody\n  }\n};"
+      },
+      "id": "format-email",
+      "name": "Code - Formatage Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "name": "Resend API",
+          "id": "resend-credential-id"
+        },
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"{{ $env.EMAIL_FROM || 'TalosPrimes <noreply@talosprimes.com>' }}\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": \"{{ $json.htmlBody }}\",\n  \"text\": \"{{ $json.textBody }}\"\n}",
+        "options": {}
+      },
+      "id": "resend-email",
+      "name": "Resend - Email confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200],
+      "credentials": {
+        "headerAuth": {
+          "id": "resend-credential-id",
+          "name": "Resend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater les données pour SMS Twilio\nconst data = $input.all()[0].json;\n\nreturn {\n  json: {\n    telephone: data.telephone || data.json?.telephone,\n    message: `Bonjour ${data.prenom || data.json?.prenom} ${data.nom || data.json?.nom}, votre demande d'inscription TalosPrimes a été reçue. Vous serez recontacté par notre équipe dans les 24 à 48 heures. Merci de votre confiance !`\n  }\n};"
+      },
+      "id": "format-sms",
+      "name": "Code - Formatage SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "from": "={{ $env.TWILIO_PHONE_NUMBER }}",
+        "to": "={{ $json.telephone }}",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "twilio-sms",
+      "name": "Twilio - SMS confirmation",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [900, 400],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-credential-id",
+          "name": "Twilio TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater l'email de notification équipe\nconst data = $input.all()[0].json;\n\nconst htmlBody = `\n<h2>Nouvelle demande d'inscription reçue</h2>\n<hr>\n<h3>Informations du lead :</h3>\n<ul>\n  <li><strong>Nom :</strong> ${data.nom}</li>\n  <li><strong>Prénom :</strong> ${data.prenom}</li>\n  <li><strong>Email :</strong> ${data.email}</li>\n  <li><strong>Téléphone :</strong> ${data.telephone}</li>\n</ul>\n<p><strong>Date de réception :</strong> ${data.dateReception}</p>\n<hr>\n<p><strong>Actions à effectuer :</strong></p>\n<ul>\n  <li>Vérifier l'email du lead</li>\n  <li>Contacter le lead dans les 24-48h</li>\n  <li>Ajouter le lead dans le CRM</li>\n</ul>\n`;\n\nreturn {\n  json: {\n    email: process.env.EMAIL_TO_EQUIPE || 'contact@talosprimes.com',\n    subject: `Nouvelle demande d'inscription - ${data.prenom} ${data.nom}`,\n    htmlBody: htmlBody,\n    textBody: `Nouvelle demande d'inscription reçue\\n\\nNom : ${data.nom}\\nPrénom : ${data.prenom}\\nEmail : ${data.email}\\nTéléphone : ${data.telephone}\\n\\nDate : ${data.dateReception}`\n  }\n};"
+      },
+      "id": "format-notification",
+      "name": "Code - Formatage Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "name": "Resend API",
+          "id": "resend-credential-id"
+        },
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"{{ $env.EMAIL_FROM || 'TalosPrimes <noreply@talosprimes.com>' }}\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": \"{{ $json.htmlBody }}\",\n  \"text\": \"{{ $json.textBody }}\"\n}",
+        "options": {}
+      },
+      "id": "resend-notification",
+      "name": "Resend - Notification équipe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 600],
+      "credentials": {
+        "headerAuth": {
+          "id": "resend-credential-id",
+          "name": "Resend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"message\": \"Votre demande a été prise en compte. Vous serez recontacté dans 24 à 48 heures.\"\n} }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Réception formulaire": {
+      "main": [
+        [
+          {
+            "node": "Code - Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Validation": {
+      "main": [
+        [
+          {
+            "node": "Code - Formatage Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code - Formatage SMS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code - Formatage Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Formatage Email": {
+      "main": [
+        [
+          {
+            "node": "Resend - Email confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resend - Email confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Formatage SMS": {
+      "main": [
+        [
+          {
+            "node": "Twilio - SMS confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio - SMS confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Formatage Notification": {
+      "main": [
+        [
+          {
+            "node": "Resend - Notification équipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resend - Notification équipe": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-01-06T00:00:00.000Z",
+      "updatedAt": "2026-01-06T00:00:00.000Z",
+      "id": "leads-tag",
+      "name": "leads"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-06T00:00:00.000Z",
+  "versionId": "1"
+}
+
