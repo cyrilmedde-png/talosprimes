@@ -32,7 +32,8 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" = "200" ]; then
-  TOKEN=$(echo "$BODY" | jq -r '.data.accessToken' 2>/dev/null)
+  # La réponse contient tokens.accessToken ou data.accessToken selon la version
+  TOKEN=$(echo "$BODY" | jq -r '.data.tokens.accessToken // .data.accessToken' 2>/dev/null)
   
   if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
     echo -e "${RED}❌ Erreur: Token non trouvé dans la réponse${NC}"

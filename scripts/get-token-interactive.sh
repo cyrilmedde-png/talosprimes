@@ -46,8 +46,9 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" = "200" ]; then
-  ACCESS_TOKEN=$(echo "$BODY" | jq -r '.data.accessToken' 2>/dev/null)
-  REFRESH_TOKEN=$(echo "$BODY" | jq -r '.data.refreshToken' 2>/dev/null)
+  # La réponse contient tokens.accessToken ou data.accessToken selon la version
+  ACCESS_TOKEN=$(echo "$BODY" | jq -r '.data.tokens.accessToken // .data.accessToken' 2>/dev/null)
+  REFRESH_TOKEN=$(echo "$BODY" | jq -r '.data.tokens.refreshToken // .data.refreshToken' 2>/dev/null)
   USER_EMAIL=$(echo "$BODY" | jq -r '.data.user.email' 2>/dev/null)
   USER_ROLE=$(echo "$BODY" | jq -r '.data.user.role' 2>/dev/null)
   
