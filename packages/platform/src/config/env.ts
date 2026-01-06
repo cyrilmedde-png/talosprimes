@@ -25,6 +25,8 @@ const envSchema = z.object({
   // n8n
   N8N_API_URL: z.string().url().optional(),
   N8N_API_KEY: z.string().optional(),
+  N8N_USERNAME: z.string().optional(),
+  N8N_PASSWORD: z.string().optional(),
   
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),

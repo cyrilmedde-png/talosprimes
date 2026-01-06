@@ -4,6 +4,10 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
+import { authMiddleware } from './middleware/auth.middleware.js';
+import { authRoutes } from './api/routes/auth.routes.js';
+import { clientsRoutes } from './api/routes/clients.routes.js';
+import { n8nRoutes } from './api/routes/n8n.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -21,6 +25,13 @@ const fastify = Fastify({
         : undefined,
   },
 });
+
+// Déclarer les types pour TypeScript
+declare module 'fastify' {
+  interface FastifyInstance {
+    authenticate: typeof authMiddleware;
+  }
+}
 
 // Plugins de sécurité
 await fastify.register(helmet, {
@@ -51,6 +62,24 @@ fastify.get('/health', async () => {
     fastify.log.error(error, 'Database connection failed');
     return { status: 'error', database: 'disconnected' };
   }
+});
+
+// Décorer Fastify avec le middleware d'authentification
+fastify.decorate('authenticate', authMiddleware);
+
+// Enregistrer les routes d'authentification
+await fastify.register(async (fastify) => {
+  await fastify.register(authRoutes, { prefix: '/api/auth' });
+});
+
+// Enregistrer les routes clients finaux
+await fastify.register(async (fastify) => {
+  await fastify.register(clientsRoutes, { prefix: '/api/clients' });
+});
+
+// Enregistrer les routes n8n (admin uniquement)
+await fastify.register(async (fastify) => {
+  await fastify.register(n8nRoutes, { prefix: '/api/n8n' });
 });
 
 // Route de test
