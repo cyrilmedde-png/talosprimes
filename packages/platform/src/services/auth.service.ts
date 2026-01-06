@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
@@ -40,18 +40,28 @@ export async function verifyPassword(
  * Génère un access token JWT
  */
 export function generateAccessToken(payload: JWTPayload): string {
-  return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN as string,
-  });
+  const secret = env.JWT_SECRET;
+  const expiresIn = env.JWT_EXPIRES_IN;
+  
+  const options: SignOptions = {
+    expiresIn,
+  };
+  
+  return jwt.sign(payload, secret, options);
 }
 
 /**
  * Génère un refresh token JWT
  */
 export function generateRefreshToken(payload: JWTPayload): string {
-  return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRES_IN as string,
-  });
+  const secret = env.JWT_REFRESH_SECRET;
+  const expiresIn = env.JWT_REFRESH_EXPIRES_IN;
+  
+  const options: SignOptions = {
+    expiresIn,
+  };
+  
+  return jwt.sign(payload, secret, options);
 }
 
 /**
