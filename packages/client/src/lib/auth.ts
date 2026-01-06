@@ -1,6 +1,6 @@
 // Gestion de l'authentification côté client
 
-import { API_URL } from './api.js';
+import { API_URL } from './api';
 
 export interface LoginCredentials {
   email: string;

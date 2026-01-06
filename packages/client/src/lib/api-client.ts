@@ -1,7 +1,7 @@
 // Client API pour les requêtes authentifiées
 
-import { getAccessToken, refreshAccessToken, clearTokens } from './auth.js';
-import { API_URL } from './api.js';
+import { getAccessToken, refreshAccessToken, clearTokens } from './auth';
+import { API_URL } from './api';
 
 export class ApiError extends Error {
   constructor(
