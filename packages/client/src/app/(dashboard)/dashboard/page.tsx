@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser, isAuthenticated, clearTokens } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth-store';
-import type { User } from '@/lib/auth';
 import type { ClientFinal } from '@talosprimes/shared';
 
 export default function DashboardPage() {
