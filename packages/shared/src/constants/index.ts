@@ -10,7 +10,7 @@ export const USER_ROLES = {
 export const TENANT_STATUS = {
   ACTIF: 'actif',
   SUSPENDU: 'suspendu',
-  RÉSILIÉ: 'résilié',
+  RESILIE: 'resilie',
 } as const;
 
 export const CLIENT_FINAL_TYPES = {
@@ -20,9 +20,9 @@ export const CLIENT_FINAL_TYPES = {
 
 export const INVOICE_STATUS = {
   BROUILLON: 'brouillon',
-  ENVOYÉE: 'envoyée',
-  PAYÉE: 'payée',
+  ENVOYEE: 'envoyee',
+  PAYEE: 'payee',
   EN_RETARD: 'en_retard',
-  ANNULÉE: 'annulée',
+  ANNULEE: 'annulee',
 } as const;
 

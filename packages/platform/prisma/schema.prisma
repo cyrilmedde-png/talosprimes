@@ -17,7 +17,7 @@ datasource db {
 enum TenantStatus {
   actif
   suspendu
-  résilié
+  resilie
 }
 
 enum UserRole {
@@ -45,7 +45,7 @@ enum ClientFinalStatus {
 
 enum SubscriptionStatus {
   actif
-  annulé
+  annule
   en_retard
   suspendu
 }
@@ -68,10 +68,10 @@ enum InvoiceType {
 
 enum InvoiceStatus {
   brouillon
-  envoyée
-  payée
+  envoyee
+  payee
   en_retard
-  annulée
+  annulee
 }
 
 enum WorkflowStatus {
@@ -80,7 +80,7 @@ enum WorkflowStatus {
 }
 
 enum EventExecutionStatus {
-  succès
+  succes
   erreur
   en_attente
 }
@@ -168,7 +168,7 @@ model ClientFinal {
 model ModuleMetier {
   id                  String   @id @default(uuid()) @db.Uuid
   code                String   @unique
-  nomAffiché          String   @map("nom_affiché")
+  nomAffiche          String   @map("nom_affiché")
   description         String?  @map("description") @db.Text
   metierCible         String?  @map("metier_cible")
   prixParMois         Decimal  @map("prix_par_mois") @db.Decimal(10, 2)
