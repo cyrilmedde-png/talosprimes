@@ -37,7 +37,7 @@ CORS_ORIGIN="https://talosprimes.com"
 # N8N - INTÉGRATION
 # ============================================
 # URL de votre instance n8n
-N8N_URL="http://localhost:5678"
+N8N_API_URL="http://localhost:5678"
 
 # Option 1 : Authentification par API Key
 N8N_API_KEY="votre_api_key_n8n"
