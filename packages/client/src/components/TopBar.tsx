@@ -27,7 +27,6 @@ export default function TopBar({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [onVisibilityChange]);
 
-  const sidebarWidth = sidebarCollapsed ? '4rem' : '16rem';
   const menuWidth = sidebarCollapsed ? 'calc(100% - 8rem)' : 'calc(100% - 20rem)';
   const menuLeft = sidebarCollapsed ? '4rem' : '16rem';
 
