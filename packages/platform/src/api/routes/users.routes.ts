@@ -53,16 +53,16 @@ export async function usersRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          users: users.map(user => ({
+          users: users.map((user: any) => ({
             id: user.id,
             email: user.email,
             role: user.role,
-            nom: (user as any).nom || null,
-            prenom: (user as any).prenom || null,
-            telephone: (user as any).telephone || null,
-            fonction: (user as any).fonction || null,
-            salaire: (user as any).salaire ? Number((user as any).salaire) : null,
-            dateEmbauche: (user as any).dateEmbauche?.toISOString() || null,
+            nom: user.nom || null,
+            prenom: user.prenom || null,
+            telephone: user.telephone || null,
+            fonction: user.fonction || null,
+            salaire: user.salaire ? Number(user.salaire) : null,
+            dateEmbauche: user.dateEmbauche?.toISOString() || null,
             statut: user.statut,
             lastLoginAt: user.lastLoginAt?.toISOString() || null,
             createdAt: user.createdAt.toISOString(),
@@ -134,20 +134,23 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
+      const userData: any = {
+        tenantId,
+        email: data.email,
+        passwordHash,
+        role: data.role as UserRole,
+        statut: 'actif',
+      };
+      
+      if (data.nom) userData.nom = data.nom;
+      if (data.prenom) userData.prenom = data.prenom;
+      if (data.telephone) userData.telephone = data.telephone;
+      if (data.fonction) userData.fonction = data.fonction;
+      if (data.salaire) userData.salaire = data.salaire;
+      if (data.dateEmbauche) userData.dateEmbauche = new Date(data.dateEmbauche);
+
       const user = await prisma.user.create({
-        data: {
-          tenantId,
-          email: data.email,
-          passwordHash,
-          role: data.role as UserRole,
-          nom: data.nom || undefined,
-          prenom: data.prenom || undefined,
-          telephone: data.telephone || undefined,
-          fonction: data.fonction || undefined,
-          salaire: data.salaire ? data.salaire : undefined,
-          dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
-          statut: 'actif',
-        } as any,
+        data: userData,
       });
 
       return reply.status(201).send({
@@ -230,12 +233,11 @@ export async function usersRoutes(fastify: FastifyInstance) {
       }
 
       // Mettre à jour l'utilisateur
-      const updateData: any = {
-        email: data.email,
-        role: data.role as UserRole | undefined,
-        statut: data.statut as 'actif' | 'inactif' | undefined,
-      };
-
+      const updateData: any = {};
+      
+      if (data.email) updateData.email = data.email;
+      if (data.role) updateData.role = data.role as UserRole;
+      if (data.statut) updateData.statut = data.statut as 'actif' | 'inactif';
       if (data.nom !== undefined) updateData.nom = data.nom;
       if (data.prenom !== undefined) updateData.prenom = data.prenom;
       if (data.telephone !== undefined) updateData.telephone = data.telephone;

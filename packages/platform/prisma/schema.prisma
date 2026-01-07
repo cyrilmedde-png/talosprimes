@@ -162,6 +162,12 @@ model User {
   email        String
   passwordHash String      @map("password_hash")
   role         UserRole    @default(collaborateur)
+  nom          String?     @map("nom")
+  prenom       String?     @map("prenom")
+  telephone    String?     @map("telephone")
+  fonction     String?     @map("fonction")
+  salaire      Decimal?    @map("salaire") @db.Decimal(10, 2)
+  dateEmbauche DateTime?   @map("date_embauche") @db.Timestamptz(6)
   lastLoginAt  DateTime?   @map("last_login_at") @db.Timestamptz(6)
   statut       UserStatus  @default(actif)
   createdAt    DateTime    @default(now()) @map("created_at")
@@ -172,6 +178,7 @@ model User {
   @@unique([tenantId, email])
   @@index([email])
   @@index([tenantId])
+  @@index([fonction])
   @@map("users")
 }
 
