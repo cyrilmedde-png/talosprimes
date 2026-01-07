@@ -2,6 +2,40 @@
 
 ## 📋 Scripts disponibles
 
+### 0. `update-vps.sh` - Mise à jour automatique du VPS ⭐ **NOUVEAU**
+
+**Script automatique pour mettre à jour le VPS après chaque push GitHub.**
+
+**Usage :**
+```bash
+# Sur le VPS
+/var/www/talosprimes/scripts/update-vps.sh
+```
+
+**Ce que fait le script :**
+- ✅ Récupère les modifications depuis GitHub (`git pull`)
+- ✅ Installe les dépendances (`pnpm install`)
+- ✅ Build tous les packages (shared, platform, client)
+- ✅ Redémarre les services PM2 (backend et frontend)
+- ✅ Affiche le statut des services
+
+**Options :**
+```bash
+# Ignorer le build
+/var/www/talosprimes/scripts/update-vps.sh --skip-build
+
+# Ignorer le redémarrage
+/var/www/talosprimes/scripts/update-vps.sh --skip-restart
+```
+
+**Alias pratique (optionnel) :**
+Ajoutez à votre `~/.bashrc` :
+```bash
+alias update-talosprimes="/var/www/talosprimes/scripts/update-vps.sh"
+```
+
+> 📚 Voir [VPS_UPDATE_AUTO.md](../VPS_UPDATE_AUTO.md) pour la documentation complète
+
 ### 1. `configure-nginx.sh` - Configuration Nginx
 
 Configure automatiquement Nginx pour le frontend et le backend.
