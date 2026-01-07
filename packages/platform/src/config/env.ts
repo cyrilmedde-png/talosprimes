@@ -27,6 +27,11 @@ const envSchema = z.object({
   N8N_API_KEY: z.string().optional(),
   N8N_USERNAME: z.string().optional(),
   N8N_PASSWORD: z.string().optional(),
+  // Activer l'utilisation de n8n pour les vues (listings/lecture)
+  USE_N8N_VIEWS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.toLowerCase() === 'true' : false)),
   
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),

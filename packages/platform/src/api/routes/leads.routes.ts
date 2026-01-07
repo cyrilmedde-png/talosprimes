@@ -157,7 +157,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   // Lister les leads (nécessite authentification admin)
   fastify.get('/', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       // Vérifier que l'utilisateur est admin ou super_admin
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
@@ -169,6 +169,19 @@ export async function leadsRoutes(fastify: FastifyInstance) {
 
       const query = request.query as { source?: string; statut?: string; limit?: string };
       const { source, statut, limit } = query;
+      
+      // Si on utilise n8n pour les vues, déléguer au workflow
+      if (request.tenantId && (process.env.USE_N8N_VIEWS || '').toLowerCase() === 'true') {
+        const result = await n8nService.callWorkflowReturn<{ leads: unknown[] }>(
+          request.tenantId,
+          'leads_list',
+          { source, statut, limit: limit ?? '100' }
+        );
+        if (!result.success) {
+          return reply.status(502).send({ success: false, error: result.error || 'Erreur n8n' });
+        }
+        return reply.send({ success: true, data: { leads: result.data?.leads ?? [] } });
+      }
       
       const where: Record<string, unknown> = {};
       if (source) {
@@ -212,7 +225,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   // Obtenir un lead par ID (nécessite authentification admin)
   fastify.get('/:id', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({
@@ -222,6 +235,23 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       }
 
       const params = request.params as { id: string };
+
+      // Déléguer à n8n si activé
+      if (request.tenantId && (process.env.USE_N8N_VIEWS || '').toLowerCase() === 'true') {
+        const result = await n8nService.callWorkflowReturn<{ lead: unknown }>(
+          request.tenantId,
+          'lead_get',
+          { id: params.id }
+        );
+        if (!result.success) {
+          return reply.status(502).send({ success: false, error: result.error || 'Erreur n8n' });
+        }
+        if (!result.data?.lead) {
+          return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+        }
+        return reply.send({ success: true, data: { lead: result.data.lead } });
+      }
+
       const lead = await prisma.lead.findUnique({
         where: { id: params.id },
       });
@@ -298,7 +328,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   // Supprimer un lead (nécessite authentification admin)
   fastify.delete('/:id', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({
@@ -324,6 +354,17 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       await prisma.lead.delete({
         where: { id: params.id },
       });
+
+      // Émettre l'événement de suppression
+      if (request.tenantId) {
+        await eventService.emit(
+          request.tenantId,
+          'lead_deleted',
+          'lead',
+          params.id,
+          { id: params.id, email: lead.email }
+        );
+      }
 
       return reply.send({
         success: true,

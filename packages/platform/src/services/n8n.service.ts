@@ -24,6 +24,55 @@ export class N8nService {
   }
 
   /**
+   * Appelle un workflow n8n et retourne la réponse JSON
+   * Utile pour les vues (listage/lecture) orchestrées par n8n
+   */
+  async callWorkflowReturn<T = unknown>(
+    tenantId: string,
+    eventType: string,
+    payload: Record<string, unknown>
+  ): Promise<{ success: boolean; data?: T; error?: string }> {
+    if (!this.apiUrl) {
+      return { success: false, error: 'n8n non configuré' };
+    }
+
+    try {
+      const workflowLink = await prisma.workflowLink.findFirst({
+        where: {
+          tenantId,
+          typeEvenement: eventType,
+          statut: 'actif',
+        },
+      });
+
+      if (!workflowLink) {
+        return { success: false, error: `Workflow non trouvé pour ${eventType}` };
+      }
+
+      const response = await fetch(`${this.apiUrl}/webhook/${workflowLink.workflowN8nId}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          event: eventType,
+          tenantId,
+          timestamp: new Date().toISOString(),
+          data: payload,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { success: false, error: `n8n API error: ${response.status} - ${errorText}` };
+      }
+
+      const data = (await response.json().catch(() => ({}))) as T;
+      return { success: true, data };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      return { success: false, error: errorMessage };
+    }
+  }
+  /**
    * Génère les headers d'authentification pour les requêtes n8n
    */
   private getAuthHeaders(): Record<string, string> {
