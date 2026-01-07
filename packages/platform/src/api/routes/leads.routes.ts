@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
+import { eventService } from '../../services/event.service.js';
 import { z } from 'zod';
 
 // Schéma de validation pour la création d'un lead
@@ -13,9 +14,19 @@ const createLeadSchema = z.object({
 });
 
 export async function leadsRoutes(fastify: FastifyInstance) {
-  // Créer un lead (public, pas besoin d'authentification)
-  fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  // Créer un lead (ADMIN via plateforme) → déclenche un workflow n8n
+  fastify.post('/', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
+      // Vérifier droits
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({
+          success: false,
+          error: 'Accès refusé',
+        });
+      }
+
       // Valider les données
       const validationResult = createLeadSchema.safeParse(request.body);
       
@@ -28,6 +39,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       }
 
       const data = validationResult.data;
+      const tenantId = request.tenantId as string | undefined;
 
       // Vérifier si le lead existe déjà (par email)
       const existingLead = await prisma.lead.findUnique({
@@ -47,6 +59,26 @@ export async function leadsRoutes(fastify: FastifyInstance) {
             updatedAt: new Date(),
           },
         });
+
+        // Déclencher n8n (lead mis à jour par admin)
+        if (tenantId) {
+          await eventService.emit(
+            tenantId,
+            'lead_updated',
+            'lead',
+            updatedLead.id,
+            {
+              id: updatedLead.id,
+              email: updatedLead.email,
+              nom: updatedLead.nom,
+              prenom: updatedLead.prenom,
+              telephone: updatedLead.telephone,
+              statut: updatedLead.statut,
+              source: updatedLead.source,
+              updatedAt: updatedLead.updatedAt,
+            }
+          );
+        }
 
         return reply.status(200).send({
           success: true,
@@ -77,6 +109,26 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           statut: 'nouveau',
         },
       });
+
+      // Déclencher n8n (lead créé par admin)
+      if (tenantId) {
+        await eventService.emit(
+          tenantId,
+          'lead_created',
+          'lead',
+          lead.id,
+          {
+            id: lead.id,
+            email: lead.email,
+            nom: lead.nom,
+            prenom: lead.prenom,
+            telephone: lead.telephone,
+            statut: lead.statut,
+            source: lead.source,
+            createdAt: lead.createdAt,
+          }
+        );
+      }
 
       return reply.status(201).send({
         success: true,
@@ -197,7 +249,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   // Mettre à jour le statut d'un lead (nécessite authentification admin)
   fastify.patch('/:id/statut', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({
@@ -217,6 +269,17 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           dateContact: statut === 'contacte' ? new Date() : undefined,
         },
       });
+
+      // Déclencher n8n (changement de statut)
+      if (request.tenantId) {
+        await eventService.emit(
+          request.tenantId,
+          'lead_status_updated',
+          'lead',
+          lead.id,
+          { id: lead.id, statut: lead.statut, dateContact: lead.dateContact }
+        );
+      }
 
       return reply.send({
         success: true,
