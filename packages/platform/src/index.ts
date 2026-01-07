@@ -85,7 +85,7 @@ await fastify.register(async (fastify) => {
 
 // Enregistrer les routes leads (public pour création, admin pour consultation)
 await fastify.register(async (fastify) => {
-  await fastify.register(leadsRoutes);
+  await fastify.register(leadsRoutes, { prefix: '/api/leads' });
 });
 
 // Route de test

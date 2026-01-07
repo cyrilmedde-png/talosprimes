@@ -14,7 +14,7 @@ const createLeadSchema = z.object({
 
 export async function leadsRoutes(fastify: FastifyInstance) {
   // Créer un lead (public, pas besoin d'authentification)
-  fastify.post('/api/leads', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // Valider les données
       const validationResult = createLeadSchema.safeParse(request.body);
@@ -103,7 +103,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   });
 
   // Lister les leads (nécessite authentification admin)
-  fastify.get('/api/leads', {
+  fastify.get('/', {
     preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
     try {
@@ -146,7 +146,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   });
 
   // Obtenir un lead par ID (nécessite authentification admin)
-  fastify.get('/api/leads/:id', {
+  fastify.get('/:id', {
     preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
     try {
@@ -183,7 +183,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   });
 
   // Mettre à jour le statut d'un lead (nécessite authentification admin)
-  fastify.patch('/api/leads/:id/statut', {
+  fastify.patch('/:id/statut', {
     preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
     try {
