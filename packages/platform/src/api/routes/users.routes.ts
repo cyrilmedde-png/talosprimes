@@ -47,20 +47,6 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
       const users = await prisma.user.findMany({
         where: { tenantId },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          nom: true,
-          prenom: true,
-          telephone: true,
-          fonction: true,
-          salaire: true,
-          dateEmbauche: true,
-          statut: true,
-          lastLoginAt: true,
-          createdAt: true,
-        },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -68,9 +54,16 @@ export async function usersRoutes(fastify: FastifyInstance) {
         success: true,
         data: {
           users: users.map(user => ({
-            ...user,
-            salaire: user.salaire ? Number(user.salaire) : null,
-            dateEmbauche: user.dateEmbauche?.toISOString() || null,
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            nom: (user as any).nom || null,
+            prenom: (user as any).prenom || null,
+            telephone: (user as any).telephone || null,
+            fonction: (user as any).fonction || null,
+            salaire: (user as any).salaire ? Number((user as any).salaire) : null,
+            dateEmbauche: (user as any).dateEmbauche?.toISOString() || null,
+            statut: user.statut,
             lastLoginAt: user.lastLoginAt?.toISOString() || null,
             createdAt: user.createdAt.toISOString(),
           })),
@@ -147,27 +140,14 @@ export async function usersRoutes(fastify: FastifyInstance) {
           email: data.email,
           passwordHash,
           role: data.role as UserRole,
-          nom: data.nom,
-          prenom: data.prenom,
-          telephone: data.telephone,
-          fonction: data.fonction,
+          nom: data.nom || undefined,
+          prenom: data.prenom || undefined,
+          telephone: data.telephone || undefined,
+          fonction: data.fonction || undefined,
           salaire: data.salaire ? data.salaire : undefined,
           dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
           statut: 'actif',
-        },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          nom: true,
-          prenom: true,
-          telephone: true,
-          fonction: true,
-          salaire: true,
-          dateEmbauche: true,
-          statut: true,
-          createdAt: true,
-        },
+        } as any,
       });
 
       return reply.status(201).send({
@@ -175,9 +155,16 @@ export async function usersRoutes(fastify: FastifyInstance) {
         message: 'Utilisateur créé avec succès',
         data: {
           user: {
-            ...user,
-            salaire: user.salaire ? Number(user.salaire) : null,
-            dateEmbauche: user.dateEmbauche?.toISOString() || null,
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            nom: (user as any).nom || null,
+            prenom: (user as any).prenom || null,
+            telephone: (user as any).telephone || null,
+            fonction: (user as any).fonction || null,
+            salaire: (user as any).salaire ? Number((user as any).salaire) : null,
+            dateEmbauche: (user as any).dateEmbauche?.toISOString() || null,
+            statut: user.statut,
             createdAt: user.createdAt.toISOString(),
           },
         },
@@ -194,7 +181,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
   // Mettre à jour un utilisateur (nécessite authentification admin)
   fastify.put('/:id', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest<{ Params: { id: string } }> & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const tenantId = request.tenantId;
       const params = request.params as { id: string };
@@ -243,32 +230,22 @@ export async function usersRoutes(fastify: FastifyInstance) {
       }
 
       // Mettre à jour l'utilisateur
+      const updateData: any = {
+        email: data.email,
+        role: data.role as UserRole | undefined,
+        statut: data.statut as 'actif' | 'inactif' | undefined,
+      };
+
+      if (data.nom !== undefined) updateData.nom = data.nom;
+      if (data.prenom !== undefined) updateData.prenom = data.prenom;
+      if (data.telephone !== undefined) updateData.telephone = data.telephone;
+      if (data.fonction !== undefined) updateData.fonction = data.fonction;
+      if (data.salaire !== undefined) updateData.salaire = data.salaire ? data.salaire : null;
+      if (data.dateEmbauche !== undefined) updateData.dateEmbauche = data.dateEmbauche ? new Date(data.dateEmbauche) : null;
+
       const user = await prisma.user.update({
         where: { id: params.id },
-        data: {
-          email: data.email,
-          role: data.role as UserRole | undefined,
-          nom: data.nom ?? undefined,
-          prenom: data.prenom ?? undefined,
-          telephone: data.telephone ?? undefined,
-          fonction: data.fonction ?? undefined,
-          salaire: data.salaire ? data.salaire : undefined,
-          dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
-          statut: data.statut as 'actif' | 'inactif' | undefined,
-        },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          nom: true,
-          prenom: true,
-          telephone: true,
-          fonction: true,
-          salaire: true,
-          dateEmbauche: true,
-          statut: true,
-          createdAt: true,
-        },
+        data: updateData,
       });
 
       return reply.send({
@@ -276,9 +253,16 @@ export async function usersRoutes(fastify: FastifyInstance) {
         message: 'Utilisateur mis à jour',
         data: {
           user: {
-            ...user,
-            salaire: user.salaire ? Number(user.salaire) : null,
-            dateEmbauche: user.dateEmbauche?.toISOString() || null,
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            nom: (user as any).nom || null,
+            prenom: (user as any).prenom || null,
+            telephone: (user as any).telephone || null,
+            fonction: (user as any).fonction || null,
+            salaire: (user as any).salaire ? Number((user as any).salaire) : null,
+            dateEmbauche: (user as any).dateEmbauche?.toISOString() || null,
+            statut: user.statut,
             createdAt: user.createdAt.toISOString(),
           },
         },
@@ -295,7 +279,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
   // Supprimer un utilisateur (nécessite authentification admin)
   fastify.delete('/:id', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest<{ Params: { id: string } }> & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const tenantId = request.tenantId;
       const params = request.params as { id: string };

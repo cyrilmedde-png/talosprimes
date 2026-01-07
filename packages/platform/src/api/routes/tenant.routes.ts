@@ -1,7 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { z } from 'zod';
-import type { StatutJuridique } from '@talosprimes/shared';
 
 // Schéma de validation pour la mise à jour du tenant
 const updateTenantSchema = z.object({
