@@ -121,6 +121,38 @@ export const apiClient = {
     }),
   },
 
+  // Leads
+  leads: {
+    list: (params?: { source?: string; statut?: string; limit?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.source) queryParams.append('source', params.source);
+      if (params?.statut) queryParams.append('statut', params.statut);
+      if (params?.limit) queryParams.append('limit', params.limit);
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { leads: unknown[] } }>(`/api/leads${query ? `?${query}` : ''}`);
+    },
+    
+    get: (id: string) => authenticatedFetch<{ success: boolean; data: { lead: unknown } }>(`/api/leads/${id}`),
+    
+    create: (data: {
+      nom: string;
+      prenom: string;
+      email: string;
+      telephone: string;
+      source?: string;
+      notes?: string;
+    }) => authenticatedFetch<{ success: boolean; data: { lead: unknown } }>('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    
+    updateStatus: (id: string, statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne') => 
+      authenticatedFetch<{ success: boolean; data: { lead: unknown } }>(`/api/leads/${id}/statut`, {
+        method: 'PATCH',
+        body: JSON.stringify({ statut }),
+      }),
+  },
+
   // n8n
   n8n: {
     test: () => authenticatedFetch<{ success: boolean; message: string }>('/api/n8n/test'),
