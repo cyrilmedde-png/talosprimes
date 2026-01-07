@@ -1,0 +1,70 @@
+{
+  "name": "Leads - List (leads_list) → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leads_list",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook_LeadsList",
+      "name": "Webhook - leads_list",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n// Attendu: { data: { source?, statut?, limit? }, tenantId?, event? }\n// TODO: remplacer par un node Postgres/Supabase pour lire la DB.\nreturn [{ json: { leads: [], received: input } }];\n"
+      },
+      "id": "Code_Stub",
+      "name": "Code - TODO Fetch Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200
+      },
+      "id": "Respond_LeadsList",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [820, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - leads_list": {
+      "main": [
+        [
+          {
+            "node": "Code - TODO Fetch Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - TODO Fetch Leads": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+
+

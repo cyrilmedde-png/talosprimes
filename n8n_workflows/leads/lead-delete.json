@@ -1,0 +1,70 @@
+{
+  "name": "Leads - Delete (lead_delete) → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead_delete",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook_LeadDelete",
+      "name": "Webhook - lead_delete",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n// Attendu: { data: { id }, tenantId?, event? }\nconst id = input?.data?.id;\n// TODO: remplacer par Postgres/Supabase: DELETE FROM leads WHERE id = $1\nreturn [{ json: { success: Boolean(id), deletedId: id ?? null, received: input } }];\n"
+      },
+      "id": "Code_Stub",
+      "name": "Code - TODO Delete Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200
+      },
+      "id": "Respond_LeadDelete",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [820, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - lead_delete": {
+      "main": [
+        [
+          {
+            "node": "Code - TODO Delete Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - TODO Delete Lead": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+
+

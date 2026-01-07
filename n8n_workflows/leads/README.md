@@ -44,7 +44,12 @@ Le workflow **NE PEUT PAS** se terminer en "succeeded" s'il y a une erreur.
 
 1. Ouvrir n8n
 2. Workflows → Import from File
-3. Sélectionner `workflow-inscription.json`
+3. Importer les workflows (un fichier par workflow) :
+   - `lead-create.json` (Webhook `lead_create`)
+   - `leads-list.json` (Webhook `leads_list`)
+   - `lead-get.json` (Webhook `lead_get`)
+   - `lead-update-status.json` (Webhook `lead_update_status`)
+   - `lead-delete.json` (Webhook `lead_delete`)
 4. Configurer les credentials :
    - **Resend API** : Clé API Resend
    - **Twilio** : Credentials Twilio (optionnel)
@@ -56,8 +61,13 @@ Le workflow **NE PEUT PAS** se terminer en "succeeded" s'il y a une erreur.
 
 1. **Resend API** :
    - Type : Header Auth
-   - Name : `Authorization`
-   - Value : `Bearer YOUR_RESEND_API_KEY`
+   - **Header Name** : `Authorization`
+   - **Header Value** : `Bearer re_...` (obligatoire : "Bearer" + espace + clé)
+
+2. **TalosPrimes API (pour le nœud “Sauvegarder Lead” vers https://api.talosprimes.com/api/leads)** :
+   - Type : Header Auth
+   - **Header Name** : `X-TalosPrimes-N8N-Secret`
+   - **Header Value** : un secret partagé (à mettre aussi dans `/var/www/talosprimes/packages/platform/.env` via `N8N_WEBHOOK_SECRET=...`)
 
 2. **Twilio** (optionnel) :
    - Account SID

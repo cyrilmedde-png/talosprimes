@@ -49,14 +49,21 @@ CORS_ORIGIN="https://talosprimes.com"
 # ============================================
 # N8N - INTÉGRATION
 # ============================================
-N8N_API_URL="http://localhost:5678"
+# URL publique de l’instance n8n derrière Nginx (voir scripts/configure-nginx-n8n.sh)
+N8N_API_URL="https://n8n.talosprimes.com"
 
-# Option 1 : Avec API Key (recommandé)
-N8N_API_KEY="[VOTRE_API_KEY_N8N]"
-
-# Option 2 : Avec Basic Auth (si pas d'API Key)
+# Authentification (utilisez soit l’une, soit l’autre)
+# → De préférence : API Key
+N8N_API_KEY="[VOTRE_CLEF_API_N8N]"
+# ou Basic Auth si vous avez configuré un user/mot de passe n8n
 # N8N_USERNAME="[VOTRE_USERNAME_N8N]"
 # N8N_PASSWORD="[VOTRE_PASSWORD_N8N]"
+
+# Délégation à n8n
+# true = n8n gère les VUES (GET /api/leads, GET /api/leads/:id)
+USE_N8N_VIEWS=true
+# true = n8n gère aussi les ÉCRITURES (create/update/delete)
+USE_N8N_COMMANDS=true
 ```
 
 ### 2. Frontend : `/var/www/talosprimes/packages/client/.env.local`

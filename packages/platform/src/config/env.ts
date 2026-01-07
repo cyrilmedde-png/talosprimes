@@ -27,6 +27,9 @@ const envSchema = z.object({
   N8N_API_KEY: z.string().optional(),
   N8N_USERNAME: z.string().optional(),
   N8N_PASSWORD: z.string().optional(),
+  // Secret partagé pour permettre à n8n d'appeler l'API (sans JWT)
+  // Header attendu: X-TalosPrimes-N8N-Secret: <secret>
+  N8N_WEBHOOK_SECRET: z.string().optional(),
   // Activer l'utilisation de n8n pour les vues (listings/lecture)
   USE_N8N_VIEWS: z
     .string()

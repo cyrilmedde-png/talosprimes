@@ -5,6 +5,18 @@ import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { z } from 'zod';
 
+function getN8nSecretHeader(request: FastifyRequest): string | undefined {
+  const header = request.headers['x-talosprimes-n8n-secret'];
+  return typeof header === 'string' ? header : undefined;
+}
+
+function isN8nInternalRequest(request: FastifyRequest): boolean {
+  const secret = env.N8N_WEBHOOK_SECRET;
+  if (!secret) return false;
+  const provided = getN8nSecretHeader(request);
+  return Boolean(provided && provided === secret);
+}
+
 // Schéma de validation pour la création d'un lead
 const createLeadSchema = z.object({
   nom: z.string().min(1, 'Le nom est requis'),
@@ -18,15 +30,19 @@ const createLeadSchema = z.object({
 export async function leadsRoutes(fastify: FastifyInstance) {
   // Créer un lead (ADMIN via plateforme) → déclenche un workflow n8n
   fastify.post('/', {
-    preHandler: [fastify.authenticate],
+    preHandler: [
+      async (request, reply) => {
+        // Si l'appel vient de n8n (secret), on ne demande pas de JWT
+        if (isN8nInternalRequest(request)) return;
+        await fastify.authenticate(request, reply);
+      },
+    ],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
-      // Vérifier droits
-      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+      const fromN8n = isN8nInternalRequest(request);
+      // Vérifier droits si pas n8n
+      if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
       // Valider les données
@@ -44,7 +60,8 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string | undefined;
 
       // Si on délègue les écritures à n8n (full no‑code)
-      if (tenantId && (env as any).USE_N8N_COMMANDS) {
+      // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
+      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<{ lead: unknown }>(
           tenantId,
           'lead_create',
@@ -81,8 +98,8 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Déclencher n8n (lead mis à jour par admin)
-        if (tenantId) {
+        // Déclencher n8n (lead mis à jour par admin) - pas si l'appel vient de n8n
+        if (!fromN8n && tenantId) {
           await eventService.emit(
             tenantId,
             'lead_updated',
@@ -131,8 +148,8 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         },
       });
 
-      // Déclencher n8n (lead créé par admin)
-      if (tenantId) {
+      // Déclencher n8n (lead créé par admin) - pas si l'appel vient de n8n
+      if (!fromN8n && tenantId) {
         await eventService.emit(
           tenantId,
           'lead_created',
@@ -192,7 +209,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const { source, statut, limit } = query;
       
       // Si on utilise n8n pour les vues, déléguer au workflow
-      if (request.tenantId && (env as any).USE_N8N_VIEWS) {
+      if (request.tenantId && env.USE_N8N_VIEWS) {
         const result = await n8nService.callWorkflowReturn<{ leads: unknown[] }>(
           request.tenantId,
           'leads_list',
@@ -258,7 +275,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const params = request.params as { id: string };
 
       // Déléguer à n8n si activé
-      if (request.tenantId && (env as any).USE_N8N_VIEWS) {
+      if (request.tenantId && env.USE_N8N_VIEWS) {
         const result = await n8nService.callWorkflowReturn<{ lead: unknown }>(
           request.tenantId,
           'lead_get',
@@ -299,22 +316,27 @@ export async function leadsRoutes(fastify: FastifyInstance) {
 
   // Mettre à jour le statut d'un lead (nécessite authentification admin)
   fastify.patch('/:id/statut', {
-    preHandler: [fastify.authenticate],
+    preHandler: [
+      async (request, reply) => {
+        if (isN8nInternalRequest(request)) return;
+        await fastify.authenticate(request, reply);
+      },
+    ],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
+      const fromN8n = isN8nInternalRequest(request);
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        if (!fromN8n) {
+          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        }
       }
 
       const params = request.params as { id: string };
       const body = request.body as { statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne' };
       const { statut } = body;
 
-      // Délégation éventuelle à n8n (full no‑code)
-      if (request.tenantId && (env.USE_N8N_COMMANDS ? true : false)) {
+      // Délégation éventuelle à n8n (full no‑code) - pas si appel venant de n8n
+      if (!fromN8n && request.tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<{ lead: unknown }>(
           request.tenantId,
           'lead_update_status',
@@ -338,8 +360,8 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         },
       });
 
-      // Déclencher n8n (changement de statut)
-      if (request.tenantId) {
+      // Déclencher n8n (changement de statut) - pas si appel venant de n8n
+      if (!fromN8n && request.tenantId) {
         await eventService.emit(
           request.tenantId,
           'lead_status_updated',
@@ -365,20 +387,25 @@ export async function leadsRoutes(fastify: FastifyInstance) {
 
   // Supprimer un lead (nécessite authentification admin)
   fastify.delete('/:id', {
-    preHandler: [fastify.authenticate],
+    preHandler: [
+      async (request, reply) => {
+        if (isN8nInternalRequest(request)) return;
+        await fastify.authenticate(request, reply);
+      },
+    ],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
+      const fromN8n = isN8nInternalRequest(request);
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        if (!fromN8n) {
+          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        }
       }
 
       const params = request.params as { id: string };
 
-      // Si on délègue les écritures à n8n (full no‑code)
-      if (request.tenantId && (env as any).USE_N8N_COMMANDS) {
+      // Si on délègue les écritures à n8n (full no‑code) - pas si appel venant de n8n
+      if (!fromN8n && request.tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn(
           request.tenantId,
           'lead_delete',
@@ -409,8 +436,8 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         where: { id: params.id },
       });
 
-      // Émettre l'événement de suppression
-      if (request.tenantId) {
+      // Émettre l'événement de suppression - pas si appel venant de n8n
+      if (!fromN8n && request.tenantId) {
         await eventService.emit(
           request.tenantId,
           'lead_deleted',

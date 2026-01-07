@@ -1,0 +1,70 @@
+{
+  "name": "Leads - Get (lead_get) → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead_get",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook_LeadGet",
+      "name": "Webhook - lead_get",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n// Attendu: { data: { id }, tenantId?, event? }\nconst id = input?.data?.id;\n// TODO: remplacer par Postgres/Supabase: SELECT * FROM leads WHERE id = $1\nreturn [{ json: { lead: id ? { id } : null, received: input } }];\n"
+      },
+      "id": "Code_Stub",
+      "name": "Code - TODO Get Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200
+      },
+      "id": "Respond_LeadGet",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [820, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - lead_get": {
+      "main": [
+        [
+          {
+            "node": "Code - TODO Get Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - TODO Get Lead": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+
+
