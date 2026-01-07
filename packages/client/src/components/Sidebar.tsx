@@ -8,6 +8,7 @@ import {
   UsersIcon, 
   DocumentTextIcon,
   Cog6ToothIcon,
+  UserPlusIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
