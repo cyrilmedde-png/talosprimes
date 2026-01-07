@@ -122,6 +122,19 @@ export default function OnboardingPage() {
     }
   };
 
+  const handleDelete = async (leadId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce lead ?')) {
+      return;
+    }
+
+    try {
+      await apiClient.leads.delete(leadId);
+      await loadLeads();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+    }
+  };
+
   const filteredLeads = leads.filter(lead => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
