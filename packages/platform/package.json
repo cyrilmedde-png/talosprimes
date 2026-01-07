@@ -16,6 +16,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "workflow:create": "tsx scripts/create-workflow-link.ts",
+    "workflow:setup-leads": "tsx scripts/setup-leads-workflows.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
