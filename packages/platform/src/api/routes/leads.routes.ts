@@ -135,7 +135,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          leads: leads.map(lead => ({
+          leads: leads.map((lead) => ({
             id: lead.id,
             nom: lead.nom,
             prenom: lead.prenom,
