@@ -17,14 +17,37 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validation et normalisation des données\nconst input = $input.all()[0].json;\n\n// Extraire les données (gère différents formats)\nconst data = input.body || input.json || input;\n\n// Normaliser les champs\nconst nom = (data.nom || '').trim();\nconst prenom = (data.prenom || '').trim();\nconst telephone = (data.telephone || '').trim();\nconst email = (data.email || '').trim();\n\n// Validation\nconst errors = [];\n\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!telephone) errors.push('Le téléphone est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\n\nif (errors.length > 0) {\n  throw new Error(errors.join(', '));\n}\n\nreturn {\n  json: {\n    nom,\n    prenom,\n    telephone,\n    email,\n    timestamp: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Validation et normalisation des données\nconst input = $input.all()[0].json;\n\n// Extraire les données (gère différents formats)\nconst data = input.body || input.json || input;\n\n// Normaliser les champs\nconst nom = (data.nom || '').trim();\nconst prenom = (data.prenom || '').trim();\nconst telephone = (data.telephone || '').trim();\nconst email = (data.email || '').trim();\n\n// Validation stricte\nconst errors = [];\n\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!telephone) errors.push('Le téléphone est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\n\nif (errors.length > 0) {\n  throw new Error(errors.join(', '));\n}\n\nreturn {\n  json: {\n    nom,\n    prenom,\n    telephone,\n    email,\n    timestamp: new Date().toISOString()\n  }\n};"
       },
       "id": "validation",
       "name": "Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300],
-      "onError": "continueErrorOutput"
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "save-lead",
+      "name": "Sauvegarder Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
     },
     {
       "parameters": {
@@ -34,7 +57,7 @@
       "name": "Formatage Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 200]
+      "position": [900, 200]
     },
     {
       "parameters": {
@@ -59,14 +82,13 @@
       "name": "Resend - Email Confirmation",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [900, 200],
+      "position": [1120, 200],
       "credentials": {
         "headerAuth": {
           "id": "resend-api",
           "name": "Resend API"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -76,7 +98,7 @@
       "name": "Formatage SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 400]
+      "position": [900, 400]
     },
     {
       "parameters": {
@@ -90,39 +112,13 @@
       "name": "Twilio - SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [900, 400],
+      "position": [1120, 400],
       "credentials": {
         "twilioApi": {
           "id": "twilio-api",
           "name": "Twilio"
         }
-      },
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/leads",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          }
-        }
-      },
-      "id": "save-lead",
-      "name": "Sauvegarder Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [680, 400],
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -132,7 +128,7 @@
       "name": "Formatage Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 600]
+      "position": [900, 600]
     },
     {
       "parameters": {
@@ -157,14 +153,13 @@
       "name": "Resend - Notification Équipe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [900, 600],
+      "position": [1120, 600],
       "credentials": {
         "headerAuth": {
           "id": "resend-api",
           "name": "Resend API"
         }
-      },
-      "continueOnFail": true
+      }
     },
     {
       "parameters": {
@@ -178,11 +173,11 @@
       "name": "Réponse Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1120, 400]
+      "position": [1340, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Gestion d'erreur - Formatage alerte\nconst error = $input.all()[0].json;\nconst execution = $execution;\n\n// Extraire les données originales\nconst originalData = error.json || error.body || {};\n\nconst alert = {\n  type: 'workflow_error',\n  workflow: 'Inscription - Formulaire Leads',\n  timestamp: new Date().toISOString(),\n  executionId: execution.id,\n  error: {\n    message: error.message || error.error?.message || 'Erreur inconnue',\n    node: error.node?.name || 'Node inconnu'\n  },\n  data: {\n    nom: originalData.nom || 'N/A',\n    prenom: originalData.prenom || 'N/A',\n    email: originalData.email || 'N/A',\n    telephone: originalData.telephone || 'N/A'\n  }\n};\n\nreturn { json: alert };"
+        "jsCode": "// Gestion d'erreur - Formatage alerte\nconst error = $input.all()[0].json;\nconst execution = $execution;\n\n// Extraire les données originales depuis le contexte\nlet originalData = {};\n\ntry {\n  // Essayer de récupérer les données depuis le nœud Validation\n  const validationNode = $('Validation');\n  if (validationNode && validationNode.json) {\n    originalData = validationNode.json;\n  }\n} catch (e) {\n  // Si pas disponible, utiliser les données d'erreur\n  originalData = error.json || error.body || {};\n}\n\nconst alert = {\n  type: 'workflow_error',\n  workflow: 'Inscription - Formulaire Leads',\n  timestamp: new Date().toISOString(),\n  executionId: execution.id,\n  error: {\n    message: error.message || error.error?.message || error.error || 'Erreur inconnue',\n    node: error.node?.name || 'Node inconnu',\n    stack: error.stack || error.error?.stack || ''\n  },\n  data: {\n    nom: originalData.nom || 'N/A',\n    prenom: originalData.prenom || 'N/A',\n    email: originalData.email || 'N/A',\n    telephone: originalData.telephone || 'N/A'\n  }\n};\n\nreturn { json: alert };"
       },
       "id": "error-format",
       "name": "Formatage Alerte Erreur",
@@ -192,7 +187,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formatage email d'alerte\nconst alert = $input.all()[0].json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; background: #fff; }\n    .header { background: #dc2626; color: white; padding: 20px; text-align: center; }\n    .content { padding: 20px; }\n    .error-box { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; }\n    .info-box { background: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 4px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>⚠️ ALERTE - Erreur Workflow</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Une erreur s'est produite</h2>\n      <div class=\"error-box\">\n        <p><strong>Erreur :</strong> ${alert.error.message}</p>\n        <p><strong>Nœud :</strong> ${alert.error.node}</p>\n      </div>\n      <div class=\"info-box\">\n        <h3>Informations du lead :</h3>\n        <p><strong>Nom :</strong> ${alert.data.nom}</p>\n        <p><strong>Prénom :</strong> ${alert.data.prenom}</p>\n        <p><strong>Email :</strong> ${alert.data.email}</p>\n        <p><strong>Téléphone :</strong> ${alert.data.telephone}</p>\n        <p><strong>Execution ID :</strong> ${alert.executionId}</p>\n      </div>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `🚨 ALERTE - Erreur workflow inscription - ${alert.data.prenom} ${alert.data.nom}`,\n    html: html\n  }\n};"
+        "jsCode": "// Formatage email d'alerte\nconst alert = $input.all()[0].json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; background: #fff; }\n    .header { background: #dc2626; color: white; padding: 20px; text-align: center; }\n    .content { padding: 20px; }\n    .error-box { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; }\n    .info-box { background: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 4px; }\n    .stack { background: #1f2937; color: #f9fafb; padding: 15px; margin: 20px 0; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🚨 ALERTE - Erreur Workflow</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Une erreur s'est produite dans le workflow d'inscription</h2>\n      <div class=\"error-box\">\n        <p><strong>Erreur :</strong> ${alert.error.message}</p>\n        <p><strong>Nœud :</strong> ${alert.error.node}</p>\n        <p><strong>Execution ID :</strong> ${alert.executionId}</p>\n      </div>\n      <div class=\"info-box\">\n        <h3>Informations du lead :</h3>\n        <p><strong>Nom :</strong> ${alert.data.nom}</p>\n        <p><strong>Prénom :</strong> ${alert.data.prenom}</p>\n        <p><strong>Email :</strong> ${alert.data.email}</p>\n        <p><strong>Téléphone :</strong> ${alert.data.telephone}</p>\n      </div>\n      ${alert.error.stack ? `<div class=\"stack\"><pre>${alert.error.stack}</pre></div>` : ''}\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `🚨 ALERTE - Erreur workflow inscription - ${alert.data.prenom} ${alert.data.nom}`,\n    html: html\n  }\n};"
       },
       "id": "error-email-format",
       "name": "Formatage Email Alerte",
@@ -229,8 +224,21 @@
           "id": "resend-api",
           "name": "Resend API"
         }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Une erreur s'est produite. Notre équipe a été notifiée.\",\n  \"error\": \"{{ $json.error.message }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
       },
-      "continueOnFail": true
+      "id": "respond-error",
+      "name": "Réponse Webhook Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 800]
     }
   ],
   "connections": {
@@ -252,7 +260,22 @@
             "node": "Sauvegarder Lead",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Formatage Alerte Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sauvegarder Lead": {
+      "main": [
+        [
           {
             "node": "Formatage Email",
             "type": "main",
@@ -280,17 +303,6 @@
         ]
       ]
     },
-    "Sauvegarder Lead": {
-      "main": [
-        [
-          {
-            "node": "Formatage Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Formatage Email": {
       "main": [
         [
@@ -307,6 +319,15 @@
         [
           {
             "node": "Réponse Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Formatage Alerte Erreur",
             "type": "main",
             "index": 0
           }
@@ -333,6 +354,15 @@
             "index": 0
           }
         ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Formatage Alerte Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Formatage Notification": {
@@ -351,6 +381,15 @@
         [
           {
             "node": "Réponse Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Formatage Alerte Erreur",
             "type": "main",
             "index": 0
           }
@@ -378,6 +417,17 @@
           }
         ]
       ]
+    },
+    "Resend - Email Alerte": {
+      "main": [
+        [
+          {
+            "node": "Réponse Webhook Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -395,4 +445,3 @@
   "updatedAt": "2026-01-07T00:00:00.000Z",
   "versionId": "1"
 }
-

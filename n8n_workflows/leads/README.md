@@ -1,101 +1,77 @@
-# Workflow : Traitement formulaire d'inscription (Leads)
+# Workflow n8n - Inscription Leads
 
 ## 📋 Description
 
-Ce workflow gère les demandes d'inscription reçues via le formulaire web `/inscription`.
+Workflow professionnel pour gérer les inscriptions via formulaire web.
 
-**Fonctionnalités :**
-- Réception des données du formulaire (nom, prénom, téléphone, email)
-- Validation des données
-- Envoi d'un email de confirmation à l'utilisateur
-- Notification à l'équipe TalosPrimes (email ou Slack/Discord)
-- Réponse de confirmation au formulaire
+## ✅ Fonctionnalités
 
-## 🔗 URL du Webhook
+1. **Validation stricte** des données d'entrée
+2. **Sauvegarde en base de données** (priorité absolue)
+3. **Envoi email de confirmation** au lead
+4. **Envoi SMS de confirmation** (optionnel, via Twilio)
+5. **Notification équipe** par email
+6. **Gestion d'erreurs stricte** : toute erreur déclenche une alerte et fait échouer le workflow
 
-**Production URL :**
-```
-https://n8n.talosprimes.com/webhook/inscription
-```
-
-**Test URL :**
-```
-http://localhost:5678/webhook-test/inscription
-```
-
-## 📥 Données d'entrée
-
-Le formulaire envoie une requête POST avec :
-
-```json
-{
-  "nom": "Dupont",
-  "prenom": "Jean",
-  "telephone": "+33 6 12 34 56 78",
-  "email": "jean.dupont@example.com",
-  "timestamp": "2026-01-06T23:00:00.000Z"
-}
-```
-
-## 🔄 Structure du workflow
+## 🔄 Flux d'exécution
 
 ```
-1. Webhook (POST /inscription)
-   ↓
-2. Code - Validation (optionnel)
-   ↓
-3. Email - Confirmation utilisateur
-   ↓
-4. Email/Notification - Équipe TalosPrimes
-   ↓
-5. Respond to Webhook (200 OK)
+Webhook → Validation → Sauvegarder Lead → [En parallèle]
+                                              ├─ Email Confirmation
+                                              ├─ SMS Confirmation
+                                              └─ Notification Équipe
+                                                      ↓
+                                              Réponse Webhook (success)
 ```
 
-## ⚙️ Configuration requise
-
-### Credentials nécessaires
-
-1. **SMTP** (pour envoi d'emails)
-   - Email d'envoi : `noreply@talosprimes.com`
-   - Serveur SMTP (ex: smtp.gmail.com, SendGrid, Mailgun)
-   - Port : 587 (TLS) ou 465 (SSL)
-   - User et Password
-
-2. **Slack** (optionnel - pour notifications)
-   - Webhook URL ou Bot Token
-
-3. **Discord** (optionnel - pour notifications)
-   - Webhook URL
-
-### Variables d'environnement (si utilisées)
-
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=noreply@talosprimes.com
-SMTP_PASSWORD=votre_mot_de_passe
-EMAIL_FROM=noreply@talosprimes.com
-EMAIL_TO_EQUIPE=contact@talosprimes.com
-SLACK_WEBHOOK_URL=https://hooks.slack.com/... (optionnel)
+En cas d'erreur à n'importe quelle étape :
+```
+Erreur → Formatage Alerte → Email Alerte → Réponse Webhook (error 500)
 ```
 
-## 📧 Templates d'emails
+## ⚠️ Gestion d'erreurs
 
-### Email de confirmation utilisateur
+**AUCUN `continueOnFail`** - Toute erreur fait échouer le workflow et déclenche une alerte.
 
-**Subject :** `Demande d'inscription TalosPrimes - Confirmation`
+- ✅ Erreur de validation → Alerte immédiate
+- ✅ Erreur de sauvegarde → Alerte immédiate
+- ✅ Erreur d'envoi email → Alerte immédiate
+- ✅ Erreur d'envoi SMS → Alerte immédiate
 
-**Body HTML :** (voir `email-confirmation-template.html`)
+Le workflow **NE PEUT PAS** se terminer en "succeeded" s'il y a une erreur.
 
-### Email notification équipe
+## 📦 Import
 
-**Subject :** `Nouvelle demande d'inscription - {{ prenom }} {{ nom }}`
+1. Ouvrir n8n
+2. Workflows → Import from File
+3. Sélectionner `workflow-inscription.json`
+4. Configurer les credentials :
+   - **Resend API** : Clé API Resend
+   - **Twilio** : Credentials Twilio (optionnel)
+5. Activer le workflow
 
-**Body :** (voir `email-notification-template.txt`)
+## 🔧 Configuration requise
+
+### Credentials n8n
+
+1. **Resend API** :
+   - Type : Header Auth
+   - Name : `Authorization`
+   - Value : `Bearer YOUR_RESEND_API_KEY`
+
+2. **Twilio** (optionnel) :
+   - Account SID
+   - Auth Token
+   - Phone Number
+
+### Variables d'environnement backend
+
+Le workflow appelle `https://api.talosprimes.com/api/leads` - assurez-vous que :
+- Le backend est accessible
+- La route `/api/leads` est fonctionnelle
+- La base de données est accessible
 
 ## 🧪 Test
-
-### Test avec curl
 
 ```bash
 curl -X POST "https://n8n.talosprimes.com/webhook/inscription" \
@@ -103,24 +79,12 @@ curl -X POST "https://n8n.talosprimes.com/webhook/inscription" \
   -d '{
     "nom": "Dupont",
     "prenom": "Jean",
-    "telephone": "+33 6 12 34 56 78",
-    "email": "jean.dupont@example.com",
-    "timestamp": "2026-01-06T23:00:00.000Z"
+    "email": "jean@example.com",
+    "telephone": "+33612345678"
   }'
 ```
 
-### Test depuis le formulaire
-
-1. Accédez à `https://talosprimes.com/inscription`
-2. Remplissez le formulaire
-3. Vérifiez l'email de confirmation
-4. Vérifiez la notification équipe
-
-## ✅ Réponse attendue
-
-**Code HTTP :** `200 OK`
-
-**Body :**
+**Réponse attendue (succès)** :
 ```json
 {
   "success": true,
@@ -128,14 +92,27 @@ curl -X POST "https://n8n.talosprimes.com/webhook/inscription" \
 }
 ```
 
-## 🔄 Workflows liés (futurs)
+**Réponse attendue (erreur)** :
+```json
+{
+  "success": false,
+  "message": "Une erreur s'est produite. Notre équipe a été notifiée.",
+  "error": "Message d'erreur détaillé"
+}
+```
 
-- `leads/lead-vers-client` : Conversion d'un lead en client après validation
-- `leads/relance-lead` : Relance automatique après 48h
+## 📊 Vérification
 
-## 📝 Notes
+1. **Base de données** : Vérifier que le lead est enregistré
+2. **Email lead** : Vérifier la réception de l'email de confirmation
+3. **Email équipe** : Vérifier la notification à l'équipe
+4. **Logs n8n** : Vérifier l'exécution dans n8n
 
-- Le workflow doit être **activé** dans n8n pour fonctionner
-- Les emails peuvent prendre quelques secondes à être envoyés
-- En cas d'erreur SMTP, vérifiez les credentials et les paramètres du serveur
+## 🚨 Alertes
 
+En cas d'erreur, un email d'alerte est envoyé à `contact@talosprimes.com` avec :
+- Message d'erreur
+- Nœud concerné
+- Execution ID
+- Données du lead
+- Stack trace (si disponible)
