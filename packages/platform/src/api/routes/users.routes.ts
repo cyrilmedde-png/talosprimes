@@ -1,0 +1,360 @@
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { prisma } from '../../config/database.js';
+import { z } from 'zod';
+import { hashPassword } from '../../services/auth.service.js';
+import type { UserRole } from '@talosprimes/shared';
+
+// Schéma de validation pour la création d'un utilisateur
+const createUserSchema = z.object({
+  email: z.string().email('Email invalide'),
+  password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
+  role: z.enum(['admin', 'collaborateur', 'lecture_seule']).default('collaborateur'),
+  nom: z.string().optional().nullable(),
+  prenom: z.string().optional().nullable(),
+  telephone: z.string().optional().nullable(),
+  fonction: z.string().optional().nullable(),
+  salaire: z.number().positive().optional().nullable(),
+  dateEmbauche: z.string().datetime().optional().nullable(),
+});
+
+// Schéma de validation pour la mise à jour d'un utilisateur
+const updateUserSchema = z.object({
+  email: z.string().email('Email invalide').optional(),
+  role: z.enum(['admin', 'collaborateur', 'lecture_seule']).optional(),
+  nom: z.string().optional().nullable(),
+  prenom: z.string().optional().nullable(),
+  telephone: z.string().optional().nullable(),
+  fonction: z.string().optional().nullable(),
+  salaire: z.number().positive().optional().nullable(),
+  dateEmbauche: z.string().datetime().optional().nullable(),
+  statut: z.enum(['actif', 'inactif']).optional(),
+});
+
+export async function usersRoutes(fastify: FastifyInstance) {
+  // Lister les utilisateurs du tenant (nécessite authentification)
+  fastify.get('/', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+
+      if (!tenantId) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Non authentifié',
+        });
+      }
+
+      const users = await prisma.user.findMany({
+        where: { tenantId },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          nom: true,
+          prenom: true,
+          telephone: true,
+          fonction: true,
+          salaire: true,
+          dateEmbauche: true,
+          statut: true,
+          lastLoginAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return reply.send({
+        success: true,
+        data: {
+          users: users.map(user => ({
+            ...user,
+            salaire: user.salaire ? Number(user.salaire) : null,
+            dateEmbauche: user.dateEmbauche?.toISOString() || null,
+            lastLoginAt: user.lastLoginAt?.toISOString() || null,
+            createdAt: user.createdAt.toISOString(),
+          })),
+        },
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de la récupération des utilisateurs',
+      });
+    }
+  });
+
+  // Créer un utilisateur (nécessite authentification admin)
+  fastify.post('/', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+
+      if (!tenantId) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Non authentifié',
+        });
+      }
+
+      // Vérifier que l'utilisateur est admin ou super_admin
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({
+          success: false,
+          error: 'Accès refusé',
+        });
+      }
+
+      // Valider les données
+      const validationResult = createUserSchema.safeParse(request.body);
+      
+      if (!validationResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Données invalides',
+          details: validationResult.error.errors,
+        });
+      }
+
+      const data = validationResult.data;
+
+      // Vérifier si l'email existe déjà pour ce tenant
+      const existingUser = await prisma.user.findUnique({
+        where: {
+          tenantId_email: {
+            tenantId,
+            email: data.email,
+          },
+        },
+      });
+
+      if (existingUser) {
+        return reply.status(409).send({
+          success: false,
+          error: 'Un utilisateur avec cet email existe déjà',
+        });
+      }
+
+      // Hasher le mot de passe
+      const passwordHash = await hashPassword(data.password);
+
+      // Créer l'utilisateur
+      const user = await prisma.user.create({
+        data: {
+          tenantId,
+          email: data.email,
+          passwordHash,
+          role: data.role as UserRole,
+          nom: data.nom,
+          prenom: data.prenom,
+          telephone: data.telephone,
+          fonction: data.fonction,
+          salaire: data.salaire ? data.salaire : undefined,
+          dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
+          statut: 'actif',
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          nom: true,
+          prenom: true,
+          telephone: true,
+          fonction: true,
+          salaire: true,
+          dateEmbauche: true,
+          statut: true,
+          createdAt: true,
+        },
+      });
+
+      return reply.status(201).send({
+        success: true,
+        message: 'Utilisateur créé avec succès',
+        data: {
+          user: {
+            ...user,
+            salaire: user.salaire ? Number(user.salaire) : null,
+            dateEmbauche: user.dateEmbauche?.toISOString() || null,
+            createdAt: user.createdAt.toISOString(),
+          },
+        },
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de la création de l\'utilisateur',
+      });
+    }
+  });
+
+  // Mettre à jour un utilisateur (nécessite authentification admin)
+  fastify.put('/:id', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest<{ Params: { id: string } }> & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      const params = request.params as { id: string };
+
+      if (!tenantId) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Non authentifié',
+        });
+      }
+
+      // Vérifier que l'utilisateur est admin ou super_admin
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({
+          success: false,
+          error: 'Accès refusé',
+        });
+      }
+
+      // Valider les données
+      const validationResult = updateUserSchema.safeParse(request.body);
+      
+      if (!validationResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Données invalides',
+          details: validationResult.error.errors,
+        });
+      }
+
+      const data = validationResult.data;
+
+      // Vérifier que l'utilisateur existe et appartient au tenant
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          id: params.id,
+          tenantId,
+        },
+      });
+
+      if (!existingUser) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Utilisateur non trouvé',
+        });
+      }
+
+      // Mettre à jour l'utilisateur
+      const user = await prisma.user.update({
+        where: { id: params.id },
+        data: {
+          email: data.email,
+          role: data.role as UserRole | undefined,
+          nom: data.nom ?? undefined,
+          prenom: data.prenom ?? undefined,
+          telephone: data.telephone ?? undefined,
+          fonction: data.fonction ?? undefined,
+          salaire: data.salaire ? data.salaire : undefined,
+          dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
+          statut: data.statut as 'actif' | 'inactif' | undefined,
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          nom: true,
+          prenom: true,
+          telephone: true,
+          fonction: true,
+          salaire: true,
+          dateEmbauche: true,
+          statut: true,
+          createdAt: true,
+        },
+      });
+
+      return reply.send({
+        success: true,
+        message: 'Utilisateur mis à jour',
+        data: {
+          user: {
+            ...user,
+            salaire: user.salaire ? Number(user.salaire) : null,
+            dateEmbauche: user.dateEmbauche?.toISOString() || null,
+            createdAt: user.createdAt.toISOString(),
+          },
+        },
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de la mise à jour de l\'utilisateur',
+      });
+    }
+  });
+
+  // Supprimer un utilisateur (nécessite authentification admin)
+  fastify.delete('/:id', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest<{ Params: { id: string } }> & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      const params = request.params as { id: string };
+
+      if (!tenantId) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Non authentifié',
+        });
+      }
+
+      // Vérifier que l'utilisateur est admin ou super_admin
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({
+          success: false,
+          error: 'Accès refusé',
+        });
+      }
+
+      // Vérifier que l'utilisateur existe et appartient au tenant
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          id: params.id,
+          tenantId,
+        },
+      });
+
+      if (!existingUser) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Utilisateur non trouvé',
+        });
+      }
+
+      // Ne pas permettre la suppression de soi-même (si l'ID utilisateur est disponible)
+      // Note: request.user pourrait ne pas avoir l'ID, donc on vérifie seulement si c'est le même email
+      if (existingUser.email === (request.user as { email?: string })?.email) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Vous ne pouvez pas supprimer votre propre compte',
+        });
+      }
+
+      // Supprimer l'utilisateur
+      await prisma.user.delete({
+        where: { id: params.id },
+      });
+
+      return reply.send({
+        success: true,
+        message: 'Utilisateur supprimé',
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de la suppression de l\'utilisateur',
+      });
+    }
+  });
+}
+

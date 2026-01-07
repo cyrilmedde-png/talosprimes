@@ -96,24 +96,51 @@ enum LeadStatus {
   abandonne
 }
 
+enum StatutJuridique {
+  SA
+  SARL
+  SAS
+  SASU
+  SCI
+  SNC
+  SCS
+  SCA
+  EURL
+  SCP
+  SEL
+  SELARL
+  SELAS
+  SELAFA
+  AUTO_ENTREPRENEUR
+  EIRL
+  ENTREPRISE_INDIVIDUELLE
+}
+
 // ============================================
 // MODELS
 // ============================================
 
 // Entreprise (Tenant) - Client direct de la plateforme
 model Tenant {
-  id            String        @id @default(uuid()) @db.Uuid
-  nomEntreprise String        @map("nom_entreprise")
-  siret         String?       @map("siret")
-  adressePostale String?      @map("adresse_postale") @db.Text
-  pays          String        @default("FR")
-  devise        String        @default("EUR")
-  langue        String        @default("fr")
-  emailContact  String        @map("email_contact")
-  metier        String        @map("metier")
-  statut        TenantStatus  @default(actif)
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id              String          @id @default(uuid()) @db.Uuid
+  nomEntreprise   String          @map("nom_entreprise")
+  siret           String?         @map("siret")
+  siren           String?         @map("siren")
+  codeAPE         String?         @map("code_ape")
+  codeNAF         String?         @map("code_naf")
+  statutJuridique StatutJuridique? @map("statut_juridique")
+  adressePostale  String?         @map("adresse_postale") @db.Text
+  codePostal      String?         @map("code_postal")
+  ville           String?         @map("ville")
+  pays            String          @default("FR")
+  telephone       String?         @map("telephone")
+  emailContact    String          @map("email_contact")
+  devise          String          @default("EUR")
+  langue          String          @default("fr")
+  metier          String          @map("metier")
+  statut          TenantStatus    @default(actif)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
 
   // Relations
   users              User[]

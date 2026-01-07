@@ -105,7 +105,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   // Lister les leads (nécessite authentification admin)
   fastify.get('/', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest<{ Querystring: { source?: string; statut?: string; limit?: string } }> & { user?: { role: string } }, reply: FastifyReply) => {
     try {
       // Vérifier que l'utilisateur est admin ou super_admin
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
@@ -115,9 +115,20 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         });
       }
 
+      const { source, statut, limit } = request.query;
+      
+      const where: Record<string, unknown> = {};
+      if (source) {
+        where.source = source;
+      }
+      if (statut) {
+        where.statut = statut;
+      }
+
       const leads = await prisma.lead.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
-        take: 100, // Limiter à 100 résultats
+        take: limit ? parseInt(limit, 10) : 100,
       });
 
       return reply.send({

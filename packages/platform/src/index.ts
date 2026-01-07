@@ -9,6 +9,8 @@ import { authRoutes } from './api/routes/auth.routes.js';
 import { clientsRoutes } from './api/routes/clients.routes.js';
 import { n8nRoutes } from './api/routes/n8n.routes.js';
 import { leadsRoutes } from './api/routes/leads.routes.js';
+import { tenantRoutes } from './api/routes/tenant.routes.js';
+import { usersRoutes } from './api/routes/users.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -86,6 +88,16 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes leads (public pour création, admin pour consultation)
 await fastify.register(async (fastify) => {
   await fastify.register(leadsRoutes, { prefix: '/api/leads' });
+});
+
+// Enregistrer les routes tenant (profil entreprise)
+await fastify.register(async (fastify) => {
+  await fastify.register(tenantRoutes, { prefix: '/api/tenant' });
+});
+
+// Enregistrer les routes users (gestion utilisateurs)
+await fastify.register(async (fastify) => {
+  await fastify.register(usersRoutes, { prefix: '/api/users' });
 });
 
 // Route de test
