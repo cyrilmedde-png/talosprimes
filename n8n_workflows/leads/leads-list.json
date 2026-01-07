@@ -1,11 +1,11 @@
 {
-  "name": "Leads - List (leads_list) → Respond",
+  "name": "Leads - List (leads_list) → API TalosPrimes → Respond",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "leads_list",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "Webhook_LeadsList",
@@ -16,13 +16,33 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n// Attendu: { data: { source?, statut?, limit? }, tenantId?, event? }\n// TODO: remplacer par un node Postgres/Supabase pour lire la DB.\nreturn [{ json: { leads: [], received: input } }];\n"
+        "jsCode": "const input = $input.first().json;\nconst data = (input && typeof input === 'object' && 'data' in input) ? input.data : {};\n\nconst source = data?.source ? String(data.source) : undefined;\nconst statut = data?.statut ? String(data.statut) : undefined;\nconst limit = data?.limit ? String(data.limit) : '100';\n\nreturn [{ json: { source, statut, limit } }];\n"
       },
-      "id": "Code_Stub",
-      "name": "Code - TODO Fetch Leads",
+      "id": "Code_Parse",
+      "name": "Parser filtres",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.talosprimes.com/api/leads{{$json.source || $json.statut || $json.limit ? `?${new URLSearchParams({ ...( $json.source ? { source: $json.source } : {}), ...( $json.statut ? { statut: $json.statut } : {}), ...( $json.limit ? { limit: $json.limit } : {}) }).toString()}` : ''}}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "HTTP_List",
+      "name": "API TalosPrimes - List Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
     },
     {
       "parameters": {
@@ -33,7 +53,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [820, 300]
+      "position": [1020, 300]
     }
   ],
   "connections": {
@@ -41,14 +61,25 @@
       "main": [
         [
           {
-            "node": "Code - TODO Fetch Leads",
+            "node": "Parser filtres",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - TODO Fetch Leads": {
+    "Parser filtres": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - List Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - List Leads": {
       "main": [
         [
           {

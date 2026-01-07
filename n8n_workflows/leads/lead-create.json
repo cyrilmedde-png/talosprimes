@@ -1,11 +1,11 @@
 {
-  "name": "Leads - Create (via Webhook) → Email (Resend) → Respond",
+  "name": "Leads - Create (lead_create) → API TalosPrimes → Respond",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "lead_create",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "Webhook_LeadCreate",
@@ -16,37 +16,53 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "authentication": "predefinedCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "jsonParameters": true,
-        "options": {},
-        "sendBody": true,
-        "bodyParametersJson": "{\n  \"from\": \"={{$env.EMAIL_FROM || 'TalosPrimes <noreply@talosprimes.com>'}}\",\n  \"to\": [ \"={{$json[\"email\"]}}\" ],\n  \"subject\": \"={{$json[\"subject\"] || 'Bienvenue chez TalosPrimes'}}\",\n  \"html\": \"=<p>Bonjour {{$json[\\\"prenom\\\"] || ''}} {{$json[\\\"nom\\\"] || ''}},<br/>Votre demande a bien été enregistrée.</p>\"\n}"
+        "jsCode": "// Payload venant du backend: { event, tenantId, timestamp, data, metadata }\nconst input = $input.first().json;\nconst data = (input && typeof input === 'object' && 'data' in input) ? input.data : input;\n\nconst nom = String(data?.nom ?? '').trim();\nconst prenom = String(data?.prenom ?? '').trim();\nconst email = String(data?.email ?? '').trim();\nconst telephone = String(data?.telephone ?? '').trim();\nconst source = String(data?.source ?? 'admin').trim() || 'admin';\nconst notes = data?.notes ?? undefined;\n\nif (!nom || !prenom || !email || !telephone) {\n  throw new Error('Champs requis manquants (nom, prenom, email, telephone)');\n}\n\nreturn [{ json: { nom, prenom, email, telephone, source, notes } }];\n"
       },
-      "id": "HTTP_ResendEmail",
-      "name": "Resend - Email Confirmation",
+      "id": "Code_Normalize",
+      "name": "Normaliser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "HTTP_SaveLead",
+      "name": "API TalosPrimes - Save Lead",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [650, 300],
+      "typeVersion": 4.1,
+      "position": [780, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Resend API"
+          "name": "TalosPrimes API Auth"
         }
       }
     },
     {
       "parameters": {
-        "responseBody": "={\"success\": true, \"message\": \"Lead reçu\"}",
-        "responseCode": 200
+        "responseBody": "={{ $json }}",
+        "responseCode": 200,
+        "options": {}
       },
       "id": "Respond_LeadCreate",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [950, 300]
+      "position": [1020, 300]
     }
   ],
   "connections": {
@@ -54,14 +70,25 @@
       "main": [
         [
           {
-            "node": "Resend - Email Confirmation",
+            "node": "Normaliser payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Resend - Email Confirmation": {
+    "Normaliser payload": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Save Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Save Lead": {
       "main": [
         [
           {

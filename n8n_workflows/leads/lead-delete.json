@@ -1,11 +1,11 @@
 {
-  "name": "Leads - Delete (lead_delete) → Respond",
+  "name": "Leads - Delete (lead_delete) → API TalosPrimes → Respond",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "lead_delete",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "Webhook_LeadDelete",
@@ -16,13 +16,33 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n// Attendu: { data: { id }, tenantId?, event? }\nconst id = input?.data?.id;\n// TODO: remplacer par Postgres/Supabase: DELETE FROM leads WHERE id = $1\nreturn [{ json: { success: Boolean(id), deletedId: id ?? null, received: input } }];\n"
+        "jsCode": "const input = $input.first().json;\nconst data = (input && typeof input === 'object' && 'data' in input) ? input.data : {};\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id } }];\n"
       },
-      "id": "Code_Stub",
-      "name": "Code - TODO Delete Lead",
+      "id": "Code_Parse",
+      "name": "Parser ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://api.talosprimes.com/api/leads/{{$json.id}}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "HTTP_Delete",
+      "name": "API TalosPrimes - Delete Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
     },
     {
       "parameters": {
@@ -33,7 +53,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [820, 300]
+      "position": [1020, 300]
     }
   ],
   "connections": {
@@ -41,14 +61,25 @@
       "main": [
         [
           {
-            "node": "Code - TODO Delete Lead",
+            "node": "Parser ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - TODO Delete Lead": {
+    "Parser ID": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Delete Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Delete Lead": {
       "main": [
         [
           {

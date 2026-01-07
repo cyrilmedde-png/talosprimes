@@ -34,12 +34,12 @@ const envSchema = z.object({
   USE_N8N_VIEWS: z
     .string()
     .optional()
-    .transform((v) => (v ? v.toLowerCase() === 'true' : false)),
+    .transform((v: string | undefined) => (v ? v.toLowerCase() === 'true' : false)),
   // Activer la délégation des écritures (create/update/delete) à n8n
   USE_N8N_COMMANDS: z
     .string()
     .optional()
-    .transform((v) => (v ? v.toLowerCase() === 'true' : false)),
+    .transform((v: string | undefined) => (v ? v.toLowerCase() === 'true' : false)),
   
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -58,10 +58,12 @@ try {
   env = envSchema.parse(process.env);
 } catch (error) {
   if (error instanceof z.ZodError) {
-    console.error('❌ Erreur de configuration des variables d\'environnement:');
-    error.errors.forEach((err) => {
-      console.error(`  - ${err.path.join('.')}: ${err.message}`);
-    });
+    console.error("❌ Erreur de configuration des variables d'environnement:");
+    const issues = (error as unknown as { errors: Array<{ path: Array<string | number>; message: string }> })
+      .errors;
+    for (const issue of issues) {
+      console.error(`  - ${issue.path.join('.')}: ${issue.message}`);
+    }
     process.exit(1);
   }
   throw error;

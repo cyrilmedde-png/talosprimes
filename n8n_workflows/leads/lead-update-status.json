@@ -1,11 +1,11 @@
 {
-  "name": "Leads - Update Status (lead_update_status) → Respond",
+  "name": "Leads - Update Status (lead_update_status) → API TalosPrimes → Respond",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "lead_update_status",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "Webhook_LeadUpdateStatus",
@@ -16,13 +16,36 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\n// Attendu: { data: { id, statut }, tenantId?, event? }\nconst id = input?.data?.id;\nconst statut = input?.data?.statut;\n// TODO: remplacer par Postgres/Supabase: UPDATE leads SET statut = $2 WHERE id = $1 RETURNING *\nreturn [{ json: { lead: id ? { id, statut } : null, received: input } }];\n"
+        "jsCode": "const input = $input.first().json;\nconst data = (input && typeof input === 'object' && 'data' in input) ? input.data : {};\nconst id = data?.id ? String(data.id) : '';\nconst statut = data?.statut ? String(data.statut) : '';\nif (!id) throw new Error('ID requis');\nif (!statut) throw new Error('Statut requis');\nreturn [{ json: { id, statut } }];\n"
       },
-      "id": "Code_Stub",
-      "name": "Code - TODO Update Status",
+      "id": "Code_Parse",
+      "name": "Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.talosprimes.com/api/leads/{{$json.id}}/statut",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { statut: $json.statut } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "HTTP_Update",
+      "name": "API TalosPrimes - Update Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
     },
     {
       "parameters": {
@@ -33,7 +56,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [820, 300]
+      "position": [1020, 300]
     }
   ],
   "connections": {
@@ -41,14 +64,25 @@
       "main": [
         [
           {
-            "node": "Code - TODO Update Status",
+            "node": "Parser payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - TODO Update Status": {
+    "Parser payload": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Update Status": {
       "main": [
         [
           {
