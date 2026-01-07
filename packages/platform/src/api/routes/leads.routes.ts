@@ -12,9 +12,6 @@ const createLeadSchema = z.object({
   notes: z.string().optional(),
 });
 
-// Type pour les données validées
-type CreateLeadInput = z.infer<typeof createLeadSchema>;
-
 export async function leadsRoutes(fastify: FastifyInstance) {
   // Créer un lead (public, pas besoin d'authentification)
   fastify.post('/api/leads', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -151,7 +148,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   // Obtenir un lead par ID (nécessite authentification admin)
   fastify.get('/api/leads/:id', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest<{ Params: { id: string } }> & { user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({
@@ -160,8 +157,9 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         });
       }
 
+      const params = request.params as { id: string };
       const lead = await prisma.lead.findUnique({
-        where: { id: request.params.id },
+        where: { id: params.id },
       });
 
       if (!lead) {
@@ -187,10 +185,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   // Mettre à jour le statut d'un lead (nécessite authentification admin)
   fastify.patch('/api/leads/:id/statut', {
     preHandler: [fastify.authenticate],
-  }, async (request: FastifyRequest<{ 
-    Params: { id: string };
-    Body: { statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne' };
-  }> & { user?: { role: string } }, reply: FastifyReply) => {
+  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({
@@ -199,10 +194,12 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const { statut } = request.body;
+      const params = request.params as { id: string };
+      const body = request.body as { statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne' };
+      const { statut } = body;
 
       const lead = await prisma.lead.update({
-        where: { id: request.params.id },
+        where: { id: params.id },
         data: { 
           statut,
           dateContact: statut === 'contacte' ? new Date() : undefined,
