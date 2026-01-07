@@ -1,11 +1,11 @@
 {
-  "name": "Leads - Get (lead_get) → API TalosPrimes → Respond",
+  "name": "Leads - Get (lead_get) → Postgres Direct → Respond",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "lead_get",
-        "responseMode": "responseNode",
+        "responseMode": "lastNode",
         "options": {}
       },
       "id": "Webhook_LeadGet",
@@ -16,44 +16,51 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id } }];\n"
+        "jsCode": "// Parser le payload: { body: { data: { id } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id).trim() : null;\n\nif (!id) {\n  throw new Error('ID du lead requis');\n}\n\nreturn [{ json: { id } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [560, 300]
+      "position": [520, 300]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.talosprimes.com/api/leads/{{$json.id}}",
-        "options": {
-          "timeout": 15000
-        }
+        "operation": "executeQuery",
+        "query": "=SELECT \n  id, \n  nom, \n  prenom, \n  email, \n  telephone, \n  statut, \n  source, \n  notes, \n  date_contact, \n  created_at, \n  updated_at\nFROM leads\nWHERE id = '{{ $json.id }}';"
       },
-      "id": "HTTP_Get",
-      "name": "API TalosPrimes - Get Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [780, 300],
+      "id": "Postgres_Select",
+      "name": "Postgres - SELECT lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "TalosPrimes API Auth"
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
         }
       }
     },
     {
       "parameters": {
-        "responseBody": "={{ $json }}",
-        "responseCode": 200
+        "jsCode": "// Formater la réponse: { lead: {...} }\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [{ json: { success: false, error: 'Lead non trouvé' } }];\n}\n\nconst lead = items[0].json;\n\nreturn [{ \n  json: { \n    success: true, \n    data: { \n      lead: {\n        id: lead.id,\n        nom: lead.nom,\n        prenom: lead.prenom,\n        email: lead.email,\n        telephone: lead.telephone,\n        statut: lead.statut,\n        source: lead.source,\n        notes: lead.notes ?? null,\n        dateContact: lead.date_contact ?? null,\n        createdAt: lead.created_at,\n        updatedAt: lead.updated_at\n      }\n    } \n  } \n}];\n"
+      },
+      "id": "Code_Format",
+      "name": "Formater réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
       },
       "id": "Respond_LeadGet",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1020, 300]
+      "position": [1180, 300]
     }
   ],
   "connections": {
@@ -72,14 +79,25 @@
       "main": [
         [
           {
-            "node": "API TalosPrimes - Get Lead",
+            "node": "Postgres - SELECT lead",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "API TalosPrimes - Get Lead": {
+    "Postgres - SELECT lead": {
+      "main": [
+        [
+          {
+            "node": "Formater réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater réponse": {
       "main": [
         [
           {
@@ -97,5 +115,3 @@
   },
   "versionId": "v1"
 }
-
-
