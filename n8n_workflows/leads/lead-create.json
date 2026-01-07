@@ -1,0 +1,83 @@
+{
+  "name": "Leads - Create (via Webhook) → Email (Resend) → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead_create",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook_LeadCreate",
+      "name": "Webhook - lead_create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "predefinedCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonParameters": true,
+        "options": {},
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"from\": \"={{$env.EMAIL_FROM || 'TalosPrimes <noreply@talosprimes.com>'}}\",\n  \"to\": [ \"={{$json[\"email\"]}}\" ],\n  \"subject\": \"={{$json[\"subject\"] || 'Bienvenue chez TalosPrimes'}}\",\n  \"html\": \"=<p>Bonjour {{$json[\\\"prenom\\\"] || ''}} {{$json[\\\"nom\\\"] || ''}},<br/>Votre demande a bien été enregistrée.</p>\"\n}"
+      },
+      "id": "HTTP_ResendEmail",
+      "name": "Resend - Email Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Resend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseBody": "={\"success\": true, \"message\": \"Lead reçu\"}",
+        "responseCode": 200
+      },
+      "id": "Respond_LeadCreate",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [950, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - lead_create": {
+      "main": [
+        [
+          {
+            "node": "Resend - Email Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resend - Email Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+
+

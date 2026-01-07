@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
+import { env } from '../../config/env.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { z } from 'zod';
@@ -41,6 +42,25 @@ export async function leadsRoutes(fastify: FastifyInstance) {
 
       const data = validationResult.data;
       const tenantId = request.tenantId as string | undefined;
+
+      // Si on délègue les écritures à n8n (full no‑code)
+      if (tenantId && (env as any).USE_N8N_COMMANDS) {
+        const res = await n8nService.callWorkflowReturn<{ lead: unknown }>(
+          tenantId,
+          'lead_create',
+          {
+            ...data,
+          }
+        );
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
+        return reply.status(201).send({
+          success: true,
+          message: 'Lead créé via n8n',
+          data: { lead: res.data },
+        });
+      }
 
       // Vérifier si le lead existe déjà (par email)
       const existingLead = await prisma.lead.findUnique({
@@ -172,7 +192,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const { source, statut, limit } = query;
       
       // Si on utilise n8n pour les vues, déléguer au workflow
-      if (request.tenantId && (process.env.USE_N8N_VIEWS || '').toLowerCase() === 'true') {
+      if (request.tenantId && (env as any).USE_N8N_VIEWS) {
         const result = await n8nService.callWorkflowReturn<{ leads: unknown[] }>(
           request.tenantId,
           'leads_list',
@@ -238,7 +258,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const params = request.params as { id: string };
 
       // Déléguer à n8n si activé
-      if (request.tenantId && (process.env.USE_N8N_VIEWS || '').toLowerCase() === 'true') {
+      if (request.tenantId && (env as any).USE_N8N_VIEWS) {
         const result = await n8nService.callWorkflowReturn<{ lead: unknown }>(
           request.tenantId,
           'lead_get',
@@ -293,6 +313,23 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const body = request.body as { statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne' };
       const { statut } = body;
 
+      // Délégation éventuelle à n8n (full no‑code)
+      if (request.tenantId && (env.USE_N8N_COMMANDS ? true : false)) {
+        const res = await n8nService.callWorkflowReturn<{ lead: unknown }>(
+          request.tenantId,
+          'lead_update_status',
+          { id: params.id, statut }
+        );
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
+        return reply.send({
+          success: true,
+          message: 'Statut mis à jour (n8n)',
+          data: { lead: res.data },
+        });
+      }
+
       const lead = await prisma.lead.update({
         where: { id: params.id },
         data: { 
@@ -339,8 +376,24 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       }
 
       const params = request.params as { id: string };
-      
-      // Vérifier que le lead existe
+
+      // Si on délègue les écritures à n8n (full no‑code)
+      if (request.tenantId && (env as any).USE_N8N_COMMANDS) {
+        const res = await n8nService.callWorkflowReturn(
+          request.tenantId,
+          'lead_delete',
+          { id: params.id }
+        );
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
+        return reply.send({
+          success: true,
+          message: 'Lead supprimé (n8n)',
+        });
+      }
+
+      // Fallback local si non délégué à n8n
       const lead = await prisma.lead.findUnique({
         where: { id: params.id },
       });

@@ -32,6 +32,11 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v ? v.toLowerCase() === 'true' : false)),
+  // Activer la délégation des écritures (create/update/delete) à n8n
+  USE_N8N_COMMANDS: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.toLowerCase() === 'true' : false)),
   
   // Stripe
   STRIPE_SECRET_KEY: z.string().optional(),
