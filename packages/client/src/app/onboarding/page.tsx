@@ -10,7 +10,6 @@ import {
   UserIcon, 
   MagnifyingGlassIcon,
   PencilIcon,
-  TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
