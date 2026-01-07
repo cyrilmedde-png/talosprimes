@@ -101,6 +101,31 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/leads",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "save-lead",
+      "name": "Sauvegarder Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 400],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
         "jsCode": "// Formatage notification équipe\nconst data = $input.all()[0].json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; background: #fff; }\n    .header { background: #4f46e5; color: white; padding: 20px; text-align: center; }\n    .content { padding: 20px; }\n    .info-box { background: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 4px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📋 Nouvelle demande d'inscription</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Informations du lead :</h2>\n      <div class=\"info-box\">\n        <p><strong>Nom :</strong> ${data.nom}</p>\n        <p><strong>Prénom :</strong> ${data.prenom}</p>\n        <p><strong>Email :</strong> ${data.email}</p>\n        <p><strong>Téléphone :</strong> ${data.telephone}</p>\n        <p><strong>Date :</strong> ${new Date(data.timestamp).toLocaleString('fr-FR')}</p>\n      </div>\n      <p><strong>Action requise :</strong> Contacter le lead dans les 24-48h</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Nouvelle demande d'inscription reçue\n\nNom : ${data.nom}\nPrénom : ${data.prenom}\nEmail : ${data.email}\nTéléphone : ${data.telephone}\nDate : ${new Date(data.timestamp).toLocaleString('fr-FR')}\n\nAction requise : Contacter le lead dans les 24-48h`;\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `Nouvelle demande d'inscription - ${data.prenom} ${data.nom}`,\n    html: html,\n    text: text\n  }\n};"
       },
       "id": "format-notif",
@@ -224,6 +249,11 @@
       "main": [
         [
           {
+            "node": "Sauvegarder Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Formatage Email",
             "type": "main",
             "index": 0
@@ -244,6 +274,17 @@
         [
           {
             "node": "Formatage Alerte Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sauvegarder Lead": {
+      "main": [
+        [
+          {
+            "node": "Formatage Email",
             "type": "main",
             "index": 0
           }

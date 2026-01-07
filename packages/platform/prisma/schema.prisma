@@ -89,6 +89,13 @@ enum EventExecutionStatus {
   en_attente
 }
 
+enum LeadStatus {
+  nouveau
+  contacte
+  converti
+  abandonne
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -309,5 +316,25 @@ model EventLog {
   @@index([statutExecution])
   @@index([createdAt])
   @@map("event_logs")
+}
+
+// Lead (demande d'inscription)
+model Lead {
+  id          String     @id @default(uuid()) @db.Uuid
+  nom         String
+  prenom      String
+  email       String
+  telephone   String
+  statut      LeadStatus @default(nouveau)
+  source      String?    @default("formulaire_inscription")
+  notes       String?    @db.Text
+  dateContact DateTime?  @map("date_contact") @db.Timestamptz(6)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@unique([email])
+  @@index([statut])
+  @@index([createdAt])
+  @@map("leads")
 }
 
