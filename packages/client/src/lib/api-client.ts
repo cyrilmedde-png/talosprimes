@@ -30,13 +30,20 @@ async function authenticatedFetch<T>(
 
   const url = `${API_URL}${endpoint}`;
   
+  // Ne pas inclure Content-Type si pas de body (pour DELETE notamment)
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${token}`,
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  // Ajouter Content-Type seulement si on a un body
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
   let response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...options.headers,
-    },
+    headers,
     credentials: 'include',
   });
 
@@ -46,13 +53,18 @@ async function authenticatedFetch<T>(
       await refreshAccessToken();
       // Réessayer la requête avec le nouveau token
       const newToken = getAccessToken();
+      const retryHeaders: Record<string, string> = {
+        'Authorization': `Bearer ${newToken}`,
+        ...(options.headers as Record<string, string> || {}),
+      };
+      
+      if (options.body) {
+        retryHeaders['Content-Type'] = 'application/json';
+      }
+      
       response = await fetch(url, {
         ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${newToken}`,
-          ...options.headers,
-        },
+        headers: retryHeaders,
         credentials: 'include',
       });
     } catch (error) {
