@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst data = (input && typeof input === 'object' && 'data' in input) ? input.data : {};\n\nconst source = data?.source ? String(data.source) : undefined;\nconst statut = data?.statut ? String(data.statut) : undefined;\nconst limit = data?.limit ? String(data.limit) : '100';\n\nreturn [{ json: { source, statut, limit } }];\n"
+        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst source = data?.source ? String(data.source) : undefined;\nconst statut = data?.statut ? String(data.statut) : undefined;\nconst limit = data?.limit ? String(data.limit) : '100';\n\nreturn [{ json: { source, statut, limit } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser filtres",
