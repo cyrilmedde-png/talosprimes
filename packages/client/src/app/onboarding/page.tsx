@@ -10,6 +10,7 @@ import {
   UserIcon, 
   MagnifyingGlassIcon,
   PencilIcon,
+  TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
@@ -302,13 +303,22 @@ export default function OnboardingPage() {
                           {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleEdit(lead)}
-                            className="text-indigo-400 hover:text-indigo-300 mr-3"
-                            title="Modifier"
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEdit(lead)}
+                              className="text-indigo-400 hover:text-indigo-300"
+                              title="Modifier"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(lead.id)}
+                              className="text-red-400 hover:text-red-300"
+                              title="Supprimer"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -370,13 +380,22 @@ export default function OnboardingPage() {
                           {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleEdit(lead)}
-                            className="text-indigo-400 hover:text-indigo-300 mr-3"
-                            title="Modifier"
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEdit(lead)}
+                              className="text-indigo-400 hover:text-indigo-300"
+                              title="Modifier"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(lead.id)}
+                              className="text-red-400 hover:text-red-300"
+                              title="Supprimer"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

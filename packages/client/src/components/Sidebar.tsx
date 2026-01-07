@@ -18,7 +18,7 @@ const navigation = [
   { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
   { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon },
   { name: 'Documents', href: '/dashboard/documents', icon: DocumentTextIcon },
-  { name: 'Paramètres', href: '/dashboard/settings', icon: Cog6ToothIcon },
+  { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
 ];
 
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {

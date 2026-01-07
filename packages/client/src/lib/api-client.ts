@@ -151,6 +151,10 @@ export const apiClient = {
         method: 'PATCH',
         body: JSON.stringify({ statut }),
       }),
+    
+    delete: (id: string) => authenticatedFetch<{ success: boolean; message: string }>(`/api/leads/${id}`, {
+      method: 'DELETE',
+    }),
   },
 
   // n8n

@@ -231,5 +231,48 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // Supprimer un lead (nécessite authentification admin)
+  fastify.delete('/:id', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({
+          success: false,
+          error: 'Accès refusé',
+        });
+      }
+
+      const params = request.params as { id: string };
+      
+      // Vérifier que le lead existe
+      const lead = await prisma.lead.findUnique({
+        where: { id: params.id },
+      });
+
+      if (!lead) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Lead non trouvé',
+        });
+      }
+
+      await prisma.lead.delete({
+        where: { id: params.id },
+      });
+
+      return reply.send({
+        success: true,
+        message: 'Lead supprimé avec succès',
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de la suppression du lead',
+      });
+    }
+  });
 }
 
