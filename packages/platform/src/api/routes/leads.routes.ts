@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
+import { n8nService } from '../../services/n8n.service.js';
 import { z } from 'zod';
 
 // Schéma de validation pour la création d'un lead

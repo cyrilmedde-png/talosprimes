@@ -123,7 +123,7 @@ if [ "$SKIP_RESTART" = false ]; then
   echo -e "${YELLOW}🔄 Redémarrage des services PM2...${NC}"
   
   # Redémarrer backend
-  if pm2 restart talosprimes-api 2>/dev/null; then
+  if pm2 restart talosprimes-api --update-env 2>/dev/null; then
     echo -e "${GREEN}  ✅ Backend redémarré${NC}"
   else
     echo -e "${YELLOW}  ⚠️  Backend non trouvé, création...${NC}"
@@ -135,7 +135,7 @@ if [ "$SKIP_RESTART" = false ]; then
   fi
   
   # Redémarrer frontend
-  if pm2 restart talosprimes-client 2>/dev/null; then
+  if pm2 restart talosprimes-client --update-env 2>/dev/null; then
     echo -e "${GREEN}  ✅ Frontend redémarré${NC}"
   else
     echo -e "${YELLOW}  ⚠️  Frontend non trouvé, création...${NC}"
