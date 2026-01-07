@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { apiClient } from '@/lib/api-client';
 import type { Lead } from '@talosprimes/shared';
 import { UserPlusIcon, UserIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
