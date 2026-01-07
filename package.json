@@ -7,11 +7,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "pnpm --filter platform dev & pnpm --filter client dev",
-    "build": "pnpm --filter shared build && pnpm --filter platform build && pnpm --filter client build",
-    "build:shared": "pnpm --filter shared build",
-    "build:platform": "pnpm --filter shared build && pnpm --filter platform build",
-    "build:client": "pnpm --filter client build",
+    "dev": "pnpm --filter @talosprimes/platform dev & pnpm --filter @talosprimes/client dev",
+    "build": "pnpm --filter @talosprimes/shared build && pnpm --filter @talosprimes/platform build && pnpm --filter @talosprimes/client build",
+    "build:shared": "pnpm --filter @talosprimes/shared build",
+    "build:platform": "pnpm --filter @talosprimes/shared build && pnpm --filter @talosprimes/platform build",
+    "build:client": "pnpm --filter @talosprimes/client build",
     "test": "pnpm --recursive test",
     "lint": "pnpm --recursive lint",
     "type-check": "pnpm --recursive type-check",
