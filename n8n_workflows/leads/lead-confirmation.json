@@ -60,7 +60,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extraire les données du lead depuis la réponse API\nconst lead = $input.first().json;\nconst leadData = lead.data || lead;\n\nconst leadId = leadData.id || leadData.leadId || $('Parser payload').first().json.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\nreturn [{ json: { leadId, nom, prenom, email, telephone } }];\n"
+        "jsCode": "// Extraire les données du lead depuis la réponse API\nconst response = $input.first().json;\n// La réponse API est: { success: true, data: { lead: {...} } }\nconst leadData = response.data?.lead || response.data || response;\n\nconst leadId = leadData.id || leadData.leadId || $('Parser payload').first().json.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\nreturn [{ json: { leadId, nom, prenom, email, telephone } }];\n"
       },
       "id": "Code_Prepare",
       "name": "Préparer données",
