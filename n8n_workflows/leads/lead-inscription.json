@@ -16,10 +16,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validation et normalisation des données d'inscription\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\n\n// Extraire et normaliser les champs\nconst nom = String(payload?.nom || '').trim();\nconst prenom = String(payload?.prenom || '').trim();\nconst email = String(payload?.email || '').trim().toLowerCase();\nconst telephone = String(payload?.telephone || '').trim();\n\n// Validation\nconst errors = [];\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\nif (!telephone) errors.push('Le téléphone est requis');\n\nif (errors.length > 0) {\n  throw new Error(errors.join(', '));\n}\n\nreturn {\n  json: {\n    nom,\n    prenom,\n    email,\n    telephone,\n    source: 'formulaire_inscription',\n    timestamp: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Validation et normalisation des données\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\n\nconst nom = String(payload?.nom || '').trim();\nconst prenom = String(payload?.prenom || '').trim();\nconst email = String(payload?.email || '').trim().toLowerCase();\nconst telephone = String(payload?.telephone || '').trim();\n\n// Validation\nconst errors = [];\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\nif (!telephone) errors.push('Le téléphone est requis');\n\nif (errors.length > 0) {\n  throw new Error(errors.join(', '));\n}\n\nreturn {\n  json: {\n    nom,\n    prenom,\n    email,\n    telephone,\n    source: 'formulaire_inscription'\n  }\n};"
       },
       "id": "Code_Validation",
-      "name": "Validation données",
+      "name": "Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [460, 300]
@@ -30,7 +30,7 @@
         "url": "https://api.talosprimes.com/api/leads",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { nom: $json.nom, prenom: $json.prenom, email: $json.email, telephone: $json.telephone, source: $json.source } }}",
+        "jsonBody": "={{ $json }}",
         "options": {
           "timeout": 15000,
           "response": {
@@ -54,23 +54,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour les emails et SMS\nconst validationData = $('Validation données').first().json;\nconst saveResponse = $input.first().json;\n\n// Extraire les données du lead créé\nconst leadData = saveResponse?.data?.lead || saveResponse?.data || saveResponse;\n\nreturn {\n  json: {\n    nom: validationData.nom,\n    prenom: validationData.prenom,\n    email: validationData.email,\n    telephone: validationData.telephone,\n    leadId: leadData?.id || '',\n    timestamp: validationData.timestamp\n  }\n};"
+        "jsCode": "// Préparer toutes les communications\nconst validationData = $('Validation').first().json;\nconst saveResponse = $input.first().json;\nconst leadData = saveResponse?.data?.lead || saveResponse?.data || saveResponse;\n\n// Données du lead\nconst lead = {\n  nom: validationData.nom,\n  prenom: validationData.prenom,\n  email: validationData.email,\n  telephone: validationData.telephone,\n  leadId: leadData?.id || '',\n  timestamp: new Date().toISOString()\n};\n\n// Template email client HTML\nconst emailClientHTML = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 40px 30px; text-align: center; }\n    .header h1 { font-size: 28px; font-weight: 600; margin: 0; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 20px; }\n    .info-card { background: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #4a5568; }\n    .info-value { color: #2d3748; }\n    .highlight { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .highlight p { margin: 0; color: #92400e; }\n    .footer { background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${lead.prenom} ${lead.nom},</div>\n      <p style=\"color: #4a5568; margin: 20px 0;\">Nous avons bien reçu votre demande d'inscription sur <strong>TalosPrimes</strong>.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${lead.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${lead.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${lead.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${lead.telephone}</span></div>\n      </div>\n      <div class=\"highlight\">\n        <p>Notre équipe va examiner votre demande et vous recontactera dans un délai de <strong>24 à 48 heures</strong>.</p>\n      </div>\n      <p style=\"color: #4a5568; margin-top: 30px;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\n// Template email client texte\nconst emailClientText = `Bonjour ${lead.prenom} ${lead.nom},\n\nNous avons bien reçu votre demande d'inscription sur TalosPrimes.\n\nVos informations :\n- Nom : ${lead.nom}\n- Prénom : ${lead.prenom}\n- Email : ${lead.email}\n- Téléphone : ${lead.telephone}\n\nNotre équipe va examiner votre demande et vous recontactera dans un délai de 24 à 48 heures.\n\nCordialement,\nL'équipe TalosPrimes`;\n\n// Template email équipe HTML\nconst emailTeamHTML = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .content { padding: 30px; }\n    .info-card { background: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #d1fae5; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #065f46; }\n    .info-value { color: #047857; }\n    .action { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }\n    .footer { background: #f7fafc; padding: 20px; text-align: center; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📋 Nouvelle demande d'inscription</h1>\n    </div>\n    <div class=\"content\">\n      <p style=\"color: #4a5568; margin-bottom: 20px;\">Une nouvelle demande d'inscription a été reçue.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${lead.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${lead.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${lead.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${lead.telephone}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Date :</span><span class=\"info-value\">${new Date(lead.timestamp).toLocaleString('fr-FR')}</span></div>\n      </div>\n      <div class=\"action\">\n        <p style=\"margin: 0; color: #92400e;\"><strong>Action requise :</strong> Contacter le lead dans les 24-48 heures</p>\n      </div>\n    </div>\n    <div class=\"footer\">\n      <p>TalosPrimes - Notification automatique</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\n// Message SMS\nconst smsMessage = `Bonjour ${lead.prenom} ${lead.nom}, votre demande d'inscription TalosPrimes a été reçue. Vous serez recontacté dans les 24 à 48 heures. Merci !`;\n\nreturn {\n  json: {\n    lead: lead,\n    emailClient: {\n      to: lead.email,\n      subject: \"Confirmation de votre demande d'inscription - TalosPrimes\",\n      html: emailClientHTML,\n      text: emailClientText\n    },\n    emailTeam: {\n      to: \"contact@talosprimes.com\",\n      subject: `Nouvelle inscription - ${lead.prenom} ${lead.nom}`,\n      html: emailTeamHTML,\n      text: `Nouvelle demande d'inscription reçue\\n\\nNom : ${lead.nom}\\nPrénom : ${lead.prenom}\\nEmail : ${lead.email}\\nTéléphone : ${lead.telephone}\\nDate : ${new Date(lead.timestamp).toLocaleString('fr-FR')}\\n\\nAction requise : Contacter le lead dans les 24-48h`\n    },\n    sms: {\n      to: lead.telephone,\n      message: smsMessage\n    }\n  }\n};"
       },
-      "id": "Code_PrepareData",
-      "name": "Préparer données",
+      "id": "Code_PrepareCommunications",
+      "name": "Préparer Communications",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [900, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Formatage email de confirmation client\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    * { margin: 0; padding: 0; box-sizing: border-box; }\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f5f5f5; }\n    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 40px 30px; text-align: center; }\n    .header h1 { font-size: 28px; font-weight: 600; margin: 0; }\n    .header p { font-size: 14px; opacity: 0.9; margin: 10px 0 0 0; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 20px; }\n    .message { color: #4a5568; margin: 20px 0; line-height: 1.8; }\n    .info-card { background: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .info-card h3 { color: #2d3748; font-size: 16px; margin-bottom: 15px; font-weight: 600; }\n    .info-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #4a5568; }\n    .info-value { color: #2d3748; }\n    .highlight-box { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .highlight-box p { margin: 0; color: #92400e; line-height: 1.6; }\n    .highlight-box strong { color: #78350f; }\n    .signature { margin-top: 30px; color: #4a5568; }\n    .signature strong { color: #2d3748; }\n    .footer { background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; }\n    .footer p { font-size: 12px; color: #718096; margin: 5px 0; }\n    .footer strong { color: #4a5568; }\n  </style>\n</head>\n<body>\n  <div class=\"email-container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p>Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom},</div>\n      <p class=\"message\">Nous avons bien reçu votre demande d'inscription sur <strong>TalosPrimes</strong>.</p>\n      <div class=\"info-card\">\n        <h3>Vos informations</h3>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Nom :</span>\n          <span class=\"info-value\">${data.nom}</span>\n        </div>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Prénom :</span>\n          <span class=\"info-value\">${data.prenom}</span>\n        </div>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Email :</span>\n          <span class=\"info-value\">${data.email}</span>\n        </div>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Téléphone :</span>\n          <span class=\"info-value\">${data.telephone}</span>\n        </div>\n      </div>\n      <div class=\"highlight-box\">\n        <p>Notre équipe va examiner votre demande et vous recontactera dans un délai de <strong>24 à 48 heures</strong>.</p>\n      </div>\n      <p class=\"signature\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement. Merci de ne pas y répondre.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nNous avons bien reçu votre demande d'inscription sur TalosPrimes.\n\nVos informations :\n- Nom : ${data.nom}\n- Prénom : ${data.prenom}\n- Email : ${data.email}\n- Téléphone : ${data.telephone}\n\nNotre équipe va examiner votre demande et vous recontactera dans un délai de 24 à 48 heures.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    to: data.email,\n    subject: \"Confirmation de votre demande d'inscription - TalosPrimes\",\n    html: html,\n    text: text\n  }\n};"
-      },
-      "id": "Code_FormatEmailClient",
-      "name": "Formatage Email Client",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1120, 200]
     },
     {
       "parameters": {
@@ -78,7 +68,7 @@
         "url": "https://api.resend.com/emails",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"TalosPrimes <noreply@talosprimes.com>\",\n  \"to\": [\"{{ $json.to }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
+        "jsonBody": "={\n  \"from\": \"TalosPrimes <noreply@talosprimes.com>\",\n  \"to\": [\"{{ $json.emailClient.to }}\"],\n  \"subject\": \"{{ $json.emailClient.subject }}\",\n  \"html\": {{ JSON.stringify($json.emailClient.html) }},\n  \"text\": {{ JSON.stringify($json.emailClient.text) }}\n}",
         "options": {
           "headers": {
             "entries": [
@@ -90,11 +80,11 @@
           }
         }
       },
-      "id": "HTTP_ResendEmailClient",
+      "id": "HTTP_ResendClient",
       "name": "Resend - Email Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 200],
+      "position": [1120, 200],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -104,27 +94,17 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formatage SMS de confirmation\nconst data = $input.first().json;\n\nconst message = `Bonjour ${data.prenom} ${data.nom}, votre demande d'inscription TalosPrimes a été reçue. Vous serez recontacté dans les 24 à 48 heures. Merci !`;\n\nreturn {\n  json: {\n    to: data.telephone,\n    message: message\n  }\n};"
-      },
-      "id": "Code_FormatSMS",
-      "name": "Formatage SMS",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1120, 400]
-    },
-    {
-      "parameters": {
         "operation": "send",
         "from": "",
-        "to": "={{ $json.to }}",
-        "message": "={{ $json.message }}",
+        "to": "={{ $json.sms.to }}",
+        "message": "={{ $json.sms.message }}",
         "options": {}
       },
       "id": "Twilio_SMS",
       "name": "Twilio - SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [1340, 400],
+      "position": [1120, 400],
       "credentials": {
         "twilioApi": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -134,21 +114,11 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formatage email notification équipe\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    * { margin: 0; padding: 0; box-sizing: border-box; }\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333333; background-color: #f5f5f5; }\n    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .header h1 { font-size: 24px; font-weight: 600; margin: 0; }\n    .content { padding: 30px; }\n    .info-card { background: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #d1fae5; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #065f46; }\n    .info-value { color: #047857; }\n    .action-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }\n    .action-box p { margin: 0; color: #92400e; }\n    .footer { background: #f7fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"email-container\">\n    <div class=\"header\">\n      <h1>📋 Nouvelle demande d'inscription</h1>\n    </div>\n    <div class=\"content\">\n      <p style=\"color: #4a5568; margin-bottom: 20px;\">Une nouvelle demande d'inscription a été reçue via le formulaire.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\">\n          <span class=\"info-label\">Nom :</span>\n          <span class=\"info-value\">${data.nom}</span>\n        </div>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Prénom :</span>\n          <span class=\"info-value\">${data.prenom}</span>\n        </div>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Email :</span>\n          <span class=\"info-value\">${data.email}</span>\n        </div>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Téléphone :</span>\n          <span class=\"info-value\">${data.telephone}</span>\n        </div>\n        <div class=\"info-item\">\n          <span class=\"info-label\">Date :</span>\n          <span class=\"info-value\">${new Date(data.timestamp).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}</span>\n        </div>\n      </div>\n      <div class=\"action-box\">\n        <p><strong>Action requise :</strong> Contacter le lead dans les 24-48 heures</p>\n      </div>\n    </div>\n    <div class=\"footer\">\n      <p>TalosPrimes - Notification automatique</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Nouvelle demande d'inscription reçue\n\nNom : ${data.nom}\nPrénom : ${data.prenom}\nEmail : ${data.email}\nTéléphone : ${data.telephone}\nDate : ${new Date(data.timestamp).toLocaleString('fr-FR')}\n\nAction requise : Contacter le lead dans les 24-48h`;\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `Nouvelle inscription - ${data.prenom} ${data.nom}`,\n    html: html,\n    text: text\n  }\n};"
-      },
-      "id": "Code_FormatEmailTeam",
-      "name": "Formatage Email Équipe",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1120, 600]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "https://api.resend.com/emails",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"TalosPrimes <noreply@talosprimes.com>\",\n  \"to\": [\"{{ $json.to }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
+        "jsonBody": "={\n  \"from\": \"TalosPrimes <noreply@talosprimes.com>\",\n  \"to\": [\"{{ $json.emailTeam.to }}\"],\n  \"subject\": \"{{ $json.emailTeam.subject }}\",\n  \"html\": {{ JSON.stringify($json.emailTeam.html) }},\n  \"text\": {{ JSON.stringify($json.emailTeam.text) }}\n}",
         "options": {
           "headers": {
             "entries": [
@@ -160,11 +130,11 @@
           }
         }
       },
-      "id": "HTTP_ResendEmailTeam",
+      "id": "HTTP_ResendTeam",
       "name": "Resend - Email Équipe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 600],
+      "position": [1120, 600],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -178,16 +148,16 @@
         "combineBy": "combineAll",
         "options": {}
       },
-      "id": "Merge_Emails",
-      "name": "Merge - Emails envoyés",
+      "id": "Merge_Results",
+      "name": "Merge - Résultats",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1560, 400]
+      "position": [1340, 400]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Votre demande a été prise en compte. Vous serez recontacté dans 24 à 48 heures.\",\n  \"data\": {\n    \"leadId\": \"{{ $('Préparer données').first().json.leadId }}\"\n  }\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Votre demande a été prise en compte. Vous serez recontacté dans 24 à 48 heures.\",\n  \"data\": {\n    \"leadId\": \"{{ $('Préparer Communications').first().json.lead.leadId }}\"\n  }\n}",
         "options": {
           "responseCode": 200
         }
@@ -196,27 +166,17 @@
       "name": "Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1780, 400]
+      "position": [1560, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Gestion d'erreur - Formatage alerte\nconst error = $input.first().json;\nconst validationData = $('Validation données').first()?.json || {};\n\nconst alert = {\n  type: 'workflow_error',\n  workflow: 'Inscription - Formulaire Leads',\n  timestamp: new Date().toISOString(),\n  executionId: $execution.id,\n  error: {\n    message: error.message || error.error?.message || error.error || 'Erreur inconnue',\n    node: error.node?.name || 'Node inconnu',\n    code: error.statusCode || error.code || 'N/A'\n  },\n  data: {\n    nom: validationData.nom || 'N/A',\n    prenom: validationData.prenom || 'N/A',\n    email: validationData.email || 'N/A',\n    telephone: validationData.telephone || 'N/A'\n  }\n};\n\nreturn { json: alert };"
+        "jsCode": "// Gestion d'erreur\nconst error = $input.first().json;\nconst validationData = $('Validation').first()?.json || {};\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `🚨 ALERTE - Erreur workflow inscription - ${validationData.prenom || 'N/A'} ${validationData.nom || 'N/A'}`,\n    html: `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 700px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }\n    .header { background: #dc2626; color: #ffffff; padding: 30px; text-align: center; }\n    .content { padding: 30px; }\n    .error-box { background: #fee2e2; border-left: 4px solid #dc2626; padding: 20px; margin: 20px 0; border-radius: 4px; }\n    .info-box { background: #f3f4f6; padding: 20px; margin: 20px 0; border-radius: 4px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🚨 ALERTE - Erreur Workflow</h1>\n    </div>\n    <div class=\"content\">\n      <h2 style=\"color: #1a1a1a;\">Une erreur s'est produite dans le workflow d'inscription</h2>\n      <div class=\"error-box\">\n        <p><strong>Erreur :</strong> ${error.message || error.error?.message || 'Erreur inconnue'}</p>\n        <p><strong>Code :</strong> ${error.statusCode || error.code || 'N/A'}</p>\n        <p><strong>Execution ID :</strong> ${$execution.id}</p>\n      </div>\n      <div class=\"info-box\">\n        <h3>Informations du lead :</h3>\n        <p><strong>Nom :</strong> ${validationData.nom || 'N/A'}</p>\n        <p><strong>Prénom :</strong> ${validationData.prenom || 'N/A'}</p>\n        <p><strong>Email :</strong> ${validationData.email || 'N/A'}</p>\n        <p><strong>Téléphone :</strong> ${validationData.telephone || 'N/A'}</p>\n      </div>\n    </div>\n  </div>\n</body>\n</html>`\n  }\n};"
       },
       "id": "Code_FormatError",
       "name": "Formatage Erreur",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [680, 500]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Formatage email d'alerte\nconst alert = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 700px; margin: 0 auto; background: #fff; }\n    .header { background: #dc2626; color: white; padding: 20px; text-align: center; }\n    .content { padding: 20px; }\n    .error-box { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; }\n    .info-box { background: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 4px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🚨 ALERTE - Erreur Workflow</h1>\n    </div>\n    <div class=\"content\">\n      <h2>Une erreur s'est produite dans le workflow d'inscription</h2>\n      <div class=\"error-box\">\n        <p><strong>Erreur :</strong> ${alert.error.message}</p>\n        <p><strong>Code :</strong> ${alert.error.code}</p>\n        <p><strong>Nœud :</strong> ${alert.error.node}</p>\n        <p><strong>Execution ID :</strong> ${alert.executionId}</p>\n      </div>\n      <div class=\"info-box\">\n        <h3>Informations du lead :</h3>\n        <p><strong>Nom :</strong> ${alert.data.nom}</p>\n        <p><strong>Prénom :</strong> ${alert.data.prenom}</p>\n        <p><strong>Email :</strong> ${alert.data.email}</p>\n        <p><strong>Téléphone :</strong> ${alert.data.telephone}</p>\n      </div>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `🚨 ALERTE - Erreur workflow inscription - ${alert.data.prenom} ${alert.data.nom}`,\n    html: html\n  }\n};"
-      },
-      "id": "Code_FormatErrorEmail",
-      "name": "Formatage Email Erreur",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [900, 500]
     },
     {
       "parameters": {
@@ -236,11 +196,11 @@
           }
         }
       },
-      "id": "HTTP_ResendErrorEmail",
+      "id": "HTTP_ResendError",
       "name": "Resend - Email Erreur",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 500],
+      "position": [900, 500],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -260,7 +220,7 @@
       "name": "Réponse Erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 500]
+      "position": [1120, 500]
     }
   ],
   "connections": {
@@ -268,14 +228,14 @@
       "main": [
         [
           {
-            "node": "Validation données",
+            "node": "Validation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Validation données": {
+    "Validation": {
       "main": [
         [
           {
@@ -299,7 +259,7 @@
       "main": [
         [
           {
-            "node": "Préparer données",
+            "node": "Préparer Communications",
             "type": "main",
             "index": 0
           }
@@ -315,32 +275,21 @@
         ]
       ]
     },
-    "Préparer données": {
-      "main": [
-        [
-          {
-            "node": "Formatage Email Client",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Formatage SMS",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Formatage Email Équipe",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Formatage Email Client": {
+    "Préparer Communications": {
       "main": [
         [
           {
             "node": "Resend - Email Client",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Twilio - SMS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Resend - Email Équipe",
             "type": "main",
             "index": 0
           }
@@ -360,27 +309,7 @@
       "main": [
         [
           {
-            "node": "Merge - Emails envoyés",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "Formatage Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Formatage SMS": {
-      "main": [
-        [
-          {
-            "node": "Twilio - SMS",
+            "node": "Merge - Résultats",
             "type": "main",
             "index": 0
           }
@@ -400,27 +329,7 @@
       "main": [
         [
           {
-            "node": "Merge - Emails envoyés",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "Formatage Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Formatage Email Équipe": {
-      "main": [
-        [
-          {
-            "node": "Resend - Email Équipe",
+            "node": "Merge - Résultats",
             "type": "main",
             "index": 0
           }
@@ -440,7 +349,7 @@
       "main": [
         [
           {
-            "node": "Merge - Emails envoyés",
+            "node": "Merge - Résultats",
             "type": "main",
             "index": 0
           }
@@ -456,7 +365,7 @@
         ]
       ]
     },
-    "Merge - Emails envoyés": {
+    "Merge - Résultats": {
       "main": [
         [
           {
@@ -468,17 +377,6 @@
       ]
     },
     "Formatage Erreur": {
-      "main": [
-        [
-          {
-            "node": "Formatage Email Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Formatage Email Erreur": {
       "main": [
         [
           {
@@ -515,4 +413,3 @@
   "updatedAt": "2026-01-08T00:00:00.000Z",
   "versionId": "1"
 }
-
