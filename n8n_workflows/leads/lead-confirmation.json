@@ -84,6 +84,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// Récupérer les données du lead depuis 'Préparer données' pour les passer à Resend\nconst leadData = $('Préparer données').first().json;\nreturn [{ json: leadData }];\n"
+      },
+      "id": "Code_RestoreData",
+      "name": "Restaurer données lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
         "fromEmail": "contact@talosprimes.com",
         "toEmail": "={{ $json.email }}",
         "subject": "Bienvenue chez TalosPrimes !",
@@ -95,7 +105,7 @@
       "name": "Resend - Email Confirmation",
       "type": "n8n-nodes-base.resend",
       "typeVersion": 1,
-      "position": [1500, 300],
+      "position": [1740, 300],
       "credentials": {
         "resendApi": {
           "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
@@ -113,7 +123,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1740, 300]
+      "position": [1980, 300]
     }
   ],
   "connections": {
@@ -162,6 +172,17 @@
       ]
     },
     "API TalosPrimes - Update Status (converti)": {
+      "main": [
+        [
+          {
+            "node": "Restaurer données lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restaurer données lead": {
       "main": [
         [
           {
