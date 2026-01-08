@@ -570,12 +570,38 @@ export async function clientsRoutes(fastify: FastifyInstance) {
   fastify.delete(
     '/:id',
     {
-      preHandler: [fastify.authenticate],
+      preHandler: [
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          // Si l'appel vient de n8n (secret), on ne demande pas de JWT
+          if (isN8nInternalRequest(request)) return;
+          await fastify.authenticate(request, reply);
+        },
+      ],
     },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
-        const tenantId = request.tenantId;
+        const fromN8n = isN8nInternalRequest(request);
         const params = paramsSchema.parse(request.params);
+
+        // Si l'appel vient de n8n, on doit récupérer le tenantId depuis le client
+        // Sinon, on l'obtient depuis le JWT (request.tenantId)
+        let tenantId = request.tenantId;
+
+        // Si appel depuis n8n, récupérer le client pour obtenir le tenantId
+        if (fromN8n) {
+          const clientForTenant = await prisma.clientFinal.findUnique({
+            where: { id: params.id },
+            select: { tenantId: true },
+          });
+          if (!clientForTenant) {
+            reply.code(404).send({
+              error: 'Client introuvable',
+              message: 'Ce client n\'existe pas',
+            });
+            return;
+          }
+          tenantId = clientForTenant.tenantId;
+        }
 
         if (!tenantId) {
           reply.code(401).send({
@@ -583,6 +609,29 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             message: 'Tenant ID manquant',
           });
           return;
+        }
+
+        // Vérifier droits si pas n8n
+        if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        }
+
+        // Si on délègue les écritures à n8n (full no‑code)
+        // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
+        if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
+          const res = await n8nService.callWorkflowReturn<{ client: unknown }>(
+            tenantId,
+            'client_delete',
+            { id: params.id }
+          );
+          if (!res.success) {
+            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+          }
+          return reply.status(200).send({
+            success: true,
+            message: 'Client supprimé via n8n',
+            data: res.data,
+          });
         }
 
         // Vérifier que le client existe et appartient au tenant
@@ -611,18 +660,20 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Émettre événement pour n8n (client.deleted)
-        await eventService.emit(
-          tenantId,
-          'client.deleted',
-          'ClientFinal',
-          deletedClient.id,
-          {
-            clientId: deletedClient.id,
+        // Émettre événement pour n8n (client.deleted) - seulement si pas déjà depuis n8n
+        if (!fromN8n) {
+          await eventService.emit(
             tenantId,
-            email: deletedClient.email,
-          }
-        );
+            'client.deleted',
+            'ClientFinal',
+            deletedClient.id,
+            {
+              clientId: deletedClient.id,
+              tenantId,
+              email: deletedClient.email,
+            }
+          );
+        }
 
         reply.code(200).send({
           success: true,
