@@ -44,9 +44,11 @@ await fastify.register(helmet, {
 // CORS - Autoriser uniquement le domaine frontend
 await fastify.register(cors, {
   origin: env.NODE_ENV === 'production' 
-    ? env.CORS_ORIGIN || 'https://app.votredomaine.com'
+    ? (env.CORS_ORIGIN || 'https://talosprimes.com') // Une seule origine (sans virgule)
     : true, // En dev, autoriser tout
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-TalosPrimes-N8N-Secret'],
 });
 
 // Rate limiting
