@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser et valider le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\nconst type = data?.type || '';\nconst email = data?.email || '';\nconst raisonSociale = data?.raisonSociale || '';\nconst nom = data?.nom || '';\nconst prenom = data?.prenom || '';\nconst telephone = data?.telephone || '';\nconst adresse = data?.adresse || '';\nconst tags = Array.isArray(data?.tags) ? data.tags : [];\n\n// Validation\nif (!type || !['b2b', 'b2c'].includes(type)) {\n  throw new Error('Type de client requis (b2b ou b2c)');\n}\n\nif (!email) {\n  throw new Error('Email requis');\n}\n\nif (type === 'b2b' && !raisonSociale) {\n  throw new Error('Raison sociale requise pour un client B2B');\n}\n\nif (type === 'b2c' && (!nom || !prenom)) {\n  throw new Error('Nom et prénom requis pour un client B2C');\n}\n\nreturn [{ json: { type, email, raisonSociale, nom, prenom, telephone, adresse, tags } }];\n"
+        "jsCode": "// Parser et valider le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\n// Extraire le tenantId depuis le payload webhook\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\nconst type = data?.type || '';\nconst email = data?.email || '';\nconst raisonSociale = data?.raisonSociale || '';\nconst nom = data?.nom || '';\nconst prenom = data?.prenom || '';\nconst telephone = data?.telephone || '';\nconst adresse = data?.adresse || '';\nconst tags = Array.isArray(data?.tags) ? data.tags : [];\n\n// Validation\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nif (!type || !['b2b', 'b2c'].includes(type)) {\n  throw new Error('Type de client requis (b2b ou b2c)');\n}\n\nif (!email) {\n  throw new Error('Email requis');\n}\n\nif (type === 'b2b' && !raisonSociale) {\n  throw new Error('Raison sociale requise pour un client B2B');\n}\n\nif (type === 'b2c' && (!nom || !prenom)) {\n  throw new Error('Nom et prénom requis pour un client B2C');\n}\n\nreturn [{ json: { tenantId, type, email, raisonSociale, nom, prenom, telephone, adresse, tags } }];\n"
       },
       "id": "Code_Validate",
       "name": "Valider données",
@@ -30,7 +30,7 @@
         "url": "https://api.talosprimes.com/api/clients",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { type: $json.type, email: $json.email, raisonSociale: $json.raisonSociale, nom: $json.nom, prenom: $json.prenom, telephone: $json.telephone, adresse: $json.adresse, tags: $json.tags } }}",
+        "jsonBody": "={{ { tenantId: $json.tenantId, type: $json.type, email: $json.email, raisonSociale: $json.raisonSociale, nom: $json.nom, prenom: $json.prenom, telephone: $json.telephone, adresse: $json.adresse, tags: $json.tags } }}",
         "options": {
           "timeout": 15000
         }

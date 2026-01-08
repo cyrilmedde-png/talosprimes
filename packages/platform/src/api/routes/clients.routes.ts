@@ -7,6 +7,7 @@ import { env } from '../../config/env.js';
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({
+  tenantId: z.string().uuid().optional(), // Optionnel : présent si appel depuis n8n
   type: z.enum(['b2b', 'b2c']),
   raisonSociale: z.string().optional(),
   nom: z.string().optional(),
@@ -317,7 +318,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
         const fromN8n = isN8nInternalRequest(request);
-        const tenantId = request.tenantId;
+        
+        // Valider les données (tenantId peut être dans le body si appel depuis n8n)
+        const body = createClientSchema.parse(request.body);
+        
+        // Récupérer le tenantId : depuis le body si appel n8n, sinon depuis request (JWT)
+        const tenantId = fromN8n 
+          ? (body as { tenantId?: string }).tenantId || request.tenantId
+          : request.tenantId;
 
         if (!tenantId) {
           reply.code(401).send({
@@ -332,8 +340,11 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return reply.status(403).send({ success: false, error: 'Accès refusé' });
         }
 
-        // Valider les données
-        const body = createClientSchema.parse(request.body);
+        // Nettoyer le body : retirer tenantId s'il était dans le body (on l'a déjà récupéré)
+        const bodyWithoutTenantId = { ...body };
+        if ('tenantId' in bodyWithoutTenantId) {
+          delete (bodyWithoutTenantId as { tenantId?: string }).tenantId;
+        }
 
         // Si on délègue les écritures à n8n (full no‑code)
         // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
@@ -341,7 +352,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           const res = await n8nService.callWorkflowReturn<{ client: unknown }>(
             tenantId,
             'client_create',
-            body
+            bodyWithoutTenantId
           );
           if (!res.success) {
             return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
@@ -357,7 +368,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         const existingClient = await prisma.clientFinal.findFirst({
           where: {
             tenantId,
-            email: body.email,
+            email: bodyWithoutTenantId.email,
           },
         });
 
@@ -370,7 +381,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         }
 
         // Validation selon le type (B2B ou B2C)
-        if (body.type === 'b2b' && !body.raisonSociale) {
+        if (bodyWithoutTenantId.type === 'b2b' && !bodyWithoutTenantId.raisonSociale) {
           reply.code(400).send({
             error: 'Validation échouée',
             message: 'La raison sociale est requise pour un client B2B',
@@ -378,7 +389,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return;
         }
 
-        if (body.type === 'b2c' && (!body.nom || !body.prenom)) {
+        if (bodyWithoutTenantId.type === 'b2c' && (!bodyWithoutTenantId.nom || !bodyWithoutTenantId.prenom)) {
           reply.code(400).send({
             error: 'Validation échouée',
             message: 'Le nom et prénom sont requis pour un client B2C',
@@ -390,14 +401,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         const client = await prisma.clientFinal.create({
           data: {
             tenantId,
-            type: body.type,
-            raisonSociale: body.raisonSociale,
-            nom: body.nom,
-            prenom: body.prenom,
-            email: body.email,
-            telephone: body.telephone,
-            adresse: body.adresse,
-            tags: body.tags,
+            type: bodyWithoutTenantId.type,
+            raisonSociale: bodyWithoutTenantId.raisonSociale,
+            nom: bodyWithoutTenantId.nom,
+            prenom: bodyWithoutTenantId.prenom,
+            email: bodyWithoutTenantId.email,
+            telephone: bodyWithoutTenantId.telephone,
+            adresse: bodyWithoutTenantId.adresse,
+            tags: bodyWithoutTenantId.tags,
             statut: 'actif',
           },
         });
