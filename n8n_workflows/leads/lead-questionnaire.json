@@ -94,20 +94,30 @@
     },
     {
       "parameters": {
-        "fromEmail": "contact@talosprimes.com",
-        "toEmail": "={{ $json.email }}",
-        "subject": "Questionnaire - TalosPrimes",
-        "text": "=Bonjour {{ $json.prenom }} {{ $json.nom }},\n\nMerci pour votre intérêt pour TalosPrimes !\n\nPour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :\n\n{{ $json.questionnaireUrl }}\n\nCe questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.\n\nCordialement,\nL'équipe TalosPrimes",
-        "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .footer { margin-top: 30px; font-size: 12px; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h2>Bonjour {{ $json.prenom }} {{ $json.nom }},</h2>\n    <p>Merci pour votre intérêt pour <strong>TalosPrimes</strong> !</p>\n    <p>Pour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :</p>\n    <p style=\"text-align: center;\">\n      <a href=\"{{ $json.questionnaireUrl }}\" class=\"button\">Accéder au questionnaire</a>\n    </p>\n    <p>Ce questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.</p>\n    <div class=\"footer\">\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n  </div>\n</body>\n</html>",
-        "options": {}
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"TalosPrimes <contact@talosprimes.com>\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"Questionnaire - TalosPrimes\",\n  \"html\": \"<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\\\"UTF-8\\\">\\n  <style>\\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\\n    .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\\n    .footer { margin-top: 30px; font-size: 12px; color: #666; }\\n  </style>\\n</head>\\n<body>\\n  <div class=\\\"container\\\">\\n    <h2>Bonjour {{ $json.prenom }} {{ $json.nom }},</h2>\\n    <p>Merci pour votre intérêt pour <strong>TalosPrimes</strong> !</p>\\n    <p>Pour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :</p>\\n    <p style=\\\"text-align: center;\\\">\\n      <a href=\\\"{{ $json.questionnaireUrl }}\\\" class=\\\"button\\\">Accéder au questionnaire</a>\\n    </p>\\n    <p>Ce questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.</p>\\n    <div class=\\\"footer\\\">\\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\\n    </div>\\n  </div>\\n</body>\\n</html>\",\n  \"text\": \"Bonjour {{ $json.prenom }} {{ $json.nom }},\\n\\nMerci pour votre intérêt pour TalosPrimes !\\n\\nPour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :\\n\\n{{ $json.questionnaireUrl }}\\n\\nCe questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.\\n\\nCordialement,\\nL'équipe TalosPrimes\"\n}",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
       },
       "id": "Resend_Email",
       "name": "Resend - Email Questionnaire (Lead)",
-      "type": "n8n-nodes-base.resend",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [1740, 200],
       "credentials": {
-        "resendApi": {
+        "headerAuth": {
           "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
           "name": "Resend API"
         }
@@ -115,20 +125,30 @@
     },
     {
       "parameters": {
-        "fromEmail": "contact@talosprimes.com",
-        "toEmail": "contact@talosprimes.com",
-        "subject": "📋 Questionnaire envoyé - Lead {{ $json.prenom }} {{ $json.nom }}",
-        "text": "=Récapitulatif - Questionnaire envoyé\n\nLead : {{ $json.prenom }} {{ $json.nom }}\nEmail : {{ $json.email }}\nTéléphone : {{ $json.telephone }}\nID Lead : {{ $json.leadId }}\n\nStatut mis à jour : contacte\nQuestionnaire envoyé le : {{ $now.toISO() }}\n\nLien questionnaire : {{ $json.questionnaireUrl }}",
-        "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .info-box { background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0; }\n    .info-row { margin: 10px 0; }\n    .label { font-weight: bold; color: #555; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h2>📋 Questionnaire envoyé</h2>\n    <div class=\"info-box\">\n      <div class=\"info-row\"><span class=\"label\">Lead :</span> {{ $json.prenom }} {{ $json.nom }}</div>\n      <div class=\"info-row\"><span class=\"label\">Email :</span> {{ $json.email }}</div>\n      <div class=\"info-row\"><span class=\"label\">Téléphone :</span> {{ $json.telephone }}</div>\n      <div class=\"info-row\"><span class=\"label\">ID Lead :</span> {{ $json.leadId }}</div>\n      <div class=\"info-row\"><span class=\"label\">Statut :</span> contacte</div>\n      <div class=\"info-row\"><span class=\"label\">Date :</span> {{ $now.toLocaleString('fr-FR') }}</div>\n      <div class=\"info-row\"><span class=\"label\">Lien questionnaire :</span> <a href=\"{{ $json.questionnaireUrl }}\">{{ $json.questionnaireUrl }}</a></div>\n    </div>\n  </div>\n</body>\n</html>",
-        "options": {}
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"TalosPrimes <contact@talosprimes.com>\",\n  \"to\": [\"contact@talosprimes.com\"],\n  \"subject\": \"📋 Questionnaire envoyé - Lead {{ $json.prenom }} {{ $json.nom }}\",\n  \"html\": \"<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\\\"UTF-8\\\">\\n  <style>\\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\\n    .info-box { background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0; }\\n    .info-row { margin: 10px 0; }\\n    .label { font-weight: bold; color: #555; }\\n  </style>\\n</head>\\n<body>\\n  <div class=\\\"container\\\">\\n    <h2>📋 Questionnaire envoyé</h2>\\n    <div class=\\\"info-box\\\">\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Lead :</span> {{ $json.prenom }} {{ $json.nom }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Email :</span> {{ $json.email }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Téléphone :</span> {{ $json.telephone }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">ID Lead :</span> {{ $json.leadId }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Statut :</span> contacte</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Date :</span> {{ $now.toLocaleString('fr-FR') }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Lien questionnaire :</span> <a href=\\\"{{ $json.questionnaireUrl }}\\\">{{ $json.questionnaireUrl }}</a></div>\\n    </div>\\n  </div>\\n</body>\\n</html>\",\n  \"text\": \"Récapitulatif - Questionnaire envoyé\\n\\nLead : {{ $json.prenom }} {{ $json.nom }}\\nEmail : {{ $json.email }}\\nTéléphone : {{ $json.telephone }}\\nID Lead : {{ $json.leadId }}\\n\\nStatut mis à jour : contacte\\nQuestionnaire envoyé le : {{ $now.toISO() }}\\n\\nLien questionnaire : {{ $json.questionnaireUrl }}\"\n}",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
       },
       "id": "Resend_Email_Team",
       "name": "Resend - Email Récapitulatif (Équipe)",
-      "type": "n8n-nodes-base.resend",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [1740, 400],
       "credentials": {
-        "resendApi": {
+        "headerAuth": {
           "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
           "name": "Resend API"
         }
