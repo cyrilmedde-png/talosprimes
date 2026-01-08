@@ -1,42 +1,18 @@
+# CI désactivé - Pas de notifications par email
+# Ce workflow ne s'exécute jamais pour éviter les emails
+
 name: CI
 
+# Désactiver complètement le workflow
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-# Désactiver les notifications par email
-env:
-  GITHUB_NOTIFICATIONS: disabled
+  workflow_dispatch:  # Seulement exécutable manuellement, jamais automatiquement
 
 jobs:
-  lint-and-typecheck:
-    name: Lint and Type Check
+  disabled:
+    name: CI Disabled
     runs-on: ubuntu-latest
-    
-    # Désactiver les notifications par email pour ce job
-    if: false == true  # Ne jamais exécuter (désactive complètement le CI)
+    if: false  # Ne jamais s'exécuter
     
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install
-      
-      - name: Lint
-        run: pnpm lint
-      
-      - name: Type check
-        run: pnpm type-check
+      - name: This job never runs
+        run: echo "CI is disabled"
