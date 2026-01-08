@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la réponse: { leads: [...] }\nconst items = $input.all();\nconst leads = items.map(item => {\n  const lead = item.json;\n  return {\n    id: lead.id,\n    nom: lead.nom,\n    prenom: lead.prenom,\n    email: lead.email,\n    telephone: lead.telephone,\n    statut: lead.statut,\n    source: lead.source,\n    notes: lead.notes ?? null,\n    dateContact: lead.date_contact ?? null,\n    createdAt: lead.created_at,\n    updatedAt: lead.updated_at\n  };\n});\n\nreturn [{ json: { success: true, data: { leads } } }];\n"
+        "jsCode": "// Formater la réponse: { leads: [...] }\nconst items = $input.all();\nconst leads = items.map(item => {\n  const lead = item.json;\n  return {\n    id: lead.id,\n    nom: lead.nom,\n    prenom: lead.prenom,\n    email: lead.email,\n    telephone: lead.telephone,\n    statut: lead.statut,\n    source: lead.source,\n    notes: lead.notes ?? null,\n    dateContact: lead.date_contact ?? null,\n    createdAt: lead.created_at,\n    updatedAt: lead.updated_at\n  };\n});\n\n// Retourner directement { leads } pour que le backend puisse lire result.data?.leads\nreturn [{ json: { leads } }];\n"
       },
       "id": "Code_Format",
       "name": "Formater réponse",
