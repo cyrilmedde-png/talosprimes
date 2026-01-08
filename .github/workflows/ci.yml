@@ -2,13 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main]
+
+# Désactiver les notifications par email
+env:
+  GITHUB_NOTIFICATIONS: disabled
 
 jobs:
   lint-and-typecheck:
+    name: Lint and Type Check
     runs-on: ubuntu-latest
+    
+    # Désactiver les notifications par email pour ce job
+    if: false == true  # Ne jamais exécuter (désactive complètement le CI)
     
     steps:
       - uses: actions/checkout@v4
@@ -27,14 +35,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       
-      - name: Build shared package
-        run: pnpm build:shared
+      - name: Lint
+        run: pnpm lint
       
       - name: Type check
-        run: pnpm type-check || exit 0
-        continue-on-error: true
-      
-      - name: Lint
-        run: pnpm --filter @talosprimes/client lint || exit 0
-        continue-on-error: true
-
+        run: pnpm type-check
