@@ -94,12 +94,22 @@
     },
     {
       "parameters": {
+        "jsCode": "// Formater l'email questionnaire pour le lead\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .footer { margin-top: 30px; font-size: 12px; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h2>Bonjour ${data.prenom} ${data.nom},</h2>\n    <p>Merci pour votre intérêt pour <strong>TalosPrimes</strong> !</p>\n    <p>Pour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :</p>\n    <p style=\"text-align: center;\">\n      <a href=\"${data.questionnaireUrl}\" class=\"button\">Accéder au questionnaire</a>\n    </p>\n    <p>Ce questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.</p>\n    <div class=\"footer\">\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nMerci pour votre intérêt pour TalosPrimes !\n\nPour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :\n\n${data.questionnaireUrl}\n\nCe questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [data.email],\n    subject: \"Questionnaire - TalosPrimes\",\n    html: html,\n    text: text\n  }\n};"
+      },
+      "id": "Code_FormatEmailLead",
+      "name": "Formater Email Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 200]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://api.resend.com/emails",
         "authentication": "headerAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"TalosPrimes <contact@talosprimes.com>\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"Questionnaire - TalosPrimes\",\n  \"html\": \"<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\\\"UTF-8\\\">\\n  <style>\\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\\n    .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\\n    .footer { margin-top: 30px; font-size: 12px; color: #666; }\\n  </style>\\n</head>\\n<body>\\n  <div class=\\\"container\\\">\\n    <h2>Bonjour {{ $json.prenom }} {{ $json.nom }},</h2>\\n    <p>Merci pour votre intérêt pour <strong>TalosPrimes</strong> !</p>\\n    <p>Pour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :</p>\\n    <p style=\\\"text-align: center;\\\">\\n      <a href=\\\"{{ $json.questionnaireUrl }}\\\" class=\\\"button\\\">Accéder au questionnaire</a>\\n    </p>\\n    <p>Ce questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.</p>\\n    <div class=\\\"footer\\\">\\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\\n    </div>\\n  </div>\\n</body>\\n</html>\",\n  \"text\": \"Bonjour {{ $json.prenom }} {{ $json.nom }},\\n\\nMerci pour votre intérêt pour TalosPrimes !\\n\\nPour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :\\n\\n{{ $json.questionnaireUrl }}\\n\\nCe questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.\\n\\nCordialement,\\nL'équipe TalosPrimes\"\n}",
+        "jsonBody": "={\n  \"from\": \"{{ $json.from }}\",\n  \"to\": {{ JSON.stringify($json.to) }},\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
         "options": {
           "headers": {
             "entries": [
@@ -115,7 +125,7 @@
       "name": "Resend - Email Questionnaire (Lead)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1740, 200],
+      "position": [1980, 200],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
@@ -125,12 +135,22 @@
     },
     {
       "parameters": {
+        "jsCode": "// Formater l'email récapitulatif pour l'équipe\nconst data = $input.first().json;\nconst now = new Date();\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .info-box { background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0; }\n    .info-row { margin: 10px 0; }\n    .label { font-weight: bold; color: #555; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h2>📋 Questionnaire envoyé</h2>\n    <div class=\"info-box\">\n      <div class=\"info-row\"><span class=\"label\">Lead :</span> ${data.prenom} ${data.nom}</div>\n      <div class=\"info-row\"><span class=\"label\">Email :</span> ${data.email}</div>\n      <div class=\"info-row\"><span class=\"label\">Téléphone :</span> ${data.telephone}</div>\n      <div class=\"info-row\"><span class=\"label\">ID Lead :</span> ${data.leadId}</div>\n      <div class=\"info-row\"><span class=\"label\">Statut :</span> contacte</div>\n      <div class=\"info-row\"><span class=\"label\">Date :</span> ${now.toLocaleString('fr-FR')}</div>\n      <div class=\"info-row\"><span class=\"label\">Lien questionnaire :</span> <a href=\"${data.questionnaireUrl}\">${data.questionnaireUrl}</a></div>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Récapitulatif - Questionnaire envoyé\n\nLead : ${data.prenom} ${data.nom}\nEmail : ${data.email}\nTéléphone : ${data.telephone}\nID Lead : ${data.leadId}\n\nStatut mis à jour : contacte\nQuestionnaire envoyé le : ${now.toISOString()}\n\nLien questionnaire : ${data.questionnaireUrl}`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [\"contact@talosprimes.com\"],\n    subject: `📋 Questionnaire envoyé - Lead ${data.prenom} ${data.nom}`,\n    html: html,\n    text: text\n  }\n};"
+      },
+      "id": "Code_FormatEmailTeam",
+      "name": "Formater Email Équipe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 400]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://api.resend.com/emails",
         "authentication": "headerAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"TalosPrimes <contact@talosprimes.com>\",\n  \"to\": [\"contact@talosprimes.com\"],\n  \"subject\": \"📋 Questionnaire envoyé - Lead {{ $json.prenom }} {{ $json.nom }}\",\n  \"html\": \"<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\\\"UTF-8\\\">\\n  <style>\\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\\n    .info-box { background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0; }\\n    .info-row { margin: 10px 0; }\\n    .label { font-weight: bold; color: #555; }\\n  </style>\\n</head>\\n<body>\\n  <div class=\\\"container\\\">\\n    <h2>📋 Questionnaire envoyé</h2>\\n    <div class=\\\"info-box\\\">\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Lead :</span> {{ $json.prenom }} {{ $json.nom }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Email :</span> {{ $json.email }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Téléphone :</span> {{ $json.telephone }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">ID Lead :</span> {{ $json.leadId }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Statut :</span> contacte</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Date :</span> {{ $now.toLocaleString('fr-FR') }}</div>\\n      <div class=\\\"info-row\\\"><span class=\\\"label\\\">Lien questionnaire :</span> <a href=\\\"{{ $json.questionnaireUrl }}\\\">{{ $json.questionnaireUrl }}</a></div>\\n    </div>\\n  </div>\\n</body>\\n</html>\",\n  \"text\": \"Récapitulatif - Questionnaire envoyé\\n\\nLead : {{ $json.prenom }} {{ $json.nom }}\\nEmail : {{ $json.email }}\\nTéléphone : {{ $json.telephone }}\\nID Lead : {{ $json.leadId }}\\n\\nStatut mis à jour : contacte\\nQuestionnaire envoyé le : {{ $now.toISO() }}\\n\\nLien questionnaire : {{ $json.questionnaireUrl }}\"\n}",
+        "jsonBody": "={\n  \"from\": \"{{ $json.from }}\",\n  \"to\": {{ JSON.stringify($json.to) }},\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
         "options": {
           "headers": {
             "entries": [
@@ -146,7 +166,7 @@
       "name": "Resend - Email Récapitulatif (Équipe)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1740, 400],
+      "position": [1980, 400],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
@@ -156,15 +176,14 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "combineAll",
+        "mode": "append",
         "options": {}
       },
       "id": "Merge_Emails",
       "name": "Merge - Emails envoyés",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1980, 300]
+      "position": [2220, 300]
     },
     {
       "parameters": {
@@ -176,7 +195,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2220, 300]
+      "position": [2460, 300]
     }
   ],
   "connections": {
@@ -239,12 +258,23 @@
       "main": [
         [
           {
-            "node": "Resend - Email Questionnaire (Lead)",
+            "node": "Formater Email Lead",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Resend - Email Récapitulatif (Équipe)",
+            "node": "Formater Email Équipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater Email Lead": {
+      "main": [
+        [
+          {
+            "node": "Resend - Email Questionnaire (Lead)",
             "type": "main",
             "index": 0
           }
@@ -256,6 +286,17 @@
         [
           {
             "node": "Merge - Emails envoyés",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater Email Équipe": {
+      "main": [
+        [
+          {
+            "node": "Resend - Email Récapitulatif (Équipe)",
             "type": "main",
             "index": 0
           }
