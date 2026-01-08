@@ -1,0 +1,103 @@
+{
+  "name": "Clients - Update (client_update) → API TalosPrimes → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client_update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_ClientUpdate",
+      "name": "Webhook - client_update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\n\n// Extraire les champs optionnels\nconst updateData = {};\nif (data.raisonSociale !== undefined) updateData.raisonSociale = data.raisonSociale;\nif (data.nom !== undefined) updateData.nom = data.nom;\nif (data.prenom !== undefined) updateData.prenom = data.prenom;\nif (data.email !== undefined) updateData.email = data.email;\nif (data.telephone !== undefined) updateData.telephone = data.telephone;\nif (data.adresse !== undefined) updateData.adresse = data.adresse;\nif (data.tags !== undefined) updateData.tags = Array.isArray(data.tags) ? data.tags : [];\nif (data.statut !== undefined) updateData.statut = data.statut;\n\nreturn [{ json: { id, ...updateData } }];\n"
+      },
+      "id": "Code_Parse",
+      "name": "Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.talosprimes.com/api/clients/{{$json.id}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { raisonSociale: $json.raisonSociale, nom: $json.nom, prenom: $json.prenom, email: $json.email, telephone: $json.telephone, adresse: $json.adresse, tags: $json.tags, statut: $json.statut } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "HTTP_Update",
+      "name": "API TalosPrimes - Update Client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200
+      },
+      "id": "Respond_ClientUpdate",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1020, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - client_update": {
+      "main": [
+        [
+          {
+            "node": "Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser payload": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Update Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Update Client": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+

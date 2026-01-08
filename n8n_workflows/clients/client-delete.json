@@ -1,0 +1,100 @@
+{
+  "name": "Clients - Delete (client_delete) → API TalosPrimes → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client_delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_ClientDelete",
+      "name": "Webhook - client_delete",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id } }];\n"
+      },
+      "id": "Code_Parse",
+      "name": "Parser ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://api.talosprimes.com/api/clients/{{$json.id}}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "HTTP_Delete",
+      "name": "API TalosPrimes - Delete Client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200
+      },
+      "id": "Respond_ClientDelete",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1020, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - client_delete": {
+      "main": [
+        [
+          {
+            "node": "Parser ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser ID": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Delete Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Delete Client": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+

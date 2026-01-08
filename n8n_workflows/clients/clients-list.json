@@ -1,0 +1,118 @@
+{
+  "name": "Clients - List (clients_list) → Postgres Direct → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "clients_list",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook_ClientsList",
+      "name": "Webhook - clients_list",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser le payload: { body: { data: { type?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst type = data?.type ? String(data.type).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\nconst tenantId = data?.tenantId ? String(data.tenantId) : null;\n\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { type, statut, limit, tenantId } }];\n"
+      },
+      "id": "Code_Parse",
+      "name": "Parser filtres",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  id, \n  tenant_id, \n  type, \n  raison_sociale, \n  nom, \n  prenom, \n  email, \n  telephone, \n  adresse, \n  tags, \n  statut, \n  created_at, \n  updated_at\nFROM client_finals\nWHERE \n  tenant_id = '{{ $json.tenantId }}'\n  AND ({{ $json.type ? `type = '${$json.type}'` : '1=1' }})\n  AND ({{ $json.statut ? `statut = '${$json.statut}'` : '1=1' }})\nORDER BY created_at DESC\nLIMIT {{ $json.limit || 100 }};"
+      },
+      "id": "Postgres_Select",
+      "name": "Postgres - SELECT clients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater la réponse: { clients: [...] }\nconst items = $input.all();\nconst clients = items.map(item => {\n  const client = item.json;\n  return {\n    id: client.id,\n    tenantId: client.tenant_id,\n    type: client.type,\n    raisonSociale: client.raison_sociale ?? null,\n    nom: client.nom ?? null,\n    prenom: client.prenom ?? null,\n    email: client.email,\n    telephone: client.telephone ?? null,\n    adresse: client.adresse ?? null,\n    tags: client.tags ?? [],\n    statut: client.statut,\n    createdAt: client.created_at,\n    updatedAt: client.updated_at\n  };\n});\n\n// Retourner directement { clients } pour que le backend puisse lire result.data?.clients\nreturn [{ json: { clients } }];\n"
+      },
+      "id": "Code_Format",
+      "name": "Formater réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond_ClientsList",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - clients_list": {
+      "main": [
+        [
+          {
+            "node": "Parser filtres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser filtres": {
+      "main": [
+        [
+          {
+            "node": "Postgres - SELECT clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - SELECT clients": {
+      "main": [
+        [
+          {
+            "node": "Formater réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater réponse": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+
