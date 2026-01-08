@@ -160,11 +160,7 @@
             "type": "main",
             "index": 0
           }
-        ]
-      ]
-    },
-    "API TalosPrimes - Update Lead Status": {
-      "main": [
+        ],
         [
           {
             "node": "API TalosPrimes - Create Client",
@@ -173,6 +169,9 @@
           }
         ]
       ]
+    },
+    "API TalosPrimes - Update Lead Status": {
+      "main": []
     },
     "API TalosPrimes - Create Client": {
       "main": [
