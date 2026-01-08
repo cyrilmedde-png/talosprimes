@@ -243,10 +243,6 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
         }
 
-        if (lead.statut !== 'converti') {
-          return reply.status(400).send({ success: false, error: 'Le lead doit être converti pour créer un client' });
-        }
-
         // Vérifier que le client n'existe pas déjà
         const existingClient = await prisma.clientFinal.findFirst({
           where: {
@@ -257,6 +253,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
 
         if (existingClient) {
           return reply.status(409).send({ success: false, error: 'Un client avec cet email existe déjà' });
+        }
+
+        // Si le lead n'est pas déjà converti, le marquer comme converti
+        if (lead.statut !== 'converti') {
+          await prisma.lead.update({
+            where: { id: body.leadId },
+            data: { statut: 'converti' },
+          });
         }
 
         // Créer le client B2C depuis le lead

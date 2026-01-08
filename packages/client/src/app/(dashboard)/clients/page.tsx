@@ -56,7 +56,18 @@ export default function ClientsPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.clients.list();
-      setClients(response.data.clients as ClientFinal[]);
+      const clientsList = response.data.clients as ClientFinal[];
+      setClients(clientsList);
+      
+      // Charger les leads convertis après le chargement des clients
+      // pour pouvoir filtrer ceux qui sont déjà des clients
+      const leadsResponse = await apiClient.leads.list({ statut: 'converti' });
+      const leads = leadsResponse.data.leads as Lead[];
+      const clientEmails = new Set(clientsList.map(client => client.email.toLowerCase()));
+      const leadsNonClients = leads.filter(
+        lead => !clientEmails.has(lead.email.toLowerCase())
+      );
+      setLeadsConvertis(leadsNonClients);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {
@@ -70,19 +81,36 @@ export default function ClientsPage() {
   const loadLeadsConvertis = async () => {
     try {
       const response = await apiClient.leads.list({ statut: 'converti' });
-      setLeadsConvertis(response.data.leads as Lead[]);
+      const leads = response.data.leads as Lead[];
+      
+      // Filtrer les leads qui sont déjà des clients (par email)
+      // On vérifie si un client existe déjà avec cet email
+      const clientEmails = new Set(clients.map(client => client.email.toLowerCase()));
+      const leadsNonClients = leads.filter(
+        lead => !clientEmails.has(lead.email.toLowerCase())
+      );
+      
+      setLeadsConvertis(leadsNonClients);
     } catch (err) {
       console.error('Erreur lors du chargement des leads convertis:', err);
     }
   };
+
+  // Recharger les leads convertis quand les clients changent (pour filtrer ceux déjà convertis)
+  useEffect(() => {
+    if (clients.length > 0 || clients.length === 0) {
+      loadLeadsConvertis();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients.length]);
 
   const handleCreateFromLead = async (leadId: string) => {
     try {
       await apiClient.clients.createFromLead(leadId);
       setShowCreateModal(false);
       setSelectedLead(null);
-      await loadClients();
-      await loadLeadsConvertis();
+      await loadClients(); // Recharger les clients d'abord
+      await loadLeadsConvertis(); // Puis recharger les leads convertis (sera filtré automatiquement)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la création');
     }

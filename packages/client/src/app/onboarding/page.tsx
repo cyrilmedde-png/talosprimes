@@ -58,13 +58,19 @@ export default function OnboardingPage() {
       setLoading(true);
       setError(null);
       
-      const params: { source?: string } = {};
+      const params: { source?: string; statut?: string } = {};
       if (filterSource !== 'all') {
         params.source = filterSource;
       }
+      // Exclure les leads convertis et abandonnés de la liste
+      // On filtre côté client car l'API ne permet pas de filtrer par exclusion
       
       const response = await apiClient.leads.list(params);
-      setLeads(response.data.leads as Lead[]);
+      // Filtrer les leads convertis et abandonnés
+      const leadsFiltered = (response.data.leads as Lead[]).filter(
+        lead => lead.statut !== 'converti' && lead.statut !== 'abandonne'
+      );
+      setLeads(leadsFiltered);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {
