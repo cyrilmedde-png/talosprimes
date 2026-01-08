@@ -1,0 +1,10 @@
+# Configuration GitHub pour désactiver les notifications par email
+# Ce fichier peut être utilisé avec GitHub Settings Importer (extension)
+
+repository:
+  # Désactiver les notifications Actions
+  has_actions: false
+  
+  # Désactiver les notifications de sécurité
+  vulnerability_alerts: false
+
