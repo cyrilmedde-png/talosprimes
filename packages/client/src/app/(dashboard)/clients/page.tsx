@@ -48,7 +48,6 @@ export default function ClientsPage() {
       return;
     }
     loadClients();
-    loadLeadsConvertis();
   }, [router]);
 
   const loadClients = async () => {
