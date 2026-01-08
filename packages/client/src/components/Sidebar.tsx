@@ -16,7 +16,7 @@ import { clearTokens } from '@/lib/auth';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
-  { name: 'Clients', href: '/dashboard/clients', icon: UsersIcon },
+  { name: 'Clients', href: '/clients', icon: UsersIcon },
   { name: 'Documents', href: '/dashboard/documents', icon: DocumentTextIcon },
   { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
 ];
