@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
+import { n8nService } from '../../services/n8n.service.js';
+import { env } from '../../config/env.js';
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({
@@ -31,6 +33,18 @@ const updateClientSchema = z.object({
 const paramsSchema = z.object({
   id: z.string().uuid('ID invalide'),
 });
+
+function getN8nSecretHeader(request: FastifyRequest): string | undefined {
+  const header = request.headers['x-talosprimes-n8n-secret'];
+  return typeof header === 'string' ? header : undefined;
+}
+
+function isN8nInternalRequest(request: FastifyRequest): boolean {
+  const secret = env.N8N_WEBHOOK_SECRET;
+  if (!secret) return false;
+  const provided = getN8nSecretHeader(request);
+  return Boolean(provided && provided === secret);
+}
 
 /**
  * Routes pour la gestion des clients finaux
@@ -171,11 +185,19 @@ export async function clientsRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/create-from-lead',
     {
-      preHandler: [fastify.authenticate],
+      preHandler: [
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          // Si l'appel vient de n8n (secret), on ne demande pas de JWT
+          if (isN8nInternalRequest(request)) return;
+          await fastify.authenticate(request, reply);
+        },
+      ],
     },
     async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
-        if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        const fromN8n = isN8nInternalRequest(request);
+        // Vérifier droits si pas n8n
+        if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
           return reply.status(403).send({ success: false, error: 'Accès refusé' });
         }
 
@@ -190,6 +212,27 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return reply.status(400).send({ success: false, error: 'Lead ID requis' });
         }
 
+        // Si on délègue les écritures à n8n (full no‑code)
+        // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
+        if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
+          const res = await n8nService.callWorkflowReturn<{ client: unknown }>(
+            tenantId,
+            'client_create_from_lead',
+            {
+              leadId: body.leadId,
+            }
+          );
+          if (!res.success) {
+            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+          }
+          return reply.status(201).send({
+            success: true,
+            message: 'Client créé avec succès depuis le lead via n8n',
+            data: res.data,
+          });
+        }
+
+        // Sinon, créer directement en base (fallback ou si USE_N8N_COMMANDS=false)
         // Récupérer le lead
         const lead = await prisma.lead.findUnique({
           where: { id: body.leadId },
@@ -263,10 +306,17 @@ export async function clientsRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/',
     {
-      preHandler: [fastify.authenticate],
+      preHandler: [
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          // Si l'appel vient de n8n (secret), on ne demande pas de JWT
+          if (isN8nInternalRequest(request)) return;
+          await fastify.authenticate(request, reply);
+        },
+      ],
     },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
+        const fromN8n = isN8nInternalRequest(request);
         const tenantId = request.tenantId;
 
         if (!tenantId) {
@@ -277,8 +327,31 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return;
         }
 
+        // Vérifier droits si pas n8n
+        if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        }
+
         // Valider les données
         const body = createClientSchema.parse(request.body);
+
+        // Si on délègue les écritures à n8n (full no‑code)
+        // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
+        if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
+          const res = await n8nService.callWorkflowReturn<{ client: unknown }>(
+            tenantId,
+            'client_create',
+            body
+          );
+          if (!res.success) {
+            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+          }
+          return reply.status(201).send({
+            success: true,
+            message: 'Client créé via n8n',
+            data: res.data,
+          });
+        }
 
         // Vérifier que l'email n'existe pas déjà pour ce tenant
         const existingClient = await prisma.clientFinal.findFirst({
