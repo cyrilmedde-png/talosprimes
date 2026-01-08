@@ -100,6 +100,12 @@ export const apiClient = {
     
     get: (id: string) => authenticatedFetch<{ success: boolean; data: { client: unknown } }>(`/api/clients/${id}`),
     
+    createFromLead: (leadId: string) => 
+      authenticatedFetch<{ success: boolean; message: string; data?: unknown }>('/api/clients/create-from-lead', {
+        method: 'POST',
+        body: JSON.stringify({ leadId }),
+      }),
+    
     create: (data: {
       type: 'b2b' | 'b2c';
       raisonSociale?: string;

@@ -167,6 +167,98 @@ export async function clientsRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // POST /api/clients/create-from-lead - Crée un client depuis un lead converti
+  fastify.post(
+    '/create-from-lead',
+    {
+      preHandler: [fastify.authenticate],
+    },
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+      try {
+        if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        }
+
+        const tenantId = request.tenantId;
+        const body = request.body as { leadId: string };
+
+        if (!tenantId) {
+          return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+        }
+
+        if (!body.leadId) {
+          return reply.status(400).send({ success: false, error: 'Lead ID requis' });
+        }
+
+        // Récupérer le lead
+        const lead = await prisma.lead.findUnique({
+          where: { id: body.leadId },
+        });
+
+        if (!lead) {
+          return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+        }
+
+        if (lead.statut !== 'converti') {
+          return reply.status(400).send({ success: false, error: 'Le lead doit être converti pour créer un client' });
+        }
+
+        // Vérifier que le client n'existe pas déjà
+        const existingClient = await prisma.clientFinal.findFirst({
+          where: {
+            tenantId,
+            email: lead.email,
+          },
+        });
+
+        if (existingClient) {
+          return reply.status(409).send({ success: false, error: 'Un client avec cet email existe déjà' });
+        }
+
+        // Créer le client B2C depuis le lead
+        const client = await prisma.clientFinal.create({
+          data: {
+            tenantId,
+            type: 'b2c',
+            nom: lead.nom,
+            prenom: lead.prenom,
+            email: lead.email,
+            telephone: lead.telephone,
+            statut: 'actif',
+          },
+        });
+
+        // Émettre événement pour n8n (client.created)
+        await eventService.emit(
+          tenantId,
+          'client.created',
+          'ClientFinal',
+          client.id,
+          {
+            clientId: client.id,
+            tenantId,
+            type: client.type,
+            email: client.email,
+            nom: client.nom || client.raisonSociale,
+          }
+        );
+
+        return reply.status(201).send({
+          success: true,
+          message: 'Client créé avec succès depuis le lead',
+          data: { client },
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur lors de la création du client depuis le lead');
+        return reply.status(500).send({
+          success: false,
+          error: 'Erreur serveur',
+          message: 'Impossible de créer le client depuis le lead',
+        });
+      }
+    }
+  );
+
   // POST /api/clients - Crée un nouveau client
   fastify.post(
     '/',
