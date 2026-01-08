@@ -12,17 +12,17 @@
       "name": "01. Webhook - Réception",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [240, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Validation des données d'inscription\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\n\nconst nom = String(payload?.nom || '').trim();\nconst prenom = String(payload?.prenom || '').trim();\nconst email = String(payload?.email || '').trim().toLowerCase();\nconst telephone = String(payload?.telephone || '').trim();\n\n// Validation\nconst errors = [];\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\nif (!telephone) errors.push('Le téléphone est requis');\n\nif (errors.length > 0) {\n  throw new Error(errors.join(', '));\n}\n\nreturn {\n  json: {\n    nom,\n    prenom,\n    email,\n    telephone,\n    source: 'formulaire_inscription'\n  }\n};"
+        "jsCode": "// Validation des données\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\n\nconst nom = String(payload?.nom || '').trim();\nconst prenom = String(payload?.prenom || '').trim();\nconst email = String(payload?.email || '').trim().toLowerCase();\nconst telephone = String(payload?.telephone || '').trim();\n\nconst errors = [];\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\nif (!telephone) errors.push('Le téléphone est requis');\n\nif (errors.length > 0) throw new Error(errors.join(', '));\n\nreturn { json: { nom, prenom, email, telephone, source: 'formulaire_inscription' } };"
       },
       "id": "Code_Validation",
       "name": "02. Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [460, 400]
     },
     {
       "parameters": {
@@ -44,7 +44,7 @@
       "name": "03. API - Sauvegarder Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [680, 300],
+      "position": [680, 400],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -54,23 +54,23 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer données pour communications\nconst validationData = $('02. Validation').first().json;\nconst saveResponse = $input.first().json;\nconst leadData = saveResponse?.data?.lead || saveResponse?.data || saveResponse;\n\nreturn {\n  json: {\n    nom: validationData.nom,\n    prenom: validationData.prenom,\n    email: validationData.email,\n    telephone: validationData.telephone,\n    leadId: leadData?.id || '',\n    timestamp: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Préparer toutes les données nécessaires\nconst validationData = $('02. Validation').first().json;\nconst saveResponse = $input.first().json;\nconst leadData = saveResponse?.data?.lead || saveResponse?.data || saveResponse;\n\nreturn {\n  json: {\n    nom: validationData.nom,\n    prenom: validationData.prenom,\n    email: validationData.email,\n    telephone: validationData.telephone,\n    leadId: leadData?.id || '',\n    timestamp: new Date().toISOString()\n  }\n};"
       },
       "id": "Code_PrepareData",
       "name": "04. Préparer Données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [900, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Formatage Email Client\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 40px 30px; text-align: center; }\n    .header h1 { font-size: 28px; font-weight: 600; margin: 0; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 20px; }\n    .info-card { background: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #4a5568; }\n    .info-value { color: #2d3748; }\n    .highlight { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .highlight p { margin: 0; color: #92400e; }\n    .footer { background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom},</div>\n      <p style=\"color: #4a5568; margin: 20px 0;\">Nous avons bien reçu votre demande d'inscription sur <strong>TalosPrimes</strong>.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${data.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${data.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${data.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${data.telephone}</span></div>\n      </div>\n      <div class=\"highlight\">\n        <p>Notre équipe va examiner votre demande et vous recontactera dans un délai de <strong>24 à 48 heures</strong>.</p>\n      </div>\n      <p style=\"color: #4a5568; margin-top: 30px;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nNous avons bien reçu votre demande d'inscription sur TalosPrimes.\n\nVos informations :\n- Nom : ${data.nom}\n- Prénom : ${data.prenom}\n- Email : ${data.email}\n- Téléphone : ${data.telephone}\n\nNotre équipe va examiner votre demande et vous recontactera dans un délai de 24 à 48 heures.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    to: data.email,\n    subject: \"Confirmation de votre demande d'inscription - TalosPrimes\",\n    html: html,\n    text: text\n  }\n};"
+        "jsCode": "// Préparer Email Client\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 40px 30px; text-align: center; }\n    .header h1 { font-size: 28px; font-weight: 600; margin: 0; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 20px; }\n    .info-card { background: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #4a5568; }\n    .info-value { color: #2d3748; }\n    .highlight { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .highlight p { margin: 0; color: #92400e; }\n    .footer { background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom},</div>\n      <p style=\"color: #4a5568; margin: 20px 0;\">Nous avons bien reçu votre demande d'inscription sur <strong>TalosPrimes</strong>.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${data.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${data.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${data.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${data.telephone}</span></div>\n      </div>\n      <div class=\"highlight\">\n        <p>Notre équipe va examiner votre demande et vous recontactera dans un délai de <strong>24 à 48 heures</strong>.</p>\n      </div>\n      <p style=\"color: #4a5568; margin-top: 30px;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nNous avons bien reçu votre demande d'inscription sur TalosPrimes.\n\nVos informations :\n- Nom : ${data.nom}\n- Prénom : ${data.prenom}\n- Email : ${data.email}\n- Téléphone : ${data.telephone}\n\nNotre équipe va examiner votre demande et vous recontactera dans un délai de 24 à 48 heures.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    to: data.email,\n    subject: \"Confirmation de votre demande d'inscription - TalosPrimes\",\n    html: html,\n    text: text\n  }\n};"
       },
       "id": "Code_FormatEmailClient",
       "name": "05. Formatage Email Client",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 200]
+      "position": [1120, 400]
     },
     {
       "parameters": {
@@ -91,10 +91,10 @@
         }
       },
       "id": "HTTP_ResendClient",
-      "name": "06. Resend - Email Client",
+      "name": "06. Envoyer Email Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 200],
+      "position": [1340, 400],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -104,13 +104,23 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formatage SMS\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    to: data.telephone,\n    message: `Bonjour ${data.prenom} ${data.nom}, votre demande d'inscription TalosPrimes a été reçue. Vous serez recontacté dans les 24 à 48 heures. Merci !`\n  }\n};"
+        "jsCode": "// Conserver les données et préparer SMS\nconst emailData = $('04. Préparer Données').first().json;\nconst emailResponse = $input.first().json;\n\nreturn {\n  json: {\n    ...emailData,\n    emailSent: emailResponse\n  }\n};"
       },
-      "id": "Code_FormatSMS",
-      "name": "07. Formatage SMS",
+      "id": "Code_AfterEmail",
+      "name": "07. Après Email Client",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 400]
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer SMS\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    to: data.telephone,\n    message: `Bonjour ${data.prenom} ${data.nom}, votre demande d'inscription TalosPrimes a été reçue. Vous serez recontacté dans les 24 à 48 heures. Merci !`\n  }\n};"
+      },
+      "id": "Code_FormatSMS",
+      "name": "08. Formatage SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
     },
     {
       "parameters": {
@@ -121,10 +131,10 @@
         "options": {}
       },
       "id": "Twilio_SMS",
-      "name": "08. Twilio - SMS",
+      "name": "09. Envoyer SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [1340, 400],
+      "position": [2000, 400],
       "credentials": {
         "twilioApi": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -134,13 +144,23 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formatage Email Équipe\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .content { padding: 30px; }\n    .info-card { background: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #d1fae5; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #065f46; }\n    .info-value { color: #047857; }\n    .action { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }\n    .footer { background: #f7fafc; padding: 20px; text-align: center; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📋 Nouvelle demande d'inscription</h1>\n    </div>\n    <div class=\"content\">\n      <p style=\"color: #4a5568; margin-bottom: 20px;\">Une nouvelle demande d'inscription a été reçue.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${data.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${data.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${data.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${data.telephone}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Date :</span><span class=\"info-value\">${new Date(data.timestamp).toLocaleString('fr-FR')}</span></div>\n      </div>\n      <div class=\"action\">\n        <p style=\"margin: 0; color: #92400e;\"><strong>Action requise :</strong> Contacter le lead dans les 24-48 heures</p>\n      </div>\n    </div>\n    <div class=\"footer\">\n      <p>TalosPrimes - Notification automatique</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Nouvelle demande d'inscription reçue\\n\\nNom : ${data.nom}\\nPrénom : ${data.prenom}\\nEmail : ${data.email}\\nTéléphone : ${data.telephone}\\nDate : ${new Date(data.timestamp).toLocaleString('fr-FR')}\\n\\nAction requise : Contacter le lead dans les 24-48h`;\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `Nouvelle inscription - ${data.prenom} ${data.nom}`,\n    html: html,\n    text: text\n  }\n};"
+        "jsCode": "// Conserver les données et préparer Email Équipe\nconst originalData = $('04. Préparer Données').first().json;\nconst smsResponse = $input.first().json;\n\nreturn {\n  json: {\n    ...originalData,\n    smsSent: smsResponse\n  }\n};"
       },
-      "id": "Code_FormatEmailTeam",
-      "name": "09. Formatage Email Équipe",
+      "id": "Code_AfterSMS",
+      "name": "10. Après SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 600]
+      "position": [2220, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer Email Équipe\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 30px; text-align: center; }\n    .content { padding: 30px; }\n    .info-card { background: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #d1fae5; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #065f46; }\n    .info-value { color: #047857; }\n    .action { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }\n    .footer { background: #f7fafc; padding: 20px; text-align: center; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📋 Nouvelle demande d'inscription</h1>\n    </div>\n    <div class=\"content\">\n      <p style=\"color: #4a5568; margin-bottom: 20px;\">Une nouvelle demande d'inscription a été reçue.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${data.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${data.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${data.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${data.telephone}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Date :</span><span class=\"info-value\">${new Date(data.timestamp).toLocaleString('fr-FR')}</span></div>\n      </div>\n      <div class=\"action\">\n        <p style=\"margin: 0; color: #92400e;\"><strong>Action requise :</strong> Contacter le lead dans les 24-48 heures</p>\n      </div>\n    </div>\n    <div class=\"footer\">\n      <p>TalosPrimes - Notification automatique</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Nouvelle demande d'inscription reçue\\n\\nNom : ${data.nom}\\nPrénom : ${data.prenom}\\nEmail : ${data.email}\\nTéléphone : ${data.telephone}\\nDate : ${new Date(data.timestamp).toLocaleString('fr-FR')}\\n\\nAction requise : Contacter le lead dans les 24-48h`;\n\nreturn {\n  json: {\n    to: \"contact@talosprimes.com\",\n    subject: `Nouvelle inscription - ${data.prenom} ${data.nom}`,\n    html: html,\n    text: text\n  }\n};"
+      },
+      "id": "Code_FormatEmailTeam",
+      "name": "11. Formatage Email Équipe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 400]
     },
     {
       "parameters": {
@@ -161,10 +181,10 @@
         }
       },
       "id": "HTTP_ResendTeam",
-      "name": "10. Resend - Email Équipe",
+      "name": "12. Envoyer Email Équipe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 600],
+      "position": [2660, 400],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -181,10 +201,10 @@
         }
       },
       "id": "Respond_Success",
-      "name": "11. Réponse Succès",
+      "name": "13. Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 400]
+      "position": [2880, 400]
     },
     {
       "parameters": {
@@ -194,7 +214,7 @@
       "name": "ERROR. Formatage Erreur",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 700]
+      "position": [680, 800]
     },
     {
       "parameters": {
@@ -215,10 +235,10 @@
         }
       },
       "id": "HTTP_ResendError",
-      "name": "ERROR. Resend - Email Erreur",
+      "name": "ERROR. Envoyer Email Erreur",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [900, 700],
+      "position": [900, 800],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -238,7 +258,7 @@
       "name": "ERROR. Réponse Erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1120, 700]
+      "position": [1120, 800]
     }
   ],
   "connections": {
@@ -300,16 +320,6 @@
             "node": "05. Formatage Email Client",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "07. Formatage SMS",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "09. Formatage Email Équipe",
-            "type": "main",
-            "index": 0
           }
         ]
       ],
@@ -327,7 +337,7 @@
       "main": [
         [
           {
-            "node": "06. Resend - Email Client",
+            "node": "06. Envoyer Email Client",
             "type": "main",
             "index": 0
           }
@@ -343,11 +353,11 @@
         ]
       ]
     },
-    "06. Resend - Email Client": {
+    "06. Envoyer Email Client": {
       "main": [
         [
           {
-            "node": "11. Réponse Succès",
+            "node": "07. Après Email Client",
             "type": "main",
             "index": 0
           }
@@ -363,11 +373,11 @@
         ]
       ]
     },
-    "07. Formatage SMS": {
+    "07. Après Email Client": {
       "main": [
         [
           {
-            "node": "08. Twilio - SMS",
+            "node": "08. Formatage SMS",
             "type": "main",
             "index": 0
           }
@@ -383,11 +393,11 @@
         ]
       ]
     },
-    "08. Twilio - SMS": {
+    "08. Formatage SMS": {
       "main": [
         [
           {
-            "node": "11. Réponse Succès",
+            "node": "09. Envoyer SMS",
             "type": "main",
             "index": 0
           }
@@ -403,11 +413,11 @@
         ]
       ]
     },
-    "09. Formatage Email Équipe": {
+    "09. Envoyer SMS": {
       "main": [
         [
           {
-            "node": "10. Resend - Email Équipe",
+            "node": "10. Après SMS",
             "type": "main",
             "index": 0
           }
@@ -423,11 +433,51 @@
         ]
       ]
     },
-    "10. Resend - Email Équipe": {
+    "10. Après SMS": {
       "main": [
         [
           {
-            "node": "11. Réponse Succès",
+            "node": "11. Formatage Email Équipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Formatage Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Formatage Email Équipe": {
+      "main": [
+        [
+          {
+            "node": "12. Envoyer Email Équipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Formatage Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Envoyer Email Équipe": {
+      "main": [
+        [
+          {
+            "node": "13. Réponse Succès",
             "type": "main",
             "index": 0
           }
@@ -447,14 +497,14 @@
       "main": [
         [
           {
-            "node": "ERROR. Resend - Email Erreur",
+            "node": "ERROR. Envoyer Email Erreur",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ERROR. Resend - Email Erreur": {
+    "ERROR. Envoyer Email Erreur": {
       "main": [
         [
           {
