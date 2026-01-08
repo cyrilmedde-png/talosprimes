@@ -49,7 +49,34 @@ fi
 
 cd "$PROJECT_DIR"
 
-# 1. Récupérer les dernières modifications depuis GitHub
+# 1. Mettre à jour pnpm
+echo -e "${YELLOW}📦 Vérification et mise à jour de pnpm...${NC}"
+CURRENT_PNPM_VERSION=$(pnpm --version 2>/dev/null || echo "0.0.0")
+echo -e "${BLUE}  Version actuelle: $CURRENT_PNPM_VERSION${NC}"
+
+# Installer/mettre à jour pnpm via corepack (méthode recommandée)
+if command -v corepack &> /dev/null; then
+  echo -e "${BLUE}  → Mise à jour via corepack...${NC}"
+  corepack enable
+  corepack prepare pnpm@latest --activate
+  NEW_PNPM_VERSION=$(pnpm --version)
+  echo -e "${GREEN}  ✅ pnpm mis à jour vers $NEW_PNPM_VERSION${NC}"
+elif command -v npm &> /dev/null; then
+  echo -e "${BLUE}  → Installation via npm...${NC}"
+  npm install -g pnpm@latest
+  NEW_PNPM_VERSION=$(pnpm --version)
+  echo -e "${GREEN}  ✅ pnpm installé/mis à jour vers $NEW_PNPM_VERSION${NC}"
+else
+  echo -e "${YELLOW}  ⚠️  corepack et npm non trouvés, installation via script...${NC}"
+  curl -fsSL https://get.pnpm.io/install.sh | sh -
+  export PNPM_HOME="$HOME/.local/share/pnpm"
+  export PATH="$PNPM_HOME:$PATH"
+  NEW_PNPM_VERSION=$(pnpm --version)
+  echo -e "${GREEN}  ✅ pnpm installé vers $NEW_PNPM_VERSION${NC}"
+fi
+echo ""
+
+# 2. Récupérer les dernières modifications depuis GitHub
 echo -e "${YELLOW}📥 Récupération des modifications depuis GitHub...${NC}"
 if git pull origin main; then
   echo -e "${GREEN}✅ Modifications récupérées avec succès${NC}"
@@ -59,14 +86,18 @@ else
 fi
 echo ""
 
-# 2. Installer les dépendances
+# 3. Installer les dépendances
 echo -e "${YELLOW}📦 Installation des dépendances...${NC}"
+# Déterminer la commande pnpm à utiliser
 if command -v pnpm &> /dev/null; then
   PNPM_CMD="pnpm"
 elif [ -f "$HOME/.local/share/pnpm/pnpm" ]; then
   PNPM_CMD="$HOME/.local/share/pnpm/pnpm"
+  export PNPM_HOME="$HOME/.local/share/pnpm"
+  export PATH="$PNPM_HOME:$PATH"
 else
-  PNPM_CMD="npm"
+  echo -e "${RED}❌ Erreur: pnpm n'est pas installé${NC}"
+  exit 1
 fi
 
 if $PNPM_CMD install; then
@@ -77,7 +108,7 @@ else
 fi
 echo ""
 
-# 3. Build des packages
+# 4. Build des packages
 if [ "$SKIP_BUILD" = false ]; then
   echo -e "${YELLOW}🔨 Build des packages...${NC}"
   
