@@ -485,5 +485,161 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // Envoyer le questionnaire au lead
+  fastify.post('/:id/questionnaire', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const params = request.params as { id: string };
+      const tenantId = request.tenantId as string | undefined;
+
+      if (!tenantId) {
+        return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+      }
+
+      // Vérifier que le lead existe
+      const lead = await prisma.lead.findUnique({
+        where: { id: params.id },
+      });
+
+      if (!lead) {
+        return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+      }
+
+      // Déclencher le workflow n8n
+      const res = await n8nService.callWorkflowReturn<{ success: boolean; message: string }>(
+        tenantId,
+        'lead_questionnaire',
+        { id: params.id }
+      );
+
+      if (!res.success) {
+        return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+      }
+
+      return reply.send({
+        success: true,
+        message: 'Questionnaire envoyé avec succès',
+        data: res.data,
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de l\'envoi du questionnaire',
+      });
+    }
+  });
+
+  // Planifier un entretien avec le lead
+  fastify.post('/:id/entretien', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const params = request.params as { id: string };
+      const tenantId = request.tenantId as string | undefined;
+      const body = request.body as { dateEntretien?: string; heureEntretien?: string; typeEntretien?: string };
+
+      if (!tenantId) {
+        return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+      }
+
+      // Vérifier que le lead existe
+      const lead = await prisma.lead.findUnique({
+        where: { id: params.id },
+      });
+
+      if (!lead) {
+        return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+      }
+
+      // Déclencher le workflow n8n
+      const res = await n8nService.callWorkflowReturn<{ success: boolean; message: string }>(
+        tenantId,
+        'lead_entretien',
+        {
+          id: params.id,
+          dateEntretien: body.dateEntretien,
+          heureEntretien: body.heureEntretien,
+          typeEntretien: body.typeEntretien || 'téléphonique',
+        }
+      );
+
+      if (!res.success) {
+        return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+      }
+
+      return reply.send({
+        success: true,
+        message: 'Email d\'entretien envoyé avec succès',
+        data: res.data,
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de l\'envoi de l\'email d\'entretien',
+      });
+    }
+  });
+
+  // Confirmer la conversion du lead
+  fastify.post('/:id/confirmation', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const params = request.params as { id: string };
+      const tenantId = request.tenantId as string | undefined;
+
+      if (!tenantId) {
+        return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+      }
+
+      // Vérifier que le lead existe
+      const lead = await prisma.lead.findUnique({
+        where: { id: params.id },
+      });
+
+      if (!lead) {
+        return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+      }
+
+      // Déclencher le workflow n8n
+      const res = await n8nService.callWorkflowReturn<{ success: boolean; message: string }>(
+        tenantId,
+        'lead_confirmation',
+        { id: params.id }
+      );
+
+      if (!res.success) {
+        return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+      }
+
+      return reply.send({
+        success: true,
+        message: 'Confirmation envoyée avec succès, lead converti',
+        data: res.data,
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Erreur lors de la confirmation',
+      });
+    }
+  });
 }
 

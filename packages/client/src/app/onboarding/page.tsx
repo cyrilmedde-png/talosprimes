@@ -12,6 +12,9 @@ import {
   PencilIcon,
   TrashIcon,
   XMarkIcon,
+  DocumentTextIcon,
+  PhoneIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 
 type LeadSource = 'formulaire_inscription' | 'admin' | 'all';
@@ -25,7 +28,15 @@ export default function OnboardingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+  const [showEntretienModal, setShowEntretienModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [entretienData, setEntretienData] = useState({
+    dateEntretien: '',
+    heureEntretien: '',
+    typeEntretien: 'téléphonique',
+  });
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -132,6 +143,53 @@ export default function OnboardingPage() {
       await loadLeads();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleSendQuestionnaire = async () => {
+    if (!selectedLead) return;
+
+    try {
+      await apiClient.leads.sendQuestionnaire(selectedLead.id);
+      setShowQuestionnaireModal(false);
+      setSelectedLead(null);
+      await loadLeads();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi du questionnaire');
+    }
+  };
+
+  const handleSendEntretien = async () => {
+    if (!selectedLead) return;
+
+    try {
+      await apiClient.leads.sendEntretien(selectedLead.id, {
+        dateEntretien: entretienData.dateEntretien || undefined,
+        heureEntretien: entretienData.heureEntretien || undefined,
+        typeEntretien: entretienData.typeEntretien,
+      });
+      setShowEntretienModal(false);
+      setSelectedLead(null);
+      setEntretienData({ dateEntretien: '', heureEntretien: '', typeEntretien: 'téléphonique' });
+      await loadLeads();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi de l\'email d\'entretien');
+    }
+  };
+
+  const handleConfirmConversion = async () => {
+    if (!selectedLead) return;
+
+    try {
+      await apiClient.leads.confirmConversion(selectedLead.id);
+      setShowConfirmationModal(false);
+      setSelectedLead(null);
+      await loadLeads();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la confirmation');
     }
   };
 
@@ -318,6 +376,36 @@ export default function OnboardingPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
                             <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowQuestionnaireModal(true);
+                              }}
+                              className="text-blue-400 hover:text-blue-300"
+                              title="Envoyer questionnaire"
+                            >
+                              <DocumentTextIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowEntretienModal(true);
+                              }}
+                              className="text-green-400 hover:text-green-300"
+                              title="Planifier entretien"
+                            >
+                              <PhoneIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowConfirmationModal(true);
+                              }}
+                              className="text-purple-400 hover:text-purple-300"
+                              title="Confirmer conversion"
+                            >
+                              <CheckCircleIcon className="h-5 w-5" />
+                            </button>
+                            <button
                               onClick={() => handleEdit(lead)}
                               className="text-indigo-400 hover:text-indigo-300"
                               title="Modifier"
@@ -394,6 +482,36 @@ export default function OnboardingPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowQuestionnaireModal(true);
+                              }}
+                              className="text-blue-400 hover:text-blue-300"
+                              title="Envoyer questionnaire"
+                            >
+                              <DocumentTextIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowEntretienModal(true);
+                              }}
+                              className="text-green-400 hover:text-green-300"
+                              title="Planifier entretien"
+                            >
+                              <PhoneIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowConfirmationModal(true);
+                              }}
+                              className="text-purple-400 hover:text-purple-300"
+                              title="Confirmer conversion"
+                            >
+                              <CheckCircleIcon className="h-5 w-5" />
+                            </button>
                             <button
                               onClick={() => handleEdit(lead)}
                               className="text-indigo-400 hover:text-indigo-300"
@@ -548,6 +666,173 @@ export default function OnboardingPage() {
               <button
                 onClick={() => {
                   setShowEditModal(false);
+                  setSelectedLead(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Questionnaire */}
+      {showQuestionnaireModal && selectedLead && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Envoyer le questionnaire</h2>
+              <button
+                onClick={() => {
+                  setShowQuestionnaireModal(false);
+                  setSelectedLead(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-gray-300">
+                Êtes-vous sûr de vouloir envoyer le questionnaire à <strong>{selectedLead.prenom} {selectedLead.nom}</strong> ({selectedLead.email}) ?
+              </p>
+              <p className="text-sm text-gray-400">
+                Un email avec le lien du questionnaire sera envoyé et le statut sera mis à jour à "Contacté".
+              </p>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleSendQuestionnaire}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+              >
+                Envoyer
+              </button>
+              <button
+                onClick={() => {
+                  setShowQuestionnaireModal(false);
+                  setSelectedLead(null);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Entretien */}
+      {showEntretienModal && selectedLead && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Planifier un entretien</h2>
+              <button
+                onClick={() => {
+                  setShowEntretienModal(false);
+                  setSelectedLead(null);
+                  setEntretienData({ dateEntretien: '', heureEntretien: '', typeEntretien: 'téléphonique' });
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-gray-300">
+                Planifier un entretien avec <strong>{selectedLead.prenom} {selectedLead.nom}</strong> ({selectedLead.email})
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Type d'entretien</label>
+                <select
+                  value={entretienData.typeEntretien}
+                  onChange={(e) => setEntretienData({ ...entretienData, typeEntretien: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="téléphonique">Téléphonique</option>
+                  <option value="visioconférence">Visioconférence</option>
+                  <option value="présentiel">Présentiel</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Date (optionnel)</label>
+                <input
+                  type="date"
+                  value={entretienData.dateEntretien}
+                  onChange={(e) => setEntretienData({ ...entretienData, dateEntretien: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Heure (optionnel)</label>
+                <input
+                  type="time"
+                  value={entretienData.heureEntretien}
+                  onChange={(e) => setEntretienData({ ...entretienData, heureEntretien: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <p className="text-sm text-gray-400">
+                Si aucune date/heure n'est spécifiée, un lien de planification sera envoyé au lead.
+              </p>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleSendEntretien}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+              >
+                Envoyer
+              </button>
+              <button
+                onClick={() => {
+                  setShowEntretienModal(false);
+                  setSelectedLead(null);
+                  setEntretienData({ dateEntretien: '', heureEntretien: '', typeEntretien: 'téléphonique' });
+                }}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmation */}
+      {showConfirmationModal && selectedLead && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Confirmer la conversion</h2>
+              <button
+                onClick={() => {
+                  setShowConfirmationModal(false);
+                  setSelectedLead(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-gray-300">
+                Êtes-vous sûr de vouloir confirmer la conversion de <strong>{selectedLead.prenom} {selectedLead.nom}</strong> ({selectedLead.email}) ?
+              </p>
+              <p className="text-sm text-gray-400">
+                Le statut sera mis à jour à "Converti" et un email de bienvenue sera envoyé au lead.
+              </p>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleConfirmConversion}
+                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors"
+              >
+                Confirmer
+              </button>
+              <button
+                onClick={() => {
+                  setShowConfirmationModal(false);
                   setSelectedLead(null);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"

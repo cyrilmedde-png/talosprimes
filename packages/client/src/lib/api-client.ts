@@ -167,6 +167,22 @@ export const apiClient = {
     delete: (id: string) => authenticatedFetch<{ success: boolean; message: string }>(`/api/leads/${id}`, {
       method: 'DELETE',
     }),
+    
+    sendQuestionnaire: (id: string) => 
+      authenticatedFetch<{ success: boolean; message: string; data?: unknown }>(`/api/leads/${id}/questionnaire`, {
+        method: 'POST',
+      }),
+    
+    sendEntretien: (id: string, data?: { dateEntretien?: string; heureEntretien?: string; typeEntretien?: string }) => 
+      authenticatedFetch<{ success: boolean; message: string; data?: unknown }>(`/api/leads/${id}/entretien`, {
+        method: 'POST',
+        body: JSON.stringify(data || {}),
+      }),
+    
+    confirmConversion: (id: string) => 
+      authenticatedFetch<{ success: boolean; message: string; data?: unknown }>(`/api/leads/${id}/confirmation`, {
+        method: 'POST',
+      }),
   },
 
   // n8n
