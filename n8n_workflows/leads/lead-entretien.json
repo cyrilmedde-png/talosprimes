@@ -1,0 +1,159 @@
+{
+  "name": "Leads - Entretien (lead_entretien) → Get Lead → Send Email → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead_entretien",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_Entretien",
+      "name": "Webhook - lead_entretien",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\nconst leadId = data?.id || data?.leadId ? String(data.id || data.leadId) : '';\nconst dateEntretien = data?.dateEntretien || data?.date || '';\nconst heureEntretien = data?.heureEntretien || data?.heure || '';\nconst typeEntretien = data?.typeEntretien || data?.type || 'téléphonique';\n\nif (!leadId) throw new Error('ID du lead requis');\n\nreturn [{ json: { leadId, dateEntretien, heureEntretien, typeEntretien } }];\n"
+      },
+      "id": "Code_Parse",
+      "name": "Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.talosprimes.com/api/leads/{{$json.leadId}}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "HTTP_GetLead",
+      "name": "API TalosPrimes - Get Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire les données du lead depuis la réponse API\nconst lead = $input.first().json;\nconst leadData = lead.data || lead;\nconst parsed = $('Parser payload').first().json;\n\nconst leadId = leadData.id || leadData.leadId || parsed.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\nconst dateEntretien = parsed.dateEntretien || '';\nconst heureEntretien = parsed.heureEntretien || '';\nconst typeEntretien = parsed.typeEntretien || 'téléphonique';\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\n// Générer un lien de planification (à personnaliser selon votre système)\nconst lienPlanification = `https://talosprimes.com/planifier/${leadId}`;\n\n// Formater la date et l'heure si fournies\nlet dateHeureFormatee = '';\nif (dateEntretien && heureEntretien) {\n  const date = new Date(`${dateEntretien}T${heureEntretien}`);\n  dateHeureFormatee = date.toLocaleString('fr-FR', { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  });\n}\n\nreturn [{ json: { leadId, nom, prenom, email, telephone, dateEntretien, heureEntretien, typeEntretien, dateHeureFormatee, lienPlanification } }];\n"
+      },
+      "id": "Code_Prepare",
+      "name": "Préparer données",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "contact@talosprimes.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Planification d'entretien - TalosPrimes",
+        "text": "=Bonjour {{ $json.prenom }} {{ $json.nom }},\n\nNous avons le plaisir de vous proposer un entretien {{ $json.typeEntretien }} pour discuter de vos besoins.\n\n{{ $json.dateHeureFormatee ? `Date et heure proposées : ${$json.dateHeureFormatee}` : 'Veuillez choisir un créneau qui vous convient en cliquant sur le lien ci-dessous.' }}\n\n{{ $json.lienPlanification ? `Lien de planification : ${$json.lienPlanification}` : '' }}\n\nNous restons à votre disposition pour toute question.\n\nCordialement,\nL'équipe TalosPrimes",
+        "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .button { display: inline-block; padding: 12px 24px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .info-box { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }\n    .footer { margin-top: 30px; font-size: 12px; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h2>Bonjour {{ $json.prenom }} {{ $json.nom }},</h2>\n    <p>Nous avons le plaisir de vous proposer un <strong>entretien {{ $json.typeEntretien }}</strong> pour discuter de vos besoins.</p>\n    {{ $json.dateHeureFormatee ? `<div class=\"info-box\"><strong>Date et heure proposées :</strong><br>${$json.dateHeureFormatee}</div>` : '' }}\n    {{ $json.lienPlanification ? `<p style=\"text-align: center;\"><a href=\"${$json.lienPlanification}\" class=\"button\">Planifier l'entretien</a></p>` : '' }}\n    <p>Nous restons à votre disposition pour toute question.</p>\n    <div class=\"footer\">\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "Resend_Email",
+      "name": "Resend - Email Entretien",
+      "type": "n8n-nodes-base.resend",
+      "typeVersion": 1,
+      "position": [1260, 300],
+      "credentials": {
+        "resendApi": {
+          "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
+          "name": "Resend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ { success: true, message: 'Email d\\'entretien envoyé avec succès', leadId: $('Préparer données').first().json.leadId } }}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "Respond_Entretien",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - lead_entretien": {
+      "main": [
+        [
+          {
+            "node": "Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser payload": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Get Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Get Lead": {
+      "main": [
+        [
+          {
+            "node": "Préparer données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer données": {
+      "main": [
+        [
+          {
+            "node": "Resend - Email Entretien",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resend - Email Entretien": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+

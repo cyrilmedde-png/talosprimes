@@ -44,6 +44,24 @@ const WORKFLOWS = [
     workflowName: 'Leads - Delete (via Webhook)',
     description: 'Suppression d\'un lead (DELETE /api/leads/:id)',
   },
+  {
+    eventType: 'lead_questionnaire',
+    workflowId: 'lead_questionnaire',
+    workflowName: 'Leads - Questionnaire (via Webhook)',
+    description: 'Envoi du questionnaire au lead et mise à jour du statut à "contacte"',
+  },
+  {
+    eventType: 'lead_entretien',
+    workflowId: 'lead_entretien',
+    workflowName: 'Leads - Entretien (via Webhook)',
+    description: 'Planification et envoi d\'email pour l\'entretien avec le lead',
+  },
+  {
+    eventType: 'lead_confirmation',
+    workflowId: 'lead_confirmation',
+    workflowName: 'Leads - Confirmation (via Webhook)',
+    description: 'Confirmation de conversion du lead et mise à jour du statut à "converti"',
+  },
 ];
 
 async function main() {

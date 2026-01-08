@@ -1,17 +1,46 @@
-# Workflow n8n - Inscription Leads
+# Workflows n8n - Gestion des Leads
 
 ## 📋 Description
 
-Workflow professionnel pour gérer les inscriptions via formulaire web.
+Workflows professionnels pour gérer le cycle de vie complet des leads : inscription, questionnaire, entretien et confirmation.
 
-## ✅ Fonctionnalités
+## ✅ Workflows disponibles
 
-1. **Validation stricte** des données d'entrée
-2. **Sauvegarde en base de données** (priorité absolue)
-3. **Envoi email de confirmation** au lead
-4. **Envoi SMS de confirmation** (optionnel, via Twilio)
-5. **Notification équipe** par email
-6. **Gestion d'erreurs stricte** : toute erreur déclenche une alerte et fait échouer le workflow
+### 1. **lead_create** - Création d'un lead
+- Validation stricte des données d'entrée
+- Sauvegarde en base de données
+- Utilisé lors de l'inscription via formulaire ou création manuelle
+
+### 2. **leads_list** - Liste des leads
+- Récupération de tous les leads depuis la base de données
+- Utilisé pour afficher la liste dans l'interface
+
+### 3. **lead_get** - Récupération d'un lead
+- Récupération d'un lead spécifique par ID
+- Utilisé pour afficher les détails d'un lead
+
+### 4. **lead_update_status** - Mise à jour du statut
+- Mise à jour du statut d'un lead (nouveau, contacte, converti, abandonne)
+- Utilisé pour changer manuellement le statut
+
+### 5. **lead_delete** - Suppression d'un lead
+- Suppression d'un lead de la base de données
+- Utilisé pour supprimer un lead
+
+### 6. **lead_questionnaire** - Envoi du questionnaire
+- Récupération des informations du lead
+- Mise à jour du statut à "contacte"
+- Envoi d'un email avec lien vers le questionnaire
+
+### 7. **lead_entretien** - Planification d'entretien
+- Récupération des informations du lead
+- Envoi d'un email avec date/heure proposées ou lien de planification
+- Support pour entretien téléphonique ou en présentiel
+
+### 8. **lead_confirmation** - Confirmation de conversion
+- Récupération des informations du lead
+- Mise à jour du statut à "converti"
+- Envoi d'un email de bienvenue avec accès à l'espace client
 
 ## 🔄 Flux d'exécution
 
@@ -50,6 +79,9 @@ Le workflow **NE PEUT PAS** se terminer en "succeeded" s'il y a une erreur.
    - `lead-get.json` (Webhook `lead_get`)
    - `lead-update-status.json` (Webhook `lead_update_status`)
    - `lead-delete.json` (Webhook `lead_delete`)
+   - `lead-questionnaire.json` (Webhook `lead_questionnaire`)
+   - `lead-entretien.json` (Webhook `lead_entretien`)
+   - `lead-confirmation.json` (Webhook `lead_confirmation`)
 4. Configurer les credentials :
    - **Resend API** : Clé API Resend
    - **Twilio** : Credentials Twilio (optionnel)

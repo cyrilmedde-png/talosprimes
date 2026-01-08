@@ -1,0 +1,193 @@
+{
+  "name": "Leads - Questionnaire (lead_questionnaire) → Get Lead → Update Status → Send Email → Respond",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead_questionnaire",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_Questionnaire",
+      "name": "Webhook - lead_questionnaire",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\nconst leadId = data?.id || data?.leadId ? String(data.id || data.leadId) : '';\nif (!leadId) throw new Error('ID du lead requis');\n\nreturn [{ json: { leadId } }];\n"
+      },
+      "id": "Code_Parse",
+      "name": "Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.talosprimes.com/api/leads/{{$json.leadId}}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "HTTP_GetLead",
+      "name": "API TalosPrimes - Get Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire les données du lead depuis la réponse API\nconst lead = $input.first().json;\nconst leadData = lead.data || lead;\n\nconst leadId = leadData.id || leadData.leadId || $('Parser payload').first().json.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\n// Générer un lien unique pour le questionnaire (à personnaliser selon votre système)\nconst questionnaireUrl = `https://talosprimes.com/questionnaire/${leadId}`;\n\nreturn [{ json: { leadId, nom, prenom, email, telephone, questionnaireUrl } }];\n"
+      },
+      "id": "Code_Prepare",
+      "name": "Préparer données",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.talosprimes.com/api/leads/{{$json.leadId}}/statut",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { statut: 'contacte' } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "HTTP_UpdateStatus",
+      "name": "API TalosPrimes - Update Status (contacte)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1260, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "contact@talosprimes.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Questionnaire - TalosPrimes",
+        "text": "=Bonjour {{ $json.prenom }} {{ $json.nom }},\n\nMerci pour votre intérêt pour TalosPrimes !\n\nPour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :\n\n{{ $json.questionnaireUrl }}\n\nCe questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.\n\nCordialement,\nL'équipe TalosPrimes",
+        "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n    .footer { margin-top: 30px; font-size: 12px; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h2>Bonjour {{ $json.prenom }} {{ $json.nom }},</h2>\n    <p>Merci pour votre intérêt pour <strong>TalosPrimes</strong> !</p>\n    <p>Pour mieux comprendre vos besoins, nous vous invitons à remplir ce questionnaire :</p>\n    <p style=\"text-align: center;\">\n      <a href=\"{{ $json.questionnaireUrl }}\" class=\"button\">Accéder au questionnaire</a>\n    </p>\n    <p>Ce questionnaire ne prendra que quelques minutes et nous permettra de vous proposer la meilleure solution adaptée à votre situation.</p>\n    <div class=\"footer\">\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "Resend_Email",
+      "name": "Resend - Email Questionnaire",
+      "type": "n8n-nodes-base.resend",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "credentials": {
+        "resendApi": {
+          "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
+          "name": "Resend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ { success: true, message: 'Questionnaire envoyé avec succès', leadId: $('Préparer données').first().json.leadId } }}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "Respond_Questionnaire",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1740, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - lead_questionnaire": {
+      "main": [
+        [
+          {
+            "node": "Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser payload": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Get Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Get Lead": {
+      "main": [
+        [
+          {
+            "node": "Préparer données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer données": {
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - Update Status (contacte)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API TalosPrimes - Update Status (contacte)": {
+      "main": [
+        [
+          {
+            "node": "Resend - Email Questionnaire",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resend - Email Questionnaire": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}
+
