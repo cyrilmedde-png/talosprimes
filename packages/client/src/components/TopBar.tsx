@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, BellIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
+import NotificationsDropdown from './NotificationsDropdown';
 
 export default function TopBar({ 
   onVisibilityChange, 
@@ -74,13 +75,7 @@ export default function TopBar({
         </div>
         <div className="ml-4 flex items-center md:ml-6">
           {/* Notifications */}
-          <button
-            type="button"
-            className="bg-gray-800 p-1 rounded-full text-gray-400 hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500"
-          >
-            <span className="sr-only">Voir les notifications</span>
-            <BellIcon className="h-6 w-6" aria-hidden="true" />
-          </button>
+          <NotificationsDropdown />
 
           {/* Rôle */}
           <div className="ml-3 relative">

@@ -196,5 +196,39 @@ export const apiClient = {
     test: () => authenticatedFetch<{ success: boolean; message: string }>('/api/n8n/test'),
     workflows: () => authenticatedFetch<{ success: boolean; data: { workflows: unknown[] } }>('/api/n8n/workflows'),
   },
+
+  // Notifications
+  notifications: {
+    list: (params?: { lu?: boolean; limit?: number; offset?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.lu !== undefined) queryParams.append('lu', params.lu.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { notifications: Notification[]; total: number; limit: number; offset: number } }>(`/api/notifications${query ? `?${query}` : ''}`);
+    },
+    
+    markAsRead: (id: string, lu: boolean = true) => 
+      authenticatedFetch<{ success: boolean; message: string }>(`/api/notifications/${id}/lu`, {
+        method: 'PATCH',
+        body: JSON.stringify({ lu }),
+      }),
+    
+    delete: (id: string) => authenticatedFetch<{ success: boolean; message: string }>(`/api/notifications/${id}`, {
+      method: 'DELETE',
+    }),
+  },
 };
+
+// Type pour les notifications
+export interface Notification {
+  id: string;
+  tenantId: string;
+  type: string;
+  titre: string;
+  message: string;
+  donnees?: Record<string, unknown>;
+  lu: boolean;
+  createdAt: string;
+}
 
