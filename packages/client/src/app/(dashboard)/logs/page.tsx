@@ -73,7 +73,7 @@ export default function LogsPage() {
         statutExecution: 'erreur',
         limit: 50,
       });
-      if (response.success) {
+      if (response.success && response.data) {
         setErrorsAndWarnings(response.data.logs);
       }
     } catch (err) {
