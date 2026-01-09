@@ -5,9 +5,22 @@ Le modèle `Notification` a été ajouté dans `schema.prisma`, mais la migratio
 
 ## Solution
 
-### Sur le VPS (Production)
+### Méthode 1 : Script automatique (Recommandé)
 
-Exécutez ces commandes depuis `/var/www/talosprimes/packages/platform` :
+Depuis `/var/www/talosprimes` :
+
+```bash
+./scripts/fix-notifications-migration.sh
+```
+
+Ce script va automatiquement :
+1. Régénérer le client Prisma
+2. Si nécessaire, générer la migration
+3. Appliquer la migration à la base de données
+
+### Méthode 2 : Commandes manuelles
+
+Depuis `/var/www/talosprimes/packages/platform` :
 
 ```bash
 # 1. Générer la migration (mode dev, pour créer le fichier de migration)
@@ -20,6 +33,7 @@ pnpm prisma migrate deploy
 pnpm prisma generate
 
 # 4. Rebuild le projet
+cd ../..
 pnpm build
 ```
 
