@@ -736,5 +736,158 @@ export async function clientsRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // POST /api/clients/:id/onboarding - Créer l'espace client (abonnement + modules)
+  fastify.post(
+    '/:id/onboarding',
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+      try {
+        const tenantId = request.tenantId as string;
+        const params = request.params as { id: string };
+        const body = request.body as {
+          nomPlan?: string;
+          montantMensuel?: number;
+          modulesInclus?: string[];
+          dureeMois?: number;
+        };
+
+        // Vérifier que le client existe et appartient au tenant
+        const client = await prisma.clientFinal.findFirst({
+          where: {
+            id: params.id,
+            tenantId,
+          },
+        });
+
+        if (!client) {
+          return reply.status(404).send({
+            success: false,
+            error: 'Client introuvable',
+          });
+        }
+
+        // Vérifier si un abonnement existe déjà
+        const existingSubscription = await prisma.clientSubscription.findFirst({
+          where: {
+            clientFinalId: client.id,
+          },
+        });
+
+        if (existingSubscription) {
+          return reply.status(400).send({
+            success: false,
+            error: 'Un abonnement existe déjà pour ce client',
+          });
+        }
+
+        // Plan par défaut ou personnalisé
+        const plan = {
+          nomPlan: body.nomPlan || 'Plan Starter',
+          montantMensuel: body.montantMensuel || 29.99,
+          modulesInclus: body.modulesInclus || ['gestion_clients', 'facturation', 'suivi'],
+          dureeMois: body.dureeMois || 1,
+        };
+
+        // Calculer les dates
+        const dateDebut = new Date();
+        const dateProchainRenouvellement = new Date();
+        dateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);
+
+        // Créer l'abonnement
+        const subscription = await prisma.clientSubscription.create({
+          data: {
+            clientFinalId: client.id,
+            nomPlan: plan.nomPlan,
+            dateDebut,
+            dateProchainRenouvellement,
+            montantMensuel: plan.montantMensuel,
+            modulesInclus: plan.modulesInclus,
+            statut: 'actif',
+          },
+        });
+
+        // Créer une notification
+        await prisma.notification.create({
+          data: {
+            tenantId,
+            type: 'client_onboarding',
+            titre: 'Espace client créé',
+            message: `L'espace client et l'abonnement "${plan.nomPlan}" ont été créés avec succès pour ${client.nom || client.raisonSociale || client.email}`,
+            donnees: {
+              clientId: client.id,
+              subscriptionId: subscription.id,
+            },
+          },
+        });
+
+        return reply.status(201).send({
+          success: true,
+          message: 'Espace client créé avec succès',
+          data: {
+            subscription,
+            plan,
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur lors de la création de l\'espace client');
+        return reply.status(500).send({
+          success: false,
+          error: 'Erreur lors de la création de l\'espace client',
+        });
+      }
+    }
+  );
+
+  // GET /api/clients/:id/subscription - Récupérer l'abonnement d'un client
+  fastify.get(
+    '/:id/subscription',
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+      try {
+        const tenantId = request.tenantId as string;
+        const params = request.params as { id: string };
+
+        // Vérifier que le client existe et appartient au tenant
+        const client = await prisma.clientFinal.findFirst({
+          where: {
+            id: params.id,
+            tenantId,
+          },
+        });
+
+        if (!client) {
+          return reply.status(404).send({
+            success: false,
+            error: 'Client introuvable',
+          });
+        }
+
+        // Récupérer l'abonnement
+        const subscription = await prisma.clientSubscription.findFirst({
+          where: {
+            clientFinalId: client.id,
+          },
+        });
+
+        return reply.status(200).send({
+          success: true,
+          data: {
+            subscription: subscription || null,
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur lors de la récupération de l\'abonnement');
+        return reply.status(500).send({
+          success: false,
+          error: 'Erreur lors de la récupération de l\'abonnement',
+        });
+      }
+    }
+  );
 }
 

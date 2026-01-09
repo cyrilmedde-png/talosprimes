@@ -137,6 +137,15 @@ export const apiClient = {
     delete: (id: string) => authenticatedFetch<{ success: boolean; message: string }>(`/api/clients/${id}`, {
       method: 'DELETE',
     }),
+    
+    createOnboarding: (id: string, data: { nomPlan?: string; montantMensuel?: number; modulesInclus?: string[]; dureeMois?: number }) =>
+      authenticatedFetch<{ success: boolean; message: string; data?: { subscription: unknown; plan: unknown } }>(`/api/clients/${id}/onboarding`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    
+    getSubscription: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { subscription: { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string; dateDebut: string; dateProchainRenouvellement: string } | null } }>(`/api/clients/${id}/subscription`),
   },
 
   // Leads

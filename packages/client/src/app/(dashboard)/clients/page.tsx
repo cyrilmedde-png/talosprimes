@@ -15,6 +15,7 @@ import {
   BuildingOfficeIcon,
   UserCircleIcon,
   CheckCircleIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 type CreateMode = 'from-lead' | 'direct';
@@ -29,8 +30,16 @@ export default function ClientsPage() {
   const [createMode, setCreateMode] = useState<CreateMode>('from-lead');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientFinal | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [clientSubscriptions, setClientSubscriptions] = useState<Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null>>({});
+  const [onboardingData, setOnboardingData] = useState({
+    nomPlan: 'Plan Starter',
+    montantMensuel: 29.99,
+    modulesInclus: ['gestion_clients', 'facturation', 'suivi'] as string[],
+    dureeMois: 1,
+  });
   const [formData, setFormData] = useState({
     type: 'b2c' as 'b2b' | 'b2c',
     raisonSociale: '',
@@ -57,6 +66,18 @@ export default function ClientsPage() {
       const response = await apiClient.clients.list();
       const clientsList = response.data.clients as ClientFinal[];
       setClients(clientsList);
+      
+      // Charger les abonnements pour chaque client
+      const subscriptions: Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null> = {};
+      for (const client of clientsList) {
+        try {
+          const subResponse = await apiClient.clients.getSubscription(client.id);
+          subscriptions[client.id] = subResponse.data.subscription;
+        } catch (err) {
+          subscriptions[client.id] = null;
+        }
+      }
+      setClientSubscriptions(subscriptions);
       
       // Charger les leads convertis après le chargement des clients
       // pour pouvoir filtrer ceux qui sont déjà des clients
@@ -201,6 +222,35 @@ export default function ClientsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la suppression');
     }
+  };
+
+  const handleCreateOnboarding = async () => {
+    if (!selectedClient) return;
+    try {
+      await apiClient.clients.createOnboarding(selectedClient.id, onboardingData);
+      setShowOnboardingModal(false);
+      setSelectedClient(null);
+      setOnboardingData({
+        nomPlan: 'Plan Starter',
+        montantMensuel: 29.99,
+        modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
+        dureeMois: 1,
+      });
+      await loadClients();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création de l\'espace client');
+    }
+  };
+
+  const handleOpenOnboarding = (client: ClientFinal) => {
+    setSelectedClient(client);
+    setOnboardingData({
+      nomPlan: 'Plan Starter',
+      montantMensuel: 29.99,
+      modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
+      dureeMois: 1,
+    });
+    setShowOnboardingModal(true);
   };
 
   const filteredClients = clients.filter(client => {
@@ -400,6 +450,20 @@ export default function ClientsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
+                              {!clientSubscriptions[client.id] && (
+                                <button
+                                  onClick={() => handleOpenOnboarding(client)}
+                                  className="text-green-400 hover:text-green-300"
+                                  title="Créer espace client"
+                                >
+                                  <SparklesIcon className="h-5 w-5" />
+                                </button>
+                              )}
+                              {clientSubscriptions[client.id] && (
+                                <span className="text-xs text-green-400" title={`Abonnement: ${clientSubscriptions[client.id]?.nomPlan}`}>
+                                  ✓
+                                </span>
+                              )}
                               <button
                                 onClick={() => handleEdit(client)}
                                 className="text-indigo-400 hover:text-indigo-300"
