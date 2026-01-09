@@ -33,8 +33,11 @@ export default function NotificationsDropdown() {
   // Charger au montage et toutes les 30 secondes
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000); // Rafraîchir toutes les 30 secondes
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 30000); // Rafraîchir toutes les 30 secondes
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fermer le dropdown si clic en dehors
