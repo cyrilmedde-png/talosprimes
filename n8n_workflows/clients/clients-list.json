@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { data: { type?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst type = data?.type ? String(data.type).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\nconst tenantId = data?.tenantId ? String(data.tenantId) : null;\n\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { type, statut, limit, tenantId } }];\n"
+        "jsCode": "// Parser le payload: { body: { event, tenantId, timestamp, data: { type?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\n// Le backend envoie { event, tenantId, timestamp, data: { type, statut, limit } }\nconst tenantId = String(payload?.tenantId || '').trim();\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst type = data?.type ? String(data.type).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\n\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { type, statut, limit, tenantId } }];"
       },
       "id": "Code_Parse",
       "name": "Parser filtres",
@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la réponse: { clients: [...] }\nconst items = $input.all();\nconst clients = items.map(item => {\n  const client = item.json;\n  return {\n    id: client.id,\n    tenantId: client.tenant_id,\n    type: client.type,\n    raisonSociale: client.raison_sociale ?? null,\n    nom: client.nom ?? null,\n    prenom: client.prenom ?? null,\n    email: client.email,\n    telephone: client.telephone ?? null,\n    adresse: client.adresse ?? null,\n    tags: client.tags ?? [],\n    statut: client.statut,\n    createdAt: client.created_at,\n    updatedAt: client.updated_at\n  };\n});\n\n// Retourner directement { clients } pour que le backend puisse lire result.data?.clients\nreturn [{ json: { clients } }];\n"
+        "jsCode": "// Formater la réponse: { clients: [...] }\nconst items = $input.all();\n// Si aucun résultat, retourner un tableau vide\nif (!items || items.length === 0) {\n  return [{ json: { clients: [] } }];\n}\n\nconst clients = items.map(item => {\n  const client = item.json;\n  return {\n    id: client.id,\n    tenantId: client.tenant_id,\n    type: client.type,\n    raisonSociale: client.raison_sociale ?? null,\n    nom: client.nom ?? null,\n    prenom: client.prenom ?? null,\n    email: client.email,\n    telephone: client.telephone ?? null,\n    adresse: client.adresse ?? null,\n    tags: client.tags ?? [],\n    statut: client.statut,\n    createdAt: client.created_at,\n    updatedAt: client.updated_at\n  };\n});\n\n// Retourner directement { clients } pour que le backend puisse lire result.data?.clients\nreturn [{ json: { clients } }];"
       },
       "id": "Code_Format",
       "name": "Formater réponse",
@@ -115,4 +115,3 @@
   },
   "versionId": "v1"
 }
-
