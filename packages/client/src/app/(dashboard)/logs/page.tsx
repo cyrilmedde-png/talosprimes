@@ -16,7 +16,6 @@ type WorkflowType = 'all' | 'leads' | 'clients';
 type LogStatus = 'all' | 'erreur' | 'succes' | 'en_attente';
 
 export default function LogsPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<WorkflowType>('all');
   const [statusFilter, setStatusFilter] = useState<LogStatus>('all');
   const [logs, setLogs] = useState<Log[]>([]);
