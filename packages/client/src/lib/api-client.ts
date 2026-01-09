@@ -229,11 +229,11 @@ export const apiClient = {
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       if (params?.offset) queryParams.append('offset', params.offset.toString());
       const query = queryParams.toString();
-      return authenticatedFetch<{ success: boolean; data: { logs: Log[]; total: number; limit: number; offset: number } }>(`/api/logs${query ? `?${query}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data?: { logs: Log[]; total: number; limit: number; offset: number }; error?: string }>(`/api/logs${query ? `?${query}` : ''}`);
     },
     stats: (workflow?: 'leads' | 'clients' | 'all') => {
       const query = workflow ? `?workflow=${workflow}` : '';
-      return authenticatedFetch<{ success: boolean; data: LogStats }>(`/api/logs/stats${query}`);
+      return authenticatedFetch<{ success: boolean; data?: LogStats; error?: string }>(`/api/logs/stats${query}`);
     },
   },
 };

@@ -27,7 +27,7 @@ export default function LogsPage() {
   const fetchStats = useCallback(async () => {
     try {
       const response = await apiClient.logs.stats(activeTab === 'all' ? undefined : activeTab);
-      if (response.success) {
+      if (response.success && response.data) {
         setStats(response.data);
       }
     } catch (err) {
@@ -53,10 +53,10 @@ export default function LogsPage() {
       }
 
       const response = await apiClient.logs.list(params);
-      if (response.success) {
+      if (response.success && response.data) {
         setLogs(response.data.logs);
       } else {
-        setError(response.message || 'Erreur lors de la récupération des logs.');
+        setError(response.error || 'Erreur lors de la récupération des logs.');
       }
     } catch (err) {
       console.error('Erreur lors de la récupération des logs:', err);
