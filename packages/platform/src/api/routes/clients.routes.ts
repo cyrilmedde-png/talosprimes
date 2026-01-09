@@ -291,6 +291,26 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           }
         );
 
+        // Émettre événement pour onboarding (client.onboarding)
+        await eventService.emit(
+          tenantId,
+          'client.onboarding',
+          'ClientFinal',
+          client.id,
+          {
+            client: {
+              id: client.id,
+              tenantId,
+              type: client.type,
+              email: client.email,
+              nom: client.nom,
+              prenom: client.prenom,
+              raisonSociale: client.raisonSociale,
+              telephone: client.telephone,
+            },
+          }
+        );
+
         return reply.status(201).send({
           success: true,
           message: 'Client créé avec succès depuis le lead',
@@ -429,6 +449,26 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             type: client.type,
             email: client.email,
             nom: client.nom || client.raisonSociale,
+          }
+        );
+
+        // Émettre événement pour onboarding (client.onboarding)
+        await eventService.emit(
+          tenantId,
+          'client.onboarding',
+          'ClientFinal',
+          client.id,
+          {
+            client: {
+              id: client.id,
+              tenantId,
+              type: client.type,
+              email: client.email,
+              nom: client.nom,
+              prenom: client.prenom,
+              raisonSociale: client.raisonSociale,
+              telephone: client.telephone,
+            },
           }
         );
 

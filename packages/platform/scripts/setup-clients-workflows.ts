@@ -50,6 +50,12 @@ const WORKFLOWS = [
     workflowName: 'Clients - Delete (via Webhook)',
     description: 'Suppression d\'un client (DELETE /api/clients/:id)',
   },
+  {
+    eventType: 'client.onboarding',
+    workflowId: 'client-onboarding',
+    workflowName: 'Clients - Onboarding (via Webhook)',
+    description: 'Onboarding automatique : création espace client, abonnement et activation modules',
+  },
 ];
 
 async function main() {
