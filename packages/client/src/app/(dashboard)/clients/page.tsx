@@ -982,6 +982,21 @@ export default function ClientsPage() {
                 </p>
               </div>
 
+              <div className="border-t border-gray-700 pt-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={onboardingData.avecStripe}
+                    onChange={(e) => setOnboardingData({ ...onboardingData, avecStripe: e.target.checked })}
+                    className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-300">Créer l'abonnement Stripe</span>
+                    <p className="text-xs text-gray-400">Active la création automatique d'un abonnement Stripe avec paiement récurrent</p>
+                  </div>
+                </label>
+              </div>
+
               <div className="flex justify-end gap-2 pt-4">
                 <button
                   onClick={() => {
