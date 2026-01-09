@@ -33,6 +33,7 @@ const WORKFLOW_EVENTS: Record<string, string[]> = {
     'client.created',
     'client.updated',
     'client.deleted',
+    'client.onboarding',
     'client_create',
     'client_update',
     'client_delete',
