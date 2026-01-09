@@ -660,6 +660,17 @@
         ]
       ]
     },
+    "10a. Préparer après abonnement": {
+      "main": [
+        [
+          {
+            "node": "10b. Préparer création Tenant et User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "10b. Préparer création Tenant et User": {
       "main": [
         [
