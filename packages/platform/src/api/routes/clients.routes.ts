@@ -791,6 +791,42 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           dureeMois: body.dureeMois || 1,
         };
 
+        // Si on délègue les écritures à n8n (full no-code)
+        if (tenantId && env.USE_N8N_COMMANDS) {
+          // Déclencher le workflow n8n client.onboarding avec les données du plan
+          const res = await n8nService.callWorkflowReturn<{ subscription: unknown; plan: unknown }>(
+            tenantId,
+            'client.onboarding',
+            {
+              client: {
+                id: client.id,
+                tenantId,
+                type: client.type,
+                email: client.email,
+                nom: client.nom,
+                prenom: client.prenom,
+                raisonSociale: client.raisonSociale,
+                telephone: client.telephone,
+              },
+              plan, // Inclure les paramètres du plan dans le payload
+            }
+          );
+
+          if (!res.success) {
+            return reply.status(502).send({
+              success: false,
+              error: res.error || 'Erreur n8n lors de la création de l\'espace client',
+            });
+          }
+
+          return reply.status(201).send({
+            success: true,
+            message: 'Espace client créé avec succès via n8n',
+            data: res.data,
+          });
+        }
+
+        // Sinon, créer directement en base (fallback ou si USE_N8N_COMMANDS=false)
         // Calculer les dates
         const dateDebut = new Date();
         const dateProchainRenouvellement = new Date();
