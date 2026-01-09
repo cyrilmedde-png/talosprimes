@@ -913,7 +913,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             clientFinalId: body.clientId,
           },
           orderBy: {
-            createdAt: 'desc',
+            updatedAt: 'desc',
           },
           include: {
             clientFinal: true,
