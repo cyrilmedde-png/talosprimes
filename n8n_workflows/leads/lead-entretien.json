@@ -1,5 +1,5 @@
 {
-  "name": "Leads - Entretien (lead_entretien) → Get Lead → Send Email → Respond",
+  "name": "Leads - Entretien",
   "nodes": [
     {
       "parameters": {
@@ -9,26 +9,20 @@
         "options": {}
       },
       "id": "Webhook_Entretien",
-      "name": "Webhook - lead_entretien",
+      "name": "01. Webhook - Réception",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [240, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\nconst leadId = data?.id || data?.leadId ? String(data.id || data.leadId) : '';\nconst dateEntretien = data?.dateEntretien || data?.date || '';\nconst heureEntretien = data?.heureEntretien || data?.heure || '';\nconst typeEntretien = data?.typeEntretien || data?.type || 'téléphonique';\n\nif (!leadId) throw new Error('ID du lead requis');\n\nreturn [{ json: { leadId, dateEntretien, heureEntretien, typeEntretien } }];\n"
+        "jsCode": "// Parser le payload\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\nconst leadId = String(data?.id || data?.leadId || '').trim();\nconst tenantId = String(data?.tenantId || payload?.tenantId || '').trim();\nconst dateEntretien = String(data?.dateEntretien || data?.date || '').trim();\nconst heureEntretien = String(data?.heureEntretien || data?.heure || '').trim();\nconst typeEntretien = String(data?.typeEntretien || data?.type || 'téléphonique').trim();\n\nif (!leadId) throw new Error('ID du lead requis');\nif (!tenantId) throw new Error('tenantId requis');\n\nreturn { json: { leadId, tenantId, dateEntretien, heureEntretien, typeEntretien } };"
       },
       "id": "Code_Parse",
-      "name": "Parser payload",
+      "name": "02. Parser Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        540,
-        300
-      ]
+      "position": [460, 400]
     },
     {
       "parameters": {
@@ -44,13 +38,10 @@
         }
       },
       "id": "HTTP_GetLead",
-      "name": "API TalosPrimes - Get Lead",
+      "name": "03. API - Get Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ],
+      "position": [680, 400],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -60,32 +51,76 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extraire les données du lead depuis la réponse API\nconst response = $input.first().json;\n// La réponse API est: { success: true, data: { lead: {...} } }\nconst leadData = response.data?.lead || response.data || response;\nconst parsed = $('Parser payload').first().json;\n\nconst leadId = leadData.id || leadData.leadId || parsed.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\nconst dateEntretien = parsed.dateEntretien || '';\nconst heureEntretien = parsed.heureEntretien || '';\nconst typeEntretien = parsed.typeEntretien || 'téléphonique';\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\n// Générer un lien de planification (à personnaliser selon votre système)\nconst lienPlanification = `https://talosprimes.com/planifier/${leadId}`;\n\n// Formater la date et l'heure si fournies\nlet dateHeureFormatee = '';\nif (dateEntretien && heureEntretien) {\n  const date = new Date(`${dateEntretien}T${heureEntretien}`);\n  dateHeureFormatee = date.toLocaleString('fr-FR', { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  });\n}\n\nreturn [{ json: { leadId, nom, prenom, email, telephone, dateEntretien, heureEntretien, typeEntretien, dateHeureFormatee, lienPlanification } }];\n"
+        "jsCode": "// Préparer données\nconst response = $input.first().json;\nconst parsed = $('02. Parser Payload').first().json;\nconst leadData = response.data?.lead || response.data || response;\n\nconst leadId = leadData.id || parsed.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\nconst tenantId = parsed.tenantId;\nconst dateEntretien = parsed.dateEntretien || '';\nconst heureEntretien = parsed.heureEntretien || '';\nconst typeEntretien = parsed.typeEntretien || 'téléphonique';\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\nconst lienPlanification = `https://talosprimes.com/planifier/${leadId}`;\n\nlet dateHeureFormatee = '';\nif (dateEntretien && heureEntretien) {\n  const date = new Date(`${dateEntretien}T${heureEntretien}`);\n  dateHeureFormatee = date.toLocaleString('fr-FR', { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  });\n}\n\nreturn { json: { leadId, nom, prenom, email, telephone, tenantId, dateEntretien, heureEntretien, typeEntretien, dateHeureFormatee, lienPlanification } };"
       },
       "id": "Code_Prepare",
-      "name": "Préparer données",
+      "name": "04. Préparer Données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1020,
-        300
-      ]
+      "position": [900, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Formater l'email entretien pour le lead\nconst data = $input.first().json;\n\n// Afficher le bouton seulement pour visioconférence\nconst showButton = data.typeEntretien === 'visioconférence' && data.lienPlanification;\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 40px 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 20px; }\n    .welcome-box { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .welcome-box p { margin: 0; color: #059669; font-weight: 500; }\n    .info-box { background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 25px 0; border-radius: 6px; }\n    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); transition: transform 0.2s; }\n    .button:hover { transform: translateY(-2px); }\n    .footer { background: #f9fafb; padding: 25px; text-align: center; color: #6b7280; font-size: 13px; border-top: 1px solid #e5e7eb; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p style=\"margin: 10px 0 0 0; opacity: 0.95;\">Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom} 👋</div>\n      <div class=\"welcome-box\">\n        <p>Bienvenue chez TalosPrimes !</p>\n      </div>\n      <p style=\"color: #374151; margin: 20px 0;\">Nous avons le plaisir de vous proposer un <strong>entretien ${data.typeEntretien}</strong> pour discuter de vos besoins et vous présenter nos solutions.</p>\n      ${data.dateHeureFormatee ? `<div class=\"info-box\"><strong style=\"color: #059669;\">📅 Date et heure proposées :</strong><br><span style=\"color: #1f2937; font-size: 16px;\">${data.dateHeureFormatee}</span></div>` : ''}\n      ${showButton ? `<p style=\"text-align: center;\"><a href=\"${data.lienPlanification}\" class=\"button\">🎥 Rejoindre l'entretien</a></p>` : ''}\n      ${!data.dateHeureFormatee && !showButton ? `<p style=\"color: #6b7280; margin: 20px 0;\">Nous vous contacterons prochainement pour convenir d'un créneau qui vous convient.</p>` : ''}\n      <p style=\"color: #374151; margin: 30px 0 20px 0;\">Nous restons à votre disposition pour toute question.</p>\n      <p style=\"color: #374151; margin: 20px 0;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nBienvenue chez TalosPrimes !\n\nNous avons le plaisir de vous proposer un entretien ${data.typeEntretien} pour discuter de vos besoins et vous présenter nos solutions.\n\n${data.dateHeureFormatee ? `Date et heure proposées : ${data.dateHeureFormatee}` : ''}\n${showButton ? `Lien de planification : ${data.lienPlanification}` : ''}\n${!data.dateHeureFormatee && !showButton ? 'Nous vous contacterons prochainement pour convenir d\\'un créneau qui vous convient.' : ''}\n\nNous restons à votre disposition pour toute question.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [data.email],\n    subject: \"Bienvenue chez TalosPrimes - Planification d'entretien\",\n    html: html,\n    text: text\n  }\n};"
+        "jsCode": "// Notification: Entretien planifié\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    type: 'lead_entretien_planifie',\n    titre: '📞 Entretien planifié',\n    message: `Entretien ${data.typeEntretien} planifié avec ${data.prenom} ${data.nom}${data.dateHeureFormatee ? ` pour le ${data.dateHeureFormatee}` : ''}`,\n    donnees: {\n      tenantId: data.tenantId,\n      leadId: data.leadId,\n      typeEntretien: data.typeEntretien,\n      dateHeureFormatee: data.dateHeureFormatee\n    }\n  }\n};"
       },
-      "id": "Code_FormatEmailLead",
-      "name": "Formater Email Lead",
+      "id": "Code_NotificationPlanifie",
+      "name": "05. Notification - Planifié",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1260, 200]
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/notifications",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "HTTP_NotificationPlanifie",
+      "name": "06. API - Notification Planifié",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Conserver données pour email\nconst data = $('04. Préparer Données').first().json;\nreturn { json: data };"
+      },
+      "id": "Code_Continue",
+      "name": "07. Continuer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater Email Client\nconst data = $input.first().json;\nconst showButton = data.typeEntretien === 'visioconférence' && data.lienPlanification;\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 40px 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 20px; }\n    .welcome-box { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .welcome-box p { margin: 0; color: #059669; font-weight: 500; }\n    .info-box { background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 25px 0; border-radius: 6px; }\n    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); transition: transform 0.2s; }\n    .button:hover { transform: translateY(-2px); }\n    .footer { background: #f9fafb; padding: 25px; text-align: center; color: #6b7280; font-size: 13px; border-top: 1px solid #e5e7eb; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p style=\"margin: 10px 0 0 0; opacity: 0.95;\">Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom} 👋</div>\n      <div class=\"welcome-box\">\n        <p>Bienvenue chez TalosPrimes !</p>\n      </div>\n      <p style=\"color: #374151; margin: 20px 0;\">Nous avons le plaisir de vous proposer un <strong>entretien ${data.typeEntretien}</strong> pour discuter de vos besoins et vous présenter nos solutions.</p>\n      ${data.dateHeureFormatee ? `<div class=\"info-box\"><strong style=\"color: #059669;\">📅 Date et heure proposées :</strong><br><span style=\"color: #1f2937; font-size: 16px;\">${data.dateHeureFormatee}</span></div>` : ''}\n      ${showButton ? `<p style=\"text-align: center;\"><a href=\"${data.lienPlanification}\" class=\"button\">🎥 Rejoindre l'entretien</a></p>` : ''}\n      ${!data.dateHeureFormatee && !showButton ? `<p style=\"color: #6b7280; margin: 20px 0;\">Nous vous contacterons prochainement pour convenir d'un créneau qui vous convient.</p>` : ''}\n      <p style=\"color: #374151; margin: 30px 0 20px 0;\">Nous restons à votre disposition pour toute question.</p>\n      <p style=\"color: #374151; margin: 20px 0;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nBienvenue chez TalosPrimes !\n\nNous avons le plaisir de vous proposer un entretien ${data.typeEntretien} pour discuter de vos besoins et vous présenter nos solutions.\n\n${data.dateHeureFormatee ? `Date et heure proposées : ${data.dateHeureFormatee}` : ''}\n${showButton ? `Lien de planification : ${data.lienPlanification}` : ''}\n${!data.dateHeureFormatee && !showButton ? 'Nous vous contacterons prochainement pour convenir d\\'un créneau qui vous convient.' : ''}\n\nNous restons à votre disposition pour toute question.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [data.email],\n    subject: \"Bienvenue chez TalosPrimes - Planification d'entretien\",\n    html: html,\n    text: text\n  }\n};"
+      },
+      "id": "Code_FormatEmail",
+      "name": "08. Formatage Email Client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://api.resend.com/emails",
-        "authentication": "headerAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"from\": \"{{ $json.from }}\",\n  \"to\": {{ JSON.stringify($json.to) }},\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
@@ -100,192 +135,190 @@
           }
         }
       },
-      "id": "Resend_Email",
-      "name": "Resend - Email Entretien (Lead)",
+      "id": "HTTP_Resend",
+      "name": "09. Resend - Email Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1500, 200],
+      "position": [1780, 400],
       "credentials": {
         "headerAuth": {
-          "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
           "name": "Resend API"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Formater l'email récapitulatif pour l'équipe\nconst data = $input.first().json;\nconst now = new Date();\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; }\n    .content { padding: 30px; }\n    .info-box { background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 6px; }\n    .info-row { margin: 12px 0; padding: 8px 0; border-bottom: 1px solid #bbf7d0; }\n    .info-row:last-child { border-bottom: none; }\n    .label { font-weight: 600; color: #059669; display: inline-block; min-width: 140px; }\n    .value { color: #1f2937; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h2 style=\"margin: 0;\">📞 Entretien planifié</h2>\n    </div>\n    <div class=\"content\">\n      <p style=\"color: #374151; margin: 0 0 25px 0; font-size: 16px; line-height: 1.8;\">Bonjour,<br><br>Un entretien a été planifié avec un client. Vous trouverez ci-dessous les informations du client ainsi que les détails de l'entretien.</p>\n      <div class=\"info-box\">\n        <div class=\"info-row\"><span class=\"label\">Client :</span> <span class=\"value\">${data.prenom} ${data.nom}</span></div>\n        <div class=\"info-row\"><span class=\"label\">Email :</span> <span class=\"value\">${data.email}</span></div>\n        <div class=\"info-row\"><span class=\"label\">Téléphone :</span> <span class=\"value\">${data.telephone}</span></div>\n        <div class=\"info-row\"><span class=\"label\">Type d'entretien :</span> <span class=\"value\">${data.typeEntretien}</span></div>\n        ${data.dateHeureFormatee ? `<div class=\"info-row\"><span class=\"label\">Date et heure :</span> <span class=\"value\">${data.dateHeureFormatee}</span></div>` : ''}\n        <div class=\"info-row\"><span class=\"label\">Date :</span> <span class=\"value\">${now.toLocaleString('fr-FR')}</span></div>\n        ${data.lienPlanification ? `<div class=\"info-row\"><span class=\"label\">Lien planification :</span> <span class=\"value\"><a href=\"${data.lienPlanification}\" style=\"color: #059669;\">${data.lienPlanification}</a></span></div>` : ''}\n      </div>\n      <p style=\"color: #6b7280; margin: 25px 0 0 0; font-size: 14px;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Récapitulatif - Entretien planifié\n\nClient : ${data.prenom} ${data.nom}\nEmail : ${data.email}\nTéléphone : ${data.telephone}\n\nType d'entretien : ${data.typeEntretien}\n${data.dateHeureFormatee ? `Date et heure : ${data.dateHeureFormatee}` : 'Date/heure non spécifiées'}\n\nEntretien envoyé le : ${now.toLocaleString('fr-FR')}\n${data.lienPlanification ? `Lien planification : ${data.lienPlanification}` : ''}`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [\"contact@talosprimes.com\"],\n    subject: `📞 Entretien planifié - ${data.prenom} ${data.nom}`,\n    html: html,\n    text: text\n  }\n};"
+        "jsCode": "// Notification: Email envoyé\nconst data = $('08. Formatage Email Client').first().json;\nconst leadData = $('04. Préparer Données').first().json;\n\nreturn {\n  json: {\n    type: 'lead_entretien_email',\n    titre: '📧 Email entretien envoyé',\n    message: `Email entretien envoyé à ${data.to[0]} pour ${leadData.prenom} ${leadData.nom}`,\n    donnees: {\n      tenantId: leadData.tenantId,\n      leadId: leadData.leadId,\n      email: data.to[0]\n    }\n  }\n};"
       },
-      "id": "Code_FormatEmailTeam",
-      "name": "Formater Email Équipe",
+      "id": "Code_NotificationEmail",
+      "name": "10. Notification - Email Envoyé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1260, 400]
+      "position": [2000, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "authentication": "headerAuth",
+        "url": "https://api.talosprimes.com/api/notifications",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"{{ $json.from }}\",\n  \"to\": {{ JSON.stringify($json.to) }},\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
+        "jsonBody": "={{ $json }}",
         "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
           }
         }
       },
-      "id": "Resend_Email_Team",
-      "name": "Resend - Email Récapitulatif (Équipe)",
+      "id": "HTTP_NotificationEmail",
+      "name": "11. API - Notification Email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1500, 400],
+      "position": [2220, 300],
       "credentials": {
-        "headerAuth": {
-          "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
-          "name": "Resend API"
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
         }
       }
     },
     {
       "parameters": {
-        "mode": "append",
-        "options": {}
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Entretien planifié avec succès\",\n  \"leadId\": \"{{ $('04. Préparer Données').first().json.leadId }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
       },
-      "id": "Merge_Emails",
-      "name": "Merge - Emails envoyés",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [1740, 300]
-    },
-    {
-      "parameters": {
-        "responseBody": "={{ { success: true, message: 'Email d\\'entretien envoyé avec succès', leadId: $('Préparer données').first().json.leadId } }}",
-        "responseCode": 200,
-        "options": {}
-      },
-      "id": "Respond_Entretien",
-      "name": "Respond",
+      "id": "Respond_Success",
+      "name": "12. Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1980, 300]
+      "position": [2000, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Notification d'erreur\nconst error = $input.first().json;\nconst parsed = $('02. Parser Payload').first()?.json || {};\n\nreturn {\n  json: {\n    type: 'lead_entretien_error',\n    titre: '🚨 Erreur workflow entretien',\n    message: `Erreur : ${error.message || error.error?.message || 'Erreur inconnue'}`,\n    donnees: {\n      tenantId: parsed.tenantId || '',\n      error: error.message || error.error?.message || 'Erreur inconnue',\n      executionId: $execution.id\n    }\n  }\n};"
+      },
+      "id": "Code_NotificationError",
+      "name": "ERROR. Notification Erreur",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 800]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/notifications",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "HTTP_NotificationError",
+      "name": "ERROR. API - Notification Erreur",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 800],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Une erreur s'est produite. Notre équipe a été notifiée.\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "Respond_Error",
+      "name": "ERROR. Réponse Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 800]
     }
   ],
   "connections": {
-    "Webhook - lead_entretien": {
-      "main": [
-        [
-          {
-            "node": "Parser payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "01. Webhook - Réception": {
+      "main": [[{ "node": "02. Parser Payload", "type": "main", "index": 0 }]]
     },
-    "Parser payload": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - Get Lead",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "02. Parser Payload": {
+      "main": [[{ "node": "03. API - Get Lead", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "API TalosPrimes - Get Lead": {
-      "main": [
-        [
-          {
-            "node": "Préparer données",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "03. API - Get Lead": {
+      "main": [[{ "node": "04. Préparer Données", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Préparer données": {
+    "04. Préparer Données": {
       "main": [
         [
-          {
-            "node": "Formater Email Lead",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Formater Email Équipe",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "05. Notification - Planifié", "type": "main", "index": 0 },
+          { "node": "07. Continuer", "type": "main", "index": 0 }
         ]
-      ]
+      ],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Formater Email Lead": {
-      "main": [
-        [
-          {
-            "node": "Resend - Email Entretien (Lead)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Notification - Planifié": {
+      "main": [[{ "node": "06. API - Notification Planifié", "type": "main", "index": 0 }]],
+      "error": []
     },
-    "Resend - Email Entretien (Lead)": {
-      "main": [
-        [
-          {
-            "node": "Merge - Emails envoyés",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. API - Notification Planifié": {
+      "main": [[{ "node": "07. Continuer", "type": "main", "index": 0 }]],
+      "error": []
     },
-    "Formater Email Équipe": {
-      "main": [
-        [
-          {
-            "node": "Resend - Email Récapitulatif (Équipe)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Continuer": {
+      "main": [[{ "node": "08. Formatage Email Client", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Resend - Email Récapitulatif (Équipe)": {
-      "main": [
-        [
-          {
-            "node": "Merge - Emails envoyés",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. Formatage Email Client": {
+      "main": [[{ "node": "09. Resend - Email Client", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Merge - Emails envoyés": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "09. Resend - Email Client": {
+      "main": [[{ "node": "10. Notification - Email Envoyé", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+    },
+    "10. Notification - Email Envoyé": {
+      "main": [[{ "node": "11. API - Notification Email", "type": "main", "index": 0 }]],
+      "error": []
+    },
+    "11. API - Notification Email": {
+      "main": [[{ "node": "12. Réponse Succès", "type": "main", "index": 0 }]],
+      "error": []
+    },
+    "ERROR. Notification Erreur": {
+      "main": [[{ "node": "ERROR. API - Notification Erreur", "type": "main", "index": 0 }]]
+    },
+    "ERROR. API - Notification Erreur": {
+      "main": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]]
     }
   },
-  "active": false,
+  "pinData": {},
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "v1"
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-09T00:00:00.000Z",
+  "versionId": "1"
 }
