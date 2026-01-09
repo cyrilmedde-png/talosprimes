@@ -60,6 +60,25 @@ export default function ClientsPage() {
     loadClients();
   }, [router]);
 
+  // Gérer le retour de Stripe Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkoutStatus = params.get('checkout');
+    const clientId = params.get('clientId');
+    
+    if (checkoutStatus === 'success' && clientId) {
+      setError(null);
+      // Recharger les clients pour voir la mise à jour
+      loadClients();
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', '/clients');
+    } else if (checkoutStatus === 'cancelled') {
+      setError('Paiement annulé. L\'espace client a été créé mais l\'abonnement n\'a pas été activé.');
+      window.history.replaceState({}, '', '/clients');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadClients = async () => {
     try {
       setLoading(true);
