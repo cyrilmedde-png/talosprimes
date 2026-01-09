@@ -1,5 +1,5 @@
 {
-  "name": "Leads - Confirmation (lead_confirmation) → Get Lead → Update Status → Send Email → Respond",
+  "name": "Leads - Confirmation",
   "nodes": [
     {
       "parameters": {
@@ -9,26 +9,20 @@
         "options": {}
       },
       "id": "Webhook_Confirmation",
-      "name": "Webhook - lead_confirmation",
+      "name": "01. Webhook - Réception",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [240, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\nconst leadId = data?.id || data?.leadId ? String(data.id || data.leadId) : '';\nif (!leadId) throw new Error('ID du lead requis');\n\nreturn [{ json: { leadId } }];\n"
+        "jsCode": "// Parser le payload\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\nconst leadId = String(data?.id || data?.leadId || '').trim();\nconst tenantId = String(data?.tenantId || payload?.tenantId || '').trim();\n\nif (!leadId) throw new Error('ID du lead requis');\nif (!tenantId) throw new Error('tenantId requis');\n\nreturn { json: { leadId, tenantId } };"
       },
       "id": "Code_Parse",
-      "name": "Parser payload",
+      "name": "02. Parser Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        540,
-        300
-      ]
+      "position": [460, 400]
     },
     {
       "parameters": {
@@ -44,13 +38,10 @@
         }
       },
       "id": "HTTP_GetLead",
-      "name": "API TalosPrimes - Get Lead",
+      "name": "03. API - Get Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ],
+      "position": [680, 400],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -60,16 +51,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extraire les données du lead depuis la réponse API\nconst response = $input.first().json;\n// La réponse API est: { success: true, data: { lead: {...} } }\nconst leadData = response.data?.lead || response.data || response;\n\nconst leadId = leadData.id || leadData.leadId || $('Parser payload').first().json.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\nreturn [{ json: { leadId, nom, prenom, email, telephone } }];\n"
+        "jsCode": "// Préparer données\nconst response = $input.first().json;\nconst parsed = $('02. Parser Payload').first().json;\nconst leadData = response.data?.lead || response.data || response;\n\nconst leadId = leadData.id || parsed.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\nconst tenantId = parsed.tenantId;\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\nreturn { json: { leadId, nom, prenom, email, telephone, tenantId } };"
       },
       "id": "Code_Prepare",
-      "name": "Préparer données",
+      "name": "04. Préparer Données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1020,
-        300
-      ]
+      "position": [900, 400]
     },
     {
       "parameters": {
@@ -83,13 +71,10 @@
         }
       },
       "id": "HTTP_UpdateStatus",
-      "name": "API TalosPrimes - Update Status (converti)",
+      "name": "05. API - Update Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        1260,
-        300
-      ],
+      "position": [1120, 400],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -99,22 +84,66 @@
     },
     {
       "parameters": {
-        "jsCode": "// Récupérer les données du lead depuis 'Préparer données' pour les passer à Resend\nconst leadData = $('Préparer données').first().json;\nreturn [{ json: leadData }];\n"
+        "jsCode": "// Notification: Lead converti\nconst data = $('04. Préparer Données').first().json;\n\nreturn {\n  json: {\n    type: 'lead_confirmation_converti',\n    titre: '✅ Lead converti en client',\n    message: `Le lead ${data.prenom} ${data.nom} (${data.email}) a été converti en client avec succès !`,\n    donnees: {\n      tenantId: data.tenantId,\n      leadId: data.leadId,\n      nom: data.nom,\n      prenom: data.prenom,\n      email: data.email\n    }\n  }\n};"
       },
-      "id": "Code_RestoreData",
-      "name": "Restaurer données lead",
+      "id": "Code_NotificationConverti",
+      "name": "06. Notification - Converti",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1500,
-        300
-      ]
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/notifications",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "HTTP_NotificationConverti",
+      "name": "07. API - Notification Converti",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Conserver données pour email\nconst data = $('04. Préparer Données').first().json;\nreturn { json: data };"
+      },
+      "id": "Code_Continue",
+      "name": "08. Continuer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater Email Client\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 40px 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 20px; }\n    .welcome-box { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 25px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .welcome-box h3 { margin: 0 0 10px 0; color: #059669; font-size: 24px; }\n    .welcome-box p { margin: 0; color: #047857; font-weight: 500; font-size: 16px; }\n    .success-box { background-color: #d1fae5; border: 2px solid #10b981; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .success-box h3 { margin: 0 0 10px 0; color: #047857; font-size: 22px; }\n    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); transition: transform 0.2s; }\n    .button:hover { transform: translateY(-2px); }\n    .footer { background: #f9fafb; padding: 25px; text-align: center; color: #6b7280; font-size: 13px; border-top: 1px solid #e5e7eb; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p style=\"margin: 10px 0 0 0; opacity: 0.95;\">Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom} 👋</div>\n      <div class=\"welcome-box\">\n        <h3>🎉 Bienvenue chez TalosPrimes !</h3>\n        <p>Votre inscription a été confirmée</p>\n      </div>\n      <div class=\"success-box\">\n        <h3>✅ Félicitations !</h3>\n        <p style=\"color: #047857; margin: 0;\">Votre compte est maintenant actif</p>\n      </div>\n      <p style=\"color: #374151; margin: 20px 0;\">Nous sommes ravis de vous accueillir dans la communauté <strong>TalosPrimes</strong>. Votre compte est maintenant actif et vous pouvez commencer à utiliser tous nos services.</p>\n      <p style=\"text-align: center;\">\n        <a href=\"https://talosprimes.com/login\" class=\"button\">🚀 Accéder à mon espace</a>\n      </p>\n      <p style=\"color: #374151; margin: 30px 0 20px 0;\">Si vous avez des questions, n'hésitez pas à nous contacter à <a href=\"mailto:contact@talosprimes.com\" style=\"color: #10b981;\">contact@talosprimes.com</a>.</p>\n      <p style=\"color: #374151; font-size: 18px; font-weight: 600; margin: 30px 0;\">Bienvenue à bord ! 🎊</p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\n🎉 Bienvenue chez TalosPrimes !\n\nFélicitations ! Votre inscription a été confirmée.\n\nNous sommes ravis de vous accueillir dans la communauté TalosPrimes. Votre compte est maintenant actif et vous pouvez commencer à utiliser tous nos services.\n\nPour accéder à votre espace, connectez-vous sur : https://talosprimes.com/login\n\nSi vous avez des questions, n'hésitez pas à nous contacter à contact@talosprimes.com.\n\nBienvenue à bord ! 🎊\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [data.email],\n    subject: \"🎉 Bienvenue chez TalosPrimes - Votre compte est actif !\",\n    html: html,\n    text: text\n  }\n};"
+      },
+      "id": "Code_FormatEmail",
+      "name": "09. Formatage Email Client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://api.resend.com/emails",
-        "authentication": "headerAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"from\": \"{{ $json.from }}\",\n  \"to\": {{ JSON.stringify($json.to) }},\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
@@ -129,233 +158,194 @@
           }
         }
       },
-      "id": "Resend_Email",
-      "name": "Resend - Email Confirmation (Lead)",
+      "id": "HTTP_Resend",
+      "name": "10. Resend - Email Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1980, 200],
+      "position": [2000, 400],
       "credentials": {
         "headerAuth": {
-          "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
           "name": "Resend API"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Notification: Email envoyé\nconst data = $('09. Formatage Email Client').first().json;\nconst leadData = $('04. Préparer Données').first().json;\n\nreturn {\n  json: {\n    type: 'lead_confirmation_email',\n    titre: '📧 Email confirmation envoyé',\n    message: `Email de confirmation envoyé à ${data.to[0]} pour ${leadData.prenom} ${leadData.nom}`,\n    donnees: {\n      tenantId: leadData.tenantId,\n      leadId: leadData.leadId,\n      email: data.to[0]\n    }\n  }\n};"
+      },
+      "id": "Code_NotificationEmail",
+      "name": "11. Notification - Email Envoyé",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 300]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "authentication": "headerAuth",
+        "url": "https://api.talosprimes.com/api/notifications",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"{{ $json.from }}\",\n  \"to\": {{ JSON.stringify($json.to) }},\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
+        "jsonBody": "={{ $json }}",
         "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
           }
         }
       },
-      "id": "Resend_Email_Team",
-      "name": "Resend - Email Récapitulatif (Équipe)",
+      "id": "HTTP_NotificationEmail",
+      "name": "12. API - Notification Email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        1980,
-        400
-      ],
+      "position": [2440, 300],
       "credentials": {
-        "headerAuth": {
-          "id": "REPLACE_WITH_RESEND_CREDENTIAL_ID",
-          "name": "Resend API"
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
         }
       }
     },
     {
       "parameters": {
-        "mode": "append",
-        "options": {}
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Confirmation envoyée avec succès, lead converti\",\n  \"leadId\": \"{{ $('04. Préparer Données').first().json.leadId }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
       },
-      "id": "Merge_Emails",
-      "name": "Merge - Emails envoyés",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [
-        2220,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "responseBody": "={{ { success: true, message: 'Confirmation envoyée avec succès, lead converti', leadId: $('Préparer données').first().json.leadId } }}",
-        "responseCode": 200,
-        "options": {}
-      },
-      "id": "Respond_Confirmation",
-      "name": "Respond",
+      "id": "Respond_Success",
+      "name": "13. Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2460,
-        300
-      ]
+      "position": [2220, 500]
     },
     {
       "parameters": {
-        "jsCode": "// Formater l'email confirmation pour le lead\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 40px 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 20px; }\n    .welcome-box { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 25px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .welcome-box h3 { margin: 0 0 10px 0; color: #059669; font-size: 24px; }\n    .welcome-box p { margin: 0; color: #047857; font-weight: 500; font-size: 16px; }\n    .success-box { background-color: #d1fae5; border: 2px solid #10b981; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .success-box h3 { margin: 0 0 10px 0; color: #047857; font-size: 22px; }\n    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); transition: transform 0.2s; }\n    .button:hover { transform: translateY(-2px); }\n    .footer { background: #f9fafb; padding: 25px; text-align: center; color: #6b7280; font-size: 13px; border-top: 1px solid #e5e7eb; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p style=\"margin: 10px 0 0 0; opacity: 0.95;\">Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom} 👋</div>\n      <div class=\"welcome-box\">\n        <h3>🎉 Bienvenue chez TalosPrimes !</h3>\n        <p>Votre inscription a été confirmée</p>\n      </div>\n      <div class=\"success-box\">\n        <h3>✅ Félicitations !</h3>\n        <p style=\"color: #047857; margin: 0;\">Votre compte est maintenant actif</p>\n      </div>\n      <p style=\"color: #374151; margin: 20px 0;\">Nous sommes ravis de vous accueillir dans la communauté <strong>TalosPrimes</strong>. Votre compte est maintenant actif et vous pouvez commencer à utiliser tous nos services.</p>\n      <p style=\"text-align: center;\">\n        <a href=\"https://talosprimes.com/login\" class=\"button\">🚀 Accéder à mon espace</a>\n      </p>\n      <p style=\"color: #374151; margin: 30px 0 20px 0;\">Si vous avez des questions, n'hésitez pas à nous contacter à <a href=\"mailto:contact@talosprimes.com\" style=\"color: #10b981;\">contact@talosprimes.com</a>.</p>\n      <p style=\"color: #374151; font-size: 18px; font-weight: 600; margin: 30px 0;\">Bienvenue à bord ! 🎊</p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\n🎉 Bienvenue chez TalosPrimes !\n\nFélicitations ! Votre inscription a été confirmée.\n\nNous sommes ravis de vous accueillir dans la communauté TalosPrimes. Votre compte est maintenant actif et vous pouvez commencer à utiliser tous nos services.\n\nPour accéder à votre espace, connectez-vous sur : https://talosprimes.com/login\n\nSi vous avez des questions, n'hésitez pas à nous contacter à contact@talosprimes.com.\n\nBienvenue à bord ! 🎊\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [data.email],\n    subject: \"🎉 Bienvenue chez TalosPrimes - Votre compte est actif !\",\n    html: html,\n    text: text\n  }\n};"
+        "jsCode": "// Notification d'erreur\nconst error = $input.first().json;\nconst parsed = $('02. Parser Payload').first()?.json || {};\n\nreturn {\n  json: {\n    type: 'lead_confirmation_error',\n    titre: '🚨 Erreur workflow confirmation',\n    message: `Erreur : ${error.message || error.error?.message || 'Erreur inconnue'}`,\n    donnees: {\n      tenantId: parsed.tenantId || '',\n      error: error.message || error.error?.message || 'Erreur inconnue',\n      executionId: $execution.id\n    }\n  }\n};"
       },
-      "id": "Code_FormatEmailLead",
-      "name": "Formater Email Lead",
+      "id": "Code_NotificationError",
+      "name": "ERROR. Notification Erreur",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1740, 200]
+      "position": [900, 800]
     },
     {
       "parameters": {
-        "jsCode": "// Formater l'email récapitulatif pour l'équipe\nconst data = $input.first().json;\nconst now = new Date();\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; }\n    .content { padding: 30px; }\n    .success-box { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 2px solid #10b981; padding: 25px; margin: 20px 0; border-radius: 8px; text-align: center; }\n    .success-box h3 { margin: 0 0 15px 0; color: #047857; font-size: 24px; }\n    .info-box { background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0; border-radius: 6px; }\n    .info-row { margin: 12px 0; padding: 8px 0; border-bottom: 1px solid #bbf7d0; }\n    .info-row:last-child { border-bottom: none; }\n    .label { font-weight: 600; color: #059669; display: inline-block; min-width: 120px; }\n    .value { color: #1f2937; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h2 style=\"margin: 0;\">✅ Client converti</h2>\n    </div>\n    <div class=\"content\">\n      <p style=\"color: #374151; margin: 0 0 25px 0; font-size: 16px; line-height: 1.8;\">Bonjour,<br><br>Un nouveau client a été converti avec succès ! Félicitations pour cette nouvelle conversion. Vous trouverez ci-dessous les informations du client.</p>\n      <div class=\"success-box\">\n        <h3>🎉 Nouveau client converti !</h3>\n        <p style=\"margin: 0; color: #047857; font-weight: 500;\">Félicitations pour cette nouvelle conversion !</p>\n      </div>\n      <div class=\"info-box\">\n        <div class=\"info-row\"><span class=\"label\">Client :</span> <span class=\"value\">${data.prenom} ${data.nom}</span></div>\n        <div class=\"info-row\"><span class=\"label\">Email :</span> <span class=\"value\">${data.email}</span></div>\n        <div class=\"info-row\"><span class=\"label\">Téléphone :</span> <span class=\"value\">${data.telephone}</span></div>\n        <div class=\"info-row\"><span class=\"label\">Date :</span> <span class=\"value\">${now.toLocaleString('fr-FR')}</span></div>\n      </div>\n      <p style=\"color: #6b7280; margin: 25px 0 0 0; font-size: 14px;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Récapitulatif - Client converti\n\n🎉 Nouveau client converti !\n\nClient : ${data.prenom} ${data.nom}\nEmail : ${data.email}\nTéléphone : ${data.telephone}\n\nConfirmation envoyée le : ${now.toLocaleString('fr-FR')}`;\n\nreturn {\n  json: {\n    from: \"TalosPrimes <contact@talosprimes.com>\",\n    to: [\"contact@talosprimes.com\"],\n    subject: `✅ Client converti - ${data.prenom} ${data.nom}`,\n    html: html,\n    text: text\n  }\n};"
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/notifications",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
       },
-      "id": "Code_FormatEmailTeam",
-      "name": "Formater Email Équipe",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1740, 400]
+      "id": "HTTP_NotificationError",
+      "name": "ERROR. API - Notification Erreur",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 800],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Une erreur s'est produite. Notre équipe a été notifiée.\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "Respond_Error",
+      "name": "ERROR. Réponse Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 800]
     }
   ],
   "connections": {
-    "Webhook - lead_confirmation": {
-      "main": [
-        [
-          {
-            "node": "Parser payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "01. Webhook - Réception": {
+      "main": [[{ "node": "02. Parser Payload", "type": "main", "index": 0 }]]
     },
-    "Parser payload": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - Get Lead",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "02. Parser Payload": {
+      "main": [[{ "node": "03. API - Get Lead", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "API TalosPrimes - Get Lead": {
-      "main": [
-        [
-          {
-            "node": "Préparer données",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "03. API - Get Lead": {
+      "main": [[{ "node": "04. Préparer Données", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Préparer données": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - Update Status (converti)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "04. Préparer Données": {
+      "main": [[{ "node": "05. API - Update Status", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "API TalosPrimes - Update Status (converti)": {
+    "05. API - Update Status": {
       "main": [
         [
-          {
-            "node": "Restaurer données lead",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "06. Notification - Converti", "type": "main", "index": 0 },
+          { "node": "08. Continuer", "type": "main", "index": 0 }
         ]
-      ]
+      ],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Restaurer données lead": {
-      "main": [
-        [
-          {
-            "node": "Formater Email Lead",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Formater Email Équipe",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Notification - Converti": {
+      "main": [[{ "node": "07. API - Notification Converti", "type": "main", "index": 0 }]],
+      "error": []
     },
-    "Resend - Email Confirmation (Lead)": {
-      "main": [
-        [
-          {
-            "node": "Merge - Emails envoyés",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. API - Notification Converti": {
+      "main": [[{ "node": "08. Continuer", "type": "main", "index": 0 }]],
+      "error": []
     },
-    "Resend - Email Récapitulatif (Équipe)": {
-      "main": [
-        [
-          {
-            "node": "Merge - Emails envoyés",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. Continuer": {
+      "main": [[{ "node": "09. Formatage Email Client", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Merge - Emails envoyés": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "09. Formatage Email Client": {
+      "main": [[{ "node": "10. Resend - Email Client", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Formater Email Lead": {
-      "main": [
-        [
-          {
-            "node": "Resend - Email Confirmation (Lead)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Resend - Email Client": {
+      "main": [[{ "node": "11. Notification - Email Envoyé", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
-    "Formater Email Équipe": {
-      "main": [
-        [
-          {
-            "node": "Resend - Email Récapitulatif (Équipe)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "11. Notification - Email Envoyé": {
+      "main": [[{ "node": "12. API - Notification Email", "type": "main", "index": 0 }]],
+      "error": []
+    },
+    "12. API - Notification Email": {
+      "main": [[{ "node": "13. Réponse Succès", "type": "main", "index": 0 }]],
+      "error": []
+    },
+    "ERROR. Notification Erreur": {
+      "main": [[{ "node": "ERROR. API - Notification Erreur", "type": "main", "index": 0 }]]
+    },
+    "ERROR. API - Notification Erreur": {
+      "main": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]]
     }
   },
-  "active": false,
+  "pinData": {},
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "v1"
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-09T00:00:00.000Z",
+  "versionId": "1"
 }
