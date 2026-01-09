@@ -236,6 +236,7 @@ export default function ClientsPage() {
         montantMensuel: 29.99,
         modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
         dureeMois: 1,
+        avecStripe: false,
       });
       await loadClients();
     } catch (err) {
@@ -250,6 +251,7 @@ export default function ClientsPage() {
       montantMensuel: 29.99,
       modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
       dureeMois: 1,
+      avecStripe: false,
     });
     setShowOnboardingModal(true);
   };
