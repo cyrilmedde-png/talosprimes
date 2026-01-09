@@ -106,10 +106,10 @@ export async function logsRoutes(fastify: FastifyInstance) {
               if (log.entiteType === 'ClientFinal') {
                 const client = await prisma.clientFinal.findUnique({
                   where: { id: log.entiteId },
-                  select: { email: true, emailContact: true, raisonSociale: true, nom: true, prenom: true },
+                  select: { email: true, raisonSociale: true, nom: true, prenom: true },
                 });
-                // Prioriser email, puis emailContact, puis raisonSociale, puis nom/prenom
-                entityEmail = client?.email || client?.emailContact || client?.raisonSociale || `${client?.nom || ''} ${client?.prenom || ''}`.trim() || null;
+                // Prioriser email, puis raisonSociale, puis nom/prenom
+                entityEmail = client?.email || client?.raisonSociale || `${client?.nom || ''} ${client?.prenom || ''}`.trim() || null;
               } else if (log.entiteType === 'Lead') {
                 const lead = await prisma.lead.findUnique({
                   where: { id: log.entiteId },
