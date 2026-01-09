@@ -76,7 +76,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             tenantId,
           },
           orderBy: {
-            createdAt: 'desc',
+            updatedAt: 'desc',
           },
           select: {
             id: true,
@@ -847,7 +847,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             clientFinalId: body.clientId,
           },
           orderBy: {
-            createdAt: 'desc',
+            updatedAt: 'desc',
           },
         });
 
