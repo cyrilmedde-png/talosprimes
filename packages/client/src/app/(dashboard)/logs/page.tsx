@@ -237,9 +237,9 @@ export default function LogsPage() {
               }`}
             >
               Leads
-              {stats?.byWorkflow.leads.errors > 0 && (
+              {(stats?.byWorkflow?.leads?.errors ?? 0) > 0 && (
                 <span className="ml-2 px-2 py-0.5 bg-red-600 text-white text-xs rounded-full">
-                  {stats.byWorkflow.leads.errors}
+                  {stats?.byWorkflow?.leads?.errors ?? 0}
                 </span>
               )}
             </button>
@@ -252,9 +252,9 @@ export default function LogsPage() {
               }`}
             >
               Clients
-              {stats?.byWorkflow.clients.errors > 0 && (
+              {(stats?.byWorkflow?.clients?.errors ?? 0) > 0 && (
                 <span className="ml-2 px-2 py-0.5 bg-red-600 text-white text-xs rounded-full">
-                  {stats.byWorkflow.clients.errors}
+                  {stats?.byWorkflow?.clients?.errors ?? 0}
                 </span>
               )}
             </button>
