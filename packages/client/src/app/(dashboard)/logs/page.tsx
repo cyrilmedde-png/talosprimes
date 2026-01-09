@@ -203,7 +203,7 @@ export default function LogsPage() {
                       </div>
                       <p className="text-sm font-medium mb-1">{log.typeEvenement}</p>
                       <p className="text-xs text-gray-400 mb-2">
-                        Entité: {log.entiteType} ({log.entityEmail || log.entiteId.slice(0, 8) + '...'})
+                        Entité: {log.entiteType} {log.entityEmail ? `(${log.entityEmail})` : `(${log.entiteId.slice(0, 8)}...)`}
                       </p>
                       {log.messageErreur && (
                         <p className="text-xs text-red-300/80 mb-2">{log.messageErreur}</p>
@@ -329,7 +329,7 @@ export default function LogsPage() {
                     </div>
                     <p className="text-sm font-medium mb-1">{log.typeEvenement}</p>
                     <p className="text-xs text-gray-400 mb-2">
-                      Entité: {log.entiteType} ({log.entityEmail || log.entiteId.slice(0, 8) + '...'})
+                      Entité: {log.entiteType} {log.entityEmail ? `(${log.entityEmail})` : `(${log.entiteId.slice(0, 8)}...)`}
                     </p>
                     {log.messageErreur && (
                       <p className="text-xs text-red-300/80 mb-2 bg-red-900/30 p-2 rounded">

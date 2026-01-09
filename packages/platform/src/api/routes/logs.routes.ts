@@ -106,15 +106,16 @@ export async function logsRoutes(fastify: FastifyInstance) {
               if (log.entiteType === 'ClientFinal') {
                 const client = await prisma.clientFinal.findUnique({
                   where: { id: log.entiteId },
-                  select: { email: true },
+                  select: { email: true, emailContact: true, raisonSociale: true, nom: true, prenom: true },
                 });
-                entityEmail = client?.email || null;
+                // Prioriser email, puis emailContact, puis raisonSociale, puis nom/prenom
+                entityEmail = client?.email || client?.emailContact || client?.raisonSociale || `${client?.nom || ''} ${client?.prenom || ''}`.trim() || null;
               } else if (log.entiteType === 'Lead') {
                 const lead = await prisma.lead.findUnique({
                   where: { id: log.entiteId },
-                  select: { email: true },
+                  select: { email: true, nom: true, prenom: true },
                 });
-                entityEmail = lead?.email || null;
+                entityEmail = lead?.email || `${lead?.nom || ''} ${lead?.prenom || ''}`.trim() || null;
               }
             } catch (error) {
               // Ignorer les erreurs de récupération d'email
