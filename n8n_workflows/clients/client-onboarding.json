@@ -323,7 +323,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les modules inclus pour la requête SQL\nconst data = $input.item.json;\nconst modules = data.plan.modulesInclus || [];\nconst modulesArray = modules.map(m => `'${m.replace(/'/g, \"''\")}'`).join(', ');\n\n// IDs Stripe (optionnels)\nconst idClientStripe = data.idClientStripe ? `'${data.idClientStripe}'` : 'NULL';\nconst idAbonnementStripe = data.idAbonnementStripe ? `'${data.idAbonnementStripe}'` : 'NULL';\n\n// Mot de passe temporaire (sera stocké en clair pour l'email)\n// On le récupérera depuis le node précédent si disponible\nconst tempPassword = data.plainPassword ? `'${String(data.plainPassword).replace(/'/g, \"''\")}'` : 'NULL';\n\n// Construire la requête SQL avec les valeurs\n// Note: Utilisation de 'actif' sans cast de type car PostgreSQL reconnaîtra automatiquement\n// le type enum SubscriptionStatus grâce au schéma de la table\nconst query = `INSERT INTO client_subscriptions (\n  id,\n  client_final_id,\n  nom_plan,\n  date_debut,\n  date_prochain_renouvellement,\n  montant_mensuel,\n  modules_inclus,\n  statut,\n  id_client_stripe,\n  id_abonnement_stripe,\n  temporary_password,\n  updated_at\n) VALUES (\n  gen_random_uuid(),\n  '${data.clientId}'::uuid,\n  '${String(data.plan.nomPlan).replace(/'/g, \"''\")}',\n  '${data.dateDebut}'::timestamptz,\n  '${data.dateProchainRenouvellement}'::timestamptz,\n  ${data.plan.montantMensuel},\n  ARRAY[${modulesArray}]::text[],\n  'actif',\n  ${idClientStripe},\n  ${idAbonnementStripe},\n  ${tempPassword},\n  NOW()\n)\nRETURNING *;`;\n\nreturn {\n  json: {\n    ...data,\n    sqlQuery: query\n  }\n};"
+        "jsCode": "// Préparer les modules inclus pour la requête SQL\n// Le Merge en mode append concatène les items, donc on doit les combiner\nconst inputItems = $input.all();\n\n// Trouver les données principales (depuis 08 ou depuis 09a si pas Stripe)\nconst mainData = inputItems.find(item => item.json.plan || item.json.clientId) || inputItems[0] || {};\n// Trouver le mot de passe (depuis 09a)\nconst passwordData = inputItems.find(item => item.json.plainPassword) || {};\n\n// Combiner les données\nconst data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nconst modules = data.plan?.modulesInclus || data.modulesInclus || [];\nconst modulesArray = modules.map(m => `'${String(m).replace(/'/g, \"''\")}'`).join(', ');\n\n// IDs Stripe (optionnels)\nconst idClientStripe = data.idClientStripe ? `'${data.idClientStripe}'` : 'NULL';\nconst idAbonnementStripe = data.idAbonnementStripe ? `'${data.idAbonnementStripe}'` : 'NULL';\n\n// Mot de passe temporaire (sera stocké en clair pour l'email)\nconst tempPassword = data.plainPassword ? `'${String(data.plainPassword).replace(/'/g, \"''\")}'` : 'NULL';\n\n// Construire la requête SQL avec les valeurs\n// Note: Utilisation de 'actif' sans cast de type car PostgreSQL reconnaîtra automatiquement\n// le type enum SubscriptionStatus grâce au schéma de la table\nconst query = `INSERT INTO client_subscriptions (\n  id,\n  client_final_id,\n  nom_plan,\n  date_debut,\n  date_prochain_renouvellement,\n  montant_mensuel,\n  modules_inclus,\n  statut,\n  id_client_stripe,\n  id_abonnement_stripe,\n  temporary_password,\n  updated_at\n) VALUES (\n  gen_random_uuid(),\n  '${data.clientId}'::uuid,\n  '${String(data.plan.nomPlan).replace(/'/g, \"''\")}',\n  '${data.dateDebut}'::timestamptz,\n  '${data.dateProchainRenouvellement}'::timestamptz,\n  ${data.plan.montantMensuel},\n  ARRAY[${modulesArray}]::text[],\n  'actif',\n  ${idClientStripe},\n  ${idAbonnementStripe},\n  ${tempPassword},\n  NOW()\n)\nRETURNING *;`;\n\nreturn {\n  json: {\n    ...data,\n    sqlQuery: query\n  }\n};"
       },
       "id": "prepare-sql",
       "name": "09. Préparer requête SQL",
@@ -350,7 +350,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Générer un mot de passe sécurisé aléatoire AVANT la création de l'abonnement\nconst generatePassword = () => {\n  const length = 12;\n  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\n  let password = '';\n  for (let i = 0; i < length; i++) {\n    password += charset.charAt(Math.floor(Math.random() * charset.length));\n  }\n  return password;\n};\n\nconst prepareData = $('01. Préparer données onboarding').item.json;\nconst clientData = prepareData.clientData;\n\n// Générer le mot de passe\nconst plainPassword = generatePassword();\n\n// Nom du tenant (basé sur le nom du client)\nconst tenantName = clientData.raisonSociale || `${clientData.nom || ''} ${clientData.prenom || ''}`.trim() || clientData.email;\n\nreturn {\n  json: {\n    ...prepareData,\n    tenantName: tenantName,\n    clientEmail: clientData.email,\n    plainPassword: plainPassword,\n    clientNom: clientData.nom || '',\n    clientPrenom: clientData.prenom || '',\n    clientRaisonSociale: clientData.raisonSociale || null\n  }\n};"
+        "jsCode": "// Générer un mot de passe sécurisé aléatoire et l'ajouter aux données\nconst generatePassword = () => {\n  const length = 12;\n  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\n  let password = '';\n  for (let i = 0; i < length; i++) {\n    password += charset.charAt(Math.floor(Math.random() * charset.length));\n  }\n  return password;\n};\n\nconst prepareData = $input.item.json;\nconst clientData = prepareData.clientData || {};\n\n// Générer le mot de passe\nconst plainPassword = generatePassword();\n\n// Nom du tenant (basé sur le nom du client)\nconst tenantName = clientData.raisonSociale || `${clientData.nom || ''} ${clientData.prenom || ''}`.trim() || clientData.email || 'Client';\n\n// Retourner toutes les données avec le mot de passe ajouté\nreturn {\n  json: {\n    ...prepareData,\n    tenantName: tenantName,\n    clientEmail: clientData.email || '',\n    plainPassword: plainPassword,\n    clientNom: clientData.nom || '',\n    clientPrenom: clientData.prenom || '',\n    clientRaisonSociale: clientData.raisonSociale || null\n  }\n};"
       },
       "id": "generate-password",
       "name": "09a. Générer mot de passe",
@@ -371,7 +371,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les requêtes SQL pour créer le Tenant et le User\nconst data = $input.item.json;\n\n// Hash du mot de passe (bcrypt avec cost 10)\n// On utilisera l'API backend pour hasher, ou on peut utiliser bcrypt dans un node HTTP\n// Pour l'instant, on stocke le mot de passe en clair temporairement pour l'envoyer par email\n// Le backend devra le hasher\n\n// Récupérer le hash depuis l'API backend ou utiliser bcrypt directement\n// Pour simplifier, on va créer le tenant et l'utilisateur via l'API backend\n\nreturn {\n  json: {\n    ...data\n  }\n};"
+        "jsCode": "// Préparer les données pour créer Tenant et User\n// Ce node combine les données préparées avec le mot de passe\nconst data = $input.item.json;\n\nreturn {\n  json: {\n    ...data\n  }\n};"
       },
       "id": "prepare-tenant-user",
       "name": "10b. Préparer création Tenant et User",
@@ -513,7 +513,7 @@
       "main": [
         [
           {
-            "node": "03. IF - Stripe activé ?",
+            "node": "09a. Générer mot de passe",
             "type": "main",
             "index": 0
           }
@@ -523,6 +523,22 @@
             "node": "Répondre erreur",
             "type": "main",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "09a. Générer mot de passe": {
+      "main": [
+        [
+          {
+            "node": "03. IF - Stripe activé ?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "09b. Merge - Ajouter mot de passe",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -538,7 +554,7 @@
         ],
         [
           {
-            "node": "09. Préparer requête SQL",
+            "node": "09b. Merge - Ajouter mot de passe",
             "type": "main",
             "index": 0
           }
@@ -600,29 +616,18 @@
         ]
       ]
     },
-    "07. Stripe - Créer Abonnement": {
+    "08. Préparer avec IDs Stripe": {
       "main": [
         [
           {
-            "node": "08. Préparer avec IDs Stripe",
+            "node": "09b. Merge - Ajouter mot de passe",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "08. Préparer avec IDs Stripe": {
-      "main": [
-        [
-          {
-            "node": "09. Préparer requête SQL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "08. Préparer avec IDs Stripe": {
+    "09b. Merge - Ajouter mot de passe": {
       "main": [
         [
           {
@@ -648,18 +653,7 @@
       "main": [
         [
           {
-            "node": "10a. Générer mot de passe",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10a. Générer mot de passe": {
-      "main": [
-        [
-          {
-            "node": "10b. Préparer création Tenant et User",
+            "node": "10a. Préparer après abonnement",
             "type": "main",
             "index": 0
           }
