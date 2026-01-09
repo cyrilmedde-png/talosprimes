@@ -9,16 +9,18 @@ import {
   DocumentTextIcon,
   Cog6ToothIcon,
   UserPlusIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Notifications', href: '/notifications', icon: BellIcon },
+  { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
   { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
   { name: 'Clients', href: '/clients', icon: UsersIcon },
   { name: 'Documents', href: '/dashboard/documents', icon: DocumentTextIcon },
-  { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
 ];
 
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {
