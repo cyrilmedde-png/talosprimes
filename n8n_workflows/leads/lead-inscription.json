@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Validation des données\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\nconst nom = String(data?.nom || '').trim();\nconst prenom = String(data?.prenom || '').trim();\nconst email = String(data?.email || '').trim().toLowerCase();\nconst telephone = String(data?.telephone || '').trim();\nconst tenantId = String(data?.tenantId || payload?.tenantId || '').trim();\n\nconst errors = [];\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\nif (!telephone) errors.push('Le téléphone est requis');\nif (!tenantId) errors.push('tenantId requis');\n\nif (errors.length > 0) throw new Error(errors.join(', '));\n\nreturn { json: { nom, prenom, email, telephone, tenantId, source: 'formulaire_inscription' } };"
+        "jsCode": "// Validation des données\n// Le formulaire public envoie directement { nom, prenom, email, telephone }\n// Le backend pourrait envoyer { event, tenantId, timestamp, data: { nom, ... } }\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\n\n// Si le payload a une structure backend (avec event, tenantId, data), utiliser data\n// Sinon, c'est un appel direct depuis le formulaire public\nconst hasBackendStructure = payload?.event && payload?.data;\nconst data = hasBackendStructure ? payload.data : payload;\nconst tenantId = hasBackendStructure ? String(payload?.tenantId || '').trim() : null;\n\nconst nom = String(data?.nom || '').trim();\nconst prenom = String(data?.prenom || '').trim();\nconst email = String(data?.email || '').trim().toLowerCase();\nconst telephone = String(data?.telephone || '').trim();\n\nconst errors = [];\nif (!nom) errors.push('Le nom est requis');\nif (!prenom) errors.push('Le prénom est requis');\nif (!email) errors.push('L\\'email est requis');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Format d\\'email invalide');\nif (!telephone) errors.push('Le téléphone est requis');\n\nif (errors.length > 0) throw new Error(errors.join(', '));\n\nreturn { json: { nom, prenom, email, telephone, tenantId: tenantId || null, source: 'formulaire_inscription' } };"
       },
       "id": "Code_Validation",
       "name": "02. Validation",
@@ -54,7 +54,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer données et créer notification lead créé\nconst validationData = $('02. Validation').first().json;\nconst saveResponse = $input.first().json;\nconst leadData = saveResponse?.data?.lead || saveResponse?.data || saveResponse;\n\nreturn {\n  json: {\n    nom: validationData.nom,\n    prenom: validationData.prenom,\n    email: validationData.email,\n    telephone: validationData.telephone,\n    tenantId: validationData.tenantId,\n    leadId: leadData?.id || '',\n    timestamp: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Préparer données et déterminer tenantId\nconst validationData = $('02. Validation').first().json;\nconst saveResponse = $input.first().json;\nconst leadData = saveResponse?.data?.lead || saveResponse?.data || saveResponse;\n\nconst tenantId = validationData.tenantId;\n\nreturn {\n  json: {\n    nom: validationData.nom,\n    prenom: validationData.prenom,\n    email: validationData.email,\n    telephone: validationData.telephone,\n    tenantId: tenantId,\n    leadId: leadData?.id || '',\n    timestamp: new Date().toISOString(),\n    skipNotifications: !tenantId\n  }\n};"
       },
       "id": "Code_PrepareData",
       "name": "04. Préparer Données",
@@ -64,13 +64,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Notification: Lead créé\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    type: 'lead_inscription',\n    titre: '📋 Nouveau lead créé',\n    message: `Un nouveau lead a été créé : ${data.prenom} ${data.nom} (${data.email})`,\n    donnees: {\n      tenantId: data.tenantId,\n      leadId: data.leadId,\n      nom: data.nom,\n      prenom: data.prenom,\n      email: data.email,\n      telephone: data.telephone\n    }\n  }\n};"
+        "jsCode": "// Notification: Lead créé (seulement si tenantId disponible)\nconst data = $input.first().json;\n\nif (data.skipNotifications || !data.tenantId) {\n  return { json: { ...data, skipNotification: true } };\n}\n\nreturn {\n  json: {\n    ...data,\n    notificationData: {\n      type: 'lead_inscription',\n      titre: '📋 Nouveau lead créé',\n      message: `Un nouveau lead a été créé : ${data.prenom} ${data.nom} (${data.email})`,\n      donnees: {\n        tenantId: data.tenantId,\n        leadId: data.leadId,\n        nom: data.nom,\n        prenom: data.prenom,\n        email: data.email,\n        telephone: data.telephone\n      }\n    }\n  }\n};"
       },
       "id": "Code_NotificationLead",
       "name": "05. Notification - Lead Créé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [1120, 400]
     },
     {
       "parameters": {
@@ -78,7 +78,7 @@
         "url": "https://api.talosprimes.com/api/notifications",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
+        "jsonBody": "={{ $json.skipNotification ? { skip: true } : $json.notificationData }}",
         "options": {
           "timeout": 10000,
           "response": {
@@ -86,13 +86,14 @@
               "fullResponse": false
             }
           }
-        }
+        },
+        "continueOnFail": true
       },
       "id": "HTTP_NotificationLead",
       "name": "06. API - Créer Notification Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 300],
+      "position": [1340, 400],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -112,7 +113,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer Email Client\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 40px 30px; text-align: center; }\n    .header h1 { font-size: 28px; font-weight: 600; margin: 0; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 20px; }\n    .info-card { background: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #4a5568; }\n    .info-value { color: #2d3748; }\n    .highlight { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .highlight p { margin: 0; color: #92400e; }\n    .footer { background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom},</div>\n      <p style=\"color: #4a5568; margin: 20px 0;\">Nous avons bien reçu votre demande d'inscription sur <strong>TalosPrimes</strong>.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${data.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${data.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${data.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${data.telephone}</span></div>\n      </div>\n      <div class=\"highlight\">\n        <p>Notre équipe va examiner votre demande et vous recontactera dans un délai de <strong>24 à 48 heures</strong>.</p>\n      </div>\n      <p style=\"color: #4a5568; margin-top: 30px;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nNous avons bien reçu votre demande d'inscription sur TalosPrimes.\n\nVos informations :\n- Nom : ${data.nom}\n- Prénom : ${data.prenom}\n- Email : ${data.email}\n- Téléphone : ${data.telephone}\n\nNotre équipe va examiner votre demande et vous recontactera dans un délai de 24 à 48 heures.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    to: data.email,\n    subject: \"Confirmation de votre demande d'inscription - TalosPrimes\",\n    html: html,\n    text: text,\n    tenantId: data.tenantId,\n    leadId: data.leadId\n  }\n};"
+        "jsCode": "// Préparer Email Client\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 40px 30px; text-align: center; }\n    .header h1 { font-size: 28px; font-weight: 600; margin: 0; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 20px; }\n    .info-card { background: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .info-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }\n    .info-item:last-child { border-bottom: none; }\n    .info-label { font-weight: 600; color: #4a5568; }\n    .info-value { color: #2d3748; }\n    .highlight { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 4px; }\n    .highlight p { margin: 0; color: #92400e; }\n    .footer { background: #f7fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #718096; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting\">Bonjour ${data.prenom} ${data.nom},</div>\n      <p style=\"color: #4a5568; margin: 20px 0;\">Nous avons bien reçu votre demande d'inscription sur <strong>TalosPrimes</strong>.</p>\n      <div class=\"info-card\">\n        <div class=\"info-item\"><span class=\"info-label\">Nom :</span><span class=\"info-value\">${data.nom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Prénom :</span><span class=\"info-value\">${data.prenom}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Email :</span><span class=\"info-value\">${data.email}</span></div>\n        <div class=\"info-item\"><span class=\"info-label\">Téléphone :</span><span class=\"info-value\">${data.telephone}</span></div>\n      </div>\n      <div class=\"highlight\">\n        <p>Notre équipe va examiner votre demande et vous recontactera dans un délai de <strong>24 à 48 heures</strong>.</p>\n      </div>\n      <p style=\"color: #4a5568; margin-top: 30px;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer\">\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nNous avons bien reçu votre demande d'inscription sur TalosPrimes.\n\nVos informations :\n- Nom : ${data.nom}\n- Prénom : ${data.prenom}\n- Email : ${data.email}\n- Téléphone : ${data.telephone}\n\nNotre équipe va examiner votre demande et vous recontactera dans un délai de 24 à 48 heures.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    to: data.email,\n    subject: \"Confirmation de votre demande d'inscription - TalosPrimes\",\n    html: html,\n    text: text,\n    tenantId: data.tenantId,\n    leadId: data.leadId,\n    skipNotifications: data.skipNotifications\n  }\n};"
       },
       "id": "Code_FormatEmailClient",
       "name": "08. Formatage Email Client",
@@ -152,13 +153,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Notification: Email client envoyé\nconst emailData = $('08. Formatage Email Client').first().json;\n\nreturn {\n  json: {\n    type: 'lead_inscription_email',\n    titre: '📧 Email client envoyé',\n    message: `Email de confirmation envoyé à ${emailData.to}`,\n    donnees: {\n      tenantId: emailData.tenantId,\n      leadId: emailData.leadId,\n      email: emailData.to\n    }\n  }\n};"
+        "jsCode": "// Notification: Email client envoyé (seulement si tenantId disponible)\nconst emailData = $('08. Formatage Email Client').first().json;\n\nif (emailData.skipNotifications || !emailData.tenantId) {\n  return { json: { ...emailData, skipNotification: true } };\n}\n\nreturn {\n  json: {\n    ...emailData,\n    notificationData: {\n      type: 'lead_inscription_email',\n      titre: '📧 Email client envoyé',\n      message: `Email de confirmation envoyé à ${emailData.to}`,\n      donnees: {\n        tenantId: emailData.tenantId,\n        leadId: emailData.leadId,\n        email: emailData.to\n      }\n    }\n  }\n};"
       },
       "id": "Code_NotificationEmail",
       "name": "10. Notification - Email Envoyé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 300]
+      "position": [2220, 400]
     },
     {
       "parameters": {
@@ -166,7 +167,7 @@
         "url": "https://api.talosprimes.com/api/notifications",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
+        "jsonBody": "={{ $json.skipNotification ? { skip: true } : $json.notificationData }}",
         "options": {
           "timeout": 10000,
           "response": {
@@ -174,13 +175,14 @@
               "fullResponse": false
             }
           }
-        }
+        },
+        "continueOnFail": true
       },
       "id": "HTTP_NotificationEmail",
       "name": "11. API - Créer Notification Email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2440, 300],
+      "position": [2440, 400],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -196,17 +198,17 @@
       "name": "12. Continuer pour SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 500]
+      "position": [2660, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer SMS\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    to: data.telephone,\n    message: `Bonjour ${data.prenom} ${data.nom}, votre demande d'inscription TalosPrimes a été reçue. Vous serez recontacté dans les 24 à 48 heures. Merci !`,\n    tenantId: data.tenantId,\n    leadId: data.leadId\n  }\n};"
+        "jsCode": "// Préparer SMS\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    to: data.telephone,\n    message: `Bonjour ${data.prenom} ${data.nom}, votre demande d'inscription TalosPrimes a été reçue. Vous serez recontacté dans les 24 à 48 heures. Merci !`,\n    tenantId: data.tenantId,\n    leadId: data.leadId,\n    skipNotifications: data.skipNotifications\n  }\n};"
       },
       "id": "Code_FormatSMS",
       "name": "13. Formatage SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2440, 500]
+      "position": [2880, 400]
     },
     {
       "parameters": {
@@ -220,7 +222,7 @@
       "name": "14. Envoyer SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [2660, 500],
+      "position": [3100, 400],
       "credentials": {
         "twilioApi": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -230,13 +232,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Notification: SMS envoyé\nconst smsData = $('13. Formatage SMS').first().json;\n\nreturn {\n  json: {\n    type: 'lead_inscription_sms',\n    titre: '📱 SMS envoyé',\n    message: `SMS de confirmation envoyé à ${smsData.to}`,\n    donnees: {\n      tenantId: smsData.tenantId,\n      leadId: smsData.leadId,\n      telephone: smsData.to\n    }\n  }\n};"
+        "jsCode": "// Notification: SMS envoyé (seulement si tenantId disponible)\nconst smsData = $('13. Formatage SMS').first().json;\n\nif (smsData.skipNotifications || !smsData.tenantId) {\n  return { json: { ...smsData, skipNotification: true } };\n}\n\nreturn {\n  json: {\n    ...smsData,\n    notificationData: {\n      type: 'lead_inscription_sms',\n      titre: '📱 SMS envoyé',\n      message: `SMS de confirmation envoyé à ${smsData.to}`,\n      donnees: {\n        tenantId: smsData.tenantId,\n        leadId: smsData.leadId,\n        telephone: smsData.to\n      }\n    }\n  }\n};"
       },
       "id": "Code_NotificationSMS",
       "name": "15. Notification - SMS Envoyé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2880, 400]
+      "position": [3320, 400]
     },
     {
       "parameters": {
@@ -244,7 +246,7 @@
         "url": "https://api.talosprimes.com/api/notifications",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
+        "jsonBody": "={{ $json.skipNotification ? { skip: true } : $json.notificationData }}",
         "options": {
           "timeout": 10000,
           "response": {
@@ -252,13 +254,14 @@
               "fullResponse": false
             }
           }
-        }
+        },
+        "continueOnFail": true
       },
       "id": "HTTP_NotificationSMS",
       "name": "16. API - Créer Notification SMS",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [3100, 400],
+      "position": [3540, 400],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -278,11 +281,11 @@
       "name": "17. Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3320, 400]
+      "position": [3760, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Notification d'erreur\nconst error = $input.first().json;\nconst validationData = $('02. Validation').first()?.json || {};\n\nreturn {\n  json: {\n    type: 'lead_inscription_error',\n    titre: '🚨 Erreur workflow inscription',\n    message: `Erreur lors de l'inscription : ${error.message || error.error?.message || 'Erreur inconnue'}`,\n    donnees: {\n      tenantId: validationData.tenantId || '',\n      error: error.message || error.error?.message || 'Erreur inconnue',\n      executionId: $execution.id,\n      nom: validationData.nom || 'N/A',\n      prenom: validationData.prenom || 'N/A',\n      email: validationData.email || 'N/A'\n    }\n  }\n};"
+        "jsCode": "// Notification d'erreur (toujours créer même sans tenantId)\nconst error = $input.first().json;\nconst validationData = $('02. Validation').first()?.json || {};\n\n// Si pas de tenantId, on ne peut pas créer de notification, donc on retourne juste l'erreur\nif (!validationData.tenantId) {\n  return { json: { skip: true, error: error.message || error.error?.message || 'Erreur inconnue' } };\n}\n\nreturn {\n  json: {\n    notificationData: {\n      type: 'lead_inscription_error',\n      titre: '🚨 Erreur workflow inscription',\n      message: `Erreur lors de l'inscription : ${error.message || error.error?.message || 'Erreur inconnue'}`,\n      donnees: {\n        tenantId: validationData.tenantId,\n        error: error.message || error.error?.message || 'Erreur inconnue',\n        executionId: $execution.id,\n        nom: validationData.nom || 'N/A',\n        prenom: validationData.prenom || 'N/A',\n        email: validationData.email || 'N/A'\n      }\n    }\n  }\n};"
       },
       "id": "Code_NotificationError",
       "name": "ERROR. Notification Erreur",
@@ -296,7 +299,7 @@
         "url": "https://api.talosprimes.com/api/notifications",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
+        "jsonBody": "={{ $json.notificationData }}",
         "options": {
           "timeout": 10000,
           "response": {
@@ -304,7 +307,8 @@
               "fullResponse": false
             }
           }
-        }
+        },
+        "continueOnFail": true
       },
       "id": "HTTP_NotificationError",
       "name": "ERROR. API - Notification Erreur",
@@ -346,33 +350,23 @@
       "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
     "04. Préparer Données": {
-      "main": [
-        [
-          { "node": "05. Notification - Lead Créé", "type": "main", "index": 0 },
-          { "node": "07. Continuer", "type": "main", "index": 0 }
-        ]
-      ],
+      "main": [[{ "node": "05. Notification - Lead Créé", "type": "main", "index": 0 }]],
       "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
     "05. Notification - Lead Créé": {
       "main": [[{ "node": "06. API - Créer Notification Lead", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "error": []
     },
     "06. API - Créer Notification Lead": {
       "main": [[{ "node": "07. Continuer", "type": "main", "index": 0 }]],
-      "error": []
+      "error": [[{ "node": "07. Continuer", "type": "main", "index": 0 }]]
     },
     "07. Continuer": {
       "main": [[{ "node": "08. Formatage Email Client", "type": "main", "index": 0 }]],
       "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
     "08. Formatage Email Client": {
-      "main": [
-        [
-          { "node": "09. Envoyer Email Client", "type": "main", "index": 0 },
-          { "node": "10. Notification - Email Envoyé", "type": "main", "index": 0 }
-        ]
-      ],
+      "main": [[{ "node": "09. Envoyer Email Client", "type": "main", "index": 0 }]],
       "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
     },
     "09. Envoyer Email Client": {
@@ -385,7 +379,7 @@
     },
     "11. API - Créer Notification Email": {
       "main": [[{ "node": "12. Continuer pour SMS", "type": "main", "index": 0 }]],
-      "error": []
+      "error": [[{ "node": "12. Continuer pour SMS", "type": "main", "index": 0 }]]
     },
     "12. Continuer pour SMS": {
       "main": [[{ "node": "13. Formatage SMS", "type": "main", "index": 0 }]],
@@ -405,13 +399,14 @@
     },
     "16. API - Créer Notification SMS": {
       "main": [[{ "node": "17. Réponse Succès", "type": "main", "index": 0 }]],
-      "error": []
+      "error": [[{ "node": "17. Réponse Succès", "type": "main", "index": 0 }]]
     },
     "ERROR. Notification Erreur": {
       "main": [[{ "node": "ERROR. API - Notification Erreur", "type": "main", "index": 0 }]]
     },
     "ERROR. API - Notification Erreur": {
-      "main": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]]
     }
   },
   "pinData": {},

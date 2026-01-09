@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\nconst leadId = String(data?.id || data?.leadId || '').trim();\nconst tenantId = String(data?.tenantId || payload?.tenantId || '').trim();\n\nif (!leadId) throw new Error('ID du lead requis');\nif (!tenantId) throw new Error('tenantId requis');\n\nreturn { json: { leadId, tenantId } };"
+        "jsCode": "// Parser le payload\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\n// Le backend envoie { event, tenantId, timestamp, data: { id, ... } }\nconst tenantId = String(payload?.tenantId || '').trim();\nconst data = payload?.data || payload;\nconst leadId = String(data?.id || data?.leadId || '').trim();\n\nif (!leadId) throw new Error('ID du lead requis');\nif (!tenantId) throw new Error('tenantId requis');\n\nreturn { json: { leadId, tenantId } };"
       },
       "id": "Code_Parse",
       "name": "02. Parser Payload",
