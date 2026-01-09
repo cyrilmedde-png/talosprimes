@@ -876,6 +876,133 @@ export default function ClientsPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Créer Espace Client */}
+      {showOnboardingModal && selectedClient && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Créer l'espace client</h2>
+              <button
+                onClick={() => {
+                  setShowOnboardingModal(false);
+                  setSelectedClient(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-gray-700/30 p-4 rounded-lg">
+                <p className="text-sm text-gray-300 mb-2">Client :</p>
+                <p className="text-white font-medium">
+                  {selectedClient.type === 'b2b' 
+                    ? selectedClient.raisonSociale 
+                    : `${selectedClient.prenom} ${selectedClient.nom}`}
+                </p>
+                <p className="text-sm text-gray-400">{selectedClient.email}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Nom du plan <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={onboardingData.nomPlan}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, nomPlan: e.target.value })}
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Plan Starter"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Montant mensuel (€) <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={onboardingData.montantMensuel}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, montantMensuel: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Durée (mois) <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={onboardingData.dureeMois}
+                  onChange={(e) => setOnboardingData({ ...onboardingData, dureeMois: parseInt(e.target.value) || 1 })}
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Modules à activer
+                </label>
+                <div className="space-y-2">
+                  {['gestion_clients', 'facturation', 'suivi', 'rapports', 'crm', 'marketing', 'support'].map((module) => (
+                    <label key={module} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={onboardingData.modulesInclus.includes(module)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setOnboardingData({
+                              ...onboardingData,
+                              modulesInclus: [...onboardingData.modulesInclus, module],
+                            });
+                          } else {
+                            setOnboardingData({
+                              ...onboardingData,
+                              modulesInclus: onboardingData.modulesInclus.filter(m => m !== module),
+                            });
+                          }
+                        }}
+                        className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-gray-300 capitalize">{module.replace('_', ' ')}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-gray-400">
+                  Modules sélectionnés : {onboardingData.modulesInclus.length}
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={() => {
+                    setShowOnboardingModal(false);
+                    setSelectedClient(null);
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleCreateOnboarding}
+                  disabled={!onboardingData.nomPlan || onboardingData.modulesInclus.length === 0}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md"
+                >
+                  Créer l'espace client
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
