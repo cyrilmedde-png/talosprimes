@@ -292,25 +292,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           }
         );
 
-        // Émettre événement pour onboarding (client.onboarding)
-        await eventService.emit(
-          tenantId,
-          'client.onboarding',
-          'ClientFinal',
-          client.id,
-          {
-            client: {
-              id: client.id,
-              tenantId,
-              type: client.type,
-              email: client.email,
-              nom: client.nom,
-              prenom: client.prenom,
-              raisonSociale: client.raisonSociale,
-              telephone: client.telephone,
-            },
-          }
-        );
+        // NOTE: L'événement client.onboarding ne doit PAS être émis automatiquement
+        // Il doit être émis uniquement lors d'un onboarding explicite via /api/clients/:id/onboarding
+        // Sinon, un abonnement serait créé automatiquement pour chaque nouveau client
 
         return reply.status(201).send({
           success: true,
@@ -453,25 +437,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           }
         );
 
-        // Émettre événement pour onboarding (client.onboarding)
-        await eventService.emit(
-          tenantId,
-          'client.onboarding',
-          'ClientFinal',
-          client.id,
-          {
-            client: {
-              id: client.id,
-              tenantId,
-              type: client.type,
-              email: client.email,
-              nom: client.nom,
-              prenom: client.prenom,
-              raisonSociale: client.raisonSociale,
-              telephone: client.telephone,
-            },
-          }
-        );
+        // NOTE: L'événement client.onboarding ne doit PAS être émis automatiquement
+        // Il doit être émis uniquement lors d'un onboarding explicite via /api/clients/:id/onboarding
+        // Sinon, un abonnement serait créé automatiquement pour chaque nouveau client
 
         reply.code(201).send({
           success: true,

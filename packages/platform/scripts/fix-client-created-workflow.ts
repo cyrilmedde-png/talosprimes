@@ -1,0 +1,84 @@
+#!/usr/bin/env tsx
+/**
+ * Script pour supprimer ou désactiver les WorkflowLinks qui écoutent client.created
+ * et déclenchent automatiquement l'onboarding (ce qui n'est pas souhaité)
+ * 
+ * Usage: pnpm tsx packages/platform/scripts/fix-client-created-workflow.ts
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('🔍 Recherche des WorkflowLinks pour client.created...\n');
+
+  // Trouver tous les WorkflowLinks qui écoutent client.created
+  const workflowLinks = await prisma.workflowLink.findMany({
+    where: {
+      typeEvenement: 'client.created',
+    },
+    include: {
+      moduleMetier: true,
+    },
+  });
+
+  if (workflowLinks.length === 0) {
+    console.log('✅ Aucun WorkflowLink trouvé pour client.created');
+    console.log('   Le problème pourrait venir d\'ailleurs.\n');
+    return;
+  }
+
+  console.log(`⚠️  Trouvé ${workflowLinks.length} WorkflowLink(s) pour client.created:\n`);
+
+  for (const link of workflowLinks) {
+    console.log(`   - ID: ${link.id}`);
+    console.log(`     Tenant: ${link.tenantId}`);
+    console.log(`     Workflow: ${link.workflowN8nNom} (${link.workflowN8nId})`);
+    console.log(`     Statut: ${link.statut}`);
+    console.log(`     Module: ${link.moduleMetier?.nomAffiche || 'N/A'}`);
+    console.log('');
+  }
+
+  console.log('🚫 Suppression de ces WorkflowLinks...\n');
+
+  // Supprimer tous les WorkflowLinks qui écoutent client.created
+  const deleted = await prisma.workflowLink.deleteMany({
+    where: {
+      typeEvenement: 'client.created',
+    },
+  });
+
+  console.log(`✅ ${deleted.count} WorkflowLink(s) supprimé(s)\n`);
+
+  console.log('📝 Note importante:');
+  console.log('   - L\'événement client.created continuera d\'être émis');
+  console.log('   - Mais il ne déclenchera plus automatiquement de workflow');
+  console.log('   - L\'onboarding devra être déclenché explicitement via /api/clients/:id/onboarding\n');
+
+  // Vérifier aussi s'il y a des WorkflowLinks qui écoutent client.onboarding
+  // (ceux-ci sont OK, car ils doivent être déclenchés explicitement)
+  const onboardingLinks = await prisma.workflowLink.findMany({
+    where: {
+      typeEvenement: 'client.onboarding',
+    },
+  });
+
+  if (onboardingLinks.length > 0) {
+    console.log('✅ WorkflowLink(s) pour client.onboarding (OK, car déclenché explicitement):');
+    for (const link of onboardingLinks) {
+      console.log(`   - ${link.workflowN8nNom} (${link.workflowN8nId}) - ${link.statut}`);
+    }
+    console.log('');
+  }
+}
+
+main()
+  .catch((error) => {
+    console.error('❌ Erreur:', error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+
