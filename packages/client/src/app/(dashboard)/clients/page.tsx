@@ -214,6 +214,10 @@ export default function ClientsPage() {
     );
   });
 
+  // Séparer les clients par type
+  const clientsB2C = filteredClients.filter(client => client.type === 'b2c');
+  const clientsB2B = filteredClients.filter(client => client.type === 'b2b');
+
   const filteredLeads = leadsConvertis.filter(lead => {
     const query = searchQuery.toLowerCase();
     return (
@@ -335,91 +339,169 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Liste des clients */}
-      <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md">
-        <div className="px-6 py-4 border-b border-gray-700/30">
-          <h3 className="text-lg font-medium text-white">Liste des Clients</h3>
-          <p className="mt-1 text-sm text-gray-400">Tous vos clients finaux</p>
+      {/* Liste des clients groupés par type */}
+      {filteredClients.length === 0 ? (
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
+          <div className="text-gray-500 text-center py-8">
+            <UserIcon className="mx-auto h-12 w-12 text-gray-600" />
+            <p className="mt-4 text-gray-400">Aucun client pour le moment</p>
+          </div>
         </div>
-        <div className="p-6">
-          {filteredClients.length === 0 ? (
-            <div className="text-gray-500 text-center py-8">
-              <UserIcon className="mx-auto h-12 w-12 text-gray-600" />
-              <p className="mt-4 text-gray-400">Aucun client pour le moment</p>
+      ) : (
+        <div className="space-y-6">
+          {/* Section Clients B2C (Particuliers) */}
+          {clientsB2C.length > 0 && (
+            <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md">
+              <div className="px-6 py-4 border-b border-gray-700/30 bg-green-900/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <UserCircleIcon className="h-6 w-6 text-green-400" />
+                    <div>
+                      <h3 className="text-lg font-medium text-white">Clients B2C (Particuliers)</h3>
+                      <p className="mt-1 text-sm text-gray-400">{clientsB2C.length} client{clientsB2C.length > 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700/30">
+                    <thead className="bg-gray-800/30">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom / Prénom</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
+                      {clientsB2C.map((client) => (
+                        <tr key={client.id} className="hover:bg-gray-800/30">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                            {client.prenom} {client.nom}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.email}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.telephone || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded ${
+                              client.statut === 'actif' 
+                                ? 'bg-green-900/30 text-green-400' 
+                                : client.statut === 'inactif'
+                                ? 'bg-gray-900/30 text-gray-400'
+                                : 'bg-red-900/30 text-red-400'
+                            }`}>
+                              {client.statut}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                            {new Date(client.createdAt).toLocaleDateString('fr-FR')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEdit(client)}
+                                className="text-indigo-400 hover:text-indigo-300"
+                                title="Modifier"
+                              >
+                                <PencilIcon className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(client.id)}
+                                className="text-red-400 hover:text-red-300"
+                                title="Supprimer"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-700/30">
-                <thead className="bg-gray-800/30">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom / Raison sociale</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
-                  {filteredClients.map((client) => (
-                    <tr key={client.id} className="hover:bg-gray-800/30">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded ${
-                          client.type === 'b2b' 
-                            ? 'bg-yellow-900/30 text-yellow-400' 
-                            : 'bg-green-900/30 text-green-400'
-                        }`}>
-                          {client.type.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                        {client.type === 'b2b' 
-                          ? client.raisonSociale 
-                          : `${client.prenom} ${client.nom}`}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.telephone || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded ${
-                          client.statut === 'actif' 
-                            ? 'bg-green-900/30 text-green-400' 
-                            : client.statut === 'inactif'
-                            ? 'bg-gray-900/30 text-gray-400'
-                            : 'bg-red-900/30 text-red-400'
-                        }`}>
-                          {client.statut}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                        {new Date(client.createdAt).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEdit(client)}
-                            className="text-indigo-400 hover:text-indigo-300"
-                            title="Modifier"
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(client.id)}
-                            className="text-red-400 hover:text-red-300"
-                            title="Supprimer"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )}
+
+          {/* Section Clients B2B (Entreprises) */}
+          {clientsB2B.length > 0 && (
+            <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md">
+              <div className="px-6 py-4 border-b border-gray-700/30 bg-yellow-900/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <BuildingOfficeIcon className="h-6 w-6 text-yellow-400" />
+                    <div>
+                      <h3 className="text-lg font-medium text-white">Clients B2B (Entreprises)</h3>
+                      <p className="mt-1 text-sm text-gray-400">{clientsB2B.length} client{clientsB2B.length > 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700/30">
+                    <thead className="bg-gray-800/30">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Raison sociale</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
+                      {clientsB2B.map((client) => (
+                        <tr key={client.id} className="hover:bg-gray-800/30">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                            {client.raisonSociale}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.email}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.telephone || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded ${
+                              client.statut === 'actif' 
+                                ? 'bg-green-900/30 text-green-400' 
+                                : client.statut === 'inactif'
+                                ? 'bg-gray-900/30 text-gray-400'
+                                : 'bg-red-900/30 text-red-400'
+                            }`}>
+                              {client.statut}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                            {new Date(client.createdAt).toLocaleDateString('fr-FR')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEdit(client)}
+                                className="text-indigo-400 hover:text-indigo-300"
+                                title="Modifier"
+                              >
+                                <PencilIcon className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(client.id)}
+                                className="text-red-400 hover:text-red-300"
+                                title="Supprimer"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* Modal Créer depuis Lead */}
       {showCreateModal && createMode === 'from-lead' && (
