@@ -4,6 +4,7 @@ import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
+import { authMiddleware } from '../../middleware/auth.middleware.js';
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({
