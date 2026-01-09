@@ -88,7 +88,7 @@
         "url": "https://api.talosprimes.com/api/clients",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { tenantId: $json.tenantId, type: $json.type, nom: $json.nom, prenom: $json.prenom, email: $json.email, telephone: $json.telephone } }}",
+        "jsonBody": "={{ { tenantId: $('Préparer données client').first().json.tenantId, type: $('Préparer données client').first().json.type, nom: $('Préparer données client').first().json.nom, prenom: $('Préparer données client').first().json.prenom, email: $('Préparer données client').first().json.email, telephone: $('Préparer données client').first().json.telephone } }}",
         "options": {
           "timeout": 15000
         }

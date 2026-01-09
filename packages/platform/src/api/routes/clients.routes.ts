@@ -650,13 +650,10 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return;
         }
 
-        // Soft delete : mettre le statut à 'inactif'
-        const deletedClient = await prisma.clientFinal.update({
+        // Suppression définitive (hard delete)
+        const deletedClient = await prisma.clientFinal.delete({
           where: {
             id: params.id,
-          },
-          data: {
-            statut: 'inactif',
           },
         });
 
@@ -677,7 +674,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
 
         reply.code(200).send({
           success: true,
-          message: 'Client supprimé avec succès',
+          message: 'Client supprimé définitivement avec succès',
           data: {
             client: deletedClient,
           },
