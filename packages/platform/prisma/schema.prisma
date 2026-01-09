@@ -265,6 +265,8 @@ model ClientSubscription {
   montantMensuel           Decimal             @map("montant_mensuel") @db.Decimal(10, 2)
   modulesInclus            String[]            @default([]) @map("modules_inclus") @db.Text
   statut                   SubscriptionStatus  @default(actif)
+  idAbonnementStripe       String?             @map("id_abonnement_stripe")
+  idClientStripe            String?             @map("id_client_stripe")
   updatedAt                DateTime            @updatedAt @map("updated_at")
 
   // Relations

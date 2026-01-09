@@ -753,6 +753,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           montantMensuel?: number;
           modulesInclus?: string[];
           dureeMois?: number;
+          avecStripe?: boolean;
         };
 
         // Vérifier que le client existe et appartient au tenant
@@ -810,6 +811,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
                 telephone: client.telephone,
               },
               plan, // Inclure les paramètres du plan dans le payload
+              avecStripe: body.avecStripe || false, // Indicateur pour créer l'abonnement Stripe
             }
           );
 

@@ -39,6 +39,7 @@ export default function ClientsPage() {
     montantMensuel: 29.99,
     modulesInclus: ['gestion_clients', 'facturation', 'suivi'] as string[],
     dureeMois: 1,
+    avecStripe: false, // Option pour activer/désactiver Stripe
   });
   const [formData, setFormData] = useState({
     type: 'b2c' as 'b2b' | 'b2c',
