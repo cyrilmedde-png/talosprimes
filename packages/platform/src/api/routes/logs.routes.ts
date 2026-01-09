@@ -15,8 +15,11 @@ const getLogsQuerySchema = z.object({
 const WORKFLOW_EVENTS: Record<string, string[]> = {
   leads: [
     'lead_create',
+    'lead_created',
     'lead_update',
+    'lead_updated',
     'lead_delete',
+    'lead_deleted',
     'lead_questionnaire',
     'lead_entretien',
     'lead_confirmation',
@@ -24,8 +27,12 @@ const WORKFLOW_EVENTS: Record<string, string[]> = {
     'leads_list',
     'lead_get',
     'lead_update_status',
+    'lead_status_updated',
   ],
   clients: [
+    'client.created',
+    'client.updated',
+    'client.deleted',
     'client_create',
     'client_update',
     'client_delete',
