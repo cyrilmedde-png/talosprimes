@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script pour générer la migration Prisma et régénérer le client pour les notifications
+# Script pour créer la table notifications et régénérer le client Prisma
 # Usage: ./scripts/fix-notifications-migration.sh
 
 set -e
@@ -21,44 +21,37 @@ fi
 
 cd "$PLATFORM_DIR" || exit 1
 
-echo "📋 Vérification de la connexion à la base de données..."
-if ! pnpm prisma db execute --stdin <<< "SELECT 1;" > /dev/null 2>&1; then
-    echo "⚠️  Impossible de vérifier la connexion, mais on continue..."
+echo "🔄 Poussage du schéma Prisma vers la base de données (db push)..."
+echo "   Cela va créer/modifier la table 'notifications' si nécessaire"
+pnpm prisma db push --accept-data-loss
+
+if [ $? -ne 0 ]; then
+    echo "❌ Erreur lors du push du schéma"
+    echo ""
+    echo "💡 Tentative alternative avec migrate..."
+    pnpm prisma migrate dev --name add_notifications_table || {
+        echo "⚠️  Erreur lors de la migration"
+        exit 1
+    }
 fi
 
 echo ""
-echo "🔄 Génération du client Prisma (sans migration)..."
+echo "🔄 Régénération du client Prisma TypeScript..."
 pnpm prisma generate
 
 if [ $? -eq 0 ]; then
     echo "✅ Client Prisma régénéré avec succès"
 else
     echo "❌ Erreur lors de la régénération du client Prisma"
-    echo ""
-    echo "📝 Tentative de génération de la migration..."
-    
-    echo ""
-    echo "🔄 Génération de la migration..."
-    pnpm prisma migrate dev --name add_notifications_table --create-only || {
-        echo "⚠️  La migration existe peut-être déjà, on continue..."
-    }
-    
-    echo ""
-    echo "🔄 Application de la migration..."
-    pnpm prisma migrate deploy || {
-        echo "⚠️  Erreur lors de l'application de la migration"
-        echo "💡 Essayez: pnpm prisma db push (pour forcer la création de la table)"
-    }
-    
-    echo ""
-    echo "🔄 Régénération finale du client Prisma..."
-    pnpm prisma generate
+    exit 1
 fi
 
 echo ""
-echo "✅ Opérations terminées !"
+echo "✅ Opérations terminées avec succès !"
 echo ""
-echo "📋 Pour vérifier, exécutez :"
-echo "   pnpm prisma studio"
+echo "📋 La table 'notifications' a été créée/modifiée dans la base de données"
+echo "📋 Le client Prisma TypeScript a été régénéré"
+echo ""
+echo "💡 Pour vérifier, exécutez : pnpm prisma studio"
 echo ""
 
