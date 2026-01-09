@@ -7,18 +7,18 @@
       "name": "Webhook - Onboarding Client",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [240, 400],
       "webhookId": "client-onboarding"
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'onboarding\nconst payload = $input.item.json;\n\n// Extraire les données du client depuis le payload\nconst clientData = payload.data?.client || payload.data || payload;\nconst tenantId = payload.tenantId || clientData.tenantId;\nconst clientId = clientData.clientId || clientData.id;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nconst planFromPayload = payload.data?.plan || {};\nconst plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Calculer les dates\nconst dateDebut = new Date();\nconst dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn {\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n};"
+        "jsCode": "// Préparer les données pour l'onboarding\nconst payload = $input.item.json;\n\n// Extraire les données du client depuis le payload\nconst clientData = payload.data?.client || payload.data || payload;\nconst tenantId = payload.tenantId || clientData.tenantId;\nconst clientId = clientData.clientId || clientData.id;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nconst planFromPayload = payload.data?.plan || {};\nconst plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nconst avecStripe = payload.data?.avecStripe || false;\n\n// Calculer les dates\nconst dateDebut = new Date();\nconst dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn {\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n};"
       },
       "id": "prepare-data",
       "name": "01. Préparer données onboarding",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [460, 400]
     },
     {
       "parameters": {
@@ -39,17 +39,248 @@
       "name": "02. Validation données",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [680, 300]
+      "position": [680, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les modules inclus pour la requête SQL\nconst modules = $json.plan.modulesInclus || [];\nconst modulesArray = modules.map(m => `'${m.replace(/'/g, \"''\")}'`).join(', ');\n\n// Construire la requête SQL avec les valeurs\nconst query = `INSERT INTO client_subscriptions (\n  id,\n  client_final_id,\n  nom_plan,\n  date_debut,\n  date_prochain_renouvellement,\n  montant_mensuel,\n  modules_inclus,\n  statut,\n  updated_at\n) VALUES (\n  gen_random_uuid(),\n  '${$json.clientId}'::uuid,\n  '${String($json.plan.nomPlan).replace(/'/g, \"''\")}',\n  '${$json.dateDebut}'::timestamptz,\n  '${$json.dateProchainRenouvellement}'::timestamptz,\n  ${$json.plan.montantMensuel},\n  ARRAY[${modulesArray}]::text[],\n  'actif'::subscription_status,\n  NOW()\n)\nRETURNING *;`;\n\nreturn {\n  json: {\n    ...$json,\n    sqlQuery: query\n  }\n};"
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.avecStripe }}",
+              "value2": true
+            }
+          ]
+        }
       },
-      "id": "prepare-sql",
-      "name": "02b. Préparer requête SQL",
+      "id": "if-stripe",
+      "name": "03. IF - Stripe activé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://api.stripe.com/v1/customers",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $('01. Préparer données onboarding').item.json.clientData.email }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $('01. Préparer données onboarding').item.json.clientData.nom || $('01. Préparer données onboarding').item.json.clientData.raisonSociale || $('01. Préparer données onboarding').item.json.clientData.email }}"
+            },
+            {
+              "name": "metadata[clientId]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
+            },
+            {
+              "name": "metadata[tenantId]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "stripe-create-customer",
+      "name": "04. Stripe - Créer Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.stripe.com/v1/products",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $('01. Préparer données onboarding').item.json.plan.nomPlan }}"
+            },
+            {
+              "name": "metadata[modules]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.plan.modulesInclus.join(',') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "stripe-create-product",
+      "name": "05. Stripe - Créer Produit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.stripe.com/v1/prices",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "product",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "unit_amount",
+              "value": "={{ Math.round($('01. Préparer données onboarding').item.json.plan.montantMensuel * 100) }}"
+            },
+            {
+              "name": "currency",
+              "value": "eur"
+            },
+            {
+              "name": "recurring[interval]",
+              "value": "month"
+            },
+            {
+              "name": "recurring[interval_count]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.plan.dureeMois }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "stripe-create-price",
+      "name": "06. Stripe - Créer Prix",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.stripe.com/v1/subscriptions",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "customer",
+              "value": "={{ $('04. Stripe - Créer Customer').item.json.id }}"
+            },
+            {
+              "name": "items[0][price]",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "payment_behavior",
+              "value": "default_incomplete"
+            },
+            {
+              "name": "payment_settings[save_default_payment_method]",
+              "value": "on_subscription"
+            },
+            {
+              "name": "metadata[clientId]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
+            },
+            {
+              "name": "metadata[planName]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.plan.nomPlan }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "stripe-create-subscription",
+      "name": "07. Stripe - Créer Abonnement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer les données avec les IDs Stripe\nconst customerId = $('04. Stripe - Créer Customer').item.json.id;\nconst subscriptionId = $('07. Stripe - Créer Abonnement').item.json.id;\nconst prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn {\n  json: {\n    ...prepareData,\n    idClientStripe: customerId,\n    idAbonnementStripe: subscriptionId\n  }\n};"
+      },
+      "id": "prepare-with-stripe",
+      "name": "08. Préparer avec IDs Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer les modules inclus pour la requête SQL\nconst data = $input.item.json;\nconst modules = data.plan.modulesInclus || [];\nconst modulesArray = modules.map(m => `'${m.replace(/'/g, \"''\")}'`).join(', ');\n\n// IDs Stripe (optionnels)\nconst idClientStripe = data.idClientStripe ? `'${data.idClientStripe}'` : 'NULL';\nconst idAbonnementStripe = data.idAbonnementStripe ? `'${data.idAbonnementStripe}'` : 'NULL';\n\n// Construire la requête SQL avec les valeurs\nconst query = `INSERT INTO client_subscriptions (\n  id,\n  client_final_id,\n  nom_plan,\n  date_debut,\n  date_prochain_renouvellement,\n  montant_mensuel,\n  modules_inclus,\n  statut,\n  id_client_stripe,\n  id_abonnement_stripe,\n  updated_at\n) VALUES (\n  gen_random_uuid(),\n  '${data.clientId}'::uuid,\n  '${String(data.plan.nomPlan).replace(/'/g, \"''\")}',\n  '${data.dateDebut}'::timestamptz,\n  '${data.dateProchainRenouvellement}'::timestamptz,\n  ${data.plan.montantMensuel},\n  ARRAY[${modulesArray}]::text[],\n  'actif'::subscription_status,\n  ${idClientStripe},\n  ${idAbonnementStripe},\n  NOW()\n)\nRETURNING *;`;\n\nreturn {\n  json: {\n    ...data,\n    sqlQuery: query\n  }\n};"
+      },
+      "id": "prepare-sql",
+      "name": "09. Préparer requête SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 500]
     },
     {
       "parameters": {
@@ -57,10 +288,10 @@
         "query": "={{ $json.sqlQuery }}"
       },
       "id": "create-subscription",
-      "name": "03. Créer abonnement client",
+      "name": "10. Créer abonnement client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1120, 300],
+      "position": [1340, 500],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -70,13 +301,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la réponse de succès\nconst subscription = $input.item.json;\nconst clientData = $('01. Préparer données onboarding').item.json.clientData;\n\nreturn {\n  json: {\n    success: true,\n    message: \"Espace client créé avec succès\",\n    client: clientData,\n    subscription: subscription[0] || subscription,\n    modulesActives: subscription[0]?.modules_inclus || subscription.modules_inclus || []\n  }\n};"
+        "jsCode": "// Préparer la réponse de succès\nconst subscription = $input.item.json;\nconst clientData = $('01. Préparer données onboarding').item.json.clientData;\nconst prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn {\n  json: {\n    success: true,\n    message: \"Espace client créé avec succès\" + (prepareData.avecStripe ? \" (avec Stripe)\" : \"\"),\n    client: clientData,\n    subscription: subscription[0] || subscription,\n    modulesActives: subscription[0]?.modules_inclus || subscription.modules_inclus || [],\n    stripe: prepareData.avecStripe ? {\n      customerId: prepareData.idClientStripe,\n      subscriptionId: prepareData.idAbonnementStripe\n    } : null\n  }\n};"
       },
       "id": "format-response",
-      "name": "04. Formater réponse",
+      "name": "11. Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [1560, 500]
     },
     {
       "parameters": {
@@ -94,14 +325,14 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"tenantId\": \"{{ $('01. Préparer données onboarding').item.json.tenantId }}\",\n  \"type\": \"client_onboarding\",\n  \"titre\": \"Espace client créé\",\n  \"message\": \"L'espace client et l'abonnement ont été créés avec succès pour {{ $('01. Préparer données onboarding').item.json.clientData.nom || $('01. Préparer données onboarding').item.json.clientData.raisonSociale }}\",\n  \"donnees\": {\n    \"clientId\": \"{{ $('01. Préparer données onboarding').item.json.clientId }}\",\n    \"subscriptionId\": \"{{ $json.subscription.id || $json.subscription[0]?.id }}\"\n  }\n}",
+        "jsonBody": "={\n  \"tenantId\": \"{{ $('01. Préparer données onboarding').item.json.tenantId }}\",\n  \"type\": \"client_onboarding\",\n  \"titre\": \"Espace client créé\" + ({{ $('01. Préparer données onboarding').item.json.avecStripe }} ? \" (Stripe)\" : \"\"),\n  \"message\": \"L'espace client et l'abonnement ont été créés avec succès pour {{ $('01. Préparer données onboarding').item.json.clientData.nom || $('01. Préparer données onboarding').item.json.clientData.raisonSociale }}\" + ({{ $('01. Préparer données onboarding').item.json.avecStripe }} ? \" - Abonnement Stripe créé\" : \"\"),\n  \"donnees\": {\n    \"clientId\": \"{{ $('01. Préparer données onboarding').item.json.clientId }}\",\n    \"subscriptionId\": \"{{ $json.subscription.id || $json.subscription[0]?.id }}\"\n  }\n}",
         "options": {}
       },
       "id": "create-notification",
-      "name": "05. Créer notification",
+      "name": "12. Créer notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 300],
+      "position": [1780, 500],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -112,14 +343,14 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($('04. Formater réponse').item.json) }}",
+        "responseBody": "={{ JSON.stringify($('11. Formater réponse').item.json) }}",
         "options": {}
       },
       "id": "respond-webhook",
-      "name": "06. Répondre au webhook",
+      "name": "13. Répondre au webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1780, 300]
+      "position": [2000, 500]
     },
     {
       "parameters": {
@@ -131,7 +362,7 @@
       "name": "Répondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [680, 500]
+      "position": [680, 600]
     }
   ],
   "connections": {
@@ -161,7 +392,7 @@
       "main": [
         [
           {
-            "node": "02b. Préparer requête SQL",
+            "node": "03. IF - Stripe activé ?",
             "type": "main",
             "index": 0
           }
@@ -175,44 +406,117 @@
         ]
       ]
     },
-    "02b. Préparer requête SQL": {
+    "03. IF - Stripe activé ?": {
       "main": [
         [
           {
-            "node": "03. Créer abonnement client",
+            "node": "04. Stripe - Créer Customer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09. Préparer requête SQL",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "03. Créer abonnement client": {
+    "04. Stripe - Créer Customer": {
       "main": [
         [
           {
-            "node": "04. Formater réponse",
+            "node": "05. Stripe - Créer Produit",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "04. Formater réponse": {
+    "05. Stripe - Créer Produit": {
       "main": [
         [
           {
-            "node": "05. Créer notification",
+            "node": "06. Stripe - Créer Prix",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05. Créer notification": {
+    "06. Stripe - Créer Prix": {
       "main": [
         [
           {
-            "node": "06. Répondre au webhook",
+            "node": "07. Stripe - Créer Abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Stripe - Créer Abonnement": {
+      "main": [
+        [
+          {
+            "node": "08. Préparer avec IDs Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Préparer avec IDs Stripe": {
+      "main": [
+        [
+          {
+            "node": "09. Préparer requête SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Préparer requête SQL": {
+      "main": [
+        [
+          {
+            "node": "10. Créer abonnement client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Créer abonnement client": {
+      "main": [
+        [
+          {
+            "node": "11. Formater réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Formater réponse": {
+      "main": [
+        [
+          {
+            "node": "12. Créer notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Créer notification": {
+      "main": [
+        [
+          {
+            "node": "13. Répondre au webhook",
             "type": "main",
             "index": 0
           }
@@ -227,6 +531,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2026-01-09T12:00:00.000Z",
+  "updatedAt": "2026-01-09T13:45:00.000Z",
   "versionId": "1"
 }
