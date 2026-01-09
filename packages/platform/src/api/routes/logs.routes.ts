@@ -90,20 +90,44 @@ export async function logsRoutes(fastify: FastifyInstance) {
           prisma.eventLog.count({ where }),
         ]);
 
-        // Déterminer le workflow pour chaque log
-        const logsWithWorkflow = logs.map((log) => {
-          let workflow = 'other';
-          if (WORKFLOW_EVENTS.leads.includes(log.typeEvenement)) {
-            workflow = 'leads';
-          } else if (WORKFLOW_EVENTS.clients.includes(log.typeEvenement)) {
-            workflow = 'clients';
-          }
+        // Enrichir les logs avec l'email de l'entité et déterminer le workflow
+        const logsWithWorkflow = await Promise.all(
+          logs.map(async (log) => {
+            let workflow = 'other';
+            if (WORKFLOW_EVENTS.leads.includes(log.typeEvenement)) {
+              workflow = 'leads';
+            } else if (WORKFLOW_EVENTS.clients.includes(log.typeEvenement)) {
+              workflow = 'clients';
+            }
 
-          return {
-            ...log,
-            workflow,
-          };
-        });
+            // Récupérer l'email de l'entité
+            let entityEmail: string | null = null;
+            try {
+              if (log.entiteType === 'ClientFinal') {
+                const client = await prisma.clientFinal.findUnique({
+                  where: { id: log.entiteId },
+                  select: { email: true },
+                });
+                entityEmail = client?.email || null;
+              } else if (log.entiteType === 'Lead') {
+                const lead = await prisma.lead.findUnique({
+                  where: { id: log.entiteId },
+                  select: { email: true },
+                });
+                entityEmail = lead?.email || null;
+              }
+            } catch (error) {
+              // Ignorer les erreurs de récupération d'email
+              fastify.log.warn(error, `Impossible de récupérer l'email pour ${log.entiteType} ${log.entiteId}`);
+            }
+
+            return {
+              ...log,
+              workflow,
+              entityEmail,
+            };
+          })
+        );
 
         return reply.send({
           success: true,

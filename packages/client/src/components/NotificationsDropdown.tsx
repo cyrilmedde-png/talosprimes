@@ -36,7 +36,17 @@ export default function NotificationsDropdown() {
     const interval = setInterval(() => {
       loadNotifications();
     }, 30000); // Rafraîchir toutes les 30 secondes
-    return () => clearInterval(interval);
+
+    // Écouter l'événement de rechargement depuis la page logs
+    const handleReload = () => {
+      loadNotifications();
+    };
+    window.addEventListener('reload-notifications', handleReload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('reload-notifications', handleReload);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

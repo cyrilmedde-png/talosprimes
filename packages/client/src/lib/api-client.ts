@@ -264,6 +264,7 @@ export interface Log {
   messageErreur: string | null;
   createdAt: string;
   workflow?: 'leads' | 'clients' | 'other';
+  entityEmail?: string | null;
 }
 
 export interface LogStats {

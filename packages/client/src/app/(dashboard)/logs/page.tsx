@@ -16,6 +16,7 @@ type WorkflowType = 'all' | 'leads' | 'clients';
 type LogStatus = 'all' | 'erreur' | 'succes' | 'en_attente';
 
 export default function LogsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<WorkflowType>('all');
   const [statusFilter, setStatusFilter] = useState<LogStatus>('all');
   const [logs, setLogs] = useState<Log[]>([]);
@@ -23,6 +24,12 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorsAndWarnings, setErrorsAndWarnings] = useState<Log[]>([]);
+
+  // Recharger les notifications quand on visite la page logs (pour réinitialiser la bulle)
+  useEffect(() => {
+    // Déclencher un événement personnalisé pour recharger les notifications
+    window.dispatchEvent(new CustomEvent('reload-notifications'));
+  }, []);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -196,6 +203,9 @@ export default function LogsPage() {
                         </span>
                       </div>
                       <p className="text-sm font-medium mb-1">{log.typeEvenement}</p>
+                      <p className="text-xs text-gray-400 mb-2">
+                        Entité: {log.entiteType} ({log.entityEmail || log.entiteId.slice(0, 8) + '...'})
+                      </p>
                       {log.messageErreur && (
                         <p className="text-xs text-red-300/80 mb-2">{log.messageErreur}</p>
                       )}
@@ -320,7 +330,7 @@ export default function LogsPage() {
                     </div>
                     <p className="text-sm font-medium mb-1">{log.typeEvenement}</p>
                     <p className="text-xs text-gray-400 mb-2">
-                      Entité: {log.entiteType} ({log.entiteId.slice(0, 8)}...)
+                      Entité: {log.entiteType} ({log.entityEmail || log.entiteId.slice(0, 8) + '...'})
                     </p>
                     {log.messageErreur && (
                       <p className="text-xs text-red-300/80 mb-2 bg-red-900/30 p-2 rounded">
