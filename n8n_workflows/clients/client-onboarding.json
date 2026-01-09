@@ -211,7 +211,17 @@
     },
     {
       "parameters": {
-        "url": "https://api.stripe.com/v1/subscriptions",
+        "jsCode": "// Préparer les URLs de redirection pour Stripe Checkout\nconst prepareData = $('01. Préparer données onboarding').item.json;\nconst baseUrl = 'https://talosprimes.com';\nconst clientId = prepareData.clientId;\n\n// URLs de redirection après paiement\nconst successUrl = `${baseUrl}/clients?checkout=success&clientId=${clientId}&session_id={CHECKOUT_SESSION_ID}`;\nconst cancelUrl = `${baseUrl}/clients?checkout=cancelled&clientId=${clientId}`;\n\nreturn {\n  json: {\n    ...prepareData,\n    checkoutSuccessUrl: successUrl,\n    checkoutCancelUrl: cancelUrl\n  }\n};"
+      },
+      "id": "prepare-checkout-urls",
+      "name": "06b. Préparer URLs Checkout",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 380]
+    },
+    {
+      "parameters": {
+        "url": "https://api.stripe.com/v1/checkout/sessions",
         "method": "POST",
         "authentication": "headerAuth",
         "sendHeaders": true,
@@ -232,38 +242,58 @@
               "value": "={{ $('04. Stripe - Créer Customer').item.json.id }}"
             },
             {
-              "name": "items[0][price]",
-              "value": "={{ $json.id }}"
+              "name": "mode",
+              "value": "subscription"
             },
             {
-              "name": "payment_behavior",
-              "value": "default_incomplete"
+              "name": "line_items[0][price]",
+              "value": "={{ $('06. Stripe - Créer Prix').item.json.id }}"
             },
             {
-              "name": "expand[]",
-              "value": "latest_invoice.payment_intent"
+              "name": "line_items[0][quantity]",
+              "value": "1"
             },
             {
-              "name": "payment_settings[save_default_payment_method]",
-              "value": "on_subscription"
+              "name": "success_url",
+              "value": "={{ $('06b. Préparer URLs Checkout').item.json.checkoutSuccessUrl }}"
+            },
+            {
+              "name": "cancel_url",
+              "value": "={{ $('06b. Préparer URLs Checkout').item.json.checkoutCancelUrl }}"
             },
             {
               "name": "metadata[clientId]",
               "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
             },
             {
+              "name": "metadata[tenantId]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
+            },
+            {
               "name": "metadata[planName]",
               "value": "={{ $('01. Préparer données onboarding').item.json.plan.nomPlan }}"
+            },
+            {
+              "name": "subscription_data[metadata][clientId]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
+            },
+            {
+              "name": "subscription_data[metadata][tenantId]",
+              "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
+            },
+            {
+              "name": "payment_method_types[]",
+              "value": "card"
             }
           ]
         },
         "options": {}
       },
-      "id": "stripe-create-subscription",
-      "name": "07. Stripe - Créer Abonnement",
+      "id": "stripe-create-checkout",
+      "name": "07. Stripe - Créer Session Checkout",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 300],
+      "position": [1780, 380],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -273,13 +303,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données avec les IDs Stripe\nconst customerId = $('04. Stripe - Créer Customer').item.json.id;\nconst subscriptionId = $('07. Stripe - Créer Abonnement').item.json.id;\nconst prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn {\n  json: {\n    ...prepareData,\n    idClientStripe: customerId,\n    idAbonnementStripe: subscriptionId\n  }\n};"
+        "jsCode": "// Préparer les données avec les IDs Stripe et l'URL de checkout\nconst customerId = $('04. Stripe - Créer Customer').item.json.id;\nconst checkoutSession = $('07. Stripe - Créer Session Checkout').item.json;\nconst checkoutUrl = checkoutSession.url;\nconst prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn {\n  json: {\n    ...prepareData,\n    idClientStripe: customerId,\n    idSessionCheckoutStripe: checkoutSession.id,\n    checkoutUrl: checkoutUrl\n  }\n};"
       },
       "id": "prepare-with-stripe",
       "name": "08. Préparer avec IDs Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 300]
+      "position": [2000, 380]
     },
     {
       "parameters": {
@@ -310,7 +340,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la réponse de succès\nconst subscription = $input.item.json;\nconst clientData = $('01. Préparer données onboarding').item.json.clientData;\nconst prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn {\n  json: {\n    success: true,\n    message: \"Espace client créé avec succès\" + (prepareData.avecStripe ? \" (avec Stripe)\" : \"\"),\n    client: clientData,\n    subscription: subscription[0] || subscription,\n    modulesActives: subscription[0]?.modules_inclus || subscription.modules_inclus || [],\n    stripe: prepareData.avecStripe ? {\n      customerId: prepareData.idClientStripe,\n      subscriptionId: prepareData.idAbonnementStripe\n    } : null\n  }\n};"
+        "jsCode": "// Préparer la réponse de succès\nconst subscription = $input.item.json;\nconst clientData = $('01. Préparer données onboarding').item.json.clientData;\nconst prepareData = $('08. Préparer avec IDs Stripe').item.json || $('01. Préparer données onboarding').item.json;\n\n// Si Stripe est activé, on a une URL de checkout\nconst stripeData = prepareData.avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\nreturn {\n  json: {\n    success: true,\n    message: prepareData.avecStripe && prepareData.checkoutUrl \n      ? \"Espace client créé. Redirection vers le paiement...\" \n      : \"Espace client créé avec succès\",\n    client: clientData,\n    subscription: subscription[0] || subscription,\n    modulesActives: subscription[0]?.modules_inclus || subscription.modules_inclus || [],\n    stripe: stripeData\n  }\n};"
       },
       "id": "format-response",
       "name": "11. Formater réponse",
@@ -469,7 +499,29 @@
       "main": [
         [
           {
-            "node": "07. Stripe - Créer Abonnement",
+            "node": "06b. Préparer URLs Checkout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06b. Préparer URLs Checkout": {
+      "main": [
+        [
+          {
+            "node": "07. Stripe - Créer Session Checkout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Stripe - Créer Session Checkout": {
+      "main": [
+        [
+          {
+            "node": "08. Préparer avec IDs Stripe",
             "type": "main",
             "index": 0
           }
