@@ -10,7 +10,6 @@ import {
   ClockIcon,
   XCircleIcon,
   InformationCircleIcon,
-  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 
 type WorkflowType = 'all' | 'leads' | 'clients';
