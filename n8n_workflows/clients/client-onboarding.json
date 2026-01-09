@@ -313,7 +313,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données après création de l'abonnement\nconst subscription = $input.item.json;\nconst prepareData = $('09b. Merge - Ajouter mot de passe').item.json;\n\nreturn {\n  json: {\n    ...prepareData,\n    subscriptionData: subscription[0] || subscription\n  }\n};"
+        "jsCode": "// Préparer les données après création de l'abonnement\n// Récupérer l'abonnement créé depuis le node précédent (10. Créer abonnement client)\nconst subscription = $input.item.json;\n\n// Récupérer les données originales depuis le node 09 qui contient toutes les infos (mot de passe, clientId, etc.)\nconst prepareData = $('09. Préparer requête SQL').item.json;\n\nreturn {\n  json: {\n    ...prepareData,\n    subscriptionData: subscription[0] || subscription,\n    subscriptionId: subscription.id || subscription[0]?.id\n  }\n};"
       },
       "id": "prepare-after-subscription",
       "name": "10a. Préparer après abonnement",
@@ -371,7 +371,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour créer Tenant et User\n// Ce node combine les données préparées avec le mot de passe\nconst data = $input.item.json;\n\nreturn {\n  json: {\n    ...data\n  }\n};"
+        "jsCode": "// Préparer les données pour créer Tenant et User\n// Récupérer les données depuis 10a qui contient toutes les infos nécessaires\nconst data = $input.item.json;\n\n// Extraire les données nécessaires pour créer le Tenant et User\nconst clientId = data.clientId || data.subscriptionData?.client_final_id;\nconst tenantId = data.tenantId;\nconst email = data.clientEmail || data.clientData?.email;\nconst password = data.plainPassword;\nconst nom = data.clientNom || data.clientData?.nom || '';\nconst prenom = data.clientPrenom || data.clientData?.prenom || '';\nconst raisonSociale = data.clientRaisonSociale || data.clientData?.raisonSociale || null;\nconst tenantName = data.tenantName;\n\nif (!clientId || !tenantId || !email || !password) {\n  throw new Error('Données manquantes pour créer Tenant et User: clientId, tenantId, email ou password');\n}\n\nreturn {\n  json: {\n    clientId,\n    tenantId,\n    email,\n    password,\n    nom,\n    prenom,\n    raisonSociale,\n    tenantName: tenantName || raisonSociale || `${nom} ${prenom}`.trim() || email\n  }\n};"
       },
       "id": "prepare-tenant-user",
       "name": "10b. Préparer création Tenant et User",
@@ -395,7 +395,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  clientId: $json.clientId,\n  tenantId: $json.tenantId,\n  email: $json.clientEmail,\n  password: $json.plainPassword,\n  nom: $json.clientNom,\n  prenom: $json.clientPrenom,\n  raisonSociale: $json.clientRaisonSociale || null,\n  tenantName: $json.tenantName\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  clientId: $json.clientId,\n  tenantId: $json.tenantId,\n  email: $json.email,\n  password: $json.password,\n  nom: $json.nom,\n  prenom: $json.prenom,\n  raisonSociale: $json.raisonSociale || null,\n  tenantName: $json.tenantName\n}) }}",
         "options": {}
       },
       "id": "create-credentials",
