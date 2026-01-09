@@ -12,6 +12,7 @@ import { leadsRoutes } from './api/routes/leads.routes.js';
 import { notificationsRoutes } from './api/routes/notifications.routes.js';
 import { tenantRoutes } from './api/routes/tenant.routes.js';
 import { usersRoutes } from './api/routes/users.routes.js';
+import { logsRoutes } from './api/routes/logs.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -106,6 +107,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes notifications
 await fastify.register(async (fastify) => {
   await fastify.register(notificationsRoutes, { prefix: '/api/notifications' });
+});
+
+// Enregistrer les routes logs
+await fastify.register(async (fastify) => {
+  await fastify.register(logsRoutes, { prefix: '/api/logs' });
 });
 
 // Route de test

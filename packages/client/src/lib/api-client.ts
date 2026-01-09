@@ -218,6 +218,24 @@ export const apiClient = {
       method: 'DELETE',
     }),
   },
+
+  // Logs
+  logs: {
+    list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.workflow) queryParams.append('workflow', params.workflow);
+      if (params?.statutExecution) queryParams.append('statutExecution', params.statutExecution);
+      if (params?.typeEvenement) queryParams.append('typeEvenement', params.typeEvenement);
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { logs: Log[]; total: number; limit: number; offset: number } }>(`/api/logs${query ? `?${query}` : ''}`);
+    },
+    stats: (workflow?: 'leads' | 'clients' | 'all') => {
+      const query = workflow ? `?workflow=${workflow}` : '';
+      return authenticatedFetch<{ success: boolean; data: LogStats }>(`/api/logs/stats${query}`);
+    },
+  },
 };
 
 // Type pour les notifications
@@ -230,5 +248,32 @@ export interface Notification {
   donnees?: Record<string, unknown>;
   lu: boolean;
   createdAt: string;
+}
+
+// Type pour les logs
+export interface Log {
+  id: string;
+  tenantId: string;
+  typeEvenement: string;
+  entiteType: string;
+  entiteId: string;
+  payload: Record<string, unknown>;
+  workflowN8nDeclenche: boolean;
+  workflowN8nId: string | null;
+  statutExecution: 'en_attente' | 'succes' | 'erreur';
+  messageErreur: string | null;
+  createdAt: string;
+  workflow?: 'leads' | 'clients' | 'other';
+}
+
+export interface LogStats {
+  total: number;
+  succeeded: number;
+  errors: number;
+  enAttente: number;
+  byWorkflow: {
+    leads: { total: number; errors: number; succeeded: number };
+    clients: { total: number; errors: number; succeeded: number };
+  };
 }
 
