@@ -138,8 +138,29 @@ export const apiClient = {
       method: 'DELETE',
     }),
     
-    createOnboarding: (id: string, data: { nomPlan?: string; montantMensuel?: number; modulesInclus?: string[]; dureeMois?: number }) =>
-      authenticatedFetch<{ success: boolean; message: string; data?: { subscription: unknown; plan: unknown } }>(`/api/clients/${id}/onboarding`, {
+    createOnboarding: (id: string, data: { nomPlan?: string; montantMensuel?: number; modulesInclus?: string[]; dureeMois?: number; avecStripe?: boolean }) =>
+      authenticatedFetch<{ 
+        success: boolean; 
+        message: string; 
+        data?: { 
+          subscription: unknown; 
+          plan: unknown; 
+          client: unknown;
+          modulesActives: string[];
+          credentials?: {
+            tenantId: string;
+            userId: string;
+            email: string;
+            password: string;
+          };
+          stripe?: {
+            customerId: string;
+            checkoutSessionId: string;
+            checkoutUrl: string;
+            requiresPayment: boolean;
+          } | null;
+        } 
+      }>(`/api/clients/${id}/onboarding`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
