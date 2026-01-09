@@ -2,7 +2,12 @@
   "name": "Onboarding Client - Créer espace et abonnement",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client-onboarding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
       "id": "webhook-onboarding",
       "name": "Webhook - Onboarding Client",
       "type": "n8n-nodes-base.webhook",
