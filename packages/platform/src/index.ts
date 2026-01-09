@@ -9,6 +9,7 @@ import { authRoutes } from './api/routes/auth.routes.js';
 import { clientsRoutes } from './api/routes/clients.routes.js';
 import { n8nRoutes } from './api/routes/n8n.routes.js';
 import { leadsRoutes } from './api/routes/leads.routes.js';
+import { notificationsRoutes } from './api/routes/notifications.routes.js';
 import { tenantRoutes } from './api/routes/tenant.routes.js';
 import { usersRoutes } from './api/routes/users.routes.js';
 
@@ -100,6 +101,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes users (gestion utilisateurs)
 await fastify.register(async (fastify) => {
   await fastify.register(usersRoutes, { prefix: '/api/users' });
+});
+
+// Enregistrer les routes notifications
+await fastify.register(async (fastify) => {
+  await fastify.register(notificationsRoutes, { prefix: '/api/notifications' });
 });
 
 // Route de test

@@ -149,6 +149,7 @@ model Tenant {
   invoices           Invoice[]
   workflowLinks      WorkflowLink[]
   eventLogs          EventLog[]
+  notifications      Notification[]
 
   @@index([emailContact])
   @@index([statut])
@@ -370,5 +371,26 @@ model Lead {
   @@index([statut])
   @@index([createdAt])
   @@map("leads")
+}
+
+// Notification (notifications dans la plateforme)
+model Notification {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  type        String   // ex: "lead_inscription", "lead_questionnaire", "lead_entretien", "lead_confirmation", "client_creation"
+  titre       String   @map("titre")
+  message     String   @map("message") @db.Text
+  donnees     Json?    @map("donnees") // Données additionnelles (leadId, clientId, etc.)
+  lu          Boolean  @default(false) @map("lu")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([type])
+  @@index([lu])
+  @@index([createdAt])
+  @@map("notifications")
 }
 
