@@ -5,15 +5,38 @@
 
 set -e
 
+# Trouver le répertoire du script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$PROJECT_ROOT" || exit 1
+
 echo "🔍 Recherche des WorkflowLinks pour client.created..."
 echo ""
+
+# Charger DATABASE_URL depuis .env si disponible
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  echo "📝 Chargement du fichier .env..."
+  set -a  # Export automatique des variables
+  source "$PROJECT_ROOT/.env"
+  set +a
+elif [ -f "$PROJECT_ROOT/packages/platform/.env" ]; then
+  echo "📝 Chargement du fichier .env depuis packages/platform..."
+  set -a
+  source "$PROJECT_ROOT/packages/platform/.env"
+  set +a
+fi
 
 # Vérifier si DATABASE_URL est défini
 if [ -z "$DATABASE_URL" ]; then
   echo "❌ DATABASE_URL n'est pas défini"
-  echo "   Utilisez: export DATABASE_URL='votre_url_de_connexion'"
+  echo "   Vérifiez que le fichier .env existe et contient DATABASE_URL"
+  echo "   Ou utilisez: export DATABASE_URL='votre_url_de_connexion'"
   exit 1
 fi
+
+echo "✅ DATABASE_URL chargé"
+echo ""
 
 # Afficher les WorkflowLinks problématiques
 echo "📋 WorkflowLinks trouvés pour client.created:"
