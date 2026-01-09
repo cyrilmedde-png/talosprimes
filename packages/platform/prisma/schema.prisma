@@ -158,20 +158,21 @@ model Tenant {
 
 // Utilisateur (attaché à une entreprise)
 model User {
-  id           String      @id @default(uuid()) @db.Uuid
-  tenantId     String      @map("tenant_id") @db.Uuid
-  email        String
-  passwordHash String      @map("password_hash")
-  role         UserRole    @default(collaborateur)
-  nom          String?     @map("nom")
-  prenom       String?     @map("prenom")
-  telephone    String?     @map("telephone")
-  fonction     String?     @map("fonction")
-  salaire      Decimal?    @map("salaire") @db.Decimal(10, 2)
-  dateEmbauche DateTime?   @map("date_embauche") @db.Timestamptz(6)
-  lastLoginAt  DateTime?   @map("last_login_at") @db.Timestamptz(6)
-  statut       UserStatus  @default(actif)
-  createdAt    DateTime    @default(now()) @map("created_at")
+  id                String      @id @default(uuid()) @db.Uuid
+  tenantId          String      @map("tenant_id") @db.Uuid
+  email             String
+  passwordHash      String      @map("password_hash")
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  role              UserRole    @default(collaborateur)
+  nom               String?     @map("nom")
+  prenom            String?     @map("prenom")
+  telephone         String?     @map("telephone")
+  fonction          String?     @map("fonction")
+  salaire           Decimal?    @map("salaire") @db.Decimal(10, 2)
+  dateEmbauche      DateTime?   @map("date_embauche") @db.Timestamptz(6)
+  lastLoginAt       DateTime?   @map("last_login_at") @db.Timestamptz(6)
+  statut            UserStatus  @default(actif)
+  createdAt         DateTime    @default(now()) @map("created_at")
 
   // Relations
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -267,6 +268,7 @@ model ClientSubscription {
   statut                   SubscriptionStatus  @default(actif)
   idAbonnementStripe       String?             @map("id_abonnement_stripe")
   idClientStripe            String?             @map("id_client_stripe")
+  temporaryPassword        String?             @map("temporary_password") // Mot de passe temporaire en clair (supprimé après envoi email)
   updatedAt                DateTime            @updatedAt @map("updated_at")
 
   // Relations

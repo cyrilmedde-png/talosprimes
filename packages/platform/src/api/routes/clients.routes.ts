@@ -738,6 +738,243 @@ export async function clientsRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // POST /api/clients/create-credentials - Créer Tenant et User pour un client final
+  fastify.post(
+    '/create-credentials',
+    {
+      preHandler: [
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          // Vérifier si c'est une requête interne n8n
+          const secret = env.N8N_WEBHOOK_SECRET;
+          const provided = request.headers['x-talosprimes-n8n-secret'];
+          if (!secret || !provided || provided !== secret) {
+            return reply.status(401).send({
+              success: false,
+              error: 'Non autorisé',
+            });
+          }
+        },
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as {
+          clientId: string;
+          tenantId: string; // Tenant de l'entreprise cliente
+          email: string;
+          password: string;
+          nom?: string;
+          prenom?: string;
+          raisonSociale?: string | null;
+          tenantName: string;
+        };
+
+        // Vérifier que le client existe
+        const client = await prisma.clientFinal.findFirst({
+          where: {
+            id: body.clientId,
+            tenantId: body.tenantId,
+          },
+        });
+
+        if (!client) {
+          return reply.status(404).send({
+            success: false,
+            error: 'Client introuvable',
+          });
+        }
+
+        // Vérifier si un tenant existe déjà pour ce client (par email)
+        let clientTenant = await prisma.tenant.findFirst({
+          where: {
+            emailContact: body.email,
+          },
+        });
+
+        // Si le tenant n'existe pas, le créer
+        if (!clientTenant) {
+          clientTenant = await prisma.tenant.create({
+            data: {
+              nomEntreprise: body.tenantName,
+              emailContact: body.email,
+              metier: 'client_final',
+            },
+          });
+        }
+
+        // Vérifier si un utilisateur existe déjà pour ce tenant
+        let user = await prisma.user.findFirst({
+          where: {
+            tenantId: clientTenant.id,
+            email: body.email,
+          },
+        });
+
+        // Hasher le mot de passe
+        const { hashPassword } = await import('../../services/auth.service.js');
+        const passwordHash = await hashPassword(body.password);
+
+        // Si l'utilisateur n'existe pas, le créer
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              tenantId: clientTenant.id,
+              email: body.email,
+              passwordHash,
+              mustChangePassword: true,
+              role: 'admin',
+              nom: body.nom || null,
+              prenom: body.prenom || null,
+            },
+          });
+        } else {
+          // Mettre à jour le mot de passe si l'utilisateur existe
+          user = await prisma.user.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              passwordHash,
+              mustChangePassword: true,
+            },
+          });
+        }
+
+        // Stocker le mot de passe temporaire dans l'abonnement du client
+        // On cherche l'abonnement le plus récent pour ce client
+        const subscription = await prisma.clientSubscription.findFirst({
+          where: {
+            clientFinalId: body.clientId,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+        if (subscription) {
+          await prisma.clientSubscription.update({
+            where: {
+              id: subscription.id,
+            },
+            data: {
+              temporaryPassword: body.password, // Stocker temporairement en clair
+            },
+          });
+        }
+
+        return reply.status(201).send({
+          success: true,
+          data: {
+            tenantId: clientTenant.id,
+            userId: user.id,
+            email: user.email,
+            password: body.password, // Retourner aussi pour le workflow (si pas Stripe)
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur lors de la création des identifiants');
+        return reply.status(500).send({
+          success: false,
+          error: 'Erreur serveur',
+          message: 'Impossible de créer les identifiants',
+        });
+      }
+    }
+  );
+
+  // POST /api/clients/get-credentials - Récupérer les identifiants d'un client (pour webhook Stripe)
+  fastify.post(
+    '/get-credentials',
+    {
+      preHandler: [
+        async (request: FastifyRequest, reply: FastifyReply) => {
+          // Vérifier si c'est une requête interne n8n
+          const secret = env.N8N_WEBHOOK_SECRET;
+          const provided = request.headers['x-talosprimes-n8n-secret'];
+          if (!secret || !provided || provided !== secret) {
+            return reply.status(401).send({
+              success: false,
+              error: 'Non autorisé',
+            });
+          }
+        },
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as {
+          clientId: string;
+          tenantId: string;
+        };
+
+        // Récupérer l'abonnement avec le mot de passe temporaire
+        const subscription = await prisma.clientSubscription.findFirst({
+          where: {
+            clientFinalId: body.clientId,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          include: {
+            clientFinal: true,
+          },
+        });
+
+        if (!subscription) {
+          return reply.status(404).send({
+            success: false,
+            error: 'Abonnement introuvable',
+          });
+        }
+
+        // Récupérer l'utilisateur associé au tenant du client
+        const tenant = await prisma.tenant.findFirst({
+          where: {
+            emailContact: subscription.clientFinal.email,
+          },
+        });
+
+        if (!tenant) {
+          return reply.status(404).send({
+            success: false,
+            error: 'Tenant introuvable',
+          });
+        }
+
+        const user = await prisma.user.findFirst({
+          where: {
+            tenantId: tenant.id,
+            email: subscription.clientFinal.email,
+          },
+        });
+
+        if (!user) {
+          return reply.status(404).send({
+            success: false,
+            error: 'Utilisateur introuvable',
+          });
+        }
+
+        return reply.status(200).send({
+          success: true,
+          data: {
+            tenantId: tenant.id,
+            userId: user.id,
+            email: user.email,
+            password: subscription.temporaryPassword, // Mot de passe temporaire en clair
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur lors de la récupération des identifiants');
+        return reply.status(500).send({
+          success: false,
+          error: 'Erreur serveur',
+          message: 'Impossible de récupérer les identifiants',
+        });
+      }
+    }
+  );
+
   // POST /api/clients/:id/onboarding - Créer l'espace client (abonnement + modules)
   fastify.post(
     '/:id/onboarding',
