@@ -360,8 +360,7 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
+        "mode": "append",
         "options": {}
       },
       "id": "merge-subscription-data",
