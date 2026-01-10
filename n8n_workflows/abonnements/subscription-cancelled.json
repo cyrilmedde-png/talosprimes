@@ -1,0 +1,370 @@
+{
+  "name": "Abonnements - Annulation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "subscription-cancelled",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-cancel",
+      "name": "01. Webhook - Annulation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "subscription-cancelled"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\nconst reason = data?.reason || 'Non spécifié';\nconst cancelAtPeriodEnd = data?.cancelAtPeriodEnd || false; // Annuler immédiatement ou à la fin de la période\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    reason,\n    cancelAtPeriodEnd,\n    cancelDate: new Date().toISOString()\n  }\n};"
+      },
+      "id": "parse-payload",
+      "name": "02. Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid;"
+      },
+      "id": "get-subscription",
+      "name": "03. Récupérer abonnement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json[0]?.id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-subscription",
+      "name": "04. Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer les données pour l'annulation\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    reason: parseData.reason,\n    cancelAtPeriodEnd: parseData.cancelAtPeriodEnd,\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    idAbonnementStripe: subscriptionData.id_abonnement_stripe\n  }\n};"
+      },
+      "id": "prepare-cancel",
+      "name": "05. Préparer annulation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.idAbonnementStripe }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "if-stripe",
+      "name": "06. IF - Stripe configuré ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/subscriptions/{{ $json.idAbonnementStripe }}",
+        "method": "DELETE",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "stripe-cancel-subscription",
+      "name": "07. Stripe - Annuler abonnement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confirmer l'annulation Stripe\nconst stripeResponse = $input.item.json;\nconst prepareData = $node['05. Préparer annulation'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeCancelled: true,\n    stripeStatus: stripeResponse.status\n  }\n};"
+      },
+      "id": "confirm-stripe",
+      "name": "08. Confirmer Stripe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-stripe",
+      "name": "09. Merge - Stripe et sans Stripe",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;"
+      },
+      "id": "update-subscription",
+      "name": "10. Annuler abonnement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2220, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer l'email de confirmation d'annulation\nconst data = $node['09. Merge - Stripe et sans Stripe'].json;\nconst subscriptionUpdated = $input.item.json[0];\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst planName = data.subscription.nom_plan;\nconst reason = data.reason;\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>Abonnement annulé</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Nous vous confirmons l'annulation de votre abonnement TalosPrimes.</p>\n      <div class=\"info-box\">\n        <h3>Détails de l'annulation :</h3>\n        <p><strong>Plan :</strong> ${planName}</p>\n        <p><strong>Date d'annulation :</strong> ${new Date().toLocaleDateString('fr-FR')}</p>\n        <p><strong>Raison :</strong> ${reason}</p>\n      </div>\n      <p>Nous sommes désolés de vous voir partir. Si vous changez d'avis, vous pouvez réactiver votre abonnement à tout moment.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: clientEmail,\n    subject: `Confirmation d'annulation de votre abonnement ${planName}`,\n    html: htmlTemplate\n  }\n};"
+      },
+      "id": "prepare-email",
+      "name": "11. Préparer email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.resend.com/emails",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  from: 'TalosPrimes <noreply@talosprimes.com>',\n  to: $json.to,\n  subject: $json.subject,\n  html: $json.html\n}) }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "12. Envoyer email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 300],
+      "credentials": {
+        "headerAuth": {
+          "id": "resend-api-credential",
+          "name": "Resend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Abonnement annulé avec succès', data: { subscription: $node['10. Annuler abonnement'].json[0] } }) }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "13. Répondre succès",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Abonnement non trouvé' }) }}",
+        "options": {}
+      },
+      "id": "respond-error",
+      "name": "Répondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 600]
+    }
+  ],
+  "connections": {
+    "01. Webhook - Annulation": {
+      "main": [
+        [
+          {
+            "node": "02. Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser payload": {
+      "main": [
+        [
+          {
+            "node": "03. Récupérer abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Récupérer abonnement": {
+      "main": [
+        [
+          {
+            "node": "04. Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Validation": {
+      "main": [
+        [
+          {
+            "node": "05. Préparer annulation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Préparer annulation": {
+      "main": [
+        [
+          {
+            "node": "06. IF - Stripe configuré ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. IF - Stripe configuré ?": {
+      "main": [
+        [
+          {
+            "node": "07. Stripe - Annuler abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09. Merge - Stripe et sans Stripe",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "07. Stripe - Annuler abonnement": {
+      "main": [
+        [
+          {
+            "node": "08. Confirmer Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Confirmer Stripe": {
+      "main": [
+        [
+          {
+            "node": "09. Merge - Stripe et sans Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Merge - Stripe et sans Stripe": {
+      "main": [
+        [
+          {
+            "node": "10. Annuler abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Annuler abonnement": {
+      "main": [
+        [
+          {
+            "node": "11. Préparer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Préparer email": {
+      "main": [
+        [
+          {
+            "node": "12. Envoyer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Envoyer email": {
+      "main": [
+        [
+          {
+            "node": "13. Répondre succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-10T09:00:00.000Z",
+  "versionId": "1"
+}
+

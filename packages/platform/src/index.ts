@@ -7,6 +7,7 @@ import { prisma } from './config/database.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { authRoutes } from './api/routes/auth.routes.js';
 import { clientsRoutes } from './api/routes/clients.routes.js';
+import { subscriptionsRoutes } from './api/routes/subscriptions.routes.js';
 import { n8nRoutes } from './api/routes/n8n.routes.js';
 import { leadsRoutes } from './api/routes/leads.routes.js';
 import { notificationsRoutes } from './api/routes/notifications.routes.js';
@@ -82,6 +83,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes clients finaux
 await fastify.register(async (fastify) => {
   await fastify.register(clientsRoutes, { prefix: '/api/clients' });
+});
+
+// Enregistrer les routes abonnements
+await fastify.register(async (fastify) => {
+  await fastify.register(subscriptionsRoutes, { prefix: '/api/subscriptions' });
 });
 
 // Enregistrer les routes n8n (admin uniquement)

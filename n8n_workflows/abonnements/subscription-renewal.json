@@ -1,0 +1,335 @@
+{
+  "name": "Abonnements - Renouvellement automatique",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "subscription-renewal",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-renewal",
+      "name": "01. Webhook - Renouvellement",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "subscription-renewal"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    renewalDate: new Date().toISOString()\n  }\n};"
+      },
+      "id": "parse-payload",
+      "name": "02. Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid\n  AND cs.statut = 'actif';"
+      },
+      "id": "get-subscription",
+      "name": "03. Récupérer abonnement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json[0]?.id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-subscription",
+      "name": "04. Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer les données pour le renouvellement\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\n// Calculer la nouvelle date de renouvellement\nconst currentDate = new Date(subscriptionData.date_prochain_renouvellement);\nconst dureeMois = 1; // Par défaut 1 mois, à adapter selon le plan\nconst newRenewalDate = new Date(currentDate);\nnewRenewalDate.setMonth(newRenewalDate.getMonth() + dureeMois);\n\n// Préparer les données pour la facture\nconst invoice = {\n  clientFinalId: subscriptionData.client_final_id,\n  subscriptionId: subscriptionData.id,\n  montant: subscriptionData.montant_mensuel,\n  dateEmission: new Date().toISOString(),\n  dateEcheance: newRenewalDate.toISOString(),\n  statut: 'en_attente',\n  description: `Renouvellement abonnement ${subscriptionData.nom_plan}`\n};\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    newRenewalDate: newRenewalDate.toISOString(),\n    invoice,\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client'\n  }\n};"
+      },
+      "id": "prepare-renewal",
+      "name": "05. Préparer renouvellement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node['05. Préparer renouvellement'].json.subscription.id_abonnement_stripe }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "if-stripe",
+      "name": "06. IF - Stripe configuré ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/subscriptions/{{ $node['05. Préparer renouvellement'].json.subscription.id_abonnement_stripe }}",
+        "method": "GET",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "stripe-get-subscription",
+      "name": "07. Stripe - Vérifier abonnement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Vérifier le statut de l'abonnement Stripe\nconst stripeSubscription = $input.item.json;\nconst prepareData = $node['05. Préparer renouvellement'].json;\n\nconst stripeStatus = stripeSubscription.status;\nconst isActive = stripeStatus === 'active' || stripeStatus === 'trialing';\n\nif (!isActive) {\n  throw new Error(`Abonnement Stripe inactif: ${stripeStatus}`);\n}\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeStatus,\n    stripeRenewed: true\n  }\n};"
+      },
+      "id": "check-stripe-status",
+      "name": "08. Vérifier statut Stripe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-stripe",
+      "name": "09. Merge - Stripe et sans Stripe",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE client_subscriptions\nSET \n  date_prochain_renouvellement = '{{ $json.newRenewalDate }}'::timestamptz,\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;"
+      },
+      "id": "update-subscription",
+      "name": "10. Mettre à jour abonnement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2220, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO invoices (\n  id,\n  tenant_id,\n  client_final_id,\n  numero_facture,\n  date_emission,\n  date_echeance,\n  montant_ht,\n  montant_ttc,\n  statut,\n  description,\n  updated_at\n) VALUES (\n  gen_random_uuid(),\n  '{{ $node['02. Parser payload'].json.tenantId }}'::uuid,\n  '{{ $json.invoice.clientFinalId }}'::uuid,\n  'INV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0'),\n  '{{ $json.invoice.dateEmission }}'::timestamptz,\n  '{{ $json.invoice.dateEcheance }}'::timestamptz,\n  {{ $json.invoice.montant }},\n  {{ $json.invoice.montant * 1.20 }},\n  '{{ $json.invoice.statut }}',\n  '{{ $json.invoice.description }}',\n  NOW()\n)\nRETURNING *;"
+      },
+      "id": "create-invoice",
+      "name": "11. Créer facture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2440, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Abonnement renouvelé avec succès', data: { subscription: $node['10. Mettre à jour abonnement'].json[0], invoice: $json[0] } }) }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "12. Répondre succès",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Abonnement non trouvé ou inactif' }) }}",
+        "options": {}
+      },
+      "id": "respond-error",
+      "name": "Répondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 600]
+    }
+  ],
+  "connections": {
+    "01. Webhook - Renouvellement": {
+      "main": [
+        [
+          {
+            "node": "02. Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser payload": {
+      "main": [
+        [
+          {
+            "node": "03. Récupérer abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Récupérer abonnement": {
+      "main": [
+        [
+          {
+            "node": "04. Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Validation": {
+      "main": [
+        [
+          {
+            "node": "05. Préparer renouvellement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Préparer renouvellement": {
+      "main": [
+        [
+          {
+            "node": "06. IF - Stripe configuré ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. IF - Stripe configuré ?": {
+      "main": [
+        [
+          {
+            "node": "07. Stripe - Vérifier abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09. Merge - Stripe et sans Stripe",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "07. Stripe - Vérifier abonnement": {
+      "main": [
+        [
+          {
+            "node": "08. Vérifier statut Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Vérifier statut Stripe": {
+      "main": [
+        [
+          {
+            "node": "09. Merge - Stripe et sans Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Merge - Stripe et sans Stripe": {
+      "main": [
+        [
+          {
+            "node": "10. Mettre à jour abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Mettre à jour abonnement": {
+      "main": [
+        [
+          {
+            "node": "11. Créer facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Créer facture": {
+      "main": [
+        [
+          {
+            "node": "12. Répondre succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-10T09:00:00.000Z",
+  "versionId": "1"
+}
+

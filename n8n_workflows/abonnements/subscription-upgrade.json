@@ -1,0 +1,414 @@
+{
+  "name": "Abonnements - Changement de plan (Upgrade/Downgrade)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "subscription-upgrade",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-upgrade",
+      "name": "01. Webhook - Changement de plan",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "webhookId": "subscription-upgrade"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire les données\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\nconst nouveauPlan = data?.nouveauPlan || {};\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nif (!nouveauPlan.nomPlan || !nouveauPlan.montantMensuel) {\n  throw new Error('Nouveau plan incomplet (nomPlan et montantMensuel requis)');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    nouveauPlan: {\n      nomPlan: nouveauPlan.nomPlan,\n      montantMensuel: parseFloat(nouveauPlan.montantMensuel),\n      modulesInclus: nouveauPlan.modulesInclus || [],\n      dureeMois: nouveauPlan.dureeMois || 1\n    },\n    upgradeDate: new Date().toISOString()\n  }\n};"
+      },
+      "id": "parse-payload",
+      "name": "02. Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid\n  AND cs.statut = 'actif';"
+      },
+      "id": "get-subscription",
+      "name": "03. Récupérer abonnement actuel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 400],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json[0]?.id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-subscription",
+      "name": "04. Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculer la différence et le prorata\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\nconst ancienMontant = parseFloat(subscriptionData.montant_mensuel);\nconst nouveauMontant = parseData.nouveauPlan.montantMensuel;\nconst difference = nouveauMontant - ancienMontant;\nconst isUpgrade = difference > 0;\n\n// Calculer le prorata (jours restants)\nconst today = new Date();\nconst nextRenewal = new Date(subscriptionData.date_prochain_renouvellement);\nconst daysRemaining = Math.ceil((nextRenewal - today) / (1000 * 60 * 60 * 24));\nconst daysInMonth = 30;\nconst prorataRatio = daysRemaining / daysInMonth;\nconst prorataAmount = difference * prorataRatio;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    nouveauPlan: parseData.nouveauPlan,\n    ancienPlan: {\n      nomPlan: subscriptionData.nom_plan,\n      montantMensuel: ancienMontant,\n      modulesInclus: subscriptionData.modules_inclus\n    },\n    difference,\n    isUpgrade,\n    prorata: {\n      daysRemaining,\n      ratio: prorataRatio,\n      amount: prorataAmount\n    },\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    idAbonnementStripe: subscriptionData.id_abonnement_stripe\n  }\n};"
+      },
+      "id": "calculate-prorata",
+      "name": "05. Calculer prorata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.idAbonnementStripe }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "if-stripe",
+      "name": "06. IF - Stripe configuré ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/subscriptions/{{ $json.idAbonnementStripe }}",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "proration_behavior",
+              "value": "create_prorations"
+            },
+            {
+              "name": "metadata[plan_name]",
+              "value": "={{ $json.nouveauPlan.nomPlan }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "stripe-update-subscription",
+      "name": "07. Stripe - Mettre à jour abonnement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confirmer la mise à jour Stripe\nconst stripeResponse = $input.item.json;\nconst prepareData = $node['05. Calculer prorata'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeUpdated: true,\n    stripeSubscriptionId: stripeResponse.id\n  }\n};"
+      },
+      "id": "confirm-stripe",
+      "name": "08. Confirmer Stripe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-stripe",
+      "name": "09. Merge - Stripe et sans Stripe",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la requête SQL pour mettre à jour l'abonnement\nconst data = $input.item.json;\nconst nouveauPlan = data.nouveauPlan;\nconst modulesArray = nouveauPlan.modulesInclus.map(m => `'${String(m).replace(/'/g, \"''\")}'`).join(', ');\n\nconst query = `UPDATE client_subscriptions\nSET \n  nom_plan = '${nouveauPlan.nomPlan.replace(/'/g, \"''\")}',\n  montant_mensuel = ${nouveauPlan.montantMensuel},\n  modules_inclus = ARRAY[${modulesArray}]::text[],\n  updated_at = NOW()\nWHERE id = '${data.subscription.id}'::uuid\nRETURNING *;`;\n\nreturn {\n  json: {\n    ...data,\n    sqlQuery: query\n  }\n};"
+      },
+      "id": "prepare-sql",
+      "name": "10. Préparer SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}"
+      },
+      "id": "update-subscription",
+      "name": "11. Mettre à jour abonnement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2440, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer l'email de confirmation\nconst subscriptionUpdated = $input.item.json[0];\nconst data = $node['10. Préparer SQL'].json;\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst ancienPlan = data.ancienPlan.nomPlan;\nconst nouveauPlan = data.nouveauPlan.nomPlan;\nconst isUpgrade = data.isUpgrade;\nconst prorata = data.prorata.amount.toFixed(2);\n\nconst changeType = isUpgrade ? 'Upgrade' : 'Downgrade';\nconst changeIcon = isUpgrade ? '⬆️' : '⬇️';\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .plan-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }\n    .prorata-box { background: #e7f3ff; padding: 15px; margin: 20px 0; border-radius: 8px; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>${changeIcon} ${changeType} de votre abonnement</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Votre abonnement TalosPrimes a été mis à jour avec succès.</p>\n      <div class=\"plan-box\">\n        <h3>Changement de plan :</h3>\n        <p><strong>Ancien plan :</strong> ${ancienPlan} (${data.ancienPlan.montantMensuel}€/mois)</p>\n        <p><strong>Nouveau plan :</strong> ${nouveauPlan} (${data.nouveauPlan.montantMensuel}€/mois)</p>\n      </div>\n      ${isUpgrade && prorata > 0 ? `<div class=\"prorata-box\">\n        <h3>Prorata calculé :</h3>\n        <p>Un montant de ${prorata}€ sera facturé pour les ${data.prorata.daysRemaining} jours restants jusqu'au prochain renouvellement.</p>\n      </div>` : ''}\n      <p>Les nouvelles fonctionnalités sont immédiatement disponibles dans votre espace.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: clientEmail,\n    subject: `${changeType} de votre abonnement TalosPrimes`,\n    html: htmlTemplate\n  }\n};"
+      },
+      "id": "prepare-email",
+      "name": "12. Préparer email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.resend.com/emails",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  from: 'TalosPrimes <noreply@talosprimes.com>',\n  to: $json.to,\n  subject: $json.subject,\n  html: $json.html\n}) }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "13. Envoyer email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 300],
+      "credentials": {
+        "headerAuth": {
+          "id": "resend-api-credential",
+          "name": "Resend API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Abonnement mis à jour avec succès', data: { subscription: $node['11. Mettre à jour abonnement'].json[0], prorata: $node['10. Préparer SQL'].json.prorata } }) }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "14. Répondre succès",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3100, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Abonnement non trouvé ou inactif' }) }}",
+        "options": {}
+      },
+      "id": "respond-error",
+      "name": "Répondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 600]
+    }
+  ],
+  "connections": {
+    "01. Webhook - Changement de plan": {
+      "main": [
+        [
+          {
+            "node": "02. Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser payload": {
+      "main": [
+        [
+          {
+            "node": "03. Récupérer abonnement actuel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Récupérer abonnement actuel": {
+      "main": [
+        [
+          {
+            "node": "04. Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Validation": {
+      "main": [
+        [
+          {
+            "node": "05. Calculer prorata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Calculer prorata": {
+      "main": [
+        [
+          {
+            "node": "06. IF - Stripe configuré ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. IF - Stripe configuré ?": {
+      "main": [
+        [
+          {
+            "node": "07. Stripe - Mettre à jour abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09. Merge - Stripe et sans Stripe",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "07. Stripe - Mettre à jour abonnement": {
+      "main": [
+        [
+          {
+            "node": "08. Confirmer Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Confirmer Stripe": {
+      "main": [
+        [
+          {
+            "node": "09. Merge - Stripe et sans Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Merge - Stripe et sans Stripe": {
+      "main": [
+        [
+          {
+            "node": "10. Préparer SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Préparer SQL": {
+      "main": [
+        [
+          {
+            "node": "11. Mettre à jour abonnement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Mettre à jour abonnement": {
+      "main": [
+        [
+          {
+            "node": "12. Préparer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Préparer email": {
+      "main": [
+        [
+          {
+            "node": "13. Envoyer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Envoyer email": {
+      "main": [
+        [
+          {
+            "node": "14. Répondre succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-10T09:00:00.000Z",
+  "versionId": "1"
+}
+
