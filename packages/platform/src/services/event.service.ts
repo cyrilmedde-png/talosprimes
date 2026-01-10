@@ -41,12 +41,24 @@ export class EventService {
           const result = await n8nService.triggerWorkflow(tenantId, eventType, payload);
           
           // Mettre à jour le statut de l'événement
-          await this.updateEventStatus(
-            eventLog.id,
-            result.success ? 'succes' : 'erreur',
-            result.workflowId,
-            result.error
-          );
+          // Si aucun workflow n'est configuré (workflowId undefined), marquer comme succès sans workflow
+          if (result.success && !result.workflowId) {
+            // Pas de workflow configuré pour cet événement - cas normal
+            await this.updateEventStatus(
+              eventLog.id,
+              'succes',
+              undefined,
+              undefined
+            );
+          } else {
+            // Workflow trouvé et exécuté (succès ou erreur)
+            await this.updateEventStatus(
+              eventLog.id,
+              result.success ? 'succes' : 'erreur',
+              result.workflowId,
+              result.error
+            );
+          }
         } catch (error) {
           console.error('Erreur lors du déclenchement n8n:', error);
           await this.updateEventStatus(

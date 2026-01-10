@@ -126,7 +126,9 @@ export class N8nService {
 
       if (!workflowLink) {
         console.log(`[n8n] Aucun workflow actif trouvé pour l'événement: ${eventType} (tenant: ${tenantId})`);
-        return { success: false, error: 'Workflow non trouvé' };
+        // Retourner success: true car c'est un cas normal (pas de workflow configuré pour cet événement)
+        // Ne pas logger comme erreur pour éviter de polluer les logs avec des "erreurs" normales
+        return { success: true, workflowId: undefined };
       }
 
       // Préparer le payload pour n8n
