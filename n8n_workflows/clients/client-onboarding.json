@@ -313,13 +313,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données après création de l'abonnement\n// Récupérer l'abonnement créé depuis le node précédent (10. Créer abonnement client)\nconst subscription = $input.item.json;\nconst subscriptionData = subscription[0] || subscription;\n\n// Récupérer les données depuis les nœuds précédents\n// Ces nœuds sont toujours accessibles car ils font partie du workflow global\nlet initialData = {};\nlet passwordData = {};\n\ntry {\n  initialData = $('01. Préparer données onboarding').first().json;\n} catch (e) {\n  console.log('Cannot access 01:', e.message);\n}\n\ntry {\n  passwordData = $('09a. Générer mot de passe').first().json;\n} catch (e) {\n  console.log('Cannot access 09a:', e.message);\n}\n\n// Combiner toutes les données\nconst combinedData = {\n  ...initialData,\n  ...passwordData,\n  subscriptionData: subscriptionData,\n  subscriptionId: subscriptionData.id\n};\n\nreturn {\n  json: combinedData\n};"
+        "jsCode": "// Préparer les données après création de l'abonnement\n// Le Merge combine les données de deux sources :\n// - Input 0 : résultat de la requête PostgreSQL (abonnement créé)\n// - Input 1 : données conservées de 09c (toutes les infos)\n\nconst allItems = $input.all();\n\n// Trouver l'abonnement (résultat PostgreSQL)\nconst subscriptionItem = allItems.find(item => item.json[0]?.id || item.json.id) || allItems[0];\nconst subscriptionData = subscriptionItem.json[0] || subscriptionItem.json;\n\n// Trouver les données conservées (clientId, tenantId, plainPassword, etc.)\nconst dataItem = allItems.find(item => item.json.clientId && item.json.tenantId) || allItems[1] || {};\nconst savedData = dataItem.json || {};\n\n// Combiner toutes les données\nconst combinedData = {\n  ...savedData,\n  subscriptionData: subscriptionData,\n  subscriptionId: subscriptionData.id\n};\n\nreturn {\n  json: combinedData\n};"
       },
       "id": "prepare-after-subscription",
       "name": "10a. Préparer après abonnement",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 650]
+      "position": [1780, 500]
     },
     {
       "parameters": {
@@ -333,6 +333,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// Conserver toutes les données de préparation pour les nœuds suivants\n// Car après l'exécution SQL, ces données seront perdues\nconst allData = $input.item.json.allData || $input.item.json;\n\nreturn {\n  json: allData\n};"
+      },
+      "id": "keep-data",
+      "name": "09c. Conserver données",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 600]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.sqlQuery }}"
       },
@@ -340,13 +350,25 @@
       "name": "10. Créer abonnement client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1340, 500],
+      "position": [1340, 400],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
           "name": "Postgres Supabase"
         }
       }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge-subscription-data",
+      "name": "10-merge. Combiner abonnement et données",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1560, 500]
     },
     {
       "parameters": {
@@ -377,7 +399,7 @@
       "name": "10b. Préparer création Tenant et User",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 650]
+      "position": [2000, 500]
     },
     {
       "parameters": {
@@ -402,7 +424,7 @@
       "name": "10c. Créer Tenant et User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 650],
+      "position": [2220, 500],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -412,13 +434,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la réponse de succès\n// Récupérer les données depuis le node précédent (10c. Créer Tenant et User)\nconst credentialsResponse = $input.item.json;\n\n// Récupérer les données depuis 10a qui contient TOUTES les infos nécessaires\nlet prepareData = {};\ntry {\n  prepareData = $('10a. Préparer après abonnement').first().json;\n} catch (e) {\n  console.log('Cannot access 10a:', e.message);\n  prepareData = {};\n}\n\n// Données client depuis prepareData (qui contient les données de 01)\nconst clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nconst avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\n\n// Si Stripe est activé, préparer l'objet stripe\nconst stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\n// Extraire les identifiants depuis la réponse de l'API\nconst credentialsData = credentialsResponse.data || credentialsResponse || {};\n\nreturn {\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé. Redirection vers le paiement...\" \n      : \"Espace client créé avec succès\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    credentials: credentialsData.tenantId ? {\n      tenantId: credentialsData.tenantId,\n      userId: credentialsData.userId,\n      email: credentialsData.email,\n      password: prepareData.plainPassword || credentialsData.password || null\n    } : null,\n    stripe: stripe\n  }\n};"
+        "jsCode": "// Préparer la réponse de succès\n// Récupérer les données depuis le node précédent (10c. Créer Tenant et User)\nconst credentialsResponse = $input.item.json;\n\n// Récupérer les données depuis 10a via le contexte du workflow\n// Utiliser $node pour accéder aux données du nœud 10a dans le contexte actuel\nconst prepareData = $node['10a. Préparer après abonnement'].json || {};\n\n// Données client depuis prepareData (qui contient les données de 01)\nconst clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nconst avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\n\n// Si Stripe est activé, préparer l'objet stripe\nconst stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\n// Extraire les identifiants depuis la réponse de l'API\nconst credentialsData = credentialsResponse.data || credentialsResponse || {};\n\nreturn {\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé. Redirection vers le paiement...\" \n      : \"Espace client créé avec succès\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    credentials: credentialsData.tenantId ? {\n      tenantId: credentialsData.tenantId,\n      userId: credentialsData.userId,\n      email: credentialsData.email,\n      password: prepareData.plainPassword || credentialsData.password || null\n    } : null,\n    stripe: stripe\n  }\n};"
       },
       "id": "format-response",
       "name": "11. Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 500]
+      "position": [2440, 500]
     },
     {
       "parameters": {
@@ -428,7 +450,7 @@
       "name": "11b. Préparer notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 650]
+      "position": [2440, 650]
     },
     {
       "parameters": {
@@ -453,7 +475,7 @@
       "name": "12. Créer notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 650],
+      "position": [2660, 650],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -471,7 +493,7 @@
       "name": "13. Répondre au webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2000, 500]
+      "position": [2880, 500]
     },
     {
       "parameters": {
@@ -645,11 +667,38 @@
             "node": "10. Créer abonnement client",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "09c. Conserver données",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
     },
     "10. Créer abonnement client": {
+      "main": [
+        [
+          {
+            "node": "10-merge. Combiner abonnement et données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09c. Conserver données": {
+      "main": [
+        [
+          {
+            "node": "10-merge. Combiner abonnement et données",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "10-merge. Combiner abonnement et données": {
       "main": [
         [
           {
