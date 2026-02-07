@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/store/auth-store';
 import { Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle } from 'lucide-react';
 
 // Types
@@ -33,7 +32,6 @@ interface ContactMessage {
 type TabType = 'content' | 'testimonials' | 'messages';
 
 export default function CMSPage() {
-  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabType>('content');
   
   // Content
