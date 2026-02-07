@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/store/auth-store';
+import { getAccessToken } from '@/lib/auth';
 import { Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle } from 'lucide-react';
 
 // Types
@@ -78,7 +78,7 @@ export default function CMSPage() {
 
   const loadTestimonials = async () => {
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/testimonials/all`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -91,7 +91,7 @@ export default function CMSPage() {
 
   const loadMessages = async () => {
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/contact`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -106,7 +106,7 @@ export default function CMSPage() {
   const saveContent = async (section: string) => {
     setSavingContent(section);
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${section}`, {
         method: 'PUT',
         headers: {
@@ -128,7 +128,7 @@ export default function CMSPage() {
   // Créer testimonial
   const createTestimonial = async () => {
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/testimonials`, {
         method: 'POST',
         headers: {
@@ -163,7 +163,7 @@ export default function CMSPage() {
   // Mettre à jour testimonial
   const updateTestimonial = async (id: string, data: Partial<Testimonial>) => {
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/testimonials/${id}`, {
         method: 'PUT',
         headers: {
@@ -185,7 +185,7 @@ export default function CMSPage() {
     if (!confirm('Supprimer ce témoignage ?')) return;
     
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/testimonials/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
@@ -201,7 +201,7 @@ export default function CMSPage() {
   // Marquer message comme traité
   const markMessageAsProcessed = async (id: string) => {
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/contact/${id}/traite`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
@@ -217,7 +217,7 @@ export default function CMSPage() {
     if (!confirm('Supprimer ce message ?')) return;
     
     try {
-      const token = useAuthStore.getState().accessToken;
+      const token = getAccessToken();
       await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/contact/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
