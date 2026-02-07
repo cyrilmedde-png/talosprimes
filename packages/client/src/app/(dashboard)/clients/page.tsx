@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { apiClient, type Subscription } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type { Lead, ClientFinal } from '@talosprimes/shared';
 import { 
   UserPlusIcon, 
