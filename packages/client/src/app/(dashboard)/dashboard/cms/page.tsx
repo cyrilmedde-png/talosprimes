@@ -470,9 +470,9 @@ export default function CMSPage() {
                         ))}
                       </div>
                       {testimonial.affiche ? (
-                        <Eye className="w-5 h-5 text-green-600" title="Affiché" />
+                        <Eye className="w-5 h-5 text-green-600" />
                       ) : (
-                        <EyeOff className="w-5 h-5 text-gray-400" title="Masqué" />
+                        <EyeOff className="w-5 h-5 text-gray-400" />
                       )}
                     </div>
                     <p className="text-gray-700 italic">"{testimonial.commentaire}"</p>
