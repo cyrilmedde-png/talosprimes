@@ -37,7 +37,7 @@ interface ConfigSection {
   label: string;
   placeholder: string;
   type?: 'text' | 'email' | 'tel' | 'textarea';
-  category: 'contact' | 'legal' | 'company';
+  category: 'contact' | 'legal' | 'company' | 'hosting' | 'insurance';
 }
 
 interface LegalPage {
@@ -385,6 +385,20 @@ export default function CMSPage() {
     { key: 'config_company_description', label: 'Description entreprise', placeholder: 'La plateforme de gestion intelligente...', type: 'textarea', category: 'company' },
     { key: 'config_company_support_email', label: 'Email support', placeholder: 'support@talosprimes.com', type: 'email', category: 'company' },
     { key: 'config_company_rgpd_email', label: 'Email RGPD/DPO', placeholder: 'rgpd@talosprimes.com', type: 'email', category: 'company' },
+    
+    // HÉBERGEMENT
+    { key: 'config_hosting_provider', label: 'Nom de l\'hébergeur', placeholder: 'OVH', type: 'text', category: 'hosting' },
+    { key: 'config_hosting_company_name', label: 'Raison sociale hébergeur', placeholder: 'OVH SAS', type: 'text', category: 'hosting' },
+    { key: 'config_hosting_address', label: 'Adresse hébergeur', placeholder: '2 rue Kellermann, 59100 Roubaix, France', type: 'textarea', category: 'hosting' },
+    { key: 'config_hosting_phone', label: 'Téléphone hébergeur', placeholder: '1007', type: 'tel', category: 'hosting' },
+    { key: 'config_hosting_website', label: 'Site web hébergeur', placeholder: 'https://www.ovh.com', type: 'text', category: 'hosting' },
+    
+    // ASSURANCE RC PROFESSIONNELLE
+    { key: 'config_insurance_company', label: 'Nom de l\'assureur', placeholder: 'AXA Assurances', type: 'text', category: 'insurance' },
+    { key: 'config_insurance_policy_number', label: 'Numéro de police', placeholder: '123456789', type: 'text', category: 'insurance' },
+    { key: 'config_insurance_coverage', label: 'Montant de garantie', placeholder: '1 000 000 €', type: 'text', category: 'insurance' },
+    { key: 'config_insurance_address', label: 'Adresse assureur', placeholder: '1 Avenue de France, 75013 Paris', type: 'textarea', category: 'insurance' },
+    { key: 'config_insurance_phone', label: 'Téléphone assureur', placeholder: '01 XX XX XX XX', type: 'tel', category: 'insurance' },
   ];
 
   return (
@@ -867,13 +881,108 @@ export default function CMSPage() {
             </div>
           </div>
 
+          {/* Hébergement */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              🖥️ Informations Hébergement
+            </h2>
+            <p className="text-gray-400 mb-4">
+              Informations sur votre société d'hébergement (obligatoire pour les mentions légales)
+            </p>
+            <div className="space-y-4">
+              {configSections
+                .filter(s => s.category === 'hosting')
+                .map((section) => (
+                  <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      {section.label}
+                    </label>
+                    <div className="flex gap-2">
+                      {section.type === 'textarea' ? (
+                        <textarea
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          rows={3}
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      ) : (
+                        <input
+                          type={section.type || 'text'}
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      )}
+                      <button
+                        onClick={() => saveContent(section.key)}
+                        disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Assurance RC Professionnelle */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              🛡️ Assurance RC Professionnelle
+            </h2>
+            <p className="text-gray-400 mb-4">
+              Informations sur votre assurance Responsabilité Civile Professionnelle (recommandé pour les mentions légales)
+            </p>
+            <div className="space-y-4">
+              {configSections
+                .filter(s => s.category === 'insurance')
+                .map((section) => (
+                  <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      {section.label}
+                    </label>
+                    <div className="flex gap-2">
+                      {section.type === 'textarea' ? (
+                        <textarea
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          rows={3}
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      ) : (
+                        <input
+                          type={section.type || 'text'}
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        />
+                      )}
+                      <button
+                        onClick={() => saveContent(section.key)}
+                        disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
           {/* Aide */}
           <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-6">
             <h3 className="font-bold text-blue-300 mb-2">💡 Information</h3>
             <p className="text-blue-200">
               Les modifications de configuration sont sauvegardées dans la base de données. 
-              Pour que certaines modifications (notamment les informations légales) soient affichées partout, 
-              vous devrez peut-être mettre à jour les pages légales directement.
+              Ces informations seront utilisées lors de la génération IA des pages légales pour créer un contenu 100% personnalisé et conforme.
             </p>
           </div>
         </div>

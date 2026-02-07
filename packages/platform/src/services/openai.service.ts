@@ -8,13 +8,31 @@ interface GenerateLegalContentParams {
   address: string;
   email: string;
   phone: string;
+  hostingProvider?: string;
+  hostingAddress?: string;
+  insuranceCompany?: string;
+  insurancePolicyNumber?: string;
+  insuranceCoverage?: string;
 }
 
 /**
  * Génère du contenu légal avec OpenAI
  */
 export async function generateLegalContent(params: GenerateLegalContentParams): Promise<string> {
-  const { pageType, companyName, siret, tva, address, email, phone } = params;
+  const { 
+    pageType, 
+    companyName, 
+    siret, 
+    tva, 
+    address, 
+    email, 
+    phone,
+    hostingProvider = 'OVH',
+    hostingAddress = '2 rue Kellermann, 59100 Roubaix, France',
+    insuranceCompany,
+    insurancePolicyNumber,
+    insuranceCoverage,
+  } = params;
 
   // Vérifier si OpenAI est configuré
   if (!env.OPENAI_API_KEY) {
@@ -34,7 +52,16 @@ Informations de l'entreprise:
 - Siège social: ${address}
 - Email: ${email}
 - Téléphone: ${phone}
-- Hébergeur: OVH, 2 rue Kellermann, 59100 Roubaix
+
+Hébergement:
+- Hébergeur: ${hostingProvider}
+- Adresse: ${hostingAddress}
+
+${insuranceCompany ? `Assurance RC Professionnelle:
+- Assureur: ${insuranceCompany}
+- Numéro de police: ${insurancePolicyNumber}
+- Montant de garantie: ${insuranceCoverage}
+` : ''}
 
 Le document doit inclure:
 1. Informations légales (raison sociale, forme juridique, capital, SIRET, TVA, siège, contact)

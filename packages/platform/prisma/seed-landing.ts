@@ -160,6 +160,48 @@ async function seedLanding() {
       section: 'config_company_rgpd_email',
       contenu: 'rgpd@talosprimes.com',
     },
+    // HÉBERGEMENT
+    {
+      section: 'config_hosting_provider',
+      contenu: 'OVH',
+    },
+    {
+      section: 'config_hosting_company_name',
+      contenu: 'OVH SAS',
+    },
+    {
+      section: 'config_hosting_address',
+      contenu: '2 rue Kellermann, 59100 Roubaix, France',
+    },
+    {
+      section: 'config_hosting_phone',
+      contenu: '1007',
+    },
+    {
+      section: 'config_hosting_website',
+      contenu: 'https://www.ovh.com',
+    },
+    // ASSURANCE RC PRO
+    {
+      section: 'config_insurance_company',
+      contenu: 'AXA Assurances',
+    },
+    {
+      section: 'config_insurance_policy_number',
+      contenu: '123456789',
+    },
+    {
+      section: 'config_insurance_coverage',
+      contenu: '1 000 000 €',
+    },
+    {
+      section: 'config_insurance_address',
+      contenu: '1 Avenue de France, 75013 Paris, France',
+    },
+    {
+      section: 'config_insurance_phone',
+      contenu: '01 XX XX XX XX',
+    },
   ];
 
   for (const content of landingContent) {

@@ -27,15 +27,7 @@
       "position": [
         450,
         300
-      ],
-      "credentials": [],
-      "connections": {
-        "01. Webhook": [
-          [
-            0
-          ]
-        ]
-      }
+      ]
     },
     {
       "parameters": {
@@ -68,13 +60,6 @@
           "id": "postgres-credential",
           "name": "Postgres Supabase"
         }
-      },
-      "connections": {
-        "02. Parser payload": [
-          [
-            0
-          ]
-        ]
       }
     },
     {
@@ -97,14 +82,7 @@
       "position": [
         850,
         300
-      ],
-      "connections": {
-        "03. Récupérer facture": [
-          [
-            0
-          ]
-        ]
-      }
+      ]
     },
     {
       "parameters": {
@@ -137,13 +115,6 @@
           "id": "postgres-credential",
           "name": "Postgres Supabase"
         }
-      },
-      "connections": {
-        "04. Validation facture": [
-          [
-            0
-          ]
-        ]
       }
     },
     {
@@ -157,15 +128,7 @@
       "position": [
         1050,
         350
-      ],
-      "credentials": [],
-      "connections": {
-        "05. Mettre à jour facture": [
-          [
-            0
-          ]
-        ]
-      }
+      ]
     },
     {
       "parameters": {
@@ -215,13 +178,6 @@
           "id": "resend-api-credential",
           "name": "Resend API"
         }
-      },
-      "connections": {
-        "06. Préparer reçu email": [
-          [
-            0
-          ]
-        ]
       }
     },
     {
@@ -272,13 +228,6 @@
           "id": "talosprimes-api-credential",
           "name": "API TalosPrimes - Header Auth"
         }
-      },
-      "connections": {
-        "07. Envoyer email Resend": [
-          [
-            0
-          ]
-        ]
       }
     },
     {
@@ -292,14 +241,7 @@
       "position": [
         1450,
         150
-      ],
-      "connections": {
-        "08. Notification TalosPrimes": [
-          [
-            0
-          ]
-        ]
-      }
+      ]
     },
     {
       "parameters": {
@@ -312,17 +254,106 @@
       "position": [
         1050,
         500
-      ],
-      "connections": {
-        "04. Validation facture": [
-          [
-            1
-          ]
-        ]
-      }
+      ]
     }
   ],
-  "connections": {},
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser payload": {
+      "main": [
+        [
+          {
+            "node": "03. Récupérer facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Récupérer facture": {
+      "main": [
+        [
+          {
+            "node": "04. Validation facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Validation facture": {
+      "main": [
+        [
+          {
+            "node": "05. Mettre à jour facture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre erreur not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Mettre à jour facture": {
+      "main": [
+        [
+          {
+            "node": "06. Préparer reçu email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Préparer reçu email": {
+      "main": [
+        [
+          {
+            "node": "07. Envoyer email Resend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Envoyer email Resend": {
+      "main": [
+        [
+          {
+            "node": "08. Notification TalosPrimes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Notification TalosPrimes": {
+      "main": [
+        [
+          {
+            "node": "09. Répondre succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "active": true,
   "settings": {
     "executionOrder": "v1"
