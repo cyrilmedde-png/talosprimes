@@ -3,6 +3,7 @@ import { prisma } from '../../config/database.js';
 import { z } from 'zod';
 import { hashPassword } from '../../services/auth.service.js';
 import type { UserRole } from '@talosprimes/shared';
+import { Prisma, UserRole as PrismaUserRole, UserStatus } from '@prisma/client';
 
 // Schéma de validation pour la création d'un utilisateur
 const createUserSchema = z.object({
@@ -134,23 +135,12 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
-      const userData: {
-        tenantId: string;
-        email: string;
-        passwordHash: string;
-        role: string;
-        nom?: string | null;
-        prenom?: string | null;
-        telephone?: string | null;
-        fonction?: string | null;
-        salaire?: number | null;
-        dateEmbauche?: Date | null;
-      } = {
+      const userData: Prisma.UserUncheckedCreateInput = {
         tenantId,
         email: data.email,
         passwordHash,
-        role: data.role as UserRole,
-        statut: 'actif',
+        role: data.role as PrismaUserRole,
+        statut: UserStatus.actif,
       };
       
       if (data.nom) userData.nom = data.nom;
@@ -244,17 +234,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       }
 
       // Mettre à jour l'utilisateur
-      const updateData: {
-        email?: string;
-        role?: string;
-        nom?: string | null;
-        prenom?: string | null;
-        telephone?: string | null;
-        fonction?: string | null;
-        salaire?: number | null;
-        dateEmbauche?: Date | null;
-        statut?: string;
-      } = {};
+      const updateData: Prisma.UserUncheckedUpdateInput = {};
       
       if (data.email) updateData.email = data.email;
       if (data.role) updateData.role = data.role as UserRole;

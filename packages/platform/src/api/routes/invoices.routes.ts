@@ -104,7 +104,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         const limit = queryParams.limit ? parseInt(queryParams.limit, 10) : 20;
         const skip = (page - 1) * limit;
 
-        const where: { tenantId: string; statut?: string } = {
+        const where: Prisma.InvoiceWhereInput = {
           tenantId,
         };
 

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
+import { Prisma } from '@prisma/client';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
@@ -509,7 +510,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        const where: { clientFinalId: string; statut?: string } = {
+        const where: Prisma.ClientSubscriptionWhereInput = {
           clientFinal: {
             tenantId,
           },

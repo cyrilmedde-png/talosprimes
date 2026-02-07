@@ -100,7 +100,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           offset?: string;
         };
 
-        const where: { tenantId: string; lu?: boolean } = { tenantId };
+        const where: Prisma.NotificationWhereInput = { tenantId };
         if (lu !== undefined) {
           where.lu = lu === 'true';
         }
