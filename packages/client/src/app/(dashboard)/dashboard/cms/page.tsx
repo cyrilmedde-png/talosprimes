@@ -457,9 +457,9 @@ export default function CMSPage() {
                     type="checkbox"
                     checked={newTestimonial.affiche}
                     onChange={(e) => setNewTestimonial({ ...newTestimonial, affiche: e.target.checked })}
-                    className="w-5 h-5"
+                    className="w-5 h-5 rounded border-gray-600 bg-gray-700/50 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-800"
                   />
-                  <label>Afficher sur la landing page</label>
+                  <label className="text-gray-300">Afficher sur la landing page</label>
                 </div>
                 <input
                   type="number"
