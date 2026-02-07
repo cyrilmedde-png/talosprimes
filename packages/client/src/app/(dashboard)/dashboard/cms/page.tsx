@@ -671,8 +671,8 @@ export default function CMSPage() {
               {configSections
                 .filter(s => s.category === 'legal')
                 .map((section) => (
-                  <div key={section.key} className="bg-white p-6 rounded-lg shadow">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">
                       {section.label}
                     </label>
                     <div className="flex gap-2">
@@ -682,7 +682,7 @@ export default function CMSPage() {
                           onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
                           placeholder={section.placeholder}
                           rows={3}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                       ) : (
                         <input
@@ -690,13 +690,13 @@ export default function CMSPage() {
                           value={editingContent[section.key] || ''}
                           onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
                           placeholder={section.placeholder}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                       )}
                       <button
                         onClick={() => saveContent(section.key)}
                         disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
-                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
                         <Save className="w-4 h-4" />
                         {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
@@ -719,8 +719,8 @@ export default function CMSPage() {
               {configSections
                 .filter(s => s.category === 'company')
                 .map((section) => (
-                  <div key={section.key} className="bg-white p-6 rounded-lg shadow">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">
                       {section.label}
                     </label>
                     <div className="flex gap-2">
@@ -730,7 +730,7 @@ export default function CMSPage() {
                           onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
                           placeholder={section.placeholder}
                           rows={3}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                       ) : (
                         <input
@@ -738,13 +738,13 @@ export default function CMSPage() {
                           value={editingContent[section.key] || ''}
                           onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
                           placeholder={section.placeholder}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                          className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                         />
                       )}
                       <button
                         onClick={() => saveContent(section.key)}
                         disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
-                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
                         <Save className="w-4 h-4" />
                         {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
