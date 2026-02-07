@@ -169,6 +169,49 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; data: { subscription: { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string; dateDebut: string; dateProchainRenouvellement: string } | null } }>(`/api/clients/${id}/subscription`),
   },
 
+  // Abonnements
+  subscriptions: {
+    list: (params?: { statut?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.statut) queryParams.append('statut', params.statut);
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { subscriptions: Subscription[]; count: number } }>(`/api/subscriptions${query ? `?${query}` : ''}`);
+    },
+    
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { subscription: Subscription } }>(`/api/subscriptions/${id}`),
+    
+    renew: (subscriptionId: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data?: { subscription: unknown; invoice: unknown } }>('/api/subscriptions/renew', {
+        method: 'POST',
+        body: JSON.stringify({ subscriptionId }),
+      }),
+    
+    cancel: (subscriptionId: string, reason?: string, cancelAtPeriodEnd?: boolean) =>
+      authenticatedFetch<{ success: boolean; message: string; data?: { subscription: unknown } }>('/api/subscriptions/cancel', {
+        method: 'POST',
+        body: JSON.stringify({ subscriptionId, reason, cancelAtPeriodEnd }),
+      }),
+    
+    upgrade: (subscriptionId: string, nouveauPlan: { nomPlan: string; montantMensuel: number; modulesInclus?: string[]; dureeMois?: number }) =>
+      authenticatedFetch<{ success: boolean; message: string; data?: { subscription: unknown; prorata: unknown } }>('/api/subscriptions/upgrade', {
+        method: 'POST',
+        body: JSON.stringify({ subscriptionId, nouveauPlan }),
+      }),
+    
+    suspend: (subscriptionId: string, reason?: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data?: { subscription: unknown; client: unknown } }>('/api/subscriptions/suspend', {
+        method: 'POST',
+        body: JSON.stringify({ subscriptionId, reason }),
+      }),
+    
+    reactivate: (subscriptionId: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data?: { subscription: unknown } }>('/api/subscriptions/reactivate', {
+        method: 'POST',
+        body: JSON.stringify({ subscriptionId }),
+      }),
+  },
+
   // Leads
   leads: {
     list: (params?: { source?: string; statut?: string; limit?: string }) => {
@@ -305,6 +348,28 @@ export interface LogStats {
   byWorkflow: {
     leads: { total: number; errors: number; succeeded: number };
     clients: { total: number; errors: number; succeeded: number };
+  };
+}
+
+// Type pour les abonnements
+export interface Subscription {
+  id: string;
+  clientFinalId: string;
+  nomPlan: string;
+  dateDebut: string;
+  dateProchainRenouvellement: string;
+  montantMensuel: number;
+  modulesInclus: string[];
+  statut: 'actif' | 'suspendu' | 'annule' | 'expire';
+  idAbonnementStripe?: string | null;
+  idClientStripe?: string | null;
+  updatedAt: string;
+  clientFinal?: {
+    id: string;
+    email: string;
+    nom?: string;
+    prenom?: string;
+    raisonSociale?: string;
   };
 }
 

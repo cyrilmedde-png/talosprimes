@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, type Subscription } from '@/lib/api-client';
 import type { Lead, ClientFinal } from '@talosprimes/shared';
+import SubscriptionModal from '@/components/SubscriptionModal';
 import { 
   UserPlusIcon, 
   UserIcon, 
@@ -16,6 +17,7 @@ import {
   UserCircleIcon,
   CheckCircleIcon,
   SparklesIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 type CreateMode = 'from-lead' | 'direct';
@@ -31,8 +33,10 @@ export default function ClientsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientFinal | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [clientSubscriptions, setClientSubscriptions] = useState<Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null>>({});
   const [onboardingData, setOnboardingData] = useState({
     nomPlan: 'Plan Starter',
@@ -283,6 +287,24 @@ export default function ClientsPage() {
     setShowOnboardingModal(true);
   };
 
+  const handleManageSubscription = async (client: ClientFinal) => {
+    try {
+      // Récupérer l'abonnement complet
+      const response = await apiClient.subscriptions.list();
+      const subscription = response.data.subscriptions.find(s => s.clientFinalId === client.id);
+      
+      if (subscription) {
+        setSelectedSubscription(subscription);
+        setSelectedClient(client);
+        setShowSubscriptionModal(true);
+      } else {
+        setError('Abonnement non trouvé');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la récupération de l\'abonnement');
+    }
+  };
+
   const filteredClients = clients.filter(client => {
     const query = searchQuery.toLowerCase();
     return (
@@ -490,9 +512,13 @@ export default function ClientsPage() {
                                 </button>
                               )}
                               {clientSubscriptions[client.id] && (
-                                <span className="text-xs text-green-400" title={`Abonnement: ${clientSubscriptions[client.id]?.nomPlan}`}>
-                                  ✓
-                                </span>
+                                <button
+                                  onClick={() => handleManageSubscription(client)}
+                                  className="text-green-400 hover:text-green-300"
+                                  title={`Gérer l'abonnement: ${clientSubscriptions[client.id]?.nomPlan}`}
+                                >
+                                  <CreditCardIcon className="h-5 w-5" />
+                                </button>
                               )}
                               <button
                                 onClick={() => handleEdit(client)}
