@@ -509,7 +509,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        const where: any = {
+        const where: { clientFinalId: string; statut?: string } = {
           clientFinal: {
             tenantId,
           },

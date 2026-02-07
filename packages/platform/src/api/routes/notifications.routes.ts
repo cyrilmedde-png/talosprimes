@@ -51,7 +51,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           }
           tenantId = body.donnees.tenantId as string;
         } else {
-          tenantId = (request as any).tenantId;
+          tenantId = (request as { tenantId?: string }).tenantId || '';
         }
 
         const notification = await prisma.notification.create({
@@ -100,7 +100,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           offset?: string;
         };
 
-        const where: any = { tenantId };
+        const where: { tenantId: string; lu?: boolean } = { tenantId };
         if (lu !== undefined) {
           where.lu = lu === 'true';
         }

@@ -53,7 +53,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          users: users.map((user: any) => ({
+          users: users.map((user) => ({
             id: user.id,
             email: user.email,
             role: user.role,
@@ -134,7 +134,18 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
-      const userData: any = {
+      const userData: {
+        tenantId: string;
+        email: string;
+        passwordHash: string;
+        role: string;
+        nom?: string | null;
+        prenom?: string | null;
+        telephone?: string | null;
+        fonction?: string | null;
+        salaire?: number | null;
+        dateEmbauche?: Date | null;
+      } = {
         tenantId,
         email: data.email,
         passwordHash,
@@ -161,12 +172,12 @@ export async function usersRoutes(fastify: FastifyInstance) {
             id: user.id,
             email: user.email,
             role: user.role,
-            nom: (user as any).nom || null,
-            prenom: (user as any).prenom || null,
-            telephone: (user as any).telephone || null,
-            fonction: (user as any).fonction || null,
-            salaire: (user as any).salaire ? Number((user as any).salaire) : null,
-            dateEmbauche: (user as any).dateEmbauche?.toISOString() || null,
+            nom: user.nom || null,
+            prenom: user.prenom || null,
+            telephone: user.telephone || null,
+            fonction: user.fonction || null,
+            salaire: user.salaire ? Number(user.salaire) : null,
+            dateEmbauche: user.dateEmbauche?.toISOString() || null,
             statut: user.statut,
             createdAt: user.createdAt.toISOString(),
           },
@@ -233,7 +244,17 @@ export async function usersRoutes(fastify: FastifyInstance) {
       }
 
       // Mettre à jour l'utilisateur
-      const updateData: any = {};
+      const updateData: {
+        email?: string;
+        role?: string;
+        nom?: string | null;
+        prenom?: string | null;
+        telephone?: string | null;
+        fonction?: string | null;
+        salaire?: number | null;
+        dateEmbauche?: Date | null;
+        statut?: string;
+      } = {};
       
       if (data.email) updateData.email = data.email;
       if (data.role) updateData.role = data.role as UserRole;
@@ -258,12 +279,12 @@ export async function usersRoutes(fastify: FastifyInstance) {
             id: user.id,
             email: user.email,
             role: user.role,
-            nom: (user as any).nom || null,
-            prenom: (user as any).prenom || null,
-            telephone: (user as any).telephone || null,
-            fonction: (user as any).fonction || null,
-            salaire: (user as any).salaire ? Number((user as any).salaire) : null,
-            dateEmbauche: (user as any).dateEmbauche?.toISOString() || null,
+            nom: user.nom || null,
+            prenom: user.prenom || null,
+            telephone: user.telephone || null,
+            fonction: user.fonction || null,
+            salaire: user.salaire ? Number(user.salaire) : null,
+            dateEmbauche: user.dateEmbauche?.toISOString() || null,
             statut: user.statut,
             createdAt: user.createdAt.toISOString(),
           },
