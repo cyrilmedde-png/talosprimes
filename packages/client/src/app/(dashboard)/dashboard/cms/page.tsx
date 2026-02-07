@@ -286,20 +286,20 @@ export default function CMSPage() {
   ];
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Gestion de la Landing Page</h1>
-        <p className="text-gray-600 mt-2">Modifiez le contenu, les témoignages et consultez les messages de contact</p>
+    <div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Gestion de la Landing Page</h1>
+        <p className="mt-2 text-sm text-gray-400">Modifiez le contenu, les témoignages et consultez les messages de contact</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
+      <div className="flex gap-2 mb-6 border-b border-gray-700/30">
         <button
           onClick={() => setActiveTab('content')}
           className={`px-6 py-3 font-semibold transition ${
             activeTab === 'content'
-              ? 'border-b-2 border-purple-600 text-purple-600'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           Contenu
@@ -308,8 +308,8 @@ export default function CMSPage() {
           onClick={() => setActiveTab('testimonials')}
           className={`px-6 py-3 font-semibold transition ${
             activeTab === 'testimonials'
-              ? 'border-b-2 border-purple-600 text-purple-600'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           Témoignages ({testimonials.length})
@@ -318,8 +318,8 @@ export default function CMSPage() {
           onClick={() => setActiveTab('messages')}
           className={`px-6 py-3 font-semibold transition relative ${
             activeTab === 'messages'
-              ? 'border-b-2 border-purple-600 text-purple-600'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           Messages ({messages.filter(m => !m.traite).length})
@@ -333,8 +333,8 @@ export default function CMSPage() {
           onClick={() => setActiveTab('config')}
           className={`px-6 py-3 font-semibold transition ${
             activeTab === 'config'
-              ? 'border-b-2 border-purple-600 text-purple-600'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           ⚙️ Configuration
@@ -345,8 +345,8 @@ export default function CMSPage() {
       {activeTab === 'content' && (
         <div className="space-y-4">
           {contentSections.map((section) => (
-            <div key={section.key} className="bg-white p-6 rounded-lg shadow">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
+              <label className="block text-sm font-semibold text-gray-300 mb-2">
                 {section.label}
               </label>
               <div className="flex gap-2">
@@ -355,20 +355,20 @@ export default function CMSPage() {
                     value={editingContent[section.key] || ''}
                     onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
                     rows={3}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                    className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
                   />
                 ) : (
                   <input
                     type="text"
                     value={editingContent[section.key] || ''}
                     onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                    className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
                   />
                 )}
                 <button
                   onClick={() => saveContent(section.key)}
                   disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
@@ -385,7 +385,7 @@ export default function CMSPage() {
           <div className="mb-4">
             <button
               onClick={() => setShowTestimonialForm(!showTestimonialForm)}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
             >
               <Plus className="w-5 h-5" />
               Nouveau témoignage
@@ -394,43 +394,43 @@ export default function CMSPage() {
 
           {/* Form nouveau testimonial */}
           {showTestimonialForm && (
-            <div className="bg-white p-6 rounded-lg shadow mb-6">
-              <h3 className="text-xl font-bold mb-4">Nouveau témoignage</h3>
+            <div className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30 mb-6">
+              <h3 className="text-xl font-bold text-white mb-4">Nouveau témoignage</h3>
               <div className="grid grid-cols-2 gap-4">
                 <input
                   type="text"
                   placeholder="Prénom *"
                   value={newTestimonial.prenom}
                   onChange={(e) => setNewTestimonial({ ...newTestimonial, prenom: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <input
                   type="text"
                   placeholder="Nom *"
                   value={newTestimonial.nom}
                   onChange={(e) => setNewTestimonial({ ...newTestimonial, nom: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <input
                   type="text"
                   placeholder="Entreprise"
                   value={newTestimonial.entreprise}
                   onChange={(e) => setNewTestimonial({ ...newTestimonial, entreprise: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <input
                   type="text"
                   placeholder="Poste"
                   value={newTestimonial.poste}
                   onChange={(e) => setNewTestimonial({ ...newTestimonial, poste: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <input
                   type="text"
                   placeholder="Avatar (ex: AB)"
                   value={newTestimonial.avatar}
                   onChange={(e) => setNewTestimonial({ ...newTestimonial, avatar: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Note /5</label>
@@ -449,7 +449,7 @@ export default function CMSPage() {
                     value={newTestimonial.commentaire}
                     onChange={(e) => setNewTestimonial({ ...newTestimonial, commentaire: e.target.value })}
                     rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -466,19 +466,19 @@ export default function CMSPage() {
                   placeholder="Ordre d'affichage"
                   value={newTestimonial.ordre}
                   onChange={(e) => setNewTestimonial({ ...newTestimonial, ordre: parseInt(e.target.value) })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={createTestimonial}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                 >
                   Créer
                 </button>
                 <button
                   onClick={() => setShowTestimonialForm(false)}
-                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition"
+                  className="px-6 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition"
                 >
                   Annuler
                 </button>
@@ -489,7 +489,7 @@ export default function CMSPage() {
           {/* Liste testimonials */}
           <div className="grid gap-4">
             {testimonials.map((testimonial) => (
-              <div key={testimonial.id} className="bg-white p-6 rounded-lg shadow">
+              <div key={testimonial.id} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -497,8 +497,8 @@ export default function CMSPage() {
                         {testimonial.avatar || `${testimonial.prenom[0]}${testimonial.nom[0]}`}
                       </div>
                       <div>
-                        <div className="font-bold">{testimonial.prenom} {testimonial.nom}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="font-bold text-white">{testimonial.prenom} {testimonial.nom}</div>
+                        <div className="text-sm text-gray-400">
                           {testimonial.poste && `${testimonial.poste} - `}{testimonial.entreprise}
                         </div>
                       </div>
@@ -513,20 +513,20 @@ export default function CMSPage() {
                         <EyeOff className="w-5 h-5 text-gray-400" />
                       )}
                     </div>
-                    <p className="text-gray-700 italic">"{testimonial.commentaire}"</p>
-                    <div className="text-sm text-gray-500 mt-2">Ordre: {testimonial.ordre}</div>
+                    <p className="text-gray-300 italic">"{testimonial.commentaire}"</p>
+                    <div className="text-sm text-gray-400 mt-2">Ordre: {testimonial.ordre}</div>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => updateTestimonial(testimonial.id, { affiche: !testimonial.affiche })}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
+                      className="p-2 text-blue-400 hover:bg-gray-700/50 rounded transition"
                       title={testimonial.affiche ? 'Masquer' : 'Afficher'}
                     >
                       {testimonial.affiche ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                     <button
                       onClick={() => deleteTestimonial(testimonial.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+                      className="p-2 text-red-400 hover:bg-gray-700/50 rounded transition"
                       title="Supprimer"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -543,32 +543,32 @@ export default function CMSPage() {
       {activeTab === 'messages' && (
         <div className="space-y-4">
           {messages.length === 0 ? (
-            <div className="bg-white p-12 rounded-lg shadow text-center text-gray-500">
+            <div className="bg-gray-800/20 backdrop-blur-md p-12 rounded-lg shadow-lg border border-gray-700/30 text-center text-gray-400">
               Aucun message de contact
             </div>
           ) : (
             messages.map((message) => (
               <div
                 key={message.id}
-                className={`bg-white p-6 rounded-lg shadow ${message.traite ? 'opacity-60' : 'border-l-4 border-purple-600'}`}
+                className={`bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border ${message.traite ? 'opacity-60 border-gray-700/30' : 'border-l-4 border-indigo-500 border-t border-r border-b border-gray-700/30'}`}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <div className="font-bold text-lg">
+                    <div className="font-bold text-lg text-white">
                       {message.prenom} {message.nom}
-                      {message.traite && <span className="ml-2 text-sm text-green-600">(Traité)</span>}
+                      {message.traite && <span className="ml-2 text-sm text-green-400">(Traité)</span>}
                     </div>
-                    <div className="text-gray-600">
+                    <div className="text-gray-300">
                       <Mail className="inline w-4 h-4 mr-1" />
                       {message.email}
                     </div>
                     {message.telephone && (
-                      <div className="text-gray-600 text-sm">Tél: {message.telephone}</div>
+                      <div className="text-gray-400 text-sm">Tél: {message.telephone}</div>
                     )}
                     {message.entreprise && (
-                      <div className="text-gray-600 text-sm">Entreprise: {message.entreprise}</div>
+                      <div className="text-gray-400 text-sm">Entreprise: {message.entreprise}</div>
                     )}
-                    <div className="text-sm text-gray-400 mt-1">
+                    <div className="text-sm text-gray-500 mt-1">
                       {new Date(message.createdAt).toLocaleDateString('fr-FR', {
                         day: 'numeric',
                         month: 'long',
@@ -582,7 +582,7 @@ export default function CMSPage() {
                     {!message.traite && (
                       <button
                         onClick={() => markMessageAsProcessed(message.id)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded transition"
+                        className="p-2 text-green-400 hover:bg-gray-700/50 rounded transition"
                         title="Marquer comme traité"
                       >
                         <CheckCircle className="w-5 h-5" />
@@ -590,15 +590,15 @@ export default function CMSPage() {
                     )}
                     <button
                       onClick={() => deleteMessage(message.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+                      className="p-2 text-red-400 hover:bg-gray-700/50 rounded transition"
                       title="Supprimer"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700 whitespace-pre-wrap">{message.message}</p>
+                <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-600/30">
+                  <p className="text-gray-300 whitespace-pre-wrap">{message.message}</p>
                 </div>
               </div>
             ))
@@ -611,18 +611,18 @@ export default function CMSPage() {
         <div className="space-y-8">
           {/* Coordonnées de Contact */}
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
               📞 Coordonnées de Contact
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-400 mb-4">
               Ces informations seront affichées sur la landing page dans la section Contact
             </p>
             <div className="space-y-4">
               {configSections
                 .filter(s => s.category === 'contact')
                 .map((section) => (
-                  <div key={section.key} className="bg-white p-6 rounded-lg shadow">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">
                       {section.label}
                     </label>
                     <div className="flex gap-2">
@@ -659,13 +659,13 @@ export default function CMSPage() {
 
           {/* Informations Légales */}
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
               ⚖️ Informations Légales
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-400 mb-4">
               Ces informations seront utilisées dans les mentions légales, CGU, CGV et politique de confidentialité.
               <br />
-              <span className="text-orange-600 font-semibold">⚠️ Important : Remplacez les valeurs fictives par vos vraies informations !</span>
+              <span className="text-orange-400 font-semibold">⚠️ Important : Remplacez les valeurs fictives par vos vraies informations !</span>
             </p>
             <div className="space-y-4">
               {configSections
@@ -709,10 +709,10 @@ export default function CMSPage() {
 
           {/* Informations Entreprise */}
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
               🏢 Informations Entreprise
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-400 mb-4">
               Informations générales sur votre entreprise affichées sur le site
             </p>
             <div className="space-y-4">
@@ -756,9 +756,9 @@ export default function CMSPage() {
           </div>
 
           {/* Aide */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="font-bold text-blue-900 mb-2">💡 Information</h3>
-            <p className="text-blue-800">
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-6">
+            <h3 className="font-bold text-blue-300 mb-2">💡 Information</h3>
+            <p className="text-blue-200">
               Les modifications de configuration sont sauvegardées dans la base de données. 
               Pour que certaines modifications (notamment les informations légales) soient affichées partout, 
               vous devrez peut-être mettre à jour les pages légales directement.
