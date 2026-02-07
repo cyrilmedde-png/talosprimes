@@ -53,7 +53,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.put<{ Params: { section: string }; Body: { contenu: string } }>(
     '/api/landing/content/:section',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { section } = request.params;
@@ -94,7 +94,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/landing/testimonials/all',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (_request, reply) => {
       try {
@@ -113,7 +113,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: TestimonialBody }>(
     '/api/landing/testimonials',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { nom, prenom, entreprise, poste, avatar, note, commentaire, affiche, ordre } = request.body;
@@ -145,7 +145,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.put<{ Params: { id: string }; Body: Partial<TestimonialBody> }>(
     '/api/landing/testimonials/:id',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { id } = request.params;
@@ -179,7 +179,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>(
     '/api/landing/testimonials/:id',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { id } = request.params;
@@ -237,7 +237,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/landing/contact',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (_request, reply) => {
       try {
@@ -256,7 +256,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.patch<{ Params: { id: string } }>(
     '/api/landing/contact/:id/traite',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { id } = request.params;
@@ -279,7 +279,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>(
     '/api/landing/contact/:id',
     {
-      preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { id } = request.params;
