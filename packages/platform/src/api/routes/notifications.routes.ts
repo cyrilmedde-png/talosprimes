@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
+import { Prisma } from '@prisma/client';
 
 const createNotificationSchema = z.object({
   type: z.string().min(1),
