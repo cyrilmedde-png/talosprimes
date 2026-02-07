@@ -32,10 +32,8 @@ export default function ClientsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientFinal | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [clientSubscriptions, setClientSubscriptions] = useState<Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null>>({});
   const [onboardingData, setOnboardingData] = useState({
     nomPlan: 'Plan Starter',
@@ -293,9 +291,9 @@ export default function ClientsPage() {
       const subscription = response.data.subscriptions.find(s => s.clientFinalId === client.id);
       
       if (subscription) {
-        setSelectedSubscription(subscription);
-        setSelectedClient(client);
-        setShowSubscriptionModal(true);
+        // TODO: Implémenter le modal de visualisation d'abonnement
+        console.log('Subscription:', subscription);
+        setError('Fonctionnalité en cours de développement');
       } else {
         setError('Abonnement non trouvé');
       }
