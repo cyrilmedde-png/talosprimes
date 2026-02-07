@@ -1,7 +1,26 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Workflow } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 export default function MentionsLegalesPage() {
+  const [content, setContent] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content`)
+      .then(r => r.json())
+      .then(data => {
+        setContent(data.legal_mentions_legales || '');
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Erreur chargement:', err);
+        setLoading(false);
+      });
+  }, []);
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -26,7 +45,17 @@ export default function MentionsLegalesPage() {
       <div className="container mx-auto px-6 py-12 max-w-4xl">
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Mentions Légales</h1>
 
-        <div className="bg-white rounded-lg shadow-lg p-8 space-y-8">
+        {loading ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement...</p>
+          </div>
+        ) : content ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 prose prose-lg max-w-none">
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-lg p-8 space-y-8">
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Informations légales</h2>
             <div className="space-y-3 text-gray-700">
@@ -129,6 +158,7 @@ export default function MentionsLegalesPage() {
             </p>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
