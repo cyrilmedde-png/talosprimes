@@ -110,7 +110,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         };
 
         if (queryParams.statut) {
-          where.statut = queryParams.statut;
+          where.statut = queryParams.statut as InvoiceStatus;
         }
 
         if (queryParams.clientFinalId) {
