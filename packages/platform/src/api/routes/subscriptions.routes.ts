@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { Prisma } from '@prisma/client';
+import { Prisma, SubscriptionStatus } from '@prisma/client';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
@@ -517,7 +517,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         };
 
         if (queryParams.statut) {
-          where.statut = queryParams.statut;
+          where.statut = queryParams.statut as SubscriptionStatus;
         }
 
         const subscriptions = await prisma.clientSubscription.findMany({

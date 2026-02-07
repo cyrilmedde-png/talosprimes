@@ -5,6 +5,7 @@ import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { Prisma, InvoiceStatus } from '@prisma/client';
 
 // Schema de validation pour créer une facture
 const createInvoiceSchema = z.object({
