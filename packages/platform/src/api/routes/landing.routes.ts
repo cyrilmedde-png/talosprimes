@@ -4,9 +4,16 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 // Types
-interface LandingContentBody {
-  section: string;
-  contenu: string;
+interface TestimonialBody {
+  nom: string;
+  prenom: string;
+  entreprise?: string;
+  poste?: string;
+  avatar?: string;
+  note: number;
+  commentaire: string;
+  affiche?: boolean;
+  ordre?: number;
 }
 
 interface ContactMessageBody {
@@ -23,7 +30,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   // ===== LANDING CONTENT (Contenu éditable) =====
 
   // GET /api/landing/content - Récupérer tout le contenu
-  fastify.get('/api/landing/content', async (request, reply) => {
+  fastify.get('/api/landing/content', async (_request, reply) => {
     try {
       const content = await prisma.landingContent.findMany({
         orderBy: { section: 'asc' }
@@ -70,7 +77,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   // ===== TESTIMONIALS (Avis clients) =====
 
   // GET /api/landing/testimonials - Récupérer les testimonials affichés
-  fastify.get('/api/landing/testimonials', async (request, reply) => {
+  fastify.get('/api/landing/testimonials', async (_request, reply) => {
     try {
       const testimonials = await prisma.testimonial.findMany({
         where: { affiche: true },
@@ -89,7 +96,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     {
       preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
     },
-    async (request, reply) => {
+    async (_request, reply) => {
       try {
         const testimonials = await prisma.testimonial.findMany({
           orderBy: { ordre: 'asc' }
@@ -103,7 +110,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   );
 
   // POST /api/landing/testimonials - Créer un testimonial (ADMIN)
-  fastify.post<{ Body: any }>(
+  fastify.post<{ Body: TestimonialBody }>(
     '/api/landing/testimonials',
     {
       preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
@@ -135,7 +142,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   );
 
   // PUT /api/landing/testimonials/:id - Modifier un testimonial (ADMIN)
-  fastify.put<{ Params: { id: string }; Body: any }>(
+  fastify.put<{ Params: { id: string }; Body: Partial<TestimonialBody> }>(
     '/api/landing/testimonials/:id',
     {
       preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
@@ -201,7 +208,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const contactMessage = await prisma.contactMessage.create({
+        await prisma.contactMessage.create({
           data: {
             nom,
             prenom,
@@ -232,7 +239,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     {
       preHandler: [fastify.authenticate as any, fastify.requireRole(['super_admin', 'admin'] as any)],
     },
-    async (request, reply) => {
+    async (_request, reply) => {
       try {
         const messages = await prisma.contactMessage.findMany({
           orderBy: { createdAt: 'desc' }
