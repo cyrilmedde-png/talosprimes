@@ -433,14 +433,14 @@ export default function CMSPage() {
                   className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Note /5</label>
+                  <label className="block text-sm text-gray-300 mb-1">Note /5</label>
                   <input
                     type="number"
                     min="1"
                     max="5"
                     value={newTestimonial.note}
                     onChange={(e) => setNewTestimonial({ ...newTestimonial, note: parseInt(e.target.value) })}
-                    className="px-4 py-2 border border-gray-300 rounded-lg w-full"
+                    className="px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
                 <div className="col-span-2">
