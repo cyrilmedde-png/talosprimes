@@ -11,6 +11,7 @@ import {
   UserPlusIcon,
   BellIcon,
   ClipboardDocumentListIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Notifications', href: '/notifications', icon: BellIcon },
   { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
   { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
+  { name: 'CMS Landing Page', href: '/dashboard/cms', icon: PencilSquareIcon },
   { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
   { name: 'Clients', href: '/clients', icon: UsersIcon },
   { name: 'Documents', href: '/dashboard/documents', icon: DocumentTextIcon },
