@@ -252,9 +252,21 @@ export default function CMSPage() {
     if (!confirm('Générer le contenu avec IA ? Cela remplacera le contenu actuel.')) return;
     
     setGeneratingLegal(pageId);
+    
+    console.log('🤖 Démarrage génération IA pour:', pageId);
+    
     try {
       const token = getAccessToken();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/generate-legal/${pageId}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const url = `${apiUrl}/api/landing/generate-legal/${pageId}`;
+      
+      console.log('📡 URL appelée:', url);
+      console.log('📦 Données envoyées:', {
+        companyName: editingContent.config_legal_company_name,
+        siret: editingContent.config_legal_siret,
+      });
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,19 +282,26 @@ export default function CMSPage() {
         }),
       });
 
+      console.log('📡 Réponse status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Contenu reçu:', data);
+        
         const page = legalPages.find(p => p.id === pageId);
         if (page) {
           setEditingContent({ ...editingContent, [page.contentKey]: data.content });
-          alert('Contenu généré avec succès ! Cliquez sur Sauvegarder pour appliquer.');
+          alert('✅ Contenu généré avec succès ! Cliquez sur Sauvegarder pour appliquer.');
         }
       } else {
-        alert('Erreur lors de la génération. Vérifiez vos informations de configuration.');
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        console.error('❌ Erreur serveur:', errorData);
+        alert(`❌ Erreur: ${errorData.error || 'Erreur lors de la génération'}`);
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      alert('Erreur lors de la génération du contenu.');
+      console.error('❌ Erreur catch:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      alert(`❌ Erreur: ${errorMessage}`);
     } finally {
       setGeneratingLegal(null);
     }
