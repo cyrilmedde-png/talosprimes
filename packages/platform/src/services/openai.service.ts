@@ -18,8 +18,10 @@ export async function generateLegalContent(params: GenerateLegalContentParams): 
 
   // Vérifier si OpenAI est configuré
   if (!env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY non configurée. Ajoutez-la dans le fichier .env');
+    throw new Error('❌ OPENAI_API_KEY non configurée. Ajoutez OPENAI_API_KEY="sk-..." dans /var/www/talosprimes/packages/platform/.env puis redémarrez avec: pm2 restart platform');
   }
+
+  console.log('🤖 Génération IA démarrée pour:', pageType);
 
   // Prompts spécifiques par type de page
   const prompts: Record<string, string> = {
@@ -174,7 +176,24 @@ Format: Markdown avec titres ## et numérotation. Très détaillé et conforme R
 
     return generatedContent;
   } catch (error) {
-    console.error('Erreur génération OpenAI:', error);
+    console.error('❌ Erreur génération OpenAI:', error);
+    
+    // Message d'erreur détaillé
+    if (error instanceof Error) {
+      if (error.message.includes('OPENAI_API_KEY')) {
+        throw new Error('Clé API OpenAI non configurée. Vérifiez votre fichier .env');
+      }
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        throw new Error('Clé API OpenAI invalide. Vérifiez que votre clé commence par "sk-" et est correcte');
+      }
+      if (error.message.includes('429') || error.message.includes('quota')) {
+        throw new Error('Quota OpenAI dépassé. Vérifiez votre compte OpenAI ou attendez un peu');
+      }
+      if (error.message.includes('network') || error.message.includes('fetch')) {
+        throw new Error('Erreur de connexion à OpenAI. Vérifiez votre connexion internet');
+      }
+    }
+    
     throw error;
   }
 }
