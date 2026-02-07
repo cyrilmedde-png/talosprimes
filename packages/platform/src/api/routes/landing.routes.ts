@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import { generateLegalContent } from '../../services/openai.service.js';
 
 const prisma = new PrismaClient();
 
@@ -349,45 +350,30 @@ export async function landingRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        // Générer le prompt pour l'IA
-        const prompt = legalTemplates[pageId as keyof typeof legalTemplates](companyData);
+        fastify.log.info(`Génération IA pour ${pageId} avec données:`, companyData);
 
-        // TODO: Intégrer avec OpenAI API
-        // Pour l'instant, on retourne un template de base
-        const generatedContent = `# ${pageId.toUpperCase()} - Généré automatiquement
+        // Générer le contenu avec OpenAI
+        const generatedContent = await generateLegalContent({
+          pageType: pageId as 'mentions-legales' | 'cgu' | 'cgv' | 'confidentialite',
+          companyName: companyData.companyName,
+          siret: companyData.siret,
+          tva: companyData.tva,
+          address: companyData.address,
+          email: companyData.email,
+          phone: companyData.phone,
+        });
 
-## 1. Informations
-
-**Raison sociale:** ${companyData.companyName}
-**SIRET:** ${companyData.siret}
-**TVA:** ${companyData.tva}
-**Adresse:** ${companyData.address}
-**Email:** ${companyData.email}
-**Téléphone:** ${companyData.phone}
-
-## 2. Contenu personnalisé
-
-${prompt}
-
----
-
-**Note:** Ceci est un template de base. Pour une génération IA complète, configurez votre clé API OpenAI dans les variables d'environnement.
-
-Pour activer la génération IA:
-1. Ajoutez OPENAI_API_KEY dans .env
-2. Installez: pnpm add openai
-3. Le système générera automatiquement un contenu juridique complet et personnalisé.
-
-**Dernière mise à jour:** ${new Date().toLocaleDateString('fr-FR')}`;
+        fastify.log.info(`Contenu généré avec succès pour ${pageId}`);
 
         return reply.send({ 
           success: true, 
           content: generatedContent,
-          message: 'Contenu généré avec succès' 
+          message: 'Contenu généré avec IA avec succès' 
         });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la génération du contenu' });
+        const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la génération du contenu';
+        return reply.status(500).send({ error: errorMessage });
       }
     }
   );

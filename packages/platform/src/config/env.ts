@@ -47,6 +47,9 @@ const envSchema = z.object({
   
   // Redis
   REDIS_URL: z.string().url().optional(),
+  
+  // OpenAI
+  OPENAI_API_KEY: z.string().optional(),
 });
 
 // Validation et export
