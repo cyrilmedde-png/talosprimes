@@ -334,7 +334,19 @@ export async function landingRoutes(fastify: FastifyInstance) {
   // POST /api/landing/generate-legal/:pageId - Générer contenu légal avec IA (ADMIN)
   fastify.post<{ 
     Params: { pageId: string }; 
-    Body: { companyName: string; siret: string; tva: string; address: string; email: string; phone: string } 
+    Body: { 
+      companyName: string; 
+      siret: string; 
+      tva: string; 
+      address: string; 
+      email: string; 
+      phone: string;
+      hostingProvider?: string;
+      hostingAddress?: string;
+      insuranceCompany?: string;
+      insurancePolicyNumber?: string;
+      insuranceCoverage?: string;
+    } 
   }>(
     '/api/landing/generate-legal/:pageId',
     {
@@ -361,6 +373,11 @@ export async function landingRoutes(fastify: FastifyInstance) {
           address: companyData.address,
           email: companyData.email,
           phone: companyData.phone,
+          hostingProvider: companyData.hostingProvider,
+          hostingAddress: companyData.hostingAddress,
+          insuranceCompany: companyData.insuranceCompany,
+          insurancePolicyNumber: companyData.insurancePolicyNumber,
+          insuranceCoverage: companyData.insuranceCoverage,
         });
 
         fastify.log.info(`Contenu généré avec succès pour ${pageId}`);

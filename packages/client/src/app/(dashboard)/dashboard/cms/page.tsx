@@ -279,6 +279,11 @@ export default function CMSPage() {
           address: editingContent.config_legal_address || '',
           email: editingContent.config_contact_email || 'contact@talosprimes.com',
           phone: editingContent.config_contact_phone || '',
+          hostingProvider: editingContent.config_hosting_provider || 'OVH',
+          hostingAddress: editingContent.config_hosting_address || '',
+          insuranceCompany: editingContent.config_insurance_company || '',
+          insurancePolicyNumber: editingContent.config_insurance_policy_number || '',
+          insuranceCoverage: editingContent.config_insurance_coverage || '',
         }),
       });
 
