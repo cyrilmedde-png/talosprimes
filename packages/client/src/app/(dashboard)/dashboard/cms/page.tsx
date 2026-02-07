@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth-store';
-import { Edit, Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle, X } from 'lucide-react';
+import { Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle, X } from 'lucide-react';
 
 // Types
 interface Testimonial {
