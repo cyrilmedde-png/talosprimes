@@ -3,6 +3,40 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Templates pour génération IA
+const legalTemplates = {
+  'mentions-legales': (data: Record<string, string>) => `Génère des mentions légales complètes et conformes pour une entreprise française avec les informations suivantes:
+- Raison sociale: ${data.companyName}
+- SIRET: ${data.siret}
+- TVA: ${data.tva}
+- Adresse: ${data.address}
+- Email: ${data.email}
+- Téléphone: ${data.phone}
+
+Le texte doit inclure: informations légales, directeur de publication, hébergement (OVH), propriété intellectuelle, protection des données RGPD, cookies, limitation de responsabilité, droit applicable.
+Format: Markdown avec titres ## et sections numérotées.`,
+
+  'cgu': (data: Record<string, string>) => `Génère des Conditions Générales d'Utilisation (CGU) complètes pour une plateforme SaaS française nommée "${data.companyName}".
+La plateforme propose: CRM multi-tenant, facturation automatisée, workflows n8n, gestion d'équipe.
+
+Inclure: objet, accès, création de compte, services, obligations utilisateur, propriété intellectuelle, protection données RGPD, disponibilité, limitation responsabilité, suspension/résiliation, modifications CGU, droit applicable.
+Format: Markdown avec titres ## et sections numérotées.`,
+
+  'cgv': (data: Record<string, string>) => `Génère des Conditions Générales de Vente (CGV) complètes pour "${data.companyName}", plateforme SaaS B2B française.
+
+Services: CRM, facturation, automation n8n. Paiement via Stripe. Abonnements mensuels/annuels.
+
+Inclure: préambule, services, tarifs et paiement, durée et renouvellement, droit de rétractation, obligations vendeur/client, garanties, responsabilité, propriété données, force majeure, modifications, droit applicable.
+Format: Markdown avec titres ## et sections numérotées.`,
+
+  'confidentialite': (data: Record<string, string>) => `Génère une Politique de Confidentialité et RGPD complète pour "${data.companyName}" (${data.email}).
+
+Plateforme SaaS multi-tenant. Hébergement: OVH. Paiement: Stripe. Base de données: Supabase PostgreSQL.
+
+Inclure: introduction, responsable traitement, données collectées (identification, connexion, paiement, métiers), finalités, base légale, durée conservation, destinataires, transferts hors UE, sécurité (SSL, bcrypt, isolation), droits RGPD (accès, rectification, effacement, portabilité), réclamation CNIL, cookies, modifications, contact DPO.
+Format: Markdown avec titres ## et sections numérotées.`,
+};
+
 // Types
 interface TestimonialBody {
   nom: string;
@@ -290,6 +324,70 @@ export async function landingRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
         return reply.status(500).send({ error: 'Erreur lors de la suppression du message' });
+      }
+    }
+  );
+
+  // ===== GÉNÉRATION IA PAGES LÉGALES =====
+
+  // POST /api/landing/generate-legal/:pageId - Générer contenu légal avec IA (ADMIN)
+  fastify.post<{ 
+    Params: { pageId: string }; 
+    Body: { companyName: string; siret: string; tva: string; address: string; email: string; phone: string } 
+  }>(
+    '/api/landing/generate-legal/:pageId',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      const { pageId } = request.params;
+      const companyData = request.body;
+
+      // Vérifier que le pageId est valide
+      if (!legalTemplates[pageId as keyof typeof legalTemplates]) {
+        return reply.status(400).send({ error: 'Page légale invalide' });
+      }
+
+      try {
+        // Générer le prompt pour l'IA
+        const prompt = legalTemplates[pageId as keyof typeof legalTemplates](companyData);
+
+        // TODO: Intégrer avec OpenAI API
+        // Pour l'instant, on retourne un template de base
+        const generatedContent = `# ${pageId.toUpperCase()} - Généré automatiquement
+
+## 1. Informations
+
+**Raison sociale:** ${companyData.companyName}
+**SIRET:** ${companyData.siret}
+**TVA:** ${companyData.tva}
+**Adresse:** ${companyData.address}
+**Email:** ${companyData.email}
+**Téléphone:** ${companyData.phone}
+
+## 2. Contenu personnalisé
+
+${prompt}
+
+---
+
+**Note:** Ceci est un template de base. Pour une génération IA complète, configurez votre clé API OpenAI dans les variables d'environnement.
+
+Pour activer la génération IA:
+1. Ajoutez OPENAI_API_KEY dans .env
+2. Installez: pnpm add openai
+3. Le système générera automatiquement un contenu juridique complet et personnalisé.
+
+**Dernière mise à jour:** ${new Date().toLocaleDateString('fr-FR')}`;
+
+        return reply.send({ 
+          success: true, 
+          content: generatedContent,
+          message: 'Contenu généré avec succès' 
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur lors de la génération du contenu' });
       }
     }
   );

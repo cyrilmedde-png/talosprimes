@@ -30,7 +30,7 @@ interface ContactMessage {
   createdAt: string;
 }
 
-type TabType = 'content' | 'testimonials' | 'messages' | 'config';
+type TabType = 'content' | 'testimonials' | 'messages' | 'config' | 'legal';
 
 interface ConfigSection {
   key: string;
@@ -40,6 +40,14 @@ interface ConfigSection {
   category: 'contact' | 'legal' | 'company';
 }
 
+interface LegalPage {
+  id: string;
+  title: string;
+  description: string;
+  contentKey: string;
+  route: string;
+}
+
 export default function CMSPage() {
   const [activeTab, setActiveTab] = useState<TabType>('content');
   
@@ -47,6 +55,9 @@ export default function CMSPage() {
   const [content, setContent] = useState<Record<string, string>>({});
   const [editingContent, setEditingContent] = useState<Record<string, string>>({});
   const [savingContent, setSavingContent] = useState<string | null>(null);
+  
+  // Legal Pages
+  const [generatingLegal, setGeneratingLegal] = useState<string | null>(null);
   
   // Testimonials
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
@@ -236,6 +247,47 @@ export default function CMSPage() {
     }
   };
 
+  // Générer contenu légal avec IA
+  const generateLegalContent = async (pageId: string) => {
+    if (!confirm('Générer le contenu avec IA ? Cela remplacera le contenu actuel.')) return;
+    
+    setGeneratingLegal(pageId);
+    try {
+      const token = getAccessToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/generate-legal/${pageId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          companyName: editingContent.config_legal_company_name || 'TalosPrimes SAS',
+          siret: editingContent.config_legal_siret || '',
+          tva: editingContent.config_legal_tva || '',
+          address: editingContent.config_legal_address || '',
+          email: editingContent.config_contact_email || 'contact@talosprimes.com',
+          phone: editingContent.config_contact_phone || '',
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const page = legalPages.find(p => p.id === pageId);
+        if (page) {
+          setEditingContent({ ...editingContent, [page.contentKey]: data.content });
+          alert('Contenu généré avec succès ! Cliquez sur Sauvegarder pour appliquer.');
+        }
+      } else {
+        alert('Erreur lors de la génération. Vérifiez vos informations de configuration.');
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la génération du contenu.');
+    } finally {
+      setGeneratingLegal(null);
+    }
+  };
+
   const contentSections = [
     { key: 'hero_title', label: 'Titre Hero' },
     { key: 'hero_subtitle', label: 'Sous-titre Hero' },
@@ -263,6 +315,37 @@ export default function CMSPage() {
     { key: 'cta_section_subtitle', label: 'Section CTA - Sous-titre' },
     { key: 'footer_company_name', label: 'Footer - Nom entreprise' },
     { key: 'footer_company_desc', label: 'Footer - Description' },
+  ];
+
+  const legalPages: LegalPage[] = [
+    {
+      id: 'mentions-legales',
+      title: 'Mentions Légales',
+      description: 'Informations légales obligatoires (SIRET, TVA, hébergeur, etc.)',
+      contentKey: 'legal_mentions_legales',
+      route: '/mentions-legales',
+    },
+    {
+      id: 'cgu',
+      title: 'Conditions Générales d\'Utilisation (CGU)',
+      description: 'Règles d\'utilisation de la plateforme',
+      contentKey: 'legal_cgu',
+      route: '/cgu',
+    },
+    {
+      id: 'cgv',
+      title: 'Conditions Générales de Vente (CGV)',
+      description: 'Conditions commerciales et de vente',
+      contentKey: 'legal_cgv',
+      route: '/cgv',
+    },
+    {
+      id: 'confidentialite',
+      title: 'Politique de Confidentialité & RGPD',
+      description: 'Protection des données personnelles et conformité RGPD',
+      contentKey: 'legal_confidentialite',
+      route: '/confidentialite',
+    },
   ];
 
   const configSections: ConfigSection[] = [
@@ -338,6 +421,16 @@ export default function CMSPage() {
           }`}
         >
           ⚙️ Configuration
+        </button>
+        <button
+          onClick={() => setActiveTab('legal')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'legal'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          ⚖️ Pages Légales
         </button>
       </div>
 
@@ -763,6 +856,96 @@ export default function CMSPage() {
               Pour que certaines modifications (notamment les informations légales) soient affichées partout, 
               vous devrez peut-être mettre à jour les pages légales directement.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Legal Pages Tab */}
+      {activeTab === 'legal' && (
+        <div className="space-y-6">
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-6">
+            <h3 className="font-bold text-blue-300 mb-2">🤖 Génération Automatique par IA</h3>
+            <p className="text-blue-200 text-sm">
+              Utilisez l'IA pour générer automatiquement le contenu de vos pages légales en fonction de vos informations de configuration.
+              <br />
+              <span className="font-semibold">⚠️ Important : Remplissez d'abord vos informations dans l'onglet Configuration avant de générer !</span>
+            </p>
+          </div>
+
+          {legalPages.map((page) => (
+            <div key={page.id} className="bg-gray-800/20 backdrop-blur-md rounded-lg shadow-lg border border-gray-700/30 overflow-hidden">
+              <div className="bg-gray-700/30 px-6 py-4 border-b border-gray-600/30">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{page.title}</h3>
+                    <p className="text-sm text-gray-400 mt-1">{page.description}</p>
+                    <a
+                      href={page.route}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-indigo-400 hover:text-indigo-300 mt-2 inline-block"
+                    >
+                      Voir la page →
+                    </a>
+                  </div>
+                  <button
+                    onClick={() => generateLegalContent(page.id)}
+                    disabled={generatingLegal === page.id}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {generatingLegal === page.id ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        🤖 Générer avec IA
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                <label className="block text-sm font-semibold text-gray-300 mb-2">
+                  Contenu de la page
+                </label>
+                <div className="space-y-2">
+                  <textarea
+                    value={editingContent[page.contentKey] || ''}
+                    onChange={(e) => setEditingContent({ ...editingContent, [page.contentKey]: e.target.value })}
+                    placeholder={`Contenu de ${page.title}...`}
+                    rows={15}
+                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 text-white rounded-lg placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => saveContent(page.contentKey)}
+                      disabled={savingContent === page.contentKey || editingContent[page.contentKey] === content[page.contentKey]}
+                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingContent === page.contentKey ? 'Sauvegarde...' : 'Sauvegarder'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Aide */}
+          <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-6">
+            <h3 className="font-bold text-yellow-300 mb-2">💡 Conseils</h3>
+            <ul className="text-yellow-200 text-sm space-y-2">
+              <li>• Remplissez d'abord toutes vos informations dans l'onglet <strong>Configuration</strong></li>
+              <li>• Utilisez la génération IA pour créer un contenu personnalisé automatiquement</li>
+              <li>• Vous pouvez ensuite modifier manuellement le contenu généré</li>
+              <li>• N'oubliez pas de sauvegarder après modification</li>
+              <li>• Les pages légales sont accessibles directement depuis le footer de la landing page</li>
+            </ul>
           </div>
         </div>
       )}
