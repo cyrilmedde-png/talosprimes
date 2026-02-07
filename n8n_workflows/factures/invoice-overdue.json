@@ -1,0 +1,410 @@
+{
+  "name": "invoice-overdue",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "invoice-overdue",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Valider le payload et extraire les paramètres\nconst payload = $input.first().json.body;\n\n// Validation de tenantId\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\n// Vérifier si invoiceId est fourni\nconst invoiceId = payload.invoiceId || null;\nconst tenantId = payload.tenantId;\n\nreturn {\n  json: {\n    tenantId,\n    invoiceId,\n    hasSpecificInvoice: !!invoiceId,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "02. Parser payload",
+      "name": "02. Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "true",
+              "value1": "={{ $json.hasSpecificInvoice }}",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "03. IF facture spécifique",
+      "name": "03. IF facture spécifique",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.*, cf.email, cf.nom, cf.prenom FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id=$1 AND i.tenant_id=$2 AND i.statut='envoyee' AND i.date_echeance < NOW()",
+        "queryParams": "={{ [$json.invoiceId, $json.tenantId] }}",
+        "poolSize": 10
+      },
+      "id": "04a. Récupérer facture",
+      "name": "04a. Récupérer facture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        450,
+        100
+      ],
+      "credentials": {
+        "postgres": "postgres-credential"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.*, cf.email, cf.nom, cf.prenom FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.tenant_id=$1 AND i.statut='envoyee' AND i.date_echeance < NOW() ORDER BY i.date_echeance ASC",
+        "queryParams": "={{ [$json.tenantId] }}",
+        "poolSize": 10
+      },
+      "id": "04b. Scanner factures en retard",
+      "name": "04b. Scanner factures en retard",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        450,
+        450
+      ],
+      "credentials": {
+        "postgres": "postgres-credential"
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "mergeByKey": "id"
+      },
+      "id": "05. Merge résultats",
+      "name": "05. Merge résultats",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        650,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "true",
+              "value1": "={{ $input.first().json.length > 0 }}",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "06. Validation",
+      "name": "06. Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        850,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET statut='en_retard', updated_at=NOW() WHERE id=ANY($1::uuid[]) AND tenant_id=$2",
+        "queryParams": "={{ [($input.first().json || []).map(inv => inv.id), $json.tenantId] }}",
+        "poolSize": 10
+      },
+      "id": "07. Mettre à jour statut",
+      "name": "07. Mettre à jour statut",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1050,
+        100
+      ],
+      "credentials": {
+        "postgres": "postgres-credential"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer les emails de relance avec urgence adaptée\nconst invoices = $input.first().json;\nconst emails = [];\n\nfor (const invoice of invoices) {\n  const dueDate = new Date(invoice.date_echeance);\n  const today = new Date();\n  const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));\n  \n  // Déterminer le niveau d'urgence\n  let urgencyLevel = 'normal';\n  let emailSubject = 'Rappel de paiement';\n  let themeColor = '#FF9500'; // Orange\n  \n  if (daysOverdue > 15) {\n    urgencyLevel = 'critical';\n    emailSubject = 'URGENT - Facture impayée';\n    themeColor = '#DC2626'; // Red\n  } else if (daysOverdue > 7) {\n    urgencyLevel = 'high';\n    emailSubject = 'Relance - Facture en retard';\n    themeColor = '#EA580C'; // Dark orange\n  }\n  \n  const amountTTC = parseFloat(invoice.montant_ttc || 0).toFixed(2);\n  const invoiceNumber = invoice.numero_facture || invoice.id;\n  const dueDateFormatted = dueDate.toLocaleDateString('fr-FR');\n  const clientName = `${invoice.prenom || ''} ${invoice.nom || ''}`.trim() || 'Client';\n  \n  const emailBody = `\n<html>\n  <body style=\"font-family: Arial, sans-serif; line-height: 1.6;\">\n    <div style=\"background-color: ${themeColor}; color: white; padding: 20px; text-align: center; margin-bottom: 20px;\">\n      <h1 style=\"margin: 0; font-size: 24px;\">⚠️ FACTURE EN RETARD</h1>\n    </div>\n    \n    <div style=\"max-width: 600px; margin: 0 auto; padding: 20px;\">\n      <p>Bonjour ${clientName},</p>\n      \n      <p style=\"font-size: 16px; font-weight: bold; color: #DC2626;\">Nous avons constaté que votre facture n'a pas encore été payée.</p>\n      \n      <div style=\"background-color: #F3F4F6; padding: 15px; border-left: 4px solid ${themeColor}; margin: 20px 0;\">\n        <p style=\"margin: 0; font-weight: bold;\">Détails de la facture :</p>\n        <p style=\"margin: 5px 0;\"><strong>N° Facture :</strong> ${invoiceNumber}</p>\n        <p style=\"margin: 5px 0;\"><strong>Date d'échéance :</strong> ${dueDateFormatted}</p>\n        <p style=\"margin: 5px 0;\"><strong>Jours en retard :</strong> ${daysOverdue}</p>\n        <p style=\"margin: 5px 0; color: #DC2626; font-weight: bold;\"><strong>Montant dû (TTC) :</strong> ${amountTTC}€</p>\n      </div>\n      \n      <p style=\"margin: 20px 0;\"><strong>Instructions de paiement :</strong></p>\n      <p>Veuillez régulariser votre situation au plus tôt en effectuant un virement bancaire ou en utilisant notre plateforme de paiement en ligne.</p>\n      \n      <div style=\"text-align: center; margin: 30px 0;\">\n        <a href=\"https://pay.talosprimes.com\" style=\"background-color: ${themeColor}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;\">Payer maintenant</a>\n      </div>\n      \n      ${daysOverdue > 15 ? `\n      <div style=\"background-color: #FEE2E2; border: 1px solid #DC2626; padding: 15px; margin: 20px 0; border-radius: 5px;\">\n        <p style=\"margin: 0; color: #DC2626; font-weight: bold;\">⚠️ AVERTISSEMENT IMPORTANT</p>\n        <p style=\"margin: 10px 0 0 0; color: #991B1B;\">Le non-paiement de cette facture pourrait entraîner une suspension de service. Veuillez procéder au paiement immédiatement pour éviter une interruption.</p>\n      </div>\n      ` : ''}\n      \n      <hr style=\"margin: 30px 0; border: none; border-top: 1px solid #E5E7EB;\">\n      \n      <div style=\"font-size: 12px; color: #6B7280;\">\n        <p style=\"margin: 5px 0;\"><strong>TalosPrimes Support</strong></p>\n        <p style=\"margin: 5px 0;\">Email: support@talosprimes.com</p>\n        <p style=\"margin: 5px 0;\">Téléphone: +33 1 23 45 67 89</p>\n        <p style=\"margin: 5px 0;\">Heures d'ouverture: Lun-Ven 09:00-18:00 CET</p>\n      </div>\n    </div>\n  </body>\n</html>\n  `;\n  \n  emails.push({\n    to: invoice.email,\n    subject: emailSubject,\n    html: emailBody,\n    invoiceId: invoice.id,\n    invoiceNumber,\n    amountTTC,\n    daysOverdue,\n    urgencyLevel,\n    clientEmail: invoice.email,\n    clientName\n  });\n}\n\nreturn {\n  json: emails\n};"
+      },
+      "id": "08. Préparer emails relance",
+      "name": "08. Préparer emails relance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.resend.com/emails",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParametersJson": "={{ {from: 'noreply@talosprimes.com', to: $json.to, subject: $json.subject, html: $json.html} }}",
+        "options": {}
+      },
+      "id": "09. Envoyer emails Resend",
+      "name": "09. Envoyer emails Resend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1450,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": "resend-api-credential"
+      },
+      "retryOnStatusCode": {
+        "statusCodes": [
+          429,
+          500,
+          502,
+          503
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/notifications",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $credentials.apiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParametersJson": "={{ {type: 'invoice_overdue', tenantId: $json.tenantId, count: $input.first().json.length, totalAmount: $input.first().json.reduce((sum, inv) => sum + parseFloat(inv.montant_ttc || 0), 0), timestamp: new Date().toISOString()} }}",
+        "options": {}
+      },
+      "id": "10. Notification TalosPrimes",
+      "name": "10. Notification TalosPrimes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1250,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": "talosprimes-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseData": "={{ {success: true, processed: $input.first().json.map(email => ({invoiceId: email.invoiceId, invoiceNumber: email.invoiceNumber, clientEmail: email.clientEmail, amountTTC: email.amountTTC, daysOverdue: email.daysOverdue})), count: $input.first().json.length, totalAmount: $input.first().json.reduce((sum, email) => sum + parseFloat(email.amountTTC), 0)} }}"
+      },
+      "id": "11. Répondre succès",
+      "name": "11. Répondre succès",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseData": "={{ {success: true, processed: [], count: 0, message: 'Aucune facture en retard trouvée pour ce tenant'} }}"
+      },
+      "id": "Répondre erreur",
+      "name": "Répondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser payload": {
+      "main": [
+        [
+          {
+            "node": "03. IF facture spécifique",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. IF facture spécifique": {
+      "main": [
+        [
+          {
+            "node": "04a. Récupérer facture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04b. Scanner factures en retard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04a. Récupérer facture": {
+      "main": [
+        [
+          {
+            "node": "05. Merge résultats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04b. Scanner factures en retard": {
+      "main": [
+        [
+          {
+            "node": "05. Merge résultats",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "05. Merge résultats": {
+      "main": [
+        [
+          {
+            "node": "06. Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Validation": {
+      "main": [
+        [
+          {
+            "node": "07. Mettre à jour statut",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Répondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Mettre à jour statut": {
+      "main": [
+        [
+          {
+            "node": "08. Préparer emails relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Préparer emails relance": {
+      "main": [
+        [
+          {
+            "node": "09. Envoyer emails Resend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Envoyer emails Resend": {
+      "main": [
+        [
+          {
+            "node": "10. Notification TalosPrimes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Notification TalosPrimes": {
+      "main": [
+        [
+          {
+            "node": "11. Répondre succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5c9e4a8e-1234-5678-90ab-cdef12345678",
+  "meta": {
+    "instanceId": "5c9e4a8e1234567890abcdef12345678"
+  },
+  "pinData": {},
+  "tags": [
+    "factures",
+    "relance",
+    "automatisation"
+  ]
+}

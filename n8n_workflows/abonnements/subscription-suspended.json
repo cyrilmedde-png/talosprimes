@@ -71,14 +71,69 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.idAbonnementStripe }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-stripe-id",
+      "name": "06. Vérifier Stripe ID",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/subscriptions/{{ $json.idAbonnementStripe }}",
+        "method": "POST",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keyValue",
+        "keyValue": {
+          "parameters": [
+            {
+              "name": "pause_collection[behavior]",
+              "value": "mark_uncollectible"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pause-stripe-subscription",
+      "name": "07. Mettre en pause Stripe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 180],
+      "credentials": {
+        "headerAuth": {
+          "id": "stripe-api-credential",
+          "name": "Stripe API"
+        }
+      }
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
         "query": "=UPDATE client_subscriptions\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;"
       },
       "id": "suspend-subscription",
-      "name": "06. Suspendre abonnement",
+      "name": "08. Suspendre abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1340, 300],
+      "position": [1780, 300],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -89,13 +144,48 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE client_finals\nSET \n  statut = 'suspendu'\nWHERE id = '{{ $node['05. Préparer suspension'].json.clientId }}'::uuid\nRETURNING *;"
+        "query": "=SELECT COUNT(*) as active_count\nFROM client_subscriptions\nWHERE client_final_id = '{{ $json.clientId }}'::uuid\nAND statut != 'suspendu'\nAND statut != 'annule';"
       },
-      "id": "suspend-client",
-      "name": "07. Suspendre accès client",
+      "id": "check-active-subscriptions",
+      "name": "09. Vérifier autres abonnements actifs",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1560, 300],
+      "position": [2000, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential",
+          "name": "Postgres Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json[0]?.active_count }}",
+              "operation": "equals",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "has-active-subscriptions",
+      "name": "10. Abonnements actifs restants ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE client_finals\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '{{ $json.clientId }}'::uuid\nRETURNING *;"
+      },
+      "id": "suspend-client",
+      "name": "11. Suspendre le client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2440, 180],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -108,10 +198,10 @@
         "jsCode": "// Préparer l'email de notification de suspension\nconst data = $node['05. Préparer suspension'].json;\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst planName = data.planName;\nconst reason = data.reason;\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: #ffc107; color: #333; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .warning-box { background: #fff3cd; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #ffc107; }\n    .action-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center; }\n    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>⚠️ Votre abonnement a été suspendu</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Nous vous informons que votre abonnement TalosPrimes a été temporairement suspendu.</p>\n      <div class=\"warning-box\">\n        <h3>Raison de la suspension :</h3>\n        <p>${reason}</p>\n      </div>\n      <p><strong>Votre accès aux services TalosPrimes est temporairement désactivé.</strong></p>\n      <div class=\"action-box\">\n        <h3>Comment réactiver votre abonnement ?</h3>\n        <p>Pour réactiver votre abonnement, veuillez :</p>\n        <ul style=\"text-align: left; display: inline-block;\">\n          <li>Régulariser votre paiement</li>\n          <li>Contacter notre support si nécessaire</li>\n        </ul>\n        <p>\n          <a href=\"https://talosprimes.com/support\" class=\"button\">Contacter le support</a>\n        </p>\n      </div>\n      <p>Si vous pensez qu'il s'agit d'une erreur, n'hésitez pas à nous contacter.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: clientEmail,\n    subject: '⚠️ Votre abonnement TalosPrimes a été suspendu',\n    html: htmlTemplate\n  }\n};"
       },
       "id": "prepare-email",
-      "name": "08. Préparer email",
+      "name": "12. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 300]
+      "position": [2660, 300]
     },
     {
       "parameters": {
@@ -133,10 +223,10 @@
         "options": {}
       },
       "id": "send-email",
-      "name": "09. Envoyer email",
+      "name": "13. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2000, 300],
+      "position": [2880, 300],
       "credentials": {
         "headerAuth": {
           "id": "resend-api-credential",
@@ -164,10 +254,10 @@
         "options": {}
       },
       "id": "create-notification",
-      "name": "10. Créer notification",
+      "name": "14. Créer notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 300],
+      "position": [3100, 300],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -178,14 +268,14 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, message: 'Abonnement suspendu avec succès', data: { subscription: $node['06. Suspendre abonnement'].json[0], client: $node['07. Suspendre accès client'].json[0] } }) }}",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Abonnement suspendu avec succès', data: { subscription: $node['08. Suspendre abonnement'].json[0], clientSuspended: $node['10. Abonnements actifs restants ?'].json?.clientSuspended || false } }) }}",
         "options": {}
       },
       "id": "respond-success",
-      "name": "11. Répondre succès",
+      "name": "15. Répondre succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2440, 300]
+      "position": [3320, 300]
     },
     {
       "parameters": {
@@ -198,6 +288,18 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Erreur lors de la mise en pause Stripe', details: $json }) }}",
+        "options": {}
+      },
+      "id": "respond-stripe-error",
+      "name": "Répondre erreur Stripe",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 450]
     }
   ],
   "connections": {
@@ -256,62 +358,120 @@
       "main": [
         [
           {
-            "node": "06. Suspendre abonnement",
+            "node": "06. Vérifier Stripe ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. Suspendre abonnement": {
+    "06. Vérifier Stripe ID": {
       "main": [
         [
           {
-            "node": "07. Suspendre accès client",
+            "node": "07. Mettre en pause Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08. Suspendre abonnement",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "07. Suspendre accès client": {
+    "07. Mettre en pause Stripe": {
       "main": [
         [
           {
-            "node": "08. Préparer email",
+            "node": "08. Suspendre abonnement",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "08. Préparer email": {
+    "08. Suspendre abonnement": {
       "main": [
         [
           {
-            "node": "09. Envoyer email",
+            "node": "09. Vérifier autres abonnements actifs",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "09. Envoyer email": {
+    "09. Vérifier autres abonnements actifs": {
       "main": [
         [
           {
-            "node": "10. Créer notification",
+            "node": "10. Abonnements actifs restants ?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "10. Créer notification": {
+    "10. Abonnements actifs restants ?": {
       "main": [
         [
           {
-            "node": "11. Répondre succès",
+            "node": "11. Suspendre le client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "12. Préparer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Suspendre le client": {
+      "main": [
+        [
+          {
+            "node": "12. Préparer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Préparer email": {
+      "main": [
+        [
+          {
+            "node": "13. Envoyer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Envoyer email": {
+      "main": [
+        [
+          {
+            "node": "14. Créer notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Créer notification": {
+      "main": [
+        [
+          {
+            "node": "15. Répondre succès",
             "type": "main",
             "index": 0
           }
@@ -326,7 +486,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2026-01-10T09:00:00.000Z",
-  "versionId": "1"
+  "updatedAt": "2026-02-07T00:00:00.000Z",
+  "versionId": "2"
 }
-

@@ -1,0 +1,366 @@
+{
+  "name": "invoice-created",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "invoice-created",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-01-webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate required fields\nconst requiredFields = ['tenantId', 'clientFinalId', 'montantHt'];\nfor (const field of requiredFields) {\n  if (!$input.first().json[field]) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\nconst payload = $input.first().json;\n\n// Calculate TTC\nconst tvaTaux = payload.tvaTaux || 20;\nconst montantHt = parseFloat(payload.montantHt);\nconst montantTva = montantHt * (tvaTaux / 100);\nconst montantTtc = montantHt + montantTva;\n\n// Generate invoice number: INV-YYYYMMDD-XXXX\nconst now = new Date();\nconst year = now.getFullYear();\nconst month = String(now.getMonth() + 1).padStart(2, '0');\nconst day = String(now.getDate()).padStart(2, '0');\nconst randomSuffix = String(Math.floor(Math.random() * 10000)).padStart(4, '0');\nconst numeroFacture = `INV-${year}${month}${day}-${randomSuffix}`;\n\n// Prepare line items\nconst lignes = payload.lignes || [\n  {\n    description: payload.description || 'Service',\n    montant: montantHt\n  }\n];\n\n// Prepare response\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  subscriptionId: payload.subscriptionId || null,\n  montantHt: montantHt,\n  montantTva: montantTva,\n  montantTtc: montantTtc,\n  tvaTaux: tvaTaux,\n  description: payload.description,\n  lignes: lignes,\n  numeroFacture: numeroFacture,\n  dateFacture: new Date().toISOString().split('T')[0],\n  dateEcheance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]\n};"
+      },
+      "id": "node-02-parser",
+      "name": "02. Parser payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        450,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "query": "SELECT id, nom, email, adresse, code_postal, ville, pays, siret FROM client_finals WHERE id = $1 AND tenant_id = $2",
+        "parameterCount": 2,
+        "parameters": "=[\n  {\n    \"name\": \"clientFinalId\",\n    \"value\": \"={{ $json.clientFinalId }}\"\n  },\n  {\n    \"name\": \"tenantId\",\n    \"value\": \"={{ $json.tenantId }}\"\n  }\n]"
+      },
+      "id": "node-03-get-client",
+      "name": "03. Récupérer client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        650,
+        100
+      ],
+      "credentials": {
+        "postgres": "postgres-credential"
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "operator": {
+              "name": "filter.operator.length",
+              "type": "string",
+              "operation": ">"
+            },
+            "rightValue": 0
+          }
+        },
+        "dataPropertyName": "length"
+      },
+      "id": "node-04-validation",
+      "name": "04. Validation client",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        850,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "query": "INSERT INTO invoices (tenant_id, client_final_id, subscription_id, numero_facture, date_facture, date_echeance, montant_ht, montant_tva, montant_ttc, tva_taux, description, statut, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'brouillon', NOW(), NOW()) RETURNING id",
+        "parameterCount": 11,
+        "parameters": "=[\n  {\n    \"name\": \"tenantId\",\n    \"value\": \"={{ $json.tenantId }}\"\n  },\n  {\n    \"name\": \"clientFinalId\",\n    \"value\": \"={{ $json.clientFinalId }}\"\n  },\n  {\n    \"name\": \"subscriptionId\",\n    \"value\": \"={{ $json.subscriptionId }}\"\n  },\n  {\n    \"name\": \"numeroFacture\",\n    \"value\": \"={{ $json.numeroFacture }}\"\n  },\n  {\n    \"name\": \"dateFacture\",\n    \"value\": \"={{ $json.dateFacture }}\"\n  },\n  {\n    \"name\": \"dateEcheance\",\n    \"value\": \"={{ $json.dateEcheance }}\"\n  },\n  {\n    \"name\": \"montantHt\",\n    \"value\": \"={{ $json.montantHt }}\"\n  },\n  {\n    \"name\": \"montantTva\",\n    \"value\": \"={{ $json.montantTva }}\"\n  },\n  {\n    \"name\": \"montantTtc\",\n    \"value\": \"={{ $json.montantTtc }}\"\n  },\n  {\n    \"name\": \"tvaTaux\",\n    \"value\": \"={{ $json.tvaTaux }}\"\n  },\n  {\n    \"name\": \"description\",\n    \"value\": \"={{ $json.description }}\"\n  }\n]"
+      },
+      "id": "node-05-create-invoice",
+      "name": "05. Créer facture en BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1050,
+        100
+      ],
+      "credentials": {
+        "postgres": "postgres-credential"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get invoice and client data\nconst invoiceData = $json;\nconst clientData = $input.get(0)[0].json;\n\n// Format dates\nconst dateFacture = new Date(invoiceData.dateFacture);\nconst dateEcheance = new Date(invoiceData.dateEcheance);\nconst dateFactureFormatted = dateFacture.toLocaleDateString('fr-FR');\nconst dateEcheanceFormatted = dateEcheance.toLocaleDateString('fr-FR');\n\n// Format currency\nconst formatCurrency = (value) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);\n\n// Build line items HTML\nlet lignesHtml = '';\nconst lignes = invoiceData.lignes || [];\nlignes.forEach(ligne => {\n  const quantity = ligne.quantite || 1;\n  const unitPrice = ligne.prixUnitaire || (ligne.montant / quantity);\n  const total = ligne.montant || (quantity * unitPrice);\n  \n  lignesHtml += `\n    <tr>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\">${ligne.description}</td>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd; text-align: center;\">${quantity}</td>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd; text-align: right;\">${formatCurrency(unitPrice)}</td>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold;\">${formatCurrency(total)}</td>\n    </tr>\n  `;\n});\n\n// Build HTML invoice\nconst html = `\n<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Facture ${invoiceData.numeroFacture}</title>\n  <style>\n    body {\n      font-family: Arial, sans-serif;\n      color: #333;\n      line-height: 1.6;\n      margin: 0;\n      padding: 20px;\n      background-color: #f9f9f9;\n    }\n    .container {\n      max-width: 900px;\n      margin: 0 auto;\n      background-color: white;\n      padding: 40px;\n      border-radius: 8px;\n      box-shadow: 0 2px 10px rgba(0,0,0,0.1);\n    }\n    .header {\n      display: flex;\n      justify-content: space-between;\n      align-items: flex-start;\n      margin-bottom: 40px;\n      border-bottom: 3px solid #007bff;\n      padding-bottom: 20px;\n    }\n    .company-info {\n      flex: 1;\n    }\n    .company-name {\n      font-size: 32px;\n      font-weight: bold;\n      color: #007bff;\n      margin-bottom: 10px;\n    }\n    .invoice-info {\n      flex: 1;\n      text-align: right;\n    }\n    .invoice-title {\n      font-size: 24px;\n      font-weight: bold;\n      margin-bottom: 10px;\n    }\n    .invoice-meta {\n      font-size: 14px;\n      line-height: 1.8;\n    }\n    .invoice-number {\n      font-size: 18px;\n      font-weight: bold;\n      color: #007bff;\n    }\n    .section {\n      margin-bottom: 30px;\n    }\n    .section-title {\n      font-size: 14px;\n      font-weight: bold;\n      color: #333;\n      text-transform: uppercase;\n      margin-bottom: 10px;\n      border-bottom: 1px solid #ddd;\n      padding-bottom: 5px;\n    }\n    .client-info {\n      display: flex;\n      justify-content: space-between;\n      margin-bottom: 30px;\n    }\n    .client-column {\n      flex: 1;\n    }\n    .client-column h4 {\n      margin-top: 0;\n      margin-bottom: 5px;\n      font-size: 12px;\n      text-transform: uppercase;\n      color: #666;\n    }\n    .client-column p {\n      margin: 0;\n      font-size: 14px;\n    }\n    table {\n      width: 100%;\n      border-collapse: collapse;\n      margin-bottom: 20px;\n    }\n    th {\n      background-color: #f0f0f0;\n      padding: 12px;\n      text-align: left;\n      font-weight: bold;\n      border-bottom: 2px solid #ddd;\n      font-size: 13px;\n    }\n    td {\n      padding: 12px;\n      border-bottom: 1px solid #ddd;\n    }\n    .amount-right {\n      text-align: right;\n    }\n    .totals {\n      display: flex;\n      justify-content: flex-end;\n      margin-bottom: 30px;\n    }\n    .totals-table {\n      width: 400px;\n    }\n    .totals-table tr:last-child {\n      background-color: #007bff;\n      color: white;\n      font-weight: bold;\n      font-size: 16px;\n    }\n    .totals-table td {\n      padding: 12px;\n      border: none;\n      text-align: right;\n    }\n    .totals-table td:first-child {\n      text-align: left;\n      padding-right: 20px;\n    }\n    .payment-terms {\n      background-color: #f9f9f9;\n      padding: 15px;\n      border-left: 4px solid #007bff;\n      margin-bottom: 20px;\n    }\n    .payment-terms h4 {\n      margin-top: 0;\n      color: #333;\n    }\n    .legal {\n      font-size: 11px;\n      color: #666;\n      border-top: 1px solid #ddd;\n      padding-top: 15px;\n      margin-top: 30px;\n    }\n    .legal p {\n      margin: 5px 0;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <div class=\"company-info\">\n        <div class=\"company-name\">TalosPrimes</div>\n        <p style=\"margin: 5px 0; font-size: 14px; color: #666;\">Plateforme de gestion d'assurances</p>\n      </div>\n      <div class=\"invoice-info\">\n        <div class=\"invoice-title\">Facture</div>\n        <div class=\"invoice-meta\">\n          <div class=\"invoice-number\">${invoiceData.numeroFacture}</div>\n          <div>Émise le: <strong>${dateFactureFormatted}</strong></div>\n          <div>Échéance: <strong>${dateEcheanceFormatted}</strong></div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"client-info\">\n      <div class=\"client-column\">\n        <div class=\"section-title\">Facteur</div>\n        <p><strong>TalosPrimes SAS</strong></p>\n        <p>Plateforme de gestion d'assurances</p>\n        <p>Email: contact@talosprimes.com</p>\n      </div>\n      <div class=\"client-column\">\n        <div class=\"section-title\">Facturé à</div>\n        <p><strong>${clientData.nom}</strong></p>\n        <p>${clientData.adresse || ''}</p>\n        <p>${clientData.code_postal || ''} ${clientData.ville || ''}</p>\n        <p>${clientData.pays || ''}</p>\n        <p>Email: ${clientData.email}</p>\n      </div>\n    </div>\n\n    <div class=\"section\">\n      <table>\n        <thead>\n          <tr>\n            <th>Description</th>\n            <th style=\"text-align: center;\">Quantité</th>\n            <th style=\"text-align: right;\">Prix unitaire</th>\n            <th style=\"text-align: right;\">Total</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${lignesHtml}\n        </tbody>\n      </table>\n    </div>\n\n    <div class=\"totals\">\n      <table class=\"totals-table\">\n        <tr>\n          <td>Montant HT</td>\n          <td>${formatCurrency(invoiceData.montantHt)}</td>\n        </tr>\n        <tr>\n          <td>TVA (${invoiceData.tvaTaux}%)</td>\n          <td>${formatCurrency(invoiceData.montantTva)}</td>\n        </tr>\n        <tr>\n          <td>Montant TTC</td>\n          <td>${formatCurrency(invoiceData.montantTtc)}</td>\n        </tr>\n      </table>\n    </div>\n\n    <div class=\"payment-terms\">\n      <h4>Conditions de paiement</h4>\n      <p>Délai de paiement: 30 jours à compter de la date de facture.</p>\n      <p>Les factures impayées après cette période sont sujettes à des intérêts de retard et des frais de recouvrement.</p>\n    </div>\n\n    <div class=\"legal\">\n      <p><strong>Mentions légales:</strong></p>\n      <p>Cette facture est établie conformément à la réglementation française. TalosPrimes SAS est assujettie à la TVA sous le numéro d'enregistrement français. Le paiement doit être effectué selon les modalités indiquées ci-dessus. En cas de non-paiement à l'échéance, des intérêts moratoires seront applicables.</p>\n      <p><strong>Droits de rétractation:</strong> Conformément à la directive sur les droits des consommateurs, vous disposez d'un délai de 14 jours pour vous rétracter, sauf pour les services numériques déjà fournis.</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  invoiceId: invoiceData.id,\n  numeroFacture: invoiceData.numeroFacture,\n  htmlContent: html,\n  htmlBase64: Buffer.from(html).toString('base64')\n};"
+      },
+      "id": "node-06-generate-pdf",
+      "name": "06. Générer PDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "query": "UPDATE invoices SET lien_pdf = $1 WHERE id = $2",
+        "parameterCount": 2,
+        "parameters": "=[\n  {\n    \"name\": \"htmlContent\",\n    \"value\": \"={{ $json.htmlContent }}\"\n  },\n  {\n    \"name\": \"invoiceId\",\n    \"value\": \"={{ $json.invoiceId }}\"\n  }\n]"
+      },
+      "id": "node-07-update-pdf-link",
+      "name": "07. Mettre à jour lien PDF",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1450,
+        100
+      ],
+      "credentials": {
+        "postgres": "postgres-credential"
+      }
+    },
+    {
+      "parameters": {
+        "query": "UPDATE invoices SET statut = 'envoyee' WHERE id = $1",
+        "parameterCount": 1,
+        "parameters": "=[\n  {\n    \"name\": \"invoiceId\",\n    \"value\": \"={{ $json.invoiceId }}\"\n  }\n]"
+      },
+      "id": "node-08-mark-sent",
+      "name": "08. Marquer comme envoyée",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1650,
+        100
+      ],
+      "credentials": {
+        "postgres": "postgres-credential"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoiceData = $json;\nconst clientData = $input.get(0)[0].json;\n\nconst formatCurrency = (value) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);\n\nconst emailContent = `\n<html>\n<body style=\"font-family: Arial, sans-serif; color: #333;\">\n  <h2>Nouvelle facture</h2>\n  <p>Bonjour ${clientData.nom},</p>\n  <p>Nous vous confirmons la création d'une nouvelle facture.</p>\n  \n  <div style=\"background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;\">\n    <p><strong>Numéro de facture:</strong> ${invoiceData.numeroFacture}</p>\n    <p><strong>Date:</strong> ${new Date(invoiceData.dateFacture).toLocaleDateString('fr-FR')}</p>\n    <p><strong>Montant HT:</strong> ${formatCurrency(invoiceData.montantHt)}</p>\n    <p><strong>TVA (${invoiceData.tvaTaux}%):</strong> ${formatCurrency(invoiceData.montantTva)}</p>\n    <p><strong>Montant TTC:</strong> ${formatCurrency(invoiceData.montantTtc)}</p>\n    <p><strong>Échéance:</strong> ${new Date(invoiceData.dateEcheance).toLocaleDateString('fr-FR')}</p>\n  </div>\n  \n  <p>La facture détaillée est jointe à cet email.</p>\n  <p>En cas de question, n'hésitez pas à nous contacter.</p>\n  \n  <p>Cordialement,<br/>TalosPrimes</p>\n</body>\n</html>\n`;\n\nreturn {\n  clientEmail: clientData.email,\n  clientName: clientData.nom,\n  numeroFacture: invoiceData.numeroFacture,\n  emailSubject: `Facture ${invoiceData.numeroFacture} - TalosPrimes`,\n  emailContent: emailContent,\n  htmlAttachment: invoiceData.htmlContent\n};"
+      },
+      "id": "node-09-prepare-email",
+      "name": "09. Préparer email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1850,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.resend.com/emails",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $credentials.resend_api_credential.apiKey }}",
+          "Content-Type": "application/json"
+        },
+        "bodyParametersJson": "{\n  \"from\": \"factures@talosprimes.com\",\n  \"to\": \"{{ $json.clientEmail }}\",\n  \"subject\": \"{{ $json.emailSubject }}\",\n  \"html\": \"{{ $json.emailContent }}\",\n  \"attachments\": [\n    {\n      \"filename\": \"{{ $json.numeroFacture }}.html\",\n      \"content\": \"{{ $json.htmlAttachment }}\"\n    }\n  ]\n}"
+      },
+      "id": "node-10-send-resend",
+      "name": "10. Envoyer email Resend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2050,
+        100
+      ],
+      "credentials": {
+        "resend_api_credential": "resend-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/notifications",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $credentials.talosprimes_api_credential.token }}",
+          "Content-Type": "application/json"
+        },
+        "bodyParametersJson": "{\n  \"type\": \"invoice_created\",\n  \"tenantId\": \"{{ $input.first().json.tenantId }}\",\n  \"invoiceId\": \"{{ $json.invoiceId }}\",\n  \"numeroFacture\": \"{{ $json.numeroFacture }}\",\n  \"clientFinalId\": \"{{ $input.first().json.clientFinalId }}\",\n  \"montantTtc\": {{ $input.first().json.montantTtc }},\n  \"timestamp\": \"{{ now() }}\"\n}"
+      },
+      "id": "node-11-notification",
+      "name": "11. Notification TalosPrimes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2250,
+        100
+      ],
+      "credentials": {
+        "talosprimes_api_credential": "talosprimes-api-credential"
+      }
+    },
+    {
+      "parameters": {
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Facture créée et envoyée avec succès\",\n  \"invoiceId\": \"{{ $json.invoiceId }}\",\n  \"numeroFacture\": \"{{ $json.numeroFacture }}\",\n  \"montantTtc\": \"{{ $input.first().json.montantTtc }}\",\n  \"clientEmail\": \"{{ $json.clientEmail }}\",\n  \"dateEcheance\": \"{{ $input.first().json.dateEcheance }}\"\n}"
+      },
+      "id": "node-12-response-success",
+      "name": "12. Répondre succès",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2450,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "{\n  \"success\": false,\n  \"message\": \"Erreur: Client non trouvé\",\n  \"error\": \"CLIENT_NOT_FOUND\"\n}"
+      },
+      "id": "node-13-response-error",
+      "name": "13. Répondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "node-01-webhook": {
+      "main": [
+        [
+          {
+            "node": "node-02-parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-02-parser": {
+      "main": [
+        [
+          {
+            "node": "node-03-get-client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-03-get-client": {
+      "main": [
+        [
+          {
+            "node": "node-04-validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-04-validation": {
+      "main": [
+        [
+          {
+            "node": "node-05-create-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "node-13-response-error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-05-create-invoice": {
+      "main": [
+        [
+          {
+            "node": "node-06-generate-pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-06-generate-pdf": {
+      "main": [
+        [
+          {
+            "node": "node-07-update-pdf-link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-07-update-pdf-link": {
+      "main": [
+        [
+          {
+            "node": "node-08-mark-sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-08-mark-sent": {
+      "main": [
+        [
+          {
+            "node": "node-09-prepare-email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-09-prepare-email": {
+      "main": [
+        [
+          {
+            "node": "node-10-send-resend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-10-send-resend": {
+      "main": [
+        [
+          {
+            "node": "node-11-notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "node-11-notification": {
+      "main": [
+        [
+          {
+            "node": "node-12-response-success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "timezone": "Europe/Paris"
+  },
+  "staticData": null,
+  "pinData": {}
+}
