@@ -30,7 +30,15 @@ interface ContactMessage {
   createdAt: string;
 }
 
-type TabType = 'content' | 'testimonials' | 'messages';
+type TabType = 'content' | 'testimonials' | 'messages' | 'config';
+
+interface ConfigSection {
+  key: string;
+  label: string;
+  placeholder: string;
+  type?: 'text' | 'email' | 'tel' | 'textarea';
+  category: 'contact' | 'legal' | 'company';
+}
 
 export default function CMSPage() {
   const [activeTab, setActiveTab] = useState<TabType>('content');
@@ -257,6 +265,26 @@ export default function CMSPage() {
     { key: 'footer_company_desc', label: 'Footer - Description' },
   ];
 
+  const configSections: ConfigSection[] = [
+    // COORDONNÉES DE CONTACT
+    { key: 'config_contact_email', label: 'Email de contact', placeholder: 'contact@talosprimes.com', type: 'email', category: 'contact' },
+    { key: 'config_contact_phone', label: 'Téléphone', placeholder: '+33 1 23 45 67 89', type: 'tel', category: 'contact' },
+    { key: 'config_contact_address', label: 'Adresse complète', placeholder: '123 Avenue de la Tech, 75001 Paris, France', type: 'textarea', category: 'contact' },
+    
+    // INFORMATIONS LÉGALES
+    { key: 'config_legal_company_name', label: 'Raison sociale', placeholder: 'TalosPrimes SAS', type: 'text', category: 'legal' },
+    { key: 'config_legal_legal_form', label: 'Forme juridique', placeholder: 'SAS (Société par Actions Simplifiée)', type: 'text', category: 'legal' },
+    { key: 'config_legal_capital', label: 'Capital social', placeholder: '10 000 €', type: 'text', category: 'legal' },
+    { key: 'config_legal_siret', label: 'SIRET', placeholder: 'XXX XXX XXX XXXXX', type: 'text', category: 'legal' },
+    { key: 'config_legal_tva', label: 'Numéro TVA intracommunautaire', placeholder: 'FR XX XXX XXX XXX', type: 'text', category: 'legal' },
+    { key: 'config_legal_address', label: 'Siège social', placeholder: '123 Avenue de la Tech, 75001 Paris, France', type: 'textarea', category: 'legal' },
+    
+    // INFORMATIONS ENTREPRISE
+    { key: 'config_company_description', label: 'Description entreprise', placeholder: 'La plateforme de gestion intelligente...', type: 'textarea', category: 'company' },
+    { key: 'config_company_support_email', label: 'Email support', placeholder: 'support@talosprimes.com', type: 'email', category: 'company' },
+    { key: 'config_company_rgpd_email', label: 'Email RGPD/DPO', placeholder: 'rgpd@talosprimes.com', type: 'email', category: 'company' },
+  ];
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -300,6 +328,16 @@ export default function CMSPage() {
               {messages.filter(m => !m.traite).length}
             </span>
           )}
+        </button>
+        <button
+          onClick={() => setActiveTab('config')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'config'
+              ? 'border-b-2 border-purple-600 text-purple-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          ⚙️ Configuration
         </button>
       </div>
 
@@ -565,6 +603,167 @@ export default function CMSPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Config Tab */}
+      {activeTab === 'config' && (
+        <div className="space-y-8">
+          {/* Coordonnées de Contact */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              📞 Coordonnées de Contact
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Ces informations seront affichées sur la landing page dans la section Contact
+            </p>
+            <div className="space-y-4">
+              {configSections
+                .filter(s => s.category === 'contact')
+                .map((section) => (
+                  <div key={section.key} className="bg-white p-6 rounded-lg shadow">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {section.label}
+                    </label>
+                    <div className="flex gap-2">
+                      {section.type === 'textarea' ? (
+                        <textarea
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          rows={3}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                        />
+                      ) : (
+                        <input
+                          type={section.type || 'text'}
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                        />
+                      )}
+                      <button
+                        onClick={() => saveContent(section.key)}
+                        disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
+                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Informations Légales */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              ⚖️ Informations Légales
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Ces informations seront utilisées dans les mentions légales, CGU, CGV et politique de confidentialité.
+              <br />
+              <span className="text-orange-600 font-semibold">⚠️ Important : Remplacez les valeurs fictives par vos vraies informations !</span>
+            </p>
+            <div className="space-y-4">
+              {configSections
+                .filter(s => s.category === 'legal')
+                .map((section) => (
+                  <div key={section.key} className="bg-white p-6 rounded-lg shadow">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {section.label}
+                    </label>
+                    <div className="flex gap-2">
+                      {section.type === 'textarea' ? (
+                        <textarea
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          rows={3}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                        />
+                      ) : (
+                        <input
+                          type={section.type || 'text'}
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                        />
+                      )}
+                      <button
+                        onClick={() => saveContent(section.key)}
+                        disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
+                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Informations Entreprise */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              🏢 Informations Entreprise
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Informations générales sur votre entreprise affichées sur le site
+            </p>
+            <div className="space-y-4">
+              {configSections
+                .filter(s => s.category === 'company')
+                .map((section) => (
+                  <div key={section.key} className="bg-white p-6 rounded-lg shadow">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {section.label}
+                    </label>
+                    <div className="flex gap-2">
+                      {section.type === 'textarea' ? (
+                        <textarea
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          rows={3}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                        />
+                      ) : (
+                        <input
+                          type={section.type || 'text'}
+                          value={editingContent[section.key] || ''}
+                          onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                          placeholder={section.placeholder}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                        />
+                      )}
+                      <button
+                        onClick={() => saveContent(section.key)}
+                        disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
+                        className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Aide */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="font-bold text-blue-900 mb-2">💡 Information</h3>
+            <p className="text-blue-800">
+              Les modifications de configuration sont sauvegardées dans la base de données. 
+              Pour que certaines modifications (notamment les informations légales) soient affichées partout, 
+              vous devrez peut-être mettre à jour les pages légales directement.
+            </p>
+          </div>
         </div>
       )}
     </div>

@@ -111,6 +111,55 @@ async function seedLanding() {
       section: 'footer_company_desc',
       contenu: 'La plateforme de gestion d\'entreprise intelligente et automatisée.',
     },
+    // CONFIGURATIONS
+    {
+      section: 'config_contact_email',
+      contenu: 'contact@talosprimes.com',
+    },
+    {
+      section: 'config_contact_phone',
+      contenu: '+33 1 23 45 67 89',
+    },
+    {
+      section: 'config_contact_address',
+      contenu: '123 Avenue de la Tech\n75001 Paris, France',
+    },
+    {
+      section: 'config_legal_company_name',
+      contenu: 'TalosPrimes SAS',
+    },
+    {
+      section: 'config_legal_legal_form',
+      contenu: 'SAS (Société par Actions Simplifiée)',
+    },
+    {
+      section: 'config_legal_capital',
+      contenu: '10 000 €',
+    },
+    {
+      section: 'config_legal_siret',
+      contenu: 'XXX XXX XXX XXXXX',
+    },
+    {
+      section: 'config_legal_tva',
+      contenu: 'FR XX XXX XXX XXX',
+    },
+    {
+      section: 'config_legal_address',
+      contenu: '123 Avenue de la Tech, 75001 Paris, France',
+    },
+    {
+      section: 'config_company_description',
+      contenu: 'La plateforme de gestion d\'entreprise intelligente et automatisée.',
+    },
+    {
+      section: 'config_company_support_email',
+      contenu: 'support@talosprimes.com',
+    },
+    {
+      section: 'config_company_rgpd_email',
+      contenu: 'rgpd@talosprimes.com',
+    },
   ];
 
   for (const content of landingContent) {

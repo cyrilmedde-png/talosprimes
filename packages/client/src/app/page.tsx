@@ -402,21 +402,21 @@ export default function LandingPage() {
                 <Mail className="w-6 h-6 text-purple-600 mr-4 mt-1" />
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">Email</h3>
-                  <p className="text-gray-600">contact@talosprimes.com</p>
+                  <p className="text-gray-600">{content.config_contact_email || 'contact@talosprimes.com'}</p>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-xl shadow-lg flex items-start">
                 <Phone className="w-6 h-6 text-purple-600 mr-4 mt-1" />
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">Téléphone</h3>
-                  <p className="text-gray-600">+33 1 23 45 67 89</p>
+                  <p className="text-gray-600">{content.config_contact_phone || '+33 1 23 45 67 89'}</p>
                 </div>
               </div>
               <div className="bg-white p-6 rounded-xl shadow-lg flex items-start">
                 <MapPin className="w-6 h-6 text-purple-600 mr-4 mt-1" />
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">Adresse</h3>
-                  <p className="text-gray-600">123 Avenue de la Tech<br />75001 Paris, France</p>
+                  <p className="text-gray-600 whitespace-pre-line">{content.config_contact_address || '123 Avenue de la Tech\n75001 Paris, France'}</p>
                 </div>
               </div>
             </div>
