@@ -1,0 +1,214 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function seedLanding() {
+  console.log('🌱 Seed landing page...');
+
+  // ===== LANDING CONTENT =====
+  const landingContent = [
+    {
+      section: 'hero_title',
+      contenu: 'Automatisez votre gestion d\'entreprise avec intelligence',
+    },
+    {
+      section: 'hero_subtitle',
+      contenu: 'TalosPrimes est la plateforme tout-en-un qui combine CRM, facturation, et automatisation intelligente via n8n pour libérer votre temps et booster votre productivité.',
+    },
+    {
+      section: 'hero_cta_primary',
+      contenu: 'Essayer gratuitement',
+    },
+    {
+      section: 'hero_cta_secondary',
+      contenu: 'Découvrir la démo',
+    },
+    {
+      section: 'feature_1_title',
+      contenu: 'CRM intelligent et multi-tenant',
+    },
+    {
+      section: 'feature_1_desc',
+      contenu: 'Gérez vos clients finaux, suivez leur parcours et automatisez vos processus de vente avec une isolation totale des données entre tenants.',
+    },
+    {
+      section: 'feature_2_title',
+      contenu: 'Facturation automatisée',
+    },
+    {
+      section: 'feature_2_desc',
+      contenu: 'Créez, envoyez et suivez vos factures automatiquement. Intégration Stripe pour des paiements sécurisés et récurrents.',
+    },
+    {
+      section: 'feature_3_title',
+      contenu: 'Workflows n8n intégrés',
+    },
+    {
+      section: 'feature_3_desc',
+      contenu: 'Automatisez toutes vos tâches répétitives : onboarding clients, relances impayés, notifications, rapports, et bien plus.',
+    },
+    {
+      section: 'feature_4_title',
+      contenu: 'Gestion d\'équipe simplifiée',
+    },
+    {
+      section: 'feature_4_desc',
+      contenu: 'Ajoutez vos collaborateurs, définissez les rôles et permissions, et suivez l\'activité de votre équipe en temps réel.',
+    },
+    {
+      section: 'feature_5_title',
+      contenu: 'Modules métiers adaptables',
+    },
+    {
+      section: 'feature_5_desc',
+      contenu: 'Activez uniquement les modules dont vous avez besoin : comptabilité, RH, marketing, logistique... Tarification à la carte.',
+    },
+    {
+      section: 'feature_6_title',
+      contenu: 'Sécurité & conformité',
+    },
+    {
+      section: 'feature_6_desc',
+      contenu: 'Hébergement sécurisé, conformité RGPD, SSL/HTTPS, sauvegardes automatiques et isolation stricte des données.',
+    },
+    {
+      section: 'stats_1_value',
+      contenu: '95%',
+    },
+    {
+      section: 'stats_1_label',
+      contenu: 'Gain de temps sur les tâches administratives',
+    },
+    {
+      section: 'stats_2_value',
+      contenu: '24/7',
+    },
+    {
+      section: 'stats_2_label',
+      contenu: 'Automatisation continue',
+    },
+    {
+      section: 'stats_3_value',
+      contenu: '100%',
+    },
+    {
+      section: 'stats_3_label',
+      contenu: 'Satisfaction client',
+    },
+    {
+      section: 'cta_section_title',
+      contenu: 'Prêt à transformer votre gestion d\'entreprise ?',
+    },
+    {
+      section: 'cta_section_subtitle',
+      contenu: 'Rejoignez les entreprises qui automatisent leur succès avec TalosPrimes.',
+    },
+    {
+      section: 'footer_company_name',
+      contenu: 'TalosPrimes SaaS',
+    },
+    {
+      section: 'footer_company_desc',
+      contenu: 'La plateforme de gestion d\'entreprise intelligente et automatisée.',
+    },
+  ];
+
+  for (const content of landingContent) {
+    await prisma.landingContent.upsert({
+      where: { section: content.section },
+      update: { contenu: content.contenu },
+      create: content,
+    });
+  }
+
+  console.log('✅ Landing content créé');
+
+  // ===== TESTIMONIALS =====
+  const testimonials = [
+    {
+      nom: 'Martin',
+      prenom: 'Sophie',
+      entreprise: 'Agence Créa+',
+      poste: 'Directrice Générale',
+      avatar: 'SM',
+      note: 5,
+      commentaire: 'TalosPrimes a révolutionné notre gestion quotidienne. Plus de 10h économisées par semaine grâce à l\'automatisation !',
+      affiche: true,
+      ordre: 1,
+    },
+    {
+      nom: 'Dubois',
+      prenom: 'Thomas',
+      entreprise: 'Tech Solutions',
+      poste: 'CEO',
+      avatar: 'TD',
+      note: 5,
+      commentaire: 'L\'intégration n8n est un game changer. Nos workflows métiers sont maintenant 100% automatisés.',
+      affiche: true,
+      ordre: 2,
+    },
+    {
+      nom: 'Rousseau',
+      prenom: 'Céline',
+      entreprise: 'Comptabilité Pro',
+      poste: 'Expert-comptable',
+      avatar: 'CR',
+      note: 5,
+      commentaire: 'Interface intuitive, facturation automatique impeccable. Je recommande vivement !',
+      affiche: true,
+      ordre: 3,
+    },
+    {
+      nom: 'Bernard',
+      prenom: 'Marc',
+      entreprise: 'BTP Innov',
+      poste: 'Directeur Commercial',
+      avatar: 'MB',
+      note: 4,
+      commentaire: 'Excellente solution pour gérer notre pipeline de clients. Le CRM est très complet.',
+      affiche: true,
+      ordre: 4,
+    },
+    {
+      nom: 'Lefevre',
+      prenom: 'Julie',
+      entreprise: 'Formation Expert',
+      poste: 'Responsable Formation',
+      avatar: 'JL',
+      note: 5,
+      commentaire: 'Onboarding fluide, support réactif. La plateforme s\'adapte parfaitement à nos besoins métier.',
+      affiche: true,
+      ordre: 5,
+    },
+    {
+      nom: 'Moreau',
+      prenom: 'Alexandre',
+      entreprise: 'StartupLab',
+      poste: 'Fondateur',
+      avatar: 'AM',
+      note: 5,
+      commentaire: 'Rapport qualité-prix imbattable. Toutes les fonctionnalités dont une PME a besoin réunies en un seul outil.',
+      affiche: true,
+      ordre: 6,
+    },
+  ];
+
+  for (const testimonial of testimonials) {
+    await prisma.testimonial.create({
+      data: testimonial,
+    });
+  }
+
+  console.log('✅ Testimonials créés');
+
+  console.log('🎉 Seed landing terminé avec succès !');
+}
+
+seedLanding()
+  .catch((e) => {
+    console.error('❌ Erreur lors du seed landing:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

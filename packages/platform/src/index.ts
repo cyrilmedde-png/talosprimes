@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
-import { authMiddleware } from './middleware/auth.middleware.js';
+import { authMiddleware, requireRole } from './middleware/auth.middleware.js';
 import { authRoutes } from './api/routes/auth.routes.js';
 import { clientsRoutes } from './api/routes/clients.routes.js';
 import { subscriptionsRoutes } from './api/routes/subscriptions.routes.js';
@@ -15,6 +15,7 @@ import { notificationsRoutes } from './api/routes/notifications.routes.js';
 import { tenantRoutes } from './api/routes/tenant.routes.js';
 import { usersRoutes } from './api/routes/users.routes.js';
 import { logsRoutes } from './api/routes/logs.routes.js';
+import { landingRoutes } from './api/routes/landing.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -37,6 +38,7 @@ const fastify = Fastify({
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: typeof authMiddleware;
+    requireRole: typeof requireRole;
   }
 }
 
@@ -73,8 +75,9 @@ fastify.get('/health', async () => {
   }
 });
 
-// Décorer Fastify avec le middleware d'authentification
+// Décorer Fastify avec les middlewares d'authentification
 fastify.decorate('authenticate', authMiddleware);
+fastify.decorate('requireRole', requireRole);
 
 // Enregistrer les routes d'authentification
 await fastify.register(async (fastify) => {
@@ -124,6 +127,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes logs
 await fastify.register(async (fastify) => {
   await fastify.register(logsRoutes, { prefix: '/api/logs' });
+});
+
+// Enregistrer les routes landing (public + admin)
+await fastify.register(async (fastify) => {
+  await fastify.register(landingRoutes);
 });
 
 // Route de test

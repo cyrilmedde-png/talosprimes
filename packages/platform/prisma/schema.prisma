@@ -398,3 +398,51 @@ model Notification {
   @@map("notifications")
 }
 
+// Testimonial (avis clients pour la landing page)
+model Testimonial {
+  id          String   @id @default(uuid()) @db.Uuid
+  nom         String
+  prenom      String
+  entreprise  String?
+  poste       String?  // ex: "CEO", "Directeur Commercial"
+  avatar      String?  // URL ou initiales
+  note        Int      @default(5) // Note sur 5
+  commentaire String   @db.Text
+  affiche     Boolean  @default(true) // Afficher ou masquer
+  ordre       Int      @default(0) // Ordre d'affichage
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([affiche])
+  @@index([ordre])
+  @@map("testimonials")
+}
+
+// LandingContent (contenu éditable de la landing page)
+model LandingContent {
+  id          String   @id @default(uuid()) @db.Uuid
+  section     String   @unique // ex: "hero_title", "hero_subtitle", "feature_1_title"
+  contenu     String   @db.Text
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([section])
+  @@map("landing_content")
+}
+
+// ContactMessage (messages de contact)
+model ContactMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  nom         String
+  prenom      String
+  email       String
+  telephone   String?
+  entreprise  String?
+  message     String   @db.Text
+  traite      Boolean  @default(false) // Marqué comme traité
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([traite])
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
