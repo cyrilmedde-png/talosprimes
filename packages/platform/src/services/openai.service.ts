@@ -159,12 +159,14 @@ Format: Markdown avec titres ## et numérotation. Très détaillé et conforme R
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Erreur OpenAI: ${error.error?.message || 'Erreur inconnue'}`);
+      const errorData = await response.json() as { error?: { message?: string } };
+      throw new Error(`Erreur OpenAI: ${errorData.error?.message || 'Erreur inconnue'}`);
     }
 
-    const data = await response.json();
-    const generatedContent = data.choices[0]?.message?.content || '';
+    const data = await response.json() as { 
+      choices?: Array<{ message?: { content?: string } }> 
+    };
+    const generatedContent = data.choices?.[0]?.message?.content || '';
 
     if (!generatedContent) {
       throw new Error('Aucun contenu généré');

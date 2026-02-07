@@ -350,7 +350,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        fastify.log.info(`Génération IA pour ${pageId} avec données:`, companyData);
+        fastify.log.info(`Génération IA pour ${pageId} - Entreprise: ${companyData.companyName}`);
 
         // Générer le contenu avec OpenAI
         const generatedContent = await generateLegalContent({
