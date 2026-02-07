@@ -41,7 +41,6 @@ export default function CMSPage() {
   
   // Testimonials
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
   const [newTestimonial, setNewTestimonial] = useState<Partial<Testimonial>>({
     nom: '',
@@ -173,7 +172,6 @@ export default function CMSPage() {
         body: JSON.stringify(data),
       });
       await loadTestimonials();
-      setEditingTestimonial(null);
       alert('Témoignage mis à jour !');
     } catch (error) {
       console.error('Erreur mise à jour:', error);
