@@ -4,7 +4,7 @@ import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, n8nOrAuthMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 import { Prisma, InvoiceStatus } from '@prisma/client';
 
 // Schema de validation pour créer une facture
@@ -39,18 +39,6 @@ const markPaidSchema = z.object({
   datePaiement: z.string().datetime().optional(),
 });
 
-function getN8nSecretHeader(request: FastifyRequest): string | undefined {
-  const header = request.headers['x-talosprimes-n8n-secret'];
-  return typeof header === 'string' ? header : undefined;
-}
-
-function isN8nInternalRequest(request: FastifyRequest): boolean {
-  const secret = env.N8N_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const provided = getN8nSecretHeader(request);
-  return Boolean(provided && provided === secret);
-}
-
 /**
  * Routes pour la gestion des factures
  */
@@ -59,11 +47,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/',
     {
-      preHandler: [authMiddleware],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
       try {
-        const tenantId = request.tenantId as string;
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
         const queryParams = request.query as {
           page?: string;
           limit?: string;
@@ -73,12 +62,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           dateTo?: string;
         };
 
-        if (!tenantId) {
+        if (!tenantId && !fromN8n) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        // Si on délègue la lecture à n8n (full no-code views)
-        if (tenantId && env.USE_N8N_VIEWS) {
+        // Si on délègue la lecture à n8n (full no-code views) — pas si c'est déjà n8n
+        if (!fromN8n && tenantId && env.USE_N8N_VIEWS) {
           const res = await n8nService.callWorkflowReturn<{ invoices: unknown[]; count: number; totalPages: number }>(
             tenantId,
             'invoices_list',
@@ -105,9 +94,10 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         const limit = queryParams.limit ? parseInt(queryParams.limit, 10) : 20;
         const skip = (page - 1) * limit;
 
-        const where: Prisma.InvoiceWhereInput = {
-          tenantId,
-        };
+        const where: Prisma.InvoiceWhereInput = {};
+        if (tenantId) {
+          where.tenantId = tenantId;
+        }
 
         if (queryParams.statut) {
           where.statut = queryParams.statut as InvoiceStatus;
@@ -175,19 +165,20 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/:id',
     {
-      preHandler: [authMiddleware],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
       try {
-        const tenantId = request.tenantId as string;
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
         const params = paramsSchema.parse(request.params);
 
-        if (!tenantId) {
+        if (!tenantId && !fromN8n) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        // Si on délègue la lecture à n8n
-        if (tenantId && env.USE_N8N_VIEWS) {
+        // Si on délègue la lecture à n8n — pas si c'est déjà n8n
+        if (!fromN8n && tenantId && env.USE_N8N_VIEWS) {
           const res = await n8nService.callWorkflowReturn<{ invoice: unknown }>(
             tenantId,
             'invoice_get',
@@ -205,11 +196,13 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         }
 
         // Sinon, récupérer depuis la base de données
+        const invoiceWhere: Prisma.InvoiceWhereInput = { id: params.id };
+        if (tenantId) {
+          invoiceWhere.tenantId = tenantId;
+        }
+
         const invoice = await prisma.invoice.findFirst({
-          where: {
-            id: params.id,
-            tenantId,
-          },
+          where: invoiceWhere,
           include: {
             clientFinal: {
               select: {
@@ -254,17 +247,11 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/',
     {
-      preHandler: [
-        async (request: FastifyRequest, reply: FastifyReply) => {
-          // Si l'appel vient de n8n (secret), on ne demande pas de JWT
-          if (isN8nInternalRequest(request)) return;
-          await fastify.authenticate(request, reply);
-        },
-      ],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
-        const fromN8n = isN8nInternalRequest(request);
+        const fromN8n = request.isN8nRequest === true;
 
         // Valider les données (tenantId peut être dans le body si appel depuis n8n)
         const body = createInvoiceSchema.parse(request.body);
@@ -405,17 +392,11 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
   fastify.put(
     '/:id',
     {
-      preHandler: [
-        async (request: FastifyRequest, reply: FastifyReply) => {
-          // Si l'appel vient de n8n (secret), on ne demande pas de JWT
-          if (isN8nInternalRequest(request)) return;
-          await fastify.authenticate(request, reply);
-        },
-      ],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
-        const fromN8n = isN8nInternalRequest(request);
+        const fromN8n = request.isN8nRequest === true;
         const params = paramsSchema.parse(request.params);
         const body = updateInvoiceSchema.parse(request.body);
 

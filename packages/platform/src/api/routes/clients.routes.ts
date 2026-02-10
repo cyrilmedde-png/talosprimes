@@ -4,7 +4,7 @@ import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, n8nOrAuthMiddleware, n8nOnlyMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({
@@ -36,18 +36,6 @@ const paramsSchema = z.object({
   id: z.string().uuid('ID invalide'),
 });
 
-function getN8nSecretHeader(request: FastifyRequest): string | undefined {
-  const header = request.headers['x-talosprimes-n8n-secret'];
-  return typeof header === 'string' ? header : undefined;
-}
-
-function isN8nInternalRequest(request: FastifyRequest): boolean {
-  const secret = env.N8N_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const provided = getN8nSecretHeader(request);
-  return Boolean(provided && provided === secret);
-}
-
 /**
  * Routes pour la gestion des clients finaux
  */
@@ -56,13 +44,15 @@ export async function clientsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/',
     {
-      preHandler: [fastify.authenticate],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
 
-        if (!tenantId) {
+        // Pour n8n sans tenantId, lister tous les clients (accès admin interne)
+        if (!tenantId && !fromN8n) {
           reply.code(401).send({
             error: 'Non authentifié',
             message: 'Tenant ID manquant',
@@ -70,11 +60,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return;
         }
 
+        const whereClause: Record<string, unknown> = {};
+        if (tenantId) {
+          whereClause.tenantId = tenantId;
+        }
+
         // Récupérer les clients du tenant uniquement
         const clients = await prisma.clientFinal.findMany({
-          where: {
-            tenantId,
-          },
+          where: whereClause,
           orderBy: {
             updatedAt: 'desc',
           },

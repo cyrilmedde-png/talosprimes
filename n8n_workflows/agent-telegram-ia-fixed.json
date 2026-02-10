@@ -1,0 +1,787 @@
+{
+  "name": "agent-telegram-ia",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "01. Telegram Trigger",
+      "name": "01. Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credential",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message.voice }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combineOperation": "all"
+        }
+      },
+      "id": "02. Check if Voice or Text",
+      "name": "02. Check if Voice or Text",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $credentials.telegramApi.botToken }}/getFile?file_id={{ $json.message.voice.file_id }}",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "03. Get Voice File Info",
+      "name": "03. Get Voice File Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        650,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot{{ $credentials.telegramApi.botToken }}/{{ $json.result.file_path }}",
+        "method": "GET",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "04. Download Voice File",
+      "name": "04. Download Voice File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        850,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.openaiApi.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "whisper-1",
+              "parameterType": "formData"
+            },
+            {
+              "name": "file",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "language",
+              "value": "fr",
+              "parameterType": "formData"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "05. Transcribe with Whisper",
+      "name": "05. Transcribe with Whisper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1050,
+        150
+      ],
+      "credentials": {
+        "openaiApi": {
+          "id": "openai-credential",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge transcription with original message context\nconst items = $input.all();\nconst triggerItems = $('01. Telegram Trigger').all();\nconst originalTrigger = triggerItems[0].json;\nconst transcription = items[0].json.text || '';\n\nreturn [{\n  json: {\n    ...originalTrigger,\n    messageText: transcription,\n    isVoiceMessage: true,\n    chatId: originalTrigger.message.chat.id,\n    userId: originalTrigger.message.from.id\n  }\n}];"
+      },
+      "id": "06. Merge Voice Text",
+      "name": "06. Merge Voice Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse text message from trigger\nconst triggerItems = $('01. Telegram Trigger').all();\nconst originalTrigger = triggerItems[0].json;\nconst messageText = originalTrigger.message.text || '';\n\nreturn [{\n  json: {\n    ...originalTrigger,\n    messageText: messageText,\n    isVoiceMessage: false,\n    chatId: originalTrigger.message.chat.id,\n    userId: originalTrigger.message.from.id\n  }\n}];"
+      },
+      "id": "07. Parse Text Message",
+      "name": "07. Parse Text Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        650,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/clients",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Tool: Lister Clients",
+      "name": "Tool: Lister Clients",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        500
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/clients",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: $json.type, email: $json.email, raisonSociale: $json.raisonSociale, nom: $json.nom, prenom: $json.prenom, telephone: $json.telephone, adresse: $json.adresse, tags: $json.tags, tenantId: $json.tenantId }) }}",
+        "options": {}
+      },
+      "id": "Tool: Créer Client",
+      "name": "Tool: Créer Client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        600
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/leads",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Tool: Lister Leads",
+      "name": "Tool: Lister Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1550,
+        500
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/leads",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ nom: $json.nom, prenom: $json.prenom, email: $json.email, telephone: $json.telephone, source: $json.source || 'telegram', notes: $json.notes, tenantId: $json.tenantId }) }}",
+        "options": {}
+      },
+      "id": "Tool: Créer Lead",
+      "name": "Tool: Créer Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1550,
+        600
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/invoices",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Tool: Lister Factures",
+      "name": "Tool: Lister Factures",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1700,
+        500
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/invoices",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ clientFinalId: $json.clientFinalId, montantHt: $json.montantHt, type: $json.type || 'facture_client_final', tvaTaux: $json.tvaTaux || 20, dateFacture: $json.dateFacture, dateEcheance: $json.dateEcheance, numeroFacture: $json.numeroFacture, description: $json.description, lienPdf: $json.lienPdf, tenantId: $json.tenantId }) }}",
+        "options": {}
+      },
+      "id": "Tool: Créer Facture",
+      "name": "Tool: Créer Facture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1700,
+        600
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/subscriptions",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Tool: Lister Abonnements",
+      "name": "Tool: Lister Abonnements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1850,
+        500
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/notifications",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Tool: Lister Notifications",
+      "name": "Tool: Lister Notifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        500
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.talosprimes.com/api/logs/stats",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-TalosPrimes-N8N-Secret",
+              "value": "={{ $credentials.headerAuth.value }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Tool: Stats Logs",
+      "name": "Tool: Stats Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2150,
+        500
+      ],
+      "credentials": {
+        "headerAuth": {
+          "id": "talosprimes-api-credential",
+          "name": "API TalosPrimes - Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": "claude-3-5-sonnet-20241022",
+        "temperature": 0.3,
+        "options": {}
+      },
+      "id": "Claude Model",
+      "name": "Claude Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        800
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "anthropic-credential",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": "gpt-4o",
+        "temperature": 0.3,
+        "options": {}
+      },
+      "id": "GPT-4 Fallback Model",
+      "name": "GPT-4 Fallback Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1550,
+        800
+      ],
+      "credentials": {
+        "openaiApi": {
+          "id": "openai-credential",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "id": "Conversation Memory",
+      "name": "Conversation Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "agentType": "openAiFunctions",
+        "options": {
+          "maxIterations": 10
+        }
+      },
+      "id": "08. AI Agent (Claude + Tools)",
+      "name": "08. AI Agent (Claude + Tools)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        1550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare agent input with context\nconst items = $input.all();\nconst messageData = items[0].json;\nconst systemPrompt = `Tu es l'agent IA de TalosPrimes, une plateforme SaaS multi-tenant de gestion d'entreprise. Tu gères l'intégralité des opérations : leads, clients, abonnements, factures, notifications, Stripe et workflows n8n.\n\nTu es précis, professionnel, et tu agis toujours dans le respect de l'isolation multi-tenant. Tu ne mélanges jamais les données entre tenants.\n\nTu agis, tu ne décris pas. Quand on te demande de créer un client, tu appelles l'API. Tu ne dis pas \"voici comment faire\".\n\nTu confirmes toujours. Après chaque action, confirme ce qui a été fait avec les données clés (ID, nom, statut).\n\nTu respecte l'isolation tenant. Ne jamais accéder aux données d'un autre tenant sans tenantId explicite.\n\nTu parles français. Toutes tes réponses sont en français, sauf les noms techniques.`;\n\nreturn [{\n  json: {\n    systemPrompt: systemPrompt,\n    input: messageData.messageText,\n    chatId: messageData.chatId,\n    userId: messageData.userId,\n    isVoiceMessage: messageData.isVoiceMessage || false\n  }\n}];"
+      },
+      "id": "AI Input Preparation",
+      "name": "AI Input Preparation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $('AI Input Preparation').first().json.chatId }}",
+        "text": "={{ $json.output || 'Désolé, une erreur est survenue' }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "09. Send Telegram Response",
+      "name": "09. Send Telegram Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1750,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credential",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle errors - send fallback message to user\nconst triggerItems = $('01. Telegram Trigger').all();\nreturn [{\n  json: {\n    errorMessage: 'Désolé, une erreur est survenue. Veuillez réessayer.',\n    chatId: triggerItems[0].json.message.chat.id,\n    error: 'Workflow error'\n  }\n}];"
+      },
+      "id": "Error Handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1750,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.errorMessage }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "Send Error Message to Telegram",
+      "name": "Send Error Message to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1900,
+        500
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-credential",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "01. Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "02. Check if Voice or Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Check if Voice or Text": {
+      "main": [
+        [
+          {
+            "node": "03. Get Voice File Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "07. Parse Text Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Get Voice File Info": {
+      "main": [
+        [
+          {
+            "node": "04. Download Voice File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Download Voice File": {
+      "main": [
+        [
+          {
+            "node": "05. Transcribe with Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Transcribe with Whisper": {
+      "main": [
+        [
+          {
+            "node": "06. Merge Voice Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Merge Voice Text": {
+      "main": [
+        [
+          {
+            "node": "AI Input Preparation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Parse Text Message": {
+      "main": [
+        [
+          {
+            "node": "AI Input Preparation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Input Preparation": {
+      "main": [
+        [
+          {
+            "node": "08. AI Agent (Claude + Tools)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. AI Agent (Claude + Tools)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Claude Model",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_tool": [
+        [
+          {
+            "node": "Tool: Lister Clients",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Créer Client",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Lister Leads",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Créer Lead",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Lister Factures",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Créer Facture",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Lister Abonnements",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Lister Notifications",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Tool: Stats Logs",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_memory": [
+        [
+          {
+            "node": "Conversation Memory",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ],
+      "main": [
+        [
+          {
+            "node": "09. Send Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Send Error Message to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "agent-telegram-ia-v1-1",
+  "meta": {
+    "instanceId": "talosprimes-agent-telegram-ia"
+  },
+  "pinData": {}
+}

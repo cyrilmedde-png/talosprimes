@@ -3,6 +3,7 @@ import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
+import { n8nOrAuthMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 import { z } from 'zod';
 
 type LeadRow = {
@@ -16,18 +17,6 @@ type LeadRow = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-function getN8nSecretHeader(request: FastifyRequest): string | undefined {
-  const header = request.headers['x-talosprimes-n8n-secret'];
-  return typeof header === 'string' ? header : undefined;
-}
-
-function isN8nInternalRequest(request: FastifyRequest): boolean {
-  const secret = env.N8N_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const provided = getN8nSecretHeader(request);
-  return Boolean(provided && provided === secret);
-}
 
 // Schéma de validation pour la création d'un lead
 const createLeadSchema = z.object({

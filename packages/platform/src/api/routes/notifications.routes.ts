@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { env } from '../../config/env.js';
 import { Prisma } from '@prisma/client';
+import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 
 const createNotificationSchema = z.object({
   type: z.string().min(1),
@@ -11,39 +11,22 @@ const createNotificationSchema = z.object({
   donnees: z.record(z.any()).optional(),
 });
 
-function getN8nSecretHeader(request: FastifyRequest): string | undefined {
-  const header = request.headers['x-talosprimes-n8n-secret'];
-  return typeof header === 'string' ? header : undefined;
-}
-
-function isN8nInternalRequest(request: FastifyRequest): boolean {
-  const secret = env.N8N_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const provided = getN8nSecretHeader(request);
-  return Boolean(provided && provided === secret);
-}
-
 export async function notificationsRoutes(fastify: FastifyInstance) {
   // POST /api/notifications - Créer une notification
   fastify.post(
     '/',
     {
-      preHandler: [
-        async (request: FastifyRequest, reply: FastifyReply) => {
-          if (!isN8nInternalRequest(request)) {
-            await fastify.authenticate(request, reply);
-          }
-        },
-      ],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const body = createNotificationSchema.parse(request.body);
-        
+        const fromN8n = request.isN8nRequest === true;
+
         // Si la requête vient de n8n, le tenantId doit être dans le body
         // Sinon, on l'extrait du JWT
         let tenantId: string;
-        if (isN8nInternalRequest(request)) {
+        if (fromN8n) {
           if (!body.donnees?.tenantId) {
             return reply.status(400).send({
               success: false,
@@ -52,7 +35,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           }
           tenantId = body.donnees.tenantId as string;
         } else {
-          tenantId = (request as { tenantId?: string }).tenantId || '';
+          tenantId = request.tenantId || '';
         }
 
         const notification = await prisma.notification.create({
@@ -90,18 +73,26 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/',
     {
-      preHandler: [fastify.authenticate],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const tenantId = (request as any).tenantId;
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
         const { lu, limit = '50', offset = '0' } = request.query as {
           lu?: string;
           limit?: string;
           offset?: string;
         };
 
-        const where: Prisma.NotificationWhereInput = { tenantId };
+        if (!tenantId && !fromN8n) {
+          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        }
+
+        const where: Prisma.NotificationWhereInput = {};
+        if (tenantId) {
+          where.tenantId = tenantId;
+        }
         if (lu !== undefined) {
           where.lu = lu === 'true';
         }

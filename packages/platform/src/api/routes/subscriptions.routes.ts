@@ -5,7 +5,7 @@ import { Prisma, SubscriptionStatus } from '@prisma/client';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 
 // Schema de validation pour le renouvellement
 const renewSubscriptionSchema = z.object({
@@ -36,18 +36,6 @@ const suspendSubscriptionSchema = z.object({
   reason: z.string().optional().default('Paiement en retard'),
 });
 
-function getN8nSecretHeader(request: FastifyRequest): string | undefined {
-  const header = request.headers['x-talosprimes-n8n-secret'];
-  return typeof header === 'string' ? header : undefined;
-}
-
-function isN8nInternalRequest(request: FastifyRequest): boolean {
-  const secret = env.N8N_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const provided = getN8nSecretHeader(request);
-  return Boolean(provided && provided === secret);
-}
-
 /**
  * Routes pour la gestion des abonnements clients
  */
@@ -56,16 +44,11 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/renew',
     {
-      preHandler: [
-        async (request: FastifyRequest, reply: FastifyReply) => {
-          if (isN8nInternalRequest(request)) return;
-          await fastify.authenticate(request, reply);
-        },
-      ],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
-        const fromN8n = isN8nInternalRequest(request);
+        const fromN8n = request.isN8nRequest === true;
         const body = renewSubscriptionSchema.parse(request.body);
         const tenantId = request.tenantId as string;
 
@@ -439,24 +422,28 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/:id',
     {
-      preHandler: [authMiddleware],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
       try {
         const params = z.object({ id: z.string().uuid() }).parse(request.params);
-        const tenantId = request.tenantId as string;
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
 
-        if (!tenantId) {
+        if (!tenantId && !fromN8n) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
+        // Construire le filtre avec isolation tenant conditionnelle
+        const subscriptionWhere: Prisma.ClientSubscriptionWhereInput = {
+          id: params.id,
+        };
+        if (tenantId) {
+          subscriptionWhere.clientFinal = { tenantId };
+        }
+
         const subscription = await prisma.clientSubscription.findFirst({
-          where: {
-            id: params.id,
-            clientFinal: {
-              tenantId, // Vérification de l'isolation tenant
-            },
-          },
+          where: subscriptionWhere,
           include: {
             clientFinal: {
               select: {
@@ -499,22 +486,22 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/',
     {
-      preHandler: [authMiddleware],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
       try {
-        const tenantId = request.tenantId as string;
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
         const queryParams = request.query as { statut?: string };
 
-        if (!tenantId) {
+        if (!tenantId && !fromN8n) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        const where: Prisma.ClientSubscriptionWhereInput = {
-          clientFinal: {
-            tenantId,
-          },
-        };
+        const where: Prisma.ClientSubscriptionWhereInput = {};
+        if (tenantId) {
+          where.clientFinal = { tenantId };
+        }
 
         if (queryParams.statut) {
           where.statut = queryParams.statut as SubscriptionStatus;
