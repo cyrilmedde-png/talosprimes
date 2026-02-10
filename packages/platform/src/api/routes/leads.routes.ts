@@ -3,7 +3,7 @@ import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
-import { n8nOrAuthMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
+import { isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 import { z } from 'zod';
 
 type LeadRow = {

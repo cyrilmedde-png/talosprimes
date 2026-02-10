@@ -4,7 +4,7 @@ import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
-import { authMiddleware, n8nOrAuthMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
+import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { Prisma, InvoiceStatus } from '@prisma/client';
 
 // Schema de validation pour créer une facture
