@@ -3,7 +3,7 @@ import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
-import { isN8nInternalRequest } from '../../middleware/auth.middleware.js';
+import { isN8nInternalRequest, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { z } from 'zod';
 
 type LeadRow = {
@@ -268,14 +268,9 @@ export async function leadsRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Obtenir un lead par ID (nécessite authentification admin)
+  // Obtenir un lead par ID (JWT ou secret n8n pour les workflows)
   fastify.get('/:id', {
-    preHandler: [
-      async (request: FastifyRequest, reply: FastifyReply) => {
-        if (isN8nInternalRequest(request)) return;
-        await fastify.authenticate(request, reply);
-      },
-    ],
+    preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const fromN8n = isN8nInternalRequest(request);
@@ -329,14 +324,9 @@ export async function leadsRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Mettre à jour le statut d'un lead (nécessite authentification admin)
+  // Mettre à jour le statut d'un lead (JWT ou secret n8n pour les workflows)
   fastify.patch('/:id/statut', {
-    preHandler: [
-      async (request: FastifyRequest, reply: FastifyReply) => {
-        if (isN8nInternalRequest(request)) return;
-        await fastify.authenticate(request, reply);
-      },
-    ],
+    preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const fromN8n = isN8nInternalRequest(request);
