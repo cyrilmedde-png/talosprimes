@@ -150,6 +150,7 @@ model Tenant {
   workflowLinks      WorkflowLink[]
   eventLogs          EventLog[]
   notifications      Notification[]
+  agentCalendarEvents AgentCalendarEvent[]
 
   @@index([emailContact])
   @@index([statut])
@@ -444,5 +445,26 @@ model ContactMessage {
   @@index([traite])
   @@index([createdAt])
   @@map("contact_messages")
+}
+
+// AgentCalendarEvent (agenda géré par l'agent IA, par tenant)
+model AgentCalendarEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  titre       String    @map("titre")
+  description String?   @map("description") @db.Text
+  debut       DateTime  @map("debut") @db.Timestamptz(6)
+  fin         DateTime  @map("fin") @db.Timestamptz(6)
+  rappelMin   Int?      @map("rappel_min") // Rappel X minutes avant (optionnel)
+  lieu        String?   @map("lieu") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([debut])
+  @@index([tenantId, debut])
+  @@map("agent_calendar_events")
 }
 

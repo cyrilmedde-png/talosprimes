@@ -50,6 +50,27 @@ const envSchema = z.object({
   
   // OpenAI
   OPENAI_API_KEY: z.string().optional(),
+
+  // Email (agent : lecture IMAP + envoi SMTP)
+  IMAP_HOST: z.string().optional(),
+  IMAP_PORT: z.string().optional().transform((v) => (v ? Number(v) : 993)),
+  IMAP_USER: z.string().optional(),
+  IMAP_PASSWORD: z.string().optional(),
+  IMAP_TLS: z.string().optional().transform((v) => v !== 'false'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional().transform((v) => (v ? Number(v) : 587)),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().email().optional(),
+
+  // Calendrier (agent : Google Calendar ou CalDAV)
+  GOOGLE_CALENDAR_CREDENTIALS_JSON: z.string().optional(),
+  GOOGLE_CALENDAR_ID: z.string().optional(),
+
+  // Qonto (agent : entrées/sorties)
+  QONTO_API_SECRET: z.string().optional(),
+  QONTO_ORG_ID: z.string().optional(),
+  QONTO_BANK_ACCOUNT_ID: z.string().optional(),
 });
 
 // Validation et export

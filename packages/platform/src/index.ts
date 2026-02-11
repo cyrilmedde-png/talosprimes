@@ -16,6 +16,7 @@ import { tenantRoutes } from './api/routes/tenant.routes.js';
 import { usersRoutes } from './api/routes/users.routes.js';
 import { logsRoutes } from './api/routes/logs.routes.js';
 import { landingRoutes } from './api/routes/landing.routes.js';
+import { agentRoutes } from './api/routes/agent.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -132,6 +133,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes landing (public + admin)
 await fastify.register(async (fastify) => {
   await fastify.register(landingRoutes);
+});
+
+// Enregistrer les routes agent IA (chat super-assistant)
+await fastify.register(async (fastify) => {
+  await fastify.register(agentRoutes, { prefix: '/api/agent' });
 });
 
 // Route de test

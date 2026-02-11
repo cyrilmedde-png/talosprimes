@@ -12,12 +12,14 @@ import {
   BellIcon,
   ClipboardDocumentListIcon,
   PencilSquareIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Assistant IA', href: '/assistant', icon: SparklesIcon },
   { name: 'Notifications', href: '/notifications', icon: BellIcon },
   { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
   { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },

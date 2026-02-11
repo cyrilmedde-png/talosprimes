@@ -292,6 +292,15 @@ export const apiClient = {
     }),
   },
 
+  // Agent IA (Super Assistant)
+  agent: {
+    chat: (message: string, history?: Array<{ role: 'user' | 'assistant'; content: string }>) =>
+      authenticatedFetch<{ success: boolean; reply: string; error?: string }>('/api/agent/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message, history: history ?? [] }),
+      }),
+  },
+
   // Logs
   logs: {
     list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
