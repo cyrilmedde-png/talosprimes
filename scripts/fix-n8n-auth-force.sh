@@ -36,23 +36,35 @@ echo "----------------------------------------"
 cp "$COMPOSE_FILE" "${COMPOSE_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
 echo -e "${GREEN}✓ Sauvegarde créée${NC}"
 
-# Supprimer toutes les lignes N8N_BASIC_AUTH existantes
+# Supprimer toutes les lignes d'authentification existantes
 sed -i '/N8N_BASIC_AUTH_ACTIVE/d' "$COMPOSE_FILE"
 sed -i '/N8N_BASIC_AUTH_USER/d' "$COMPOSE_FILE"
 sed -i '/N8N_BASIC_AUTH_PASSWORD/d' "$COMPOSE_FILE"
 sed -i '/N8N_JWT_AUTH_ACTIVE/d' "$COMPOSE_FILE"
 
-# Trouver la section environment de n8n et ajouter la variable
-if grep -q "n8n:" "$COMPOSE_FILE"; then
-    # Si environment existe déjà
-    if grep -A 30 "n8n:" "$COMPOSE_FILE" | grep -q "environment:"; then
-        # Ajouter après environment:
-        sed -i '/n8n:/,/environment:/{ /environment:/a\      - N8N_BASIC_AUTH_ACTIVE=false' "$COMPOSE_FILE"
-    else
-        # Ajouter une section environment
-        sed -i '/n8n:/a\    environment:\n      - N8N_BASIC_AUTH_ACTIVE=false' "$COMPOSE_FILE"
-    fi
-fi
+# Ajouter N8N_BASIC_AUTH_ACTIVE=false après la ligne "environment:"
+# Utiliser Python pour une modification plus robuste
+python3 << EOF
+import re
+
+with open("$COMPOSE_FILE", "r") as f:
+    content = f.read()
+
+# Trouver la section n8n et ajouter la variable après environment:
+pattern = r'(n8n:.*?environment:\s*\n)'
+replacement = r'\1      - N8N_BASIC_AUTH_ACTIVE=false\n'
+
+if re.search(pattern, content, re.DOTALL):
+    content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+else:
+    # Si pas de section environment, l'ajouter après n8n:
+    pattern = r'(n8n:\s*\n)'
+    replacement = r'\1    environment:\n      - N8N_BASIC_AUTH_ACTIVE=false\n'
+    content = re.sub(pattern, replacement, content)
+
+with open("$COMPOSE_FILE", "w") as f:
+    f.write(content)
+EOF
 
 echo -e "${GREEN}✓ docker-compose.yaml modifié${NC}"
 echo ""
