@@ -32,8 +32,13 @@ Workflows professionnels pour gérer le cycle de vie complet des clients finaux 
 - Utilisé pour modifier un client existant
 
 ### 6. **client_delete** - Suppression d'un client
-- Soft delete : met le statut à "inactif"
+- Suppression définitive du client
 - Utilisé pour supprimer un client
+
+### 7. **client-deleted-cleanup-lead** - Après suppression client : supprimer le lead du tunnel
+- Déclenché par l’événement **client.deleted** (émis après suppression d’un client)
+- Récupère les leads au statut « converti », trouve celui dont l’email correspond au client supprimé, puis le supprime
+- Évite que le lead réapparaisse dans le tunnel leads → clients
 
 ## 🔄 Flux d'exécution
 
@@ -58,6 +63,7 @@ Webhook → Validation → Create Client → Respond
    - `client-get.json` (Webhook `client_get`)
    - `client-update.json` (Webhook `client_update`)
    - `client-delete.json` (Webhook `client_delete`)
+   - `client-deleted-cleanup-lead.json` (Webhook `client-deleted-cleanup-lead`, événement `client.deleted`)
 4. Configurer les credentials :
    - **TalosPrimes API Auth** : Header Auth avec `X-TalosPrimes-N8N-Secret`
 5. Activer les workflows

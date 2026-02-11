@@ -51,6 +51,12 @@ const WORKFLOWS = [
     description: 'Suppression d\'un client (DELETE /api/clients/:id)',
   },
   {
+    eventType: 'client.deleted',
+    workflowId: 'client-deleted-cleanup-lead',
+    workflowName: 'Clients - Après suppression : supprimer le lead du tunnel',
+    description: 'Quand un client est supprimé, supprime le lead (même email) pour qu\'il ne réapparaisse pas dans le tunnel leads→clients',
+  },
+  {
     eventType: 'client.onboarding',
     workflowId: 'client-onboarding',
     workflowName: 'Clients - Onboarding (via Webhook)',
