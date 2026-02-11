@@ -122,7 +122,9 @@ export async function getEmail(
         const raw = msg.source.toString('utf-8');
         const bodyMatch = raw.match(/\r?\n\r?\n([\s\S]*)/);
         const body = bodyMatch?.[1] ?? raw;
-        if (msg.envelope['content-type']?.toLowerCase?.().includes('text/html')) {
+        const envelopeAny = msg.envelope as Record<string, unknown>;
+        const contentType = String(envelopeAny['content-type'] ?? '').toLowerCase();
+        if (contentType.includes('text/html')) {
           html = body;
         } else {
           text = body;

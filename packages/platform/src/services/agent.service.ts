@@ -154,8 +154,7 @@ const AGENT_TOOLS: Array<{
     function: {
       name: 'get_tenant',
       description: 'Récupérer le profil entreprise (tenant) : nom, SIRET, contact, etc.',
-      parameters: { type: 'object', properties: {} },
-      required: [],
+      parameters: { type: 'object', properties: {}, required: [] },
     },
   },
   {
