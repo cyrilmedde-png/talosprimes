@@ -736,6 +736,7 @@ export async function chatAgent(options: AgentChatOptions): Promise<AgentChatRes
           }>;
         };
       }>;
+    };
     const choice = data.choices?.[0]?.message;
     if (!choice) {
       return {
