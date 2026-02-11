@@ -29,8 +29,6 @@ export interface AgentConfig {
   qonto?: QontoConfig;
 }
 
-type AgentConfigRow = { config: AgentConfig };
-
 /** Retourne la config fusionnée (DB puis env) pour un tenant. Utilisée par l'agent à l'exécution. */
 export async function getAgentConfigForTenant(tenantId: string): Promise<AgentConfig> {
   const row = await prisma.tenantAgentConfig.findUnique({
