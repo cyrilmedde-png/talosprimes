@@ -179,18 +179,31 @@ log_step "1/6 - Recuperation du code depuis GitHub"
 PREVIOUS_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 log_info "Commit actuel: ${PREVIOUS_COMMIT:0:8}"
 
-if git pull origin main 2>&1; then
-  NEW_COMMIT=$(git rev-parse HEAD)
-  if [ "$PREVIOUS_COMMIT" = "$NEW_COMMIT" ]; then
-    log_info "Deja a jour (aucun changement)"
+if ! git pull origin main 2>&1; then
+  # Modifications locales (ex. package.json) bloquent le merge : on reinitialise pour aligner sur GitHub
+  if [ -n "$(git status --porcelain)" ]; then
+    log_warn "Modifications locales detectees (seraient ecrasees par le merge)"
+    log_info "Reinitialisation des fichiers suivants pour synchroniser avec origin/main..."
+    git status --short
+    git reset --hard HEAD
+    log_ok "Reinitialisation effectuee"
+    if ! git pull origin main 2>&1; then
+      log_err "Impossible de recuperer le code apres reset"
+      exit 1
+    fi
   else
-    CHANGED_FILES=$(git diff --name-only "$PREVIOUS_COMMIT" "$NEW_COMMIT" | wc -l)
-    log_ok "Code mis a jour: ${PREVIOUS_COMMIT:0:8} -> ${NEW_COMMIT:0:8} ($CHANGED_FILES fichiers)"
+    log_err "Impossible de recuperer le code"
+    log_info "Verifiez votre connexion et vos droits GitHub"
+    exit 1
   fi
+fi
+
+NEW_COMMIT=$(git rev-parse HEAD)
+if [ "$PREVIOUS_COMMIT" = "$NEW_COMMIT" ]; then
+  log_info "Deja a jour (aucun changement)"
 else
-  log_err "Impossible de recuperer le code"
-  log_info "Verifiez votre connexion et vos droits GitHub"
-  exit 1
+  CHANGED_FILES=$(git diff --name-only "$PREVIOUS_COMMIT" "$NEW_COMMIT" 2>/dev/null | wc -l)
+  log_ok "Code mis a jour: ${PREVIOUS_COMMIT:0:8} -> ${NEW_COMMIT:0:8} ($CHANGED_FILES fichiers)"
 fi
 
 # =============================================================================
