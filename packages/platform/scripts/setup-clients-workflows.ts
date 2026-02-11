@@ -53,8 +53,8 @@ const WORKFLOWS = [
   {
     eventType: 'client.deleted',
     workflowId: 'client-deleted-cleanup-lead',
-    workflowName: 'Clients - Après suppression : supprimer le lead du tunnel',
-    description: 'Quand un client est supprimé, supprime le lead (même email) pour qu\'il ne réapparaisse pas dans le tunnel leads→clients',
+    workflowName: 'Clients - Après suppression : lead en abandonné',
+    description: 'Quand un client est supprimé, passe le lead (même email) en statut « abandonné » pour qu\'il réapparaisse dans les leads (filtre abandonnés). Alternative : modifier le workflow en n8n pour supprimer définitivement le lead (DELETE).',
   },
   {
     eventType: 'client.onboarding',

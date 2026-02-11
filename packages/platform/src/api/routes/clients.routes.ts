@@ -207,7 +207,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return reply.status(400).send({ success: false, error: 'Lead ID requis' });
         }
 
-        // Si on délègue les écritures à n8n (full no‑code)
+        // Si on délègue les écritures à n8n (full no‑code) : uniquement n8n, pas de fallback
         // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
         if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
           const res = await n8nService.callWorkflowReturn<{ client: unknown }>(
@@ -227,7 +227,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, créer directement en base (fallback ou si USE_N8N_COMMANDS=false)
+        // Création directe en base uniquement si USE_N8N_COMMANDS=false (pas de délégation n8n)
         // Récupérer le lead
         const lead = await prisma.lead.findUnique({
           where: { id: body.leadId },

@@ -1,5 +1,5 @@
 {
-  "name": "Clients - Après suppression : supprimer le lead du tunnel (client.deleted)",
+  "name": "Clients - Après suppression : lead en abandonné (client.deleted)",
   "nodes": [
     {
       "parameters": {
@@ -68,12 +68,15 @@
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://api.talosprimes.com/api/leads/{{ $json.leadId }}",
+        "method": "PATCH",
+        "url": "=https://api.talosprimes.com/api/leads/{{ $json.leadId }}/statut",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"statut\":\"abandonne\"}",
         "options": { "timeout": 15000 }
       },
-      "id": "HTTP_DeleteLead",
-      "name": "API TalosPrimes - DELETE lead",
+      "id": "HTTP_PatchLeadStatut",
+      "name": "API TalosPrimes - PATCH lead statut abandonné",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [1400, 200],
@@ -83,7 +86,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ { success: true, message: 'Traitement client.deleted terminé' } }}",
+        "responseBody": "={{ { success: true, message: 'Lead passé en abandonné' } }}",
         "responseCode": 200,
         "options": {}
       },
@@ -109,11 +112,11 @@
     },
     "Lead trouvé ?": {
       "main": [
-        [{ "node": "API TalosPrimes - DELETE lead", "type": "main", "index": 0 }],
+        [{ "node": "API TalosPrimes - PATCH lead statut abandonné", "type": "main", "index": 0 }],
         [{ "node": "Respond", "type": "main", "index": 0 }]
       ]
     },
-    "API TalosPrimes - DELETE lead": {
+    "API TalosPrimes - PATCH lead statut abandonné": {
       "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
     }
   },

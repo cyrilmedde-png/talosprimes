@@ -1,6 +1,8 @@
-# Commandes VPS : workflow "Supprimer le lead du tunnel après suppression client"
+# Commandes VPS : workflow "Lead en abandonné après suppression client"
 
 À exécuter sur le VPS après avoir récupéré le code (git pull).
+
+**Comportement :** Quand vous supprimez un client, le lead (même email) est passé en statut **abandonné** et réapparaît dans les leads (filtre « abandonnés »). Pour supprimer définitivement le lead à la place, modifiez dans n8n le nœud « PATCH lead statut abandonné » en un nœud **DELETE** vers `https://api.talosprimes.com/api/leads/{{ $json.leadId }}`.
 
 ## 1. Récupérer le code
 

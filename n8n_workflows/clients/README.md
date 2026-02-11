@@ -35,10 +35,10 @@ Workflows professionnels pour gérer le cycle de vie complet des clients finaux 
 - Suppression définitive du client
 - Utilisé pour supprimer un client
 
-### 7. **client-deleted-cleanup-lead** - Après suppression client : supprimer le lead du tunnel
+### 7. **client-deleted-cleanup-lead** - Après suppression client : lead en abandonné
 - Déclenché par l’événement **client.deleted** (émis après suppression d’un client)
-- Récupère les leads au statut « converti », trouve celui dont l’email correspond au client supprimé, puis le supprime
-- Évite que le lead réapparaisse dans le tunnel leads → clients
+- Récupère les leads au statut « converti », trouve celui dont l’email correspond au client supprimé, puis le passe en statut **abandonné**
+- Le lead réapparaît dans la liste des leads (onglet/filtre « abandonnés »). Pour le supprimer définitivement à la place, remplacer dans n8n le nœud PATCH par un nœud HTTP Request DELETE vers `https://api.talosprimes.com/api/leads/{{ $json.leadId }}`
 
 ## 🔄 Flux d'exécution
 

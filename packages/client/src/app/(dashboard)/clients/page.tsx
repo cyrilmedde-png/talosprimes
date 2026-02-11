@@ -34,6 +34,7 @@ export default function ClientsPage() {
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientFinal | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [creatingFromLead, setCreatingFromLead] = useState(false);
   const [clientSubscriptions, setClientSubscriptions] = useState<Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null>>({});
   const [onboardingData, setOnboardingData] = useState({
     nomPlan: 'Plan Starter',
@@ -80,14 +81,14 @@ export default function ClientsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadClients = async () => {
+  const loadClients = async (): Promise<ClientFinal[] | null> => {
     try {
       setLoading(true);
       setError(null);
       const response = await apiClient.clients.list();
       const clientsList = response.data.clients as ClientFinal[];
       setClients(clientsList);
-      
+
       // Charger les abonnements pour chaque client
       const subscriptions: Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null> = {};
       for (const client of clientsList) {
@@ -99,9 +100,8 @@ export default function ClientsPage() {
         }
       }
       setClientSubscriptions(subscriptions);
-      
-      // Charger les leads convertis après le chargement des clients
-      // pour pouvoir filtrer ceux qui sont déjà des clients
+
+      // Charger les leads convertis avec la liste fraîche (évite état asynchrone)
       const leadsResponse = await apiClient.leads.list({ statut: 'converti' });
       const leads = leadsResponse.data.leads as Lead[];
       const clientEmails = new Set(clientsList.map(client => client.email.toLowerCase()));
@@ -109,28 +109,29 @@ export default function ClientsPage() {
         lead => !clientEmails.has(lead.email.toLowerCase())
       );
       setLeadsConvertis(leadsNonClients);
+
+      return clientsList;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {
         router.push('/login');
       }
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
-  const loadLeadsConvertis = async () => {
+  /** Recharge les leads du tunnel. Si clientsList est fourni, l'utilise pour filtrer (évite état React asynchrone). */
+  const loadLeadsConvertis = async (clientsList?: ClientFinal[] | null) => {
     try {
       const response = await apiClient.leads.list({ statut: 'converti' });
       const leads = response.data.leads as Lead[];
-      
-      // Filtrer les leads qui sont déjà des clients (par email)
-      // On vérifie si un client existe déjà avec cet email
-      const clientEmails = new Set(clients.map(client => client.email.toLowerCase()));
+      const listToUse = clientsList ?? clients;
+      const clientEmails = new Set(listToUse.map(client => client.email.toLowerCase()));
       const leadsNonClients = leads.filter(
         lead => !clientEmails.has(lead.email.toLowerCase())
       );
-      
       setLeadsConvertis(leadsNonClients);
     } catch (err) {
       console.error('Erreur lors du chargement des leads convertis:', err);
@@ -146,14 +147,22 @@ export default function ClientsPage() {
   }, [clients.length]);
 
   const handleCreateFromLead = async (leadId: string) => {
+    setCreatingFromLead(true);
+    setError(null);
     try {
       await apiClient.clients.createFromLead(leadId);
       setShowCreateModal(false);
       setSelectedLead(null);
-      await loadClients(); // Recharger les clients d'abord
-      await loadLeadsConvertis(); // Puis recharger les leads convertis (sera filtré automatiquement)
+      // Utiliser la liste retournée pour filtrer le tunnel tout de suite (état React pas encore à jour)
+      const newClients = await loadClients();
+      await loadLeadsConvertis(newClients ?? undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la création');
+      // Fermer le modal pour ne pas rester bloqué ; l'erreur s'affiche sur la page
+      setShowCreateModal(false);
+      setSelectedLead(null);
+    } finally {
+      setCreatingFromLead(false);
     }
   };
 
@@ -673,10 +682,10 @@ export default function ClientsPage() {
                 </button>
                 <button
                   onClick={() => selectedLead && handleCreateFromLead(selectedLead.id)}
-                  disabled={!selectedLead}
+                  disabled={!selectedLead || creatingFromLead}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md"
                 >
-                  Créer le client
+                  {creatingFromLead ? 'Création...' : 'Créer le client'}
                 </button>
               </div>
             </div>
