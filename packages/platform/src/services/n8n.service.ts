@@ -26,6 +26,10 @@ export class N8nService {
   /**
    * Appelle un workflow n8n et retourne la réponse JSON
    * Utile pour les vues (listage/lecture) orchestrées par n8n
+   * 
+   * IMPORTANT: Les webhooks n8n sont PUBLICS par défaut et n'acceptent PAS d'authentification.
+   * Si n8n a une authentification activée au niveau de l'instance, les webhooks peuvent être protégés,
+   * mais dans ce cas, l'authentification se fait via query parameter ou autre méthode, pas via headers.
    */
   async callWorkflowReturn<T = unknown>(
     tenantId: string,
@@ -49,9 +53,30 @@ export class N8nService {
         return { success: false, error: `Workflow non trouvé pour ${eventType}` };
       }
 
+      // IMPORTANT: Les webhooks n8n sont publics par défaut
+      // Si votre instance n8n nécessite une authentification, vous devez :
+      // 1. Soit désactiver l'authentification pour les webhooks dans n8n
+      // 2. Soit utiliser l'API REST de n8n au lieu des webhooks
+      // 3. Soit configurer n8n pour accepter les webhooks avec authentification
+      
+      // Pour l'instant, on n'envoie PAS d'headers d'authentification pour les webhooks
+      // car les webhooks n8n sont publics par défaut
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Si n8n nécessite une authentification pour les webhooks (configuration spéciale),
+      // vous pouvez décommenter ces lignes et configurer n8n en conséquence :
+      // if (this.apiKey) {
+      //   headers['X-N8N-API-KEY'] = this.apiKey;
+      // } else if (this.username && this.password) {
+      //   const credentials = Buffer.from(`${this.username}:${this.password}`).toString('base64');
+      //   headers['Authorization'] = `Basic ${credentials}`;
+      // }
+
       const response = await fetch(`${this.apiUrl}/webhook/${workflowLink.workflowN8nId}`, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
+        headers,
         body: JSON.stringify({
           event: eventType,
           tenantId,
@@ -73,7 +98,8 @@ export class N8nService {
     }
   }
   /**
-   * Génère les headers d'authentification pour les requêtes n8n
+   * Génère les headers d'authentification pour les requêtes n8n API REST
+   * (pas pour les webhooks qui sont publics)
    */
   private getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
@@ -144,10 +170,16 @@ export class N8nService {
         },
       };
 
-      // Appel à l'API n8n
+      // IMPORTANT: Les webhooks n8n sont publics par défaut
+      // On n'envoie PAS d'headers d'authentification pour les webhooks
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Appel à l'API n8n (webhook public)
       const response = await fetch(`${this.apiUrl}/webhook/${workflowLink.workflowN8nId}`, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
+        headers,
         body: JSON.stringify(n8nPayload),
       });
 
@@ -212,7 +244,7 @@ export class N8nService {
       const healthUrl = `${this.apiUrl.replace(/\/$/, '')}/healthz`;
       const response = await fetch(healthUrl, {
         method: 'GET',
-        headers: this.getAuthHeaders(),
+        headers: this.getAuthHeaders(), // Pour l'API REST, on utilise l'authentification
       });
 
       if (response.ok) {
@@ -272,4 +304,3 @@ export class N8nService {
 }
 
 export const n8nService = new N8nService();
-
