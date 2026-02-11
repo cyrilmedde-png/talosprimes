@@ -8,10 +8,33 @@ import { SparklesIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/reac
 
 type Message = { role: 'user' | 'assistant'; content: string };
 
+// Web Speech API (non standard, pas dans les types DOM par défaut)
+interface SpeechRecognitionResult {
+  length: number;
+  [index: number]: { transcript: string };
+}
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+interface ISpeechRecognition extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e: unknown) => void) | null;
+  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+}
 declare global {
   interface Window {
-    SpeechRecognition?: typeof SpeechRecognition;
-    webkitSpeechRecognition?: typeof SpeechRecognition;
+    SpeechRecognition?: new () => ISpeechRecognition;
+    webkitSpeechRecognition?: new () => ISpeechRecognition;
   }
 }
 
@@ -24,7 +47,7 @@ export default function AssistantPage() {
   const [voiceMode, setVoiceMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
