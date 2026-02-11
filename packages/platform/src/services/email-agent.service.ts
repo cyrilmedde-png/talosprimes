@@ -167,12 +167,12 @@ export async function sendEmail(params: {
   }
   const from = env.SMTP_FROM || env.IMAP_USER || env.SMTP_USER;
   const transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
+    host: env.SMTP_HOST!,
     port: env.SMTP_PORT ?? 587,
     secure: false,
     auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASSWORD,
+      user: env.SMTP_USER!,
+      pass: env.SMTP_PASSWORD!,
     },
   });
   try {
