@@ -1,35 +1,44 @@
 /**
  * Service email pour l'agent IA : lecture IMAP, envoi SMTP.
- * Optionnel : si les variables d'environnement ne sont pas définies, les fonctions retournent une erreur explicite.
+ * Config : base (TenantAgentConfig) ou variables d'environnement.
  */
 
 import { env } from '../config/env.js';
+import type { EmailConfig } from './agent-config.service.js';
 import { ImapFlow } from 'imapflow';
 import nodemailer from 'nodemailer';
 
 const INBOX = 'INBOX';
 const DEFAULT_LIMIT = 20;
 
-export function isEmailReadConfigured(): boolean {
-  return !!(env.IMAP_HOST && env.IMAP_USER && env.IMAP_PASSWORD);
+export function isEmailReadConfigured(config?: EmailConfig): boolean {
+  const host = config?.imapHost ?? env.IMAP_HOST;
+  const user = config?.imapUser ?? env.IMAP_USER;
+  const pass = config?.imapPassword ?? env.IMAP_PASSWORD;
+  return !!(host && user && pass);
 }
 
-export function isEmailSendConfigured(): boolean {
-  return !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASSWORD);
+export function isEmailSendConfigured(config?: EmailConfig): boolean {
+  const host = config?.smtpHost ?? env.SMTP_HOST;
+  const user = config?.smtpUser ?? env.SMTP_USER;
+  const pass = config?.smtpPassword ?? env.SMTP_PASSWORD;
+  return !!(host && user && pass);
 }
 
-function getImapClient(): ImapFlow {
-  if (!isEmailReadConfigured()) {
-    throw new Error('Email (lecture) non configuré : définir IMAP_HOST, IMAP_USER, IMAP_PASSWORD dans .env');
+function getImapClient(config?: EmailConfig): ImapFlow {
+  if (!isEmailReadConfigured(config)) {
+    throw new Error('Email (lecture) non configuré. Renseignez IMAP dans Paramètres > Assistant IA.');
   }
+  const host = (config?.imapHost ?? env.IMAP_HOST)!;
+  const port = config?.imapPort ?? env.IMAP_PORT ?? 993;
+  const secure = config?.imapTls ?? (env.IMAP_TLS !== false);
+  const user = (config?.imapUser ?? env.IMAP_USER)!;
+  const pass = (config?.imapPassword ?? env.IMAP_PASSWORD)!;
   return new ImapFlow({
-    host: env.IMAP_HOST!,
-    port: env.IMAP_PORT ?? 993,
-    secure: env.IMAP_TLS !== false,
-    auth: {
-      user: env.IMAP_USER!,
-      pass: env.IMAP_PASSWORD!,
-    },
+    host,
+    port: Number(port),
+    secure,
+    auth: { user, pass },
     logger: false,
   });
 }
@@ -45,9 +54,10 @@ export interface EmailListItem {
 
 export async function listEmails(
   folder: string = INBOX,
-  limit: number = DEFAULT_LIMIT
+  limit: number = DEFAULT_LIMIT,
+  config?: EmailConfig
 ): Promise<{ error?: string; count?: number; emails?: EmailListItem[] }> {
-  const client = getImapClient();
+  const client = getImapClient(config);
   try {
     await client.connect();
     const lock = await client.getMailboxLock(folder);
@@ -101,9 +111,10 @@ export interface EmailDetail {
 
 export async function getEmail(
   uid: number,
-  folder: string = INBOX
+  folder: string = INBOX,
+  config?: EmailConfig
 ): Promise<{ error?: string; email?: EmailDetail }> {
-  const client = getImapClient();
+  const client = getImapClient(config);
   try {
     await client.connect();
     const lock = await client.getMailboxLock(folder);
@@ -155,24 +166,27 @@ export async function getEmail(
   }
 }
 
-export async function sendEmail(params: {
-  to: string;
-  subject: string;
-  text?: string;
-  html?: string;
-  replyTo?: string;
-}): Promise<{ error?: string; success?: boolean }> {
-  if (!isEmailSendConfigured()) {
-    return { error: 'Email (envoi) non configuré : définir SMTP_HOST, SMTP_USER, SMTP_PASSWORD (et optionnellement SMTP_FROM) dans .env' };
+export async function sendEmail(
+  params: {
+    to: string;
+    subject: string;
+    text?: string;
+    html?: string;
+    replyTo?: string;
+  },
+  config?: EmailConfig
+): Promise<{ error?: string; success?: boolean }> {
+  if (!isEmailSendConfigured(config)) {
+    return { error: 'Email (envoi) non configuré. Renseignez SMTP dans Paramètres > Assistant IA.' };
   }
-  const from = env.SMTP_FROM || env.IMAP_USER || env.SMTP_USER;
+  const from = (config?.smtpFrom ?? env.SMTP_FROM ?? config?.imapUser ?? env.IMAP_USER ?? config?.smtpUser ?? env.SMTP_USER) as string;
   const transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST!,
-    port: env.SMTP_PORT ?? 587,
+    host: (config?.smtpHost ?? env.SMTP_HOST)!,
+    port: Number(config?.smtpPort ?? env.SMTP_PORT ?? 587),
     secure: false,
     auth: {
-      user: env.SMTP_USER!,
-      pass: env.SMTP_PASSWORD!,
+      user: (config?.smtpUser ?? env.SMTP_USER)!,
+      pass: (config?.smtpPassword ?? env.SMTP_PASSWORD)!,
     },
   });
   try {

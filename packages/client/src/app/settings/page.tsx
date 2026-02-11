@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import type { Tenant, User, StatutJuridique } from '@talosprimes/shared';
-import { BuildingOfficeIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import { apiClient } from '@/lib/api-client';
 
 const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
   { value: 'SA', label: 'SA - Société Anonyme' },
@@ -26,9 +27,25 @@ const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
   { value: 'ENTREPRISE_INDIVIDUELLE', label: 'Entreprise Individuelle' },
 ];
 
+type AgentConfigEmail = {
+  imapHost?: string;
+  imapPort?: number;
+  imapUser?: string;
+  imapPassword?: string;
+  imapTls?: boolean;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPassword?: string;
+  smtpFrom?: string;
+  configuredRead: boolean;
+  configuredSend: boolean;
+};
+type AgentConfigQonto = { apiSecret?: string; bankAccountId?: string; configured: boolean };
+
 export default function SettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'entreprise' | 'utilisateurs'>('entreprise');
+  const [activeTab, setActiveTab] = useState<'entreprise' | 'utilisateurs' | 'agent'>('entreprise');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +67,13 @@ export default function SettingsPage() {
     salaire: '',
     dateEmbauche: '',
   });
+
+  // Config Assistant IA (email + Qonto)
+  const [agentConfig, setAgentConfig] = useState<{ email: AgentConfigEmail; qonto: AgentConfigQonto } | null>(null);
+  const [agentForm, setAgentForm] = useState<{
+    email: Partial<AgentConfigEmail>;
+    qonto: Partial<AgentConfigQonto>;
+  }>({ email: {}, qonto: {} });
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -82,6 +106,34 @@ export default function SettingsPage() {
       if (usersResponse.ok) {
         const usersData = await usersResponse.json();
         setUsers(usersData.data.users || []);
+      }
+
+      // Config agent (pour onglet Assistant IA)
+      try {
+        const configRes = await apiClient.agent.getConfig();
+        if (configRes.success && configRes.data) {
+          setAgentConfig(configRes.data);
+          setAgentForm({
+            email: {
+              imapHost: configRes.data.email?.imapHost ?? '',
+              imapPort: configRes.data.email?.imapPort ?? 993,
+              imapUser: configRes.data.email?.imapUser ?? '',
+              imapPassword: '', // ne pas pré-remplir
+              imapTls: configRes.data.email?.imapTls ?? true,
+              smtpHost: configRes.data.email?.smtpHost ?? '',
+              smtpPort: configRes.data.email?.smtpPort ?? 587,
+              smtpUser: configRes.data.email?.smtpUser ?? '',
+              smtpPassword: '',
+              smtpFrom: configRes.data.email?.smtpFrom ?? '',
+            },
+            qonto: {
+              apiSecret: '',
+              bankAccountId: configRes.data.qonto?.bankAccountId ?? '',
+            },
+          });
+        }
+      } catch {
+        // optionnel : ne pas bloquer le chargement
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
@@ -212,6 +264,17 @@ export default function SettingsPage() {
             <UserPlusIcon className="h-5 w-5 inline mr-2" />
             Utilisateurs
           </button>
+          <button
+            onClick={() => setActiveTab('agent')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'agent'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <CpuChipIcon className="h-5 w-5 inline mr-2" />
+            Assistant IA
+          </button>
         </nav>
       </div>
 
@@ -228,7 +291,201 @@ export default function SettingsPage() {
       )}
 
       {/* Tab Contenu */}
-      {activeTab === 'entreprise' ? (
+      {activeTab === 'agent' ? (
+        <div className="space-y-6">
+          <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
+            <h2 className="text-xl font-bold text-white mb-2">Assistant IA</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Configurez l’email (lecture/envoi) et Qonto pour que l’assistant puisse gérer vos e-mails et consulter vos mouvements bancaires. L’agenda est géré par l’assistant sans configuration supplémentaire.
+            </p>
+
+            {/* Email — Lecture IMAP */}
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-white mb-1">Email — Lecture (IMAP)</h3>
+              {agentConfig?.email?.configuredRead && (
+                <span className="inline-block px-2 py-0.5 text-xs rounded bg-green-400/20 text-green-300 mb-3">Configuré</span>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Serveur IMAP (host)</label>
+                  <input
+                    type="text"
+                    value={agentForm.email?.imapHost ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, imapHost: e.target.value } }))}
+                    placeholder="imap.example.com"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Port IMAP</label>
+                  <input
+                    type="number"
+                    value={agentForm.email?.imapPort ?? 993}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, imapPort: parseInt(e.target.value, 10) || 993 } }))}
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Utilisateur IMAP</label>
+                  <input
+                    type="text"
+                    value={agentForm.email?.imapUser ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, imapUser: e.target.value } }))}
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe IMAP</label>
+                  <input
+                    type="password"
+                    value={agentForm.email?.imapPassword ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, imapPassword: e.target.value } }))}
+                    placeholder="Laisser vide pour ne pas modifier"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Email — Envoi SMTP */}
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-white mb-1">Email — Envoi (SMTP)</h3>
+              {agentConfig?.email?.configuredSend && (
+                <span className="inline-block px-2 py-0.5 text-xs rounded bg-green-400/20 text-green-300 mb-3">Configuré</span>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Serveur SMTP (host)</label>
+                  <input
+                    type="text"
+                    value={agentForm.email?.smtpHost ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, smtpHost: e.target.value } }))}
+                    placeholder="smtp.example.com"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Port SMTP</label>
+                  <input
+                    type="number"
+                    value={agentForm.email?.smtpPort ?? 587}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, smtpPort: parseInt(e.target.value, 10) || 587 } }))}
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Utilisateur SMTP</label>
+                  <input
+                    type="text"
+                    value={agentForm.email?.smtpUser ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, smtpUser: e.target.value } }))}
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe SMTP</label>
+                  <input
+                    type="password"
+                    value={agentForm.email?.smtpPassword ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, smtpPassword: e.target.value } }))}
+                    placeholder="Laisser vide pour ne pas modifier"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Adresse d’envoi (From)</label>
+                  <input
+                    type="email"
+                    value={agentForm.email?.smtpFrom ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, email: { ...f.email, smtpFrom: e.target.value } }))}
+                    placeholder="noreply@example.com"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Qonto */}
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-white mb-1">Qonto</h3>
+              {agentConfig?.qonto?.configured && (
+                <span className="inline-block px-2 py-0.5 text-xs rounded bg-green-400/20 text-green-300 mb-3">Configuré</span>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">API Secret (Bearer)</label>
+                  <input
+                    type="password"
+                    value={agentForm.qonto?.apiSecret ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, qonto: { ...f.qonto, apiSecret: e.target.value } }))}
+                    placeholder="Laisser vide pour ne pas modifier"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">ID compte bancaire (bank_account_id)</label>
+                  <input
+                    type="text"
+                    value={agentForm.qonto?.bankAccountId ?? ''}
+                    onChange={(e) => setAgentForm((f) => ({ ...f, qonto: { ...f.qonto, bankAccountId: e.target.value } }))}
+                    placeholder="UUID du compte Qonto"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setSaving(true);
+                    setError(null);
+                    setSuccess(null);
+                    const patch: Parameters<typeof apiClient.agent.updateConfig>[0] = {};
+                    if (agentForm.email && Object.keys(agentForm.email).length) {
+                      const e = agentForm.email;
+                      patch.email = {
+                        imapHost: e.imapHost || undefined,
+                        imapPort: e.imapPort ?? 993,
+                        imapUser: e.imapUser || undefined,
+                        imapPassword: e.imapPassword || undefined,
+                        imapTls: e.imapTls ?? true,
+                        smtpHost: e.smtpHost || undefined,
+                        smtpPort: e.smtpPort ?? 587,
+                        smtpUser: e.smtpUser || undefined,
+                        smtpPassword: e.smtpPassword || undefined,
+                        smtpFrom: e.smtpFrom || undefined,
+                      };
+                    }
+                    if (agentForm.qonto && (agentForm.qonto.apiSecret !== undefined || agentForm.qonto.bankAccountId !== undefined)) {
+                      patch.qonto = {
+                        apiSecret: agentForm.qonto.apiSecret || undefined,
+                        bankAccountId: agentForm.qonto.bankAccountId || undefined,
+                      };
+                    }
+                    await apiClient.agent.updateConfig(patch);
+                    setSuccess('Configuration Assistant IA enregistrée.');
+                    const res = await apiClient.agent.getConfig();
+                    if (res.success && res.data) {
+                      setAgentConfig(res.data);
+                    }
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Erreur lors de l’enregistrement');
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'entreprise' ? (
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
           <h2 className="text-xl font-bold text-white mb-6">Profil Entreprise</h2>
           <form onSubmit={handleSaveEntreprise} className="space-y-6">

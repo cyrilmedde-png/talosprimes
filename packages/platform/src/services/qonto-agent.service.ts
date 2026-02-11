@@ -1,21 +1,25 @@
 /**
  * Service Qonto pour l'agent IA : liste des transactions (entrées/sorties).
- * API Business Qonto : https://docs.qonto.com/
- * Requiert QONTO_API_SECRET (Bearer) et QONTO_BANK_ACCOUNT_ID (ou IBAN) dans .env.
+ * Config : base (TenantAgentConfig) ou variables d'environnement.
  */
 
 import { env } from '../config/env.js';
+import type { QontoConfig } from './agent-config.service.js';
 
 const QONTO_API_BASE = 'https://thirdparty.qonto.com';
 
-export function isQontoConfigured(): boolean {
-  return !!(env.QONTO_API_SECRET && (env.QONTO_ORG_ID || env.QONTO_BANK_ACCOUNT_ID));
+export function isQontoConfigured(config?: QontoConfig): boolean {
+  const secret = config?.apiSecret ?? env.QONTO_API_SECRET;
+  const accountId = config?.bankAccountId ?? env.QONTO_BANK_ACCOUNT_ID ?? env.QONTO_ORG_ID;
+  return !!(secret && accountId);
 }
 
-// QONTO_ORG_ID peut être le bank_account_id (UUID) ou on pourra appeler /v2/organization pour le récupérer
-// Pour l'instant on utilise QONTO_BANK_ACCOUNT_ID si défini, sinon QONTO_ORG_ID (documenté comme bank_account_id ou slug)
-function getBankAccountId(): string | undefined {
-  return env.QONTO_BANK_ACCOUNT_ID ?? env.QONTO_ORG_ID;
+function getBankAccountId(config?: QontoConfig): string | undefined {
+  return config?.bankAccountId ?? env.QONTO_BANK_ACCOUNT_ID ?? env.QONTO_ORG_ID;
+}
+
+function getApiSecret(config?: QontoConfig): string | undefined {
+  return config?.apiSecret ?? env.QONTO_API_SECRET;
 }
 
 export interface QontoTransaction {
@@ -39,19 +43,23 @@ export interface QontoTransactionsResult {
   summary?: { total_credits: number; total_debits: number; count: number };
 }
 
-export async function listQontoTransactions(params: {
-  settledAtFrom?: string;
-  settledAtTo?: string;
-  side?: 'credit' | 'debit';
-  perPage?: number;
-  page?: number;
-}): Promise<QontoTransactionsResult> {
-  if (!env.QONTO_API_SECRET) {
-    return { error: 'Qonto non configuré : définir QONTO_API_SECRET dans .env' };
+export async function listQontoTransactions(
+  params: {
+    settledAtFrom?: string;
+    settledAtTo?: string;
+    side?: 'credit' | 'debit';
+    perPage?: number;
+    page?: number;
+  },
+  config?: QontoConfig
+): Promise<QontoTransactionsResult> {
+  const apiSecret = getApiSecret(config);
+  if (!apiSecret) {
+    return { error: 'Qonto non configuré. Renseignez l\'API Secret dans Paramètres > Assistant IA.' };
   }
-  const bankAccountId = getBankAccountId();
+  const bankAccountId = getBankAccountId(config);
   if (!bankAccountId) {
-    return { error: 'Qonto : définir QONTO_BANK_ACCOUNT_ID ou QONTO_ORG_ID (ID du compte bancaire) dans .env' };
+    return { error: 'Qonto : renseignez l\'ID du compte bancaire dans Paramètres > Assistant IA.' };
   }
 
   const searchParams = new URLSearchParams();
@@ -66,7 +74,7 @@ export async function listQontoTransactions(params: {
     const res = await fetch(`${QONTO_API_BASE}/v2/transactions?${searchParams.toString()}`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${env.QONTO_API_SECRET}`,
+        Authorization: `Bearer ${apiSecret}`,
         'Content-Type': 'application/json',
       },
     });

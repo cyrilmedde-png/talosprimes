@@ -299,6 +299,50 @@ export const apiClient = {
         method: 'POST',
         body: JSON.stringify({ message, history: history ?? [] }),
       }),
+    getConfig: () =>
+      authenticatedFetch<{
+        success: boolean;
+        data: {
+          email: {
+            imapHost?: string;
+            imapPort?: number;
+            imapUser?: string;
+            imapPassword?: string;
+            imapTls?: boolean;
+            smtpHost?: string;
+            smtpPort?: number;
+            smtpUser?: string;
+            smtpPassword?: string;
+            smtpFrom?: string;
+            configuredRead: boolean;
+            configuredSend: boolean;
+          };
+          qonto: {
+            apiSecret?: string;
+            bankAccountId?: string;
+            configured: boolean;
+          };
+        };
+      }>('/api/agent/config'),
+    updateConfig: (patch: {
+      email?: Partial<{
+        imapHost?: string;
+        imapPort?: number;
+        imapUser?: string;
+        imapPassword?: string;
+        imapTls?: boolean;
+        smtpHost?: string;
+        smtpPort?: number;
+        smtpUser?: string;
+        smtpPassword?: string;
+        smtpFrom?: string;
+      }>;
+      qonto?: Partial<{ apiSecret?: string; bankAccountId?: string }>;
+    }) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>('/api/agent/config', {
+        method: 'PUT',
+        body: JSON.stringify(patch),
+      }),
   },
 
   // Logs

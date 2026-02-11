@@ -6,6 +6,7 @@
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
 import { SUPER_AGENT_SYSTEM_PROMPT } from '../agent/super-agent-prompt.js';
+import { getAgentConfigForTenant } from './agent-config.service.js';
 import {
   listEmails as listEmailsService,
   getEmail as getEmailService,
@@ -527,31 +528,34 @@ async function executeTool(
       }
 
       case 'list_emails': {
-        if (!isEmailReadConfigured()) {
-          return serializeForModel({ error: 'Lecture email non configurée. Définir IMAP_HOST, IMAP_USER, IMAP_PASSWORD dans .env' });
+        const agentConfig = await getAgentConfigForTenant(tenantId);
+        if (!isEmailReadConfigured(agentConfig?.email)) {
+          return serializeForModel({ error: 'Lecture email non configurée. Renseignez IMAP dans Paramètres > Assistant IA.' });
         }
         const limit = args.limit ? Math.min(Number(args.limit) || 20, 50) : 20;
         const folder = (args.folder as string) || 'INBOX';
-        const result = await listEmailsService(folder, limit);
+        const result = await listEmailsService(folder, limit, agentConfig?.email);
         if (result.error) return serializeForModel({ error: result.error });
         return serializeForModel({ count: result.count ?? 0, emails: result.emails ?? [] });
       }
 
       case 'get_email': {
-        if (!isEmailReadConfigured()) {
-          return serializeForModel({ error: 'Lecture email non configurée. Définir IMAP_HOST, IMAP_USER, IMAP_PASSWORD dans .env' });
+        const agentConfig = await getAgentConfigForTenant(tenantId);
+        if (!isEmailReadConfigured(agentConfig?.email)) {
+          return serializeForModel({ error: 'Lecture email non configurée. Renseignez IMAP dans Paramètres > Assistant IA.' });
         }
         const uid = Number(args.uid);
         if (!Number.isFinite(uid)) return serializeForModel({ error: 'uid invalide (nombre requis)' });
         const folder = (args.folder as string) || 'INBOX';
-        const result = await getEmailService(uid, folder);
+        const result = await getEmailService(uid, folder, agentConfig?.email);
         if (result.error) return serializeForModel({ error: result.error });
         return serializeForModel(result.email);
       }
 
       case 'send_email': {
-        if (!isEmailSendConfigured()) {
-          return serializeForModel({ error: 'Envoi email non configuré. Définir SMTP_HOST, SMTP_USER, SMTP_PASSWORD (et optionnellement SMTP_FROM) dans .env' });
+        const agentConfig = await getAgentConfigForTenant(tenantId);
+        if (!isEmailSendConfigured(agentConfig?.email)) {
+          return serializeForModel({ error: 'Envoi email non configuré. Renseignez SMTP dans Paramètres > Assistant IA.' });
         }
         const to = args.to as string;
         const subject = args.subject as string;
@@ -560,7 +564,7 @@ async function executeTool(
         if (!to?.trim() || !subject?.trim()) {
           return serializeForModel({ error: 'to et subject sont requis' });
         }
-        const result = await sendEmailService({ to: to.trim(), subject: subject.trim(), text, html });
+        const result = await sendEmailService({ to: to.trim(), subject: subject.trim(), text, html }, agentConfig?.email);
         if (result.error) return serializeForModel({ error: result.error });
         return serializeForModel({ success: true, message: 'Email envoyé' });
       }
@@ -640,19 +644,18 @@ async function executeTool(
       }
 
       case 'qonto_transactions': {
-        if (!isQontoConfigured()) {
-          return serializeForModel({ error: 'Qonto non configuré. Définir QONTO_API_SECRET et QONTO_BANK_ACCOUNT_ID (ou QONTO_ORG_ID) dans .env' });
+        const agentConfig = await getAgentConfigForTenant(tenantId);
+        if (!isQontoConfigured(agentConfig?.qonto)) {
+          return serializeForModel({ error: 'Qonto non configuré. Renseignez API Secret et compte bancaire dans Paramètres > Assistant IA.' });
         }
         const settledAtFrom = args.settledAtFrom as string | undefined;
         const settledAtTo = args.settledAtTo as string | undefined;
         const side = args.side as 'credit' | 'debit' | undefined;
         const perPage = args.perPage ? Math.min(Number(args.perPage) || 50, 100) : 50;
-        const result = await listQontoTransactions({
-          settledAtFrom,
-          settledAtTo,
-          side,
-          perPage,
-        });
+        const result = await listQontoTransactions(
+          { settledAtFrom, settledAtTo, side, perPage },
+          agentConfig?.qonto
+        );
         if (result.error) return serializeForModel({ error: result.error });
         return serializeForModel({
           transactions: result.transactions,

@@ -151,6 +151,7 @@ model Tenant {
   eventLogs          EventLog[]
   notifications      Notification[]
   agentCalendarEvents AgentCalendarEvent[]
+  agentConfig        TenantAgentConfig?
 
   @@index([emailContact])
   @@index([statut])
@@ -466,5 +467,17 @@ model AgentCalendarEvent {
   @@index([debut])
   @@index([tenantId, debut])
   @@map("agent_calendar_events")
+}
+
+// Configuration de l'agent IA par tenant (emails, Qonto) - stockée en base pour réglage depuis Paramètres
+model TenantAgentConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @unique @map("tenant_id") @db.Uuid
+  config    Json     @map("config") // { email?: { imapHost, imapPort, imapUser, imapPassword, smtpHost, ... }, qonto?: { apiSecret, bankAccountId } }
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_agent_configs")
 }
 
