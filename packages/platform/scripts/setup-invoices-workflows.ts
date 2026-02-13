@@ -13,24 +13,25 @@ const prisma = new PrismaClient();
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 // Configuration des workflows factures
+// workflowId = chemin du webhook n8n (path du node Webhook), ex. /webhook/invoice-created
 const WORKFLOWS = [
   {
     eventType: 'invoice_create',
-    workflowId: 'invoice_create',
-    workflowName: 'Factures - Création (via Webhook)',
-    description: 'Création d\'une facture (POST /api/invoices)',
+    workflowId: 'invoice-created',
+    workflowName: 'Factures - Après création (PDF + email)',
+    description: 'Déclenché après création d\'une facture (génération PDF, envoi email)',
   },
   {
     eventType: 'invoice_paid',
-    workflowId: 'invoice_paid',
-    workflowName: 'Factures - Paiement (via Webhook)',
-    description: 'Marquage d\'une facture comme payée (POST /api/invoices/paid)',
+    workflowId: 'invoice-paid',
+    workflowName: 'Factures - Paiement reçu',
+    description: 'Déclenché quand une facture est marquée payée (reçu email)',
   },
   {
     eventType: 'invoice_overdue',
-    workflowId: 'invoice_overdue',
-    workflowName: 'Factures - En retard (via Webhook)',
-    description: 'Détection d\'une facture en retard (POST /api/invoices/overdue)',
+    workflowId: 'invoice-overdue',
+    workflowName: 'Factures - En retard (relance)',
+    description: 'Relance des factures en retard',
   },
 ];
 

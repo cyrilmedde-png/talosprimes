@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Valider le payload et extraire les paramètres\nconst payload = $input.first().json.body;\n\n// Validation de tenantId\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\n// Vérifier si invoiceId est fourni\nconst invoiceId = payload.invoiceId || null;\nconst tenantId = payload.tenantId;\n\nreturn {\n  json: {\n    tenantId,\n    invoiceId,\n    hasSpecificInvoice: !!invoiceId,\n    timestamp: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Payload plateforme: { event, tenantId, data: { invoiceId?, ... } }\nconst body = $input.first().json;\nconst data = body.data || body;\nconst tenantId = body.tenantId || data.tenantId;\nconst invoiceId = data.invoiceId || data.invoice_id || null;\nif (!tenantId) throw new Error('tenantId is required');\nreturn { json: { tenantId, invoiceId, hasSpecificInvoice: !!invoiceId, timestamp: new Date().toISOString() } };"
       },
       "id": "02. Parser payload",
       "name": "02. Parser payload",
