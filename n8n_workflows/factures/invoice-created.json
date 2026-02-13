@@ -156,9 +156,14 @@
       "parameters": {
         "url": "https://api.resend.com/emails",
         "method": "POST",
-        "headers": {
-          "Authorization": "Bearer {{ $credentials.resend_api_credential.apiKey }}",
-          "Content-Type": "application/json"
+        "authentication": "headerAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
         },
         "bodyParametersJson": "{\n  \"from\": \"factures@talosprimes.com\",\n  \"to\": \"{{ $json.clientEmail }}\",\n  \"subject\": \"{{ $json.emailSubject }}\",\n  \"html\": \"{{ $json.emailContent }}\",\n  \"attachments\": [\n    {\n      \"filename\": \"{{ $json.numeroFacture }}.html\",\n      \"content\": \"{{ $json.htmlAttachment }}\"\n    }\n  ]\n}"
       },
@@ -171,7 +176,10 @@
         100
       ],
       "credentials": {
-        "resend_api_credential": "resend-api-credential"
+        "headerAuth": {
+          "id": "resend-api-credential",
+          "name": "Resend API"
+        }
       }
     },
     {

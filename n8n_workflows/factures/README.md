@@ -61,6 +61,26 @@ Pour `invoice_paid`, `data` contient en plus : `referencePayment`, `datePaiement
 - Credentials : **Postgres** (Supabase), **Resend** (envoi d’emails), éventuellement **TalosPrimes API** pour les notifications.
 - Workflows importés et **activés**, chemins webhook : `invoice-created`, `invoice-paid`, `invoice-overdue`.
 
+---
+
+## Credential Resend (envoi d’emails)
+
+Les workflows appellent l’API Resend via un nœud **HTTP Request**. Il faut créer un credential de type **Header Auth** dans n8n :
+
+1. Dans n8n : **Settings** (ou menu) → **Credentials** → **Add Credential**.
+2. Choisir le type **Header Auth** (ou **HTTP Header Auth** selon la version).
+3. Renseigner :
+   - **Credential Name** : `Resend API` (nom affiché).
+   - **Header Name** : `Authorization`
+   - **Header Value** : `Bearer re_xxxxxxxxxxxxxxxx`
+     - Remplacer `re_xxxxxxxxxxxxxxxx` par votre **clé API Resend** (dashboard [resend.com](https://resend.com) → API Keys → Create API Key).
+   - Ne pas oublier le mot **Bearer** suivi d’un espace avant la clé.
+4. Sauvegarder.
+
+Ensuite, sur chaque nœud **HTTP Request** qui envoie un email (ex. « 10. Envoyer email Resend »), sélectionner ce credential dans le champ **Credentials** / **Authentication**.
+
+Si votre workflow utilise un header codé en dur (ex. `Authorization: Bearer {{ $credentials.resend_api_credential.apiKey }}`), soit vous créez un credential **Header Auth** nommé **Resend API** et vous passez le nœud en **Authentication** = **Header Auth** + ce credential (n8n enverra alors le header pour vous), soit vous utilisez un credential qui expose une clé (selon la version de n8n, le nom peut être `apiKey` ou stocké dans le header).
+
 ## Dépannage
 
 - **Workflow non déclenché** : Vérifier que `pnpm workflow:setup-invoices` a été exécuté et que `workflowN8nId` est bien `invoice-created` (avec tiret), pas `invoice_create`.
