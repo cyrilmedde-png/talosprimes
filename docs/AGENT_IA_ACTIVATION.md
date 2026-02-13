@@ -80,6 +80,19 @@ L’agenda actuel utilise la table **AgentCalendarEvent** (Prisma) ; aucune conf
 
 ---
 
+
+## 7. Telegram via n8n (workflow obligatoire)
+
+Le **Super Agent** est exposé sur Telegram (texte + voix) via un workflow n8n qui appelle POST /api/agent/chat avec le secret n8n et le tenantId.
+
+- **Backend** : l'endpoint /api/agent/chat accepte soit un JWT (frontend), soit le header **X-TalosPrimes-N8N-Secret** + **tenantId** dans le body (n8n).
+- **Workflow** : importer n8n_workflows/super-agent-telegram-talosprimes.json. Configurer les credentials (Telegram, Connexion TalosPrimes, OpenAI) et la variable d'environnement **TENANT_ID**.
+- **Détails** : voir **n8n_workflows/SUPER_AGENT_TELEGRAM_README.md**.
+
+L'agent utilisé est le même que dans l'application (emails, agenda, Qonto, etc.) avec le même prompt.
+
+---
+
 ## Récapitulatif des outils de l’agent
 
 | Domaine      | Outils |

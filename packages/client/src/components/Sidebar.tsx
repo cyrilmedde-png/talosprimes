@@ -13,6 +13,7 @@ import {
   ClipboardDocumentListIcon,
   PencilSquareIcon,
   SparklesIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -26,7 +27,9 @@ const navigation = [
   { name: 'CMS Landing Page', href: '/dashboard/cms', icon: PencilSquareIcon },
   { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
   { name: 'Clients', href: '/clients', icon: UsersIcon },
-  { name: 'Documents', href: '/dashboard/documents', icon: DocumentTextIcon },
+  { name: 'Factures', href: '/factures', icon: BanknotesIcon },
+  // Onglet Documents — désactivé temporairement, à réactiver plus tard
+  // { name: 'Documents', href: '/dashboard/documents', icon: DocumentTextIcon },
 ];
 
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {

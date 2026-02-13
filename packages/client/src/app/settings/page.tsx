@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import type { Tenant, User, StatutJuridique } from '@talosprimes/shared';
-import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api-client';
 
 const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
@@ -43,9 +43,12 @@ type AgentConfigEmail = {
 };
 type AgentConfigQonto = { apiSecret?: string; bankAccountId?: string; configured: boolean };
 
+type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation';
+
 export default function SettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'entreprise' | 'utilisateurs' | 'agent'>('entreprise');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<SettingsTab>('entreprise');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +78,15 @@ export default function SettingsPage() {
     qonto: Partial<AgentConfigQonto>;
   }>({ email: {}, qonto: {} });
 
+  // Config Facturation (en-tête, pied de page, plateforme facturation électronique)
+  const [facturationForm, setFacturationForm] = useState({
+    entete: '',
+    piedDePage: '',
+    plateformeFacturationElectronique: '',
+    apiKeyFacturation: '',
+    apiUrlFacturation: '',
+  });
+
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
@@ -82,6 +94,14 @@ export default function SettingsPage() {
     }
     loadData();
   }, [router]);
+
+  // Ouvrir l'onglet depuis l'URL (?tab=facturation)
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     try {
@@ -275,6 +295,17 @@ export default function SettingsPage() {
             <CpuChipIcon className="h-5 w-5 inline mr-2" />
             Assistant IA
           </button>
+          <button
+            onClick={() => setActiveTab('facturation')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'facturation'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <BanknotesIcon className="h-5 w-5 inline mr-2" />
+            Facturation
+          </button>
         </nav>
       </div>
 
@@ -291,7 +322,105 @@ export default function SettingsPage() {
       )}
 
       {/* Tab Contenu */}
-      {activeTab === 'agent' ? (
+      {activeTab === 'facturation' ? (
+        <div className="space-y-6">
+          <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
+            <h2 className="text-xl font-bold text-white mb-2">Configuration de la facturation</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              En-tête et pied de page des factures, connexion aux plateformes de facturation électronique (normes européennes).
+            </p>
+
+            {/* En-tête de facture */}
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-white mb-1">En-tête de facture</h3>
+              <p className="text-sm text-gray-500 mb-2">Texte ou HTML affiché en haut de chaque facture (logo, raison sociale, etc.).</p>
+              <textarea
+                value={facturationForm.entete}
+                onChange={(e) => setFacturationForm((f) => ({ ...f, entete: e.target.value }))}
+                rows={4}
+                placeholder="Ex. : Logo, nom de l'entreprise, SIRET, adresse..."
+                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              />
+            </div>
+
+            {/* Pied de page de facture */}
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-white mb-1">Pied de page de facture</h3>
+              <p className="text-sm text-gray-500 mb-2">Mentions légales, conditions de paiement, RIB, etc.</p>
+              <textarea
+                value={facturationForm.piedDePage}
+                onChange={(e) => setFacturationForm((f) => ({ ...f, piedDePage: e.target.value }))}
+                rows={4}
+                placeholder="Ex. : Conditions de paiement, mentions légales, TVA..."
+                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              />
+            </div>
+
+            {/* Facturation électronique */}
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-white mb-1">Facturation électronique</h3>
+              <p className="text-sm text-gray-500 mb-3">Connexion à une plateforme de facturation électronique (ex. Chorus Pro, factur-X, etc.).</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Plateforme</label>
+                  <select
+                    value={facturationForm.plateformeFacturationElectronique}
+                    onChange={(e) => setFacturationForm((f) => ({ ...f, plateformeFacturationElectronique: e.target.value }))}
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Aucune</option>
+                    <option value="chorus_pro">Chorus Pro</option>
+                    <option value="factur_x">Factur-X</option>
+                    <option value="other">Autre</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">URL API (optionnel)</label>
+                  <input
+                    type="url"
+                    value={facturationForm.apiUrlFacturation}
+                    onChange={(e) => setFacturationForm((f) => ({ ...f, apiUrlFacturation: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Clé API / Token (stockée de façon sécurisée)</label>
+                  <input
+                    type="password"
+                    value={facturationForm.apiKeyFacturation}
+                    onChange={(e) => setFacturationForm((f) => ({ ...f, apiKeyFacturation: e.target.value }))}
+                    placeholder="Laisser vide pour ne pas modifier"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Types de documents à venir */}
+            <div className="mb-8 rounded-lg bg-gray-700/30 border border-gray-600/50 p-4">
+              <h3 className="text-sm font-medium text-gray-300 mb-2">Types de documents (à venir)</h3>
+              <p className="text-sm text-gray-500">
+                Les types suivants seront disponibles dans une prochaine version : <strong className="text-gray-400">Devis</strong>, <strong className="text-gray-400">Proforma</strong>, <strong className="text-gray-400">Facture d&apos;achat</strong>, <strong className="text-gray-400">Avoir</strong>. Actuellement, seules les factures clients (vente) sont gérées.
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSuccess('Configuration facturation enregistrée.');
+                  setError(null);
+                  // TODO: appeler l\'API de sauvegarde des paramètres facturation (tenant settings)
+                }}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'agent' ? (
         <div className="space-y-6">
           <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
             <h2 className="text-xl font-bold text-white mb-2">Assistant IA</h2>

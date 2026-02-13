@@ -345,6 +345,32 @@ export const apiClient = {
       }),
   },
 
+  // Factures
+  invoices: {
+    list: (params?: { page?: number; limit?: number; statut?: string; clientFinalId?: string; dateFrom?: string; dateTo?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.statut) queryParams.append('statut', params.statut);
+      if (params?.clientFinalId) queryParams.append('clientFinalId', params.clientFinalId);
+      if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
+      const query = queryParams.toString();
+      return authenticatedFetch<InvoicesListResponse>(`/api/invoices${query ? `?${query}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { invoice: Invoice } }>(`/api/invoices/${id}`),
+    send: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>(`/api/invoices/${id}/send`, {
+        method: 'POST',
+      }),
+    markPaid: (id: string, data?: { referencePayment?: string; datePaiement?: string }) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>(`/api/invoices/${id}/mark-paid`, {
+        method: 'POST',
+        body: JSON.stringify(data || {}),
+      }),
+  },
+
   // Logs
   logs: {
     list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
@@ -363,6 +389,44 @@ export const apiClient = {
     },
   },
 };
+
+// Types pour les factures
+export interface Invoice {
+  id: string;
+  tenantId: string;
+  type: 'facture_entreprise' | 'facture_client_final';
+  clientFinalId: string;
+  montantHt: number;
+  montantTtc: number;
+  tvaTaux: number;
+  dateFacture: string;
+  dateEcheance: string;
+  numeroFacture: string;
+  statut: 'brouillon' | 'envoyee' | 'payee' | 'en_retard' | 'annulee';
+  lienPdf?: string | null;
+  idExternePaiement?: string | null;
+  clientFinal?: {
+    id: string;
+    email: string;
+    nom?: string | null;
+    prenom?: string | null;
+    raisonSociale?: string | null;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface InvoicesListResponse {
+  success: boolean;
+  data: {
+    invoices: Invoice[];
+    count: number;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 // Type pour les notifications
 export interface Notification {

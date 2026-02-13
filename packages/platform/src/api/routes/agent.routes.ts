@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { chatAgent } from '../../services/agent.service.js';
 import { getAgentConfigForDisplay, saveAgentConfig } from '../../services/agent-config.service.js';
 
@@ -14,6 +15,8 @@ const chatBodySchema = z.object({
     )
     .optional()
     .default([]),
+  /** Requis lorsque l'appel vient de n8n (header X-TalosPrimes-N8N-Secret). Optionnel avec JWT (tenantId issu du token). */
+  tenantId: z.string().uuid().optional(),
 });
 
 const configPutSchema = z.object({
@@ -93,26 +96,16 @@ export async function agentRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/agent/chat
-   * Envoie un message à l'assistant et reçoit une réponse (avec outils TalosPrimes).
-   * Requiert authentification JWT (tenantId et user extraits du token).
+   * Envoie un message au Super Agent (outils: leads, clients, factures, emails, agenda, Qonto).
+   * Auth: JWT (tenantId/user du token) OU n8n (X-TalosPrimes-N8N-Secret + tenantId dans le body).
    */
   fastify.post(
     '/chat',
     {
-      preHandler: [fastify.authenticate],
+      preHandler: [n8nOrAuthMiddleware],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const tenantId = request.tenantId;
-        const user = request.user;
-        if (!tenantId || !user) {
-          return reply.code(401).send({
-            success: false,
-            error: 'Non authentifié',
-            message: 'Token invalide ou expiré',
-          });
-        }
-
         const parseResult = chatBodySchema.safeParse(request.body);
         if (!parseResult.success) {
           return reply.code(400).send({
@@ -122,12 +115,38 @@ export async function agentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const { message, history } = parseResult.data;
+        const { message, history, tenantId: bodyTenantId } = parseResult.data;
+
+        let tenantId: string;
+        let userRole: string;
+
+        if (request.isN8nRequest) {
+          tenantId = bodyTenantId ?? request.tenantId ?? '';
+          if (!tenantId) {
+            return reply.code(400).send({
+              success: false,
+              error: 'tenantId requis dans le body pour les appels depuis n8n',
+            });
+          }
+          userRole = 'admin';
+        } else {
+          tenantId = request.tenantId ?? '';
+          const user = request.user;
+          if (!tenantId || !user) {
+            return reply.code(401).send({
+              success: false,
+              error: 'Non authentifié',
+              message: 'Token invalide ou expiré',
+            });
+          }
+          userRole = user.role;
+        }
+
         const result = await chatAgent({
           message,
           history,
           tenantId,
-          userRole: user.role,
+          userRole,
         });
 
         return reply.code(200).send({
