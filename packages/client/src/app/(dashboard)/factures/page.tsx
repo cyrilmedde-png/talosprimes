@@ -620,7 +620,7 @@ export default function FacturesPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-600">
-                      {lignes.map((ligne, idx) => {
+                      {lignes.map((ligne) => {
                         const qte = parseFloat(ligne.quantite.replace(',', '.')) || 0;
                         const pu = parseFloat(ligne.prixUnitaireHT.replace(',', '.')) || 0;
                         const mtHt = Math.round(qte * pu * 100) / 100;
