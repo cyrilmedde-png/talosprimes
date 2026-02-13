@@ -232,131 +232,83 @@
     }
   ],
   "connections": {
-    "node-01-webhook": {
+    "01. Webhook": {
       "main": [
         [
-          {
-            "node": "node-02-parser",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "02. Parser payload", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-02-parser": {
+    "02. Parser payload": {
       "main": [
         [
-          {
-            "node": "node-03-get-client",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "03. Récupérer facture", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-03-get-client": {
+    "03. Récupérer facture": {
       "main": [
         [
-          {
-            "node": "node-04-validation",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "04. Validation facture", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-04-validation": {
+    "04. Validation facture": {
       "main": [
         [
-          {
-            "node": "node-05-create-invoice",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "05. Récupérer client", "type": "main", "index": 0 }
         ],
         [
-          {
-            "node": "node-13-response-error",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "13. Répondre erreur", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-05-create-invoice": {
+    "05. Récupérer client": {
       "main": [
         [
-          {
-            "node": "node-06-generate-pdf",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "06. Générer PDF", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-06-generate-pdf": {
+    "06. Générer PDF": {
       "main": [
         [
-          {
-            "node": "node-07-update-pdf-link",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "07. Marquer envoyée", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-07-update-pdf-link": {
+    "07. Marquer envoyée": {
       "main": [
         [
-          {
-            "node": "node-08-mark-sent",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "08. Marquer comme envoyée", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-08-mark-sent": {
+    "08. Marquer comme envoyée": {
       "main": [
         [
-          {
-            "node": "node-09-prepare-email",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "09. Préparer email", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-09-prepare-email": {
+    "09. Préparer email": {
       "main": [
         [
-          {
-            "node": "node-10-send-resend",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "10. Envoyer email Resend", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-10-send-resend": {
+    "10. Envoyer email Resend": {
       "main": [
         [
-          {
-            "node": "node-11-notification",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "11. Notification TalosPrimes", "type": "main", "index": 0 }
         ]
       ]
     },
-    "node-11-notification": {
+    "11. Notification TalosPrimes": {
       "main": [
         [
-          {
-            "node": "node-12-response-success",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "12. Répondre succès", "type": "main", "index": 0 }
         ]
       ]
     }
