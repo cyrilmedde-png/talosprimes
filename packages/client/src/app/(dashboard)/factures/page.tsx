@@ -184,7 +184,10 @@ export default function FacturesPage() {
           <button
             type="button"
             title="Bientôt disponible"
-            onClick={() => setBientotMessage('Devis — bientôt disponible'); setTimeout(() => setBientotMessage(null), 2500); }
+            onClick={() => {
+              setBientotMessage('Devis — bientôt disponible');
+              setTimeout(() => setBientotMessage(null), 2500);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
           >
             <DocumentTextIcon className="h-5 w-5" />
@@ -193,7 +196,10 @@ export default function FacturesPage() {
           <button
             type="button"
             title="Bientôt disponible"
-            onClick={() => setBientotMessage('Proforma — bientôt disponible'); setTimeout(() => setBientotMessage(null), 2500); }
+            onClick={() => {
+              setBientotMessage('Proforma — bientôt disponible');
+              setTimeout(() => setBientotMessage(null), 2500);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
           >
             <DocumentTextIcon className="h-5 w-5" />
@@ -202,7 +208,10 @@ export default function FacturesPage() {
           <button
             type="button"
             title="Bientôt disponible"
-            onClick={() => setBientotMessage('Avoir — bientôt disponible'); setTimeout(() => setBientotMessage(null), 2500); }
+            onClick={() => {
+              setBientotMessage('Avoir — bientôt disponible');
+              setTimeout(() => setBientotMessage(null), 2500);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
           >
             <ReceiptRefundIcon className="h-5 w-5" />
