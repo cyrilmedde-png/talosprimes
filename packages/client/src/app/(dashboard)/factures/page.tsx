@@ -6,7 +6,6 @@ import { isAuthenticated } from '@/lib/auth';
 import { apiClient, type Invoice } from '@/lib/api-client';
 import {
   BanknotesIcon,
-  MagnifyingGlassIcon,
   PaperAirplaneIcon,
   CheckCircleIcon,
   DocumentArrowDownIcon,

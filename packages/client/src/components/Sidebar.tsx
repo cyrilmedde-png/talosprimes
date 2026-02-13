@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   HomeIcon, 
   UsersIcon, 
-  DocumentTextIcon,
   Cog6ToothIcon,
   UserPlusIcon,
   BellIcon,
@@ -15,6 +14,7 @@ import {
   SparklesIcon,
   BanknotesIcon,
 } from '@heroicons/react/24/outline';
+// DocumentTextIcon — réactiver avec l'onglet Documents
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
 
