@@ -4,13 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import { apiClient, type Invoice } from '@/lib/api-client';
+import type { ClientFinal } from '@talosprimes/shared';
 import {
   BanknotesIcon,
   PaperAirplaneIcon,
   CheckCircleIcon,
   DocumentArrowDownIcon,
   ExclamationTriangleIcon,
+  PlusIcon,
+  DocumentTextIcon,
+  ReceiptRefundIcon,
 } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 
 const STATUT_LABELS: Record<string, string> = {
   brouillon: 'Brouillon',
@@ -19,6 +24,11 @@ const STATUT_LABELS: Record<string, string> = {
   en_retard: 'En retard',
   annulee: 'Annulée',
 };
+
+const TYPE_FACTURE_OPTIONS: { value: 'facture_entreprise' | 'facture_client_final'; label: string }[] = [
+  { value: 'facture_client_final', label: 'Facture client final' },
+  { value: 'facture_entreprise', label: 'Facture entreprise' },
+];
 
 export default function FacturesPage() {
   const router = useRouter();
@@ -31,6 +41,21 @@ export default function FacturesPage() {
   const [total, setTotal] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Modal Créer une facture
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [clients, setClients] = useState<ClientFinal[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    clientFinalId: '',
+    type: 'facture_client_final' as 'facture_entreprise' | 'facture_client_final',
+    montantHt: '',
+    tvaTaux: '20',
+    description: '',
+  });
+
+  // Message "bientôt" pour Devis / Proforma / Avoir
+  const [bientotMessage, setBientotMessage] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
@@ -38,6 +63,12 @@ export default function FacturesPage() {
     }
     loadInvoices();
   }, [router, page, statutFilter]);
+
+  useEffect(() => {
+    if (showCreateModal && clients.length === 0) {
+      apiClient.clients.list().then((r) => setClients((r.data.clients as ClientFinal[]) || [])).catch(() => {});
+    }
+  }, [showCreateModal, clients.length]);
 
   const loadInvoices = async () => {
     try {
@@ -86,6 +117,34 @@ export default function FacturesPage() {
     }
   };
 
+  const handleCreateInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montantHt = parseFloat(createForm.montantHt.replace(',', '.'));
+    if (!createForm.clientFinalId || Number.isNaN(montantHt) || montantHt <= 0) {
+      setError('Client et montant HT obligatoires.');
+      return;
+    }
+    try {
+      setCreating(true);
+      setError(null);
+      const tvaTaux = parseFloat(createForm.tvaTaux.replace(',', '.')) || 20;
+      await apiClient.invoices.create({
+        clientFinalId: createForm.clientFinalId,
+        type: createForm.type,
+        montantHt,
+        tvaTaux,
+        description: createForm.description || undefined,
+      });
+      setShowCreateModal(false);
+      setCreateForm({ clientFinalId: '', type: 'facture_client_final', montantHt: '', tvaTaux: '20', description: '' });
+      await loadInvoices();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const formatDate = (d: string) => {
     try {
       return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -113,7 +172,50 @@ export default function FacturesPage() {
             Liste des factures (conformité aux normes européennes : numéro, dates, TVA, mentions légales).
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setShowCreateModal(true); setError(null); }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium text-sm"
+          >
+            <PlusIcon className="h-5 w-5" />
+            Créer une facture
+          </button>
+          <button
+            type="button"
+            title="Bientôt disponible"
+            onClick={() => setBientotMessage('Devis — bientôt disponible'); setTimeout(() => setBientotMessage(null), 2500); }
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
+          >
+            <DocumentTextIcon className="h-5 w-5" />
+            Devis
+          </button>
+          <button
+            type="button"
+            title="Bientôt disponible"
+            onClick={() => setBientotMessage('Proforma — bientôt disponible'); setTimeout(() => setBientotMessage(null), 2500); }
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
+          >
+            <DocumentTextIcon className="h-5 w-5" />
+            Proforma
+          </button>
+          <button
+            type="button"
+            title="Bientôt disponible"
+            onClick={() => setBientotMessage('Avoir — bientôt disponible'); setTimeout(() => setBientotMessage(null), 2500); }
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
+          >
+            <ReceiptRefundIcon className="h-5 w-5" />
+            Avoir
+          </button>
+        </div>
       </div>
+
+      {bientotMessage && (
+        <div className="rounded-lg bg-gray-700 border border-gray-600 px-4 py-2 text-sm text-gray-300 animate-pulse">
+          {bientotMessage}
+        </div>
+      )}
 
       {/* Rappel normes européennes */}
       <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-4 text-sm text-amber-200">
@@ -261,6 +363,91 @@ export default function FacturesPage() {
           </div>
         )}
       </div>
+
+      {/* Modal Créer une facture */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => !creating && setShowCreateModal(false)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+              <h2 className="text-lg font-semibold text-white">Créer une facture</h2>
+              <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="p-1 rounded text-gray-400 hover:text-white">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateInvoice} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Client *</label>
+                <select
+                  required
+                  value={createForm.clientFinalId}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, clientFinalId: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">Sélectionner un client</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.raisonSociale || [c.prenom, c.nom].filter(Boolean).join(' ') || c.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Type</label>
+                <select
+                  value={createForm.type}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, type: e.target.value as 'facture_entreprise' | 'facture_client_final' }))}
+                  className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500"
+                >
+                  {TYPE_FACTURE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Montant HT (€) *</label>
+                  <input
+                    type="text"
+                    required
+                    inputMode="decimal"
+                    value={createForm.montantHt}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, montantHt: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">TVA (%)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={createForm.tvaTaux}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, tvaTaux: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Description (optionnel)</label>
+                <textarea
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600">
+                  Annuler
+                </button>
+                <button type="submit" disabled={creating} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium disabled:opacity-50">
+                  {creating ? 'Création…' : 'Créer la facture'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -360,6 +360,19 @@ export const apiClient = {
     },
     get: (id: string) =>
       authenticatedFetch<{ success: boolean; data: { invoice: Invoice } }>(`/api/invoices/${id}`),
+    create: (data: {
+      clientFinalId: string;
+      type?: 'facture_entreprise' | 'facture_client_final';
+      montantHt: number;
+      tvaTaux?: number;
+      dateFacture?: string;
+      dateEcheance?: string;
+      description?: string;
+    }) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>('/api/invoices', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     send: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>(`/api/invoices/${id}/send`, {
         method: 'POST',
