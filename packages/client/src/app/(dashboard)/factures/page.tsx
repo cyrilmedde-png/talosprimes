@@ -491,14 +491,14 @@ export default function FacturesPage() {
       {/* Modal Créer facture / devis / proforma / avoir */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 overflow-y-auto" onClick={() => !creating && setShowCreateModal(false)}>
-          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-4xl my-8" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] my-8 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 shrink-0">
               <h2 className="text-lg font-semibold text-white">Nouveau document (facture, devis, proforma, avoir)</h2>
               <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="p-1 rounded text-gray-400 hover:text-white">
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            <form onSubmit={handleCreateInvoice} className="p-6 space-y-5">
+            <form onSubmit={handleCreateInvoice} className="p-6 space-y-5 overflow-y-auto shrink min-h-0 flex-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Type de document *</label>
