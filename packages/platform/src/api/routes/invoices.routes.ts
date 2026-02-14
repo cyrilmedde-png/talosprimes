@@ -517,6 +517,17 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Génération automatique du lien PDF (async, non-bloquant)
+        if (!invoice.lienPdf) {
+          n8nService.triggerWorkflow(tenantId, 'invoice_generate_pdf', {
+            invoiceId: invoice.id,
+            tenantId,
+            baseUrl: `${request.protocol}://${request.hostname}`,
+          }).catch((err) => {
+            fastify.log.warn(err, 'Échec génération PDF auto pour facture %s', invoice.id);
+          });
+        }
+
         return reply.status(201).send({
           success: true,
           message: 'Facture créée',

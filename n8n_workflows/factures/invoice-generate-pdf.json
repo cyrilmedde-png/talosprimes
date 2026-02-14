@@ -15,7 +15,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst pj = (x) => { if (typeof x !== 'string') return x; try { return JSON.parse(x); } catch (e) { return null; } };\nconst isO = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);\nconst g = (o, k1, k2) => { if (!isO(o)) return null; const v = o[k1]; if (v != null && v !== '') return v; if (k2 && o[k2] != null && o[k2] !== '') return o[k2]; return null; };\nlet payload = isO(raw) ? raw : {};\nif (isO(raw) && raw.body !== undefined) payload = typeof raw.body === 'string' ? pj(raw.body) : raw.body;\nif (!isO(payload)) payload = {};\nlet data = isO(payload.data) ? payload.data : payload;\nif (!isO(data)) data = payload;\nconst invoiceId = g(data, 'invoiceId', 'invoice_id') || g(payload, 'invoiceId', 'invoice_id');\nconst tenantId = g(data, 'tenantId', 'tenant_id') || g(payload, 'tenantId', 'tenant_id');\nconst baseUrl = (g(data, 'baseUrl', 'base_url') || g(payload, 'baseUrl', 'base_url') || 'https://api.talosprimes.com').toString().replace(/\\/$/, '');\nif (!invoiceId) return [{ json: { _error: true, message: 'invoiceId requis' } }];\nconst lienPdf = `${baseUrl}/api/invoices/${invoiceId}/pdf`;\nreturn [{ json: { invoiceId, tenantId, baseUrl, lienPdf } }];"
+        "jsCode": "const raw = $input.first().json;\nconst pj = (x) => { if (typeof x !== 'string') return x; try { return JSON.parse(x); } catch (e) { return null; } };\nconst isO = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);\nconst g = (o, k1, k2) => { if (!isO(o)) return null; const v = o[k1]; if (v != null && v !== '') return v; if (k2 && o[k2] != null && o[k2] !== '') return o[k2]; return null; };\nlet payload = isO(raw) ? raw : {};\nif (isO(raw) && raw.body !== undefined) payload = typeof raw.body === 'string' ? pj(raw.body) : raw.body;\nif (!isO(payload)) payload = {};\nlet data = isO(payload.data) ? payload.data : payload;\nif (!isO(data)) data = payload;\n\nconst invoiceId = g(data, 'invoiceId', 'invoice_id') || g(payload, 'invoiceId', 'invoice_id');\nconst tenantId = g(data, 'tenantId', 'tenant_id') || g(payload, 'tenantId', 'tenant_id');\nconst baseUrl = (g(data, 'baseUrl', 'base_url') || g(payload, 'baseUrl', 'base_url') || 'https://api.talosprimes.com').toString().replace(/\\/$/, '');\n\nif (!invoiceId) return [{ json: { _error: true, message: 'invoiceId requis' } }];\nif (!tenantId) return [{ json: { _error: true, message: 'tenantId requis' } }];\n\nconst safeInvoiceId = invoiceId.toString().replace(/'/g, \"''\");\nconst safeTenantId = tenantId.toString().replace(/'/g, \"''\");\nconst lienPdf = `${baseUrl}/api/invoices/${invoiceId}/pdf`;\n\nreturn [{ json: { invoiceId, tenantId, safeInvoiceId, safeTenantId, baseUrl, lienPdf } }];"
       },
       "id": "parser",
       "name": "02. Parser",
@@ -38,7 +38,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message || 'invoiceId requis' }}\"}"
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
       },
       "id": "respond-err",
       "name": "04. Repondre erreur",
@@ -48,31 +48,62 @@
     },
     {
       "parameters": {
-        "method": "PUT",
-        "url": "={{ $json.baseUrl + '/api/invoices/' + $json.invoiceId }}",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ lienPdf: $json.lienPdf, tenantId: $json.tenantId }) }}",
-        "options": { "timeout": 10000 },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "operation": "executeQuery",
+        "query": "SELECT (SELECT row_to_json(sub) FROM (\n  SELECT id, numero_facture, lien_pdf, statut\n  FROM invoices\n  WHERE id = '{{ $('02. Parser').first().json.safeInvoiceId }}'\n    AND tenant_id = '{{ $('02. Parser').first().json.safeTenantId }}'\n) sub) AS invoice",
+        "options": {}
       },
-      "id": "api-put",
-      "name": "05. API mettre a jour lienPdf",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "pg-check",
+      "name": "05. Verifier facture existe",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [860, 300],
-      "credentials": { "httpHeaderAuth": { "name": "TalosPrimes API" } }
+      "credentials": { "postgres": { "name": "Postgres" } }
     },
     {
       "parameters": {
-        "jsCode": "const res = $input.first().json;\nconst success = res && (res.success === true || (res.data && res.data.invoice));\nreturn [{ json: success ? { success: true, message: 'lienPdf enregistre', lienPdf: $('02. Parser').first().json.lienPdf } : { success: false, error: res?.error || res?.message || 'Erreur API' } }];"
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.invoice !== null && $json.invoice !== undefined }}", "value2": true }]
+        }
+      },
+      "id": "if-found",
+      "name": "06. Facture trouvee ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"Facture non trouvee pour ce tenant\"}"
+      },
+      "id": "respond-404",
+      "name": "07. Repondre 404",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 480]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices\nSET lien_pdf = '{{ $('02. Parser').first().json.lienPdf.replace(/'/g, \"''\") }}',\n    updated_at = NOW()\nWHERE id = '{{ $('02. Parser').first().json.safeInvoiceId }}'\n  AND tenant_id = '{{ $('02. Parser').first().json.safeTenantId }}'\nRETURNING id, numero_facture, lien_pdf, statut",
+        "options": {}
+      },
+      "id": "pg-update",
+      "name": "08. UPDATE lien_pdf",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1300, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const updated = $input.first().json;\nconst parser = $('02. Parser').first().json;\nreturn [{ json: {\n  success: true,\n  message: 'lienPdf enregistre en base',\n  invoiceId: parser.invoiceId,\n  lienPdf: parser.lienPdf,\n  numeroFacture: updated.numero_facture || null\n} }];"
       },
       "id": "format",
-      "name": "06. Formater reponse",
+      "name": "09. Formater reponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 300]
+      "position": [1520, 300]
     },
     {
       "parameters": {
@@ -80,23 +111,40 @@
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond-ok",
-      "name": "07. Repondre succes",
+      "name": "10. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [1740, 300]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
     "03. Valide ?": {
       "main": [
         [{ "node": "04. Repondre erreur", "type": "main", "index": 0 }],
-        [{ "node": "05. API mettre a jour lienPdf", "type": "main", "index": 0 }]
+        [{ "node": "05. Verifier facture existe", "type": "main", "index": 0 }]
       ]
     },
-    "05. API mettre a jour lienPdf": { "main": [[{ "node": "06. Formater reponse", "type": "main", "index": 0 }]] },
-    "06. Formater reponse": { "main": [[{ "node": "07. Repondre succes", "type": "main", "index": 0 }]] }
+    "05. Verifier facture existe": {
+      "main": [[{ "node": "06. Facture trouvee ?", "type": "main", "index": 0 }]]
+    },
+    "06. Facture trouvee ?": {
+      "main": [
+        [{ "node": "07. Repondre 404", "type": "main", "index": 0 }],
+        [{ "node": "08. UPDATE lien_pdf", "type": "main", "index": 0 }]
+      ]
+    },
+    "08. UPDATE lien_pdf": {
+      "main": [[{ "node": "09. Formater reponse", "type": "main", "index": 0 }]]
+    },
+    "09. Formater reponse": {
+      "main": [[{ "node": "10. Repondre succes", "type": "main", "index": 0 }]]
+    }
   },
   "active": false,
   "settings": { "executionOrder": "v1" }

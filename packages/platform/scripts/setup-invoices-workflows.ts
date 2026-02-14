@@ -65,13 +65,20 @@ const WORKFLOWS = [
     webhookPath: '/webhook/invoice-overdue',
     description: 'Liste des factures en retard pour un tenant',
   },
+  {
+    eventType: 'invoice_generate_pdf',
+    workflowId: 'invoice_generate_pdf',
+    workflowName: 'Factures - Génération PDF',
+    webhookPath: '/webhook/invoice-generate-pdf',
+    description: 'Génère le lien PDF et l\'enregistre en base',
+  },
 ] as const;
 
 async function main() {
   console.log('');
   console.log('╔══════════════════════════════════════════════════════════════╗');
   console.log('║  Configuration complète des workflows Factures (n8n)        ║');
-  console.log('║  6 workflows × tous les tenants                             ║');
+  console.log('║  7 workflows × tous les tenants                             ║');
   console.log('╚══════════════════════════════════════════════════════════════╝');
   console.log('');
 
