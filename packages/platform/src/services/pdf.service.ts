@@ -209,7 +209,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   const client = invoice.clientFinal;
   const clientName =
-    (client?.raisonSociale ?? [client?.prenom, client?.nom].filter(Boolean).join(' ') || '\u2014').trim() || 'Client';
+    (client?.raisonSociale ?? ([client?.prenom, client?.nom].filter(Boolean).join(' ') || '\u2014')).trim() || 'Client';
 
   page.drawText(clientName, { x: ml, y, size: 12, font: fontBold, color: COLORS.dark });
   y -= 15;
