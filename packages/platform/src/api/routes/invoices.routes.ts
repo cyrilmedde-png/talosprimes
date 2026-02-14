@@ -335,6 +335,13 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
         }
 
+        console.log('=== PDF DEBUG ===', JSON.stringify({
+          clientFinalId: invoice.clientFinalId,
+          clientFinal: invoice.clientFinal,
+          description: invoice.description,
+          codeArticle: invoice.codeArticle,
+        }, null, 2));
+
         const forPdf = {
           numeroFacture: invoice.numeroFacture,
           dateFacture: invoice.dateFacture,
