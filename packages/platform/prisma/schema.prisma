@@ -135,6 +135,8 @@ model Tenant {
   pays            String          @default("FR")
   telephone       String?         @map("telephone")
   emailContact    String          @map("email_contact")
+  tvaIntracom     String?         @map("tva_intracom")
+  rib             String?         @map("rib") @db.Text
   devise          String          @default("EUR")
   langue          String          @default("fr")
   metier          String          @map("metier")
@@ -294,6 +296,8 @@ model Invoice {
   montantHt         Decimal       @map("montant_ht") @db.Decimal(10, 2)
   montantTtc        Decimal       @map("montant_ttc") @db.Decimal(10, 2)
   tvaTaux           Decimal?      @map("tva_taux") @db.Decimal(5, 2)
+  description       String?       @map("description") @db.Text
+  modePaiement      String?       @map("mode_paiement")
   statut            InvoiceStatus @default(brouillon)
   lienPdf           String?       @map("lien_pdf")
   idExternePaiement String?       @map("id_externe_paiement")

@@ -9,17 +9,22 @@ export type InvoiceForPdf = {
   montantHt: number;
   montantTtc: number;
   tvaTaux: number | null;
+  description?: string;
+  modePaiement?: string;
   statut?: string;
   clientFinal?: {
     raisonSociale?: string | null;
     nom?: string | null;
     prenom?: string | null;
     email?: string | null;
+    telephone?: string | null;
     adresse?: string | null;
   } | null;
   tenant?: {
     nomEntreprise: string;
     siret?: string | null;
+    tvaIntracom?: string | null;
+    rib?: string | null;
     adressePostale?: string | null;
     codePostal?: string | null;
     ville?: string | null;
@@ -31,34 +36,30 @@ export type InvoiceForPdf = {
 // ─── Couleurs ────────────────────────────────────────────────────────
 
 const COLORS = {
-  primary: rgb(0.11, 0.27, 0.53),       // Bleu foncé #1C4587
-  primaryLight: rgb(0.85, 0.90, 0.97),   // Bleu très clair #D9E6F8
-  accent: rgb(0.20, 0.55, 0.86),         // Bleu accent #3388DB
-  dark: rgb(0.13, 0.13, 0.13),           // Quasi noir
-  text: rgb(0.25, 0.25, 0.25),           // Gris foncé texte
-  muted: rgb(0.45, 0.45, 0.45),          // Gris
-  light: rgb(0.65, 0.65, 0.65),          // Gris clair
-  border: rgb(0.82, 0.82, 0.82),         // Bordure
+  primary: rgb(0.11, 0.27, 0.53),
+  primaryLight: rgb(0.85, 0.90, 0.97),
+  accent: rgb(0.20, 0.55, 0.86),
+  dark: rgb(0.13, 0.13, 0.13),
+  text: rgb(0.25, 0.25, 0.25),
+  muted: rgb(0.45, 0.45, 0.45),
+  light: rgb(0.65, 0.65, 0.65),
+  border: rgb(0.82, 0.82, 0.82),
   white: rgb(1, 1, 1),
-  rowAlt: rgb(0.96, 0.97, 0.99),         // Fond alternance #F5F7FC
-  success: rgb(0.13, 0.59, 0.33),        // Vert payé
-  warning: rgb(0.85, 0.55, 0.08),        // Orange en attente
-  danger: rgb(0.80, 0.15, 0.15),         // Rouge en retard
+  rowAlt: rgb(0.96, 0.97, 0.99),
+  success: rgb(0.13, 0.59, 0.33),
+  warning: rgb(0.85, 0.55, 0.08),
+  danger: rgb(0.80, 0.15, 0.15),
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-/**
- * Remplace les caractères non supportés par WinAnsi (pdf-lib StandardFonts).
- * Notamment U+202F (espace fine insécable) produit par toLocaleString('fr-FR').
- */
 function winAnsiSafe(text: string): string {
   return text
-    .replace(/\u202F/g, ' ')   // narrow no-break space → regular space
-    .replace(/\u2019/g, "'")   // right single quote → apostrophe
-    .replace(/\u2018/g, "'")   // left single quote → apostrophe
-    .replace(/\u201C/g, '"')   // left double quote → quote
-    .replace(/\u201D/g, '"');  // right double quote → quote
+    .replace(/\u202F/g, ' ')
+    .replace(/\u2019/g, "'")
+    .replace(/\u2018/g, "'")
+    .replace(/\u201C/g, '"')
+    .replace(/\u201D/g, '"');
 }
 
 function formatDate(d: Date | string | null | undefined): string {
@@ -81,11 +82,10 @@ function formatDateShort(d: Date | string | null | undefined): string {
 
 function formatMoney(n: number | null | undefined): string {
   const val = Number(n);
-  if (isNaN(val)) return '0,00 \u20AC';
-  return winAnsiSafe(val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + ' \u20AC';
+  if (isNaN(val)) return '0,00 EUR';
+  return winAnsiSafe(val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + ' EUR';
 }
 
-/** Safe string for drawText (pdf-lib crashes on null/undefined) */
 function safe(v: unknown): string {
   if (v == null) return '';
   return winAnsiSafe(String(v));
@@ -100,101 +100,88 @@ function drawTextRight(page: PDFPage, text: string, x: number, y: number, font: 
   page.drawText(text, { x: x - w, y, size, font, color });
 }
 
-// ─── Statut badge ────────────────────────────────────────────────────
-
-function getStatutInfo(statut?: string): { label: string; color: ReturnType<typeof rgb>; bg: ReturnType<typeof rgb> } {
+function getStatutLabel(statut?: string): string {
   switch (statut) {
-    case 'payee':
-      return { label: 'PAYEE', color: COLORS.success, bg: rgb(0.88, 0.96, 0.90) };
-    case 'envoyee':
-      return { label: 'ENVOYEE', color: COLORS.accent, bg: rgb(0.90, 0.94, 0.99) };
-    case 'en_retard':
-      return { label: 'EN RETARD', color: COLORS.danger, bg: rgb(0.98, 0.90, 0.90) };
-    case 'brouillon':
-      return { label: 'BROUILLON', color: COLORS.muted, bg: rgb(0.94, 0.94, 0.94) };
-    default:
-      return { label: (statut || '').toUpperCase(), color: COLORS.text, bg: COLORS.primaryLight };
+    case 'payee': return 'PAYEE';
+    case 'envoyee': return 'ENVOYEE';
+    case 'en_retard': return 'EN RETARD';
+    case 'brouillon': return 'BROUILLON';
+    case 'annulee': return 'ANNULEE';
+    default: return (statut || '').toUpperCase();
   }
 }
 
 // ─── PDF principal ───────────────────────────────────────────────────
 
 export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8Array> {
-  console.log('=== PDF GEN START ===', JSON.stringify({
-    numero: invoice.numeroFacture,
-    dateFacture: invoice.dateFacture,
-    dateEcheance: invoice.dateEcheance,
-    montantHt: invoice.montantHt,
-    montantTtc: invoice.montantTtc,
-    statut: invoice.statut,
-    hasTenant: !!invoice.tenant,
-    hasClient: !!invoice.clientFinal,
-  }));
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
   const fontOblique = await doc.embedFont(StandardFonts.HelveticaOblique);
   const page = doc.addPage([595.28, 841.89]); // A4
   const { width, height } = page.getSize();
-  const ml = 50;  // margin left
-  const mr = 50;  // margin right
+  const ml = 50;
+  const mr = 50;
   const contentWidth = width - ml - mr;
   let y = height;
 
   // ═══════════════════════════════════════════════════════════════════
-  // HEADER — Bande bleue en haut
+  // HEADER - Bande bleue avec infos entreprise
   // ═══════════════════════════════════════════════════════════════════
-  const headerH = 90;
+  const headerH = 95;
   page.drawRectangle({
     x: 0, y: height - headerH,
     width, height: headerH,
     color: COLORS.primary,
   });
 
-  // Nom entreprise (émetteur)
+  // Nom entreprise (gauche)
   const tenantName = invoice.tenant?.nomEntreprise || 'TalosPrimes';
   page.drawText(tenantName, {
-    x: ml, y: height - 38,
+    x: ml, y: height - 30,
     size: 20, font: fontBold, color: COLORS.white,
   });
 
-  // Sous-titre
-  const tenantInfo = [
-    invoice.tenant?.adressePostale,
-    [invoice.tenant?.codePostal, invoice.tenant?.ville].filter(Boolean).join(' '),
-  ].filter(Boolean).join(' - ');
-  if (tenantInfo) {
-    page.drawText(tenantInfo, {
-      x: ml, y: height - 56,
+  // Adresse sur 2 lignes sous le nom
+  let headerLeftY = height - 46;
+  if (invoice.tenant?.adressePostale) {
+    page.drawText(safe(invoice.tenant.adressePostale), {
+      x: ml, y: headerLeftY,
+      size: 8.5, font, color: rgb(0.78, 0.85, 0.95),
+    });
+    headerLeftY -= 12;
+  }
+  const cpVille = [invoice.tenant?.codePostal, invoice.tenant?.ville].filter(Boolean).join(' ');
+  if (cpVille) {
+    page.drawText(safe(cpVille), {
+      x: ml, y: headerLeftY,
       size: 8.5, font, color: rgb(0.78, 0.85, 0.95),
     });
   }
 
-  // Contact tenant à droite
-  const tenantContact = [
-    invoice.tenant?.emailContact,
-    invoice.tenant?.telephone,
-  ].filter(Boolean).join('  |  ');
-  if (tenantContact) {
-    drawTextRight(page, tenantContact, width - mr, height - 38, font, 8, rgb(0.78, 0.85, 0.95));
-  }
-
-  // SIRET à droite
+  // Droite : SIRET, TVA intra, FACTURE
+  let headerRightY = height - 30;
   if (invoice.tenant?.siret) {
-    drawTextRight(page, `SIRET : ${invoice.tenant.siret}`, width - mr, height - 52, font, 8, rgb(0.65, 0.75, 0.88));
+    drawTextRight(page, `SIRET : ${safe(invoice.tenant.siret)}`, width - mr, headerRightY, font, 8, rgb(0.78, 0.85, 0.95));
+    headerRightY -= 12;
+  }
+  if (invoice.tenant?.tvaIntracom) {
+    drawTextRight(page, `TVA Intra : ${safe(invoice.tenant.tvaIntracom)}`, width - mr, headerRightY, font, 8, rgb(0.78, 0.85, 0.95));
+    headerRightY -= 12;
   }
 
-  // "FACTURE" à droite en gros
-  drawTextRight(page, 'FACTURE', width - mr, height - 76, fontBold, 14, COLORS.white);
+  // "FACTURE" + statut sur la meme ligne a droite
+  const statutLabel = getStatutLabel(invoice.statut);
+  const factureStatut = statutLabel ? `FACTURE - ${statutLabel}` : 'FACTURE';
+  drawTextRight(page, factureStatut, width - mr, height - 80, fontBold, 14, COLORS.white);
 
-  y = height - headerH - 30;
+  y = height - headerH - 25;
 
   // ═══════════════════════════════════════════════════════════════════
-  // INFOS FACTURE — Numéro, dates, statut
+  // INFOS FACTURE - Numero + dates (ligne simple)
   // ═══════════════════════════════════════════════════════════════════
 
-  // Bloc gris clair avec infos facture
-  const infoBoxH = 68;
+  const infoBoxH = 45;
   page.drawRectangle({
     x: ml, y: y - infoBoxH,
     width: contentWidth, height: infoBoxH,
@@ -205,79 +192,64 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   const infoY = y - 18;
   const col1 = ml + 16;
-  const col2 = ml + contentWidth * 0.35;
-  const col3 = ml + contentWidth * 0.65;
+  const col2 = ml + contentWidth * 0.40;
 
-  // Col 1 : Numéro
+  // Numero facture
   page.drawText('N\u00B0 Facture', { x: col1, y: infoY, size: 7, font, color: COLORS.muted });
   page.drawText(safe(invoice.numeroFacture), { x: col1, y: infoY - 15, size: 11, font: fontBold, color: COLORS.primary });
 
-  // Col 2 : Date
-  page.drawText('Date de facturation', { x: col2, y: infoY, size: 7, font, color: COLORS.muted });
-  page.drawText(formatDate(invoice.dateFacture), { x: col2, y: infoY - 15, size: 10, font, color: COLORS.dark });
-  page.drawText('Date d\'\u00E9ch\u00E9ance', { x: col2, y: infoY - 32, size: 7, font, color: COLORS.muted });
-  page.drawText(formatDate(invoice.dateEcheance), { x: col2, y: infoY - 47, size: 10, font, color: COLORS.dark });
+  // Dates
+  page.drawText(`Date : ${formatDate(invoice.dateFacture)}`, { x: col2, y: infoY, size: 9, font, color: COLORS.dark });
+  page.drawText(`Echeance : ${formatDate(invoice.dateEcheance)}`, { x: col2, y: infoY - 15, size: 9, font, color: COLORS.dark });
 
-  // Col 3 : Statut badge
-  if (invoice.statut) {
-    const statut = getStatutInfo(invoice.statut);
-    const badgeW = textWidth(statut.label, fontBold, 9) + 20;
-    const badgeX = col3;
-    page.drawText('Statut', { x: badgeX, y: infoY, size: 7, font, color: COLORS.muted });
-    page.drawRectangle({
-      x: badgeX, y: infoY - 22,
-      width: badgeW, height: 18,
-      color: statut.bg,
-      borderColor: statut.color,
-      borderWidth: 0.5,
-    });
-    page.drawText(statut.label, {
-      x: badgeX + 10, y: infoY - 17,
-      size: 9, font: fontBold, color: statut.color,
-    });
-  }
-
-  y -= infoBoxH + 28;
+  y -= infoBoxH + 25;
 
   // ═══════════════════════════════════════════════════════════════════
-  // CLIENT — Facturer à
+  // CLIENT - Facturer a
   // ═══════════════════════════════════════════════════════════════════
 
-  page.drawText('Factur\u00E9 \u00E0', { x: ml, y, size: 8, font, color: COLORS.muted });
+  page.drawText('Facturer a', { x: ml, y, size: 8, font, color: COLORS.muted });
   y -= 16;
 
   const client = invoice.clientFinal;
   const clientName =
     (client?.raisonSociale ?? ([client?.prenom, client?.nom].filter(Boolean).join(' ') || '-')).trim() || 'Client';
 
-  page.drawText(clientName, { x: ml, y, size: 12, font: fontBold, color: COLORS.dark });
+  page.drawText(safe(clientName), { x: ml, y, size: 12, font: fontBold, color: COLORS.dark });
   y -= 15;
 
   if (client?.adresse) {
-    page.drawText(client.adresse, { x: ml, y, size: 9, font, color: COLORS.text, maxWidth: 250 });
-    y -= 13;
+    // Adresse peut contenir des retours a la ligne, on split
+    const adresseLines = safe(client.adresse).split('\n').filter(Boolean);
+    for (const line of adresseLines) {
+      page.drawText(line.trim(), { x: ml, y, size: 9, font, color: COLORS.text });
+      y -= 13;
+    }
   }
   if (client?.email) {
-    page.drawText(client.email, { x: ml, y, size: 9, font: fontOblique, color: COLORS.accent });
+    page.drawText(safe(client.email), { x: ml, y, size: 9, font: fontOblique, color: COLORS.accent });
+    y -= 13;
+  }
+  if (client?.telephone) {
+    page.drawText(safe(client.telephone), { x: ml, y, size: 9, font, color: COLORS.text });
     y -= 13;
   }
 
   y -= 20;
 
   // ═══════════════════════════════════════════════════════════════════
-  // TABLEAU — Détail des prestations
+  // TABLEAU - Detail des prestations
   // ═══════════════════════════════════════════════════════════════════
 
   const tableLeft = ml;
   const tableRight = width - mr;
   const tableW = tableRight - tableLeft;
 
-  // Colonnes : Désignation (flex) | Qté | PU HT | Total HT
   const colQte = tableRight - 200;
   const colPuHt = tableRight - 130;
   const colTotalHt = tableRight - 10;
 
-  // En-tête tableau
+  // En-tete tableau
   const thH = 28;
   page.drawRectangle({
     x: tableLeft, y: y - thH,
@@ -286,14 +258,15 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   });
 
   const thY = y - 18;
-  page.drawText('D\u00E9signation', { x: tableLeft + 12, y: thY, size: 9, font: fontBold, color: COLORS.white });
-  page.drawText('Qt\u00E9', { x: colQte, y: thY, size: 9, font: fontBold, color: COLORS.white });
+  page.drawText('Designation', { x: tableLeft + 12, y: thY, size: 9, font: fontBold, color: COLORS.white });
+  page.drawText('Qte', { x: colQte, y: thY, size: 9, font: fontBold, color: COLORS.white });
   drawTextRight(page, 'P.U. HT', colPuHt + 55, thY, fontBold, 9, COLORS.white);
   drawTextRight(page, 'Total HT', colTotalHt, thY, fontBold, 9, COLORS.white);
 
   y -= thH;
 
-  // Ligne de prestation
+  // Ligne de prestation - description reelle de la facture
+  const designation = safe(invoice.description) || 'Prestation de services';
   const rowH = 30;
   page.drawRectangle({
     x: tableLeft, y: y - rowH,
@@ -304,7 +277,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   });
 
   const rowY = y - 19;
-  page.drawText('Prestation de services', { x: tableLeft + 12, y: rowY, size: 9.5, font, color: COLORS.dark });
+  page.drawText(designation, { x: tableLeft + 12, y: rowY, size: 9.5, font, color: COLORS.dark });
   page.drawText('1', { x: colQte + 8, y: rowY, size: 9.5, font, color: COLORS.text });
   drawTextRight(page, formatMoney(invoice.montantHt), colPuHt + 55, rowY, font, 9.5, COLORS.text);
   drawTextRight(page, formatMoney(invoice.montantHt), colTotalHt, rowY, font, 9.5, COLORS.dark);
@@ -322,7 +295,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   y -= 20;
 
   // ═══════════════════════════════════════════════════════════════════
-  // TOTAUX — Sous-total, TVA, Total TTC
+  // TOTAUX - Sous-total, TVA, Total TTC
   // ═══════════════════════════════════════════════════════════════════
 
   const totalsX = tableRight - 200;
@@ -330,17 +303,14 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   const tva = invoice.montantTtc - invoice.montantHt;
   const tvaTaux = invoice.tvaTaux ?? 20;
 
-  // Sous-total HT
   page.drawText('Sous-total HT', { x: totalsX, y, size: 9, font, color: COLORS.text });
   drawTextRight(page, formatMoney(invoice.montantHt), totalsValX, y, font, 9, COLORS.text);
   y -= 16;
 
-  // TVA
-  page.drawText(`TVA (${tvaTaux}\u00A0%)`, { x: totalsX, y, size: 9, font, color: COLORS.text });
+  page.drawText(`TVA (${tvaTaux} %)`, { x: totalsX, y, size: 9, font, color: COLORS.text });
   drawTextRight(page, formatMoney(tva), totalsValX, y, font, 9, COLORS.text);
   y -= 6;
 
-  // Ligne séparatrice
   page.drawLine({
     start: { x: totalsX, y },
     end: { x: totalsValX, y },
@@ -349,7 +319,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   });
   y -= 18;
 
-  // Total TTC (grand, en bleu)
+  // Total TTC (encadre bleu)
   const totalBoxH = 32;
   page.drawRectangle({
     x: totalsX - 8, y: y - totalBoxH + 10,
@@ -366,28 +336,59 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   y -= totalBoxH + 30;
 
   // ═══════════════════════════════════════════════════════════════════
-  // CONDITIONS DE PAIEMENT
+  // TABLEAU INFORMATIONS DE PAIEMENT
   // ═══════════════════════════════════════════════════════════════════
 
-  page.drawText('Conditions de paiement', { x: ml, y, size: 9, font: fontBold, color: COLORS.primary });
+  page.drawText('Informations de paiement', { x: ml, y, size: 10, font: fontBold, color: COLORS.primary });
+  y -= 18;
+
+  // Tableau 2 colonnes : label | valeur
+  const payInfos: [string, string][] = [
+    ['Date de facturation', formatDateShort(invoice.dateFacture)],
+    ['Date d\'echeance', formatDateShort(invoice.dateEcheance)],
+    ['Mode de paiement', safe(invoice.modePaiement) || 'Virement bancaire'],
+  ];
+  if (invoice.tenant?.rib) {
+    payInfos.push(['RIB / IBAN', safe(invoice.tenant.rib)]);
+  }
+
+  const payColLabelW = 160;
+  const payRowH = 20;
+
+  for (let i = 0; i < payInfos.length; i++) {
+    const [label, value] = payInfos[i];
+    const rowBg = i % 2 === 0 ? COLORS.rowAlt : COLORS.white;
+
+    page.drawRectangle({
+      x: ml, y: y - payRowH,
+      width: contentWidth, height: payRowH,
+      color: rowBg,
+      borderColor: COLORS.border,
+      borderWidth: 0.3,
+    });
+
+    page.drawText(label, { x: ml + 10, y: y - 14, size: 8.5, font: fontBold, color: COLORS.text });
+    page.drawText(value, { x: ml + payColLabelW, y: y - 14, size: 8.5, font, color: COLORS.dark });
+
+    y -= payRowH;
+  }
+
   y -= 14;
-  page.drawText(`Paiement d\u00FB avant le ${formatDateShort(invoice.dateEcheance)}.`, {
-    x: ml, y, size: 8.5, font, color: COLORS.text,
-  });
-  y -= 12;
-  page.drawText('En cas de retard, une p\u00E9nalit\u00E9 de 3 fois le taux d\'\u00E9int\u00E9r\u00EAt l\u00E9gal sera appliqu\u00E9e (art. L441-10 Code de commerce).', {
-    x: ml, y, size: 7.5, font: fontOblique, color: COLORS.light, maxWidth: contentWidth,
+
+  // Mentions legales
+  page.drawText('En cas de retard, une penalite de 3 fois le taux d\'interet legal sera appliquee (art. L441-10 Code de commerce).', {
+    x: ml, y, size: 7, font: fontOblique, color: COLORS.light, maxWidth: contentWidth,
   });
   y -= 10;
-  page.drawText('Indemnit\u00E9 forfaitaire pour frais de recouvrement : 40,00 \u20AC.', {
-    x: ml, y, size: 7.5, font: fontOblique, color: COLORS.light,
+  page.drawText('Indemnite forfaitaire pour frais de recouvrement : 40,00 EUR.', {
+    x: ml, y, size: 7, font: fontOblique, color: COLORS.light,
   });
 
   // ═══════════════════════════════════════════════════════════════════
-  // FOOTER — Bande en bas
+  // FOOTER - Bande en bas
   // ═══════════════════════════════════════════════════════════════════
 
-  const footerH = 40;
+  const footerH = 35;
   page.drawRectangle({
     x: 0, y: 0,
     width, height: footerH,
@@ -411,17 +412,8 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   const footerW = textWidth(footerText, font, 7);
   page.drawText(footerText, {
     x: (width - footerW) / 2,
-    y: 16,
+    y: 14,
     size: 7, font, color: COLORS.light,
-  });
-
-  // "Merci pour votre confiance"
-  const merci = 'Merci pour votre confiance.';
-  const merciW = textWidth(merci, fontOblique, 9);
-  page.drawText(merci, {
-    x: (width - merciW) / 2,
-    y: footerH + 20,
-    size: 9, font: fontOblique, color: COLORS.accent,
   });
 
   return doc.save();
