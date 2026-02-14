@@ -159,12 +159,17 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     });
   }
 
-  // Droite : SIRET, TVA intra, FACTURE
-  let headerRightY = height - 30;
+  // SIRET sous le nom entreprise (gauche)
   if (invoice.tenant?.siret) {
-    drawTextRight(page, `SIRET : ${safe(invoice.tenant.siret)}`, width - mr, headerRightY, font, 8, rgb(0.78, 0.85, 0.95));
-    headerRightY -= 12;
+    page.drawText(`SIRET : ${safe(invoice.tenant.siret)}`, {
+      x: ml, y: headerLeftY,
+      size: 8, font, color: rgb(0.78, 0.85, 0.95),
+    });
+    headerLeftY -= 12;
   }
+
+  // TVA intra (droite)
+  let headerRightY = height - 30;
   if (invoice.tenant?.tvaIntracom) {
     drawTextRight(page, `TVA Intra : ${safe(invoice.tenant.tvaIntracom)}`, width - mr, headerRightY, font, 8, rgb(0.78, 0.85, 0.95));
     headerRightY -= 12;
@@ -181,7 +186,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   // INFOS FACTURE - Numero + dates (ligne simple)
   // ═══════════════════════════════════════════════════════════════════
 
-  const infoBoxH = 45;
+  const infoBoxH = 35;
   page.drawRectangle({
     x: ml, y: y - infoBoxH,
     width: contentWidth, height: infoBoxH,
@@ -190,17 +195,16 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     borderWidth: 0.5,
   });
 
-  const infoY = y - 18;
+  const infoY = y - 14;
   const col1 = ml + 16;
   const col2 = ml + contentWidth * 0.40;
 
   // Numero facture
   page.drawText('N\u00B0 Facture', { x: col1, y: infoY, size: 7, font, color: COLORS.muted });
-  page.drawText(safe(invoice.numeroFacture), { x: col1, y: infoY - 15, size: 11, font: fontBold, color: COLORS.primary });
+  page.drawText(safe(invoice.numeroFacture), { x: col1, y: infoY - 14, size: 11, font: fontBold, color: COLORS.primary });
 
-  // Dates
-  page.drawText(`Date : ${formatDate(invoice.dateFacture)}`, { x: col2, y: infoY, size: 9, font, color: COLORS.dark });
-  page.drawText(`Echeance : ${formatDate(invoice.dateEcheance)}`, { x: col2, y: infoY - 15, size: 9, font, color: COLORS.dark });
+  // Date de facturation uniquement (echeance en bas dans le tableau paiement)
+  page.drawText(`Date : ${formatDate(invoice.dateFacture)}`, { x: col2, y: infoY - 7, size: 9, font, color: COLORS.dark });
 
   y -= infoBoxH + 25;
 
