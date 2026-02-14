@@ -9,16 +9,16 @@ import { Prisma, InvoiceStatus } from '@prisma/client';
 
 // Schema de validation pour créer une facture
 const createInvoiceSchema = z.object({
-  tenantId: z.string().uuid().optional(), // Optionnel : présent si appel depuis n8n
+  tenantId: z.string().uuid().optional(),
   clientFinalId: z.string().uuid(),
   type: z.enum(['facture_entreprise', 'facture_client_final']).default('facture_client_final'),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateFacture: z.string().datetime().optional(),
-  dateEcheance: z.string().datetime().optional(),
-  numeroFacture: z.string().optional(),
-  description: z.string().optional(),
-  lienPdf: z.string().url().optional(),
+  dateFacture: z.string().datetime({ offset: true }).optional().nullable(),
+  dateEcheance: z.string().datetime({ offset: true }).optional().nullable(),
+  numeroFacture: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  lienPdf: z.union([z.string().url(), z.literal('')]).optional().nullable(),
 });
 
 // Schema de validation pour mettre à jour une facture
@@ -38,6 +38,33 @@ const markPaidSchema = z.object({
   referencePayment: z.string().optional(),
   datePaiement: z.string().datetime().optional(),
 });
+
+/** Clé création en cours → Promise résultat n8n. Évite 2 requêtes simultanées = 2 appels n8n. */
+const createInvoicePending = new Map<string, Promise<{ success: boolean; data?: { invoice: unknown }; error?: string }>>();
+
+/** Convertit une facture renvoyée par n8n (snake_case SQL) en forme attendue par le front (camelCase). */
+function normalizeInvoiceFromN8n(row: Record<string, unknown>): Record<string, unknown> {
+  const toStr = (v: unknown) => (v != null ? String(v) : undefined);
+  const toNum = (v: unknown) => (v != null ? Number(v) : undefined);
+  const toDate = (v: unknown) => (v != null ? new Date(v as string | Date).toISOString() : undefined);
+  return {
+    id: row.id,
+    tenantId: row.tenant_id ?? row.tenantId,
+    clientFinalId: row.client_final_id ?? row.clientFinalId,
+    type: row.type,
+    numeroFacture: toStr(row.numero_facture ?? row.numeroFacture),
+    dateFacture: toDate(row.date_facture ?? row.dateFacture),
+    dateEcheance: toDate(row.date_echeance ?? row.dateEcheance),
+    montantHt: toNum(row.montant_ht ?? row.montantHt),
+    montantTtc: toNum(row.montant_ttc ?? row.montantTtc),
+    tvaTaux: toNum(row.tva_taux ?? row.tvaTaux),
+    statut: row.statut,
+    lienPdf: toStr(row.lien_pdf ?? row.lienPdf),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+    clientFinal: row.clientFinal ?? null,
+  };
+}
 
 /**
  * Routes pour la gestion des factures
@@ -80,16 +107,28 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               dateTo: queryParams.dateTo,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+          if (res.success && res.data) {
+            const raw = res.data as { invoices?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+            const invoices = Array.isArray(raw.invoices)
+              ? raw.invoices.map((inv) => normalizeInvoiceFromN8n(inv as Record<string, unknown>))
+              : [];
+            return reply.status(200).send({
+              success: true,
+              data: {
+                invoices,
+                count: invoices.length,
+                total: raw.total ?? invoices.length,
+                page: raw.page ?? 1,
+                limit: raw.limit ?? 20,
+                totalPages: raw.totalPages ?? 1,
+              },
+            });
           }
-          return reply.status(200).send({
-            success: true,
-            data: res.data,
-          });
+          // Workflow non trouvé ou erreur n8n → fallback BDD pour que la liste s'affiche quand même
+          fastify.log.warn({ err: res.error }, 'Liste factures: n8n indisponible, fallback BDD');
         }
 
-        // Sinon, récupérer depuis la base de données (fallback ou si USE_N8N_VIEWS=false)
+        // Récupérer depuis la base de données (fallback ou si USE_N8N_VIEWS=false)
         const page = queryParams.page ? parseInt(queryParams.page, 10) : 1;
         const limit = queryParams.limit ? parseInt(queryParams.limit, 10) : 20;
         const skip = (page - 1) * limit;
@@ -288,17 +327,46 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           delete (bodyWithoutTenantId as { tenantId?: string }).tenantId;
         }
 
-        // Si on délègue les écritures à n8n (full no-code)
-        // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
-        if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
-          const res = await n8nService.callWorkflowReturn<{ invoice: unknown }>(
-            tenantId,
-            'invoice_create',
-            {
-              ...bodyWithoutTenantId,
+        // Application no-code : la création de facture passe uniquement par n8n.
+        // Depuis le frontend : on appelle le workflow ; depuis n8n (callback) : on persiste en base.
+        if (!fromN8n) {
+          if (!env.USE_N8N_COMMANDS) {
+            return reply.status(503).send({
+              success: false,
+              error: 'Création de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-created.',
+            });
+          }
+          // Idempotence : facture identique déjà créée récemment → retourner sans appeler n8n
+          const recentCutoff = new Date(Date.now() - 30 * 1000);
+          const existing = await prisma.invoice.findFirst({
+            where: {
               tenantId,
-            }
-          );
+              clientFinalId: body.clientFinalId,
+              montantHt: body.montantHt,
+              createdAt: { gte: recentCutoff },
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (existing) {
+            return reply.status(201).send({
+              success: true,
+              message: 'Facture déjà créée (doublon ignoré)',
+              data: { invoice: existing, invoiceId: existing.id },
+            });
+          }
+          // Déduplication : 2 requêtes identiques en même temps = 1 seul appel n8n, la 2e attend le résultat de la 1re
+          const dedupeKey = `${tenantId}:${body.clientFinalId}:${body.montantHt}`;
+          let pending = createInvoicePending.get(dedupeKey);
+          if (!pending) {
+            pending = n8nService.callWorkflowReturn<{ invoice: unknown }>(
+              tenantId,
+              'invoice_create',
+              { ...bodyWithoutTenantId, tenantId },
+            );
+            createInvoicePending.set(dedupeKey, pending);
+            pending.finally(() => createInvoicePending.delete(dedupeKey));
+          }
+          const res = await pending;
           if (!res.success) {
             return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
           }
@@ -309,8 +377,37 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, créer directement en base (fallback ou si USE_N8N_COMMANDS=false)
-        // Auto-générer le numéro de facture si non fourni
+        // Appel depuis n8n (callback du workflow) : persister en base, sans émettre d'événement (évite boucle)
+        // Idempotence : si une facture identique a déjà été créée récemment (race doublon n8n), la renvoyer au lieu d'en créer une nouvelle
+        const recentCutoffN8n = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes, aligné avec le check n8n 02b
+        const existingFromN8n = await prisma.invoice.findFirst({
+          where: {
+            tenantId,
+            clientFinalId: body.clientFinalId,
+            montantHt: body.montantHt,
+            createdAt: { gte: recentCutoffN8n },
+          },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            clientFinal: {
+              select: {
+                id: true,
+                email: true,
+                nom: true,
+                prenom: true,
+                raisonSociale: true,
+              },
+            },
+          },
+        });
+        if (existingFromN8n) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Facture déjà créée (doublon ignoré)',
+            data: { invoice: existingFromN8n },
+          });
+        }
+
         let numeroFacture = bodyWithoutTenantId.numeroFacture;
         if (!numeroFacture) {
           const count = await prisma.invoice.count({
@@ -320,15 +417,13 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           numeroFacture = `INV-${year}-${String(count + 1).padStart(6, '0')}`;
         }
 
-        // Calculer le montant TTC
         const tvaTaux = body.tvaTaux ?? 20;
         const montantTtc = Number((body.montantHt * (1 + tvaTaux / 100)).toFixed(2));
         const dateFacture = body.dateFacture ? new Date(body.dateFacture) : new Date();
         const dateEcheance = body.dateEcheance
           ? new Date(body.dateEcheance)
-          : new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000); // +30 jours
+          : new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-        // Créer la facture
         const invoice = await prisma.invoice.create({
           data: {
             tenantId,
@@ -356,19 +451,9 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Émettre événement (underscore notation pour matcher les WorkflowLinks)
-        await eventService.emit(tenantId, 'invoice_create', 'Invoice', invoice.id, {
-          invoiceId: invoice.id,
-          clientId: invoice.clientFinalId,
-          tenantId,
-          numeroFacture: invoice.numeroFacture,
-          montantHt: invoice.montantHt,
-          montantTtc: invoice.montantTtc,
-        });
-
         return reply.status(201).send({
           success: true,
-          message: 'Facture créée avec succès',
+          message: 'Facture créée',
           data: { invoice },
         });
       } catch (error) {
@@ -423,9 +508,14 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
         }
 
-        // Si on délègue les écritures à n8n (full no-code)
-        // IMPORTANT: si l'appel vient déjà de n8n, ne pas redéléguer (évite boucle)
-        if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
+        // Application no-code : la mise à jour de facture passe uniquement par n8n.
+        if (!fromN8n) {
+          if (!env.USE_N8N_COMMANDS) {
+            return reply.status(503).send({
+              success: false,
+              error: 'Mise à jour de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-update.',
+            });
+          }
           const res = await n8nService.callWorkflowReturn<{ invoice: unknown }>(
             tenantId,
             'invoice_update',
@@ -444,9 +534,8 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, mettre à jour directement en base (fallback ou si USE_N8N_COMMANDS=false)
+        // Appel depuis n8n (callback du workflow) : persister en base
         const oldStatus = invoice.statut;
-
         const updated = await prisma.invoice.update({
           where: { id: params.id },
           data: {
@@ -467,33 +556,9 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Émettre événement basé sur le changement de statut (underscore notation)
-        if (body.statut && oldStatus !== body.statut) {
-          let eventType = 'invoice_update';
-
-          if (body.statut === 'payee') {
-            eventType = 'invoice_paid';
-          } else if (body.statut === 'envoyee') {
-            eventType = 'invoice_sent';
-          } else if (body.statut === 'en_retard') {
-            eventType = 'invoice_overdue';
-          } else if (body.statut === 'annulee') {
-            eventType = 'invoice_cancelled';
-          }
-
-          await eventService.emit(tenantId, eventType, 'Invoice', updated.id, {
-            invoiceId: updated.id,
-            clientId: updated.clientFinalId,
-            tenantId,
-            numeroFacture: updated.numeroFacture,
-            statut: updated.statut,
-            ancienStatut: oldStatus,
-          });
-        }
-
         return reply.status(200).send({
           success: true,
-          message: 'Facture mise à jour avec succès',
+          message: 'Facture mise à jour',
           data: { invoice: updated },
         });
       } catch (error) {

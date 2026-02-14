@@ -3,6 +3,28 @@ import { prisma } from '../config/database.js';
 import { eventService } from './event.service.js';
 
 /**
+ * Mapping des anciens workflowN8nId (underscore) vers les chemins webhook n8n (tiret).
+ * Les workflows JSON utilisent path: "invoice-created", pas "invoice_create".
+ */
+const WEBHOOK_PATH_ALIASES: Record<string, string> = {
+  // Factures
+  invoice_create: 'invoice-created',
+  invoice_paid: 'invoice-paid',
+  invoice_overdue: 'invoice-overdue',
+  invoice_get: 'invoice-get',
+  invoice_update: 'invoice-update',
+  invoices_list: 'invoices-list',
+  // Abonnements
+  subscription_renewal: 'subscription-renewal',
+  subscription_cancelled: 'subscription-cancelled',
+  subscription_suspended: 'subscription-suspended',
+  subscription_upgrade: 'subscription-upgrade',
+  // Clients
+  client_onboarding: 'client-onboarding',
+  stripe_checkout_completed: 'stripe-checkout-completed',
+};
+
+/**
  * Service pour communiquer avec n8n
  * Déclenche les workflows n8n selon les événements métiers
  */
@@ -11,6 +33,11 @@ export class N8nService {
   private apiKey: string | undefined;
   private username: string | undefined;
   private password: string | undefined;
+
+  /** Retourne le chemin webhook à appeler (compatible ancienne BDD ou nouvelle). */
+  private getWebhookPath(storedWorkflowId: string): string {
+    return WEBHOOK_PATH_ALIASES[storedWorkflowId] ?? storedWorkflowId;
+  }
 
   constructor() {
     this.apiUrl = env.N8N_API_URL || '';
@@ -74,7 +101,8 @@ export class N8nService {
       //   headers['Authorization'] = `Basic ${credentials}`;
       // }
 
-      const response = await fetch(`${this.apiUrl}/webhook/${workflowLink.workflowN8nId}`, {
+      const webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
+      const response = await fetch(`${this.apiUrl}/webhook/${webhookPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -176,8 +204,9 @@ export class N8nService {
         'Content-Type': 'application/json',
       };
 
-      // Appel à l'API n8n (webhook public)
-      const response = await fetch(`${this.apiUrl}/webhook/${workflowLink.workflowN8nId}`, {
+      // Appel à l'API n8n (webhook public) — chemin normalisé (invoice_create → invoice-created)
+      const webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
+      const response = await fetch(`${this.apiUrl}/webhook/${webhookPath}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(n8nPayload),

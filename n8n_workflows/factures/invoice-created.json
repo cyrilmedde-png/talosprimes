@@ -1,325 +1,162 @@
 {
   "name": "invoice-created",
-  "active": true,
   "nodes": [
     {
       "parameters": {
         "path": "invoice-created",
-        "responseMode": "responseNode",
-        "options": {}
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
       },
-      "id": "node-01-webhook",
+      "id": "webhook",
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        100
-      ]
+      "position": [200, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Payload plateforme: { event, tenantId, data: { invoiceId, clientId, ... } }\nconst body = $input.first().json;\nconst data = body.data || body;\nconst invoiceId = data.invoiceId || data.invoice_id;\nconst clientFinalId = data.clientId || data.clientFinalId || data.client_final_id;\nconst tenantId = body.tenantId || data.tenantId || data.tenant_id;\nif (!invoiceId || !tenantId) throw new Error('Missing invoiceId and tenantId');\nreturn { invoiceId, clientFinalId, tenantId };"
+        "jsCode": "const raw = $input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];if(k2&&o[k2]!=null&&o[k2]!=='')return o[k2];return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(typeof data==='string')data=pj(data);\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nconst clientFinalId=g(data,'clientFinalId','client_final_id')||g(payload,'clientFinalId','client_final_id');\nconst mhtv=g(data,'montantHt','montant_ht')||g(payload,'montantHt','montant_ht');\nconst montantHt=mhtv!=null?Number(mhtv):null;\nif(!tenantId||!clientFinalId||montantHt==null||isNaN(montantHt)){\n  return [{json:{_skip:true,reason:'Payload incomplet: tenantId='+tenantId+' clientFinalId='+clientFinalId+' montantHt='+montantHt}}];\n}\nconst body={tenantId,clientFinalId,type:g(data,'type')||g(payload,'type')||'facture_client_final',montantHt,tvaTaux:(function(){var v=g(data,'tvaTaux','tva_taux')||g(payload,'tvaTaux','tva_taux');return v!=null&&v!==''?Number(v):20})()};\nfunction opt(k,sk){var v=g(data,k,sk)||g(payload,k,sk);if(v!=null&&v!=='')body[k]=String(v)}\nopt('dateFacture','date_facture');opt('dateEcheance','date_echeance');opt('numeroFacture','numero_facture');opt('description');opt('lienPdf','lien_pdf');\nreturn [{json:body}];"
       },
-      "id": "node-02-parser",
-      "name": "02. Parser payload",
+      "id": "parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        450,
-        100
-      ]
+      "position": [420, 300]
     },
     {
       "parameters": {
-        "query": "SELECT id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, statut FROM invoices WHERE id = $1 AND tenant_id = $2",
-        "parameterCount": 2,
-        "parameters": "=[\n  {\n    \"name\": \"1\",\n    \"value\": \"={{ $json.invoiceId }}\"\n  },\n  {\n    \"name\": \"2\",\n    \"value\": \"={{ $json.tenantId }}\"\n  }\n]"
+        "conditions": { "boolean": [{ "value1": "={{ $json._skip === true }}", "value2": true }] }
       },
-      "id": "node-03-get-client",
-      "name": "03. Récupérer facture",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        650,
-        100
-      ],
-      "credentials": {
-        "postgres": "postgres-credential"
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "={{ $json.id }}",
-            "operator": {
-              "name": "string",
-              "type": "string",
-              "operation": "notEmpty"
-            },
-            "rightValue": ""
-          }
-        }
-      },
-      "id": "node-04-validation",
-      "name": "04. Validation facture",
+      "id": "if-skip",
+      "name": "03. Payload complet ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        850,
-        100
-      ]
+      "typeVersion": 1,
+      "position": [640, 300]
     },
     {
       "parameters": {
-        "query": "SELECT id, tenant_id, raison_sociale, nom, prenom, email, telephone, adresse FROM client_finals WHERE id = $1 AND tenant_id = $2",
-        "parameterCount": 2,
-        "parameters": "=[\n  {\n    \"name\": \"1\",\n    \"value\": \"={{ $json.client_final_id }}\"\n  },\n  {\n    \"name\": \"2\",\n    \"value\": \"={{ $json.tenant_id }}\"\n  }\n]"
+        "respondWith": "json",
+        "responseBody": "={\"success\":true,\"message\":\"Payload incomplet, execution ignoree\",\"reason\":\"{{ $json.reason }}\"}"
       },
-      "id": "node-05-create-invoice",
-      "name": "05. Récupérer client",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1050,
-        100
-      ],
-      "credentials": {
-        "postgres": "postgres-credential"
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Invoice depuis node 03, client depuis node 05 (entrée actuelle)\nconst invoiceData = $('03. Récupérer facture').first().json;\nconst clientData = $json;\n\n// Colonnes DB snake_case\nconst dateFacture = new Date(invoiceData.date_facture);\nconst dateEcheance = new Date(invoiceData.date_echeance);\nconst montantTva = Number(invoiceData.montant_ttc || 0) - Number(invoiceData.montant_ht || 0);\nconst dateFactureFormatted = dateFacture.toLocaleDateString('fr-FR');\nconst dateEcheanceFormatted = dateEcheance.toLocaleDateString('fr-FR');\n\n// Format currency\nconst formatCurrency = (value) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value);\n\n// Build line items HTML\nlet lignesHtml = '';\nconst lignes = invoiceData.lignes || [{ description: 'Facture', quantite: 1, montant: Number(invoiceData.montant_ht || 0) }];\nlignes.forEach(ligne => {\n  const quantity = ligne.quantite || 1;\n  const unitPrice = ligne.prixUnitaire || (ligne.montant / quantity);\n  const total = ligne.montant || (quantity * unitPrice);\n  \n  lignesHtml += `\n    <tr>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd;\">${ligne.description}</td>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd; text-align: center;\">${quantity}</td>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd; text-align: right;\">${formatCurrency(unitPrice)}</td>\n      <td style=\"padding: 10px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold;\">${formatCurrency(total)}</td>\n    </tr>\n  `;\n});\n\n// Build HTML invoice\nconst html = `\n<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Facture ${invoiceData.numero_facture}</title>\n  <style>\n    body {\n      font-family: Arial, sans-serif;\n      color: #333;\n      line-height: 1.6;\n      margin: 0;\n      padding: 20px;\n      background-color: #f9f9f9;\n    }\n    .container {\n      max-width: 900px;\n      margin: 0 auto;\n      background-color: white;\n      padding: 40px;\n      border-radius: 8px;\n      box-shadow: 0 2px 10px rgba(0,0,0,0.1);\n    }\n    .header {\n      display: flex;\n      justify-content: space-between;\n      align-items: flex-start;\n      margin-bottom: 40px;\n      border-bottom: 3px solid #007bff;\n      padding-bottom: 20px;\n    }\n    .company-info {\n      flex: 1;\n    }\n    .company-name {\n      font-size: 32px;\n      font-weight: bold;\n      color: #007bff;\n      margin-bottom: 10px;\n    }\n    .invoice-info {\n      flex: 1;\n      text-align: right;\n    }\n    .invoice-title {\n      font-size: 24px;\n      font-weight: bold;\n      margin-bottom: 10px;\n    }\n    .invoice-meta {\n      font-size: 14px;\n      line-height: 1.8;\n    }\n    .invoice-number {\n      font-size: 18px;\n      font-weight: bold;\n      color: #007bff;\n    }\n    .section {\n      margin-bottom: 30px;\n    }\n    .section-title {\n      font-size: 14px;\n      font-weight: bold;\n      color: #333;\n      text-transform: uppercase;\n      margin-bottom: 10px;\n      border-bottom: 1px solid #ddd;\n      padding-bottom: 5px;\n    }\n    .client-info {\n      display: flex;\n      justify-content: space-between;\n      margin-bottom: 30px;\n    }\n    .client-column {\n      flex: 1;\n    }\n    .client-column h4 {\n      margin-top: 0;\n      margin-bottom: 5px;\n      font-size: 12px;\n      text-transform: uppercase;\n      color: #666;\n    }\n    .client-column p {\n      margin: 0;\n      font-size: 14px;\n    }\n    table {\n      width: 100%;\n      border-collapse: collapse;\n      margin-bottom: 20px;\n    }\n    th {\n      background-color: #f0f0f0;\n      padding: 12px;\n      text-align: left;\n      font-weight: bold;\n      border-bottom: 2px solid #ddd;\n      font-size: 13px;\n    }\n    td {\n      padding: 12px;\n      border-bottom: 1px solid #ddd;\n    }\n    .amount-right {\n      text-align: right;\n    }\n    .totals {\n      display: flex;\n      justify-content: flex-end;\n      margin-bottom: 30px;\n    }\n    .totals-table {\n      width: 400px;\n    }\n    .totals-table tr:last-child {\n      background-color: #007bff;\n      color: white;\n      font-weight: bold;\n      font-size: 16px;\n    }\n    .totals-table td {\n      padding: 12px;\n      border: none;\n      text-align: right;\n    }\n    .totals-table td:first-child {\n      text-align: left;\n      padding-right: 20px;\n    }\n    .payment-terms {\n      background-color: #f9f9f9;\n      padding: 15px;\n      border-left: 4px solid #007bff;\n      margin-bottom: 20px;\n    }\n    .payment-terms h4 {\n      margin-top: 0;\n      color: #333;\n    }\n    .legal {\n      font-size: 11px;\n      color: #666;\n      border-top: 1px solid #ddd;\n      padding-top: 15px;\n      margin-top: 30px;\n    }\n    .legal p {\n      margin: 5px 0;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <div class=\"company-info\">\n        <div class=\"company-name\">TalosPrimes</div>\n        <p style=\"margin: 5px 0; font-size: 14px; color: #666;\">Plateforme de gestion d'assurances</p>\n      </div>\n      <div class=\"invoice-info\">\n        <div class=\"invoice-title\">Facture</div>\n        <div class=\"invoice-meta\">\n          <div class=\"invoice-number\">${invoiceData.numero_facture}</div>\n          <div>Émise le: <strong>${dateFactureFormatted}</strong></div>\n          <div>Échéance: <strong>${dateEcheanceFormatted}</strong></div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"client-info\">\n      <div class=\"client-column\">\n        <div class=\"section-title\">Facteur</div>\n        <p><strong>TalosPrimes SAS</strong></p>\n        <p>Plateforme de gestion d'assurances</p>\n        <p>Email: contact@talosprimes.com</p>\n      </div>\n      <div class=\"client-column\">\n        <div class=\"section-title\">Facturé à</div>\n        <p><strong>${(clientData.raison_sociale || [clientData.prenom, clientData.nom].filter(Boolean).join(' ') || clientData.email)}</strong></p>\n        <p>${clientData.adresse || ''}</p>\n        <p>Email: ${clientData.email}</p>\n      </div>\n    </div>\n\n    <div class=\"section\">\n      <table>\n        <thead>\n          <tr>\n            <th>Description</th>\n            <th style=\"text-align: center;\">Quantité</th>\n            <th style=\"text-align: right;\">Prix unitaire</th>\n            <th style=\"text-align: right;\">Total</th>\n          </tr>\n        </thead>\n        <tbody>\n          ${lignesHtml}\n        </tbody>\n      </table>\n    </div>\n\n    <div class=\"totals\">\n      <table class=\"totals-table\">\n        <tr>\n          <td>Montant HT</td>\n          <td>${formatCurrency(Number(invoiceData.montant_ht))}</td>\n        </tr>\n        <tr>\n          <td>TVA (${invoiceData.tva_taux || 20}%)</td>\n          <td>${formatCurrency(montantTva)}</td>\n        </tr>\n        <tr>\n          <td>Montant TTC</td>\n          <td>${formatCurrency(Number(invoiceData.montant_ttc))}</td>\n        </tr>\n      </table>\n    </div>\n\n    <div class=\"payment-terms\">\n      <h4>Conditions de paiement</h4>\n      <p>Délai de paiement: 30 jours à compter de la date de facture.</p>\n      <p>Les factures impayées après cette période sont sujettes à des intérêts de retard et des frais de recouvrement.</p>\n    </div>\n\n    <div class=\"legal\">\n      <p><strong>Mentions légales:</strong></p>\n      <p>Cette facture est établie conformément à la réglementation française. TalosPrimes SAS est assujettie à la TVA sous le numéro d'enregistrement français. Le paiement doit être effectué selon les modalités indiquées ci-dessus. En cas de non-paiement à l'échéance, des intérêts moratoires seront applicables.</p>\n      <p><strong>Droits de rétractation:</strong> Conformément à la directive sur les droits des consommateurs, vous disposez d'un délai de 14 jours pour vous rétracter, sauf pour les services numériques déjà fournis.</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  invoiceId: invoiceData.id,\n  numeroFacture: invoiceData.numero_facture,\n  htmlContent: html,\n  htmlBase64: Buffer.from(html).toString('base64')\n};"
-      },
-      "id": "node-06-generate-pdf",
-      "name": "06. Générer PDF",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1250,
-        100
-      ]
-    },
-    {
-      "parameters": {
-        "query": "UPDATE invoices SET statut = 'envoyee' WHERE id = $1",
-        "parameterCount": 1,
-        "parameters": "=[\n  {\n    \"name\": \"1\",\n    \"value\": \"={{ $json.invoiceId }}\"\n  }\n]"
-      },
-      "id": "node-07-update-pdf-link",
-      "name": "07. Marquer envoyée",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1450,
-        100
-      ],
-      "credentials": {
-        "postgres": "postgres-credential"
-      }
-    },
-    {
-      "parameters": {
-        "query": "UPDATE invoices SET statut = 'envoyee' WHERE id = $1",
-        "parameterCount": 1,
-        "parameters": "=[\n  {\n    \"name\": \"invoiceId\",\n    \"value\": \"={{ $json.invoiceId }}\"\n  }\n]"
-      },
-      "id": "node-08-mark-sent",
-      "name": "08. Marquer comme envoyée",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1650,
-        100
-      ],
-      "credentials": {
-        "postgres": "postgres-credential"
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const invoiceData = $('03. Récupérer facture').first().json;\nconst clientData = $('05. Récupérer client').first().json;\nconst pdfNode = $('06. Générer PDF').first().json;\nconst formatCurrency = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(Number(v));\nconst clientName = (clientData.raison_sociale || [clientData.prenom, clientData.nom].filter(Boolean).join(' ') || 'Client');\nconst emailContent = `<html><body style=\"font-family: Arial, sans-serif; color: #333;\"><h2>Nouvelle facture</h2><p>Bonjour ${clientName},</p><p>Nous vous confirmons la création d'une nouvelle facture.</p><div style=\"background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;\"><p><strong>Numéro:</strong> ${invoiceData.numero_facture}</p><p><strong>Date:</strong> ${new Date(invoiceData.date_facture).toLocaleDateString('fr-FR')}</p><p><strong>Montant HT:</strong> ${formatCurrency(invoiceData.montant_ht)}</p><p><strong>Montant TTC:</strong> ${formatCurrency(invoiceData.montant_ttc)}</p><p><strong>Échéance:</strong> ${new Date(invoiceData.date_echeance).toLocaleDateString('fr-FR')}</p></div><p>Cordialement,<br/>TalosPrimes</p></body></html>`;\nreturn { clientEmail: clientData.email, clientName, numeroFacture: invoiceData.numero_facture, emailSubject: `Facture ${invoiceData.numero_facture} - TalosPrimes`, emailContent, htmlAttachment: pdfNode.htmlContent, invoiceId: invoiceData.id };"
-      },
-      "id": "node-09-prepare-email",
-      "name": "09. Préparer email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1850,
-        100
-      ]
-    },
-    {
-      "parameters": {
-        "url": "https://api.resend.com/emails",
-        "method": "POST",
-        "authentication": "headerAuth",
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "bodyParametersJson": "{\n  \"from\": \"factures@talosprimes.com\",\n  \"to\": \"{{ $json.clientEmail }}\",\n  \"subject\": \"{{ $json.emailSubject }}\",\n  \"html\": \"{{ $json.emailContent }}\",\n  \"attachments\": [\n    {\n      \"filename\": \"{{ $json.numeroFacture }}.html\",\n      \"content\": \"{{ $json.htmlAttachment }}\"\n    }\n  ]\n}"
-      },
-      "id": "node-10-send-resend",
-      "name": "10. Envoyer email Resend",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2050,
-        100
-      ],
-      "credentials": {
-        "headerAuth": {
-          "id": "resend-api-credential",
-          "name": "Resend API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.talosprimes.com/api/notifications",
-        "method": "POST",
-        "headers": {
-          "Authorization": "Bearer {{ $credentials.talosprimes_api_credential.token }}",
-          "Content-Type": "application/json"
-        },
-        "bodyParametersJson": "{\n  \"type\": \"invoice_created\",\n  \"tenantId\": \"{{ $input.first().json.tenantId }}\",\n  \"invoiceId\": \"{{ $json.invoiceId }}\",\n  \"numeroFacture\": \"{{ $json.numeroFacture }}\",\n  \"clientFinalId\": \"{{ $input.first().json.clientFinalId }}\",\n  \"montantTtc\": {{ $input.first().json.montantTtc }},\n  \"timestamp\": \"{{ now() }}\"\n}"
-      },
-      "id": "node-11-notification",
-      "name": "11. Notification TalosPrimes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2250,
-        100
-      ],
-      "credentials": {
-        "talosprimes_api_credential": "talosprimes-api-credential"
-      }
-    },
-    {
-      "parameters": {
-        "responseBody": "{\n  \"success\": true,\n  \"message\": \"Facture créée et envoyée avec succès\",\n  \"invoiceId\": \"{{ $json.invoiceId }}\",\n  \"numeroFacture\": \"{{ $json.numeroFacture }}\",\n  \"montantTtc\": \"{{ $input.first().json.montantTtc }}\",\n  \"clientEmail\": \"{{ $json.clientEmail }}\",\n  \"dateEcheance\": \"{{ $input.first().json.dateEcheance }}\"\n}"
-      },
-      "id": "node-12-response-success",
-      "name": "12. Répondre succès",
+      "id": "respond-skip",
+      "name": "04. Repondre ignore",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2450,
-        100
-      ]
+      "position": [860, 480]
     },
     {
       "parameters": {
-        "responseBody": "{\n  \"success\": false,\n  \"message\": \"Erreur: Client non trouvé\",\n  \"error\": \"CLIENT_NOT_FOUND\"\n}"
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT (SELECT id FROM invoices WHERE tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"' AND client_final_id = '\" + ($json.clientFinalId || '').replace(/'/g, \"''\") + \"' AND montant_ht = \" + Number($json.montantHt) + \" AND created_at >= NOW() - INTERVAL '10 minutes' ORDER BY created_at DESC LIMIT 1) AS existing_id\" }}"
       },
-      "id": "node-13-response-error",
-      "name": "13. Répondre erreur",
+      "id": "pg-check",
+      "name": "05. Dedup check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [860, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const p=$('02. Parser').first().json;\nconst row=$input.first().json;\nif(row.existing_id){\n  return [{json:{invoiceId:row.existing_id,tenantId:p.tenantId,fromCache:true}}];\n}\nreturn [{json:Object.assign({},p,{fromCache:false})}];"
+      },
+      "id": "decide",
+      "name": "06. Cache ou creer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json.fromCache }}", "value2": true }] }
+      },
+      "id": "if-cache",
+      "name": "07. Deja existante ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/invoices",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "api-create",
+      "name": "08. API Creer facture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res=$input.first().json;\nconst inv=res.data&&res.data.invoice?res.data.invoice:null;\nif(!inv||!inv.id)throw new Error('API: facture non creee - '+JSON.stringify(res).substring(0,200));\nreturn [{json:{invoiceId:inv.id,tenantId:inv.tenantId||inv.tenant_id}}];"
+      },
+      "id": "extract",
+      "name": "09. Extraire invoiceId",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, statut, lien_pdf, created_at FROM invoices WHERE id = '\" + ($json.invoiceId || '').replace(/'/g, \"''\") + \"' AND tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS invoice\" }}"
+      },
+      "id": "pg-fetch",
+      "name": "10. Recuperer facture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1740, 200],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row=$input.first().json;\nconst inv=row.invoice;\nif(!inv)return [{json:{success:false,error:'Facture non trouvee apres creation'}}];\nconst parsed=typeof inv==='string'?JSON.parse(inv):inv;\nreturn [{json:{success:true,message:'Facture creee',data:{invoice:parsed}}}];"
+      },
+      "id": "format",
+      "name": "11. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond-ok",
+      "name": "12. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1050,
-        300
-      ]
+      "position": [2180, 300]
     }
   ],
   "connections": {
-    "01. Webhook": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Payload complet ?", "type": "main", "index": 0 }]] },
+    "03. Payload complet ?": {
       "main": [
-        [
-          { "node": "02. Parser payload", "type": "main", "index": 0 }
-        ]
+        [{ "node": "04. Repondre ignore", "type": "main", "index": 0 }],
+        [{ "node": "05. Dedup check", "type": "main", "index": 0 }]
       ]
     },
-    "02. Parser payload": {
+    "05. Dedup check": { "main": [[{ "node": "06. Cache ou creer", "type": "main", "index": 0 }]] },
+    "06. Cache ou creer": { "main": [[{ "node": "07. Deja existante ?", "type": "main", "index": 0 }]] },
+    "07. Deja existante ?": {
       "main": [
-        [
-          { "node": "03. Récupérer facture", "type": "main", "index": 0 }
-        ]
+        [{ "node": "10. Recuperer facture", "type": "main", "index": 0 }],
+        [{ "node": "08. API Creer facture", "type": "main", "index": 0 }]
       ]
     },
-    "03. Récupérer facture": {
-      "main": [
-        [
-          { "node": "04. Validation facture", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "04. Validation facture": {
-      "main": [
-        [
-          { "node": "05. Récupérer client", "type": "main", "index": 0 }
-        ],
-        [
-          { "node": "13. Répondre erreur", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "05. Récupérer client": {
-      "main": [
-        [
-          { "node": "06. Générer PDF", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "06. Générer PDF": {
-      "main": [
-        [
-          { "node": "07. Marquer envoyée", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "07. Marquer envoyée": {
-      "main": [
-        [
-          { "node": "08. Marquer comme envoyée", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "08. Marquer comme envoyée": {
-      "main": [
-        [
-          { "node": "09. Préparer email", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "09. Préparer email": {
-      "main": [
-        [
-          { "node": "10. Envoyer email Resend", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "10. Envoyer email Resend": {
-      "main": [
-        [
-          { "node": "11. Notification TalosPrimes", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "11. Notification TalosPrimes": {
-      "main": [
-        [
-          { "node": "12. Répondre succès", "type": "main", "index": 0 }
-        ]
-      ]
-    }
+    "08. API Creer facture": { "main": [[{ "node": "09. Extraire invoiceId", "type": "main", "index": 0 }]] },
+    "09. Extraire invoiceId": { "main": [[{ "node": "10. Recuperer facture", "type": "main", "index": 0 }]] },
+    "10. Recuperer facture": { "main": [[{ "node": "11. Formater reponse", "type": "main", "index": 0 }]] },
+    "11. Formater reponse": { "main": [[{ "node": "12. Repondre succes", "type": "main", "index": 0 }]] }
   },
-  "settings": {
-    "executionOrder": "v1",
-    "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all",
-    "saveManualExecutions": true,
-    "timezone": "Europe/Paris"
-  },
-  "staticData": null,
-  "pinData": {}
+  "active": false,
+  "settings": { "executionOrder": "v1" }
 }

@@ -20,6 +20,8 @@
     "workflow:setup-clients": "tsx scripts/setup-clients-workflows.ts",
     "workflow:setup-subscriptions": "tsx scripts/setup-subscriptions-workflows.ts",
     "workflow:setup-invoices": "tsx scripts/setup-invoices-workflows.ts",
+    "workflow:ensure-invoices-list": "tsx scripts/ensure-invoices-list.ts",
+    "workflow:create-invoices-list-link": "tsx scripts/create-invoices-list-link.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import { apiClient, type Invoice } from '@/lib/api-client';
@@ -87,6 +87,7 @@ export default function FacturesPage() {
     notes: '',
   });
   const [lignes, setLignes] = useState<LigneArticle[]>([]);
+  const createSubmittingRef = useRef(false);
 
   const selectedClient = clients.find((c) => c.id === createForm.clientFinalId);
 
@@ -149,9 +150,10 @@ export default function FacturesPage() {
       };
       if (statutFilter) params.statut = statutFilter;
       const response = await apiClient.invoices.list(params);
-      setInvoices(response.data.invoices);
-      setTotalPages(response.data.totalPages);
-      setTotal(response.data.total);
+      const data = response.data;
+      setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
+      setTotalPages(data.totalPages ?? 1);
+      setTotal(data.total ?? data.count ?? 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {
@@ -203,6 +205,7 @@ export default function FacturesPage() {
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (createSubmittingRef.current) return;
     if (createForm.typeDocument !== 'facture') {
       setBientotMessage(`${createForm.typeDocument === 'devis' ? 'Devis' : createForm.typeDocument === 'proforma' ? 'Proforma' : 'Avoir'} — création disponible prochainement.`);
       setTimeout(() => setBientotMessage(null), 3000);
@@ -222,6 +225,7 @@ export default function FacturesPage() {
       setError('Client obligatoire et au moins un montant HT (lignes ou montant global).');
       return;
     }
+    createSubmittingRef.current = true;
     try {
       setCreating(true);
       setError(null);
@@ -253,6 +257,7 @@ export default function FacturesPage() {
       setError(err instanceof Error ? err.message : 'Erreur lors de la création');
     } finally {
       setCreating(false);
+      createSubmittingRef.current = false;
     }
   };
 

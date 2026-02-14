@@ -4,363 +4,145 @@
     {
       "parameters": {
         "path": "invoice-paid",
-        "responseMode": "responseNode",
-        "options": {}
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
       },
-      "id": "01. Webhook",
+      "id": "webhook",
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        300
-      ]
+      "position": [200, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Payload plateforme: { event, tenantId, data: { invoiceId, referencePayment, datePaiement, ... } }\nconst body = $input.first().json;\nconst data = body.data || body;\nconst tenantId = body.tenantId || data.tenantId;\nconst invoiceId = data.invoiceId || data.invoice_id;\nif (!tenantId || !invoiceId) throw new Error('tenantId and invoiceId required');\nreturn { tenantId, invoiceId, paymentMethod: data.paymentMethod || null, idExternePaiement: data.referencePayment || data.idExternePaiement || null, montantRecu: data.montantTtc || data.montantRecu || null };"
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];if(k2&&o[k2]!=null&&o[k2]!=='')return o[k2];return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(typeof data==='string')data=pj(data);\nif(!isO(data))data=payload;\nconst invoiceId=g(data,'invoiceId','invoice_id')||g(payload,'invoiceId','invoice_id');\nconst tenantId=g(data,'tenantId','tenant_id')||g(payload,'tenantId','tenant_id')||g(raw,'tenantId');\nconst referencePayment=g(data,'referencePayment','reference_payment')||g(payload,'referencePayment','reference_payment')||'';\nif(!invoiceId||!tenantId)return [{json:{_error:true,message:'invoiceId et tenantId requis'}}];\nreturn [{json:{invoiceId,tenantId,referencePayment}}];"
       },
-      "id": "02. Parser payload",
-      "name": "02. Parser payload",
+      "id": "parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        450,
-        300
-      ]
+      "position": [420, 300]
     },
     {
       "parameters": {
-        "workbench": {
-          "executionMode": "query",
-          "queryString": "SELECT i.*, cf.email, cf.nom, cf.prenom FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id=$1 AND i.tenant_id=$2"
-        },
-        "parameterizedQueries": true,
-        "parameters": [
-          {
-            "name": "$1",
-            "value": "={{ $prev.invoiceId }}"
-          },
-          {
-            "name": "$2",
-            "value": "={{ $prev.tenantId }}"
-          }
-        ]
+        "conditions": { "boolean": [{ "value1": "={{ $json._error === true }}", "value2": true }] }
       },
-      "id": "03. Récupérer facture",
-      "name": "03. Récupérer facture",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        650,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": [
-            {
-              "condition": "objectExists",
-              "value1": "={{ $prev.output[0] }}",
-              "value2": null
-            }
-          ],
-          "combinator": "and"
-        }
-      },
-      "id": "04. Validation facture",
-      "name": "04. Validation facture",
+      "id": "if-valid",
+      "name": "03. Payload valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        850,
-        300
-      ]
+      "typeVersion": 1,
+      "position": [640, 300]
     },
     {
       "parameters": {
-        "workbench": {
-          "executionMode": "query",
-          "queryString": "UPDATE invoices SET statut='payee', id_externe_paiement=$1, updated_at=NOW() WHERE id=$2"
-        },
-        "parameterizedQueries": true,
-        "parameters": [
-          {
-            "name": "$1",
-            "value": "={{ $nodes['02. Parser payload'].output[0].idExternePaiement }}"
-          },
-          {
-            "name": "$2",
-            "value": "={{ $nodes['03. Récupérer facture'].output[0].id }}"
-          }
-        ]
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
       },
-      "id": "05. Mettre à jour facture",
-      "name": "05. Mettre à jour facture",
+      "id": "respond-invalid",
+      "name": "04. Repondre invalide",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [860, 480]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT (SELECT id FROM invoices WHERE id = '\" + ($json.invoiceId || '').replace(/'/g, \"''\") + \"' AND tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"' LIMIT 1) AS existing_id\" }}"
+      },
+      "id": "pg-verify",
+      "name": "05. Verifier facture existe",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        1050,
-        150
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
-        }
-      }
+      "position": [860, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $nodes['03. Récupérer facture'].output[0];\nconst { paymentMethod, montantRecu } = $nodes['02. Parser payload'].output[0];\nconst paymentDate = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });\n\nconst htmlContent = `\n<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Confirmation de paiement</title>\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #e0e0e0; padding-bottom: 20px; }\n    .checkmark { display: inline-block; width: 50px; height: 50px; background-color: #4caf50; border-radius: 50%; line-height: 50px; text-align: center; color: white; font-size: 30px; margin-bottom: 10px; }\n    .title { color: #2e7d32; font-size: 24px; margin: 15px 0; }\n    .content { margin: 20px 0; }\n    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }\n    .info-label { color: #666; font-weight: 500; }\n    .info-value { color: #333; font-weight: 600; }\n    .amount { font-size: 20px; color: #2e7d32; font-weight: bold; }\n    .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #666; font-size: 12px; }\n    .button { display: inline-block; background-color: #2e7d32; color: white; padding: 12px 30px; border-radius: 4px; text-decoration: none; margin-top: 20px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <div class=\"checkmark\">✓</div>\n      <div class=\"title\">Paiement confirmé</div>\n      <p style=\"margin: 5px 0; color: #666;\">Votre facture a été payée avec succès</p>\n    </div>\n    \n    <div class=\"content\">\n      <h2 style=\"color: #333; font-size: 16px; margin-bottom: 20px;\">Détails de paiement</h2>\n      \n      <div class=\"info-row\">\n        <span class=\"info-label\">Numéro de facture</span>\n        <span class=\"info-value\">${invoice.numero_facture || invoice.id}</span>\n      </div>\n      \n      <div class=\"info-row\">\n        <span class=\"info-label\">Date de paiement</span>\n        <span class=\"info-value\">${paymentDate}</span>\n      </div>\n      \n      <div class=\"info-row\">\n        <span class=\"info-label\">Montant payé (TTC)</span>\n        <span class=\"info-value amount\">${montantRecu ? montantRecu.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : invoice.montant_ttc?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span>\n      </div>\n      \n      ${paymentMethod ? `\n      <div class=\"info-row\">\n        <span class=\"info-label\">Méthode de paiement</span>\n        <span class=\"info-value\">${paymentMethod}</span>\n      </div>\n      ` : ''}\n      \n      <p style=\"margin-top: 30px; text-align: center; font-size: 16px; color: #2e7d32; font-weight: 500;\">\n        Merci pour votre paiement !\n      </p>\n      \n      <p style=\"text-align: center; margin-top: 20px;\">\n        <a href=\"#\" class=\"button\">Télécharger le reçu</a>\n      </p>\n    </div>\n    \n    <div class=\"footer\">\n      <p>TalosPrimes - Gestion de factures</p>\n      <p>© ${new Date().getFullYear()} Tous droits réservés</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  to: invoice.email,\n  subject: `Paiement confirmé - Facture ${invoice.numero_facture || invoice.id}`,\n  htmlContent,\n  clientName: invoice.nom || invoice.prenom || 'Client'\n};"
+        "conditions": { "string": [{ "value1": "={{ $json.existing_id }}", "operation": "isNotEmpty" }] }
       },
-      "id": "06. Préparer reçu email",
-      "name": "06. Préparer reçu email",
+      "id": "if-found",
+      "name": "06. Facture trouvee ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\":false,\"error\":\"Facture non trouvee\",\"statusCode\":404}"
+      },
+      "id": "respond-404",
+      "name": "07. Repondre 404",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1080, 480]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE invoices SET statut = 'payee', id_externe_paiement = '\" + ($('02. Parser').first().json.referencePayment || '').replace(/'/g, \"''\") + \"', updated_at = NOW() WHERE id = '\" + ($('02. Parser').first().json.invoiceId || '').replace(/'/g, \"''\") + \"' AND tenant_id = '\" + ($('02. Parser').first().json.tenantId || '').replace(/'/g, \"''\") + \"'\" }}"
+      },
+      "id": "pg-update",
+      "name": "08. UPDATE payee",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1300, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, statut, id_externe_paiement, created_at FROM invoices WHERE id = '\" + ($('02. Parser').first().json.invoiceId || '').replace(/'/g, \"''\") + \"' AND tenant_id = '\" + ($('02. Parser').first().json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS invoice\" }}"
+      },
+      "id": "pg-fetch",
+      "name": "09. Recuperer mise a jour",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1520, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row=$input.first().json;\nconst inv=row.invoice;\nif(!inv)return [{json:{success:true,message:'Paiement enregistre (facture non recuperee)'}}];\nconst parsed=typeof inv==='string'?JSON.parse(inv):inv;\nreturn [{json:{success:true,message:'Paiement enregistre',invoice:parsed}}];"
+      },
+      "id": "format",
+      "name": "10. Formater",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1050,
-        350
-      ]
+      "position": [1740, 300]
     },
     {
       "parameters": {
-        "url": "https://api.resend.com/emails",
-        "method": "POST",
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $credentials.headerAuth.api_key }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyParametersUi": "keyvalue",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "from",
-              "value": "noreply@talosprimes.com"
-            },
-            {
-              "name": "to",
-              "value": "={{ $prev.to }}"
-            },
-            {
-              "name": "subject",
-              "value": "={{ $prev.subject }}"
-            },
-            {
-              "name": "html",
-              "value": "={{ $prev.htmlContent }}"
-            }
-          ]
-        }
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "07. Envoyer email Resend",
-      "name": "07. Envoyer email Resend",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1250,
-        350
-      ],
-      "credentials": {
-        "headerAuth": {
-          "id": "resend-api-credential",
-          "name": "Resend API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.talosprimes.com/api/notifications",
-        "method": "POST",
-        "headerParameters": {
-          "parameters": []
-        },
-        "sendBody": true,
-        "bodyParametersUi": "keyvalue",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "type",
-              "value": "invoice_paid"
-            },
-            {
-              "name": "tenantId",
-              "value": "={{ $nodes['02. Parser payload'].output[0].tenantId }}"
-            },
-            {
-              "name": "invoiceId",
-              "value": "={{ $nodes['03. Récupérer facture'].output[0].id }}"
-            },
-            {
-              "name": "status",
-              "value": "completed"
-            },
-            {
-              "name": "timestamp",
-              "value": "={{ new Date().toISOString() }}"
-            }
-          ]
-        },
-        "authentication": "headerAuth"
-      },
-      "id": "08. Notification TalosPrimes",
-      "name": "08. Notification TalosPrimes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1250,
-        150
-      ],
-      "credentials": {
-        "headerAuth": {
-          "id": "talosprimes-api-credential",
-          "name": "API TalosPrimes - Header Auth"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "responseData": "={{ { success: true, message: 'Invoice payment confirmed', invoiceId: $nodes['03. Récupérer facture'].output[0].id, invoiceNumber: $nodes['03. Récupérer facture'].output[0].numero_facture || $nodes['03. Récupérer facture'].output[0].id, paymentDate: new Date().toISOString(), amount: $nodes['03. Récupérer facture'].output[0].montant_ttc } }}"
-      },
-      "id": "09. Répondre succès",
-      "name": "09. Répondre succès",
+      "id": "respond-ok",
+      "name": "11. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1450,
-        150
-      ]
-    },
-    {
-      "parameters": {
-        "responseData": "={{ { success: false, message: 'Invoice not found or invalid', tenantId: $nodes['02. Parser payload'].output[0].tenantId, invoiceId: $nodes['02. Parser payload'].output[0].invoiceId } }}"
-      },
-      "id": "Répondre erreur not found",
-      "name": "Répondre erreur not found",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        1050,
-        500
-      ]
+      "position": [1960, 300]
     }
   ],
   "connections": {
-    "01. Webhook": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Payload valide ?", "type": "main", "index": 0 }]] },
+    "03. Payload valide ?": {
       "main": [
-        [
-          {
-            "node": "02. Parser payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "04. Repondre invalide", "type": "main", "index": 0 }],
+        [{ "node": "05. Verifier facture existe", "type": "main", "index": 0 }]
       ]
     },
-    "02. Parser payload": {
+    "05. Verifier facture existe": { "main": [[{ "node": "06. Facture trouvee ?", "type": "main", "index": 0 }]] },
+    "06. Facture trouvee ?": {
       "main": [
-        [
-          {
-            "node": "03. Récupérer facture",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "08. UPDATE payee", "type": "main", "index": 0 }],
+        [{ "node": "07. Repondre 404", "type": "main", "index": 0 }]
       ]
     },
-    "03. Récupérer facture": {
-      "main": [
-        [
-          {
-            "node": "04. Validation facture",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "04. Validation facture": {
-      "main": [
-        [
-          {
-            "node": "05. Mettre à jour facture",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Répondre erreur not found",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "05. Mettre à jour facture": {
-      "main": [
-        [
-          {
-            "node": "06. Préparer reçu email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "06. Préparer reçu email": {
-      "main": [
-        [
-          {
-            "node": "07. Envoyer email Resend",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "07. Envoyer email Resend": {
-      "main": [
-        [
-          {
-            "node": "08. Notification TalosPrimes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "08. Notification TalosPrimes": {
-      "main": [
-        [
-          {
-            "node": "09. Répondre succès",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "08. UPDATE payee": { "main": [[{ "node": "09. Recuperer mise a jour", "type": "main", "index": 0 }]] },
+    "09. Recuperer mise a jour": { "main": [[{ "node": "10. Formater", "type": "main", "index": 0 }]] },
+    "10. Formater": { "main": [[{ "node": "11. Repondre succes", "type": "main", "index": 0 }]] }
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "versionId": "19b46149-5d6d-4d42-b0a2-1a1f3c7f8e2b",
-  "meta": {
-    "instanceId": "93e8c4f2-7b1c-4d8e-9a2f-1c3e5g7h9j1l"
-  },
-  "pinData": {}
+  "active": false,
+  "settings": { "executionOrder": "v1" }
 }

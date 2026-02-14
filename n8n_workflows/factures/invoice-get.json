@@ -1,9 +1,9 @@
 {
-  "name": "invoice-overdue",
+  "name": "invoice-get",
   "nodes": [
     {
       "parameters": {
-        "path": "invoice-overdue",
+        "path": "invoice-get",
         "httpMethod": "POST",
         "responseMode": "responseNode"
       },
@@ -15,7 +15,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nconst tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nif(!tenantId)return [{json:{_error:true,message:'tenantId requis'}}];\nreturn [{json:{tenantId}}];"
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst invoiceId=g(data,'invoiceId','invoice_id')||g(payload,'invoiceId','invoice_id');\nconst tenantId=g(data,'tenantId','tenant_id')||g(payload,'tenantId','tenant_id')||g(raw,'tenantId');\nif(!invoiceId||!tenantId)return [{json:{_error:true,message:'invoiceId et tenantId requis'}}];\nreturn [{json:{invoiceId,tenantId}}];"
       },
       "id": "parser",
       "name": "02. Parser",
@@ -47,10 +47,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COALESCE(json_agg(row_to_json(sub)), '[]'::json) AS invoices FROM (SELECT id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, statut, client_final_id FROM invoices WHERE tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"' AND statut = 'envoyee' AND date_echeance < NOW() ORDER BY date_echeance ASC) sub\" }}"
+        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT i.id, i.type, i.tenant_id, i.client_final_id, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, cf.email, cf.nom, cf.prenom, cf.raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '\" + ($json.invoiceId || '').replace(/'/g, \"''\") + \"' AND i.tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS invoice\" }}"
       },
-      "id": "pg-overdue",
-      "name": "05. SELECT factures en retard",
+      "id": "pg-get",
+      "name": "05. SELECT facture",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [860, 300],
@@ -58,7 +58,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row=$input.first().json;\nlet invoices=row.invoices||[];\nif(typeof invoices==='string')invoices=JSON.parse(invoices);\nreturn [{json:{success:true,count:invoices.length,invoices:invoices}}];"
+        "jsCode": "const row=$input.first().json;\nconst inv=row.invoice;\nif(!inv)return [{json:{success:false,error:'Facture non trouvee'}}];\nconst parsed=typeof inv==='string'?JSON.parse(inv):inv;\nreturn [{json:{success:true,data:{invoice:parsed}}}];"
       },
       "id": "format",
       "name": "06. Formater",
@@ -84,10 +84,10 @@
     "03. Valide ?": {
       "main": [
         [{ "node": "04. Repondre erreur", "type": "main", "index": 0 }],
-        [{ "node": "05. SELECT factures en retard", "type": "main", "index": 0 }]
+        [{ "node": "05. SELECT facture", "type": "main", "index": 0 }]
       ]
     },
-    "05. SELECT factures en retard": { "main": [[{ "node": "06. Formater", "type": "main", "index": 0 }]] },
+    "05. SELECT facture": { "main": [[{ "node": "06. Formater", "type": "main", "index": 0 }]] },
     "06. Formater": { "main": [[{ "node": "07. Repondre", "type": "main", "index": 0 }]] }
   },
   "active": false,
