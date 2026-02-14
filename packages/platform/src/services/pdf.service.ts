@@ -189,7 +189,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   // INFOS FACTURE - Numero + dates (ligne simple)
   // ═══════════════════════════════════════════════════════════════════
 
-  const infoBoxH = 35;
+  const infoBoxH = 30;
   page.drawRectangle({
     x: ml, y: y - infoBoxH,
     width: contentWidth, height: infoBoxH,
@@ -198,16 +198,12 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     borderWidth: 0.5,
   });
 
-  const infoY = y - 14;
+  const infoY = y - 12;
   const col1 = ml + 16;
-  const col2 = ml + contentWidth * 0.40;
 
-  // Numero facture
+  // Numero facture uniquement
   page.drawText('N\u00B0 Facture', { x: col1, y: infoY, size: 7, font, color: COLORS.muted });
-  page.drawText(safe(invoice.numeroFacture), { x: col1, y: infoY - 14, size: 11, font: fontBold, color: COLORS.primary });
-
-  // Date de facturation uniquement (echeance en bas dans le tableau paiement)
-  page.drawText(`Date : ${formatDate(invoice.dateFacture)}`, { x: col2, y: infoY - 7, size: 9, font, color: COLORS.dark });
+  page.drawText(safe(invoice.numeroFacture), { x: col1, y: infoY - 13, size: 11, font: fontBold, color: COLORS.primary });
 
   y -= infoBoxH + 25;
 
@@ -354,10 +350,8 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     ['Date de facturation', formatDateShort(invoice.dateFacture)],
     ['Date d\'echeance', formatDateShort(invoice.dateEcheance)],
     ['Mode de paiement', safe(invoice.modePaiement) || 'Virement bancaire'],
+    ['RIB / IBAN', safe(invoice.tenant?.rib) || '-'],
   ];
-  if (invoice.tenant?.rib) {
-    payInfos.push(['RIB / IBAN', safe(invoice.tenant.rib)]);
-  }
 
   const payColLabelW = 160;
   const payRowH = 20;
