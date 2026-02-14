@@ -389,6 +389,23 @@ export const apiClient = {
       }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string }>(`/api/invoices/${id}`, { method: 'DELETE' }),
+    /** Télécharge le PDF avec authentification et l'ouvre dans un nouvel onglet */
+    downloadPdf: async (id: string): Promise<void> => {
+      const token = getAccessToken();
+      if (!token) throw new Error('Non authentifié');
+      const response = await fetch(`${API_URL}/api/invoices/${id}/pdf`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Erreur PDF : ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Libérer l'URL blob après un délai (le navigateur a besoin de temps pour l'ouvrir)
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
   },
 
   // Logs

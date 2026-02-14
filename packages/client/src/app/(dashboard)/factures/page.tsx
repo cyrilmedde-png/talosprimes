@@ -195,11 +195,15 @@ export default function FacturesPage() {
     }
   };
 
-  const handleView = (inv: Invoice) => {
-    if (inv.lienPdf) {
-      window.open(inv.lienPdf, '_blank', 'noopener,noreferrer');
-    } else {
-      alert('PDF non disponible pour cette facture.');
+  const handleView = async (inv: Invoice) => {
+    try {
+      setActionLoading(inv.id);
+      await apiClient.invoices.downloadPdf(inv.id);
+    } catch (err) {
+      console.error('Erreur PDF:', err);
+      alert('Impossible de charger le PDF de cette facture.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -501,17 +505,14 @@ export default function FacturesPage() {
                           <TrashIcon className="h-4 w-4" />
                           Supprimer
                         </button>
-                        {inv.lienPdf && (
-                          <a
-                            href={inv.lienPdf}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-600"
-                            title="Télécharger PDF"
-                          >
-                            <DocumentArrowDownIcon className="h-5 w-5" />
-                          </a>
-                        )}
+                        <button
+                          onClick={() => handleView(inv)}
+                          disabled={!!actionLoading}
+                          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Voir le PDF"
+                        >
+                          <DocumentArrowDownIcon className="h-5 w-5" />
+                        </button>
                         {inv.statut === 'brouillon' && (
                           <button
                             type="button"
