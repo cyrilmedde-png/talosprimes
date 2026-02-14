@@ -105,6 +105,15 @@ export default function LandingPage() {
     );
   }
 
+  const show = (key: string) => (content[key] ?? 'true') !== 'false';
+  const primaryLink = (content.hero_cta_primary_lien ?? '').trim() || '/inscription';
+  const secondaryLink = (content.hero_cta_secondary_lien ?? '').trim() || '#features';
+  const ctaSectionLink = (content.cta_section_lien ?? '').trim() || '/inscription';
+  const isExternal = (href: string) => href.startsWith('http') || href.startsWith('//');
+
+  const CtaLink = ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
+    isExternal(href) ? <a href={href} className={className}>{children}</a> : <Link href={href} className={className}>{children}</Link>;
+
   return (
     <div className="min-h-screen bg-white text-slate-800 antialiased">
       {showToast && <Toast type={toastType} message={toastMessage} onClose={() => setShowToast(false)} />}
@@ -116,52 +125,59 @@ export default function LandingPage() {
             <span>{content.footer_company_name || 'TalosPrimes'}</span>
           </Link>
           <div className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-slate-500 text-sm hover:text-slate-900 transition">Fonctionnalités</a>
-            <a href="#testimonials" className="text-slate-500 text-sm hover:text-slate-900 transition">Témoignages</a>
-            <a href="#contact" className="text-slate-500 text-sm hover:text-slate-900 transition">Contact</a>
+            {show('section_features_actif') && <a href="#features" className="text-slate-500 text-sm hover:text-slate-900 transition">Fonctionnalités</a>}
+            {show('section_testimonials_actif') && <a href="#testimonials" className="text-slate-500 text-sm hover:text-slate-900 transition">Témoignages</a>}
+            {show('section_contact_actif') && <a href="#contact" className="text-slate-500 text-sm hover:text-slate-900 transition">Contact</a>}
             <Link href="/login" className="text-slate-500 text-sm hover:text-slate-900 transition">Connexion</Link>
-            <Link href="/inscription" className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
-              {content.hero_cta_primary || 'Essayer'}
-            </Link>
+            {show('section_hero_actif') && (
+              <CtaLink href={primaryLink} className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
+                {content.hero_cta_primary || 'Essayer'}
+              </CtaLink>
+            )}
           </div>
         </nav>
       </header>
 
-      <section className="pt-24 pb-16 px-6 border-b border-slate-100">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight leading-tight mb-5">
-            {content.hero_title || 'Automatisez votre gestion d\'entreprise'}
-          </h1>
-          <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto leading-relaxed mb-8">
-            {content.hero_subtitle || 'CRM, facturation et automatisation dans une seule plateforme.'}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/inscription" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
-              {content.hero_cta_primary || 'Essayer'}
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <a href="#features" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-300 text-slate-600 text-sm font-medium rounded-md hover:bg-slate-50 transition">
-              {content.hero_cta_secondary || 'Découvrir'}
-              <ChevronDown className="w-4 h-4" />
-            </a>
+      {show('section_hero_actif') && (
+        <section className="pt-24 pb-16 px-6 border-b border-slate-100">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight leading-tight mb-5">
+              {content.hero_title || 'Automatisez votre gestion d\'entreprise'}
+            </h1>
+            <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto leading-relaxed mb-8">
+              {content.hero_subtitle || 'CRM, facturation et automatisation dans une seule plateforme.'}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <CtaLink href={primaryLink} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
+                {content.hero_cta_primary || 'Essayer'}
+                <ArrowRight className="w-4 h-4" />
+              </CtaLink>
+              <CtaLink href={secondaryLink} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-300 text-slate-600 text-sm font-medium rounded-md hover:bg-slate-50 transition">
+                {content.hero_cta_secondary || 'Découvrir'}
+                <ChevronDown className="w-4 h-4" />
+              </CtaLink>
+            </div>
+            {show('section_stats_actif') && (
+              <div className="mt-14 pt-10 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg mx-auto">
+                <div>
+                  <div className="text-xl font-medium text-slate-900">{content.stats_1_value || '95%'}</div>
+                  <div className="text-xs text-slate-500 mt-1">{content.stats_1_label || 'Gain de temps'}</div>
+                </div>
+                <div>
+                  <div className="text-xl font-medium text-slate-900">{content.stats_2_value || '24/7'}</div>
+                  <div className="text-xs text-slate-500 mt-1">{content.stats_2_label || 'Automatisation'}</div>
+                </div>
+                <div>
+                  <div className="text-xl font-medium text-slate-900">{content.stats_3_value || '100%'}</div>
+                  <div className="text-xs text-slate-500 mt-1">{content.stats_3_label || 'Satisfaction'}</div>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="mt-14 pt-10 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg mx-auto">
-            <div>
-              <div className="text-xl font-medium text-slate-900">{content.stats_1_value || '95%'}</div>
-              <div className="text-xs text-slate-500 mt-1">{content.stats_1_label || 'Gain de temps'}</div>
-            </div>
-            <div>
-              <div className="text-xl font-medium text-slate-900">{content.stats_2_value || '24/7'}</div>
-              <div className="text-xs text-slate-500 mt-1">{content.stats_2_label || 'Automatisation'}</div>
-            </div>
-            <div>
-              <div className="text-xl font-medium text-slate-900">{content.stats_3_value || '100%'}</div>
-              <div className="text-xs text-slate-500 mt-1">{content.stats_3_label || 'Satisfaction'}</div>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
+      {show('section_features_actif') && (
       <section id="features" className="py-16 px-6 bg-slate-50/50">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
@@ -188,7 +204,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      )}
 
+      {show('section_testimonials_actif') && (
       <section id="testimonials" className="py-16 px-6 bg-white border-t border-slate-100">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
@@ -220,7 +238,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      )}
 
+      {show('section_contact_actif') && (
       <section id="contact" className="py-16 px-6 bg-slate-50/50">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10">
@@ -321,7 +341,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      )}
 
+      {show('section_cta_actif') && (
       <section className="py-12 px-6 bg-slate-900 text-white">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-xl font-medium text-white mb-3">
@@ -330,12 +352,13 @@ export default function LandingPage() {
           <p className="text-slate-400 text-sm mb-6">
             {content.cta_section_subtitle || 'Rejoignez les entreprises qui automatisent leur quotidien.'}
           </p>
-          <Link href="/inscription" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 text-sm font-medium rounded-md hover:bg-slate-100 transition">
+          <CtaLink href={ctaSectionLink} className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 text-sm font-medium rounded-md hover:bg-slate-100 transition">
             Commencer
             <ArrowRight className="w-4 h-4" />
-          </Link>
+          </CtaLink>
         </div>
       </section>
+      )}
 
       <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 py-10 px-6">
         <div className="max-w-5xl mx-auto">
