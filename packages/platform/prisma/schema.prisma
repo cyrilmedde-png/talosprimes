@@ -297,6 +297,7 @@ model Invoice {
   montantTtc        Decimal       @map("montant_ttc") @db.Decimal(10, 2)
   tvaTaux           Decimal?      @map("tva_taux") @db.Decimal(5, 2)
   description       String?       @map("description") @db.Text
+  codeArticle       String?       @map("code_article")
   modePaiement      String?       @map("mode_paiement")
   statut            InvoiceStatus @default(brouillon)
   lienPdf           String?       @map("lien_pdf")

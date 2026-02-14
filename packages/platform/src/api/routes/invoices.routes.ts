@@ -343,6 +343,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           montantTtc: Number(invoice.montantTtc),
           tvaTaux: invoice.tvaTaux != null ? Number(invoice.tvaTaux) : null,
           description: invoice.description ?? undefined,
+          codeArticle: invoice.codeArticle ?? undefined,
           modePaiement: invoice.modePaiement ?? undefined,
           statut: invoice.statut,
           clientFinal: invoice.clientFinal ?? undefined,

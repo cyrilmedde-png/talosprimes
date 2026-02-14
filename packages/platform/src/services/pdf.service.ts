@@ -10,6 +10,7 @@ export type InvoiceForPdf = {
   montantTtc: number;
   tvaTaux: number | null;
   description?: string;
+  codeArticle?: string;
   modePaiement?: string;
   statut?: string;
   clientFinal?: {
@@ -248,6 +249,9 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   const tableRight = width - mr;
   const tableW = tableRight - tableLeft;
 
+  // Colonnes : Code | Designation | Qte | P.U. HT | Total HT
+  const colCode = tableLeft + 12;
+  const colDesig = tableLeft + 80;
   const colQte = tableRight - 200;
   const colPuHt = tableRight - 130;
   const colTotalHt = tableRight - 10;
@@ -261,15 +265,17 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   });
 
   const thY = y - 18;
-  page.drawText('Designation', { x: tableLeft + 12, y: thY, size: 9, font: fontBold, color: COLORS.white });
+  page.drawText('Code', { x: colCode, y: thY, size: 9, font: fontBold, color: COLORS.white });
+  page.drawText('Designation', { x: colDesig, y: thY, size: 9, font: fontBold, color: COLORS.white });
   page.drawText('Qte', { x: colQte, y: thY, size: 9, font: fontBold, color: COLORS.white });
   drawTextRight(page, 'P.U. HT', colPuHt + 55, thY, fontBold, 9, COLORS.white);
   drawTextRight(page, 'Total HT', colTotalHt, thY, fontBold, 9, COLORS.white);
 
   y -= thH;
 
-  // Ligne de prestation - description reelle de la facture
-  const designation = safe(invoice.description) || 'Prestation de services';
+  // Ligne de prestation
+  const codeArticle = safe(invoice.codeArticle) || '-';
+  const designation = safe(invoice.description) || '-';
   const rowH = 30;
   page.drawRectangle({
     x: tableLeft, y: y - rowH,
@@ -280,7 +286,8 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   });
 
   const rowY = y - 19;
-  page.drawText(designation, { x: tableLeft + 12, y: rowY, size: 9.5, font, color: COLORS.dark });
+  page.drawText(codeArticle, { x: colCode, y: rowY, size: 9, font, color: COLORS.muted });
+  page.drawText(designation, { x: colDesig, y: rowY, size: 9.5, font, color: COLORS.dark });
   page.drawText('1', { x: colQte + 8, y: rowY, size: 9.5, font, color: COLORS.text });
   drawTextRight(page, formatMoney(invoice.montantHt), colPuHt + 55, rowY, font, 9.5, COLORS.text);
   drawTextRight(page, formatMoney(invoice.montantHt), colTotalHt, rowY, font, 9.5, COLORS.dark);
