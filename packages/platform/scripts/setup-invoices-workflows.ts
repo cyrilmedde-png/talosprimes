@@ -82,27 +82,24 @@ async function main() {
   console.log('╚══════════════════════════════════════════════════════════════╝');
   console.log('');
 
-  // ─── 1. Module métier Factures ─────────────────────────────────────────
+  // ─── 1. Module métier Facturation (code aligné avec seed 01-modules.ts) ──
   let moduleMetier = await prisma.moduleMetier.findUnique({
-    where: { code: 'invoices' },
+    where: { code: 'facturation' },
   });
 
   if (!moduleMetier) {
-    console.log('📦 Création du module métier "Factures"...');
+    console.log('📦 Création du module métier "Facturation"...');
     moduleMetier = await prisma.moduleMetier.create({
       data: {
-        code: 'invoices',
-        nomAffiche: 'Gestion des Factures',
-        description: 'Module de gestion des factures et paiements',
-        metierCible: 'tous',
+        code: 'facturation',
+        nomAffiche: 'Facturation',
+        description: 'Module de gestion des factures : création, suivi, paiement, relance',
         prixParMois: 0,
-        categorie: 'Comptabilité',
-        icone: 'FileIcon',
       },
     });
     console.log('   ✅ Module créé (id: %s)\n', moduleMetier.id);
   } else {
-    console.log('📦 Module métier "Factures" : %s (id: %s)\n', moduleMetier.nomAffiche, moduleMetier.id);
+    console.log('📦 Module métier "Facturation" : %s (id: %s)\n', moduleMetier.nomAffiche, moduleMetier.id);
   }
 
   // ─── 2. Tenants ─────────────────────────────────────────────────────────
