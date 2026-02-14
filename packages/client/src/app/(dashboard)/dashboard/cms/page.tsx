@@ -312,28 +312,11 @@ export default function CMSPage() {
     }
   };
 
-  // Clés pour afficher/masquer les sections (contenu "true" | "false")
-  const sectionVisibilityKeys = [
-    { key: 'section_hero_actif', label: 'Bloc Hero' },
-    { key: 'section_features_actif', label: 'Bloc Fonctionnalités' },
-    { key: 'section_stats_actif', label: 'Bloc Statistiques' },
-    { key: 'section_testimonials_actif', label: 'Bloc Témoignages' },
-    { key: 'section_contact_actif', label: 'Bloc Contact' },
-    { key: 'section_cta_actif', label: 'Bloc CTA final' },
-  ];
-
-  // Liens des boutons (URL)
-  const ctaLinkSections = [
-    { key: 'hero_cta_primary_lien', label: 'Lien du CTA principal (nav + hero)', placeholder: '/inscription' },
-    { key: 'hero_cta_secondary_lien', label: 'Lien du CTA secondaire (hero)', placeholder: '#features' },
-    { key: 'cta_section_lien', label: 'Lien du bouton section CTA final', placeholder: '/inscription' },
-  ];
-
   const contentSections = [
     { key: 'hero_title', label: 'Titre Hero' },
     { key: 'hero_subtitle', label: 'Sous-titre Hero' },
-    { key: 'hero_cta_primary', label: 'CTA Principal (texte du bouton)' },
-    { key: 'hero_cta_secondary', label: 'CTA Secondaire (texte du bouton)' },
+    { key: 'hero_cta_primary', label: 'CTA Principal' },
+    { key: 'hero_cta_secondary', label: 'CTA Secondaire' },
     { key: 'feature_1_title', label: 'Feature 1 - Titre' },
     { key: 'feature_1_desc', label: 'Feature 1 - Description' },
     { key: 'feature_2_title', label: 'Feature 2 - Titre' },
@@ -491,117 +474,105 @@ export default function CMSPage() {
 
       {/* Content Tab */}
       {activeTab === 'content' && (
-        <div className="space-y-6">
-          {/* Affichage des sections (checkboxes) */}
-          <div className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
-            <h3 className="text-lg font-semibold text-white mb-3">Afficher / masquer les sections</h3>
-            <p className="text-sm text-gray-400 mb-4">Cochez pour afficher une section sur la landing, décochez pour la masquer.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {sectionVisibilityKeys.map(({ key, label }) => {
-                const isActive = (editingContent[key] ?? 'true') === 'true';
-                return (
-                  <div key={key} className="flex items-center justify-between gap-2">
-                    <label className="text-sm text-gray-300">{label}</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={isActive}
-                        onChange={async (e) => {
-                          const value = e.target.checked ? 'true' : 'false';
-                          setEditingContent({ ...editingContent, [key]: value });
-                          try {
-                            const token = getAccessToken();
-                            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${key}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                              body: JSON.stringify({ contenu: value }),
-                            });
-                            setContent({ ...content, [key]: value });
-                          } catch (err) {
-                            console.error(err);
-                            alert('Erreur lors de la sauvegarde');
-                          }
-                        }}
-                        className="w-5 h-5 rounded border-gray-600 bg-gray-700/50 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-800"
-                      />
-                      <span className="text-xs text-gray-500">{isActive ? 'Affiché' : 'Masqué'}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Liens des boutons */}
-          <div className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
-            <h3 className="text-lg font-semibold text-white mb-3">Liens des boutons</h3>
-            <p className="text-sm text-gray-400 mb-4">URL cible des boutons d’action (ex: /inscription, #features, https://...). Laissez vide pour utiliser la valeur par défaut.</p>
-            <div className="space-y-4">
-              {ctaLinkSections.map((section) => (
-                <div key={section.key}>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">{section.label}</label>
-                  <div className="flex gap-2">
+        <div className="space-y-4">
+          {contentSections.map((section) => {
+            const actifKey = `${section.key}_actif`;
+            const lienKey = `${section.key}_lien`;
+            const isActive = (editingContent[actifKey] ?? 'true') === 'true';
+            return (
+              <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
+                <label className="block text-sm font-semibold text-gray-300 mb-2">{section.label}</label>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {section.label.includes('Description') ? (
+                    <textarea
+                      value={editingContent[section.key] || ''}
+                      onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
+                      rows={3}
+                      className="flex-1 min-w-[200px] px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
+                    />
+                  ) : (
                     <input
                       type="text"
-                      value={editingContent[section.key] ?? ''}
+                      value={editingContent[section.key] || ''}
                       onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
-                      placeholder={section.placeholder}
-                      className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
+                      className="flex-1 min-w-[200px] px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
+                    />
+                  )}
+                  <button
+                    onClick={() => saveContent(section.key)}
+                    disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-700/50">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={async (e) => {
+                        const value = e.target.checked ? 'true' : 'false';
+                        setEditingContent((prev) => ({ ...prev, [actifKey]: value }));
+                        setContent((prev) => ({ ...prev, [actifKey]: value }));
+                        try {
+                          const token = getAccessToken();
+                          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${actifKey}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ contenu: value }),
+                          });
+                        } catch (err) {
+                          console.error(err);
+                          alert('Erreur lors de la sauvegarde');
+                        }
+                      }}
+                      className="w-5 h-5 rounded border-gray-600 bg-gray-700/50 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-800"
+                    />
+                    <span className="text-sm text-gray-400">Afficher</span>
+                  </label>
+                  <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                    <span className="text-sm text-gray-400 whitespace-nowrap">Lien (URL)</span>
+                    <input
+                      type="text"
+                      value={editingContent[lienKey] || ''}
+                      onChange={(e) => setEditingContent({ ...editingContent, [lienKey]: e.target.value })}
+                      placeholder="/page ou https://..."
+                      className="flex-1 px-3 py-1.5 bg-gray-700/50 border border-gray-600 text-white text-sm rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-500"
                     />
                     <button
-                      onClick={() => saveContent(section.key)}
-                      disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
-                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      onClick={async () => {
+                        setSavingContent(lienKey);
+                        try {
+                          const token = getAccessToken();
+                          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${lienKey}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ contenu: editingContent[lienKey] || '' }),
+                          });
+                          setContent({ ...content, [lienKey]: editingContent[lienKey] || '' });
+                          alert('Lien sauvegardé');
+                        } catch (err) {
+                          console.error(err);
+                          alert('Erreur');
+                        } finally {
+                          setSavingContent(null);
+                        }
+                      }}
+                      disabled={savingContent === lienKey}
+                      className="px-4 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-500 transition disabled:opacity-50"
                     >
-                      <Save className="w-4 h-4" />
-                      {savingContent === section.key ? '...' : 'Sauvegarder'}
+                      Sauvegarder le lien
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Contenu texte */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-3">Textes de la landing</h3>
-            <div className="space-y-4">
-          {contentSections.map((section) => (
-            <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
-              <label className="block text-sm font-semibold text-gray-300 mb-2">
-                {section.label}
-              </label>
-              <div className="flex gap-2">
-                {section.label.includes('Description') ? (
-                  <textarea
-                    value={editingContent[section.key] || ''}
-                    onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
-                    rows={3}
-                    className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={editingContent[section.key] || ''}
-                    onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
-                    className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
-                  />
-                )}
-                <button
-                  onClick={() => saveContent(section.key)}
-                  disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
-                </button>
               </div>
-            </div>
-          ))}
-            </div>
-          </div>
+            );
+          })}
         </div>
       )}
+
 
       {/* Testimonials Tab */}
       {activeTab === 'testimonials' && (
