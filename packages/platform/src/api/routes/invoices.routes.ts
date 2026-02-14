@@ -9,6 +9,13 @@ import { Prisma, InvoiceStatus } from '@prisma/client';
 import { generateInvoicePdf } from '../../services/pdf.service.js';
 
 // Schema de validation pour créer une facture
+const invoiceLineSchema = z.object({
+  codeArticle: z.string().optional().nullable(),
+  designation: z.string().min(1),
+  quantite: z.number().int().positive().default(1),
+  prixUnitaireHt: z.number().positive(),
+});
+
 const createInvoiceSchema = z.object({
   tenantId: z.string().uuid().optional(),
   clientFinalId: z.string().uuid(),
@@ -19,6 +26,8 @@ const createInvoiceSchema = z.object({
   dateEcheance: z.string().datetime({ offset: true }).optional().nullable(),
   numeroFacture: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
+  modePaiement: z.string().optional().nullable(),
+  lines: z.array(invoiceLineSchema).optional(),
   lienPdf: z.union([z.string().url(), z.literal('')]).optional().nullable(),
 });
 
@@ -328,19 +337,22 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
                 adresse: true,
               },
             },
+            lines: {
+              orderBy: { ordre: 'asc' },
+              select: {
+                codeArticle: true,
+                designation: true,
+                quantite: true,
+                prixUnitaireHt: true,
+                totalHt: true,
+              },
+            },
           },
         });
 
         if (!invoice) {
           return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
         }
-
-        console.log('=== PDF DEBUG ===', JSON.stringify({
-          clientFinalId: invoice.clientFinalId,
-          clientFinal: invoice.clientFinal,
-          description: invoice.description,
-          codeArticle: invoice.codeArticle,
-        }, null, 2));
 
         const forPdf = {
           numeroFacture: invoice.numeroFacture,
@@ -353,6 +365,13 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           codeArticle: invoice.codeArticle ?? undefined,
           modePaiement: invoice.modePaiement ?? undefined,
           statut: invoice.statut,
+          lines: invoice.lines.map(l => ({
+            codeArticle: l.codeArticle,
+            designation: l.designation,
+            quantite: l.quantite,
+            prixUnitaireHt: Number(l.prixUnitaireHt),
+            totalHt: Number(l.totalHt),
+          })),
           clientFinal: invoice.clientFinal ?? undefined,
           tenant: invoice.tenant ?? undefined,
         };
@@ -528,8 +547,22 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             dateFacture,
             dateEcheance,
             numeroFacture,
+            description: body.description,
+            modePaiement: body.modePaiement,
             lienPdf: body.lienPdf,
             statut: 'brouillon',
+            ...(body.lines && body.lines.length > 0 ? {
+              lines: {
+                create: body.lines.map((l, i) => ({
+                  codeArticle: l.codeArticle ?? null,
+                  designation: l.designation,
+                  quantite: l.quantite ?? 1,
+                  prixUnitaireHt: l.prixUnitaireHt,
+                  totalHt: (l.quantite ?? 1) * l.prixUnitaireHt,
+                  ordre: i,
+                })),
+              },
+            } : {}),
           },
           include: {
             clientFinal: {
@@ -541,6 +574,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
                 raisonSociale: true,
               },
             },
+            lines: true,
           },
         });
 

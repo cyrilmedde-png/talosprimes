@@ -2,6 +2,14 @@ import { PDFDocument, StandardFonts, rgb, PDFPage, PDFFont } from 'pdf-lib';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
+export type InvoiceLineForPdf = {
+  codeArticle?: string | null;
+  designation: string;
+  quantite: number;
+  prixUnitaireHt: number;
+  totalHt: number;
+};
+
 export type InvoiceForPdf = {
   numeroFacture: string;
   dateFacture: Date;
@@ -13,6 +21,7 @@ export type InvoiceForPdf = {
   codeArticle?: string;
   modePaiement?: string;
   statut?: string;
+  lines?: InvoiceLineForPdf[];
   clientFinal?: {
     raisonSociale?: string | null;
     nom?: string | null;
@@ -264,26 +273,39 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   y -= thH;
 
-  // Ligne de prestation
-  const codeArticle = safe(invoice.codeArticle) || '-';
-  const designation = safe(invoice.description) || '-';
-  const rowH = 30;
-  page.drawRectangle({
-    x: tableLeft, y: y - rowH,
-    width: tableW, height: rowH,
-    color: COLORS.rowAlt,
-    borderColor: COLORS.border,
-    borderWidth: 0.3,
-  });
+  // Lignes de prestation (depuis InvoiceLine ou fallback ancien champ description)
+  const lines: InvoiceLineForPdf[] = (invoice.lines && invoice.lines.length > 0)
+    ? invoice.lines
+    : [{
+        codeArticle: invoice.codeArticle || null,
+        designation: invoice.description || '-',
+        quantite: 1,
+        prixUnitaireHt: invoice.montantHt,
+        totalHt: invoice.montantHt,
+      }];
 
-  const rowY = y - 19;
-  page.drawText(codeArticle, { x: colCode, y: rowY, size: 9, font, color: COLORS.muted });
-  page.drawText(designation, { x: colDesig, y: rowY, size: 9.5, font, color: COLORS.dark });
-  page.drawText('1', { x: colQte + 8, y: rowY, size: 9.5, font, color: COLORS.text });
-  drawTextRight(page, formatMoney(invoice.montantHt), colPuHt + 55, rowY, font, 9.5, COLORS.text);
-  drawTextRight(page, formatMoney(invoice.montantHt), colTotalHt, rowY, font, 9.5, COLORS.dark);
+  const rowH = 26;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const rowBg = i % 2 === 0 ? COLORS.rowAlt : COLORS.white;
 
-  y -= rowH;
+    page.drawRectangle({
+      x: tableLeft, y: y - rowH,
+      width: tableW, height: rowH,
+      color: rowBg,
+      borderColor: COLORS.border,
+      borderWidth: 0.3,
+    });
+
+    const rowY = y - 17;
+    page.drawText(safe(line.codeArticle) || '-', { x: colCode, y: rowY, size: 9, font, color: COLORS.muted });
+    page.drawText(safe(line.designation) || '-', { x: colDesig, y: rowY, size: 9.5, font, color: COLORS.dark });
+    page.drawText(String(line.quantite ?? 1), { x: colQte + 8, y: rowY, size: 9.5, font, color: COLORS.text });
+    drawTextRight(page, formatMoney(line.prixUnitaireHt), colPuHt + 55, rowY, font, 9.5, COLORS.text);
+    drawTextRight(page, formatMoney(line.totalHt), colTotalHt, rowY, font, 9.5, COLORS.dark);
+
+    y -= rowH;
+  }
 
   // Bordure basse du tableau
   page.drawLine({
