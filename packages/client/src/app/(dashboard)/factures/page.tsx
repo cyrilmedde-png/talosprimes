@@ -407,7 +407,7 @@ export default function FacturesPage() {
                     <td className="px-4 py-3 text-sm font-mono text-white">{inv.numeroFacture}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">{clientLabel(inv)}</td>
                     <td className="px-4 py-3 text-sm text-gray-400">{formatDate(inv.dateFacture)}</td>
-                    <td className="px-4 py-3 text-sm text-right text-white">{inv.montantTtc.toFixed(2)} €</td>
+                    <td className="px-4 py-3 text-sm text-right text-white">{(Number(inv.montantTtc) || 0).toFixed(2)} €</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
                         inv.statut === 'payee' ? 'bg-green-500/20 text-green-300' :
