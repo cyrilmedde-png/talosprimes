@@ -15,6 +15,8 @@ import {
   DocumentTextIcon,
   ReceiptRefundIcon,
   TrashIcon,
+  EyeIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -120,6 +122,11 @@ export default function FacturesPage() {
   // Message "bientôt" pour Devis / Proforma / Avoir
   const [bientotMessage, setBientotMessage] = useState<string | null>(null);
 
+  // Modal Modifier (statut)
+  const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
+  const [editStatut, setEditStatut] = useState<string>('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
@@ -183,6 +190,51 @@ export default function FacturesPage() {
       await loadInvoices();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur marquage payée');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleView = (inv: Invoice) => {
+    if (inv.lienPdf) {
+      window.open(inv.lienPdf, '_blank', 'noopener,noreferrer');
+    } else {
+      alert('PDF non disponible pour cette facture.');
+    }
+  };
+
+  const handleEditOpen = (inv: Invoice) => {
+    setEditInvoiceId(inv.id);
+    setEditStatut(inv.statut);
+  };
+
+  const handleEditSave = async () => {
+    if (!editInvoiceId) return;
+    try {
+      setSavingEdit(true);
+      await apiClient.invoices.update(editInvoiceId, { statut: editStatut as Invoice['statut'] });
+      await loadInvoices();
+      setEditInvoiceId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur mise à jour');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const allowDeleteAny = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production';
+  const handleDelete = async (inv: Invoice) => {
+    if (!allowDeleteAny && inv.statut !== 'brouillon') {
+      alert('Seules les factures au statut Brouillon peuvent être supprimées.');
+      return;
+    }
+    if (!confirm(`Supprimer la facture ${inv.numeroFacture} ?`)) return;
+    try {
+      setActionLoading(inv.id);
+      await apiClient.invoices.delete(inv.id);
+      await loadInvoices();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur suppression');
     } finally {
       setActionLoading(null);
     }
@@ -420,7 +472,35 @@ export default function FacturesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleView(inv)}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-white hover:bg-gray-600"
+                          title="Voir"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                          Voir
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditOpen(inv)}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-amber-400 hover:bg-gray-600"
+                          title="Modifier"
+                        >
+                          <PencilSquareIcon className="h-4 w-4" />
+                          Modifier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(inv)}
+                          disabled={!allowDeleteAny && inv.statut !== 'brouillon' || !!actionLoading}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-red-400 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={allowDeleteAny ? 'Supprimer' : 'Supprimer (brouillon uniquement)'}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                          Supprimer
+                        </button>
                         {inv.lienPdf && (
                           <a
                             href={inv.lienPdf}
@@ -754,6 +834,33 @@ export default function FacturesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modifier statut */}
+      {editInvoiceId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => !savingEdit && setEditInvoiceId(null)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">Modifier le statut</h3>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Statut</label>
+            <select
+              value={editStatut}
+              onChange={(e) => setEditStatut(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500 mb-4"
+            >
+              {Object.entries(STATUT_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => !savingEdit && setEditInvoiceId(null)} className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600">
+                Annuler
+              </button>
+              <button type="button" onClick={handleEditSave} disabled={savingEdit} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium disabled:opacity-50">
+                {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
           </div>
         </div>
       )}

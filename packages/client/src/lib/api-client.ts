@@ -382,6 +382,13 @@ export const apiClient = {
         method: 'POST',
         body: JSON.stringify(data || {}),
       }),
+    update: (id: string, data: { statut?: string; lienPdf?: string; idExternePaiement?: string }) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>(`/api/invoices/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string }>(`/api/invoices/${id}`, { method: 'DELETE' }),
   },
 
   // Logs

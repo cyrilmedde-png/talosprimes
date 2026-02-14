@@ -750,4 +750,42 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // DELETE /api/invoices/:id - Supprimer une facture (brouillon uniquement)
+  fastify.delete(
+    '/:id',
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+      try {
+        const params = paramsSchema.parse(request.params);
+        const tenantId = request.tenantId as string;
+        if (!tenantId) {
+          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        }
+        const invoice = await prisma.invoice.findFirst({
+          where: { id: params.id, tenantId },
+        });
+        if (!invoice) {
+          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+        }
+        const isProduction = process.env.NODE_ENV === 'production';
+        if (invoice.statut !== 'brouillon' && isProduction) {
+          return reply.status(400).send({
+            success: false,
+            error: 'Seules les factures au statut Brouillon peuvent être supprimées.',
+          });
+        }
+        await prisma.invoice.delete({ where: { id: params.id } });
+        return reply.status(200).send({ success: true, message: 'Facture supprimée' });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });
+        }
+        fastify.log.error(error, 'Erreur suppression facture');
+        return reply.status(500).send({ success: false, error: 'Erreur lors de la suppression' });
+      }
+    }
+  );
 }
