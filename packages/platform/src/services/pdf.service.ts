@@ -60,7 +60,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   // --- Client
   const client = invoice.clientFinal;
   const clientName =
-    (client?.raisonSociale ?? [client?.prenom, client?.nom].filter(Boolean).join(' ') || '—').trim() || 'Client';
+    (client?.raisonSociale ?? ([client?.prenom, client?.nom].filter(Boolean).join(' ') || '—')).trim() || 'Client';
   draw('Client', margin, 11, true);
   y -= 6;
   draw(clientName, margin, 10);
