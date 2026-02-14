@@ -63,15 +63,6 @@ function winAnsiSafe(text: string): string {
     .replace(/\u201D/g, '"');
 }
 
-function formatDate(d: Date | string | null | undefined): string {
-  if (!d) return '-';
-  try {
-    const date = d instanceof Date ? d : new Date(d);
-    if (isNaN(date.getTime())) return '-';
-    return winAnsiSafe(date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }));
-  } catch { return '-'; }
-}
-
 function formatDateShort(d: Date | string | null | undefined): string {
   if (!d) return '-';
   try {
