@@ -535,7 +535,6 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         }
 
         // Appel depuis n8n (callback du workflow) : persister en base
-        const oldStatus = invoice.statut;
         const updated = await prisma.invoice.update({
           where: { id: params.id },
           data: {
