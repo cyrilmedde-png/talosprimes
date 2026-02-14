@@ -1,0 +1,27 @@
+import { Prisma, PrismaClient } from '@prisma/client';
+
+/**
+ * Crée ou met à jour les modules métiers (ex: facturation).
+ * Utilisé par le seed principal pour que les workflow_links aient un module.
+ */
+export async function seedModules(prisma: PrismaClient): Promise<void> {
+  console.log('📦 Modules métiers...');
+
+  const prixZero = new Prisma.Decimal(0);
+  await prisma.moduleMetier.upsert({
+    where: { code: 'facturation' },
+    update: {
+      nomAffiche: 'Facturation',
+      description: 'Module de gestion des factures : création, suivi, paiement, relance',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'facturation',
+      nomAffiche: 'Facturation',
+      description: 'Module de gestion des factures : création, suivi, paiement, relance',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module facturation OK');
+}

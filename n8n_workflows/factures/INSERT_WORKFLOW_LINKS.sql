@@ -54,12 +54,13 @@ DECLARE
   mod_id UUID;
   workflows TEXT[][] := ARRAY[
     -- {type_evenement, workflow_n8n_id, workflow_n8n_nom}
-    ARRAY['invoice_create',  'invoice_create',  'invoice-created'],
-    ARRAY['invoices_list',   'invoices_list',   'invoices-list'],
-    ARRAY['invoice_get',     'invoice_get',     'invoice-get'],
-    ARRAY['invoice_update',  'invoice_update',  'invoice-update'],
-    ARRAY['invoice_paid',    'invoice_paid',    'invoice-paid'],
-    ARRAY['invoice_overdue', 'invoice_overdue', 'invoice-overdue']
+    ARRAY['invoice_create',       'invoice_create',       'invoice-created'],
+    ARRAY['invoices_list',        'invoices_list',        'invoices-list'],
+    ARRAY['invoice_get',          'invoice_get',          'invoice-get'],
+    ARRAY['invoice_update',       'invoice_update',       'invoice-update'],
+    ARRAY['invoice_paid',         'invoice_paid',         'invoice-paid'],
+    ARRAY['invoice_overdue',      'invoice_overdue',      'invoice-overdue'],
+    ARRAY['invoice_generate_pdf', 'invoice_generate_pdf', 'invoice-generate-pdf']
   ];
   w TEXT[];
 BEGIN

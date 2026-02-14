@@ -13,6 +13,7 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   invoice_overdue: 'invoice-overdue',
   invoice_get: 'invoice-get',
   invoice_update: 'invoice-update',
+  invoice_generate_pdf: 'invoice-generate-pdf',
   invoices_list: 'invoices-list',
   // Abonnements
   subscription_renewal: 'subscription-renewal',

@@ -6,6 +6,7 @@ import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { Prisma, InvoiceStatus } from '@prisma/client';
+import { generateInvoicePdf } from '../../services/pdf.service.js';
 
 // Schema de validation pour créer une facture
 const createInvoiceSchema = z.object({
@@ -278,6 +279,71 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           success: false,
           error: 'Erreur lors de la récupération de la facture',
         });
+      }
+    }
+  );
+
+  // GET /api/invoices/:id/pdf - Génère et retourne le PDF de la facture
+  fastify.get(
+    '/:id/pdf',
+    {
+      preHandler: [n8nOrAuthMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+      try {
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
+        const params = paramsSchema.parse(request.params);
+
+        if (!tenantId && !fromN8n) {
+          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        }
+
+        const invoiceWhere: Prisma.InvoiceWhereInput = { id: params.id };
+        if (tenantId) invoiceWhere.tenantId = tenantId;
+
+        const invoice = await prisma.invoice.findFirst({
+          where: invoiceWhere,
+          include: {
+            clientFinal: {
+              select: {
+                raisonSociale: true,
+                nom: true,
+                prenom: true,
+                email: true,
+                adresse: true,
+              },
+            },
+          },
+        });
+
+        if (!invoice) {
+          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+        }
+
+        const forPdf = {
+          numeroFacture: invoice.numeroFacture,
+          dateFacture: invoice.dateFacture,
+          dateEcheance: invoice.dateEcheance,
+          montantHt: Number(invoice.montantHt),
+          montantTtc: Number(invoice.montantTtc),
+          tvaTaux: invoice.tvaTaux != null ? Number(invoice.tvaTaux) : null,
+          clientFinal: invoice.clientFinal ?? undefined,
+        };
+
+        const pdfBytes = await generateInvoicePdf(forPdf);
+        const filename = `facture-${invoice.numeroFacture.replace(/\s+/g, '-')}.pdf`;
+
+        return reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `inline; filename="${filename}"`)
+          .send(Buffer.from(pdfBytes));
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });
+        }
+        fastify.log.error(error, 'Erreur génération PDF facture');
+        return reply.status(500).send({ success: false, error: 'Erreur lors de la génération du PDF' });
       }
     }
   );

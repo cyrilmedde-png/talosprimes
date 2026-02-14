@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
-async function seedLanding() {
+/**
+ * Seed du contenu landing + testimonials.
+ * Peut être appelé depuis le seed principal en passant une instance Prisma.
+ */
+export async function runSeedLanding(prisma: PrismaClient): Promise<void> {
   console.log('🌱 Seed landing page...');
 
   // ===== LANDING CONTENT =====
@@ -284,22 +286,13 @@ async function seedLanding() {
     },
   ];
 
-  for (const testimonial of testimonials) {
-    await prisma.testimonial.create({
-      data: testimonial,
-    });
+  const count = await prisma.testimonial.count();
+  if (count === 0) {
+    await prisma.testimonial.createMany({ data: testimonials });
+    console.log('✅ Testimonials créés');
+  } else {
+    console.log('✅ Testimonials déjà présents (ignorés)');
   }
-
-  console.log('✅ Testimonials créés');
 
   console.log('🎉 Seed landing terminé avec succès !');
 }
-
-seedLanding()
-  .catch((e) => {
-    console.error('❌ Erreur lors du seed landing:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });

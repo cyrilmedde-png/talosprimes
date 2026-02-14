@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { seedModules } from './seeds/01-modules';
+import { seedWorkflowLinksFacturation } from './seeds/02-workflow-links';
+import { runSeedLanding } from './seed-landing';
 
 const prisma = new PrismaClient();
 
@@ -78,6 +81,15 @@ async function main() {
 
   console.log(`✅ Abonnement créé (montant: ${subscription.montantMensuelActuel}€)`);
 
+  // 4. Modules métiers (ex: facturation)
+  await seedModules(prisma);
+
+  // 5. Contenu landing + testimonials
+  await runSeedLanding(prisma);
+
+  // 6. Workflow links facturation pour le tenant
+  await seedWorkflowLinksFacturation(prisma, tenant.id);
+
   console.log('\n🎉 Seed terminé avec succès !');
   console.log('\n📋 Résumé:');
   console.log(`   - Tenant: ${tenant.nomEntreprise}`);
@@ -85,6 +97,7 @@ async function main() {
   console.log(`   - Rôle: ${user.role}`);
   console.log(`   - Mot de passe: 21052024_Aa!`);
   console.log('\n🔐 Vous pouvez maintenant vous connecter avec ces identifiants.');
+  console.log('\n💡 Données de démo (clients + factures) : pnpm db:seed:dev');
 }
 
 main()
