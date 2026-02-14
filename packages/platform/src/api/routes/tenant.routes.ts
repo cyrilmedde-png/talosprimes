@@ -20,6 +20,8 @@ const updateTenantSchema = z.object({
   pays: z.string().optional(),
   telephone: z.string().optional().nullable(),
   emailContact: z.string().email().optional(),
+  tvaIntracom: z.string().optional().nullable(),
+  rib: z.string().optional().nullable(),
   metier: z.string().optional(),
 });
 
@@ -54,6 +56,8 @@ export async function tenantRoutes(fastify: FastifyInstance) {
           pays: true,
           telephone: true,
           emailContact: true,
+          tvaIntracom: true,
+          rib: true,
           devise: true,
           langue: true,
           metier: true,
@@ -133,6 +137,8 @@ export async function tenantRoutes(fastify: FastifyInstance) {
           pays: data.pays,
           telephone: data.telephone ?? undefined,
           emailContact: data.emailContact,
+          tvaIntracom: data.tvaIntracom ?? undefined,
+          rib: data.rib ?? undefined,
           metier: data.metier,
         },
         select: {
@@ -149,6 +155,8 @@ export async function tenantRoutes(fastify: FastifyInstance) {
           pays: true,
           telephone: true,
           emailContact: true,
+          tvaIntracom: true,
+          rib: true,
           devise: true,
           langue: true,
           metier: true,

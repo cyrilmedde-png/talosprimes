@@ -87,6 +87,8 @@ export interface Tenant {
   pays: string;
   telephone: string | null;
   emailContact: string;
+  tvaIntracom: string | null;
+  rib: string | null;
   devise: string;
   langue: string;
   metier: string;

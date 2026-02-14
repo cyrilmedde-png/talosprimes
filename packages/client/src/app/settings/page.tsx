@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import type { Tenant, User, StatutJuridique } from '@talosprimes/shared';
-import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api-client';
 
 const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
@@ -43,7 +43,7 @@ type AgentConfigEmail = {
 };
 type AgentConfigQonto = { apiSecret?: string; bankAccountId?: string; configured: boolean };
 
-type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation';
+type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'configPdf';
 
 function SettingsContent() {
   const router = useRouter();
@@ -98,7 +98,7 @@ function SettingsContent() {
   // Ouvrir l'onglet depuis l'URL (?tab=facturation)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent') {
+    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -306,6 +306,17 @@ function SettingsContent() {
             <BanknotesIcon className="h-5 w-5 inline mr-2" />
             Facturation
           </button>
+          <button
+            onClick={() => setActiveTab('configPdf')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'configPdf'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <DocumentTextIcon className="h-5 w-5 inline mr-2" />
+            Config PDF
+          </button>
         </nav>
       </div>
 
@@ -322,7 +333,149 @@ function SettingsContent() {
       )}
 
       {/* Tab Contenu */}
-      {activeTab === 'facturation' ? (
+      {activeTab === 'configPdf' ? (
+        <div className="space-y-6">
+          <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
+            <h2 className="text-xl font-bold text-white mb-2">Configuration du PDF Facture</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Ces informations apparaissent directement sur vos factures PDF. Le nom d'entreprise, l'adresse, le SIRET et les coordonnees se configurent dans l'onglet <button onClick={() => setActiveTab('entreprise')} className="text-indigo-400 hover:underline">Profil Entreprise</button>.
+            </p>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                setSaving(true);
+                setError(null);
+                setSuccess(null);
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tenant`, {
+                  method: 'PUT',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    tvaIntracom: tenant.tvaIntracom || null,
+                    rib: tenant.rib || null,
+                  }),
+                });
+                if (!response.ok) {
+                  const data = await response.json();
+                  throw new Error(data.error || 'Erreur lors de la sauvegarde');
+                }
+                setSuccess('Configuration PDF mise a jour avec succes');
+                await loadData();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+              } finally {
+                setSaving(false);
+              }
+            }} className="space-y-8">
+
+              {/* Informations legales */}
+              <div>
+                <h3 className="text-lg font-medium text-white mb-1">Informations legales</h3>
+                <p className="text-sm text-gray-500 mb-4">Numero de TVA intracommunautaire affiche dans l'en-tete du PDF.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">TVA Intracommunautaire</label>
+                    <input
+                      type="text"
+                      value={(tenant as Record<string, unknown>).tvaIntracom as string || ''}
+                      onChange={(e) => setTenant({ ...tenant, tvaIntracom: e.target.value || null } as Partial<Tenant>)}
+                      placeholder="Ex : FR 12 345678901"
+                      className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="rounded-lg bg-gray-700/30 border border-gray-600/50 px-4 py-3 text-sm text-gray-400 w-full">
+                      <span className="text-gray-500">SIRET :</span>{' '}
+                      <span className="text-white">{tenant.siret || <span className="text-gray-500 italic">Non renseigne</span>}</span>
+                      <span className="text-gray-600 mx-2">|</span>
+                      <button onClick={() => setActiveTab('entreprise')} className="text-indigo-400 hover:underline text-xs">Modifier</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Coordonnees bancaires */}
+              <div>
+                <h3 className="text-lg font-medium text-white mb-1">Coordonnees bancaires</h3>
+                <p className="text-sm text-gray-500 mb-4">RIB / IBAN affiche dans le tableau &quot;Informations de paiement&quot; en bas de la facture.</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">RIB / IBAN</label>
+                  <textarea
+                    value={(tenant as Record<string, unknown>).rib as string || ''}
+                    onChange={(e) => setTenant({ ...tenant, rib: e.target.value || null } as Partial<Tenant>)}
+                    rows={2}
+                    placeholder="Ex : IBAN FR76 1234 5678 9012 3456 7890 123 | BIC BNPAFRPP"
+                    className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Apercu des infos qui apparaissent sur le PDF */}
+              <div>
+                <h3 className="text-lg font-medium text-white mb-3">Apercu - Donnees utilisees sur le PDF</h3>
+                <div className="rounded-lg bg-gray-700/20 border border-gray-600/40 p-5 space-y-3">
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Entreprise :</span>{' '}
+                      <span className="text-white">{tenant.nomEntreprise || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">SIRET :</span>{' '}
+                      <span className="text-white">{tenant.siret || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Adresse :</span>{' '}
+                      <span className="text-white">{tenant.adressePostale || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">CP / Ville :</span>{' '}
+                      <span className="text-white">{[tenant.codePostal, tenant.ville].filter(Boolean).join(' ') || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">TVA Intra :</span>{' '}
+                      <span className="text-white">{(tenant as Record<string, unknown>).tvaIntracom as string || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">RIB :</span>{' '}
+                      <span className="text-white font-mono text-xs">{(tenant as Record<string, unknown>).rib as string || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Email :</span>{' '}
+                      <span className="text-white">{tenant.emailContact || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Telephone :</span>{' '}
+                      <span className="text-white">{tenant.telephone || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info modes de paiement */}
+              <div className="rounded-lg bg-gray-700/30 border border-gray-600/50 p-4">
+                <h3 className="text-sm font-medium text-gray-300 mb-2">Modes de paiement et description</h3>
+                <p className="text-sm text-gray-500">
+                  Le <strong className="text-gray-400">mode de paiement</strong> (CB, Especes, Virement bancaire) et la <strong className="text-gray-400">description</strong> (designation de la prestation) sont configurables par facture lors de la creation. Si non renseignes, les valeurs par defaut sont &quot;Virement bancaire&quot; et &quot;Prestation de services&quot;.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : activeTab === 'facturation' ? (
         <div className="space-y-6">
           <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
             <h2 className="text-xl font-bold text-white mb-2">Configuration de la facturation</h2>
