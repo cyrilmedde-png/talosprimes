@@ -48,18 +48,34 @@ const COLORS = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-function formatDate(d: Date): string {
-  const date = d instanceof Date ? d : new Date(d);
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+function formatDate(d: Date | string | null | undefined): string {
+  if (!d) return '—';
+  try {
+    const date = d instanceof Date ? d : new Date(d);
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  } catch { return '—'; }
 }
 
-function formatDateShort(d: Date): string {
-  const date = d instanceof Date ? d : new Date(d);
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function formatDateShort(d: Date | string | null | undefined): string {
+  if (!d) return '—';
+  try {
+    const date = d instanceof Date ? d : new Date(d);
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch { return '—'; }
 }
 
-function formatMoney(n: number): string {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' \u20AC';
+function formatMoney(n: number | null | undefined): string {
+  const val = Number(n);
+  if (isNaN(val)) return '0,00 €';
+  return val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+/** Safe string for drawText (pdf-lib crashes on null/undefined) */
+function safe(v: unknown): string {
+  if (v == null) return '';
+  return String(v);
 }
 
 function textWidth(text: string, font: PDFFont, size: number): number {
@@ -91,6 +107,16 @@ function getStatutInfo(statut?: string): { label: string; color: ReturnType<type
 // ─── PDF principal ───────────────────────────────────────────────────
 
 export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8Array> {
+  console.log('=== PDF GEN START ===', JSON.stringify({
+    numero: invoice.numeroFacture,
+    dateFacture: invoice.dateFacture,
+    dateEcheance: invoice.dateEcheance,
+    montantHt: invoice.montantHt,
+    montantTtc: invoice.montantTtc,
+    statut: invoice.statut,
+    hasTenant: !!invoice.tenant,
+    hasClient: !!invoice.clientFinal,
+  }));
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -171,7 +197,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   // Col 1 : Numéro
   page.drawText('N\u00B0 Facture', { x: col1, y: infoY, size: 7, font, color: COLORS.muted });
-  page.drawText(invoice.numeroFacture, { x: col1, y: infoY - 15, size: 11, font: fontBold, color: COLORS.primary });
+  page.drawText(safe(invoice.numeroFacture), { x: col1, y: infoY - 15, size: 11, font: fontBold, color: COLORS.primary });
 
   // Col 2 : Date
   page.drawText('Date de facturation', { x: col2, y: infoY, size: 7, font, color: COLORS.muted });

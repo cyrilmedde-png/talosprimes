@@ -355,6 +355,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         if (error instanceof z.ZodError) {
           return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });
         }
+        console.error('=== ERREUR GENERATION PDF ===', error);
         fastify.log.error(error, 'Erreur génération PDF facture');
         return reply.status(500).send({ success: false, error: 'Erreur lors de la génération du PDF' });
       }
