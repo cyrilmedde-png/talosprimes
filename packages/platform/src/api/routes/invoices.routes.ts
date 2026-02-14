@@ -305,6 +305,17 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         const invoice = await prisma.invoice.findFirst({
           where: invoiceWhere,
           include: {
+            tenant: {
+              select: {
+                nomEntreprise: true,
+                siret: true,
+                adressePostale: true,
+                codePostal: true,
+                ville: true,
+                telephone: true,
+                emailContact: true,
+              },
+            },
             clientFinal: {
               select: {
                 raisonSociale: true,
@@ -328,7 +339,9 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           montantHt: Number(invoice.montantHt),
           montantTtc: Number(invoice.montantTtc),
           tvaTaux: invoice.tvaTaux != null ? Number(invoice.tvaTaux) : null,
+          statut: invoice.statut,
           clientFinal: invoice.clientFinal ?? undefined,
+          tenant: invoice.tenant ?? undefined,
         };
 
         const pdfBytes = await generateInvoicePdf(forPdf);
