@@ -128,7 +128,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   // ═══════════════════════════════════════════════════════════════════
   // HEADER - Bande bleue avec infos entreprise
   // ═══════════════════════════════════════════════════════════════════
-  const headerH = 95;
+  const headerH = 110;
   page.drawRectangle({
     x: 0, y: height - headerH,
     width, height: headerH,
@@ -157,9 +157,10 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
       x: ml, y: headerLeftY,
       size: 8.5, font, color: rgb(0.78, 0.85, 0.95),
     });
+    headerLeftY -= 12;
   }
 
-  // SIRET sous le nom entreprise (gauche)
+  // SIRET sous l'adresse (gauche)
   if (invoice.tenant?.siret) {
     page.drawText(`SIRET : ${safe(invoice.tenant.siret)}`, {
       x: ml, y: headerLeftY,
@@ -168,17 +169,19 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     headerLeftY -= 12;
   }
 
-  // TVA intra (droite)
-  let headerRightY = height - 30;
+  // TVA intra sous le SIRET (gauche)
   if (invoice.tenant?.tvaIntracom) {
-    drawTextRight(page, `TVA Intra : ${safe(invoice.tenant.tvaIntracom)}`, width - mr, headerRightY, font, 8, rgb(0.78, 0.85, 0.95));
-    headerRightY -= 12;
+    page.drawText(`TVA Intra : ${safe(invoice.tenant.tvaIntracom)}`, {
+      x: ml, y: headerLeftY,
+      size: 8, font, color: rgb(0.78, 0.85, 0.95),
+    });
+    headerLeftY -= 12;
   }
 
   // "FACTURE" + statut sur la meme ligne a droite
   const statutLabel = getStatutLabel(invoice.statut);
   const factureStatut = statutLabel ? `FACTURE - ${statutLabel}` : 'FACTURE';
-  drawTextRight(page, factureStatut, width - mr, height - 80, fontBold, 14, COLORS.white);
+  drawTextRight(page, factureStatut, width - mr, height - 95, fontBold, 14, COLORS.white);
 
   y = height - headerH - 25;
 
