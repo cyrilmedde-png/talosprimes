@@ -48,34 +48,47 @@ const COLORS = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
+/**
+ * Remplace les caractères non supportés par WinAnsi (pdf-lib StandardFonts).
+ * Notamment U+202F (espace fine insécable) produit par toLocaleString('fr-FR').
+ */
+function winAnsiSafe(text: string): string {
+  return text
+    .replace(/\u202F/g, ' ')   // narrow no-break space → regular space
+    .replace(/\u2019/g, "'")   // right single quote → apostrophe
+    .replace(/\u2018/g, "'")   // left single quote → apostrophe
+    .replace(/\u201C/g, '"')   // left double quote → quote
+    .replace(/\u201D/g, '"');  // right double quote → quote
+}
+
 function formatDate(d: Date | string | null | undefined): string {
-  if (!d) return '—';
+  if (!d) return '-';
   try {
     const date = d instanceof Date ? d : new Date(d);
-    if (isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
-  } catch { return '—'; }
+    if (isNaN(date.getTime())) return '-';
+    return winAnsiSafe(date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }));
+  } catch { return '-'; }
 }
 
 function formatDateShort(d: Date | string | null | undefined): string {
-  if (!d) return '—';
+  if (!d) return '-';
   try {
     const date = d instanceof Date ? d : new Date(d);
-    if (isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch { return '—'; }
+    if (isNaN(date.getTime())) return '-';
+    return winAnsiSafe(date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }));
+  } catch { return '-'; }
 }
 
 function formatMoney(n: number | null | undefined): string {
   const val = Number(n);
-  if (isNaN(val)) return '0,00 €';
-  return val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  if (isNaN(val)) return '0,00 \u20AC';
+  return winAnsiSafe(val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + ' \u20AC';
 }
 
 /** Safe string for drawText (pdf-lib crashes on null/undefined) */
 function safe(v: unknown): string {
   if (v == null) return '';
-  return String(v);
+  return winAnsiSafe(String(v));
 }
 
 function textWidth(text: string, font: PDFFont, size: number): number {
@@ -149,7 +162,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   const tenantInfo = [
     invoice.tenant?.adressePostale,
     [invoice.tenant?.codePostal, invoice.tenant?.ville].filter(Boolean).join(' '),
-  ].filter(Boolean).join(' — ');
+  ].filter(Boolean).join(' - ');
   if (tenantInfo) {
     page.drawText(tenantInfo, {
       x: ml, y: height - 56,
@@ -235,7 +248,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   const client = invoice.clientFinal;
   const clientName =
-    (client?.raisonSociale ?? ([client?.prenom, client?.nom].filter(Boolean).join(' ') || '\u2014')).trim() || 'Client';
+    (client?.raisonSociale ?? ([client?.prenom, client?.nom].filter(Boolean).join(' ') || '-')).trim() || 'Client';
 
   page.drawText(clientName, { x: ml, y, size: 12, font: fontBold, color: COLORS.dark });
   y -= 15;
@@ -394,7 +407,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     invoice.tenant?.telephone,
   ].filter(Boolean);
 
-  const footerText = footerParts.join('  \u2022  ');
+  const footerText = footerParts.join('  |  ');
   const footerW = textWidth(footerText, font, 7);
   page.drawText(footerText, {
     x: (width - footerW) / 2,
