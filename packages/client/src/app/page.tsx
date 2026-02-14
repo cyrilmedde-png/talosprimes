@@ -99,101 +99,76 @@ export default function LandingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-slate-500 font-medium">Chargement...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-slate-500 text-sm">Chargement...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/30 text-slate-800 antialiased">
+    <div className="min-h-screen bg-white text-slate-800 antialiased">
       {showToast && <Toast type={toastType} message={toastMessage} onClose={() => setShowToast(false)} />}
 
-      {/* Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-slate-800 font-semibold">
-            <Workflow className="w-7 h-7 text-indigo-600" strokeWidth={1.8} />
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200">
+        <nav className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-slate-900 font-medium">
+            <Workflow className="w-6 h-6 text-slate-700" strokeWidth={1.5} />
             <span>{content.footer_company_name || 'TalosPrimes'}</span>
           </Link>
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
-              Fonctionnalités
-            </a>
-            <a href="#testimonials" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
-              Témoignages
-            </a>
-            <a href="#contact" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
-              Contact
-            </a>
-            <Link href="/login" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
-              Connexion
-            </Link>
-            <Link
-              href="/inscription"
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
-            >
+          <div className="hidden md:flex items-center gap-6">
+            <a href="#features" className="text-slate-500 text-sm hover:text-slate-900 transition">Fonctionnalités</a>
+            <a href="#testimonials" className="text-slate-500 text-sm hover:text-slate-900 transition">Témoignages</a>
+            <a href="#contact" className="text-slate-500 text-sm hover:text-slate-900 transition">Contact</a>
+            <Link href="/login" className="text-slate-500 text-sm hover:text-slate-900 transition">Connexion</Link>
+            <Link href="/inscription" className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
               {content.hero_cta_primary || 'Essayer'}
             </Link>
           </div>
         </nav>
       </header>
 
-      {/* Hero */}
-      <section className="pt-28 pb-20 px-6 bg-gradient-to-b from-indigo-50/70 to-slate-50 border-b border-slate-200/60">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold text-slate-900 tracking-tight leading-[1.15] mb-6">
+      <section className="pt-24 pb-16 px-6 border-b border-slate-100">
+        <div className="max-w-3xl mx-auto text-center">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight leading-tight mb-5">
             {content.hero_title || 'Automatisez votre gestion d\'entreprise'}
           </h1>
-          <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed mb-10">
-            {content.hero_subtitle || 'CRM, facturation et automatisation dans une seule plateforme. Simple, clair, efficace.'}
+          <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto leading-relaxed mb-8">
+            {content.hero_subtitle || 'CRM, facturation et automatisation dans une seule plateforme.'}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/inscription"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition"
-            >
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/inscription" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
               {content.hero_cta_primary || 'Essayer'}
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <a
-              href="#features"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition"
-            >
+            <a href="#features" className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-300 text-slate-600 text-sm font-medium rounded-md hover:bg-slate-50 transition">
               {content.hero_cta_secondary || 'Découvrir'}
               <ChevronDown className="w-4 h-4" />
             </a>
           </div>
-          {/* Stats */}
-          <div className="mt-16 pt-12 border-t border-indigo-100 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto">
+          <div className="mt-14 pt-10 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg mx-auto">
             <div>
-              <div className="text-2xl font-semibold text-indigo-700">{content.stats_1_value || '95%'}</div>
-              <div className="text-sm text-slate-500 mt-0.5">{content.stats_1_label || 'Gain de temps'}</div>
+              <div className="text-xl font-medium text-slate-900">{content.stats_1_value || '95%'}</div>
+              <div className="text-xs text-slate-500 mt-1">{content.stats_1_label || 'Gain de temps'}</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-indigo-700">{content.stats_2_value || '24/7'}</div>
-              <div className="text-sm text-slate-500 mt-0.5">{content.stats_2_label || 'Automatisation'}</div>
+              <div className="text-xl font-medium text-slate-900">{content.stats_2_value || '24/7'}</div>
+              <div className="text-xs text-slate-500 mt-1">{content.stats_2_label || 'Automatisation'}</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-indigo-700">{content.stats_3_value || '100%'}</div>
-              <div className="text-sm text-slate-500 mt-0.5">{content.stats_3_label || 'Satisfaction'}</div>
+              <div className="text-xl font-medium text-slate-900">{content.stats_3_value || '100%'}</div>
+              <div className="text-xs text-slate-500 mt-1">{content.stats_3_label || 'Satisfaction'}</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Fonctionnalités */}
-      <section id="features" className="py-20 px-6 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight mb-3">
-              Tout ce dont vous avez besoin
-            </h2>
-            <p className="text-slate-600 text-lg max-w-xl mx-auto">
-              Une plateforme complète pour piloter et automatiser votre activité.
-            </p>
+      <section id="features" className="py-16 px-6 bg-slate-50/50">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl font-medium text-slate-900 tracking-tight mb-2">Tout ce dont vous avez besoin</h2>
+            <p className="text-slate-600 text-sm max-w-md mx-auto">Une plateforme pour piloter et automatiser votre activité.</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[
               { icon: Users, title: content.feature_1_title || 'CRM intelligent', desc: content.feature_1_desc },
               { icon: FileText, title: content.feature_2_title || 'Facturation automatisée', desc: content.feature_2_desc },
@@ -202,14 +177,11 @@ export default function LandingPage() {
               { icon: CheckCircle, title: content.feature_5_title || 'Modules adaptables', desc: content.feature_5_desc },
               { icon: Shield, title: content.feature_6_title || 'Sécurité & conformité', desc: content.feature_6_desc },
             ].map((item, i) => (
-              <div
-                key={i}
-                className="group p-6 rounded-xl border border-slate-200 bg-white hover:border-indigo-200 hover:shadow-md transition"
-              >
-                <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition">
-                  <item.icon className="w-5 h-5 text-indigo-600" strokeWidth={1.6} />
+              <div key={i} className="p-5 rounded-lg border border-slate-200 bg-white">
+                <div className="w-9 h-9 rounded-md bg-slate-100 flex items-center justify-center mb-3">
+                  <item.icon className="w-4 h-4 text-slate-600" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">{item.title}</h3>
+                <h3 className="text-base font-medium text-slate-900 mb-1.5">{item.title}</h3>
                 <p className="text-slate-600 text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
@@ -217,30 +189,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Témoignages */}
-      <section id="testimonials" className="py-20 px-6 bg-indigo-50/40 border-y border-slate-200/60">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight mb-3">
-              Ils nous font confiance
-            </h2>
-            <p className="text-slate-600 text-lg">Ce que nos clients disent de TalosPrimes.</p>
+      <section id="testimonials" className="py-16 px-6 bg-white border-t border-slate-100">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-medium text-slate-900 tracking-tight mb-2">Ils nous font confiance</h2>
+            <p className="text-slate-600 text-sm">Ce que nos clients disent de TalosPrimes.</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {testimonials.map((t) => (
-              <div key={t.id} className="p-6 rounded-xl bg-white border border-slate-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
+              <div key={t.id} className="p-5 rounded-lg border border-slate-200 bg-slate-50/30">
+                <div className="flex gap-1 mb-2">
                   {[...Array(t.note)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    <Star key={i} className="w-3.5 h-3.5 text-slate-400 fill-slate-400" />
                   ))}
                 </div>
-                <p className="text-slate-700 text-sm leading-relaxed mb-4">"{t.commentaire}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-sm">
+                <p className="text-slate-600 text-sm leading-relaxed mb-3">"{t.commentaire}"</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-xs">
                     {t.avatar || `${t.prenom[0]}${t.nom[0]}`}
                   </div>
                   <div>
-                    <div className="font-medium text-slate-900 text-sm">{t.prenom} {t.nom}</div>
+                    <div className="font-medium text-slate-900 text-xs">{t.prenom} {t.nom}</div>
                     {(t.poste || t.entreprise) && (
                       <div className="text-xs text-slate-500">{[t.poste, t.entreprise].filter(Boolean).join(' · ')}</div>
                     )}
@@ -252,25 +221,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Contact — formulaire + infos */}
-      <section id="contact" className="py-20 px-6 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight mb-3">
-              Contactez-nous
-            </h2>
-            <p className="text-slate-600">Une question ? Nous vous répondons rapidement.</p>
+      <section id="contact" className="py-16 px-6 bg-slate-50/50">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-medium text-slate-900 tracking-tight mb-2">Contactez-nous</h2>
+            <p className="text-slate-600 text-sm">Une question ? Nous vous répondons.</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-10">
-            <form onSubmit={handleContactSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-8">
+            <form onSubmit={handleContactSubmit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <input
                   type="text"
                   placeholder="Prénom *"
                   required
                   value={contactForm.prenom}
                   onChange={(e) => setContactForm({ ...contactForm, prenom: e.target.value })}
-                  className="px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                  className="px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
                 />
                 <input
                   type="text"
@@ -278,7 +244,7 @@ export default function LandingPage() {
                   required
                   value={contactForm.nom}
                   onChange={(e) => setContactForm({ ...contactForm, nom: e.target.value })}
-                  className="px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                  className="px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
                 />
               </div>
               <input
@@ -287,21 +253,21 @@ export default function LandingPage() {
                 required
                 value={contactForm.email}
                 onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
               />
               <input
                 type="tel"
                 placeholder="Téléphone"
                 value={contactForm.telephone}
                 onChange={(e) => setContactForm({ ...contactForm, telephone: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
               />
               <input
                 type="text"
                 placeholder="Entreprise"
                 value={contactForm.entreprise}
                 onChange={(e) => setContactForm({ ...contactForm, entreprise: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
               />
               <textarea
                 placeholder="Message *"
@@ -309,12 +275,12 @@ export default function LandingPage() {
                 rows={4}
                 value={contactForm.message}
                 onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 resize-none"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 resize-none"
               />
               <button
                 type="submit"
                 disabled={contactStatus === 'sending'}
-                className="w-full px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
+                className="w-full px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition disabled:opacity-50"
               >
                 {contactStatus === 'sending' ? (
                   <span className="flex items-center justify-center gap-2">
@@ -329,25 +295,25 @@ export default function LandingPage() {
                 )}
               </button>
             </form>
-            <div className="space-y-4">
-              <div className="flex gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
-                <Mail className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+            <div className="space-y-3">
+              <div className="flex gap-3 p-3 rounded-md border border-slate-200">
+                <Mail className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-medium text-slate-900 text-sm">Email</div>
+                  <div className="font-medium text-slate-900 text-xs">Email</div>
                   <p className="text-slate-600 text-sm">{content.config_contact_email || 'contact@talosprimes.com'}</p>
                 </div>
               </div>
-              <div className="flex gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
-                <Phone className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+              <div className="flex gap-3 p-3 rounded-md border border-slate-200">
+                <Phone className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-medium text-slate-900 text-sm">Téléphone</div>
+                  <div className="font-medium text-slate-900 text-xs">Téléphone</div>
                   <p className="text-slate-600 text-sm">{content.config_contact_phone || '+33 1 23 45 67 89'}</p>
                 </div>
               </div>
-              <div className="flex gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
-                <MapPin className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+              <div className="flex gap-3 p-3 rounded-md border border-slate-200">
+                <MapPin className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-medium text-slate-900 text-sm">Adresse</div>
+                  <div className="font-medium text-slate-900 text-xs">Adresse</div>
                   <p className="text-slate-600 text-sm whitespace-pre-line">{content.config_contact_address || '123 Avenue de la Tech\n75001 Paris'}</p>
                 </div>
               </div>
@@ -356,61 +322,56 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA final */}
-      <section className="py-16 px-6 bg-indigo-700 text-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl font-semibold mb-4">
+      <section className="py-12 px-6 bg-slate-900 text-white">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-xl font-medium text-white mb-3">
             {content.cta_section_title || 'Prêt à simplifier votre gestion ?'}
           </h2>
-          <p className="text-indigo-100 mb-8">
+          <p className="text-slate-400 text-sm mb-6">
             {content.cta_section_subtitle || 'Rejoignez les entreprises qui automatisent leur quotidien.'}
           </p>
-          <Link
-            href="/inscription"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-medium rounded-lg hover:bg-indigo-50 transition"
-          >
+          <Link href="/inscription" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 text-sm font-medium rounded-md hover:bg-slate-100 transition">
             Commencer
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-slate-800 text-slate-300 py-12 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+      <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 py-10 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Workflow className="w-6 h-6 text-indigo-400" />
-                <span className="font-semibold text-white">{content.footer_company_name || 'TalosPrimes'}</span>
+              <div className="flex items-center gap-2 mb-2">
+                <Workflow className="w-5 h-5 text-slate-500" />
+                <span className="font-medium text-slate-300">{content.footer_company_name || 'TalosPrimes'}</span>
               </div>
-              <p className="text-sm text-slate-400">{content.footer_company_desc || 'Plateforme de gestion intelligente.'}</p>
+              <p className="text-xs text-slate-500">{content.footer_company_desc || 'Plateforme de gestion.'}</p>
             </div>
             <div>
-              <h3 className="font-medium text-white text-sm mb-3">Produit</h3>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#features" className="hover:text-white transition">Fonctionnalités</a></li>
-                <li><a href="#testimonials" className="hover:text-white transition">Témoignages</a></li>
+              <h3 className="font-medium text-slate-300 text-xs mb-2">Produit</h3>
+              <ul className="space-y-1.5 text-xs">
+                <li><a href="#features" className="hover:text-slate-200 transition">Fonctionnalités</a></li>
+                <li><a href="#testimonials" className="hover:text-slate-200 transition">Témoignages</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-medium text-white text-sm mb-3">Légal</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/mentions-legales" className="hover:text-white transition">Mentions légales</Link></li>
-                <li><Link href="/cgu" className="hover:text-white transition">CGU</Link></li>
-                <li><Link href="/cgv" className="hover:text-white transition">CGV</Link></li>
-                <li><Link href="/confidentialite" className="hover:text-white transition">Confidentialité</Link></li>
+              <h3 className="font-medium text-slate-300 text-xs mb-2">Légal</h3>
+              <ul className="space-y-1.5 text-xs">
+                <li><Link href="/mentions-legales" className="hover:text-slate-200 transition">Mentions légales</Link></li>
+                <li><Link href="/cgu" className="hover:text-slate-200 transition">CGU</Link></li>
+                <li><Link href="/cgv" className="hover:text-slate-200 transition">CGV</Link></li>
+                <li><Link href="/confidentialite" className="hover:text-slate-200 transition">Confidentialité</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-medium text-white text-sm mb-3">Support</h3>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#contact" className="hover:text-white transition">Contact</a></li>
-                <li><Link href="/login" className="hover:text-white transition">Connexion</Link></li>
+              <h3 className="font-medium text-slate-300 text-xs mb-2">Support</h3>
+              <ul className="space-y-1.5 text-xs">
+                <li><a href="#contact" className="hover:text-slate-200 transition">Contact</a></li>
+                <li><Link href="/login" className="hover:text-slate-200 transition">Connexion</Link></li>
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
+          <div className="pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
             © {new Date().getFullYear()} {content.footer_company_name || 'TalosPrimes'}. Tous droits réservés.
           </div>
         </div>
