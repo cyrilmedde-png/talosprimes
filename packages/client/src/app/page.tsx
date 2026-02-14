@@ -106,41 +106,41 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 antialiased">
+    <div className="min-h-screen bg-slate-50/30 text-slate-800 antialiased">
       {showToast && <Toast type={toastType} message={toastMessage} onClose={() => setShowToast(false)} />}
 
-      {/* Navigation — sobre, fixe */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/80">
+      {/* Navigation */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-slate-800 font-semibold">
-            <Workflow className="w-7 h-7 text-slate-700" strokeWidth={1.8} />
+            <Workflow className="w-7 h-7 text-indigo-600" strokeWidth={1.8} />
             <span>{content.footer_company_name || 'TalosPrimes'}</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-slate-600 hover:text-slate-900 text-sm font-medium transition">
+            <a href="#features" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
               Fonctionnalités
             </a>
-            <a href="#testimonials" className="text-slate-600 hover:text-slate-900 text-sm font-medium transition">
+            <a href="#testimonials" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
               Témoignages
             </a>
-            <a href="#contact" className="text-slate-600 hover:text-slate-900 text-sm font-medium transition">
+            <a href="#contact" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
               Contact
             </a>
-            <Link href="/login" className="text-slate-600 hover:text-slate-900 text-sm font-medium transition">
+            <Link href="/login" className="text-slate-600 hover:text-indigo-600 text-sm font-medium transition">
               Connexion
             </Link>
             <Link
               href="/inscription"
-              className="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition"
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
             >
-              {content.hero_cta_primary || 'Essayer gratuitement'}
+              {content.hero_cta_primary || 'Essayer'}
             </Link>
           </div>
         </nav>
       </header>
 
-      {/* Hero — épuré, lisible */}
-      <section className="pt-28 pb-20 px-6 bg-slate-50 border-b border-slate-200/60">
+      {/* Hero */}
+      <section className="pt-28 pb-20 px-6 bg-gradient-to-b from-indigo-50/70 to-slate-50 border-b border-slate-200/60">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold text-slate-900 tracking-tight leading-[1.15] mb-6">
             {content.hero_title || 'Automatisez votre gestion d\'entreprise'}
@@ -151,38 +151,38 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/inscription"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition"
             >
-              {content.hero_cta_primary || 'Essayer gratuitement'}
+              {content.hero_cta_primary || 'Essayer'}
               <ArrowRight className="w-4 h-4" />
             </Link>
             <a
               href="#features"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-100 hover:border-slate-400 transition"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition"
             >
               {content.hero_cta_secondary || 'Découvrir'}
               <ChevronDown className="w-4 h-4" />
             </a>
           </div>
-          {/* Stats — discrets */}
-          <div className="mt-16 pt-12 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto">
+          {/* Stats */}
+          <div className="mt-16 pt-12 border-t border-indigo-100 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div>
-              <div className="text-2xl font-semibold text-slate-900">{content.stats_1_value || '95%'}</div>
+              <div className="text-2xl font-semibold text-indigo-700">{content.stats_1_value || '95%'}</div>
               <div className="text-sm text-slate-500 mt-0.5">{content.stats_1_label || 'Gain de temps'}</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-slate-900">{content.stats_2_value || '24/7'}</div>
+              <div className="text-2xl font-semibold text-indigo-700">{content.stats_2_value || '24/7'}</div>
               <div className="text-sm text-slate-500 mt-0.5">{content.stats_2_label || 'Automatisation'}</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-slate-900">{content.stats_3_value || '100%'}</div>
+              <div className="text-2xl font-semibold text-indigo-700">{content.stats_3_value || '100%'}</div>
               <div className="text-sm text-slate-500 mt-0.5">{content.stats_3_label || 'Satisfaction'}</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Fonctionnalités — grille sobre */}
+      {/* Fonctionnalités */}
       <section id="features" className="py-20 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
@@ -204,10 +204,10 @@ export default function LandingPage() {
             ].map((item, i) => (
               <div
                 key={i}
-                className="group p-6 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50 transition"
+                className="group p-6 rounded-xl border border-slate-200 bg-white hover:border-indigo-200 hover:shadow-md transition"
               >
-                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mb-4 group-hover:bg-slate-200 transition">
-                  <item.icon className="w-5 h-5 text-slate-700" strokeWidth={1.6} />
+                <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center mb-4 group-hover:bg-indigo-100 transition">
+                  <item.icon className="w-5 h-5 text-indigo-600" strokeWidth={1.6} />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">{item.title}</h3>
                 <p className="text-slate-600 text-sm leading-relaxed">{item.desc}</p>
@@ -217,8 +217,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Témoignages — sobre */}
-      <section id="testimonials" className="py-20 px-6 bg-slate-50 border-y border-slate-200/60">
+      {/* Témoignages */}
+      <section id="testimonials" className="py-20 px-6 bg-indigo-50/40 border-y border-slate-200/60">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight mb-3">
@@ -228,7 +228,7 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {testimonials.map((t) => (
-              <div key={t.id} className="p-6 rounded-xl bg-white border border-slate-200">
+              <div key={t.id} className="p-6 rounded-xl bg-white border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-2 mb-3">
                   {[...Array(t.note)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
@@ -270,7 +270,7 @@ export default function LandingPage() {
                   required
                   value={contactForm.prenom}
                   onChange={(e) => setContactForm({ ...contactForm, prenom: e.target.value })}
-                  className="px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                  className="px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
                 />
                 <input
                   type="text"
@@ -278,7 +278,7 @@ export default function LandingPage() {
                   required
                   value={contactForm.nom}
                   onChange={(e) => setContactForm({ ...contactForm, nom: e.target.value })}
-                  className="px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                  className="px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
                 />
               </div>
               <input
@@ -287,21 +287,21 @@ export default function LandingPage() {
                 required
                 value={contactForm.email}
                 onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
               />
               <input
                 type="tel"
                 placeholder="Téléphone"
                 value={contactForm.telephone}
                 onChange={(e) => setContactForm({ ...contactForm, telephone: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
               />
               <input
                 type="text"
                 placeholder="Entreprise"
                 value={contactForm.entreprise}
                 onChange={(e) => setContactForm({ ...contactForm, entreprise: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
               />
               <textarea
                 placeholder="Message *"
@@ -309,12 +309,12 @@ export default function LandingPage() {
                 rows={4}
                 value={contactForm.message}
                 onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent resize-none"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 resize-none"
               />
               <button
                 type="submit"
                 disabled={contactStatus === 'sending'}
-                className="w-full px-6 py-3 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition disabled:opacity-50"
+                className="w-full px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
               >
                 {contactStatus === 'sending' ? (
                   <span className="flex items-center justify-center gap-2">
@@ -330,22 +330,22 @@ export default function LandingPage() {
               </button>
             </form>
             <div className="space-y-4">
-              <div className="flex gap-4 p-4 rounded-lg border border-slate-200">
-                <Mail className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+              <div className="flex gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
+                <Mail className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
                   <div className="font-medium text-slate-900 text-sm">Email</div>
                   <p className="text-slate-600 text-sm">{content.config_contact_email || 'contact@talosprimes.com'}</p>
                 </div>
               </div>
-              <div className="flex gap-4 p-4 rounded-lg border border-slate-200">
-                <Phone className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+              <div className="flex gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
+                <Phone className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
                   <div className="font-medium text-slate-900 text-sm">Téléphone</div>
                   <p className="text-slate-600 text-sm">{content.config_contact_phone || '+33 1 23 45 67 89'}</p>
                 </div>
               </div>
-              <div className="flex gap-4 p-4 rounded-lg border border-slate-200">
-                <MapPin className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+              <div className="flex gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
+                <MapPin className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
                   <div className="font-medium text-slate-900 text-sm">Adresse</div>
                   <p className="text-slate-600 text-sm whitespace-pre-line">{content.config_contact_address || '123 Avenue de la Tech\n75001 Paris'}</p>
@@ -357,31 +357,31 @@ export default function LandingPage() {
       </section>
 
       {/* CTA final */}
-      <section className="py-16 px-6 bg-slate-800 text-white">
+      <section className="py-16 px-6 bg-indigo-700 text-white">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-semibold mb-4">
             {content.cta_section_title || 'Prêt à simplifier votre gestion ?'}
           </h2>
-          <p className="text-slate-300 mb-8">
+          <p className="text-indigo-100 mb-8">
             {content.cta_section_subtitle || 'Rejoignez les entreprises qui automatisent leur quotidien.'}
           </p>
           <Link
             href="/inscription"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-800 font-medium rounded-lg hover:bg-slate-100 transition"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-medium rounded-lg hover:bg-indigo-50 transition"
           >
-            Commencer gratuitement
+            Commencer
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-300 py-12 px-6">
+      <footer className="bg-slate-800 text-slate-300 py-12 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Workflow className="w-6 h-6 text-slate-400" />
+                <Workflow className="w-6 h-6 text-indigo-400" />
                 <span className="font-semibold text-white">{content.footer_company_name || 'TalosPrimes'}</span>
               </div>
               <p className="text-sm text-slate-400">{content.footer_company_desc || 'Plateforme de gestion intelligente.'}</p>
