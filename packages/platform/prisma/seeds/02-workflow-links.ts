@@ -87,6 +87,29 @@ const AGENT_TELEPHONIQUE_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'questionnaire_delete', workflowN8nId: 'questionnaire_delete', workflowN8nNom: 'questionnaire-delete' },
 ];
 
+const CLIENTS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'client_create', workflowN8nId: 'client_create', workflowN8nNom: 'client-create' },
+  { typeEvenement: 'client_create_from_lead', workflowN8nId: 'client_create_from_lead', workflowN8nNom: 'client-create-from-lead' },
+  { typeEvenement: 'client_delete', workflowN8nId: 'client_delete', workflowN8nNom: 'client-delete' },
+  { typeEvenement: 'client_get', workflowN8nId: 'client_get', workflowN8nNom: 'client-get' },
+  { typeEvenement: 'client_update', workflowN8nId: 'client_update', workflowN8nNom: 'client-update' },
+  { typeEvenement: 'clients_list', workflowN8nId: 'clients_list', workflowN8nNom: 'clients-list' },
+  { typeEvenement: 'client_deleted_cleanup_lead', workflowN8nId: 'client_deleted_cleanup_lead', workflowN8nNom: 'client-deleted-cleanup-lead' },
+];
+
+const LEADS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'lead_create', workflowN8nId: 'lead_create', workflowN8nNom: 'lead-create' },
+  { typeEvenement: 'leads_list', workflowN8nId: 'leads_list', workflowN8nNom: 'leads-list' },
+  { typeEvenement: 'lead_get', workflowN8nId: 'lead_get', workflowN8nNom: 'lead-get' },
+  { typeEvenement: 'lead_delete', workflowN8nId: 'lead_delete', workflowN8nNom: 'lead-delete' },
+  { typeEvenement: 'lead_update_status', workflowN8nId: 'lead_update_status', workflowN8nNom: 'lead-update-status' },
+  { typeEvenement: 'lead_confirmation', workflowN8nId: 'lead_confirmation', workflowN8nNom: 'lead-confirmation' },
+  { typeEvenement: 'lead_entretien', workflowN8nId: 'lead_entretien', workflowN8nNom: 'lead-entretien' },
+  { typeEvenement: 'lead_questionnaire', workflowN8nId: 'lead_questionnaire', workflowN8nNom: 'lead-questionnaire' },
+  { typeEvenement: 'lead_inscription', workflowN8nId: 'lead_inscription', workflowN8nNom: 'lead-inscription' },
+  { typeEvenement: 'workflow_inscription', workflowN8nId: 'workflow_inscription', workflowN8nNom: 'workflow-inscription' },
+];
+
 const NOTIFICATIONS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'notifications_list', workflowN8nId: 'notifications_list', workflowN8nNom: 'notifications-list' },
   { typeEvenement: 'notification_create', workflowN8nId: 'notification_create', workflowN8nNom: 'notification-created' },
@@ -219,6 +242,20 @@ export async function seedWorkflowLinksLogs(
 /**
  * Attache les workflow links notifications au tenant donné.
  */
+export async function seedWorkflowLinksClients(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'clients', CLIENTS_WORKFLOWS, 'clients');
+}
+
+export async function seedWorkflowLinksLeads(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'leads', LEADS_WORKFLOWS, 'leads');
+}
+
 export async function seedWorkflowLinksNotifications(
   prisma: PrismaClient,
   tenantId: string

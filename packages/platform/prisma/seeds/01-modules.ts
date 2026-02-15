@@ -160,4 +160,38 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module agent_telephonique OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'clients' },
+    update: {
+      nomAffiche: 'Clients',
+      description: 'Module de gestion des clients : création, consultation, modification, suppression',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'clients',
+      nomAffiche: 'Clients',
+      description: 'Module de gestion des clients : création, consultation, modification, suppression',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module clients OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'leads' },
+    update: {
+      nomAffiche: 'Leads',
+      description: 'Module de gestion des leads : création, suivi, qualification, conversion',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'leads',
+      nomAffiche: 'Leads',
+      description: 'Module de gestion des leads : création, suivi, qualification, conversion',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module leads OK');
 }

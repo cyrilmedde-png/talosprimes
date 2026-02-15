@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "inscription",
+        "path": "lead-inscription",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -12,7 +12,10 @@
       "name": "01. Webhook - Réception",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400]
+      "position": [
+        240,
+        400
+      ]
     },
     {
       "parameters": {
@@ -22,7 +25,10 @@
       "name": "02. Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -44,7 +50,10 @@
       "name": "03. API - Sauvegarder Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -60,7 +69,10 @@
       "name": "04. Préparer Données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -90,7 +102,10 @@
       "name": "05. IF - Créer Notification Lead ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 400]
+      "position": [
+        1120,
+        400
+      ]
     },
     {
       "parameters": {
@@ -100,7 +115,10 @@
       "name": "06. Notification - Lead Créé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -123,7 +141,10 @@
       "name": "07. API - Créer Notification Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1560, 300],
+      "position": [
+        1560,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -139,7 +160,10 @@
       "name": "08. Continuer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 400]
+      "position": [
+        1780,
+        400
+      ]
     },
     {
       "parameters": {
@@ -149,7 +173,10 @@
       "name": "09. Formatage Email Client",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 400]
+      "position": [
+        2000,
+        400
+      ]
     },
     {
       "parameters": {
@@ -173,7 +200,10 @@
       "name": "10. Envoyer Email Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2220, 400],
+      "position": [
+        2220,
+        400
+      ],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -209,7 +239,10 @@
       "name": "11. IF - Créer Notification Email ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [2440, 400]
+      "position": [
+        2440,
+        400
+      ]
     },
     {
       "parameters": {
@@ -219,7 +252,10 @@
       "name": "12. Notification - Email Envoyé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 300]
+      "position": [
+        2660,
+        300
+      ]
     },
     {
       "parameters": {
@@ -242,7 +278,10 @@
       "name": "13. API - Créer Notification Email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2880, 300],
+      "position": [
+        2880,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -258,7 +297,10 @@
       "name": "14. Continuer pour SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 400]
+      "position": [
+        3100,
+        400
+      ]
     },
     {
       "parameters": {
@@ -268,7 +310,10 @@
       "name": "15. Formatage SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3320, 400]
+      "position": [
+        3320,
+        400
+      ]
     },
     {
       "parameters": {
@@ -282,7 +327,10 @@
       "name": "16. Envoyer SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [3540, 400],
+      "position": [
+        3540,
+        400
+      ],
       "credentials": {
         "twilioApi": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -318,7 +366,10 @@
       "name": "17. IF - Créer Notification SMS ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [3760, 400]
+      "position": [
+        3760,
+        400
+      ]
     },
     {
       "parameters": {
@@ -328,7 +379,10 @@
       "name": "18. Notification - SMS Envoyé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3980, 300]
+      "position": [
+        3980,
+        300
+      ]
     },
     {
       "parameters": {
@@ -351,7 +405,10 @@
       "name": "19. API - Créer Notification SMS",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [4200, 300],
+      "position": [
+        4200,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -371,7 +428,10 @@
       "name": "20. Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [4420, 400]
+      "position": [
+        4420,
+        400
+      ]
     },
     {
       "parameters": {
@@ -381,7 +441,10 @@
       "name": "ERROR. Notification Erreur",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 800]
+      "position": [
+        900,
+        800
+      ]
     },
     {
       "parameters": {
@@ -411,7 +474,10 @@
       "name": "ERROR. IF - Créer Notification Erreur ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 800]
+      "position": [
+        1120,
+        800
+      ]
     },
     {
       "parameters": {
@@ -434,7 +500,10 @@
       "name": "ERROR. API - Notification Erreur",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1340, 700],
+      "position": [
+        1340,
+        700
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -454,116 +523,399 @@
       "name": "ERROR. Réponse Erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 800]
+      "position": [
+        1560,
+        800
+      ]
     }
   ],
   "connections": {
     "01. Webhook - Réception": {
-      "main": [[{ "node": "02. Validation", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Validation": {
-      "main": [[{ "node": "03. API - Sauvegarder Lead", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. API - Sauvegarder Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. API - Sauvegarder Lead": {
-      "main": [[{ "node": "04. Préparer Données", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "04. Préparer Données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "04. Préparer Données": {
-      "main": [[{ "node": "05. IF - Créer Notification Lead ?", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "05. IF - Créer Notification Lead ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "05. IF - Créer Notification Lead ?": {
       "main": [
         [
-          { "node": "06. Notification - Lead Créé", "type": "main", "index": 0 }
+          {
+            "node": "06. Notification - Lead Créé",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "08. Continuer", "type": "main", "index": 0 }
+          {
+            "node": "08. Continuer",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "06. Notification - Lead Créé": {
-      "main": [[{ "node": "07. API - Créer Notification Lead", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. API - Créer Notification Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. API - Créer Notification Lead": {
-      "main": [[{ "node": "08. Continuer", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "08. Continuer", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Continuer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "08. Continuer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Continuer": {
-      "main": [[{ "node": "09. Formatage Email Client", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "09. Formatage Email Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Formatage Email Client": {
-      "main": [[{ "node": "10. Envoyer Email Client", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Envoyer Email Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Envoyer Email Client": {
-      "main": [[{ "node": "11. IF - Créer Notification Email ?", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "11. IF - Créer Notification Email ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "11. IF - Créer Notification Email ?": {
       "main": [
         [
-          { "node": "12. Notification - Email Envoyé", "type": "main", "index": 0 }
+          {
+            "node": "12. Notification - Email Envoyé",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "14. Continuer pour SMS", "type": "main", "index": 0 }
+          {
+            "node": "14. Continuer pour SMS",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "12. Notification - Email Envoyé": {
-      "main": [[{ "node": "13. API - Créer Notification Email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "13. API - Créer Notification Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "13. API - Créer Notification Email": {
-      "main": [[{ "node": "14. Continuer pour SMS", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "14. Continuer pour SMS", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "14. Continuer pour SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "14. Continuer pour SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "14. Continuer pour SMS": {
-      "main": [[{ "node": "15. Formatage SMS", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "15. Formatage SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "15. Formatage SMS": {
-      "main": [[{ "node": "16. Envoyer SMS", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "16. Envoyer SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "16. Envoyer SMS": {
-      "main": [[{ "node": "17. IF - Créer Notification SMS ?", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "17. IF - Créer Notification SMS ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "17. IF - Créer Notification SMS ?": {
       "main": [
         [
-          { "node": "18. Notification - SMS Envoyé", "type": "main", "index": 0 }
+          {
+            "node": "18. Notification - SMS Envoyé",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "20. Réponse Succès", "type": "main", "index": 0 }
+          {
+            "node": "20. Réponse Succès",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "18. Notification - SMS Envoyé": {
-      "main": [[{ "node": "19. API - Créer Notification SMS", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "19. API - Créer Notification SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "19. API - Créer Notification SMS": {
-      "main": [[{ "node": "20. Réponse Succès", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "20. Réponse Succès", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "20. Réponse Succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "20. Réponse Succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "ERROR. Notification Erreur": {
-      "main": [[{ "node": "ERROR. IF - Créer Notification Erreur ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "ERROR. IF - Créer Notification Erreur ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "ERROR. IF - Créer Notification Erreur ?": {
       "main": [
         [
-          { "node": "ERROR. API - Notification Erreur", "type": "main", "index": 0 }
+          {
+            "node": "ERROR. API - Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }
+          {
+            "node": "ERROR. Réponse Erreur",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "ERROR. API - Notification Erreur": {
-      "main": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "ERROR. Réponse Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Réponse Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},

@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "lead_questionnaire",
+        "path": "lead-questionnaire",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -12,7 +12,10 @@
       "name": "01. Webhook - Réception",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400]
+      "position": [
+        240,
+        400
+      ]
     },
     {
       "parameters": {
@@ -22,7 +25,10 @@
       "name": "02. Parser Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -41,7 +47,10 @@
       "name": "03. API - Get Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -57,7 +66,10 @@
       "name": "04. Préparer Données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -74,7 +86,10 @@
       "name": "05. API - Update Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 400],
+      "position": [
+        1120,
+        400
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -90,7 +105,10 @@
       "name": "06. Notification - Statut",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -112,7 +130,10 @@
       "name": "07. API - Notification Statut",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1560, 300],
+      "position": [
+        1560,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -128,7 +149,10 @@
       "name": "08. Continuer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 500]
+      "position": [
+        1340,
+        500
+      ]
     },
     {
       "parameters": {
@@ -138,7 +162,10 @@
       "name": "09. Formatage Email Client",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 400]
+      "position": [
+        1780,
+        400
+      ]
     },
     {
       "parameters": {
@@ -162,7 +189,10 @@
       "name": "10. Resend - Email Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2000, 400],
+      "position": [
+        2000,
+        400
+      ],
       "credentials": {
         "headerAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -178,7 +208,10 @@
       "name": "11. Notification - Email Envoyé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 300]
+      "position": [
+        2220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -200,7 +233,10 @@
       "name": "12. API - Notification Email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2440, 300],
+      "position": [
+        2440,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -220,7 +256,10 @@
       "name": "13. Réponse Succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2220, 500]
+      "position": [
+        2220,
+        500
+      ]
     },
     {
       "parameters": {
@@ -230,7 +269,10 @@
       "name": "ERROR. Notification Erreur",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 800]
+      "position": [
+        900,
+        800
+      ]
     },
     {
       "parameters": {
@@ -252,7 +294,10 @@
       "name": "ERROR. API - Notification Erreur",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 800],
+      "position": [
+        1120,
+        800
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -272,67 +317,238 @@
       "name": "ERROR. Réponse Erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 800]
+      "position": [
+        1340,
+        800
+      ]
     }
   ],
   "connections": {
     "01. Webhook - Réception": {
-      "main": [[{ "node": "02. Parser Payload", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser Payload": {
-      "main": [[{ "node": "03. API - Get Lead", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. API - Get Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. API - Get Lead": {
-      "main": [[{ "node": "04. Préparer Données", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "04. Préparer Données",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "04. Préparer Données": {
-      "main": [[{ "node": "05. API - Update Status", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "05. API - Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "05. API - Update Status": {
       "main": [
         [
-          { "node": "06. Notification - Statut", "type": "main", "index": 0 },
-          { "node": "08. Continuer", "type": "main", "index": 0 }
+          {
+            "node": "06. Notification - Statut",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "08. Continuer",
+            "type": "main",
+            "index": 0
+          }
         ]
       ],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Notification - Statut": {
-      "main": [[{ "node": "07. API - Notification Statut", "type": "main", "index": 0 }]],
+      "main": [
+        [
+          {
+            "node": "07. API - Notification Statut",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
       "error": []
     },
     "07. API - Notification Statut": {
-      "main": [[{ "node": "08. Continuer", "type": "main", "index": 0 }]],
+      "main": [
+        [
+          {
+            "node": "08. Continuer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
       "error": []
     },
     "08. Continuer": {
-      "main": [[{ "node": "09. Formatage Email Client", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "09. Formatage Email Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Formatage Email Client": {
-      "main": [[{ "node": "10. Resend - Email Client", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Resend - Email Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Resend - Email Client": {
-      "main": [[{ "node": "11. Notification - Email Envoyé", "type": "main", "index": 0 }]],
-      "error": [[{ "node": "ERROR. Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "11. Notification - Email Envoyé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "11. Notification - Email Envoyé": {
-      "main": [[{ "node": "12. API - Notification Email", "type": "main", "index": 0 }]],
+      "main": [
+        [
+          {
+            "node": "12. API - Notification Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
       "error": []
     },
     "12. API - Notification Email": {
-      "main": [[{ "node": "13. Réponse Succès", "type": "main", "index": 0 }]],
+      "main": [
+        [
+          {
+            "node": "13. Réponse Succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
       "error": []
     },
     "ERROR. Notification Erreur": {
-      "main": [[{ "node": "ERROR. API - Notification Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "ERROR. API - Notification Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "ERROR. API - Notification Erreur": {
-      "main": [[{ "node": "ERROR. Réponse Erreur", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "ERROR. Réponse Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
