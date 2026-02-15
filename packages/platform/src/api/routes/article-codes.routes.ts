@@ -208,6 +208,7 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
 
         // Appel frontend → déléguer à n8n, pas de fallback
         if (!fromN8n) {
+          if (!tenantId) return reply.status(401).send({ success: false, error: 'Tenant manquant' });
           const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
             tenantId,
             'article_code_update',
@@ -295,6 +296,7 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
 
         // Appel frontend → déléguer à n8n, pas de fallback
         if (!fromN8n) {
+          if (!tenantId) return reply.status(401).send({ success: false, error: 'Tenant manquant' });
           const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
             tenantId,
             'article_code_delete',
