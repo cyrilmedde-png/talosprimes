@@ -459,23 +459,35 @@ except:
     n8n_sync_workflow() {
       local file="$1"
       local project_id="$2"
-      local name
-      name=$(basename "$file" .json)
 
-      # Chercher si le workflow existe deja (par nom)
+      # Lire le vrai nom du workflow depuis le JSON (pas le nom du fichier)
+      local name
+      name=$(python3 -c "
+import json
+with open('$file') as f:
+    print(json.load(f).get('name', ''))
+" 2>/dev/null || true)
+
+      # Fallback sur le nom du fichier si pas de champ name
+      if [ -z "$name" ]; then
+        name=$(basename "$file" .json)
+      fi
+
+      # Chercher si le workflow existe deja (par nom exact dans n8n)
       local existing_id
       existing_id=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
-import sys, json
+import sys, json, os
 try:
     data = json.load(sys.stdin)
     workflows = data.get('data', [])
+    target = sys.argv[1] if len(sys.argv) > 1 else ''
     for w in workflows:
-        if w.get('name') == '$name':
+        if w.get('name') == target:
             print(w['id'])
             break
 except:
     pass
-" 2>/dev/null || true)
+" "$name" 2>/dev/null || true)
 
       local payload http_code response body
 
