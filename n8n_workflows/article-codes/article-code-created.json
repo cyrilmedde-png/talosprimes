@@ -1,0 +1,159 @@
+{
+  "name": "article-code-created",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "article-code-created",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nconst code=g(data,'code')||g(payload,'code');\nconst designation=g(data,'designation')||g(payload,'designation');\nif(!tenantId||!code||!designation)return [{json:{_error:true,message:'tenantId, code et designation requis'}}];\nconst body={tenantId,code,designation};\nvar px=g(data,'prixUnitaireHt','prix_unitaire_ht')||g(payload,'prixUnitaireHt','prix_unitaire_ht');if(px!=null&&px!==''){body.prixUnitaireHt=Number(px)}\nvar tv=g(data,'tvaTaux','tva_taux')||g(payload,'tvaTaux','tva_taux');if(tv!=null&&tv!==''){body.tvaTaux=Number(tv)}\nvar un=g(data,'unite')||g(payload,'unite');if(un)body.unite=un;\nreturn [{json:body}];"
+      },
+      "id": "parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json._error === true }}", "value2": true }] }
+      },
+      "id": "if-valid",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
+      },
+      "id": "respond-err",
+      "name": "04. Repondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [860, 480]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT (SELECT id FROM article_codes WHERE tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"' AND code = '\" + ($json.code || '').replace(/'/g, \"''\") + \"') AS existing_id\" }}"
+      },
+      "id": "pg-check",
+      "name": "05. Dedup check",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [860, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.existing_id }}", "operation": "isEmpty" }] }
+      },
+      "id": "if-not-exists",
+      "name": "06. Pas deja existant ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\":false,\"error\":\"Ce code article existe deja\"}"
+      },
+      "id": "respond-exists",
+      "name": "07. Repondre existe",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1080, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar insertCols=[\"id\",\"tenant_id\",\"code\",\"designation\",\"actif\",\"created_at\",\"updated_at\"];\nvar insertVals=[\"gen_random_uuid()\",\"'\"+esc(p.tenantId)+\"'\",\"'\"+esc(p.code)+\"'\",\"'\"+esc(p.designation)+\"'\",\"true\",\"NOW()\",\"NOW()\"];\nif(p.prixUnitaireHt!=null){insertCols.push(\"prix_unitaire_ht\");insertVals.push(p.prixUnitaireHt)}\nif(p.tvaTaux!=null){insertCols.push(\"tva_taux\");insertVals.push(p.tvaTaux)}\nif(p.unite){insertCols.push(\"unite\");insertVals.push(\"'\"+esc(p.unite)+\"'\")}\nvar query=\"INSERT INTO article_codes (\"+insertCols.join(\", \")+\") VALUES (\"+insertVals.join(\", \")+\") RETURNING id\";\nreturn [{json:{insertQuery:query}}];"
+      },
+      "id": "build-insert",
+      "name": "08. Construire INSERT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.insertQuery }}"
+      },
+      "id": "pg-insert",
+      "name": "09. Executer INSERT",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1520, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at FROM article_codes WHERE id = '\" + ($input.first().json.id || '').replace(/'/g, \"''\") + \"' AND tenant_id = '\" + ($('02. Parser').first().json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS article\" }}"
+      },
+      "id": "pg-fetch",
+      "name": "10. Recuperer article",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1740, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row=$input.first().json;\nconst article=row.article;\nif(!article)return [{json:{success:false,error:'Code article non recupere apres creation'}}];\nconst parsed=typeof article==='string'?JSON.parse(article):article;\nreturn [{json:{success:true,data:{article:parsed}}}];"
+      },
+      "id": "format",
+      "name": "11. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond-ok",
+      "name": "12. Repondre succes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2180, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "04. Repondre erreur", "type": "main", "index": 0 }],
+        [{ "node": "05. Dedup check", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Dedup check": { "main": [[{ "node": "06. Pas deja existant ?", "type": "main", "index": 0 }]] },
+    "06. Pas deja existant ?": {
+      "main": [
+        [{ "node": "08. Construire INSERT", "type": "main", "index": 0 }],
+        [{ "node": "07. Repondre existe", "type": "main", "index": 0 }]
+      ]
+    },
+    "08. Construire INSERT": { "main": [[{ "node": "09. Executer INSERT", "type": "main", "index": 0 }]] },
+    "09. Executer INSERT": { "main": [[{ "node": "10. Recuperer article", "type": "main", "index": 0 }]] },
+    "10. Recuperer article": { "main": [[{ "node": "11. Formater reponse", "type": "main", "index": 0 }]] },
+    "11. Formater reponse": { "main": [[{ "node": "12. Repondre succes", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

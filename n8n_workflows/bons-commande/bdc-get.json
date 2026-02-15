@@ -1,0 +1,236 @@
+{
+  "name": "bdc-get",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "bdc-get",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  bdcId: payload.bdcId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "comparator": "equal",
+              "value1": "=true",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, c.id as client_id, c.nom as client_nom, c.email as client_email, c.telephone as client_telephone FROM bon_commandes b LEFT JOIN client_finals c ON b.client_final_id = c.id WHERE b.id = '{{ $json.bdcId }}' AND b.tenant_id = '{{ $json.tenantId }}'"
+      },
+      "id": "05. Get Bon",
+      "name": "05. Get Bon",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = '{{ $json.bdcId }}' ORDER BY ordre"
+      },
+      "id": "06. Get Lines",
+      "name": "06. Get Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "code": "const bon = $('05. Get Bon').first();\nconst lines = $('06. Get Lines').all();\nlet invoice = null;\n\nif (bon.invoice_id) {\n  // Will get invoice in next node\n  invoice = true;\n}"
+      },
+      "id": "07. Check Invoice",
+      "name": "07. Check Invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT id, numero_facture, statut FROM invoices WHERE id = '{{ $('05. Get Bon').first().invoice_id }}'{% if !$('05. Get Bon').first().invoice_id %} AND FALSE{% endif %}"
+      },
+      "id": "08. Get Invoice",
+      "name": "08. Get Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "code": "const bon = $('05. Get Bon').first();\nconst lines = $('06. Get Lines').all();\nconst invoices = $('08. Get Invoice').all();\nconst invoice = invoices.length > 0 ? invoices[0] : null;\n\nconst clientFinal = bon.client_id ? {\n  id: bon.client_id,\n  nom: bon.client_nom,\n  email: bon.client_email,\n  telephone: bon.client_telephone\n} : null;\n\nconst bonData = {\n  id: bon.id,\n  tenant_id: bon.tenant_id,\n  client_final_id: bon.client_final_id,\n  numero_bdc: bon.numero_bdc,\n  date_bdc: bon.date_bdc,\n  date_validite: bon.date_validite,\n  montant_ht: bon.montant_ht,\n  montant_ttc: bon.montant_ttc,\n  tva_taux: bon.tva_taux,\n  description: bon.description,\n  mode_paiement: bon.mode_paiement,\n  statut: bon.statut,\n  invoice_id: bon.invoice_id,\n  created_at: bon.created_at,\n  updated_at: bon.updated_at,\n  clientFinal: clientFinal,\n  lines: lines,\n  invoice: invoice\n};\n\nreturn bonData;"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Bon",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Bon": {
+      "main": [
+        [
+          {
+            "node": "06. Get Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Get Lines": {
+      "main": [
+        [
+          {
+            "node": "07. Check Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Check Invoice": {
+      "main": [
+        [
+          {
+            "node": "08. Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Get Invoice": {
+      "main": [
+        [
+          {
+            "node": "09. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Format Response": {
+      "main": [
+        [
+          {
+            "node": "10. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

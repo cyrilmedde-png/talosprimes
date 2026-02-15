@@ -23,6 +23,18 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   // Clients
   client_onboarding: 'client-onboarding',
   stripe_checkout_completed: 'stripe-checkout-completed',
+  // Codes articles
+  article_codes_list: 'article-codes-list',
+  article_code_create: 'article-code-created',
+  article_code_update: 'article-code-updated',
+  article_code_delete: 'article-code-deleted',
+  // Bons de commande
+  bdc_list: 'bdc-list',
+  bdc_get: 'bdc-get',
+  bdc_create: 'bdc-created',
+  bdc_validate: 'bdc-validated',
+  bdc_convert_to_invoice: 'bdc-convert-to-invoice',
+  bdc_delete: 'bdc-deleted',
 };
 
 /**
