@@ -42,6 +42,9 @@
     "nodemailer": "^6.9.8",
     "pdf-lib": "^1.17.1"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.5",
     "@types/bcryptjs": "^2.4.6",
