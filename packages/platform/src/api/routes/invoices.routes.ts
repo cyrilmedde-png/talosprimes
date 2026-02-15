@@ -484,14 +484,35 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           }
 
           // Après création via n8n, insérer les lignes d'articles en base
-          if (body.lines && body.lines.length > 0 && res.data) {
+          if (body.lines && body.lines.length > 0) {
             try {
-              const invoiceData = (res.data as { invoice?: { id?: string } }).invoice;
-              const invoiceId = invoiceData?.id;
+              // Extraire l'ID depuis la réponse n8n (structure variable)
+              let invoiceId: string | undefined;
+              if (res.data) {
+                const d = res.data as Record<string, unknown>;
+                // Tenter plusieurs structures possibles de la réponse n8n
+                const inv = d.invoice as Record<string, unknown> | undefined;
+                invoiceId = (inv?.id ?? d.id ?? d.invoiceId) as string | undefined;
+              }
+
+              // Si l'ID n'est pas dans la réponse, chercher en base la facture qui vient d'être créée
+              if (!invoiceId) {
+                const justCreated = await prisma.invoice.findFirst({
+                  where: {
+                    tenantId,
+                    clientFinalId: body.clientFinalId,
+                    montantHt: body.montantHt,
+                  },
+                  orderBy: { createdAt: 'desc' },
+                  select: { id: true },
+                });
+                invoiceId = justCreated?.id;
+              }
+
               if (invoiceId) {
                 await prisma.invoiceLine.createMany({
                   data: body.lines.map((l, i) => ({
-                    invoiceId,
+                    invoiceId: invoiceId as string,
                     codeArticle: l.codeArticle ?? null,
                     designation: l.designation,
                     quantite: l.quantite ?? 1,
@@ -500,6 +521,9 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
                     ordre: i,
                   })),
                 });
+                fastify.log.info('Lignes de facture créées pour invoice %s (%d lignes)', invoiceId, body.lines.length);
+              } else {
+                fastify.log.warn('Impossible de trouver l\'ID de la facture créée par n8n pour insérer les lignes');
               }
             } catch (lineErr) {
               fastify.log.warn(lineErr, 'Impossible de créer les lignes de facture après n8n');
