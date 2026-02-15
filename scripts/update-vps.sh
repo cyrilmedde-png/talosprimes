@@ -407,15 +407,18 @@ else
       local project_id
       project_id=$(echo "$projects_json" | python3 -c "
 import sys, json
-data = json.load(sys.stdin)
-projects = data.get('data', data) if isinstance(data, dict) else data
-if isinstance(projects, dict):
-    projects = projects.get('data', [])
-for p in projects:
-    if p.get('name') == '$project_name':
-        print(p['id'])
-        break
-" 2>/dev/null)
+try:
+    data = json.load(sys.stdin)
+    projects = data.get('data', data) if isinstance(data, dict) else data
+    if isinstance(projects, dict):
+        projects = projects.get('data', [])
+    for p in projects:
+        if p.get('name') == '$project_name':
+            print(p['id'])
+            break
+except:
+    pass
+" 2>/dev/null || true)
 
       if [ -n "$project_id" ]; then
         echo "$project_id"
@@ -428,17 +431,22 @@ for p in projects:
         -H "X-N8N-API-KEY: $N8N_API_KEY" \
         -H "Content-Type: application/json" \
         -d "{\"name\": \"$project_name\"}" \
-        "$N8N_API_URL/api/v1/projects" 2>/dev/null)
+        "$N8N_API_URL/api/v1/projects" 2>/dev/null || true)
 
-      project_id=$(echo "$create_resp" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+      project_id=$(echo "$create_resp" | python3 -c "
+import sys, json
+try:
+    print(json.load(sys.stdin).get('id',''))
+except:
+    pass
+" 2>/dev/null || true)
 
       if [ -n "$project_id" ]; then
         log_info "  Projet n8n cree: $project_name (ID: $project_id)"
         echo "$project_id"
-        return 0
-      else
-        return 1
       fi
+      # Toujours return 0 pour ne pas tuer le script avec set -e
+      return 0
     }
 
     # ---------------------------------------------------------------
@@ -455,13 +463,16 @@ for p in projects:
       local existing_id
       existing_id=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
 import sys, json
-data = json.load(sys.stdin)
-workflows = data.get('data', [])
-for w in workflows:
-    if w.get('name') == '$name':
-        print(w['id'])
-        break
-" 2>/dev/null)
+try:
+    data = json.load(sys.stdin)
+    workflows = data.get('data', [])
+    for w in workflows:
+        if w.get('name') == '$name':
+            print(w['id'])
+            break
+except:
+    pass
+" 2>/dev/null || true)
 
       local payload http_code response body
 
@@ -475,29 +486,31 @@ wf.setdefault('settings', {})
 for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
     wf.pop(k, None)
 print(json.dumps(wf))
-" 2>/dev/null)
+" 2>/dev/null || true)
 
-        [ -z "$payload" ] && return 1
+        if [ -z "$payload" ]; then
+          return 1
+        fi
 
         response=$(curl -s -w "\n%{http_code}" -X PUT \
           -H "X-N8N-API-KEY: $N8N_API_KEY" \
           -H "Content-Type: application/json" \
           -d "$payload" \
-          "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
+          "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || true)
         http_code=$(echo "$response" | tail -1)
 
         if [ "$http_code" = "200" ]; then
           # Activer
           curl -s -X POST \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1
+            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
           # Transferer dans le bon projet si necessaire
           if [ -n "$project_id" ]; then
             curl -s -X PUT \
               -H "X-N8N-API-KEY: $N8N_API_KEY" \
               -H "Content-Type: application/json" \
               -d "{\"destinationProjectId\": \"$project_id\"}" \
-              "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1
+              "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
           fi
           return 0
         fi
@@ -514,33 +527,35 @@ allowed = {'name','nodes','connections','settings','staticData'}
 wf = {k: v for k, v in wf.items() if k in allowed}
 wf.setdefault('settings', {})
 print(json.dumps(wf))
-" 2>/dev/null)
+" 2>/dev/null || true)
 
-        [ -z "$payload" ] && return 1
+        if [ -z "$payload" ]; then
+          return 1
+        fi
 
         response=$(curl -s -w "\n%{http_code}" -X POST \
           -H "X-N8N-API-KEY: $N8N_API_KEY" \
           -H "Content-Type: application/json" \
           -d "$payload" \
-          "$N8N_API_URL/api/v1/workflows" 2>/dev/null)
+          "$N8N_API_URL/api/v1/workflows" 2>/dev/null || true)
         http_code=$(echo "$response" | tail -1)
         body=$(echo "$response" | sed '$d')
 
         if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
           local new_id
-          new_id=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+          new_id=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
           if [ -n "$new_id" ]; then
             # Activer
             curl -s -X POST \
               -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              "$N8N_API_URL/api/v1/workflows/$new_id/activate" > /dev/null 2>&1
+              "$N8N_API_URL/api/v1/workflows/$new_id/activate" > /dev/null 2>&1 || true
             # Transferer dans le bon projet
             if [ -n "$project_id" ]; then
               curl -s -X PUT \
                 -H "X-N8N-API-KEY: $N8N_API_KEY" \
                 -H "Content-Type: application/json" \
                 -d "{\"destinationProjectId\": \"$project_id\"}" \
-                "$N8N_API_URL/api/v1/workflows/$new_id/transfer" > /dev/null 2>&1
+                "$N8N_API_URL/api/v1/workflows/$new_id/transfer" > /dev/null 2>&1 || true
             fi
           fi
           return 0
@@ -554,13 +569,17 @@ print(json.dumps(wf))
     # ---------------------------------------------------------------
     log_info "Recuperation des workflows et projets existants..."
 
-    EXISTING_WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=200" 2>/dev/null)
-    EXISTING_PROJECTS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/projects" 2>/dev/null)
+    EXISTING_WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=200" 2>/dev/null || echo "")
+    EXISTING_PROJECTS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/projects" 2>/dev/null || echo "{}")
 
     # Verifier que les reponses sont du JSON valide
     if ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
       log_warn "n8n API inaccessible — workflows non synchronises"
       EXISTING_WORKFLOWS=""
+    fi
+    if ! echo "$EXISTING_PROJECTS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+      log_warn "API projets n8n non disponible — les workflows iront dans Personal"
+      EXISTING_PROJECTS="{}"
     fi
 
     if [ -n "$EXISTING_WORKFLOWS" ]; then
@@ -587,10 +606,10 @@ print(json.dumps(wf))
         log_info "Sync TalosPrimes..."
 
         # Trouver ou creer le projet n8n "TalosPrimes"
-        TP_PROJECT_ID=$(n8n_find_or_create_project "TalosPrimes" "$EXISTING_PROJECTS")
+        TP_PROJECT_ID=$(n8n_find_or_create_project "TalosPrimes" "$EXISTING_PROJECTS" || echo "")
 
         if [ -z "$TP_PROJECT_ID" ]; then
-          log_warn "Impossible de creer/trouver le projet TalosPrimes — les workflows iront dans Personal"
+          log_warn "Projets n8n non supportes ou erreur API — les workflows iront dans Personal"
         fi
 
         # Fichiers JSON a la racine de talosprimes/ (ex: Super-Agent)
@@ -637,10 +656,10 @@ print(json.dumps(wf))
           log_info "Sync client: $client_name..."
 
           # Trouver ou creer le projet n8n pour ce client
-          CLIENT_PROJECT_ID=$(n8n_find_or_create_project "Client - $client_name" "$EXISTING_PROJECTS")
+          CLIENT_PROJECT_ID=$(n8n_find_or_create_project "Client - $client_name" "$EXISTING_PROJECTS" || echo "")
 
           if [ -z "$CLIENT_PROJECT_ID" ]; then
-            log_warn "  Impossible de creer le projet pour $client_name"
+            log_warn "  Impossible de creer le projet pour $client_name — workflows dans Personal"
           fi
 
           CLIENT_COUNT=0
