@@ -5,12 +5,15 @@
       "parameters": {
         "path": "call-log-get",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 250]
+      "position": [
+        250,
+        250
+      ]
     },
     {
       "parameters": {
@@ -19,7 +22,10 @@
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 250]
+      "position": [
+        450,
+        250
+      ]
     },
     {
       "parameters": {
@@ -39,7 +45,10 @@
       "name": "If",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 250]
+      "position": [
+        650,
+        250
+      ]
     },
     {
       "parameters": {
@@ -49,7 +58,10 @@
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 150]
+      "position": [
+        850,
+        150
+      ]
     },
     {
       "parameters": {
@@ -64,7 +76,10 @@
       "name": "Postgres Query",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 250]
+      "position": [
+        850,
+        250
+      ]
     },
     {
       "parameters": {
@@ -73,7 +88,10 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 250]
+      "position": [
+        1050,
+        250
+      ]
     },
     {
       "parameters": {
@@ -82,7 +100,10 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 250]
+      "position": [
+        1250,
+        250
+      ]
     }
   ],
   "connections": {

@@ -5,12 +5,15 @@
       "parameters": {
         "path": "call-log-stats",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 250]
+      "position": [
+        250,
+        250
+      ]
     },
     {
       "parameters": {
@@ -19,7 +22,10 @@
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 250]
+      "position": [
+        450,
+        250
+      ]
     },
     {
       "parameters": {
@@ -35,7 +41,10 @@
       "name": "If",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 250]
+      "position": [
+        650,
+        250
+      ]
     },
     {
       "parameters": {
@@ -45,7 +54,10 @@
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 150]
+      "position": [
+        850,
+        150
+      ]
     },
     {
       "parameters": {
@@ -60,7 +72,10 @@
       "name": "Postgres Total Calls",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 250]
+      "position": [
+        850,
+        250
+      ]
     },
     {
       "parameters": {
@@ -75,7 +90,10 @@
       "name": "Postgres Today Calls",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 350]
+      "position": [
+        850,
+        350
+      ]
     },
     {
       "parameters": {
@@ -90,7 +108,10 @@
       "name": "Postgres Avg Duration",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 450]
+      "position": [
+        850,
+        450
+      ]
     },
     {
       "parameters": {
@@ -105,7 +126,10 @@
       "name": "Postgres By Urgency",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 550]
+      "position": [
+        850,
+        550
+      ]
     },
     {
       "parameters": {
@@ -120,7 +144,10 @@
       "name": "Postgres By Action",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1050, 250]
+      "position": [
+        1050,
+        250
+      ]
     },
     {
       "parameters": {
@@ -135,7 +162,10 @@
       "name": "Postgres By Sentiment",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1050, 350]
+      "position": [
+        1050,
+        350
+      ]
     },
     {
       "parameters": {
@@ -150,7 +180,10 @@
       "name": "Postgres Last 7 Days",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1050, 450]
+      "position": [
+        1050,
+        450
+      ]
     },
     {
       "parameters": {
@@ -159,7 +192,10 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 350]
+      "position": [
+        1250,
+        350
+      ]
     },
     {
       "parameters": {
@@ -168,7 +204,10 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1450, 350]
+      "position": [
+        1450,
+        350
+      ]
     }
   ],
   "connections": {

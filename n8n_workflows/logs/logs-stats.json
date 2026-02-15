@@ -5,13 +5,16 @@
       "parameters": {
         "path": "logs-stats",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
       "id": "01. Webhook",
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -51,7 +60,10 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
@@ -67,7 +79,10 @@
           "name": "Postgres"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -83,7 +98,10 @@
           "name": "Postgres"
         }
       },
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -99,7 +117,10 @@
           "name": "Postgres"
         }
       },
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -115,7 +136,10 @@
           "name": "Postgres"
         }
       },
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -131,7 +155,10 @@
           "name": "Postgres"
         }
       },
-      "position": [1500, 300]
+      "position": [
+        1500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -141,7 +168,10 @@
       "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1700, 300]
+      "position": [
+        1700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -154,39 +184,118 @@
       "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1900, 300]
+      "position": [
+        1900,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{"node": "05. Count Total", "type": "main", "index": 0}],
-        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+        [
+          {
+            "node": "05. Count Total",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Count Total": {
-      "main": [[{"node": "06. Count Succeeded", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "06. Count Succeeded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Count Succeeded": {
-      "main": [[{"node": "07. Count Errors", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "07. Count Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Count Errors": {
-      "main": [[{"node": "08. Count Pending", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "08. Count Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Count Pending": {
-      "main": [[{"node": "09. Count By Workflow", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "09. Count By Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Count By Workflow": {
-      "main": [[{"node": "10. Format Response", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Format Response": {
-      "main": [[{"node": "11. Respond", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "11. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

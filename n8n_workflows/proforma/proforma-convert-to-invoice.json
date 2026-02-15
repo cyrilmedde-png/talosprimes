@@ -5,13 +5,16 @@
       "parameters": {
         "path": "proforma-convert-to-invoice",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
       "id": "01. Webhook",
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -51,7 +60,10 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
@@ -67,7 +79,10 @@
           "name": "Postgres"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -83,7 +98,10 @@
           "name": "Postgres"
         }
       },
-      "position": [700, 400]
+      "position": [
+        700,
+        400
+      ]
     },
     {
       "parameters": {
@@ -93,7 +111,10 @@
       "name": "07. Prepare Invoice Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 350]
+      "position": [
+        900,
+        350
+      ]
     },
     {
       "parameters": {
@@ -109,7 +130,10 @@
           "name": "Postgres"
         }
       },
-      "position": [1100, 350]
+      "position": [
+        1100,
+        350
+      ]
     },
     {
       "parameters": {
@@ -125,7 +149,10 @@
           "name": "Postgres"
         }
       },
-      "position": [1100, 450]
+      "position": [
+        1100,
+        450
+      ]
     },
     {
       "parameters": {
@@ -135,7 +162,10 @@
       "name": "10. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 400]
+      "position": [
+        1300,
+        400
+      ]
     },
     {
       "parameters": {
@@ -151,7 +181,10 @@
           "name": "Postgres"
         }
       },
-      "position": [1500, 400]
+      "position": [
+        1500,
+        400
+      ]
     },
     {
       "parameters": {
@@ -167,7 +200,10 @@
           "name": "Postgres"
         }
       },
-      "position": [1700, 400]
+      "position": [
+        1700,
+        400
+      ]
     },
     {
       "parameters": {
@@ -177,7 +213,10 @@
       "name": "13. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 400]
+      "position": [
+        1900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -190,48 +229,158 @@
       "name": "14. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2100, 400]
+      "position": [
+        2100,
+        400
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{"node": "05. Get Proforma", "type": "main", "index": 0}],
-        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+        [
+          {
+            "node": "05. Get Proforma",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Get Proforma": {
-      "main": [[{"node": "06. Get Next Invoice Number", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "06. Get Next Invoice Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Get Next Invoice Number": {
-      "main": [[{"node": "07. Prepare Invoice Data", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "07. Prepare Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Prepare Invoice Data": {
-      "main": [[{"node": "08. Create Invoice", "type": "main", "index": 0}], [{"node": "09. Get Proforma Lines", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "08. Create Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09. Get Proforma Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Create Invoice": {
-      "main": [[{"node": "10. Prepare Lines", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "10. Prepare Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Get Proforma Lines": {
-      "main": [[{"node": "10. Prepare Lines", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "10. Prepare Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Prepare Lines": {
-      "main": [[{"node": "11. Create Invoice Lines", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "11. Create Invoice Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "11. Create Invoice Lines": {
-      "main": [[{"node": "12. Update Proforma", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "12. Update Proforma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "12. Update Proforma": {
-      "main": [[{"node": "13. Format Response", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "13. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "13. Format Response": {
-      "main": [[{"node": "14. Respond", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "14. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

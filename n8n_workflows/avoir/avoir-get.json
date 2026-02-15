@@ -5,7 +5,7 @@
       "parameters": {
         "path": "avoir-get",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
