@@ -214,7 +214,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       // Appel depuis n8n (callback) → création BDD directe
       const questionnaire = await prisma.questionnaire.create({
         data: {
-          tenantId,
+          tenantId: tenantId!,
           leadId: body.leadId,
           channel: body.channel,
           status: 'en_cours',

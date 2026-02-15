@@ -268,7 +268,7 @@ export async function smsRoutes(fastify: FastifyInstance) {
       // Appel depuis n8n (callback) → création BDD directe
       const smsLog = await prisma.smsLog.create({
         data: {
-          tenantId,
+          tenantId: tenantId!,
           callLogId: body.callLogId || null,
           direction: body.direction,
           fromNumber: body.fromNumber,
