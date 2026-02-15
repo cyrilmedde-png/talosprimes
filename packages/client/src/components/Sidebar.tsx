@@ -19,6 +19,10 @@ import {
   ReceiptRefundIcon,
   ChevronDownIcon,
   WrenchScrewdriverIcon,
+  PhoneIcon,
+  ChatBubbleLeftIcon,
+  DocumentCheckIcon as QuestionIcon,
+  Cog6ToothIcon as SettingsIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -68,6 +72,17 @@ const navGroups: NavGroup[] = [
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
       { name: 'Notifications', href: '/notifications', icon: BellIcon },
       { name: 'CMS Landing Page', href: '/dashboard/cms', icon: PencilSquareIcon },
+    ],
+  },
+  {
+    label: 'Agent IA',
+    icon: PhoneIcon,
+    items: [
+      { name: 'Dashboard', href: '/agent-ia', icon: SparklesIcon },
+      { name: 'Appels', href: '/agent-ia/appels', icon: PhoneIcon },
+      { name: 'SMS', href: '/agent-ia/sms', icon: ChatBubbleLeftIcon },
+      { name: 'Questionnaires', href: '/agent-ia/questionnaires', icon: QuestionIcon },
+      { name: 'Configuration', href: '/agent-ia/configuration', icon: SettingsIcon },
     ],
   },
 ];

@@ -1,0 +1,135 @@
+{
+  "name": "sms-send",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sms-send",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sendAt: body.sendAt || new Date().toISOString()\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.phoneNumber }}",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.message }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required fields: tenantId, phoneNumber, message', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  smsId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  message: $json.message,\n  status: 'queued',\n  sendAt: $json.sendAt,\n  success: true,\n  message: 'SMS queued for sending successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 250]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

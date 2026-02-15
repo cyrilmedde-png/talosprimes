@@ -1,0 +1,158 @@
+{
+  "name": "questionnaire-update",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "questionnaire-update",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  callLogId: body.callLogId,\n  title: body.title,\n  description: body.description,\n  content: body.content,\n  status: body.status,\n  completedAt: body.completedAt\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.id }}",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required fields: id, tenantId', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "UPDATE questionnaires SET {{ $json.leadId !== undefined ? \"lead_id = \" + ($json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.callLogId !== undefined ? \"call_log_id = \" + ($json.callLogId ? \"'\" + $json.callLogId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.title !== undefined ? \"title = '\" + $json.title + \"',\" : \"\" }} {{ $json.description !== undefined ? \"description = '\" + $json.description + \"',\" : \"\" }} {{ $json.content !== undefined ? \"content = '\" + JSON.stringify($json.content).replace(/'/g, \"''\") + \"'::jsonb,\" : \"\" }} {{ $json.status !== undefined ? \"status = '\" + $json.status + \"',\" : \"\" }} {{ $json.completedAt !== undefined ? \"completed_at = \" + ($json.completedAt ? \"'\" + $json.completedAt + \"'\" : 'NULL') + \",\" : \"\" }} updated_at = NOW() WHERE id = '{{ $json.id }}' AND tenant_id = '{{ $json.tenantId }}'"
+      },
+      "name": "Postgres Update",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  questionnaireId: $json.id,\n  success: true,\n  message: 'Questionnaire updated successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 250]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Update",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Update": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

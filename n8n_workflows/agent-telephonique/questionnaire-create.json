@@ -1,0 +1,154 @@
+{
+  "name": "questionnaire-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "questionnaire-create",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  callLogId: body.callLogId || null,\n  title: body.title || '',\n  description: body.description || '',\n  content: body.content || {},\n  status: body.status || 'pending',\n  completedAt: body.completedAt || null\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required field: tenantId', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "INSERT INTO questionnaires (id, tenant_id, lead_id, call_log_id, title, description, content, status, completed_at, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, {{ $json.callLogId ? \"'\" + $json.callLogId + \"'\" : 'NULL' }}, '{{ $json.title }}', '{{ $json.description }}', '{{ JSON.stringify($json.content).replace(/'/g, \"''\")}}'::jsonb, '{{ $json.status }}', {{ $json.completedAt ? \"'\" + $json.completedAt + \"'\" : 'NULL' }}, NOW(), NOW())"
+      },
+      "name": "Postgres Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  questionnaireId: $json.id,\n  title: $json.title,\n  status: $json.status,\n  success: true,\n  message: 'Questionnaire created successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 250]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Insert",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Insert": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

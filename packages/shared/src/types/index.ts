@@ -113,3 +113,99 @@ export interface User {
   createdAt: string;
 }
 
+// ============================================
+// AGENT TÉLÉPHONIQUE IA (Twilio)
+// ============================================
+
+export type CallDirection = 'entrant' | 'sortant';
+export type UrgencyLevel = 'CRITIQUE' | 'URGENT' | 'STANDARD' | 'INFO';
+export type CallActionTaken = 'RDV' | 'DISPATCH' | 'DEVIS' | 'TRANSFERT' | 'INFO';
+export type CallSentiment = 'POSITIF' | 'NEUTRE' | 'FRUSTRE' | 'EN_DETRESSE';
+export type QuestionnaireStatus = 'en_cours' | 'complete' | 'abandonne';
+export type QuestionnaireChannel = 'telephone' | 'sms' | 'web';
+
+export interface TwilioConfig {
+  id: string;
+  tenantId: string;
+  phoneNumber: string | null;
+  agentName: string;
+  companyName: string | null;
+  niche: string;
+  businessHours: string | null;
+  systemPromptAddon: string | null;
+  knowledgeBase: string | null;
+  dispatchDelay: number;
+  basePrice: string | null;
+  humanContact: string | null;
+  active: boolean;
+  webhookUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CallLog {
+  id: string;
+  tenantId: string;
+  callSid: string | null;
+  direction: CallDirection;
+  callerPhone: string | null;
+  calledNumber: string | null;
+  duration: number;
+  status: string;
+  conversationLog: any[];
+  transcript: string | null;
+  callerName: string | null;
+  callerEmail: string | null;
+  callerAddress: string | null;
+  urgencyLevel: UrgencyLevel;
+  actionTaken: CallActionTaken | null;
+  sentiment: CallSentiment;
+  leadId: string | null;
+  appointmentDate: string | null;
+  niche: string | null;
+  notes: string | null;
+  followUpRequired: boolean;
+  followUpDone: boolean;
+  smsSent: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SmsLog {
+  id: string;
+  tenantId: string;
+  callLogId: string | null;
+  direction: CallDirection;
+  fromNumber: string;
+  toNumber: string;
+  body: string;
+  status: string;
+  twilioSid: string | null;
+  createdAt: string;
+}
+
+export interface Questionnaire {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  questions: Array<{ question: string; answer: string | null; order: number }>;
+  status: QuestionnaireStatus;
+  channel: QuestionnaireChannel;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CallStats {
+  totalCalls: number;
+  todayCalls: number;
+  avgDuration: number;
+  urgentCalls: number;
+  rdvPris: number;
+  dispatches: number;
+  pendingFollowups: number;
+  positiveSentiment: number;
+  negativeSentiment: number;
+  callsByDay: Array<{ date: string; count: number }>;
+}
+

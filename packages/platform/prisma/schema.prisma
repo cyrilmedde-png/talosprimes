@@ -96,6 +96,45 @@ enum LeadStatus {
   abandonne
 }
 
+enum CallDirection {
+  entrant
+  sortant
+}
+
+enum UrgencyLevel {
+  CRITIQUE
+  URGENT
+  STANDARD
+  INFO
+}
+
+enum CallActionTaken {
+  RDV
+  DISPATCH
+  DEVIS
+  TRANSFERT
+  INFO
+}
+
+enum CallSentiment {
+  POSITIF
+  NEUTRE
+  FRUSTRE
+  EN_DETRESSE
+}
+
+enum QuestionnaireStatus {
+  en_cours
+  complete
+  abandonne
+}
+
+enum QuestionnaireChannel {
+  telephone
+  sms
+  web
+}
+
 enum StatutJuridique {
   SA
   SARL
@@ -160,6 +199,11 @@ model Tenant {
   agentConfig        TenantAgentConfig?
   avoirs             Avoir[]
   proformas          Proforma[]
+  leads              Lead[]
+  callLogs           CallLog[]
+  twilioConfig       TwilioConfig?
+  smsLogs            SmsLog[]
+  questionnaires     Questionnaire[]
 
   @@index([emailContact])
   @@index([statut])
@@ -633,6 +677,7 @@ model EventLog {
 // Lead (demande d'inscription)
 model Lead {
   id          String     @id @default(uuid()) @db.Uuid
+  tenantId    String?    @map("tenant_id") @db.Uuid
   nom         String
   prenom      String
   email       String
@@ -644,7 +689,13 @@ model Lead {
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
+  // Relations
+  tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  callLogs       CallLog[]
+  questionnaires Questionnaire[]
+
   @@unique([email])
+  @@index([tenantId])
   @@index([statut])
   @@index([createdAt])
   @@map("leads")
@@ -750,5 +801,123 @@ model TenantAgentConfig {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("tenant_agent_configs")
+}
+
+// ============================================
+// AGENT TÉLÉPHONIQUE IA (Twilio)
+// ============================================
+
+// Configuration Twilio par tenant (compte central, numéro attribué)
+model TwilioConfig {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @unique @map("tenant_id") @db.Uuid
+  phoneNumber       String?  @map("phone_number") // Numéro Twilio attribué (+33...)
+  agentName         String   @default("Sophie") @map("agent_name")
+  companyName       String?  @map("company_name") // Nom affiché par l'agent
+  niche             String   @default("plomberie") // Clé vers niches-config
+  businessHours     String?  @map("business_hours") @db.Text
+  systemPromptAddon String?  @map("system_prompt_addon") @db.Text
+  knowledgeBase     String?  @map("knowledge_base") @db.Text
+  dispatchDelay     Int      @default(30) @map("dispatch_delay") // Minutes
+  basePrice         String?  @map("base_price") // Prix indicatif en toutes lettres
+  humanContact      String?  @map("human_contact") // Contact humain backup
+  active            Boolean  @default(false) // Agent activé ou non
+  webhookUrl        String?  @map("webhook_url") // URL webhook N8N spécifique
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([active])
+  @@map("twilio_configs")
+}
+
+// Journal des appels téléphoniques
+model CallLog {
+  id               String          @id @default(uuid()) @db.Uuid
+  tenantId         String          @map("tenant_id") @db.Uuid
+  callSid          String?         @unique @map("call_sid") // SID Twilio
+  direction        CallDirection   @default(entrant)
+  callerPhone      String?         @map("caller_phone")
+  calledNumber     String?         @map("called_number")
+  duration         Int             @default(0) // Durée en secondes
+  status           String          @default("initiated") // initiated, ringing, in-progress, completed, failed, no-answer
+  conversationLog  Json?           @default("[]") @map("conversation_log") // Historique conversation
+  transcript       String?         @db.Text // Transcription complète
+  callerName       String?         @map("caller_name")
+  callerEmail      String?         @map("caller_email")
+  callerAddress    String?         @map("caller_address") @db.Text
+  urgencyLevel     UrgencyLevel    @default(STANDARD) @map("urgency_level")
+  actionTaken      CallActionTaken? @map("action_taken")
+  sentiment        CallSentiment   @default(NEUTRE)
+  leadId           String?         @map("lead_id") @db.Uuid
+  appointmentDate  DateTime?       @map("appointment_date") @db.Timestamptz(6)
+  niche            String?
+  notes            String?         @db.Text
+  followUpRequired Boolean         @default(false) @map("follow_up_required")
+  followUpDone     Boolean         @default(false) @map("follow_up_done")
+  smsSent          Boolean         @default(false) @map("sms_sent")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead    Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  smsLogs SmsLog[]
+
+  @@index([tenantId])
+  @@index([callerPhone])
+  @@index([createdAt(sort: Desc)])
+  @@index([status])
+  @@index([urgencyLevel])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([followUpRequired])
+  @@map("call_logs")
+}
+
+// Journal des SMS
+model SmsLog {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  callLogId   String?       @map("call_log_id") @db.Uuid // Lié à un appel (optionnel)
+  direction   CallDirection @default(sortant)
+  fromNumber  String        @map("from_number")
+  toNumber    String        @map("to_number")
+  body        String        @db.Text
+  status      String        @default("sent") // sent, delivered, failed
+  twilioSid   String?       @unique @map("twilio_sid")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  callLog CallLog? @relation(fields: [callLogId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([callLogId])
+  @@map("sms_logs")
+}
+
+// Questionnaires leads (téléphone, SMS, ou web)
+model Questionnaire {
+  id          String               @id @default(uuid()) @db.Uuid
+  tenantId    String               @map("tenant_id") @db.Uuid
+  leadId      String               @map("lead_id") @db.Uuid
+  questions   Json                 @default("[]") // [{question: string, answer: string|null, order: number}]
+  status      QuestionnaireStatus  @default(en_cours)
+  channel     QuestionnaireChannel @default(telephone)
+  completedAt DateTime?            @map("completed_at") @db.Timestamptz(6)
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([status])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("questionnaires")
 }
 

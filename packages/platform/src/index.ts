@@ -22,6 +22,10 @@ import { bonsCommandeRoutes } from './api/routes/bons-commande.routes.js';
 import { devisRoutes } from './api/routes/devis.routes.js';
 import { avoirRoutes } from './api/routes/avoir.routes.js';
 import { proformaRoutes } from './api/routes/proforma.routes.js';
+import { callLogsRoutes } from './api/routes/call-logs.routes.js';
+import { twilioConfigRoutes } from './api/routes/twilio-config.routes.js';
+import { smsRoutes } from './api/routes/sms.routes.js';
+import { questionnairesRoutes } from './api/routes/questionnaires.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -164,6 +168,26 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes proformas
 await fastify.register(async (fastify) => {
   await fastify.register(proformaRoutes, { prefix: '/api/proformas' });
+});
+
+// Enregistrer les routes call logs
+await fastify.register(async (fastify) => {
+  await fastify.register(callLogsRoutes, { prefix: '/api/call-logs' });
+});
+
+// Enregistrer les routes twilio config
+await fastify.register(async (fastify) => {
+  await fastify.register(twilioConfigRoutes, { prefix: '/api/twilio-config' });
+});
+
+// Enregistrer les routes SMS
+await fastify.register(async (fastify) => {
+  await fastify.register(smsRoutes, { prefix: '/api/sms' });
+});
+
+// Enregistrer les routes questionnaires
+await fastify.register(async (fastify) => {
+  await fastify.register(questionnairesRoutes, { prefix: '/api/questionnaires' });
 });
 
 // Route de test

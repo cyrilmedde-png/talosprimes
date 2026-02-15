@@ -1,0 +1,316 @@
+{
+  "name": "call-log-stats",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "call-log-stats",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required field: tenantId', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total_calls FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}'"
+      },
+      "name": "Postgres Total Calls",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as today_calls FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}' AND DATE(created_at) = CURRENT_DATE"
+      },
+      "name": "Postgres Today Calls",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT ROUND(AVG(EXTRACT(EPOCH FROM (ended_at - started_at)))) as avg_duration_seconds FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}' AND ended_at IS NOT NULL"
+      },
+      "name": "Postgres Avg Duration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT urgency, COUNT(*) as count FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}' GROUP BY urgency ORDER BY count DESC"
+      },
+      "name": "Postgres By Urgency",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 550]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT action_taken, COUNT(*) as count FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}' AND action_taken IS NOT NULL GROUP BY action_taken ORDER BY count DESC"
+      },
+      "name": "Postgres By Action",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT sentiment, COUNT(*) as count FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}' AND sentiment IS NOT NULL GROUP BY sentiment ORDER BY count DESC"
+      },
+      "name": "Postgres By Sentiment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT DATE(created_at) as call_date, COUNT(*) as count FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}' AND created_at >= CURRENT_DATE - INTERVAL '7 days' GROUP BY DATE(created_at) ORDER BY call_date DESC"
+      },
+      "name": "Postgres Last 7 Days",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const totalCalls = $input[0].json.total_calls || 0;\nconst todayCalls = $input[1].json.today_calls || 0;\nconst avgDuration = $input[2].json.avg_duration_seconds || 0;\nconst byUrgency = $input[3].all().map(item => item.json);\nconst byAction = $input[4].all().map(item => item.json);\nconst bySentiment = $input[5].all().map(item => item.json);\nconst last7Days = $input[6].all().map(item => item.json);\n\nreturn {\n  stats: {\n    total_calls: totalCalls,\n    today_calls: todayCalls,\n    avg_duration_seconds: avgDuration,\n    avg_duration_minutes: Math.round(avgDuration / 60),\n    by_urgency: byUrgency,\n    by_action: byAction,\n    by_sentiment: bySentiment,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'Call statistics retrieved successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 350]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 350]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Total Calls",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Total Calls": {
+      "main": [
+        [
+          {
+            "node": "Postgres Today Calls",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Today Calls": {
+      "main": [
+        [
+          {
+            "node": "Postgres Avg Duration",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Avg Duration": {
+      "main": [
+        [
+          {
+            "node": "Postgres By Urgency",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres By Urgency": {
+      "main": [
+        [
+          {
+            "node": "Postgres By Action",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres By Action": {
+      "main": [
+        [
+          {
+            "node": "Postgres By Sentiment",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres By Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Postgres Last 7 Days",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Last 7 Days": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

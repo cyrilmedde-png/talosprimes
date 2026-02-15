@@ -1,0 +1,154 @@
+{
+  "name": "call-log-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "call-log-list",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required field: tenantId', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT * FROM call_logs WHERE tenant_id = '{{ $json.tenantId }}' ORDER BY created_at DESC LIMIT 50"
+      },
+      "name": "Postgres Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  call_logs: $input.all().map(item => item.json),\n  count: $input.all().length,\n  success: true,\n  message: 'Call logs retrieved successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 250]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Query",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Query": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

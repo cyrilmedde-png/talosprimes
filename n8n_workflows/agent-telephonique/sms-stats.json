@@ -1,0 +1,262 @@
+{
+  "name": "sms-stats",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sms-stats",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required field: tenantId', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total_sms FROM sms_logs WHERE tenant_id = '{{ $json.tenantId }}'"
+      },
+      "name": "Postgres Total SMS",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as today_sms FROM sms_logs WHERE tenant_id = '{{ $json.tenantId }}' AND DATE(created_at) = CURRENT_DATE"
+      },
+      "name": "Postgres Today SMS",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT status, COUNT(*) as count FROM sms_logs WHERE tenant_id = '{{ $json.tenantId }}' GROUP BY status ORDER BY count DESC"
+      },
+      "name": "Postgres By Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT direction, COUNT(*) as count FROM sms_logs WHERE tenant_id = '{{ $json.tenantId }}' GROUP BY direction ORDER BY count DESC"
+      },
+      "name": "Postgres By Direction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "SELECT DATE(created_at) as sms_date, COUNT(*) as count FROM sms_logs WHERE tenant_id = '{{ $json.tenantId }}' AND created_at >= CURRENT_DATE - INTERVAL '7 days' GROUP BY DATE(created_at) ORDER BY sms_date DESC"
+      },
+      "name": "Postgres Last 7 Days",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "const totalSMS = $input[0].json.total_sms || 0;\nconst todaySMS = $input[1].json.today_sms || 0;\nconst byStatus = $input[2].all().map(item => item.json);\nconst byDirection = $input[3].all().map(item => item.json);\nconst last7Days = $input[4].all().map(item => item.json);\n\nreturn {\n  stats: {\n    total_sms: totalSMS,\n    today_sms: todaySMS,\n    by_status: byStatus,\n    by_direction: byDirection,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'SMS statistics retrieved successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Total SMS",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Total SMS": {
+      "main": [
+        [
+          {
+            "node": "Postgres Today SMS",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Today SMS": {
+      "main": [
+        [
+          {
+            "node": "Postgres By Status",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres By Status": {
+      "main": [
+        [
+          {
+            "node": "Postgres By Direction",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres By Direction": {
+      "main": [
+        [
+          {
+            "node": "Postgres Last 7 Days",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Last 7 Days": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

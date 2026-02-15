@@ -1,0 +1,158 @@
+{
+  "name": "call-log-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "call-log-create",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  agentId: body.agentId || null,\n  phone: body.phone || '',\n  direction: body.direction || 'inbound',\n  startedAt: body.startedAt || new Date().toISOString(),\n  endedAt: body.endedAt || null,\n  duration: body.duration || 0,\n  status: body.status || 'completed',\n  transcript: body.transcript || '',\n  summary: body.summary || '',\n  actionTaken: body.actionTaken || null,\n  urgency: body.urgency || 'normal',\n  sentiment: body.sentiment || null,\n  notes: body.notes || '',\n  recordingUrl: body.recordingUrl || null,\n  tags: body.tags || []\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.phone }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required fields: tenantId, phone', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "INSERT INTO call_logs (id, tenant_id, lead_id, agent_id, phone, direction, started_at, ended_at, duration, status, transcript, summary, action_taken, urgency, sentiment, notes, recording_url, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, {{ $json.agentId ? \"'\" + $json.agentId + \"'\" : 'NULL' }}, '{{ $json.phone }}', '{{ $json.direction }}', '{{ $json.startedAt }}', {{ $json.endedAt ? \"'\" + $json.endedAt + \"'\" : 'NULL' }}, {{ $json.duration }}, '{{ $json.status }}', '{{ $json.transcript }}', '{{ $json.summary }}', {{ $json.actionTaken ? \"'\" + $json.actionTaken + \"'\" : 'NULL' }}, '{{ $json.urgency }}', {{ $json.sentiment ? \"'\" + $json.sentiment + \"'\" : 'NULL' }}, '{{ $json.notes }}', {{ $json.recordingUrl ? \"'\" + $json.recordingUrl + \"'\" : 'NULL' }}, NOW(), NOW())"
+      },
+      "name": "Postgres Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  callLogId: $json.id,\n  phone: $json.phone,\n  direction: $json.direction,\n  status: $json.status,\n  startedAt: $json.startedAt,\n  duration: $json.duration,\n  success: true,\n  message: 'Call log created successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 250]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Insert",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Insert": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

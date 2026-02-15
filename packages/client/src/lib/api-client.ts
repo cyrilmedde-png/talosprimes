@@ -568,6 +568,102 @@ export const apiClient = {
       return authenticatedFetch<{ success: boolean; data?: LogStats; error?: string }>(`/api/logs/stats${query}`);
     },
   },
+
+  // Agent Téléphonique - Call Logs
+  callLogs: {
+    list: (params?: { urgencyLevel?: string; status?: string; sentiment?: string; direction?: string; dateFrom?: string; dateTo?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.urgencyLevel) queryParams.append('urgencyLevel', params.urgencyLevel);
+      if (params?.status) queryParams.append('status', params.status);
+      if (params?.sentiment) queryParams.append('sentiment', params.sentiment);
+      if (params?.direction) queryParams.append('direction', params.direction);
+      if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { callLogs: any[] } }>(`/api/call-logs${query ? `?${query}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { callLog: any } }>(`/api/call-logs/${id}`),
+    stats: () =>
+      authenticatedFetch<{ success: boolean; data: any }>('/api/call-logs/stats'),
+    update: (id: string, data: { notes?: string; followUpDone?: boolean; status?: string }) =>
+      authenticatedFetch<{ success: boolean }>(`/api/call-logs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/call-logs/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  // Agent Téléphonique - Twilio Configuration
+  twilioConfig: {
+    get: () =>
+      authenticatedFetch<{ success: boolean; data: { config: any } }>('/api/twilio-config'),
+    update: (data: any) =>
+      authenticatedFetch<{ success: boolean }>('/api/twilio-config', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    testCall: () =>
+      authenticatedFetch<{ success: boolean }>('/api/twilio-config/test-call', {
+        method: 'POST',
+      }),
+    outboundCall: (data: { to: string; reason: string }) =>
+      authenticatedFetch<{ success: boolean }>('/api/twilio-config/outbound-call', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    niches: () =>
+      authenticatedFetch<{ success: boolean; data: { niches: string[] } }>('/api/twilio-config/niches'),
+  },
+
+  // Agent Téléphonique - SMS
+  sms: {
+    list: (params?: { direction?: string; dateFrom?: string; dateTo?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.direction) queryParams.append('direction', params.direction);
+      if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { smsLogs: any[] } }>(`/api/sms${query ? `?${query}` : ''}`);
+    },
+    stats: () =>
+      authenticatedFetch<{ success: boolean; data: any }>('/api/sms/stats'),
+    send: (data: { toNumber: string; body: string }) =>
+      authenticatedFetch<{ success: boolean }>('/api/sms/send', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  // Agent Téléphonique - Questionnaires
+  questionnaires: {
+    list: (params?: { status?: string; channel?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.status) queryParams.append('status', params.status);
+      if (params?.channel) queryParams.append('channel', params.channel);
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { questionnaires: any[] } }>(`/api/questionnaires${query ? `?${query}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { questionnaire: any } }>(`/api/questionnaires/${id}`),
+    create: (data: { leadId: string; questions: any[]; channel: string }) =>
+      authenticatedFetch<{ success: boolean }>('/api/questionnaires', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      authenticatedFetch<{ success: boolean }>(`/api/questionnaires/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/questionnaires/${id}`, {
+        method: 'DELETE',
+      }),
+  },
 };
 
 // Types pour les factures

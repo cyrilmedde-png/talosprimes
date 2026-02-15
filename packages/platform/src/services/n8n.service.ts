@@ -65,6 +65,29 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   notification_create: 'notification-created',
   notification_read: 'notification-read',
   notification_delete: 'notification-deleted',
+  // Call Logs
+  call_log_list: 'call-log-list',
+  call_log_get: 'call-log-get',
+  call_log_stats: 'call-log-stats',
+  call_log_create: 'call-log-create',
+  call_log_update: 'call-log-update',
+  call_log_delete: 'call-log-delete',
+  // Twilio Config
+  twilio_config_get: 'twilio-config-get',
+  twilio_config_update: 'twilio-config-update',
+  twilio_test_call: 'twilio-test-call',
+  twilio_outbound_call: 'twilio-outbound-call',
+  // SMS
+  sms_list: 'sms-list',
+  sms_stats: 'sms-stats',
+  sms_send: 'sms-send',
+  sms_log_create: 'sms-log-create',
+  // Questionnaires
+  questionnaire_list: 'questionnaire-list',
+  questionnaire_get: 'questionnaire-get',
+  questionnaire_create: 'questionnaire-create',
+  questionnaire_update: 'questionnaire-update',
+  questionnaire_delete: 'questionnaire-delete',
 };
 
 /**
