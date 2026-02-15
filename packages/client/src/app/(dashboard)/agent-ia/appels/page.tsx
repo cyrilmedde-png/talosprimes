@@ -98,7 +98,7 @@ export default function AppelsPage() {
     try {
       const response = await apiClient.callLogs.get(call.id);
       if (response.success && response.data) {
-        setSelectedCall(response.data.call as CallDetail);
+        setSelectedCall(response.data as CallDetail);
         setShowModal(true);
       }
     } catch (err) {

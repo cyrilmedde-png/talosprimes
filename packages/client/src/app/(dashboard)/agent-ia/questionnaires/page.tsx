@@ -85,7 +85,7 @@ export default function QuestionnairesPage() {
     try {
       const response = await apiClient.questionnaires.get(questionnaire.id);
       if (response.success && response.data) {
-        setSelectedQuestionnaire(response.data.questionnaire as Questionnaire);
+        setSelectedQuestionnaire(response.data as Questionnaire);
         setShowModal(true);
       }
     } catch (err) {
