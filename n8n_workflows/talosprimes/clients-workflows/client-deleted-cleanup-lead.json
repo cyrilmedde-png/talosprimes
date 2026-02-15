@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Payload envoyé par l'app : { event, tenantId, timestamp, data: { clientId, tenantId, email } }\nconst raw = $input.first().json;\nconst body = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (body && body.data && typeof body.data === \"object\") ? { ...body.data, tenantId: body.data.tenantId || body.tenantId } : body;\n\nconst email = (payload?.email || '').trim().toLowerCase();\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\n\nif (!email) {\n  return [{ json: { email: '', tenantId, skip: true } }];\n}\n\nreturn [{ json: { email, tenantId, skip: false } }];\n"
+        "jsCode": "// Payload envoyé par l'app : { event, tenantId, timestamp, data: { clientId, tenantId, email } }\nconst raw = $input.first().json;\nconst payload = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nconst email = (payload?.email || '').trim().toLowerCase();\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\n\nif (!email) {\n  return [{ json: { email: '', tenantId, skip: true } }];\n}\n\nreturn [{ json: { email, tenantId, skip: false } }];\n"
       },
       "id": "Code_Extract",
       "name": "Extraire email client",
@@ -55,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Trouver le lead dont l'email correspond au client supprimé\nconst clientEmail = $('Extraire email client').first().json.email;\nif (!clientEmail) {\n  return [{ json: { leadId: null } }];\n}\n\nconst res = $input.first().json;\nconst _body = (res && res.body && typeof res.body === \"object\") ? res.body : res;\nconst leads = _body.data?.leads || [];\nconst lead = leads.find(l => (l.email || '').toLowerCase() === clientEmail);\n\nreturn [{ json: { leadId: lead ? lead.id : null } }];\n"
+        "jsCode": "// Trouver le lead dont l'email correspond au client supprimé\nconst clientEmail = $('Extraire email client').first().json.email;\nif (!clientEmail) {\n  return [{ json: { leadId: null } }];\n}\n\nconst res = $input.first().json;\nconst _body = (res && res.data && typeof res.data === \"object\") ? { ...res.data, tenantId: res.data.tenantId || res.tenantId } : res;\nconst leads = _body.data?.leads || [];\nconst lead = leads.find(l => (l.email || '').toLowerCase() === clientEmail);\n\nreturn [{ json: { leadId: lead ? lead.id : null } }];\n"
       },
       "id": "Code_Find",
       "name": "Trouver lead par email",

@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst _wb = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst body = (_wb && _wb.data && typeof _wb.data === \"object\") ? { ..._wb.data, tenantId: _wb.data.tenantId || _wb.tenantId } : _wb;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  callLogId: body.callLogId,\n  title: body.title,\n  description: body.description,\n  content: body.content,\n  status: body.status,\n  completedAt: body.completedAt\n};"
+        "jsCode": "const raw = $input.first().json;\nconst _wb = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst body = (_wb && _wb.data && typeof _wb.data === \"object\") ? { ..._wb.data, tenantId: _wb.data.tenantId || _wb.tenantId } : _wb;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  callLogId: body.callLogId,\n  title: body.title,\n  description: body.description,\n  content: body.content,\n  status: body.status,\n  completedAt: body.completedAt\n};"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",

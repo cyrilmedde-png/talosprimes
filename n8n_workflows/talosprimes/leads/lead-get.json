@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { data: { id } } }\nconst raw = $input.first().json;\nconst body = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (body && body.data && typeof body.data === \"object\") ? { ...body.data, tenantId: body.data.tenantId || body.tenantId } : body;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id).trim() : null;\n\nif (!id) {\n  throw new Error('ID du lead requis');\n}\n\nreturn [{ json: { id } }];\n"
+        "jsCode": "// Parser le payload: { body: { data: { id } } }\nconst raw = $input.first().json;\nconst payload = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id).trim() : null;\n\nif (!id) {\n  throw new Error('ID du lead requis');\n}\n\nreturn [{ json: { id } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",

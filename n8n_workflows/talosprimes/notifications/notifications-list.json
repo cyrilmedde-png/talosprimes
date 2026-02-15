@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const raw = $input.first().json;\nconst body = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (body && body.data && typeof body.data === \"object\") ? { ...body.data, tenantId: body.data.tenantId || body.tenantId } : body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst lu = payload.lu !== undefined ? payload.lu : null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  lu\n};"
+        "code": "const raw = $input.first().json;\nconst payload = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst lu = payload.lu !== undefined ? payload.lu : null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  lu\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",

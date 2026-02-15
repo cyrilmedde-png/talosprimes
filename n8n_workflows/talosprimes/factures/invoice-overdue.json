@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const _raw=$input.first().json;\nconst raw=(_raw && _raw.body && typeof _raw.body === \"object\") ? _raw.body : _raw;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];return null}\nconst payload=(raw&&typeof raw==='object'&&raw.data&&typeof raw.data==='object')?{...raw.data,tenantId:raw.data.tenantId||raw.tenantId}:raw;\nconst data=isO(payload)?payload:{};\nconst tenantId=g(data,'tenantId')||g(raw,'tenantId');\nif(!tenantId)return [{json:{_error:true,message:'tenantId requis'}}];\nreturn [{json:{tenantId}}];"
+        "jsCode": "const raw = $input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];return null}\nconst payload=(raw&&typeof raw==='object'&&raw.data&&typeof raw.data==='object')?{...raw.data,tenantId:raw.data.tenantId||raw.tenantId}:raw;\nconst data=isO(payload)?payload:{};\nconst tenantId=g(data,'tenantId')||g(raw,'tenantId');\nif(!tenantId)return [{json:{_error:true,message:'tenantId requis'}}];\nreturn [{json:{tenantId}}];"
       },
       "id": "parser",
       "name": "02. Parser",
