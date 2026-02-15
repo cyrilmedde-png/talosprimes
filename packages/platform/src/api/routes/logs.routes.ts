@@ -92,7 +92,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
 
         // Enrichir les logs avec l'email de l'entité et déterminer le workflow
         const logsWithWorkflow = await Promise.all(
-          logs.map(async (log) => {
+          logs.map(async (log: any) => {
             let workflow = 'other';
             if (WORKFLOW_EVENTS.leads.includes(log.typeEvenement)) {
               workflow = 'leads';

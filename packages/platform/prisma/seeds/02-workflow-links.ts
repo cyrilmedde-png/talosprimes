@@ -38,6 +38,24 @@ const BDC_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'bdc_delete', workflowN8nId: 'bdc_delete', workflowN8nNom: 'bdc-deleted' },
 ];
 
+const AVOIR_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'avoir_list', workflowN8nId: 'avoir_list', workflowN8nNom: 'avoir-list' },
+  { typeEvenement: 'avoir_get', workflowN8nId: 'avoir_get', workflowN8nNom: 'avoir-get' },
+  { typeEvenement: 'avoir_create', workflowN8nId: 'avoir_create', workflowN8nNom: 'avoir-created' },
+  { typeEvenement: 'avoir_validate', workflowN8nId: 'avoir_validate', workflowN8nNom: 'avoir-validated' },
+  { typeEvenement: 'avoir_delete', workflowN8nId: 'avoir_delete', workflowN8nNom: 'avoir-deleted' },
+];
+
+const PROFORMA_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'proforma_list', workflowN8nId: 'proforma_list', workflowN8nNom: 'proforma-list' },
+  { typeEvenement: 'proforma_get', workflowN8nId: 'proforma_get', workflowN8nNom: 'proforma-get' },
+  { typeEvenement: 'proforma_create', workflowN8nId: 'proforma_create', workflowN8nNom: 'proforma-created' },
+  { typeEvenement: 'proforma_send', workflowN8nId: 'proforma_send', workflowN8nNom: 'proforma-sent' },
+  { typeEvenement: 'proforma_accept', workflowN8nId: 'proforma_accept', workflowN8nNom: 'proforma-accepted' },
+  { typeEvenement: 'proforma_convert_to_invoice', workflowN8nId: 'proforma_convert_to_invoice', workflowN8nNom: 'proforma-convert-to-invoice' },
+  { typeEvenement: 'proforma_delete', workflowN8nId: 'proforma_delete', workflowN8nNom: 'proforma-deleted' },
+];
+
 /** Upsert une liste de workflow links pour un module et un tenant. */
 async function seedWorkflowLinks(
   prisma: PrismaClient,
@@ -118,4 +136,24 @@ export async function seedWorkflowLinksBdc(
   tenantId: string
 ): Promise<void> {
   await seedWorkflowLinks(prisma, tenantId, 'bons_commande', BDC_WORKFLOWS, 'bons de commande');
+}
+
+/**
+ * Attache les workflow links avoirs au tenant donné.
+ */
+export async function seedWorkflowLinksAvoir(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'avoirs', AVOIR_WORKFLOWS, 'avoirs');
+}
+
+/**
+ * Attache les workflow links proformas au tenant donné.
+ */
+export async function seedWorkflowLinksProforma(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'proformas', PROFORMA_WORKFLOWS, 'proformas');
 }

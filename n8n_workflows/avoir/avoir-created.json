@@ -1,0 +1,258 @@
+{
+  "name": "avoir-created",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "avoir-created",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  invoiceId: body.invoiceId || null,\n  montantHt: body.montantHt,\n  tvaTaux: body.tvaTaux || 0,\n  dateAvoir: body.dateAvoir || new Date().toISOString().split('T')[0],\n  motif: body.motif || '',\n  description: body.description || '',\n  lines: body.lines || []\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.clientFinalId }}",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.montantHt }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing required fields: tenantId, clientFinalId, montantHt', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQueryFetch",
+        "query": "SELECT COUNT(*) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'"
+      },
+      "name": "Postgres Get Next Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const nextNum = $input[0][0].json.next_num;\nconst year = new Date().getFullYear();\nconst paddedNum = String(nextNum).padStart(6, '0');\nconst numeroAvoir = `AVO-${year}-${paddedNum}`;\n\nreturn {\n  ...($input.all()[0].json),\n  numeroAvoir: numeroAvoir,\n  avoirId: require('crypto').randomUUID()\n};"
+      },
+      "name": "Code Generate Number",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES ('{{ $json.avoirId }}', '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', {{ $json.invoiceId ? \"'\" + $json.invoiceId + \"'\" : 'NULL' }}, '{{ $json.numeroAvoir }}', '{{ $json.dateAvoir }}', {{ $json.montantHt }}, {{ $json.montantHt * (1 + $json.tvaTaux / 100) }}, {{ $json.tvaTaux }}, '{{ $json.motif }}', '{{ $json.description }}', 'brouillon', NOW(), NOW())"
+      },
+      "name": "Postgres Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lines = $json.lines || [];\nconst avoirId = $json.avoirId;\n\nif (lines.length === 0) {\n  return { success: true, linesInserted: 0 };\n}\n\nconst lineQueries = lines.map((line, idx) => ({\n  avoirId: avoirId,\n  ordre: idx + 1,\n  description: line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaire: line.prixUnitaire || 0,\n  montant: (line.quantite || 1) * (line.prixUnitaire || 0)\n}));\n\nreturn { lineQueries, linesCount: lineQueries.length };"
+      },
+      "name": "Code Prepare Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 550]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQuery",
+        "query": "INSERT INTO avoir_lines (avoir_id, ordre, description, quantite, prix_unitaire, montant) VALUES{% for item in $json.lineQueries %} ('{{ item.avoirId }}', {{ item.ordre }}, '{{ item.description }}', {{ item.quantite }}, {{ item.prixUnitaire }}, {{ item.montant }}){{ not loop.last ? ',' : '' }}{% endfor %}"
+      },
+      "name": "Postgres Insert Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 650]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  avoirId: $json.avoirId,\n  numeroAvoir: $json.numeroAvoir,\n  statut: 'brouillon',\n  dateAvoir: $json.dateAvoir,\n  montantHt: $json.montantHt,\n  montantTtc: $json.montantHt * (1 + $json.tvaTaux / 100),\n  tvaTaux: $json.tvaTaux,\n  linesCount: $json.linesCount || 0,\n  success: true,\n  message: 'Avoir created successfully'\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Get Next Number",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Get Next Number": {
+      "main": [
+        [
+          {
+            "node": "Code Generate Number",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Code Generate Number": {
+      "main": [
+        [
+          {
+            "node": "Postgres Insert",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Insert": {
+      "main": [
+        [
+          {
+            "node": "Code Prepare Lines",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Code Prepare Lines": {
+      "main": [
+        [
+          {
+            "node": "Postgres Insert Lines",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Insert Lines": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

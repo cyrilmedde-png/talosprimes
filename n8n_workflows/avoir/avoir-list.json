@@ -1,0 +1,181 @@
+{
+  "name": "avoir-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "avoir-list",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 250]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId,\n  page: body.page || 1,\n  limit: body.limit || 20,\n  statut: body.statut || null,\n  clientFinalId: body.clientFinalId || null,\n  offset: ((body.page || 1) - 1) * (body.limit || 20)\n};"
+      },
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{{ { error: 'Missing tenantId', success: false } }}"
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQueryFetch",
+        "query": "SELECT COUNT(*) as total FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }}"
+      },
+      "name": "Postgres Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "host": "{{ $env.DB_HOST }}",
+        "database": "{{ $env.DB_NAME }}",
+        "user": "{{ $env.DB_USER }}",
+        "password": "{{ $env.DB_PASSWORD }}",
+        "port": 5432,
+        "operation": "executeQueryFetch",
+        "query": "SELECT a.*, cf.email, cf.nom, cf.prenom, cf.raison_sociale, i.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND a.statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND a.client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }} ORDER BY a.date_avoir DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+      },
+      "name": "Postgres List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "const count = $input[0][0].json.total;\nconst avoirs = $input[1].json;\nconst page = $json.page;\nconst limit = $json.limit;\nconst totalPages = Math.ceil(count / limit);\n\nreturn {\n  avoirs: avoirs,\n  count: avoirs.length,\n  total: parseInt(count),\n  page: page,\n  limit: limit,\n  totalPages: totalPages,\n  success: true\n};"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ $json }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Postgres Count",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres Count": {
+      "main": [
+        [
+          {
+            "node": "Postgres List",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres List": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "branch": 0,
+            "index": 0,
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

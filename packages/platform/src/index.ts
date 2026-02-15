@@ -20,6 +20,8 @@ import { agentRoutes } from './api/routes/agent.routes.js';
 import { articleCodesRoutes } from './api/routes/article-codes.routes.js';
 import { bonsCommandeRoutes } from './api/routes/bons-commande.routes.js';
 import { devisRoutes } from './api/routes/devis.routes.js';
+import { avoirRoutes } from './api/routes/avoir.routes.js';
+import { proformaRoutes } from './api/routes/proforma.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -152,6 +154,16 @@ await fastify.register(async (fastify) => {
 await fastify.register(async (fastify) => {
   await fastify.register(bonsCommandeRoutes, { prefix: '/api/bons-commande' });
   await fastify.register(devisRoutes, { prefix: '/api/devis' });
+});
+
+// Enregistrer les routes avoirs
+await fastify.register(async (fastify) => {
+  await fastify.register(avoirRoutes, { prefix: '/api/avoirs' });
+});
+
+// Enregistrer les routes proformas
+await fastify.register(async (fastify) => {
+  await fastify.register(proformaRoutes, { prefix: '/api/proformas' });
 });
 
 // Route de test

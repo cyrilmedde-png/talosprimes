@@ -1,0 +1,153 @@
+{
+  "name": "proforma-deleted",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "proforma-deleted",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "errorMessage": "{{ error_message }}",
+        "errorCode": "{{ error_code }}"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "dependsOn": ["webhook"]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $json.proforma_id }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "dependsOn": ["parser"]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseBody": "{{ error_message }}",
+          "responseCode": 400
+        }
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "dependsOn": ["validation"]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM proforma_lines WHERE proforma_id = $1"
+      },
+      "id": "postgres_delete_lines",
+      "name": "Postgres Delete Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "dependsOn": ["validation"],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM proformas WHERE proforma_id = $1 RETURNING proforma_id"
+      },
+      "id": "postgres_delete",
+      "name": "Postgres Delete",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "dependsOn": ["postgres_delete_lines"],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "proforma_id",
+              "value": "{{ $json[0].proforma_id }}"
+            },
+            {
+              "name": "status",
+              "value": "deleted"
+            }
+          ]
+        }
+      },
+      "id": "format",
+      "name": "Format",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "dependsOn": ["postgres_delete"]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseBody": "{{ { proforma_id: $nodes.format.json.proforma_id, status: $nodes.format.json.status } }}"
+        }
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400],
+      "dependsOn": ["format"]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [[{ "node": "parser", "type": "main", "index": 0 }]]
+    },
+    "parser": {
+      "main": [[{ "node": "validation", "type": "main", "index": 0 }]]
+    },
+    "validation": {
+      "main": [
+        [{ "node": "postgres_delete_lines", "type": "main", "index": 0 }],
+        [{ "node": "error_respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "postgres_delete_lines": {
+      "main": [[{ "node": "postgres_delete", "type": "main", "index": 0 }]]
+    },
+    "postgres_delete": {
+      "main": [[{ "node": "format", "type": "main", "index": 0 }]]
+    },
+    "format": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  }
+}

@@ -15,7 +15,7 @@ const createSchema = z.object({
   clientFinalId: z.string().uuid(),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateDevis: z.string().datetime({ offset: true }).optional().nullable(),
+  dateProforma: z.string().datetime({ offset: true }).optional().nullable(),
   dateValidite: z.string().datetime({ offset: true }).optional().nullable(),
   description: z.string().optional().nullable(),
   modePaiement: z.string().optional().nullable(),
@@ -24,8 +24,8 @@ const createSchema = z.object({
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
-export async function devisRoutes(fastify: FastifyInstance) {
-  // GET /api/devis - Liste
+export async function proformaRoutes(fastify: FastifyInstance) {
+  // GET /api/proforma - Liste
   fastify.get('/', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
@@ -43,9 +43,9 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
-        const res = await n8nService.callWorkflowReturn<{ devis: unknown[]; count: number; total: number; totalPages: number }>(
+        const res = await n8nService.callWorkflowReturn<{ proforma: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
-          'devis_list',
+          'proforma_list',
           {
             page,
             limit,
@@ -54,16 +54,16 @@ export async function devisRoutes(fastify: FastifyInstance) {
           }
         );
         if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow devis_list indisponible' });
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow proforma_list indisponible' });
         }
-        const raw = res.data as { devis?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const devis = Array.isArray(raw.devis) ? raw.devis : [];
+        const raw = res.data as { proforma?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+        const proforma = Array.isArray(raw.proforma) ? raw.proforma : [];
         return reply.status(200).send({
           success: true,
           data: {
-            devis,
-            count: devis.length,
-            total: raw.total ?? devis.length,
+            proforma,
+            count: proforma.length,
+            total: raw.total ?? proforma.length,
             page: raw.page ?? 1,
             limit: raw.limit ?? 20,
             totalPages: raw.totalPages ?? 1,
@@ -77,8 +77,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
       if (query.statut) where.statut = query.statut as 'brouillon' | 'envoyee' | 'acceptee' | 'refusee' | 'expiree' | 'facturee';
       if (query.clientFinalId) where.clientFinalId = query.clientFinalId;
 
-      const [devis, total] = await Promise.all([
-        prisma.devis.findMany({
+      const [proforma, total] = await Promise.all([
+        prisma.proforma.findMany({
           where,
           skip,
           take: limit,
@@ -86,22 +86,22 @@ export async function devisRoutes(fastify: FastifyInstance) {
             clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
             lines: { orderBy: { ordre: 'asc' } },
           },
-          orderBy: { dateDevis: 'desc' },
+          orderBy: { dateProforma: 'desc' },
         }),
-        prisma.devis.count({ where }),
+        prisma.proforma.count({ where }),
       ]);
 
       return reply.status(200).send({
         success: true,
-        data: { devis, count: devis.length, total, page, limit, totalPages: Math.ceil(total / limit) },
+        data: { proforma, count: proforma.length, total, page, limit, totalPages: Math.ceil(total / limit) },
       });
     } catch (error) {
-      fastify.log.error(error, 'Erreur liste devis');
+      fastify.log.error(error, 'Erreur liste proforma');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // GET /api/devis/:id
+  // GET /api/proforma/:id
   fastify.get('/:id', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
@@ -117,13 +117,13 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
-        const res = await n8nService.callWorkflowReturn<{ devis: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ proforma: unknown }>(
           tenantId,
-          'devis_get',
-          { devisId: params.id }
+          'proforma_get',
+          { proformaId: params.id }
         );
         if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow devis_get indisponible' });
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow proforma_get indisponible' });
         }
         return reply.status(200).send({
           success: true,
@@ -137,7 +137,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
         where.tenantId = tenantId;
       }
 
-      const devis = await prisma.devis.findFirst({
+      const proforma = await prisma.proforma.findFirst({
         where,
         include: {
           clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true, adresse: true, telephone: true } },
@@ -146,18 +146,18 @@ export async function devisRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!devis) return reply.status(404).send({ success: false, error: 'Devis non trouvé' });
-      return reply.status(200).send({ success: true, data: { devis } });
+      if (!proforma) return reply.status(404).send({ success: false, error: 'Proforma non trouvé' });
+      return reply.status(200).send({ success: true, data: { proforma } });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur récupération devis');
+      fastify.log.error(error, 'Erreur récupération proforma');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // POST /api/devis - Créer
+  // POST /api/proforma - Créer
   fastify.post('/', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
@@ -189,9 +189,9 @@ export async function devisRoutes(fastify: FastifyInstance) {
           delete (bodyWithoutTenantId as { tenantId?: string }).tenantId;
         }
 
-        const res = await n8nService.callWorkflowReturn<{ devis: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ proforma: unknown }>(
           tenantId,
-          'devis_create',
+          'proforma_create',
           { ...bodyWithoutTenantId, tenantId }
         );
         if (!res.success) {
@@ -200,29 +200,29 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
         return reply.status(201).send({
           success: true,
-          message: 'Devis créé via n8n',
+          message: 'Proforma créé via n8n',
           data: res.data,
         });
       }
 
       // Appel depuis n8n (callback) : persister en base
-      const count = await prisma.devis.count({ where: { tenantId } });
+      const count = await prisma.proforma.count({ where: { tenantId } });
       const year = new Date().getFullYear();
-      const numeroDevis = `DEV-${year}-${String(count + 1).padStart(6, '0')}`;
+      const numeroProforma = `PRO-${year}-${String(count + 1).padStart(6, '0')}`;
 
       const tvaTaux = body.tvaTaux ?? 20;
       const montantTtc = Number((body.montantHt * (1 + tvaTaux / 100)).toFixed(2));
-      const dateDevis = body.dateDevis ? new Date(body.dateDevis) : new Date();
+      const dateProforma = body.dateProforma ? new Date(body.dateProforma) : new Date();
       const dateValidite = body.dateValidite
         ? new Date(body.dateValidite)
-        : new Date(dateDevis.getTime() + 30 * 24 * 60 * 60 * 1000);
+        : new Date(dateProforma.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-      const devis = await prisma.devis.create({
+      const proforma = await prisma.proforma.create({
         data: {
           tenantId,
           clientFinalId: body.clientFinalId,
-          numeroDevis,
-          dateDevis,
+          numeroProforma,
+          dateProforma,
           dateValidite,
           montantHt: body.montantHt,
           montantTtc,
@@ -251,19 +251,19 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
       return reply.status(201).send({
         success: true,
-        message: 'Devis créé',
-        data: { devis },
+        message: 'Proforma créé',
+        data: { proforma },
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur création devis');
+      fastify.log.error(error, 'Erreur création proforma');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // PUT /api/devis/:id/send - Envoyer le devis (brouillon → envoyée)
+  // PUT /api/proforma/:id/send - Envoyer le proforma (brouillon → envoyée)
   fastify.put('/:id/send', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
@@ -280,43 +280,43 @@ export async function devisRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
-      const devis = await prisma.devis.findFirst({ where: { id: params.id, tenantId } });
-      if (!devis) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (devis.statut !== 'brouillon') return reply.status(400).send({ success: false, error: 'Seul un brouillon peut être envoyé' });
+      const proforma = await prisma.proforma.findFirst({ where: { id: params.id, tenantId } });
+      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (proforma.statut !== 'brouillon') return reply.status(400).send({ success: false, error: 'Seul un brouillon peut être envoyé' });
 
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ devis: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ proforma: unknown }>(
           tenantId,
-          'devis_send',
-          { devisId: params.id }
+          'proforma_send',
+          { proformaId: params.id }
         );
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
         return reply.status(200).send({
           success: true,
-          message: 'Devis envoyé via n8n',
+          message: 'Proforma envoyé via n8n',
           data: res.data,
         });
       }
 
-      const updated = await prisma.devis.update({
+      const updated = await prisma.proforma.update({
         where: { id: params.id },
         data: { statut: 'envoyee' },
         include: { clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } } },
       });
 
-      return reply.status(200).send({ success: true, message: 'Devis envoyé', data: { devis: updated } });
+      return reply.status(200).send({ success: true, message: 'Proforma envoyé', data: { proforma: updated } });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur envoi devis');
+      fastify.log.error(error, 'Erreur envoi proforma');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // PUT /api/devis/:id/accept - Accepter le devis
+  // PUT /api/proforma/:id/accept - Accepter le proforma
   fastify.put('/:id/accept', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
@@ -333,43 +333,43 @@ export async function devisRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
-      const devis = await prisma.devis.findFirst({ where: { id: params.id, tenantId } });
-      if (!devis) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (devis.statut !== 'envoyee') return reply.status(400).send({ success: false, error: 'Seul un devis envoyé peut être accepté' });
+      const proforma = await prisma.proforma.findFirst({ where: { id: params.id, tenantId } });
+      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (proforma.statut !== 'envoyee') return reply.status(400).send({ success: false, error: 'Seul un proforma envoyé peut être accepté' });
 
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ devis: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ proforma: unknown }>(
           tenantId,
-          'devis_accept',
-          { devisId: params.id }
+          'proforma_accept',
+          { proformaId: params.id }
         );
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
         return reply.status(200).send({
           success: true,
-          message: 'Devis accepté via n8n',
+          message: 'Proforma accepté via n8n',
           data: res.data,
         });
       }
 
-      const updated = await prisma.devis.update({
+      const updated = await prisma.proforma.update({
         where: { id: params.id },
         data: { statut: 'acceptee' },
         include: { clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } } },
       });
 
-      return reply.status(200).send({ success: true, message: 'Devis accepté', data: { devis: updated } });
+      return reply.status(200).send({ success: true, message: 'Proforma accepté', data: { proforma: updated } });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur acceptation devis');
+      fastify.log.error(error, 'Erreur acceptation proforma');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // POST /api/devis/:id/convert-to-invoice - Convertir en facture
+  // POST /api/proforma/:id/convert-to-invoice - Convertir en facture
   fastify.post('/:id/convert-to-invoice', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
@@ -386,20 +386,20 @@ export async function devisRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
-      const devis = await prisma.devis.findFirst({
+      const proforma = await prisma.proforma.findFirst({
         where: { id: params.id, tenantId },
         include: { lines: { orderBy: { ordre: 'asc' } } },
       });
 
-      if (!devis) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (devis.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
-      if (devis.statut === 'refusee' || devis.statut === 'expiree') return reply.status(400).send({ success: false, error: 'Devis refusé ou expiré' });
+      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (proforma.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
+      if (proforma.statut === 'refusee' || proforma.statut === 'expiree') return reply.status(400).send({ success: false, error: 'Proforma refusé ou expiré' });
 
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ invoice: unknown; devis: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ invoice: unknown; proforma: unknown }>(
           tenantId,
-          'devis_convert_to_invoice',
-          { devisId: params.id }
+          'proforma_convert_to_invoice',
+          { proformaId: params.id }
         );
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
@@ -411,7 +411,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Appel depuis n8n (callback) : créer la facture et mettre à jour le devis
+      // Appel depuis n8n (callback) : créer la facture et mettre à jour le proforma
       const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;
@@ -420,19 +420,19 @@ export async function devisRoutes(fastify: FastifyInstance) {
         data: {
           tenantId,
           type: 'facture_client_final',
-          clientFinalId: devis.clientFinalId,
+          clientFinalId: proforma.clientFinalId,
           numeroFacture,
           dateFacture: new Date(),
           dateEcheance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          montantHt: devis.montantHt,
-          montantTtc: devis.montantTtc,
-          tvaTaux: devis.tvaTaux,
-          description: devis.description ? `Devis ${devis.numeroDevis} - ${devis.description}` : `Depuis devis ${devis.numeroDevis}`,
-          modePaiement: devis.modePaiement,
+          montantHt: proforma.montantHt,
+          montantTtc: proforma.montantTtc,
+          tvaTaux: proforma.tvaTaux,
+          description: proforma.description ? `Proforma ${proforma.numeroProforma} - ${proforma.description}` : `Depuis proforma ${proforma.numeroProforma}`,
+          modePaiement: proforma.modePaiement,
           statut: 'brouillon',
-          ...(devis.lines.length > 0 ? {
+          ...(proforma.lines.length > 0 ? {
             lines: {
-              create: devis.lines.map((l: any, i: number) => ({
+              create: proforma.lines.map((l: any, i: number) => ({
                 codeArticle: l.codeArticle,
                 designation: l.designation,
                 quantite: l.quantite,
@@ -449,7 +449,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
         },
       });
 
-      const updatedDevis = await prisma.devis.update({
+      const updatedProforma = await prisma.proforma.update({
         where: { id: params.id },
         data: { statut: 'facturee', invoiceId: invoice.id },
         include: {
@@ -459,19 +459,19 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
       return reply.status(201).send({
         success: true,
-        message: `Facture ${numeroFacture} créée depuis ${devis.numeroDevis}`,
-        data: { invoice, devis: updatedDevis },
+        message: `Facture ${numeroFacture} créée depuis ${proforma.numeroProforma}`,
+        data: { invoice, proforma: updatedProforma },
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur conversion devis → facture');
+      fastify.log.error(error, 'Erreur conversion proforma → facture');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // DELETE /api/devis/:id
+  // DELETE /api/proforma/:id
   fastify.delete('/:id', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
@@ -488,32 +488,32 @@ export async function devisRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
-      const devis = await prisma.devis.findFirst({ where: { id: params.id, tenantId } });
-      if (!devis) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (devis.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un devis déjà facturé' });
+      const proforma = await prisma.proforma.findFirst({ where: { id: params.id, tenantId } });
+      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (proforma.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un proforma déjà facturé' });
 
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
-          'devis_delete',
-          { devisId: params.id }
+          'proforma_delete',
+          { proformaId: params.id }
         );
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
         return reply.status(200).send({
           success: true,
-          message: 'Devis supprimé via n8n',
+          message: 'Proforma supprimé via n8n',
         });
       }
 
-      await prisma.devis.delete({ where: { id: params.id } });
-      return reply.status(200).send({ success: true, message: 'Devis supprimé' });
+      await prisma.proforma.delete({ where: { id: params.id } });
+      return reply.status(200).send({ success: true, message: 'Proforma supprimé' });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur suppression devis');
+      fastify.log.error(error, 'Erreur suppression proforma');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });

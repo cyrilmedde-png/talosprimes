@@ -72,7 +72,7 @@ export default function FacturesPage() {
   const [total, setTotal] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Modal Créer une facture / devis / proforma / avoir
+  // Modal Créer une facture
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [clients, setClients] = useState<ClientFinal[]>([]);
   const [creating, setCreating] = useState(false);
@@ -93,6 +93,7 @@ export default function FacturesPage() {
   const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
   const createSubmittingRef = useRef(false);
 
+  // Message "bientôt" removed - Proforma and Avoir are now available
   const selectedClient = clients.find((c) => c.id === createForm.clientFinalId);
 
   const getDefaultLigne = (): LigneArticle => ({
@@ -121,9 +122,6 @@ export default function FacturesPage() {
     });
     setLignes([getDefaultLigne()]);
   };
-
-  // Message "bientôt" pour Devis / Proforma / Avoir
-  const [bientotMessage, setBientotMessage] = useState<string | null>(null);
 
   // Modal Modifier (statut)
   const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
@@ -273,11 +271,6 @@ export default function FacturesPage() {
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (createSubmittingRef.current) return;
-    if (createForm.typeDocument !== 'facture') {
-      setBientotMessage(`${createForm.typeDocument === 'devis' ? 'Devis' : createForm.typeDocument === 'proforma' ? 'Proforma' : 'Avoir'} — création disponible prochainement.`);
-      setTimeout(() => setBientotMessage(null), 3000);
-      return;
-    }
     let montantHt: number;
     let tvaTaux: number;
     if (lignes.length > 0 && lignes.some((l) => (parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0) > 0)) {
@@ -395,36 +388,22 @@ export default function FacturesPage() {
           </button>
           <button
             type="button"
-            title="Bientôt disponible"
-            onClick={() => {
-              setBientotMessage('Proforma — bientôt disponible');
-              setTimeout(() => setBientotMessage(null), 2500);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
+            onClick={() => router.push('/proforma')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm"
           >
             <DocumentTextIcon className="h-5 w-5" />
             Proforma
           </button>
           <button
             type="button"
-            title="Bientôt disponible"
-            onClick={() => {
-              setBientotMessage('Avoir — bientôt disponible');
-              setTimeout(() => setBientotMessage(null), 2500);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
+            onClick={() => router.push('/avoir')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium text-sm"
           >
             <ReceiptRefundIcon className="h-5 w-5" />
             Avoir
           </button>
         </div>
       </div>
-
-      {bientotMessage && (
-        <div className="rounded-lg bg-gray-700 border border-gray-600 px-4 py-2 text-sm text-gray-300 animate-pulse">
-          {bientotMessage}
-        </div>
-      )}
 
       {/* Rappel normes européennes */}
       <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-4 text-sm text-amber-200">

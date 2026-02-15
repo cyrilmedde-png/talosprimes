@@ -75,4 +75,38 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module devis OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'avoirs' },
+    update: {
+      nomAffiche: 'Avoirs',
+      description: 'Module de gestion des avoirs : création, validation, annulation',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'avoirs',
+      nomAffiche: 'Avoirs',
+      description: 'Module de gestion des avoirs : création, validation, annulation',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module avoirs OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'proformas' },
+    update: {
+      nomAffiche: 'Proformas',
+      description: 'Module de gestion des factures proforma : création, envoi, acceptation, conversion en facture',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'proformas',
+      nomAffiche: 'Proformas',
+      description: 'Module de gestion des factures proforma : création, envoi, acceptation, conversion en facture',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module proformas OK');
 }

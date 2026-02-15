@@ -509,6 +509,48 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; message: string }>(`/api/devis/${id}`, { method: 'DELETE' }),
   },
 
+  avoirs: {
+    list: (params?: { page?: number; limit?: number; statut?: string; clientFinalId?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.set('page', params.page.toString());
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      if (params?.statut) searchParams.set('statut', params.statut);
+      if (params?.clientFinalId) searchParams.set('clientFinalId', params.clientFinalId);
+      const qs = searchParams.toString();
+      return authenticatedFetch<AvoirListResponse>(`/api/avoirs${qs ? `?${qs}` : ''}`);
+    },
+    get: (id: string) => authenticatedFetch<{ success: boolean; data: { avoir: Avoir } }>(`/api/avoirs/${id}`),
+    create: (data: { clientFinalId: string; invoiceId?: string; montantHt: number; tvaTaux?: number; dateAvoir?: string; motif?: string; description?: string; lines?: { codeArticle?: string; designation: string; quantite: number; prixUnitaireHt: number }[] }) =>
+      authenticatedFetch<{ success: boolean; data: { avoir: Avoir } }>('/api/avoirs', { method: 'POST', body: JSON.stringify(data) }),
+    validate: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { avoir: Avoir } }>(`/api/avoirs/${id}/validate`, { method: 'PUT' }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/avoirs/${id}`, { method: 'DELETE' }),
+  },
+
+  proformas: {
+    list: (params?: { page?: number; limit?: number; statut?: string; clientFinalId?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.page) searchParams.set('page', params.page.toString());
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      if (params?.statut) searchParams.set('statut', params.statut);
+      if (params?.clientFinalId) searchParams.set('clientFinalId', params.clientFinalId);
+      const qs = searchParams.toString();
+      return authenticatedFetch<ProformaListResponse>(`/api/proformas${qs ? `?${qs}` : ''}`);
+    },
+    get: (id: string) => authenticatedFetch<{ success: boolean; data: { proforma: Proforma } }>(`/api/proformas/${id}`),
+    create: (data: { clientFinalId: string; montantHt: number; tvaTaux?: number; dateProforma?: string; dateValidite?: string; description?: string; modePaiement?: string; lines?: { codeArticle?: string; designation: string; quantite: number; prixUnitaireHt: number }[] }) =>
+      authenticatedFetch<{ success: boolean; data: { proforma: Proforma } }>('/api/proformas', { method: 'POST', body: JSON.stringify(data) }),
+    send: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { proforma: Proforma } }>(`/api/proformas/${id}/send`, { method: 'PUT' }),
+    accept: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { proforma: Proforma } }>(`/api/proformas/${id}/accept`, { method: 'PUT' }),
+    convertToInvoice: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { invoice: unknown; proforma: Proforma } }>(`/api/proformas/${id}/convert-to-invoice`, { method: 'POST' }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/proformas/${id}`, { method: 'DELETE' }),
+  },
+
   // Logs
   logs: {
     list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
@@ -681,6 +723,75 @@ export interface DevisListResponse {
   success: boolean;
   data: {
     devis: Devis[];
+    count: number;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+// Type pour les avoirs (notes de crédit)
+export interface Avoir {
+  id: string;
+  tenantId: string;
+  clientFinalId?: string | null;
+  invoiceId?: string | null;
+  numeroAvoir: string;
+  dateAvoir: string;
+  montantHt: number;
+  montantTtc: number;
+  tvaTaux?: number | null;
+  motif?: string | null;
+  description?: string | null;
+  statut: 'brouillon' | 'validee' | 'annulee';
+  lienPdf?: string | null;
+  clientFinal?: { id: string; email: string; nom?: string | null; prenom?: string | null; raisonSociale?: string | null };
+  lines?: { id: string; codeArticle?: string | null; designation: string; quantite: number; prixUnitaireHt: number; totalHt: number; ordre: number }[];
+  invoice?: { id: string; numeroFacture: string; statut: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AvoirListResponse {
+  success: boolean;
+  data: {
+    avoirs: Avoir[];
+    count: number;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+// Type pour les proformas
+export interface Proforma {
+  id: string;
+  tenantId: string;
+  clientFinalId?: string | null;
+  numeroProforma: string;
+  dateProforma: string;
+  dateValidite?: string | null;
+  montantHt: number;
+  montantTtc: number;
+  tvaTaux?: number | null;
+  description?: string | null;
+  modePaiement?: string | null;
+  statut: 'brouillon' | 'envoyee' | 'acceptee' | 'refusee' | 'expiree' | 'facturee';
+  invoiceId?: string | null;
+  lienPdf?: string | null;
+  clientFinal?: { id: string; email: string; nom?: string | null; prenom?: string | null; raisonSociale?: string | null };
+  lines?: { id: string; codeArticle?: string | null; designation: string; quantite: number; prixUnitaireHt: number; totalHt: number; ordre: number }[];
+  invoice?: { id: string; numeroFacture: string; statut: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProformaListResponse {
+  success: boolean;
+  data: {
+    proformas: Proforma[];
     count: number;
     total: number;
     page: number;

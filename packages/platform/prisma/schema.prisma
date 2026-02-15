@@ -158,6 +158,8 @@ model Tenant {
   agentCalendarEvents AgentCalendarEvent[]
   devis              Devis[]
   agentConfig        TenantAgentConfig?
+  avoirs             Avoir[]
+  proformas          Proforma[]
 
   @@index([emailContact])
   @@index([statut])
@@ -214,6 +216,8 @@ model ClientFinal {
   invoices       Invoice[]
   bonsCommande   BonCommande[]
   devis          Devis[]
+  avoirs         Avoir[]
+  proformas      Proforma[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -317,6 +321,8 @@ model Invoice {
   lines        InvoiceLine[]
   bonsCommande BonCommande[]
   devis        Devis[]
+  avoirs       Avoir[]
+  proformas    Proforma[]
 
   @@index([tenantId])
   @@index([clientFinalId])
@@ -469,6 +475,112 @@ model DevisLine {
 
   @@index([devisId])
   @@map("devis_lines")
+}
+
+// Avoir (credit note / note de crédit)
+enum AvoirStatus {
+  brouillon
+  validee
+  annulee
+}
+
+model Avoir {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  clientFinalId   String?      @map("client_final_id") @db.Uuid
+  invoiceId       String?      @map("invoice_id") @db.Uuid
+  numeroAvoir     String       @unique @map("numero_avoir")
+  dateAvoir       DateTime     @map("date_avoir") @db.Timestamptz(6)
+  montantHt       Decimal      @map("montant_ht") @db.Decimal(10, 2)
+  montantTtc      Decimal      @map("montant_ttc") @db.Decimal(10, 2)
+  tvaTaux         Decimal?     @map("tva_taux") @db.Decimal(5, 2)
+  motif           String?      @map("motif") @db.Text
+  description     String?      @map("description") @db.Text
+  statut          AvoirStatus  @default(brouillon)
+  lienPdf         String?      @map("lien_pdf")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  lines       AvoirLine[]
+
+  @@index([tenantId])
+  @@index([clientFinalId])
+  @@index([statut])
+  @@map("avoirs")
+}
+
+model AvoirLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  avoirId         String   @map("avoir_id") @db.Uuid
+  codeArticle     String?  @map("code_article")
+  designation     String   @map("designation")
+  quantite        Int      @default(1)
+  prixUnitaireHt  Decimal  @map("prix_unitaire_ht") @db.Decimal(10, 2)
+  totalHt         Decimal  @map("total_ht") @db.Decimal(10, 2)
+  ordre           Int      @default(0) @map("ordre")
+
+  avoir Avoir @relation(fields: [avoirId], references: [id], onDelete: Cascade)
+
+  @@index([avoirId])
+  @@map("avoir_lines")
+}
+
+// Proforma (facture proforma)
+enum ProformaStatus {
+  brouillon
+  envoyee
+  acceptee
+  refusee
+  expiree
+  facturee
+}
+
+model Proforma {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  clientFinalId   String?         @map("client_final_id") @db.Uuid
+  numeroProforma  String          @unique @map("numero_proforma")
+  dateProforma    DateTime        @map("date_proforma") @db.Timestamptz(6)
+  dateValidite    DateTime?       @map("date_validite") @db.Timestamptz(6)
+  montantHt       Decimal         @map("montant_ht") @db.Decimal(10, 2)
+  montantTtc      Decimal         @map("montant_ttc") @db.Decimal(10, 2)
+  tvaTaux         Decimal?        @map("tva_taux") @db.Decimal(5, 2)
+  description     String?         @map("description") @db.Text
+  modePaiement    String?         @map("mode_paiement")
+  statut          ProformaStatus  @default(brouillon)
+  invoiceId       String?         @map("invoice_id") @db.Uuid
+  lienPdf         String?         @map("lien_pdf")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  lines       ProformaLine[]
+
+  @@index([tenantId])
+  @@index([clientFinalId])
+  @@index([statut])
+  @@map("proformas")
+}
+
+model ProformaLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  proformaId      String   @map("proforma_id") @db.Uuid
+  codeArticle     String?  @map("code_article")
+  designation     String   @map("designation")
+  quantite        Int      @default(1)
+  prixUnitaireHt  Decimal  @map("prix_unitaire_ht") @db.Decimal(10, 2)
+  totalHt         Decimal  @map("total_ht") @db.Decimal(10, 2)
+  ordre           Int      @default(0) @map("ordre")
+
+  proforma Proforma @relation(fields: [proformaId], references: [id], onDelete: Cascade)
+
+  @@index([proformaId])
+  @@map("proforma_lines")
 }
 
 // Lien Workflow n8n

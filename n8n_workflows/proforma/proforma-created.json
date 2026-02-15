@@ -1,0 +1,161 @@
+{
+  "name": "proforma-created",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "proforma-created",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "errorMessage": "{{ error_message }}",
+        "errorCode": "{{ error_code }}"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "dependsOn": ["webhook"]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $json.numero_proforma }}",
+              "operation": "exists"
+            },
+            {
+              "value1": "{{ $json.date_proforma }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "dependsOn": ["parser"]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseBody": "{{ error_message }}",
+          "responseCode": 400
+        }
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "dependsOn": ["validation"]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO proformas (numero_proforma, date_proforma, date_validite, client_id, montant_ht, montant_tva, montant_ttc, statut) VALUES ($1, $2, $3, $4, $5, $6, $7, 'brouillon') RETURNING proforma_id"
+      },
+      "id": "postgres_insert",
+      "name": "Postgres Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "dependsOn": ["validation"],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO proforma_lines (proforma_id, description, quantite, prix_unitaire, montant) VALUES ($1, $2, $3, $4, $5)"
+      },
+      "id": "postgres_lines",
+      "name": "Postgres Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "dependsOn": ["postgres_insert"],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "proforma_id",
+              "value": "{{ $nodes.postgres_insert.json[0].proforma_id }}"
+            },
+            {
+              "name": "numero_proforma",
+              "value": "{{ $json.numero_proforma }}"
+            },
+            {
+              "name": "status",
+              "value": "created"
+            }
+          ]
+        }
+      },
+      "id": "format",
+      "name": "Format",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "dependsOn": ["postgres_lines"]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseBody": "{{ { proforma_id: $nodes.format.json.proforma_id, numero_proforma: $nodes.format.json.numero_proforma, status: $nodes.format.json.status } }}"
+        }
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 400],
+      "dependsOn": ["format"]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [[{ "node": "parser", "type": "main", "index": 0 }]]
+    },
+    "parser": {
+      "main": [[{ "node": "validation", "type": "main", "index": 0 }]]
+    },
+    "validation": {
+      "main": [
+        [{ "node": "postgres_insert", "type": "main", "index": 0 }],
+        [{ "node": "error_respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "postgres_insert": {
+      "main": [[{ "node": "postgres_lines", "type": "main", "index": 0 }]]
+    },
+    "postgres_lines": {
+      "main": [[{ "node": "format", "type": "main", "index": 0 }]]
+    },
+    "format": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  }
+}

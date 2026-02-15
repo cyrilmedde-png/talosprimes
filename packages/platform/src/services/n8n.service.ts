@@ -43,6 +43,20 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   bdc_validate: 'bdc-validated',
   bdc_convert_to_invoice: 'bdc-convert-to-invoice',
   bdc_delete: 'bdc-deleted',
+  // Avoirs (notes de crédit)
+  avoir_list: 'avoir-list',
+  avoir_get: 'avoir-get',
+  avoir_create: 'avoir-created',
+  avoir_validate: 'avoir-validated',
+  avoir_delete: 'avoir-deleted',
+  // Proformas
+  proforma_list: 'proforma-list',
+  proforma_get: 'proforma-get',
+  proforma_create: 'proforma-created',
+  proforma_send: 'proforma-sent',
+  proforma_accept: 'proforma-accepted',
+  proforma_convert_to_invoice: 'proforma-convert-to-invoice',
+  proforma_delete: 'proforma-deleted',
 };
 
 /**
@@ -342,7 +356,7 @@ export class N8nService {
         },
       });
 
-      return workflowLinks.map((link) => ({
+      return workflowLinks.map((link: any) => ({
         id: link.workflowN8nId,
         name: link.workflowN8nNom,
       }));

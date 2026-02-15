@@ -15,6 +15,8 @@ import {
   BanknotesIcon,
   DocumentDuplicateIcon,
   DocumentTextIcon,
+  DocumentCheckIcon,
+  ReceiptRefundIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -31,6 +33,8 @@ const navigation = [
   { name: 'Factures', href: '/factures', icon: BanknotesIcon },
   { name: 'Bons de commande', href: '/bons-commande', icon: DocumentDuplicateIcon },
   { name: 'Devis', href: '/devis', icon: DocumentTextIcon },
+  { name: 'Proformas', href: '/proforma', icon: DocumentCheckIcon },
+  { name: 'Avoirs', href: '/avoir', icon: ReceiptRefundIcon },
 ];
 
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {

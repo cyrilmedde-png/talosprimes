@@ -1,7 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { Prisma } from '@prisma/client';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 
 const createNotificationSchema = z.object({
@@ -89,7 +88,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        const where: Prisma.NotificationWhereInput = {};
+        const where: Record<string, unknown> = {};
         if (tenantId) {
           where.tenantId = tenantId;
         }

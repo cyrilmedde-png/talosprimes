@@ -2,8 +2,6 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { z } from 'zod';
 import { hashPassword } from '../../services/auth.service.js';
-import type { UserRole } from '@talosprimes/shared';
-import { Prisma, UserRole as PrismaUserRole, UserStatus } from '@prisma/client';
 
 // Schéma de validation pour la création d'un utilisateur
 const createUserSchema = z.object({
@@ -54,7 +52,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          users: users.map((user) => ({
+          users: users.map((user: any) => ({
             id: user.id,
             email: user.email,
             role: user.role,
@@ -135,12 +133,12 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
-      const userData: Prisma.UserUncheckedCreateInput = {
+      const userData: any = {
         tenantId,
         email: data.email,
         passwordHash,
-        role: data.role as PrismaUserRole,
-        statut: UserStatus.actif,
+        role: data.role,
+        statut: 'actif',
       };
       
       if (data.nom) userData.nom = data.nom;
@@ -234,10 +232,10 @@ export async function usersRoutes(fastify: FastifyInstance) {
       }
 
       // Mettre à jour l'utilisateur
-      const updateData: Prisma.UserUncheckedUpdateInput = {};
+      const updateData: any = {};
       
       if (data.email) updateData.email = data.email;
-      if (data.role) updateData.role = data.role as UserRole;
+      if (data.role) updateData.role = data.role;
       if (data.statut) updateData.statut = data.statut as 'actif' | 'inactif';
       if (data.nom !== undefined) updateData.nom = data.nom;
       if (data.prenom !== undefined) updateData.prenom = data.prenom;

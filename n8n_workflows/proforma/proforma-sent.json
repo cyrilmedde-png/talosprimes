@@ -1,0 +1,137 @@
+{
+  "name": "proforma-sent",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "proforma-sent",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "errorMessage": "{{ error_message }}",
+        "errorCode": "{{ error_code }}"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "dependsOn": ["webhook"]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $json.proforma_id }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "dependsOn": ["parser"]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseBody": "{{ error_message }}",
+          "responseCode": 400
+        }
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "dependsOn": ["validation"]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE proformas SET statut = 'envoyee', date_envoi = NOW() WHERE proforma_id = $1 AND statut = 'brouillon' RETURNING *"
+      },
+      "id": "postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 400],
+      "dependsOn": ["validation"],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "proforma_id",
+              "value": "{{ $json[0].proforma_id }}"
+            },
+            {
+              "name": "status",
+              "value": "sent"
+            },
+            {
+              "name": "updated_at",
+              "value": "{{ $json[0].date_envoi }}"
+            }
+          ]
+        }
+      },
+      "id": "format",
+      "name": "Format",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "dependsOn": ["postgres"]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseBody": "{{ { proforma_id: $nodes.format.json.proforma_id, status: $nodes.format.json.status, updated_at: $nodes.format.json.updated_at } }}"
+        }
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400],
+      "dependsOn": ["format"]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [[{ "node": "parser", "type": "main", "index": 0 }]]
+    },
+    "parser": {
+      "main": [[{ "node": "validation", "type": "main", "index": 0 }]]
+    },
+    "validation": {
+      "main": [
+        [{ "node": "postgres", "type": "main", "index": 0 }],
+        [{ "node": "error_respond", "type": "main", "index": 0 }]
+      ]
+    },
+    "postgres": {
+      "main": [[{ "node": "format", "type": "main", "index": 0 }]]
+    },
+    "format": {
+      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    }
+  }
+}

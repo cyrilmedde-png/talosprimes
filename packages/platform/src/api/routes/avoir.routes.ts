@@ -13,19 +13,19 @@ const lineSchema = z.object({
 
 const createSchema = z.object({
   clientFinalId: z.string().uuid(),
+  invoiceId: z.string().uuid().optional().nullable(),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateBdc: z.string().datetime({ offset: true }).optional().nullable(),
-  dateValidite: z.string().datetime({ offset: true }).optional().nullable(),
+  dateAvoir: z.string().datetime({ offset: true }).optional().nullable(),
+  motif: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-  modePaiement: z.string().optional().nullable(),
   lines: z.array(lineSchema).optional(),
 });
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
-export async function bonsCommandeRoutes(fastify: FastifyInstance) {
-  // GET /api/bons-commande - Liste
+export async function avoirRoutes(fastify: FastifyInstance) {
+  // GET /api/avoir - Liste
   fastify.get('/', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
@@ -43,9 +43,9 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
-        const res = await n8nService.callWorkflowReturn<{ bons: unknown[]; count: number; total: number; totalPages: number }>(
+        const res = await n8nService.callWorkflowReturn<{ avoir: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
-          'bdc_list',
+          'avoir_list',
           {
             page,
             limit,
@@ -54,16 +54,16 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           }
         );
         if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow bdc_list indisponible' });
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow avoir_list indisponible' });
         }
-        const raw = res.data as { bons?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const bons = Array.isArray(raw.bons) ? raw.bons : [];
+        const raw = res.data as { avoir?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+        const avoir = Array.isArray(raw.avoir) ? raw.avoir : [];
         return reply.status(200).send({
           success: true,
           data: {
-            bons,
-            count: bons.length,
-            total: raw.total ?? bons.length,
+            avoir,
+            count: avoir.length,
+            total: raw.total ?? avoir.length,
             page: raw.page ?? 1,
             limit: raw.limit ?? 20,
             totalPages: raw.totalPages ?? 1,
@@ -74,11 +74,11 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       // Appel depuis n8n (callback) → lecture BDD directe
       const skip = (page - 1) * limit;
       const where: Record<string, unknown> = { tenantId };
-      if (query.statut) where.statut = query.statut as 'brouillon' | 'valide' | 'facture' | 'annule';
+      if (query.statut) where.statut = query.statut as 'brouillon' | 'validee' | 'annulee';
       if (query.clientFinalId) where.clientFinalId = query.clientFinalId;
 
-      const [bons, total] = await Promise.all([
-        prisma.bonCommande.findMany({
+      const [avoir, total] = await Promise.all([
+        prisma.avoir.findMany({
           where,
           skip,
           take: limit,
@@ -86,22 +86,22 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
             clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
             lines: { orderBy: { ordre: 'asc' } },
           },
-          orderBy: { dateBdc: 'desc' },
+          orderBy: { dateAvoir: 'desc' },
         }),
-        prisma.bonCommande.count({ where }),
+        prisma.avoir.count({ where }),
       ]);
 
       return reply.status(200).send({
         success: true,
-        data: { bons, count: bons.length, total, page, limit, totalPages: Math.ceil(total / limit) },
+        data: { avoir, count: avoir.length, total, page, limit, totalPages: Math.ceil(total / limit) },
       });
     } catch (error) {
-      fastify.log.error(error, 'Erreur liste bons de commande');
+      fastify.log.error(error, 'Erreur liste avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // GET /api/bons-commande/:id
+  // GET /api/avoir/:id
   fastify.get('/:id', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
@@ -117,13 +117,13 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
-        const res = await n8nService.callWorkflowReturn<{ bon: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ avoir: unknown }>(
           tenantId,
-          'bdc_get',
-          { bdcId: params.id }
+          'avoir_get',
+          { avoirId: params.id }
         );
         if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow bdc_get indisponible' });
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow avoir_get indisponible' });
         }
         return reply.status(200).send({
           success: true,
@@ -137,27 +137,26 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         where.tenantId = tenantId;
       }
 
-      const bon = await prisma.bonCommande.findFirst({
+      const avoir = await prisma.avoir.findFirst({
         where,
         include: {
           clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true, adresse: true, telephone: true } },
           lines: { orderBy: { ordre: 'asc' } },
-          invoice: { select: { id: true, numeroFacture: true, statut: true } },
         },
       });
 
-      if (!bon) return reply.status(404).send({ success: false, error: 'Bon de commande non trouvé' });
-      return reply.status(200).send({ success: true, data: { bon } });
+      if (!avoir) return reply.status(404).send({ success: false, error: 'Avoir non trouvé' });
+      return reply.status(200).send({ success: true, data: { avoir } });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur récupération bon de commande');
+      fastify.log.error(error, 'Erreur récupération avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // POST /api/bons-commande - Créer
+  // POST /api/avoir - Créer
   fastify.post('/', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
@@ -165,7 +164,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
       const body = createSchema.parse(request.body);
 
-      // Récupérer tenantId : depuis le body si appel n8n, sinon depuis request (JWT)
       const tenantId = fromN8n
         ? (body as { tenantId?: string }).tenantId || request.tenantId
         : request.tenantId;
@@ -174,12 +172,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         return reply.status(401).send({ success: false, error: 'Non authentifié' });
       }
 
-      // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
-      // Vérifier que le client existe et appartient au tenant
       const client = await prisma.clientFinal.findFirst({
         where: { id: body.clientFinalId, tenantId }
       });
@@ -192,9 +188,9 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           delete (bodyWithoutTenantId as { tenantId?: string }).tenantId;
         }
 
-        const res = await n8nService.callWorkflowReturn<{ bon: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ avoir: unknown }>(
           tenantId,
-          'bdc_create',
+          'avoir_create',
           { ...bodyWithoutTenantId, tenantId }
         );
         if (!res.success) {
@@ -203,35 +199,32 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
         return reply.status(201).send({
           success: true,
-          message: 'Bon de commande créé via n8n',
+          message: 'Avoir créé via n8n',
           data: res.data,
         });
       }
 
       // Appel depuis n8n (callback) : persister en base
-      const count = await prisma.bonCommande.count({ where: { tenantId } });
+      const count = await prisma.avoir.count({ where: { tenantId } });
       const year = new Date().getFullYear();
-      const numeroBdc = `BDC-${year}-${String(count + 1).padStart(6, '0')}`;
+      const numeroAvoir = `AVO-${year}-${String(count + 1).padStart(6, '0')}`;
 
       const tvaTaux = body.tvaTaux ?? 20;
       const montantTtc = Number((body.montantHt * (1 + tvaTaux / 100)).toFixed(2));
-      const dateBdc = body.dateBdc ? new Date(body.dateBdc) : new Date();
-      const dateValidite = body.dateValidite
-        ? new Date(body.dateValidite)
-        : new Date(dateBdc.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const dateAvoir = body.dateAvoir ? new Date(body.dateAvoir) : new Date();
 
-      const bon = await prisma.bonCommande.create({
+      const avoir = await prisma.avoir.create({
         data: {
           tenantId,
           clientFinalId: body.clientFinalId,
-          numeroBdc,
-          dateBdc,
-          dateValidite,
+          invoiceId: body.invoiceId ?? null,
+          numeroAvoir,
+          dateAvoir,
           montantHt: body.montantHt,
           montantTtc,
           tvaTaux,
+          motif: body.motif,
           description: body.description,
-          modePaiement: body.modePaiement,
           statut: 'brouillon',
           ...(body.lines && body.lines.length > 0 ? {
             lines: {
@@ -254,231 +247,114 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       return reply.status(201).send({
         success: true,
-        message: 'Bon de commande créé',
-        data: { bon },
+        message: 'Avoir créé',
+        data: { avoir },
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur création bon de commande');
+      fastify.log.error(error, 'Erreur création avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // PUT /api/bons-commande/:id/validate - Valider
+  // PUT /api/avoir/:id/validate - Valider l'avoir (brouillon → validée)
   fastify.put('/:id/validate', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const fromN8n = request.isN8nRequest === true;
       const params = paramsSchema.parse(request.params);
-
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
         return reply.status(401).send({ success: false, error: 'Non authentifié' });
       }
 
-      // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
-      // Vérifier que le bon existe et appartient au tenant
-      const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
-      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (bon.statut !== 'brouillon') return reply.status(400).send({ success: false, error: 'Seul un brouillon peut être validé' });
+      const avoir = await prisma.avoir.findFirst({ where: { id: params.id, tenantId } });
+      if (!avoir) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (avoir.statut !== 'brouillon') return reply.status(400).send({ success: false, error: 'Seul un brouillon peut être validé' });
 
-      // Si appel depuis frontend, déléguer à n8n
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ bon: unknown }>(
+        const res = await n8nService.callWorkflowReturn<{ avoir: unknown }>(
           tenantId,
-          'bdc_validate',
-          { bdcId: params.id }
+          'avoir_validate',
+          { avoirId: params.id }
         );
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
         return reply.status(200).send({
           success: true,
-          message: 'Bon validé via n8n',
+          message: 'Avoir validé via n8n',
           data: res.data,
         });
       }
 
-      // Appel depuis n8n : persister en base
-      const updated = await prisma.bonCommande.update({
+      const updated = await prisma.avoir.update({
         where: { id: params.id },
-        data: { statut: 'valide' },
+        data: { statut: 'validee' },
         include: { clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } } },
       });
 
-      return reply.status(200).send({ success: true, message: 'Bon validé', data: { bon: updated } });
+      return reply.status(200).send({ success: true, message: 'Avoir validé', data: { avoir: updated } });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur validation bon de commande');
+      fastify.log.error(error, 'Erreur validation avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
 
-  // POST /api/bons-commande/:id/convert-to-invoice - Convertir en facture
-  fastify.post('/:id/convert-to-invoice', {
-    preHandler: [n8nOrAuthMiddleware],
-  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
-    try {
-      const fromN8n = request.isN8nRequest === true;
-      const params = paramsSchema.parse(request.params);
-
-      const tenantId = request.tenantId as string;
-
-      if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
-      }
-
-      // Vérifier droits si pas n8n
-      if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
-      }
-
-      // Vérifier que le bon existe et appartient au tenant
-      const bon = await prisma.bonCommande.findFirst({
-        where: { id: params.id, tenantId },
-        include: { lines: { orderBy: { ordre: 'asc' } } },
-      });
-
-      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
-      if (bon.statut === 'annule') return reply.status(400).send({ success: false, error: 'Bon annulé' });
-
-      // Si appel depuis frontend, déléguer à n8n
-      if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ invoice: unknown; bon: unknown }>(
-          tenantId,
-          'bdc_convert_to_invoice',
-          { bdcId: params.id }
-        );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
-        return reply.status(201).send({
-          success: true,
-          message: 'Facture créée via n8n',
-          data: res.data,
-        });
-      }
-
-      // Appel depuis n8n (callback) : créer la facture et mettre à jour le bon
-      const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
-      const year = new Date().getFullYear();
-      const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;
-
-      const invoice = await prisma.invoice.create({
-        data: {
-          tenantId,
-          type: 'facture_client_final',
-          clientFinalId: bon.clientFinalId,
-          numeroFacture,
-          dateFacture: new Date(),
-          dateEcheance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          montantHt: bon.montantHt,
-          montantTtc: bon.montantTtc,
-          tvaTaux: bon.tvaTaux,
-          description: bon.description ? `BDC ${bon.numeroBdc} - ${bon.description}` : `Depuis BDC ${bon.numeroBdc}`,
-          modePaiement: bon.modePaiement,
-          statut: 'brouillon',
-          ...(bon.lines.length > 0 ? {
-            lines: {
-              create: bon.lines.map((l: any, i: number) => ({
-                codeArticle: l.codeArticle,
-                designation: l.designation,
-                quantite: l.quantite,
-                prixUnitaireHt: l.prixUnitaireHt,
-                totalHt: l.totalHt,
-                ordre: i,
-              })),
-            },
-          } : {}),
-        },
-        include: {
-          clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
-          lines: true,
-        },
-      });
-
-      // Mettre à jour le bon
-      const updatedBon = await prisma.bonCommande.update({
-        where: { id: params.id },
-        data: { statut: 'facture', invoiceId: invoice.id },
-        include: {
-          clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
-        },
-      });
-
-      return reply.status(201).send({
-        success: true,
-        message: `Facture ${numeroFacture} créée depuis ${bon.numeroBdc}`,
-        data: { invoice, bon: updatedBon },
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
-      }
-      fastify.log.error(error, 'Erreur conversion bon → facture');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
-    }
-  });
-
-  // DELETE /api/bons-commande/:id
+  // DELETE /api/avoir/:id
   fastify.delete('/:id', {
     preHandler: [n8nOrAuthMiddleware],
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const fromN8n = request.isN8nRequest === true;
       const params = paramsSchema.parse(request.params);
-
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
         return reply.status(401).send({ success: false, error: 'Non authentifié' });
       }
 
-      // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         return reply.status(403).send({ success: false, error: 'Accès refusé' });
       }
 
-      // Vérifier que le bon existe et appartient au tenant
-      const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
-      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un bon déjà facturé' });
+      const avoir = await prisma.avoir.findFirst({ where: { id: params.id, tenantId } });
+      if (!avoir) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (avoir.statut === 'annulee') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un avoir déjà annulé' });
 
-      // Si appel depuis frontend, déléguer à n8n
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
-          'bdc_delete',
-          { bdcId: params.id }
+          'avoir_delete',
+          { avoirId: params.id }
         );
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
         return reply.status(200).send({
           success: true,
-          message: 'Bon de commande supprimé via n8n',
+          message: 'Avoir supprimé via n8n',
         });
       }
 
-      // Appel depuis n8n : supprimer en base
-      await prisma.bonCommande.delete({ where: { id: params.id } });
-      return reply.status(200).send({ success: true, message: 'Bon de commande supprimé' });
+      await prisma.avoir.delete({ where: { id: params.id } });
+      return reply.status(200).send({ success: true, message: 'Avoir supprimé' });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
-      fastify.log.error(error, 'Erreur suppression bon de commande');
+      fastify.log.error(error, 'Erreur suppression avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });

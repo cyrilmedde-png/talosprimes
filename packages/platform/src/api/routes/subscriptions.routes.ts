@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { Prisma, SubscriptionStatus } from '@prisma/client';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
@@ -435,7 +434,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         }
 
         // Construire le filtre avec isolation tenant conditionnelle
-        const subscriptionWhere: Prisma.ClientSubscriptionWhereInput = {
+        const subscriptionWhere: Record<string, unknown> = {
           id: params.id,
         };
         if (tenantId) {
@@ -498,13 +497,13 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        const where: Prisma.ClientSubscriptionWhereInput = {};
+        const where: Record<string, unknown> = {};
         if (tenantId) {
           where.clientFinal = { tenantId };
         }
 
         if (queryParams.statut) {
-          where.statut = queryParams.statut as SubscriptionStatus;
+          (where as any).statut = queryParams.statut;
         }
 
         const subscriptions = await prisma.clientSubscription.findMany({

@@ -5,7 +5,6 @@ import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
-import { Prisma, InvoiceStatus } from '@prisma/client';
 import { generateInvoicePdf } from '../../services/pdf.service.js';
 
 // Schema de validation pour créer une facture
@@ -143,13 +142,13 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         const limit = queryParams.limit ? parseInt(queryParams.limit, 10) : 20;
         const skip = (page - 1) * limit;
 
-        const where: Prisma.InvoiceWhereInput = {};
+        const where: Record<string, unknown> = {};
         if (tenantId) {
           where.tenantId = tenantId;
         }
 
         if (queryParams.statut) {
-          where.statut = queryParams.statut as InvoiceStatus;
+          (where as any).statut = queryParams.statut;
         }
 
         if (queryParams.clientFinalId) {
@@ -157,12 +156,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         }
 
         if (queryParams.dateFrom || queryParams.dateTo) {
-          where.dateFacture = {};
+          (where as any).dateFacture = {};
           if (queryParams.dateFrom) {
-            where.dateFacture.gte = new Date(queryParams.dateFrom);
+            (where as any).dateFacture.gte = new Date(queryParams.dateFrom);
           }
           if (queryParams.dateTo) {
-            where.dateFacture.lte = new Date(queryParams.dateTo);
+            (where as any).dateFacture.lte = new Date(queryParams.dateTo);
           }
         }
 
@@ -245,7 +244,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         }
 
         // Sinon, récupérer depuis la base de données
-        const invoiceWhere: Prisma.InvoiceWhereInput = { id: params.id };
+        const invoiceWhere: Record<string, unknown> = { id: params.id };
         if (tenantId) {
           invoiceWhere.tenantId = tenantId;
         }
@@ -308,7 +307,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        const invoiceWhere: Prisma.InvoiceWhereInput = { id: params.id };
+        const invoiceWhere: Record<string, unknown> = { id: params.id };
         if (tenantId) invoiceWhere.tenantId = tenantId;
 
         const invoice = await prisma.invoice.findFirst({
@@ -366,7 +365,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           codeArticle: invoice.codeArticle ?? undefined,
           modePaiement: invoice.modePaiement ?? undefined,
           statut: invoice.statut,
-          lines: invoice.lines.map(l => ({
+          lines: invoice.lines.map((l: any) => ({
             codeArticle: l.codeArticle,
             designation: l.designation,
             quantite: l.quantite,
