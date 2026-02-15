@@ -366,6 +366,9 @@ fi
 # Etape 5: Synchronisation des workflows n8n
 # =============================================================================
 
+# Desactiver set -e pour la section n8n (les erreurs API ne doivent pas tuer le script)
+set +e
+
 log_step "5/$TOTAL_STEPS - Synchronisation des workflows n8n"
 
 if [ "$SKIP_N8N" = true ] || [ "$ONLY_CLIENT" = true ]; then
@@ -711,6 +714,9 @@ print(json.dumps(wf))
     fi
   fi
 fi
+
+# Reactiver set -e pour le reste du script
+set -e
 
 # =============================================================================
 # Etape 6: Redemarrage des services
