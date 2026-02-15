@@ -572,13 +572,44 @@ print(json.dumps(wf))
     # ---------------------------------------------------------------
     log_info "Recuperation des workflows et projets existants..."
 
-    EXISTING_WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=200" 2>/dev/null || echo "")
+    # Recuperer TOUS les workflows (avec pagination) pour eviter les doublons
+    EXISTING_WORKFLOWS=$(python3 -c "
+import json, urllib.request, os
+
+api_url = os.environ.get('N8N_API_URL', '')
+api_key = os.environ.get('N8N_API_KEY', '')
+all_workflows = []
+cursor = ''
+
+# Paginer pour tout recuperer
+for _ in range(20):  # max 20 pages = 5000 workflows
+    url = f'{api_url}/api/v1/workflows?limit=250'
+    if cursor:
+        url += f'&cursor={cursor}'
+    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
+    try:
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read())
+    except:
+        break
+    wfs = data.get('data', [])
+    all_workflows.extend(wfs)
+    cursor = data.get('nextCursor', '')
+    if not cursor or not wfs:
+        break
+
+print(json.dumps({'data': all_workflows}))
+" 2>/dev/null || echo "")
+
     EXISTING_PROJECTS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/projects" 2>/dev/null || echo "{}")
 
     # Verifier que les reponses sont du JSON valide
-    if ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+    if [ -z "$EXISTING_WORKFLOWS" ] || ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
       log_warn "n8n API inaccessible — workflows non synchronises"
       EXISTING_WORKFLOWS=""
+    else
+      WF_COUNT=$(echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('data',[])))" 2>/dev/null || echo "?")
+      log_info "$WF_COUNT workflows existants trouves dans n8n"
     fi
     if ! echo "$EXISTING_PROJECTS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
       log_warn "API projets n8n non disponible — les workflows iront dans Personal"
