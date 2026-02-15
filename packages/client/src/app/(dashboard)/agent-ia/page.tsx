@@ -36,11 +36,6 @@ interface DashboardStats {
   callsByDay: CallsPerDay[];
 }
 
-interface CallsByDay {
-  jour: string;
-  nombre: number;
-}
-
 interface CallsPerDay {
   jour: string;
   nombre: number;
