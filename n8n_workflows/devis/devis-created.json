@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_devis, 9) AS INTEGER)), 0) + 1 as next_num FROM devis WHERE numero_devis LIKE 'DEV-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
       },
       "id": "05. Get Next Number",
@@ -82,7 +82,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=INSERT INTO devis (tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $json.numeroDevis }}', '{{ $json.dateDevis }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, '{{ $json.description }}', '{{ $json.modePaiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
       },
       "id": "07. Insert Devis",

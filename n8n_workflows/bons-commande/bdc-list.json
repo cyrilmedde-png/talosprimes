@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COUNT(*) as total FROM bon_commandes WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? ` AND statut = '${$json.statut}'` : '' }}{{ $json.clientFinalId ? ` AND client_final_id = '${$json.clientFinalId}'` : '' }}"
       },
       "id": "05. Count Query",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, invoice_id, created_at, updated_at FROM bon_commandes WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? ` AND statut = '${$json.statut}'` : '' }}{{ $json.clientFinalId ? ` AND client_final_id = '${$json.clientFinalId}'` : '' }} ORDER BY date_bdc DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
       },
       "id": "06. List Query",

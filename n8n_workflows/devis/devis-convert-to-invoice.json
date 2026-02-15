@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT id, tenant_id, client_final_id, numero_devis, date_devis, montant_ht, montant_ttc, tva_taux, description, mode_paiement FROM devis WHERE id = {{ $json.devisId }} AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
       },
       "id": "05. Get Devis",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture, 5) AS INTEGER)), 0) + 1 as next_num FROM factures WHERE numero_facture LIKE 'FAC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
       },
       "id": "06. Get Next Invoice Number",
@@ -98,7 +98,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=INSERT INTO factures (tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.devis.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, {{ $json.devis.montant_ht }}, {{ $json.devis.montant_ttc }}, {{ $json.devis.tva_taux }}, '{{ $json.devis.description }}', '{{ $json.devis.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
       },
       "id": "08. Create Invoice",
@@ -114,7 +114,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
       },
       "id": "09. Get Devis Lines",
@@ -156,7 +156,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=UPDATE devis SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().id }}, updated_at = NOW() WHERE id = {{ $json.devisId }}"
       },
       "id": "12. Update Devis",

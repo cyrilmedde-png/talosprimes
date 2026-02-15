@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
       },
       "id": "05. Count Total",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COUNT(*) as succeeded FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' AND statut_execution = 'succes'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
       },
       "id": "06. Count Succeeded",
@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COUNT(*) as errors FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' AND statut_execution = 'erreur'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
       },
       "id": "07. Count Errors",
@@ -104,7 +104,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COUNT(*) as en_attente FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' AND statut_execution = 'en_attente'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
       },
       "id": "08. Count Pending",
@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT workflow, COUNT(*) as count FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' GROUP BY workflow"
       },
       "id": "09. Count By Workflow",

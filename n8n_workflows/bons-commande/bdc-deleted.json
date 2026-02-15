@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT id, statut FROM bon_commandes WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}'"
       },
       "id": "05. Check Bon",
@@ -82,7 +82,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=DELETE FROM bon_commande_lines WHERE bon_commande_id = '{{ $json.bdcId }}'"
       },
       "id": "07. Delete Lines",
@@ -98,7 +98,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=DELETE FROM bon_commandes WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}'"
       },
       "id": "08. Delete Bon",

@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, c.id as client_id, c.nom as client_nom, c.email as client_email FROM devis d LEFT JOIN clients c ON d.client_final_id = c.id WHERE d.id = {{ $json.devisId }}"
       },
       "id": "05. Get Devis",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT id, devis_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
       },
       "id": "06. Get Lines",

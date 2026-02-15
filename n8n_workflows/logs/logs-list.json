@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}{{ $json.typeEvenement ? \" AND type_evenement = '\" + $json.typeEvenement + \"'\" : '' }}{{ $json.statutExecution ? \" AND statut_execution = '\" + $json.statutExecution + \"'\" : '' }}"
       },
       "id": "05. Count Query",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "resource": "queryResource",
+        "operation": "executeQuery",
         "query": "=SELECT id, tenant_id, workflow, type_evenement, statut_execution, message, metadata, created_at, updated_at FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}{{ $json.typeEvenement ? \" AND type_evenement = '\" + $json.typeEvenement + \"'\" : '' }}{{ $json.statutExecution ? \" AND statut_execution = '\" + $json.statutExecution + \"'\" : '' }} ORDER BY created_at DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
       },
       "id": "06. List Query",
