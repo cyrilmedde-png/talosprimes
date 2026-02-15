@@ -118,123 +118,8 @@ async function main() {
     },
   });
 
-  // Créer les appels téléphoniques (CallLogs)
-  await prisma.callLog.create({
-    data: {
-      tenantId: tenant.id,
-      phoneNumber: '+33612345678',
-      direction: 'entrant',
-      status: 'completed',
-      duration: 450,
-      urgency: 'CRITIQUE',
-      sentiment: 'FRUSTRE',
-      followUpRequired: true,
-      notes: 'Client très insatisfait, fuite importante',
-    },
-  });
-
-  await prisma.callLog.create({
-    data: {
-      tenantId: tenant.id,
-      phoneNumber: '+33698765432',
-      direction: 'entrant',
-      status: 'completed',
-      duration: 240,
-      urgency: 'URGENT',
-      sentiment: 'NEUTRE',
-      action: 'DISPATCH',
-      notes: 'Besoin intervention rapide',
-    },
-  });
-
-  await prisma.callLog.create({
-    data: {
-      tenantId: tenant.id,
-      phoneNumber: '+33712345678',
-      direction: 'entrant',
-      status: 'completed',
-      duration: 180,
-      urgency: 'STANDARD',
-      sentiment: 'POSITIF',
-      action: 'RDV',
-      notes: 'Demande de rendez-vous pour révision',
-    },
-  });
-
-  await prisma.callLog.create({
-    data: {
-      tenantId: tenant.id,
-      phoneNumber: '+33654321098',
-      direction: 'entrant',
-      status: 'completed',
-      duration: 120,
-      urgency: 'INFO',
-      sentiment: 'POSITIF',
-      action: 'INFO',
-      notes: 'Demande de tarifs et disponibilités',
-    },
-  });
-
-  await prisma.callLog.create({
-    data: {
-      tenantId: tenant.id,
-      phoneNumber: '+33687654321',
-      direction: 'sortant',
-      status: 'completed',
-      duration: 300,
-      urgency: 'STANDARD',
-      sentiment: 'NEUTRE',
-      notes: 'Suivi suite interventions précédentes',
-    },
-  });
-
-  // Créer les SMS (SmsLogs)
-  await prisma.smsLog.create({
-    data: {
-      tenantId: tenant.id,
-      phoneNumber: '+33712345678',
-      direction: 'sortant',
-      content: 'Merci pour votre appel. Votre RDV est confirmé pour demain à 10h.',
-      status: 'sent',
-    },
-  });
-
-  await prisma.smsLog.create({
-    data: {
-      tenantId: tenant.id,
-      phoneNumber: '+33712345678',
-      direction: 'entrant',
-      content: 'OK merci',
-      status: 'received',
-    },
-  });
-
-  // Créer un questionnaire avec lead
-  await prisma.questionnaire.create({
-    data: {
-      tenantId: tenant.id,
-      titre: 'Diagnostic Plomberie Initial',
-      description: 'Questionnaire pour collecter les informations initiales du client',
-      isActive: true,
-      questions: [
-        {
-          id: 'q1',
-          type: 'text',
-          label: 'Quel est le problème principal ?',
-          required: true,
-        },
-        {
-          id: 'q2',
-          type: 'select',
-          label: 'Urgence ?',
-          options: ['Critique', 'Urgent', 'Standard'],
-          required: true,
-        },
-      ] as any,
-    },
-  });
-
-  await prisma.lead.create({
+  // Créer un lead de démo d'abord (nécessaire pour le questionnaire)
+  const demoLead = await prisma.lead.create({
     data: {
       tenantId: tenant.id,
       nom: 'Dupont',
@@ -247,6 +132,113 @@ async function main() {
       description: 'Fuite d\'eau sous l\'évier',
       source: 'telephone',
       statut: 'nouveau',
+    },
+  });
+
+  // Créer les appels téléphoniques (CallLogs)
+  await prisma.callLog.create({
+    data: {
+      tenantId: tenant.id,
+      callerPhone: '+33612345678',
+      direction: 'entrant',
+      status: 'completed',
+      duration: 450,
+      urgencyLevel: 'CRITIQUE',
+      sentiment: 'FRUSTRE',
+      followUpRequired: true,
+      notes: 'Client très insatisfait, fuite importante',
+    },
+  });
+
+  await prisma.callLog.create({
+    data: {
+      tenantId: tenant.id,
+      callerPhone: '+33698765432',
+      direction: 'entrant',
+      status: 'completed',
+      duration: 240,
+      urgencyLevel: 'URGENT',
+      sentiment: 'NEUTRE',
+      actionTaken: 'DISPATCH',
+      notes: 'Besoin intervention rapide',
+    },
+  });
+
+  await prisma.callLog.create({
+    data: {
+      tenantId: tenant.id,
+      callerPhone: '+33712345678',
+      direction: 'entrant',
+      status: 'completed',
+      duration: 180,
+      urgencyLevel: 'STANDARD',
+      sentiment: 'POSITIF',
+      actionTaken: 'RDV',
+      notes: 'Demande de rendez-vous pour révision',
+    },
+  });
+
+  await prisma.callLog.create({
+    data: {
+      tenantId: tenant.id,
+      callerPhone: '+33654321098',
+      direction: 'entrant',
+      status: 'completed',
+      duration: 120,
+      urgencyLevel: 'INFO',
+      sentiment: 'POSITIF',
+      actionTaken: 'INFO',
+      notes: 'Demande de tarifs et disponibilités',
+    },
+  });
+
+  await prisma.callLog.create({
+    data: {
+      tenantId: tenant.id,
+      callerPhone: '+33687654321',
+      direction: 'sortant',
+      status: 'completed',
+      duration: 300,
+      urgencyLevel: 'STANDARD',
+      sentiment: 'NEUTRE',
+      notes: 'Suivi suite interventions précédentes',
+    },
+  });
+
+  // Créer les SMS (SmsLogs)
+  await prisma.smsLog.create({
+    data: {
+      tenantId: tenant.id,
+      fromNumber: '+33123456789',
+      toNumber: '+33712345678',
+      direction: 'sortant',
+      body: 'Merci pour votre appel. Votre RDV est confirmé pour demain à 10h.',
+      status: 'sent',
+    },
+  });
+
+  await prisma.smsLog.create({
+    data: {
+      tenantId: tenant.id,
+      fromNumber: '+33712345678',
+      toNumber: '+33123456789',
+      direction: 'entrant',
+      body: 'OK merci',
+      status: 'received',
+    },
+  });
+
+  // Créer un questionnaire de démo
+  await prisma.questionnaire.create({
+    data: {
+      tenantId: tenant.id,
+      leadId: demoLead.id,
+      channel: 'telephone',
+      status: 'en_cours',
+      questions: [
+        { question: 'Quel est le problème principal ?', answer: null, order: 0 },
+        { question: 'Niveau d\'urgence ?', answer: 'Urgent', order: 1 },
+      ] as any,
     },
   });
 
