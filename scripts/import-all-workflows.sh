@@ -30,22 +30,6 @@ for dir in n8n_workflows/*/; do
     NAME=$(basename "$file" .json)
     TOTAL=$((TOTAL + 1))
 
-    # Injecter "settings" si absent via python3
-    PAYLOAD=$(python3 -c "
-import sys, json
-with open('$file') as f:
-    wf = json.load(f)
-if 'settings' not in wf:
-    wf['settings'] = {}
-print(json.dumps(wf))
-" 2>/dev/null)
-
-    if [ -z "$PAYLOAD" ]; then
-      echo "❌ JSON invalide: $file"
-      ERRORS=$((ERRORS + 1))
-      continue
-    fi
-
     # Vérifier si le workflow existe déjà (par nom)
     EXISTING=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
 import sys, json
@@ -56,6 +40,46 @@ for w in workflows:
         print(w['id'])
         break
 " 2>/dev/null)
+
+    # Préparer le payload : injecter settings + nettoyer les propriétés interdites
+    if [ -n "$EXISTING" ]; then
+      # UPDATE : retirer active, id, createdAt, updatedAt + champs non autorisés
+      PAYLOAD=$(python3 -c "
+import sys, json
+with open('$file') as f:
+    wf = json.load(f)
+if 'settings' not in wf:
+    wf['settings'] = {}
+# Retirer les champs read-only/non autorisés pour PUT
+for k in ['active', 'id', 'createdAt', 'updatedAt', 'versionId', 'triggerCount', 'sharedWithProjects', 'homeProject', 'tags', 'meta', 'pinData', 'staticData']:
+    wf.pop(k, None)
+print(json.dumps(wf))
+" 2>/dev/null)
+    else
+      # CREATE : retirer les propriétés additionnelles non autorisées
+      PAYLOAD=$(python3 -c "
+import sys, json
+with open('$file') as f:
+    wf = json.load(f)
+if 'settings' not in wf:
+    wf['settings'] = {}
+# Retirer les champs non autorisés pour POST
+for k in ['active', 'id', 'createdAt', 'updatedAt', 'versionId', 'triggerCount', 'sharedWithProjects', 'homeProject', 'tags', 'meta', 'pinData', 'staticData']:
+    wf.pop(k, None)
+# Ne garder que les propriétés autorisées par l'API POST
+allowed = {'name', 'nodes', 'connections', 'settings', 'staticData'}
+wf = {k: v for k, v in wf.items() if k in allowed}
+if 'settings' not in wf:
+    wf['settings'] = {}
+print(json.dumps(wf))
+" 2>/dev/null)
+    fi
+
+    if [ -z "$PAYLOAD" ]; then
+      echo "❌ JSON invalide: $file"
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
 
     if [ -n "$EXISTING" ]; then
       # Mettre à jour le workflow existant
