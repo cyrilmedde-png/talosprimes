@@ -580,10 +580,10 @@ export const apiClient = {
       if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
       if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
       const query = queryParams.toString();
-      return authenticatedFetch<{ success: boolean; data: { callLogs: any[] } }>(`/api/call-logs${query ? `?${query}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/call-logs${query ? `?${query}` : ''}`);
     },
     get: (id: string) =>
-      authenticatedFetch<{ success: boolean; data: { callLog: any } }>(`/api/call-logs/${id}`),
+      authenticatedFetch<{ success: boolean; data: any }>(`/api/call-logs/${id}`),
     stats: () =>
       authenticatedFetch<{ success: boolean; data: any }>('/api/call-logs/stats'),
     update: (id: string, data: { notes?: string; followUpDone?: boolean; status?: string }) =>
@@ -600,7 +600,7 @@ export const apiClient = {
   // Agent Téléphonique - Twilio Configuration
   twilioConfig: {
     get: () =>
-      authenticatedFetch<{ success: boolean; data: { config: any } }>('/api/twilio-config'),
+      authenticatedFetch<{ success: boolean; data: any }>('/api/twilio-config'),
     update: (data: any) =>
       authenticatedFetch<{ success: boolean }>('/api/twilio-config', {
         method: 'PUT',
@@ -627,7 +627,7 @@ export const apiClient = {
       if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
       if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
       const query = queryParams.toString();
-      return authenticatedFetch<{ success: boolean; data: { smsLogs: any[] } }>(`/api/sms${query ? `?${query}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/sms${query ? `?${query}` : ''}`);
     },
     stats: () =>
       authenticatedFetch<{ success: boolean; data: any }>('/api/sms/stats'),
@@ -645,10 +645,10 @@ export const apiClient = {
       if (params?.status) queryParams.append('status', params.status);
       if (params?.channel) queryParams.append('channel', params.channel);
       const query = queryParams.toString();
-      return authenticatedFetch<{ success: boolean; data: { questionnaires: any[] } }>(`/api/questionnaires${query ? `?${query}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/questionnaires${query ? `?${query}` : ''}`);
     },
     get: (id: string) =>
-      authenticatedFetch<{ success: boolean; data: { questionnaire: any } }>(`/api/questionnaires/${id}`),
+      authenticatedFetch<{ success: boolean; data: any }>(`/api/questionnaires/${id}`),
     create: (data: { leadId: string; questions: any[]; channel: string }) =>
       authenticatedFetch<{ success: boolean }>('/api/questionnaires', {
         method: 'POST',
