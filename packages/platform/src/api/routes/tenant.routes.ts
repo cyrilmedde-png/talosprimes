@@ -22,6 +22,7 @@ const updateTenantSchema = z.object({
   emailContact: z.string().email().optional(),
   tvaIntracom: z.string().optional().nullable(),
   rib: z.string().optional().nullable(),
+  logoBase64: z.string().optional().nullable(),
   metier: z.string().optional(),
 });
 
@@ -58,6 +59,7 @@ export async function tenantRoutes(fastify: FastifyInstance) {
           emailContact: true,
           tvaIntracom: true,
           rib: true,
+          logoBase64: true,
           devise: true,
           langue: true,
           metier: true,
@@ -139,6 +141,7 @@ export async function tenantRoutes(fastify: FastifyInstance) {
           emailContact: data.emailContact,
           tvaIntracom: data.tvaIntracom ?? undefined,
           rib: data.rib ?? undefined,
+          logoBase64: data.logoBase64 ?? undefined,
           metier: data.metier,
         },
         select: {
@@ -157,6 +160,7 @@ export async function tenantRoutes(fastify: FastifyInstance) {
           emailContact: true,
           tvaIntracom: true,
           rib: true,
+          logoBase64: true,
           devise: true,
           langue: true,
           metier: true,

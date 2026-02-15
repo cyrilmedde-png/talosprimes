@@ -320,6 +320,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
                 siret: true,
                 tvaIntracom: true,
                 rib: true,
+                logoBase64: true,
                 adressePostale: true,
                 codePostal: true,
                 ville: true,

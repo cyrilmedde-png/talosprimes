@@ -35,6 +35,7 @@ export type InvoiceForPdf = {
     siret?: string | null;
     tvaIntracom?: string | null;
     rib?: string | null;
+    logoBase64?: string | null;
     adressePostale?: string | null;
     codePostal?: string | null;
     ville?: string | null;
@@ -136,18 +137,50 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     color: COLORS.primary,
   });
 
-  // Nom entreprise (gauche)
+  // Logo (si disponible)
+  let logoOffsetX = 0;
+  if (invoice.tenant?.logoBase64) {
+    try {
+      const dataUri = invoice.tenant.logoBase64;
+      const isJpeg = dataUri.startsWith('data:image/jpeg') || dataUri.startsWith('data:image/jpg');
+      const isPng = dataUri.startsWith('data:image/png');
+      const base64Data = dataUri.split(',')[1];
+      if (base64Data && (isJpeg || isPng)) {
+        const imgBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+        const image = isPng
+          ? await doc.embedPng(imgBytes)
+          : await doc.embedJpg(imgBytes);
+        // Redimensionner pour max 80x60
+        const maxW = 80, maxH = 60;
+        const scale = Math.min(maxW / image.width, maxH / image.height, 1);
+        const drawW = image.width * scale;
+        const drawH = image.height * scale;
+        page.drawImage(image, {
+          x: ml,
+          y: height - 15 - drawH,
+          width: drawW,
+          height: drawH,
+        });
+        logoOffsetX = drawW + 12;
+      }
+    } catch (logoErr) {
+      // Logo invalide, on continue sans
+    }
+  }
+
+  // Nom entreprise (gauche, décalé si logo)
   const tenantName = invoice.tenant?.nomEntreprise || 'TalosPrimes';
   page.drawText(tenantName, {
-    x: ml, y: height - 30,
+    x: ml + logoOffsetX, y: height - 30,
     size: 20, font: fontBold, color: COLORS.white,
   });
 
   // Adresse sur 2 lignes sous le nom
   let headerLeftY = height - 46;
+  const textLeftX = ml + logoOffsetX;
   if (invoice.tenant?.adressePostale) {
     page.drawText(safe(invoice.tenant.adressePostale), {
-      x: ml, y: headerLeftY,
+      x: textLeftX, y: headerLeftY,
       size: 8.5, font, color: rgb(0.78, 0.85, 0.95),
     });
     headerLeftY -= 12;
@@ -155,7 +188,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   const cpVille = [invoice.tenant?.codePostal, invoice.tenant?.ville].filter(Boolean).join(' ');
   if (cpVille) {
     page.drawText(safe(cpVille), {
-      x: ml, y: headerLeftY,
+      x: textLeftX, y: headerLeftY,
       size: 8.5, font, color: rgb(0.78, 0.85, 0.95),
     });
     headerLeftY -= 12;
@@ -164,7 +197,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   // SIRET sous l'adresse (gauche)
   if (invoice.tenant?.siret) {
     page.drawText(`SIRET : ${safe(invoice.tenant.siret)}`, {
-      x: ml, y: headerLeftY,
+      x: textLeftX, y: headerLeftY,
       size: 8, font, color: rgb(0.78, 0.85, 0.95),
     });
     headerLeftY -= 12;
@@ -173,7 +206,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   // TVA intra sous le SIRET (gauche)
   if (invoice.tenant?.tvaIntracom) {
     page.drawText(`TVA Intra : ${safe(invoice.tenant.tvaIntracom)}`, {
-      x: ml, y: headerLeftY,
+      x: textLeftX, y: headerLeftY,
       size: 8, font, color: rgb(0.78, 0.85, 0.95),
     });
     headerLeftY -= 12;

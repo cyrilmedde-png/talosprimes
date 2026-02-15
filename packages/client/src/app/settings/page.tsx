@@ -357,6 +357,7 @@ function SettingsContent() {
                   body: JSON.stringify({
                     tvaIntracom: tenant.tvaIntracom || null,
                     rib: tenant.rib || null,
+                    logoBase64: (tenant as Record<string, unknown>).logoBase64 || null,
                   }),
                 });
                 if (!response.ok) {
@@ -371,6 +372,67 @@ function SettingsContent() {
                 setSaving(false);
               }
             }} className="space-y-8">
+
+              {/* Logo entreprise */}
+              <div>
+                <h3 className="text-lg font-medium text-white mb-1">Logo de l&apos;entreprise</h3>
+                <p className="text-sm text-gray-500 mb-4">Image affichee en haut a gauche de vos factures PDF. Formats acceptes : PNG, JPG. Taille max : 500 Ko.</p>
+                <div className="flex items-start gap-6">
+                  {/* Apercu du logo */}
+                  <div className="flex-shrink-0 w-32 h-32 bg-gray-700/50 border border-gray-600 rounded-lg flex items-center justify-center overflow-hidden">
+                    {(tenant as Record<string, unknown>).logoBase64 ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={(tenant as Record<string, unknown>).logoBase64 as string}
+                        alt="Logo"
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-gray-500 text-xs text-center px-2">Aucun logo</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <label className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md cursor-pointer">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      Choisir une image
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 500 * 1024) {
+                            setError('Le logo ne doit pas depasser 500 Ko');
+                            return;
+                          }
+                          if (!['image/png', 'image/jpeg'].includes(file.type)) {
+                            setError('Format accepte : PNG ou JPG uniquement');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const base64 = reader.result as string;
+                            setTenant({ ...tenant, logoBase64: base64 } as Partial<Tenant>);
+                            setError(null);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                    {(tenant as Record<string, unknown>).logoBase64 && (
+                      <button
+                        type="button"
+                        onClick={() => setTenant({ ...tenant, logoBase64: null } as Partial<Tenant>)}
+                        className="text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Supprimer le logo
+                      </button>
+                    )}
+                    <p className="text-xs text-gray-500">Le logo sera redimensionne automatiquement sur le PDF (max 80x60 px).</p>
+                  </div>
+                </div>
+              </div>
 
               {/* Informations legales */}
               <div>

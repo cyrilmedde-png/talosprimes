@@ -137,6 +137,7 @@ model Tenant {
   emailContact    String          @map("email_contact")
   tvaIntracom     String?         @map("tva_intracom")
   rib             String?         @map("rib") @db.Text
+  logoBase64      String?         @map("logo_base64") @db.Text
   devise          String          @default("EUR")
   langue          String          @default("fr")
   metier          String          @map("metier")
