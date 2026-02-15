@@ -26,11 +26,10 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "string": [
             {
-              "comparator": "equal",
-              "value1": "=true",
-              "value2": true
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
             }
           ]
         }
