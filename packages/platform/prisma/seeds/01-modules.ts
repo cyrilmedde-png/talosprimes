@@ -143,4 +143,21 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module notifications OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'agent_telephonique' },
+    update: {
+      nomAffiche: 'Agent Téléphonique IA',
+      description: 'Module Agent IA : appels entrants/sortants, SMS, questionnaires, configuration Twilio',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'agent_telephonique',
+      nomAffiche: 'Agent Téléphonique IA',
+      description: 'Module Agent IA : appels entrants/sortants, SMS, questionnaires, configuration Twilio',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module agent_telephonique OK');
 }

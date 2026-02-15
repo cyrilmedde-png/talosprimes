@@ -61,6 +61,32 @@ const LOGS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'logs_stats', workflowN8nId: 'logs_stats', workflowN8nNom: 'logs-stats' },
 ];
 
+const AGENT_TELEPHONIQUE_WORKFLOWS: WfDef[] = [
+  // Call Logs
+  { typeEvenement: 'call_log_list', workflowN8nId: 'call_log_list', workflowN8nNom: 'call-log-list' },
+  { typeEvenement: 'call_log_get', workflowN8nId: 'call_log_get', workflowN8nNom: 'call-log-get' },
+  { typeEvenement: 'call_log_stats', workflowN8nId: 'call_log_stats', workflowN8nNom: 'call-log-stats' },
+  { typeEvenement: 'call_log_create', workflowN8nId: 'call_log_create', workflowN8nNom: 'call-log-create' },
+  { typeEvenement: 'call_log_update', workflowN8nId: 'call_log_update', workflowN8nNom: 'call-log-update' },
+  { typeEvenement: 'call_log_delete', workflowN8nId: 'call_log_delete', workflowN8nNom: 'call-log-delete' },
+  // Twilio Config
+  { typeEvenement: 'twilio_config_get', workflowN8nId: 'twilio_config_get', workflowN8nNom: 'twilio-config-get' },
+  { typeEvenement: 'twilio_config_update', workflowN8nId: 'twilio_config_update', workflowN8nNom: 'twilio-config-update' },
+  { typeEvenement: 'twilio_test_call', workflowN8nId: 'twilio_test_call', workflowN8nNom: 'twilio-test-call' },
+  { typeEvenement: 'twilio_outbound_call', workflowN8nId: 'twilio_outbound_call', workflowN8nNom: 'twilio-outbound-call' },
+  // SMS
+  { typeEvenement: 'sms_list', workflowN8nId: 'sms_list', workflowN8nNom: 'sms-list' },
+  { typeEvenement: 'sms_stats', workflowN8nId: 'sms_stats', workflowN8nNom: 'sms-stats' },
+  { typeEvenement: 'sms_send', workflowN8nId: 'sms_send', workflowN8nNom: 'sms-send' },
+  { typeEvenement: 'sms_log_create', workflowN8nId: 'sms_log_create', workflowN8nNom: 'sms-log-create' },
+  // Questionnaires
+  { typeEvenement: 'questionnaire_list', workflowN8nId: 'questionnaire_list', workflowN8nNom: 'questionnaire-list' },
+  { typeEvenement: 'questionnaire_get', workflowN8nId: 'questionnaire_get', workflowN8nNom: 'questionnaire-get' },
+  { typeEvenement: 'questionnaire_create', workflowN8nId: 'questionnaire_create', workflowN8nNom: 'questionnaire-create' },
+  { typeEvenement: 'questionnaire_update', workflowN8nId: 'questionnaire_update', workflowN8nNom: 'questionnaire-update' },
+  { typeEvenement: 'questionnaire_delete', workflowN8nId: 'questionnaire_delete', workflowN8nNom: 'questionnaire-delete' },
+];
+
 const NOTIFICATIONS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'notifications_list', workflowN8nId: 'notifications_list', workflowN8nNom: 'notifications-list' },
   { typeEvenement: 'notification_create', workflowN8nId: 'notification_create', workflowN8nNom: 'notification-created' },
@@ -168,6 +194,16 @@ export async function seedWorkflowLinksProforma(
   tenantId: string
 ): Promise<void> {
   await seedWorkflowLinks(prisma, tenantId, 'proformas', PROFORMA_WORKFLOWS, 'proformas');
+}
+
+/**
+ * Attache les workflow links agent téléphonique IA au tenant donné.
+ */
+export async function seedWorkflowLinksAgentTelephonique(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'agent_telephonique', AGENT_TELEPHONIQUE_WORKFLOWS, 'agent téléphonique');
 }
 
 /**
