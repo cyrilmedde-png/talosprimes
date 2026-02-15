@@ -1,0 +1,184 @@
+{
+  "name": "twilio-outbound-call",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "twilio-outbound-call",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nif (!payload.to) {\n  throw new Error('to (phone number) is required');\n}\n\nif (!payload.reason) {\n  throw new Error('reason is required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  to: payload.to,\n  reason: payload.reason\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed: tenantId is required\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, tenant_id, phone_number, agent_name, company_name, niche, active FROM twilio_configs WHERE tenant_id = '{{ $json.tenantId }}'"
+      },
+      "id": "05. Get Twilio Config",
+      "name": "05. Get Twilio Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "code": "const results = $input.all();\nconst config = results.length > 0 ? results[0].json : null;\nconst to = $('02. Parser').first().json.to;\nconst reason = $('02. Parser').first().json.reason;\nconst tenantId = $('02. Parser').first().json.tenantId;\n\nif (!config) {\n  return {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant',\n    canProceed: false\n  };\n}\n\nif (!config.active) {\n  return {\n    success: false,\n    error: 'La configuration Twilio est désactivée',\n    canProceed: false\n  };\n}\n\nreturn {\n  tenantId: tenantId,\n  to: to,\n  reason: reason,\n  fromNumber: config.phone_number,\n  agentName: config.agent_name,\n  companyName: config.company_name,\n  canProceed: true\n};"
+      },
+      "id": "06. Check Config",
+      "name": "06. Check Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.canProceed }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "07. Config OK ?",
+      "name": "07. Config OK ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO call_logs (tenant_id, caller_phone, direction, status, notes, urgency_level, sentiment, action_taken, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.to }}', 'sortant', 'initiated', 'Appel sortant: {{ $json.reason }}', 'STANDARD', 'NEUTRE', 'APPEL', NOW(), NOW()) RETURNING id, tenant_id, caller_phone, direction, status, notes, created_at"
+      },
+      "id": "08. Create Call Log",
+      "name": "08. Create Call Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1300, 350]
+    },
+    {
+      "parameters": {
+        "code": "const callLog = $input.all();\nconst params = $('06. Check Config').first().json;\n\nif (callLog.length === 0) {\n  return {\n    success: false,\n    error: 'Erreur lors de la création du log d appel'\n  };\n}\n\nreturn {\n  success: true,\n  message: 'Outbound call initiated successfully',\n  data: {\n    callLogId: callLog[0].json.id,\n    to: params.to,\n    from: params.fromNumber,\n    reason: params.reason,\n    agentName: params.agentName,\n    companyName: params.companyName,\n    status: 'initiated'\n  }\n};"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 350]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 350]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Configuration Twilio invalide' }) }}"
+      },
+      "id": "11. Respond Config Error",
+      "name": "11. Respond Config Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 200]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Get Twilio Config", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Get Twilio Config": {
+      "main": [[{"node": "06. Check Config", "type": "main", "index": 0}]]
+    },
+    "06. Check Config": {
+      "main": [[{"node": "07. Config OK ?", "type": "main", "index": 0}]]
+    },
+    "07. Config OK ?": {
+      "main": [
+        [{"node": "08. Create Call Log", "type": "main", "index": 0}],
+        [{"node": "11. Respond Config Error", "type": "main", "index": 0}]
+      ]
+    },
+    "08. Create Call Log": {
+      "main": [[{"node": "09. Format Response", "type": "main", "index": 0}]]
+    },
+    "09. Format Response": {
+      "main": [[{"node": "10. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

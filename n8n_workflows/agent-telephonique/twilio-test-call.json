@@ -1,0 +1,116 @@
+{
+  "name": "twilio-test-call",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "twilio-test-call",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nreturn {\n  tenantId: payload.tenantId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed: tenantId is required\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, tenant_id, phone_number, agent_name, company_name, niche, active FROM twilio_configs WHERE tenant_id = '{{ $json.tenantId }}'"
+      },
+      "id": "05. Get Twilio Config",
+      "name": "05. Get Twilio Config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "code": "const results = $input.all();\nconst config = results.length > 0 ? results[0].json : null;\n\nif (!config) {\n  return {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant'\n  };\n}\n\nif (!config.active) {\n  return {\n    success: false,\n    error: 'La configuration Twilio est désactivée'\n  };\n}\n\nreturn {\n  success: true,\n  message: 'Test call triggered successfully',\n  data: {\n    phoneNumber: config.phone_number,\n    agentName: config.agent_name,\n    companyName: config.company_name,\n    niche: config.niche,\n    active: config.active\n  }\n};"
+      },
+      "id": "06. Format Response",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Get Twilio Config", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Get Twilio Config": {
+      "main": [[{"node": "06. Format Response", "type": "main", "index": 0}]]
+    },
+    "06. Format Response": {
+      "main": [[{"node": "07. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}
