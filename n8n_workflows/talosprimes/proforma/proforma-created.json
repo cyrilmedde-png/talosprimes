@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || !payload.montantHt || !payload.tvaTaux) {\n  throw new Error('tenantId, clientFinalId, montantHt, tvaTaux are required');\n}\n\nconst montantHt = parseFloat(payload.montantHt);\nconst tvaTaux = parseFloat(payload.tvaTaux) / 100;\nconst montantTtc = montantHt * (1 + tvaTaux);\nconst dateDevis = payload.dateDevis || new Date().toISOString().split('T')[0];\nconst dateValidite = payload.dateValidite || new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst description = payloap.description || '';\nconst modePaiement = payload.modePaiement || 'virement';\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: payload.tvaTaux,\n  dateDevis: dateDevis,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || !payload.montantHt || !payload.tvaTaux) {\n  throw new Error('tenantId, clientFinalId, montantHt, tvaTaux are required');\n}\n\nconst montantHt = parseFloat(payload.montantHt);\nconst tvaTaux = parseFloat(payload.tvaTaux) / 100;\nconst montantTtc = montantHt * (1 + tvaTaux);\nconst dateProforma = payload.dateProforma || new Date().toISOString().split('T')[0];\nconst dateValidite = payload.dateValidite || new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst description = payload.description || '';\nconst modePaiement = payload.modePaiement || 'virement';\nconst lines = (payload.lines || []).map(line => ({\n  codeArticle: line.codeArticle || line.code_article || '',\n  designation: line.designation || line.description || '',\n  quantite: parseInt(line.quantite || line.qty || 1),\n  prixUnitaireHt: parseFloat(line.prixUnitaireHt || line.prix_unitaire_ht || line.prixUnitaire || 0),\n  totalHt: parseFloat(line.totalHt || line.total_ht || line.montantHt || 0),\n  ordre: parseInt(line.ordre || 0)\n}));\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: payload.tvaTaux,\n  dateProforma: dateProforma,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -100,7 +100,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO proformas (tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $json.numeroProforma }}', '{{ $json.dateDevis }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, '{{ $json.description }}', '{{ $json.modePaiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+        "query": "=INSERT INTO proformas (tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $json.numeroProforma }}', '{{ $json.dateProforma }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, '{{ $json.description }}', '{{ $json.modePaiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
       },
       "id": "07. Insert Proforma",
       "name": "07. Insert Proforma",
@@ -118,7 +118,7 @@
     },
     {
       "parameters": {
-        "code": "const proformaId = $('07. Insert Proforma').first().id;\nconst lines = $json.lines || [];\nconst lineInserts = lines.map((line, index) => ({\n  proformaId: proformaId,\n  ligneNumero: index + 1,\n  description: line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaire: parseFloat(line.prixUnitaire) || 0,\n  montantHt: parseFloat(line.montantHt) || 0,\n  tvaTaux: parseFloat(line.tvaTaux) || 0,\n  montantTtc: parseFloat(line.montantTtc) || 0\n}));\n\nreturn {\n  proformaId: proformaId,\n  lineInserts: lineInserts\n};"
+        "code": "const proformaId = $('07. Insert Proforma').first().id;\nconst lines = $json.lines || [];\n\nif (lines.length === 0) {\n  return {\n    proformaId: proformaId,\n    hasLines: false,\n    insertLinesSql: ''\n  };\n}\n\nconst valueParts = lines.map((line, index) => {\n  const codeArticle = (line.codeArticle || '').replace(/'/g, \"''\");\n  const designation = (line.designation || '').replace(/'/g, \"''\");\n  const quantite = parseInt(line.quantite || 1);\n  const prixUnitaireHt = parseFloat(line.prixUnitaireHt || 0);\n  const totalHt = parseFloat(line.totalHt || 0);\n  const ordre = parseInt(line.ordre || index);\n  \n  return `('${proformaId}', '${codeArticle}', '${designation}', ${quantite}, ${prixUnitaireHt}, ${totalHt}, ${ordre})`;\n}).join(',\\n  ');\n\nconst insertLinesSql = `INSERT INTO proforma_lines (proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES\\n  ${valueParts}`;\n\nreturn {\n  proformaId: proformaId,\n  hasLines: true,\n  insertLinesSql: insertLinesSql\n};"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
@@ -131,8 +131,8 @@
     },
     {
       "parameters": {
-        "resource": "executeQuery",
-        "query": "=INSERT INTO proforma_lines (proforma_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ('{{ each(item).proformaId }}', {{ each(item).ligneNumero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prixUnitaire }}, {{ each(item).montantHt }}, {{ each(item).tvaTaux }}, {{ each(item).montantTtc }});"
+        "operation": "executeQuery",
+        "query": "={{ $json.hasLines ? $json.insertLinesSql : 'SELECT 1' }}"
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",

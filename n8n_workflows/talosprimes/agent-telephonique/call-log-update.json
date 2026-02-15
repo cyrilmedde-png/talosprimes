@@ -79,7 +79,12 @@
       "position": [
         850,
         250
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {

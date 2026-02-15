@@ -117,7 +117,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const lines = $json.lines || [];\nconst avoirId = $json.avoirId;\n\nif (lines.length === 0) {\n  return { success: true, linesInserted: 0 };\n}\n\nconst lineQueries = lines.map((line, idx) => ({\n  avoirId: avoirId,\n  ordre: idx + 1,\n  description: line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaire: line.prixUnitaire || 0,\n  montant: (line.quantite || 1) * (line.prixUnitaire || 0)\n}));\n\nreturn { lineQueries, linesCount: lineQueries.length };"
+        "jsCode": "const lines = $json.lines || [];\nconst avoirId = $json.avoirId;\n\nif (lines.length === 0) {\n  return { success: true, linesInserted: 0 };\n}\n\nconst lineQueries = lines.map((line, idx) => ({\n  avoirId: avoirId,\n  codeArticle: line.codeArticle || '',\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || 0),\n  ordre: idx + 1\n}));\n\nreturn { lineQueries, linesCount: lineQueries.length };"
       },
       "name": "Code Prepare Lines",
       "type": "n8n-nodes-base.code",
@@ -130,7 +130,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO avoir_lines (avoir_id, ordre, description, quantite, prix_unitaire, montant) VALUES{% for item in $json.lineQueries %} ('{{ item.avoirId }}', {{ item.ordre }}, '{{ item.description }}', {{ item.quantite }}, {{ item.prixUnitaire }}, {{ item.montant }}){{ not loop.last ? ',' : '' }}{% endfor %}"
+        "query": "INSERT INTO avoir_lines (avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES{% for item in $json.lineQueries %} ('{{ item.avoirId }}', '{{ item.codeArticle }}', '{{ item.designation }}', {{ item.quantite }}, {{ item.prixUnitaireHt }}, {{ item.totalHt }}, {{ item.ordre }}){{ not loop.last ? ',' : '' }}{% endfor %}"
       },
       "name": "Postgres Insert Lines",
       "type": "n8n-nodes-base.postgres",

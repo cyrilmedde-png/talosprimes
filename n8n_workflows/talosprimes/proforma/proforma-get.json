@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT p.id, p.tenant_id, p.client_final_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.invoice_id, p.lien_pdf, p.created_at, p.updated_at, c.id as client_id, c.nom as client_nom, c.email as client_email FROM proformas d LEFT JOIN clients c ON p.client_final_id = c.id WHERE p.id = {{ $json.proformaId }}"
+        "query": "SELECT p.id, p.tenant_id, p.client_final_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.invoice_id, p.lien_pdf, p.created_at, p.updated_at, c.id as client_id, c.nom as client_nom, c.email as client_email FROM proformas p LEFT JOIN clients c ON p.client_final_id = c.id WHERE p.id = {{ $json.proformaId }}"
       },
       "id": "05. Get Proforma",
       "name": "05. Get Proforma",
@@ -87,7 +87,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, proforma_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
+        "query": "SELECT id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
