@@ -12,18 +12,24 @@
       "name": "01. Webhook - Annulation",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "subscription-cancelled"
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst data = payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = data?.tenantId || '';\nconst reason = data?.reason || 'Non spécifié';\nconst cancelAtPeriodEnd = data?.cancelAtPeriodEnd || false; // Annuler immédiatement ou à la fin de la période\nconst cancelledBy = data?.cancelledBy || 'system'; // Qui a annulé\nconst cancelledByEmail = data?.cancelledByEmail || null; // Email de qui a annulé\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    reason,\n    cancelAtPeriodEnd,\n    cancelDate: new Date().toISOString(),\n    cancelledBy,\n    cancelledByEmail\n  }\n};"
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst _wb = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (raw && typeof raw === 'object' && _wb.data && typeof _wb.data === 'object') ? { ..._wb.data, tenantId: _wb.data.tenantId || raw.tenantId } : raw;\nconst data = payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = data?.tenantId || '';\nconst reason = data?.reason || 'Non spécifié';\nconst cancelAtPeriodEnd = data?.cancelAtPeriodEnd || false; // Annuler immédiatement ou à la fin de la période\nconst cancelledBy = data?.cancelledBy || 'system'; // Qui a annulé\nconst cancelledByEmail = data?.cancelledByEmail || null; // Email de qui a annulé\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    reason,\n    cancelAtPeriodEnd,\n    cancelDate: new Date().toISOString(),\n    cancelledBy,\n    cancelledByEmail\n  }\n};"
       },
       "id": "parse-payload",
       "name": "02. Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -34,7 +40,10 @@
       "name": "03. Récupérer abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -57,7 +66,10 @@
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -67,7 +79,10 @@
       "name": "05a. Préparer notification admin (erreur)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     },
     {
       "parameters": {
@@ -92,7 +107,10 @@
       "name": "05b. Envoyer notification admin",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 600],
+      "position": [
+        1120,
+        600
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -102,13 +120,16 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'annulation\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    reason: parseData.reason,\n    cancelAtPeriodEnd: parseData.cancelAtPeriodEnd,\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    idAbonnementStripe: subscriptionData.id_abonnement_stripe,\n    cancelledBy: parseData.cancelledBy,\n    cancelledByEmail: parseData.cancelledByEmail,\n    cancelDate: parseData.cancelDate\n  }\n};"
+        "jsCode": "// Préparer les données pour l'annulation\nconst subscriptionData = $input.item.json[0];\nconst _body = (subscriptionData && subscriptionData.body && typeof subscriptionData.body === \"object\") ? subscriptionData.body : subscriptionData;;\nconst parseData = $node['02. Parser payload'].json;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    reason: parseData.reason,\n    cancelAtPeriodEnd: parseData.cancelAtPeriodEnd,\n    clientEmail: _body.email,\n    clientName: _body.nom || _body.prenom || _body.raison_sociale || 'Client',\n    idAbonnementStripe: _body.id_abonnement_stripe,\n    cancelledBy: parseData.cancelledBy,\n    cancelledByEmail: parseData.cancelledByEmail,\n    cancelDate: parseData.cancelDate\n  }\n};"
       },
       "id": "prepare-cancel",
       "name": "06. Préparer annulation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -125,7 +146,10 @@
       "name": "07. IF - Stripe configuré ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -138,7 +162,10 @@
       "name": "08. Stripe - Annuler abonnement",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 200],
+      "position": [
+        1560,
+        200
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -161,27 +188,36 @@
       "name": "08a. Valider réponse Stripe",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1780, 200]
+      "position": [
+        1780,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Confirmer l'annulation Stripe\nconst stripeResponse = $input.item.json;\nconst prepareData = $node['06. Préparer annulation'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeCancelled: true,\n    stripeStatus: stripeResponse.status\n  }\n};"
+        "jsCode": "// Confirmer l'annulation Stripe\nconst stripeResponse = $input.item.json;\nconst _body = (stripeResponse && stripeResponse.body && typeof stripeResponse.body === \"object\") ? stripeResponse.body : stripeResponse;\nconst prepareData = $node['06. Préparer annulation'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeCancelled: true,\n    stripeStatus: _body.status\n  }\n};"
       },
       "id": "confirm-stripe",
       "name": "08b. Confirmer Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 100]
+      "position": [
+        2000,
+        100
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer notification d'erreur Stripe\nconst stripeError = $input.item.json;\nconst prepareData = $node['06. Préparer annulation'].json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'stripe_cancellation_failed',\n    tenantId: prepareData.tenantId,\n    subscriptionId: prepareData.subscription.id,\n    stripeId: prepareData.idAbonnementStripe,\n    timestamp,\n    error: stripeError.message || 'Erreur inconnue Stripe',\n    reason: prepareData.reason,\n    cancelledBy: prepareData.cancelledBy,\n    cancelledByEmail: prepareData.cancelledByEmail,\n    message: `Échec de l'annulation Stripe: ${stripeError.message || 'Erreur inconnue'}`\n  }\n};"
+        "jsCode": "// Préparer notification d'erreur Stripe\nconst stripeError = $input.item.json;\nconst _body = (stripeError && stripeError.body && typeof stripeError.body === \"object\") ? stripeError.body : stripeError;\nconst prepareData = $node['06. Préparer annulation'].json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'stripe_cancellation_failed',\n    tenantId: prepareData.tenantId,\n    subscriptionId: prepareData.subscription.id,\n    stripeId: prepareData.idAbonnementStripe,\n    timestamp,\n    error: _body.message || 'Erreur inconnue Stripe',\n    reason: prepareData.reason,\n    cancelledBy: prepareData.cancelledBy,\n    cancelledByEmail: prepareData.cancelledByEmail,\n    message: `Échec de l'annulation Stripe: ${_body.message || 'Erreur inconnue'}`\n  }\n};"
       },
       "id": "prepare-stripe-error-notification",
       "name": "08c. Préparer notification erreur Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 300]
+      "position": [
+        2000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -206,7 +242,10 @@
       "name": "08d. Envoyer notification erreur Stripe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 300],
+      "position": [
+        2220,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -224,7 +263,10 @@
       "name": "08e. Répondre erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2440, 300]
+      "position": [
+        2440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -235,7 +277,10 @@
       "name": "09. Merge - Stripe et sans Stripe",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [2220, 100]
+      "position": [
+        2220,
+        100
+      ]
     },
     {
       "parameters": {
@@ -246,7 +291,10 @@
       "name": "10. Annuler abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2440, 100],
+      "position": [
+        2440,
+        100
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -262,7 +310,10 @@
       "name": "11. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 100]
+      "position": [
+        2660,
+        100
+      ]
     },
     {
       "parameters": {
@@ -287,7 +338,10 @@
       "name": "12. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 100],
+      "position": [
+        2880,
+        100
+      ],
       "credentials": {
         "headerAuth": {
           "id": "resend-api-credential",
@@ -297,13 +351,16 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer notification TalosPrimes API après succès email\nconst mergeData = $node['09. Merge - Stripe et sans Stripe'].json;\nconst emailResponse = $input.item.json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'subscription_cancelled',\n    tenantId: mergeData.tenantId,\n    subscriptionId: mergeData.subscription.id,\n    clientId: mergeData.subscription.client_final_id,\n    clientEmail: mergeData.clientEmail,\n    planName: mergeData.subscription.nom_plan,\n    timestamp,\n    reason: mergeData.reason,\n    cancelAtPeriodEnd: mergeData.cancelAtPeriodEnd,\n    stripeCancelled: mergeData.stripeCancelled || false,\n    stripeStatus: mergeData.stripeStatus || null,\n    auditTrail: {\n      cancelledBy: mergeData.cancelledBy,\n      cancelledByEmail: mergeData.cancelledByEmail,\n      cancelDate: mergeData.cancelDate,\n      emailSent: true,\n      emailId: emailResponse.id || null\n    },\n    message: `Abonnement ${mergeData.subscription.nom_plan} annulé pour ${mergeData.clientEmail}`\n  }\n};"
+        "jsCode": "// Préparer notification TalosPrimes API après succès email\nconst mergeData = $node['09. Merge - Stripe et sans Stripe'].json;\nconst emailResponse = $input.item.json;\nconst _body = (emailResponse && emailResponse.body && typeof emailResponse.body === \"object\") ? emailResponse.body : emailResponse;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'subscription_cancelled',\n    tenantId: mergeData.tenantId,\n    subscriptionId: mergeData.subscription.id,\n    clientId: mergeData.subscription.client_final_id,\n    clientEmail: mergeData.clientEmail,\n    planName: mergeData.subscription.nom_plan,\n    timestamp,\n    reason: mergeData.reason,\n    cancelAtPeriodEnd: mergeData.cancelAtPeriodEnd,\n    stripeCancelled: mergeData.stripeCancelled || false,\n    stripeStatus: mergeData.stripeStatus || null,\n    auditTrail: {\n      cancelledBy: mergeData.cancelledBy,\n      cancelledByEmail: mergeData.cancelledByEmail,\n      cancelDate: mergeData.cancelDate,\n      emailSent: true,\n      emailId: _body.id || null\n    },\n    message: `Abonnement ${mergeData.subscription.nom_plan} annulé pour ${mergeData.clientEmail}`\n  }\n};"
       },
       "id": "prepare-notification",
       "name": "13. Préparer notification TalosPrimes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 100]
+      "position": [
+        3100,
+        100
+      ]
     },
     {
       "parameters": {
@@ -328,7 +385,10 @@
       "name": "14. Envoyer notification TalosPrimes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3320, 100],
+      "position": [
+        3320,
+        100
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -346,7 +406,10 @@
       "name": "15. Répondre succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3540, 100]
+      "position": [
+        3540,
+        100
+      ]
     },
     {
       "parameters": {
@@ -358,7 +421,10 @@
       "name": "16. Répondre erreur (non trouvé)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 600]
+      "position": [
+        1340,
+        600
+      ]
     }
   ],
   "connections": {

@@ -12,18 +12,24 @@
       "name": "Webhook - Onboarding Client",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "client-onboarding"
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'onboarding\n// Le webhook reçoit les données dans body ou directement\nconst raw = $input.item.json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\n// Le backend envoie : { event, tenantId, timestamp, data: { client: {...}, plan: {...}, avecStripe } }\nconst tenantId = payload.tenantId;\nconst clientData = payload.client || payload || {};\nconst clientId = clientData.id || clientData.clientId;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nconst planFromPayload = payload.data?.plan || payload.plan || {};\nconst plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nconst avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\n// Validation\nif (!tenantId || !clientId) {\n  throw new Error(`Données manquantes : tenantId=${tenantId ? 'OK' : 'MANQUANT'}, clientId=${clientId ? 'OK' : 'MANQUANT'}`);\n}\n\n// Calculer les dates\nconst dateDebut = new Date();\nconst dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn {\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n};"
+        "jsCode": "// Préparer les données pour l'onboarding\n// Le webhook reçoit les données dans body ou directement\nconst raw = $input.item.json;\nconst _wb = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (raw && typeof raw === 'object' && _wb.data && typeof _wb.data === 'object') ? { ..._wb.data, tenantId: _wb.data.tenantId || raw.tenantId } : raw;\n\n// Le backend envoie : { event, tenantId, timestamp, data: { client: {...}, plan: {...}, avecStripe } }\nconst tenantId = payload.tenantId;\nconst clientData = payload.client || payload || {};\nconst clientId = clientData.id || clientData.clientId;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nconst planFromPayload = payload.data?.plan || payload.plan || {};\nconst plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nconst avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\n// Validation\nif (!tenantId || !clientId) {\n  throw new Error(`Données manquantes : tenantId=${tenantId ? 'OK' : 'MANQUANT'}, clientId=${clientId ? 'OK' : 'MANQUANT'}`);\n}\n\n// Calculer les dates\nconst dateDebut = new Date();\nconst dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn {\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n};"
       },
       "id": "prepare-data",
       "name": "01. Préparer données onboarding",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -44,7 +50,10 @@
       "name": "02. Validation données",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [680, 400]
+      "position": [
+        680,
+        400
+      ]
     },
     {
       "parameters": {
@@ -61,7 +70,10 @@
       "name": "03. IF - Stripe activé ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -105,7 +117,10 @@
       "name": "04. Stripe - Créer Customer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 300],
+      "position": [
+        1120,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -147,7 +162,10 @@
       "name": "05. Stripe - Créer Produit",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1340, 300],
+      "position": [
+        1340,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -201,7 +219,10 @@
       "name": "06. Stripe - Créer Prix",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 300],
+      "position": [
+        1560,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -217,7 +238,10 @@
       "name": "06b. Préparer URLs Checkout",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 380]
+      "position": [
+        1560,
+        380
+      ]
     },
     {
       "parameters": {
@@ -293,7 +317,10 @@
       "name": "07. Stripe - Créer Session Checkout",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 380],
+      "position": [
+        1780,
+        380
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -309,7 +336,10 @@
       "name": "08. Préparer avec IDs Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 380]
+      "position": [
+        2000,
+        380
+      ]
     },
     {
       "parameters": {
@@ -319,7 +349,10 @@
       "name": "10a. Préparer après abonnement",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 500]
+      "position": [
+        1780,
+        500
+      ]
     },
     {
       "parameters": {
@@ -329,7 +362,10 @@
       "name": "09. Préparer requête SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 500]
+      "position": [
+        1120,
+        500
+      ]
     },
     {
       "parameters": {
@@ -339,7 +375,10 @@
       "name": "09c. Conserver données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 600]
+      "position": [
+        1340,
+        600
+      ]
     },
     {
       "parameters": {
@@ -350,7 +389,10 @@
       "name": "10. Créer abonnement client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1340, 400],
+      "position": [
+        1340,
+        400
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -367,17 +409,23 @@
       "name": "10-merge. Combiner abonnement et données",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1560, 500]
+      "position": [
+        1560,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Générer un mot de passe sécurisé aléatoire et l'ajouter aux données\nconst generatePassword = () => {\n  const length = 12;\n  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\n  let password = '';\n  for (let i = 0; i < length; i++) {\n    password += charset.charAt(Math.floor(Math.random() * charset.length));\n  }\n  return password;\n};\n\nconst prepareData = $input.item.json;\nconst clientData = prepareData.clientData || {};\n\n// Générer le mot de passe\nconst plainPassword = generatePassword();\n\n// Nom du tenant (basé sur le nom du client)\nconst tenantName = clientData.raisonSociale || `${clientData.nom || ''} ${clientData.prenom || ''}`.trim() || clientData.email || 'Client';\n\n// Retourner toutes les données avec le mot de passe ajouté\nreturn {\n  json: {\n    ...prepareData,\n    tenantName: tenantName,\n    clientEmail: clientData.email || '',\n    plainPassword: plainPassword,\n    clientNom: clientData.nom || '',\n    clientPrenom: clientData.prenom || '',\n    clientRaisonSociale: clientData.raisonSociale || null\n  }\n};"
+        "jsCode": "// Générer un mot de passe sécurisé aléatoire et l'ajouter aux données\nconst generatePassword = () => {\n  const length = 12;\n  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\n  let password = '';\n  for (let i = 0; i < length; i++) {\n    password += charset.charAt(Math.floor(Math.random() * charset.length));\n  }\n  return password;\n};\n\nconst prepareData = $input.item.json;\nconst _body = (prepareData && prepareData.body && typeof prepareData.body === \"object\") ? prepareData.body : prepareData;\nconst clientData = _body.clientData || {};\n\n// Générer le mot de passe\nconst plainPassword = generatePassword();\n\n// Nom du tenant (basé sur le nom du client)\nconst tenantName = clientData.raisonSociale || `${clientData.nom || ''} ${clientData.prenom || ''}`.trim() || clientData.email || 'Client';\n\n// Retourner toutes les données avec le mot de passe ajouté\nreturn {\n  json: {\n    ...prepareData,\n    tenantName: tenantName,\n    clientEmail: clientData.email || '',\n    plainPassword: plainPassword,\n    clientNom: clientData.nom || '',\n    clientPrenom: clientData.prenom || '',\n    clientRaisonSociale: clientData.raisonSociale || null\n  }\n};"
       },
       "id": "generate-password",
       "name": "09a. Générer mot de passe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     },
     {
       "parameters": {
@@ -388,17 +436,23 @@
       "name": "09b. Merge - Ajouter mot de passe",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1120, 500]
+      "position": [
+        1120,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour créer Tenant et User\n// Récupérer les données depuis 10a qui contient toutes les infos nécessaires\nconst data = $input.item.json;\n\n// Extraire les données nécessaires pour créer le Tenant et User\nconst clientId = data.clientId || data.subscriptionData?.client_final_id;\nconst tenantId = data.tenantId;\nconst email = data.clientEmail || data.clientData?.email;\nconst password = data.plainPassword;\nconst nom = data.clientNom || data.clientData?.nom || '';\nconst prenom = data.clientPrenom || data.clientData?.prenom || '';\nconst raisonSociale = data.clientRaisonSociale || data.clientData?.raisonSociale || null;\nconst tenantName = data.tenantName;\n\nif (!clientId || !tenantId || !email || !password) {\n  throw new Error('Données manquantes pour créer Tenant et User: clientId, tenantId, email ou password');\n}\n\nreturn {\n  json: {\n    clientId,\n    tenantId,\n    email,\n    password,\n    nom,\n    prenom,\n    raisonSociale,\n    tenantName: tenantName || raisonSociale || `${nom} ${prenom}`.trim() || email\n  }\n};"
+        "jsCode": "// Préparer les données pour créer Tenant et User\n// Récupérer les données depuis 10a qui contient toutes les infos nécessaires\nconst data = $input.item.json;\nconst _body = (data && data.body && typeof data.body === \"object\") ? data.body : data;\n\n// Extraire les données nécessaires pour créer le Tenant et User\nconst clientId = _body.clientId || _body.subscriptionData?.client_final_id;\nconst tenantId = _body.tenantId;\nconst email = _body.clientEmail || _body.clientData?.email;\nconst password = _body.plainPassword;\nconst nom = _body.clientNom || _body.clientData?.nom || '';\nconst prenom = _body.clientPrenom || _body.clientData?.prenom || '';\nconst raisonSociale = _body.clientRaisonSociale || _body.clientData?.raisonSociale || null;\nconst tenantName = _body.tenantName;\n\nif (!clientId || !tenantId || !email || !password) {\n  throw new Error('Données manquantes pour créer Tenant et User: clientId, tenantId, email ou password');\n}\n\nreturn {\n  json: {\n    clientId,\n    tenantId,\n    email,\n    password,\n    nom,\n    prenom,\n    raisonSociale,\n    tenantName: tenantName || raisonSociale || `${nom} ${prenom}`.trim() || email\n  }\n};"
       },
       "id": "prepare-tenant-user",
       "name": "10b. Préparer création Tenant et User",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 500]
+      "position": [
+        2000,
+        500
+      ]
     },
     {
       "parameters": {
@@ -423,7 +477,10 @@
       "name": "10c. Créer Tenant et User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 500],
+      "position": [
+        2220,
+        500
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -433,23 +490,29 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la réponse de succès\n// Récupérer les données depuis le node précédent (10c. Créer Tenant et User)\nconst credentialsResponse = $input.item.json;\n\n// Récupérer les données depuis 10a via le contexte du workflow\n// Utiliser $node pour accéder aux données du nœud 10a dans le contexte actuel\nconst prepareData = $node['10a. Préparer après abonnement'].json || {};\n\n// Données client depuis prepareData (qui contient les données de 01)\nconst clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nconst avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\n\n// Si Stripe est activé, préparer l'objet stripe\nconst stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\n// Extraire les identifiants depuis la réponse de l'API\nconst credentialsData = credentialsResponse.data || credentialsResponse || {};\n\nreturn {\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé. Redirection vers le paiement...\" \n      : \"Espace client créé avec succès\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    credentials: credentialsData.tenantId ? {\n      tenantId: credentialsData.tenantId,\n      userId: credentialsData.userId,\n      email: credentialsData.email,\n      password: prepareData.plainPassword || credentialsData.password || null\n    } : null,\n    stripe: stripe\n  }\n};"
+        "jsCode": "// Préparer la réponse de succès\n// Récupérer les données depuis le node précédent (10c. Créer Tenant et User)\nconst credentialsResponse = $input.item.json;\nconst _body = (credentialsResponse && credentialsResponse.body && typeof credentialsResponse.body === \"object\") ? credentialsResponse.body : credentialsResponse;\n\n// Récupérer les données depuis 10a via le contexte du workflow\n// Utiliser $node pour accéder aux données du nœud 10a dans le contexte actuel\nconst prepareData = $node['10a. Préparer après abonnement'].json || {};\n\n// Données client depuis prepareData (qui contient les données de 01)\nconst clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nconst avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\n\n// Si Stripe est activé, préparer l'objet stripe\nconst stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\n// Extraire les identifiants depuis la réponse de l'API\nconst credentialsData = _body.data || credentialsResponse || {};\n\nreturn {\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé. Redirection vers le paiement...\" \n      : \"Espace client créé avec succès\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    credentials: credentialsData.tenantId ? {\n      tenantId: credentialsData.tenantId,\n      userId: credentialsData.userId,\n      email: credentialsData.email,\n      password: prepareData.plainPassword || credentialsData.password || null\n    } : null,\n    stripe: stripe\n  }\n};"
       },
       "id": "format-response",
       "name": "11. Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2440, 500]
+      "position": [
+        2440,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer le body JSON pour la notification\n// Récupérer les données depuis le nœud précédent (11. Formater réponse)\nconst responseData = $input.item.json;\nconst subscription = responseData.subscription;\nconst client = responseData.client || {};\n\n// Utiliser les données depuis $node pour accéder à 10a si nécessaire\nlet tenantId, clientId;\ntry {\n  const prepareData = $node['10a. Préparer après abonnement'].json || {};\n  tenantId = prepareData.tenantId;\n  clientId = prepareData.clientId;\n} catch (e) {\n  // Fallback : essayer de récupérer depuis les credentials\n  tenantId = responseData.credentials?.tenantId;\n  clientId = client.id;\n}\n\nconst clientName = client.prenom || client.nom || client.raisonSociale || 'le client';\nconst titreStripe = responseData.stripe ? ' (Stripe)' : '';\nconst messageStripe = responseData.stripe ? ' - Abonnement Stripe créé' : '';\n\nreturn {\n  json: {\n    type: 'client_onboarding',\n    titre: `Espace client créé${titreStripe}`,\n    message: `L'espace client et l'abonnement ont été créés avec succès pour ${clientName}${messageStripe}`,\n    donnees: {\n      tenantId: tenantId,\n      clientId: clientId,\n      subscriptionId: subscription?.id || subscription?.[0]?.id\n    }\n  }\n};"
+        "jsCode": "// Préparer le body JSON pour la notification\n// Récupérer les données depuis le nœud précédent (11. Formater réponse)\nconst responseData = $input.item.json;\nconst _body = (responseData && responseData.body && typeof responseData.body === \"object\") ? responseData.body : responseData;\nconst subscription = _body.subscription;\nconst client = _body.client || {};\n\n// Utiliser les données depuis $node pour accéder à 10a si nécessaire\nlet tenantId, clientId;\ntry {\n  const prepareData = $node['10a. Préparer après abonnement'].json || {};\n  tenantId = prepareData.tenantId;\n  clientId = prepareData.clientId;\n} catch (e) {\n  // Fallback : essayer de récupérer depuis les credentials\n  tenantId = _body.credentials?.tenantId;\n  clientId = client.id;\n}\n\nconst clientName = client.prenom || client.nom || client.raisonSociale || 'le client';\nconst titreStripe = _body.stripe ? ' (Stripe)' : '';\nconst messageStripe = _body.stripe ? ' - Abonnement Stripe créé' : '';\n\nreturn {\n  json: {\n    type: 'client_onboarding',\n    titre: `Espace client créé${titreStripe}`,\n    message: `L'espace client et l'abonnement ont été créés avec succès pour ${clientName}${messageStripe}`,\n    donnees: {\n      tenantId: tenantId,\n      clientId: clientId,\n      subscriptionId: subscription?.id || subscription?.[0]?.id\n    }\n  }\n};"
       },
       "id": "prepare-notification",
       "name": "11b. Préparer notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2440, 650]
+      "position": [
+        2440,
+        650
+      ]
     },
     {
       "parameters": {
@@ -474,7 +537,10 @@
       "name": "12. Créer notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2660, 650],
+      "position": [
+        2660,
+        650
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -492,7 +558,10 @@
       "name": "13. Répondre au webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2880, 500]
+      "position": [
+        2880,
+        500
+      ]
     },
     {
       "parameters": {
@@ -504,7 +573,10 @@
       "name": "Répondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [680, 600]
+      "position": [
+        680,
+        600
+      ]
     }
   ],
   "connections": {

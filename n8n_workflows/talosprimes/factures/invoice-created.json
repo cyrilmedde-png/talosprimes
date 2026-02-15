@@ -137,7 +137,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const res=$input.first().json;\nconst inv=res.data&&res.data.invoice?res.data.invoice:null;\nif(!inv||!inv.id)throw new Error('API: facture non creee - '+JSON.stringify(res).substring(0,200));\nreturn [{json:{invoiceId:inv.id,tenantId:inv.tenantId||inv.tenant_id}}];"
+        "jsCode": "const res=$input.first().json;\nconst _body = (res && res.body && typeof res.body === \"object\") ? res.body : res;\nconst inv=_body.data&&_body.data.invoice?_body.data.invoice:null;\nif(!inv||!inv.id)throw new Error('API: facture non creee - '+JSON.stringify(res).substring(0,200));\nreturn [{json:{invoiceId:inv.id,tenantId:inv.tenantId||inv.tenant_id}}];"
       },
       "id": "extract",
       "name": "09. Extraire invoiceId",

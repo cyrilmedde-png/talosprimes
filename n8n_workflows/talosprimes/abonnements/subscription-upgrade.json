@@ -12,18 +12,24 @@
       "name": "01. Webhook - Changement de plan",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "subscription-upgrade"
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst data = payload;\n\n// Extraire les données\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = data?.tenantId || '';\nconst nouveauPlan = data?.nouveauPlan || {};\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nif (!nouveauPlan.nomPlan || !nouveauPlan.montantMensuel) {\n  throw new Error('Nouveau plan incomplet (nomPlan et montantMensuel requis)');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    nouveauPlan: {\n      nomPlan: nouveauPlan.nomPlan,\n      montantMensuel: parseFloat(nouveauPlan.montantMensuel),\n      modulesInclus: nouveauPlan.modulesInclus || [],\n      dureeMois: nouveauPlan.dureeMois || 1\n    },\n    upgradeDate: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst _wb = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (raw && typeof raw === 'object' && _wb.data && typeof _wb.data === 'object') ? { ..._wb.data, tenantId: _wb.data.tenantId || raw.tenantId } : raw;\nconst data = payload;\n\n// Extraire les données\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = data?.tenantId || '';\nconst nouveauPlan = data?.nouveauPlan || {};\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nif (!nouveauPlan.nomPlan || !nouveauPlan.montantMensuel) {\n  throw new Error('Nouveau plan incomplet (nomPlan et montantMensuel requis)');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    nouveauPlan: {\n      nomPlan: nouveauPlan.nomPlan,\n      montantMensuel: parseFloat(nouveauPlan.montantMensuel),\n      modulesInclus: nouveauPlan.modulesInclus || [],\n      dureeMois: nouveauPlan.dureeMois || 1\n    },\n    upgradeDate: new Date().toISOString()\n  }\n};"
       },
       "id": "parse-payload",
       "name": "02. Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -34,7 +40,10 @@
       "name": "03. Récupérer abonnement actuel",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -57,17 +66,23 @@
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Calculer les informations pour l'affichage du prorata\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\nconst ancienMontant = parseFloat(subscriptionData.montant_mensuel);\nconst nouveauMontant = parseData.nouveauPlan.montantMensuel;\nconst difference = nouveauMontant - ancienMontant;\nconst isUpgrade = difference > 0;\n\n// Calculer les jours restants pour l'affichage (Stripe gère le calcul réel avec proration_behavior)\nconst today = new Date();\nconst nextRenewal = new Date(subscriptionData.date_prochain_renouvellement);\nconst daysRemaining = Math.ceil((nextRenewal - today) / (1000 * 60 * 60 * 24));\nconst daysInMonth = 30;\nconst prorataRatio = daysRemaining / daysInMonth;\nconst prorataAmount = difference * prorataRatio;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    nouveauPlan: parseData.nouveauPlan,\n    ancienPlan: {\n      nomPlan: subscriptionData.nom_plan,\n      montantMensuel: ancienMontant,\n      modulesInclus: subscriptionData.modules_inclus\n    },\n    difference,\n    isUpgrade,\n    prorata: {\n      daysRemaining,\n      ratio: prorataRatio,\n      amount: prorataAmount\n    },\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    idAbonnementStripe: subscriptionData.id_abonnement_stripe\n  }\n};"
+        "jsCode": "// Calculer les informations pour l'affichage du prorata\nconst subscriptionData = $input.item.json[0];\nconst _body = (subscriptionData && subscriptionData.body && typeof subscriptionData.body === \"object\") ? subscriptionData.body : subscriptionData;;\nconst parseData = $node['02. Parser payload'].json;\n\nconst ancienMontant = parseFloat(_body.montant_mensuel);\nconst nouveauMontant = parseData.nouveauPlan.montantMensuel;\nconst difference = nouveauMontant - ancienMontant;\nconst isUpgrade = difference > 0;\n\n// Calculer les jours restants pour l'affichage (Stripe gère le calcul réel avec proration_behavior)\nconst today = new Date();\nconst nextRenewal = new Date(_body.date_prochain_renouvellement);\nconst daysRemaining = Math.ceil((nextRenewal - today) / (1000 * 60 * 60 * 24));\nconst daysInMonth = 30;\nconst prorataRatio = daysRemaining / daysInMonth;\nconst prorataAmount = difference * prorataRatio;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    nouveauPlan: parseData.nouveauPlan,\n    ancienPlan: {\n      nomPlan: _body.nom_plan,\n      montantMensuel: ancienMontant,\n      modulesInclus: _body.modules_inclus\n    },\n    difference,\n    isUpgrade,\n    prorata: {\n      daysRemaining,\n      ratio: prorataRatio,\n      amount: prorataAmount\n    },\n    clientEmail: _body.email,\n    clientName: _body.nom || _body.prenom || _body.raison_sociale || 'Client',\n    idAbonnementStripe: _body.id_abonnement_stripe\n  }\n};"
       },
       "id": "calculate-prorata",
       "name": "05. Calculer prorata (affichage)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -84,7 +99,10 @@
       "name": "06. IF - Stripe configuré ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -120,7 +138,10 @@
       "name": "07. Stripe - Mettre à jour abonnement",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 200],
+      "position": [
+        1560,
+        200
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -138,17 +159,23 @@
       "name": "07a. Erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 400]
+      "position": [
+        1560,
+        400
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Confirmer la mise à jour Stripe et préparer les données pour la DB\nconst stripeResponse = $input.item.json;\nconst prepareData = $node['05. Calculer prorata (affichage)'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeUpdated: true,\n    stripeSubscriptionId: stripeResponse.id\n  }\n};"
+        "jsCode": "// Confirmer la mise à jour Stripe et préparer les données pour la DB\nconst stripeResponse = $input.item.json;\nconst _body = (stripeResponse && stripeResponse.body && typeof stripeResponse.body === \"object\") ? stripeResponse.body : stripeResponse;\nconst prepareData = $node['05. Calculer prorata (affichage)'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeUpdated: true,\n    stripeSubscriptionId: _body.id\n  }\n};"
       },
       "id": "confirm-stripe",
       "name": "08. Confirmer Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 200]
+      "position": [
+        1780,
+        200
+      ]
     },
     {
       "parameters": {
@@ -159,17 +186,23 @@
       "name": "09. Merge - Stripe et sans Stripe",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [2000, 300]
+      "position": [
+        2000,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les paramètres pour la requête SQL paramétrée\nconst data = $input.item.json;\nconst nouveauPlan = data.nouveauPlan;\nconst subscriptionId = data.subscription.id;\n\n// Préparer les modules comme tableau JSON (sans interpolation SQL)\nconst modulesArray = nouveauPlan.modulesInclus || [];\n\nreturn {\n  json: {\n    ...data,\n    sqlParams: {\n      nomPlan: nouveauPlan.nomPlan,\n      montantMensuel: nouveauPlan.montantMensuel,\n      modulesInclus: modulesArray,\n      subscriptionId: subscriptionId\n    }\n  }\n};"
+        "jsCode": "// Préparer les paramètres pour la requête SQL paramétrée\nconst data = $input.item.json;\nconst _body = (data && data.body && typeof data.body === \"object\") ? data.body : data;\nconst nouveauPlan = _body.nouveauPlan;\nconst subscriptionId = _body.subscription.id;\n\n// Préparer les modules comme tableau JSON (sans interpolation SQL)\nconst modulesArray = nouveauPlan.modulesInclus || [];\n\nreturn {\n  json: {\n    ...data,\n    sqlParams: {\n      nomPlan: nouveauPlan.nomPlan,\n      montantMensuel: nouveauPlan.montantMensuel,\n      modulesInclus: modulesArray,\n      subscriptionId: subscriptionId\n    }\n  }\n};"
       },
       "id": "prepare-sql-params",
       "name": "10. Préparer paramètres SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 300]
+      "position": [
+        2220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -181,7 +214,10 @@
       "name": "11. Mettre à jour abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2440, 300],
+      "position": [
+        2440,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -197,7 +233,10 @@
       "name": "12. Préparer notification TalosPrimes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 250]
+      "position": [
+        2660,
+        250
+      ]
     },
     {
       "parameters": {
@@ -222,7 +261,10 @@
       "name": "13. Envoyer notification TalosPrimes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 250],
+      "position": [
+        2880,
+        250
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -239,7 +281,10 @@
       "name": "14. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 300]
+      "position": [
+        3100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -264,7 +309,10 @@
       "name": "15. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3320, 300],
+      "position": [
+        3320,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "resend-api-credential",
@@ -282,7 +330,10 @@
       "name": "16. Répondre succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3540, 300]
+      "position": [
+        3540,
+        300
+      ]
     },
     {
       "parameters": {
@@ -294,7 +345,10 @@
       "name": "Répondre erreur - Abonnement non trouvé",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     }
   ],
   "connections": {
