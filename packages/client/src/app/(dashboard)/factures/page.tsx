@@ -285,15 +285,30 @@ export default function FacturesPage() {
     try {
       setCreating(true);
       setError(null);
-      const parts: string[] = [];
+      // Description = notes libres (sans conditions de paiement)
+      const descParts: string[] = [];
+      if (createForm.reference) descParts.push(`Réf. : ${createForm.reference}`);
+      if (createForm.notes) descParts.push(createForm.notes);
+      if (createForm.description) descParts.push(createForm.description);
+      const description = descParts.length > 0 ? descParts.join('\n') : undefined;
+
+      // Mode de paiement depuis les conditions
+      let modePaiement: string | undefined;
       if (createForm.conditionsPaiement) {
         const lib = CONDITIONS_PAIEMENT_OPTIONS.find((o) => o.value === createForm.conditionsPaiement)?.label || createForm.conditionsPaiement;
-        parts.push(`Paiement : ${lib}`);
+        modePaiement = lib;
       }
-      if (createForm.reference) parts.push(`Réf. : ${createForm.reference}`);
-      if (createForm.notes) parts.push(createForm.notes);
-      if (createForm.description) parts.push(createForm.description);
-      const description = parts.length > 0 ? parts.join('\n') : undefined;
+
+      // Construire les lignes d'articles pour l'API
+      const apiLines = lignes
+        .filter((l) => l.designation.trim() && (parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0) > 0)
+        .map((l) => ({
+          designation: l.designation.trim(),
+          quantite: Math.max(1, Math.round(parseFloat(l.quantite.replace(',', '.')) || 1)),
+          prixUnitaireHt: parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0,
+          codeArticle: null as string | null,
+        }));
+
       const dateEcheance = createForm.dateEcheance
         ? new Date(createForm.dateEcheance).toISOString()
         : new Date(new Date(createForm.dateFacture).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -305,6 +320,8 @@ export default function FacturesPage() {
         dateFacture: new Date(createForm.dateFacture).toISOString(),
         dateEcheance,
         description,
+        modePaiement,
+        ...(apiLines.length > 0 ? { lines: apiLines } : {}),
       });
       setShowCreateModal(false);
       resetCreateForm();

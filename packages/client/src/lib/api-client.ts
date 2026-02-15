@@ -368,6 +368,8 @@ export const apiClient = {
       dateFacture?: string;
       dateEcheance?: string;
       description?: string;
+      modePaiement?: string;
+      lines?: { designation: string; quantite: number; prixUnitaireHt: number; codeArticle?: string | null }[];
     }) =>
       authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>('/api/invoices', {
         method: 'POST',
