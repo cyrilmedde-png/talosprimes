@@ -126,12 +126,9 @@ async function main() {
       prenom: 'Jean',
       email: 'jean.dupont@email.com',
       telephone: '+33712345678',
-      adresse: '123 Rue de la Paix',
-      codePostal: '75000',
-      ville: 'Paris',
-      description: 'Fuite d\'eau sous l\'évier',
       source: 'telephone',
       statut: 'nouveau',
+      notes: 'Fuite d\'eau sous l\'évier — 123 Rue de la Paix, 75000 Paris',
     },
   });
 
