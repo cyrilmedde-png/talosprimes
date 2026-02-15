@@ -14,6 +14,7 @@
 #   --only-api        Deployer uniquement le backend (platform)
 #   --only-client     Deployer uniquement le frontend (client)
 #   --only-n8n        Synchroniser uniquement les workflows n8n
+#   --n8n-dir PATH    Chemin vers les workflows n8n (defaut: n8n_workflows)
 #   --quick           Equivalent a --skip-deps (pull + build + restart)
 #   --help            Afficher cette aide
 # =============================================================================
@@ -46,6 +47,7 @@ SKIP_RESTART=false
 SKIP_DEPS=false
 SKIP_PRISMA=false
 SKIP_N8N=false
+N8N_WORKFLOW_DIR=""
 ONLY_API=false
 ONLY_CLIENT=false
 ONLY_N8N=false
@@ -94,7 +96,7 @@ format_duration() {
 
 # Afficher l'aide
 show_help() {
-  head -17 "$0" | tail -15
+  head -18 "$0" | tail -16
   exit 0
 }
 
@@ -129,6 +131,7 @@ while [[ $# -gt 0 ]]; do
     --skip-deps)     SKIP_DEPS=true; shift ;;
     --skip-prisma)   SKIP_PRISMA=true; shift ;;
     --skip-n8n)      SKIP_N8N=true; shift ;;
+    --n8n-dir)       N8N_WORKFLOW_DIR="$2"; shift 2 ;;
     --only-api)      ONLY_API=true; shift ;;
     --only-client)   ONLY_CLIENT=true; shift ;;
     --only-n8n)      ONLY_N8N=true; shift ;;
@@ -164,6 +167,7 @@ if [ "$SKIP_BUILD" = true ] || [ "$SKIP_RESTART" = true ] || [ "$SKIP_DEPS" = tr
   [ "$ONLY_API" = true ]     && echo -e "    - Backend uniquement"
   [ "$ONLY_CLIENT" = true ]  && echo -e "    - Frontend uniquement"
   [ "$ONLY_N8N" = true ]     && echo -e "    - n8n uniquement"
+  [ -n "$N8N_WORKFLOW_DIR" ] && [ "$N8N_WORKFLOW_DIR" != "$PROJECT_DIR/n8n_workflows" ] && echo -e "    - n8n dir: $N8N_WORKFLOW_DIR"
 fi
 
 # Verifier le repertoire
@@ -176,6 +180,15 @@ cd "$PROJECT_DIR"
 
 # Creer le dossier de logs si necessaire
 mkdir -p "$LOG_DIR"
+
+# Resoudre le chemin des workflows n8n
+if [ -z "$N8N_WORKFLOW_DIR" ]; then
+  N8N_WORKFLOW_DIR="$PROJECT_DIR/n8n_workflows"
+fi
+# Convertir en chemin absolu si relatif
+if [[ "$N8N_WORKFLOW_DIR" != /* ]]; then
+  N8N_WORKFLOW_DIR="$PROJECT_DIR/$N8N_WORKFLOW_DIR"
+fi
 
 # Mode --only-n8n : sauter directement a l'etape n8n
 TOTAL_STEPS=7
@@ -357,8 +370,12 @@ log_step "5/$TOTAL_STEPS - Synchronisation des workflows n8n"
 
 if [ "$SKIP_N8N" = true ] || [ "$ONLY_CLIENT" = true ]; then
   log_info "Ignore (--skip-n8n ou --only-client)"
+elif [ ! -d "$N8N_WORKFLOW_DIR" ]; then
+  log_warn "Dossier workflows n8n introuvable: $N8N_WORKFLOW_DIR"
+  log_info "Utilisez --n8n-dir pour specifier un chemin"
 else
   cd "$PROJECT_DIR"
+  log_info "Dossier workflows: $N8N_WORKFLOW_DIR"
 
   # Charger la cle API depuis le .env du platform si pas deja definie
   if [ -z "$N8N_API_KEY" ] && [ -f "$PLATFORM_DIR/.env" ]; then
@@ -395,7 +412,7 @@ else
       N8N_SUCCESS=0
       N8N_ERRORS=0
 
-      for dir in n8n_workflows/*/; do
+      for dir in "$N8N_WORKFLOW_DIR"/*/; do
         [ -d "$dir" ] || continue
         for file in "$dir"*.json; do
           [ -f "$file" ] || continue
