@@ -8,7 +8,6 @@ import {
   EyeIcon,
   XMarkIcon,
   CheckIcon,
-  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
 interface Call {
