@@ -10,8 +10,10 @@
 #   --skip-restart    Ignorer le redemarrage des services
 #   --skip-deps       Ignorer l'installation des dependances
 #   --skip-prisma     Ignorer les migrations Prisma
+#   --skip-n8n        Ignorer la sync des workflows n8n
 #   --only-api        Deployer uniquement le backend (platform)
 #   --only-client     Deployer uniquement le frontend (client)
+#   --only-n8n        Synchroniser uniquement les workflows n8n
 #   --quick           Equivalent a --skip-deps (pull + build + restart)
 #   --help            Afficher cette aide
 # =============================================================================
@@ -43,8 +45,10 @@ SKIP_BUILD=false
 SKIP_RESTART=false
 SKIP_DEPS=false
 SKIP_PRISMA=false
+SKIP_N8N=false
 ONLY_API=false
 ONLY_CLIENT=false
+ONLY_N8N=false
 
 # Temps de debut
 START_TIME=$(date +%s)
@@ -90,7 +94,7 @@ format_duration() {
 
 # Afficher l'aide
 show_help() {
-  head -15 "$0" | tail -13
+  head -17 "$0" | tail -15
   exit 0
 }
 
@@ -124,8 +128,10 @@ while [[ $# -gt 0 ]]; do
     --skip-restart)  SKIP_RESTART=true; shift ;;
     --skip-deps)     SKIP_DEPS=true; shift ;;
     --skip-prisma)   SKIP_PRISMA=true; shift ;;
+    --skip-n8n)      SKIP_N8N=true; shift ;;
     --only-api)      ONLY_API=true; shift ;;
     --only-client)   ONLY_CLIENT=true; shift ;;
+    --only-n8n)      ONLY_N8N=true; shift ;;
     --quick)         SKIP_DEPS=true; shift ;;
     --help|-h)       show_help ;;
     *)
@@ -148,14 +154,16 @@ echo -e "  ${BLUE}Date:${NC} $(date '+%d/%m/%Y %H:%M:%S')"
 echo -e "  ${BLUE}Serveur:${NC} $(hostname)"
 
 # Afficher les options actives
-if [ "$SKIP_BUILD" = true ] || [ "$SKIP_RESTART" = true ] || [ "$SKIP_DEPS" = true ] || [ "$SKIP_PRISMA" = true ] || [ "$ONLY_API" = true ] || [ "$ONLY_CLIENT" = true ]; then
+if [ "$SKIP_BUILD" = true ] || [ "$SKIP_RESTART" = true ] || [ "$SKIP_DEPS" = true ] || [ "$SKIP_PRISMA" = true ] || [ "$SKIP_N8N" = true ] || [ "$ONLY_API" = true ] || [ "$ONLY_CLIENT" = true ] || [ "$ONLY_N8N" = true ]; then
   echo -e "  ${YELLOW}Options:${NC}"
   [ "$SKIP_BUILD" = true ]   && echo -e "    - Build ignore"
   [ "$SKIP_RESTART" = true ] && echo -e "    - Restart ignore"
   [ "$SKIP_DEPS" = true ]    && echo -e "    - Deps ignorees"
   [ "$SKIP_PRISMA" = true ]  && echo -e "    - Prisma ignore"
+  [ "$SKIP_N8N" = true ]     && echo -e "    - n8n ignore"
   [ "$ONLY_API" = true ]     && echo -e "    - Backend uniquement"
   [ "$ONLY_CLIENT" = true ]  && echo -e "    - Frontend uniquement"
+  [ "$ONLY_N8N" = true ]     && echo -e "    - n8n uniquement"
 fi
 
 # Verifier le repertoire
@@ -169,11 +177,21 @@ cd "$PROJECT_DIR"
 # Creer le dossier de logs si necessaire
 mkdir -p "$LOG_DIR"
 
+# Mode --only-n8n : sauter directement a l'etape n8n
+TOTAL_STEPS=7
+if [ "$ONLY_N8N" = true ]; then
+  SKIP_BUILD=true
+  SKIP_RESTART=true
+  SKIP_DEPS=true
+  SKIP_PRISMA=true
+  SKIP_N8N=false
+fi
+
 # =============================================================================
 # Etape 1: Git Pull
 # =============================================================================
 
-log_step "1/6 - Recuperation du code depuis GitHub"
+log_step "1/$TOTAL_STEPS - Recuperation du code depuis GitHub"
 
 # Sauvegarder le commit actuel pour pouvoir rollback
 PREVIOUS_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
@@ -210,7 +228,7 @@ fi
 # Etape 2: Dependances
 # =============================================================================
 
-log_step "2/6 - Installation des dependances"
+log_step "2/$TOTAL_STEPS - Installation des dependances"
 
 if [ "$SKIP_DEPS" = true ]; then
   log_info "Ignore (--skip-deps)"
@@ -242,7 +260,7 @@ fi
 # Etape 3: Prisma (migrations + generation)
 # =============================================================================
 
-log_step "3/6 - Base de donnees (Prisma)"
+log_step "3/$TOTAL_STEPS - Base de donnees (Prisma)"
 
 if [ "$SKIP_PRISMA" = true ] || [ "$ONLY_CLIENT" = true ]; then
   log_info "Ignore (--skip-prisma ou --only-client)"
@@ -278,7 +296,7 @@ fi
 # Etape 4: Build
 # =============================================================================
 
-log_step "4/6 - Build des packages"
+log_step "4/$TOTAL_STEPS - Build des packages"
 
 # S'assurer que PNPM_CMD est defini
 if [ -z "$PNPM_CMD" ]; then
@@ -332,10 +350,163 @@ else
 fi
 
 # =============================================================================
-# Etape 5: Redemarrage des services
+# Etape 5: Synchronisation des workflows n8n
 # =============================================================================
 
-log_step "5/6 - Redemarrage des services PM2"
+log_step "5/$TOTAL_STEPS - Synchronisation des workflows n8n"
+
+if [ "$SKIP_N8N" = true ] || [ "$ONLY_CLIENT" = true ]; then
+  log_info "Ignore (--skip-n8n ou --only-client)"
+else
+  cd "$PROJECT_DIR"
+
+  # Charger la cle API depuis le .env du platform si pas deja definie
+  if [ -z "$N8N_API_KEY" ] && [ -f "$PLATFORM_DIR/.env" ]; then
+    N8N_API_KEY=$(grep -E '^N8N_API_KEY=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+  fi
+  if [ -z "$N8N_API_URL" ] && [ -f "$PLATFORM_DIR/.env" ]; then
+    N8N_API_URL=$(grep -E '^N8N_API_URL=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+  fi
+
+  if [ -z "$N8N_API_KEY" ]; then
+    log_warn "N8N_API_KEY non defini — workflows non synchronises"
+    log_info "Ajoutez N8N_API_KEY dans $PLATFORM_DIR/.env ou exportez-le"
+  elif [ -z "$N8N_API_URL" ]; then
+    log_warn "N8N_API_URL non defini — workflows non synchronises"
+  else
+    export N8N_API_KEY N8N_API_URL
+
+    log_info "n8n URL: $N8N_API_URL"
+    log_info "Recuperation des workflows existants..."
+
+    # Recuperer la liste des workflows existants une seule fois
+    EXISTING_WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows" 2>/dev/null)
+
+    if [ -z "$EXISTING_WORKFLOWS" ] || echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; [ $? -ne 0 ] 2>/dev/null; then
+      # Verifier que la reponse est du JSON valide
+      if ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+        log_warn "n8n API inaccessible ou reponse invalide — workflows non synchronises"
+        EXISTING_WORKFLOWS=""
+      fi
+    fi
+
+    if [ -n "$EXISTING_WORKFLOWS" ]; then
+      N8N_TOTAL=0
+      N8N_SUCCESS=0
+      N8N_ERRORS=0
+
+      for dir in n8n_workflows/*/; do
+        [ -d "$dir" ] || continue
+        for file in "$dir"*.json; do
+          [ -f "$file" ] || continue
+
+          NAME=$(basename "$file" .json)
+          N8N_TOTAL=$((N8N_TOTAL + 1))
+
+          # Verifier si le workflow existe deja (par nom)
+          EXISTING=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+workflows = data.get('data', [])
+for w in workflows:
+    if w.get('name') == '$NAME':
+        print(w['id'])
+        break
+" 2>/dev/null)
+
+          # Preparer le payload
+          if [ -n "$EXISTING" ]; then
+            PAYLOAD=$(python3 -c "
+import sys, json
+with open('$file') as f:
+    wf = json.load(f)
+if 'settings' not in wf:
+    wf['settings'] = {}
+for k in ['active', 'id', 'createdAt', 'updatedAt', 'versionId', 'triggerCount', 'sharedWithProjects', 'homeProject', 'tags', 'meta', 'pinData', 'staticData']:
+    wf.pop(k, None)
+print(json.dumps(wf))
+" 2>/dev/null)
+          else
+            PAYLOAD=$(python3 -c "
+import sys, json
+with open('$file') as f:
+    wf = json.load(f)
+if 'settings' not in wf:
+    wf['settings'] = {}
+for k in ['active', 'id', 'createdAt', 'updatedAt', 'versionId', 'triggerCount', 'sharedWithProjects', 'homeProject', 'tags', 'meta', 'pinData', 'staticData']:
+    wf.pop(k, None)
+allowed = {'name', 'nodes', 'connections', 'settings', 'staticData'}
+wf = {k: v for k, v in wf.items() if k in allowed}
+if 'settings' not in wf:
+    wf['settings'] = {}
+print(json.dumps(wf))
+" 2>/dev/null)
+          fi
+
+          if [ -z "$PAYLOAD" ]; then
+            log_warn "JSON invalide: $file"
+            N8N_ERRORS=$((N8N_ERRORS + 1))
+            continue
+          fi
+
+          if [ -n "$EXISTING" ]; then
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$N8N_API_URL/api/v1/workflows/$EXISTING" 2>/dev/null)
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              curl -s -X POST \
+                -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                -H "Content-Type: application/json" \
+                "$N8N_API_URL/api/v1/workflows/$EXISTING/activate" > /dev/null 2>&1
+              N8N_SUCCESS=$((N8N_SUCCESS + 1))
+            else
+              N8N_ERRORS=$((N8N_ERRORS + 1))
+            fi
+          else
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$N8N_API_URL/api/v1/workflows" 2>/dev/null)
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+              NEW_ID=$(echo "$BODY" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+              if [ -n "$NEW_ID" ]; then
+                curl -s -X POST \
+                  -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                  -H "Content-Type: application/json" \
+                  "$N8N_API_URL/api/v1/workflows/$NEW_ID/activate" > /dev/null 2>&1
+              fi
+              N8N_SUCCESS=$((N8N_SUCCESS + 1))
+            else
+              N8N_ERRORS=$((N8N_ERRORS + 1))
+            fi
+          fi
+        done
+      done
+
+      if [ "$N8N_ERRORS" -eq 0 ]; then
+        log_ok "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL synchronises"
+      else
+        log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_ERRORS erreurs"
+      fi
+    fi
+  fi
+fi
+
+# =============================================================================
+# Etape 6: Redemarrage des services
+# =============================================================================
+
+log_step "6/$TOTAL_STEPS - Redemarrage des services PM2"
 
 if [ "$SKIP_RESTART" = true ]; then
   log_info "Ignore (--skip-restart)"
@@ -385,10 +556,10 @@ else
 fi
 
 # =============================================================================
-# Etape 6: Verification (health check)
+# Etape 7: Verification (health check)
 # =============================================================================
 
-log_step "6/6 - Verification des services"
+log_step "7/$TOTAL_STEPS - Verification des services"
 
 # Attendre un peu que les services demarrent
 sleep 3
