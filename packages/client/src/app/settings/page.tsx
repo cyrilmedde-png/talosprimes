@@ -420,7 +420,7 @@ function SettingsContent() {
                         }}
                       />
                     </label>
-                    {(tenant as Record<string, unknown>).logoBase64 && (
+                    {!!(tenant as Record<string, unknown>).logoBase64 && (
                       <button
                         type="button"
                         onClick={() => setTenant({ ...tenant, logoBase64: null } as Partial<Tenant>)}
