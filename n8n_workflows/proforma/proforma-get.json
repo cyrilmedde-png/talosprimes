@@ -7,127 +7,129 @@
         "responseMode": "responseNode",
         "method": "POST"
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "errorMessage": "{{ error_message }}",
-        "errorCode": "{{ error_code }}"
+        "code": "const payload = $input.body;\n\nif (!payload.proformaId) {\n  throw new Error('proformaId is required');\n}\n\nreturn {\n  proformaId: payload.proformaId\n};"
       },
-      "id": "parser",
-      "name": "Parser",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [450, 300],
-      "dependsOn": ["webhook"]
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
             {
-              "value1": "{{ $json.proforma_id }}",
-              "operation": "exists"
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
             }
           ]
         }
       },
-      "id": "validation",
-      "name": "If",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 300],
-      "dependsOn": ["parser"]
+      "position": [500, 200]
     },
     {
       "parameters": {
         "respondWithOptions": {
-          "responseBody": "{{ error_message }}",
-          "responseCode": 400
-        }
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
       },
-      "id": "error_respond",
-      "name": "Error Respond",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 200],
-      "dependsOn": ["validation"]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT p.*, json_agg(json_build_object('ligne_id', pl.ligne_id, 'proforma_id', pl.proforma_id, 'description', pl.description, 'quantite', pl.quantite, 'prix_unitaire', pl.prix_unitaire, 'montant', pl.montant)) as lines FROM proformas p LEFT JOIN proforma_lines pl ON p.proforma_id = pl.proforma_id WHERE p.proforma_id = $1 GROUP BY p.proforma_id"
+        "query": "=SELECT p.id, p.tenant_id, p.client_final_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.invoice_id, p.lien_pdf, p.created_at, p.updated_at, c.id as client_id, c.nom as client_nom, c.email as client_email FROM proformas d LEFT JOIN clients c ON p.client_final_id = c.id WHERE p.id = {{ $json.proformaId }}"
       },
-      "id": "postgres",
-      "name": "Postgres",
+      "id": "05. Get Proforma",
+      "name": "05. Get Proforma",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
-      "position": [850, 400],
-      "dependsOn": ["validation"],
+      "typeVersion": 2,
       "credentials": {
         "postgres": {
           "name": "Postgres"
         }
-      }
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "name": "proforma",
-              "value": "{{ $json }}"
-            },
-            {
-              "name": "lines",
-              "value": "{{ $json.lines }}"
-            }
-          ]
+        "operation": "executeQuery",
+        "query": "=SELECT id, proforma_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
+      },
+      "id": "06. Get Lines",
+      "name": "06. Get Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
         }
       },
-      "id": "format",
-      "name": "Format",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [1050, 400],
-      "dependsOn": ["postgres"]
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "code": "const proforma = $('05. Get Proforma').first();\nconst lines = $('06. Get Lines').all();\n\nif (!proforma) {\n  throw new Error('Proforma not found');\n}\n\nreturn {\n  proforma: proforma,\n  lines: lines,\n  success: true\n};"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 350]
     },
     {
       "parameters": {
         "respondWithOptions": {
-          "responseBody": "{{ { proforma: $nodes.format.json.proforma, lines: $nodes.format.json.lines } }}"
-        }
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "respond",
-      "name": "Respond",
+      "id": "08. Respond",
+      "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 400],
-      "dependsOn": ["format"]
+      "position": [1100, 350]
     }
   ],
   "connections": {
-    "webhook": {
-      "main": [[{ "node": "parser", "type": "main", "index": 0 }]]
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
     },
-    "parser": {
-      "main": [[{ "node": "validation", "type": "main", "index": 0 }]]
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
     },
-    "validation": {
+    "03. Valide ?": {
       "main": [
-        [{ "node": "postgres", "type": "main", "index": 0 }],
-        [{ "node": "error_respond", "type": "main", "index": 0 }]
+        [{"node": "05. Get Proforma", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
       ]
     },
-    "postgres": {
-      "main": [[{ "node": "format", "type": "main", "index": 0 }]]
+    "05. Get Proforma": {
+      "main": [[{"node": "06. Get Lines", "type": "main", "index": 0}]]
     },
-    "format": {
-      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    "06. Get Lines": {
+      "main": [[{"node": "07. Format Response", "type": "main", "index": 0}]]
+    },
+    "07. Format Response": {
+      "main": [[{"node": "08. Respond", "type": "main", "index": 0}]]
     }
   }
 }

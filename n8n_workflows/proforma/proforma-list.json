@@ -7,127 +7,129 @@
         "responseMode": "responseNode",
         "method": "POST"
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "errorMessage": "{{ error_message }}",
-        "errorCode": "{{ error_code }}"
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = payloap.statut || null;\nconst clientFinalId = payload.clientFinalId || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  statut,\n  clientFinalId\n};"
       },
-      "id": "parser",
-      "name": "Parser",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [450, 300],
-      "dependsOn": ["webhook"]
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
             {
-              "value1": "{{ $json.numero_proforma }}",
-              "operation": "exists"
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
             }
           ]
         }
       },
-      "id": "validation",
-      "name": "If",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 300],
-      "dependsOn": ["parser"]
+      "position": [500, 200]
     },
     {
       "parameters": {
         "respondWithOptions": {
-          "responseBody": "{{ error_message }}",
-          "responseCode": 400
-        }
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
       },
-      "id": "error_respond",
-      "name": "Error Respond",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 200],
-      "dependsOn": ["validation"]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM proformas WHERE numero_proforma = $1 ORDER BY date_proforma DESC LIMIT 100"
+        "query": "=SELECT COUNT(*) as total FROM proformas WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : '' }}"
       },
-      "id": "postgres",
-      "name": "Postgres",
+      "id": "05. Count Query",
+      "name": "05. Count Query",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
-      "position": [850, 400],
-      "dependsOn": ["validation"],
+      "typeVersion": 2,
       "credentials": {
         "postgres": {
           "name": "Postgres"
         }
-      }
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "name": "items",
-              "value": "{{ $json }}"
-            },
-            {
-              "name": "count",
-              "value": "{{ $json.length }}"
-            }
-          ]
+        "operation": "executeQuery",
+        "query": "=SELECT id, tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, invoice_id, lien_pdf, created_at, updated_at FROM proformas WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : '' }} ORDER BY date_proforma DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+      },
+      "id": "06. List Query",
+      "name": "06. List Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
         }
       },
-      "id": "format",
-      "name": "Format",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [1050, 400],
-      "dependsOn": ["postgres"]
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "code": "const proforma = $('06. List Query').all();\nconst countResult = $('05. Count Query').first();\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $json.limit);\n\nreturn {\n  proforma: proforma,\n  count: proforma.length,\n  total: total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages: totalPages\n};"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 350]
     },
     {
       "parameters": {
         "respondWithOptions": {
-          "responseBody": "{{ { items: $nodes.format.json.items, count: $nodes.format.json.count } }}"
-        }
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "respond",
-      "name": "Respond",
+      "id": "08. Respond",
+      "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 400],
-      "dependsOn": ["format"]
+      "position": [1100, 350]
     }
   ],
   "connections": {
-    "webhook": {
-      "main": [[{ "node": "parser", "type": "main", "index": 0 }]]
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
     },
-    "parser": {
-      "main": [[{ "node": "validation", "type": "main", "index": 0 }]]
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
     },
-    "validation": {
+    "03. Valide ?": {
       "main": [
-        [{ "node": "postgres", "type": "main", "index": 0 }],
-        [{ "node": "error_respond", "type": "main", "index": 0 }]
+        [{"node": "05. Count Query", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
       ]
     },
-    "postgres": {
-      "main": [[{ "node": "format", "type": "main", "index": 0 }]]
+    "05. Count Query": {
+      "main": [[{"node": "06. List Query", "type": "main", "index": 0}]]
     },
-    "format": {
-      "main": [[{ "node": "respond", "type": "main", "index": 0 }]]
+    "06. List Query": {
+      "main": [[{"node": "07. Format Response", "type": "main", "index": 0}]]
+    },
+    "07. Format Response": {
+      "main": [[{"node": "08. Respond", "type": "main", "index": 0}]]
     }
   }
 }
