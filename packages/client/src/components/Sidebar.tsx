@@ -17,24 +17,59 @@ import {
   DocumentTextIcon,
   DocumentCheckIcon,
   ReceiptRefundIcon,
+  ChevronDownIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
 
-const navigation = [
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+};
+
+type NavGroup = {
+  label: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  items: NavItem[];
+};
+
+const standaloneItems: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Assistant IA', href: '/assistant', icon: SparklesIcon },
-  { name: 'Notifications', href: '/notifications', icon: BellIcon },
-  { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
-  { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
-  { name: 'CMS Landing Page', href: '/dashboard/cms', icon: PencilSquareIcon },
-  { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
-  { name: 'Clients', href: '/clients', icon: UsersIcon },
-  { name: 'Factures', href: '/factures', icon: BanknotesIcon },
-  { name: 'Bons de commande', href: '/bons-commande', icon: DocumentDuplicateIcon },
-  { name: 'Devis', href: '/devis', icon: DocumentTextIcon },
-  { name: 'Proformas', href: '/proforma', icon: DocumentCheckIcon },
-  { name: 'Avoirs', href: '/avoir', icon: ReceiptRefundIcon },
+];
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'Facturation',
+    icon: BanknotesIcon,
+    items: [
+      { name: 'Factures', href: '/factures', icon: BanknotesIcon },
+      { name: 'Devis', href: '/devis', icon: DocumentTextIcon },
+      { name: 'Proformas', href: '/proforma', icon: DocumentCheckIcon },
+      { name: 'Avoirs', href: '/avoir', icon: ReceiptRefundIcon },
+      { name: 'Bons de commande', href: '/bons-commande', icon: DocumentDuplicateIcon },
+    ],
+  },
+  {
+    label: 'Clientèle',
+    icon: UsersIcon,
+    items: [
+      { name: 'Clients', href: '/clients', icon: UsersIcon },
+      { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
+    ],
+  },
+  {
+    label: 'Administration',
+    icon: WrenchScrewdriverIcon,
+    items: [
+      { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
+      { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
+      { name: 'Notifications', href: '/notifications', icon: BellIcon },
+      { name: 'CMS Landing Page', href: '/dashboard/cms', icon: PencilSquareIcon },
+    ],
+  },
 ];
 
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {
@@ -42,6 +77,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   const router = useRouter();
   const { clearAuth } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const handleLogout = () => {
     clearTokens();
@@ -52,20 +88,35 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   const handleToggle = (collapsed: boolean) => {
     setIsCollapsed(collapsed);
     onToggle?.(collapsed);
+    // Si on collapse, on ferme tous les groupes
+    if (collapsed) {
+      setOpenGroups({});
+    }
   };
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const isItemActive = (href: string) =>
+    pathname === href || pathname?.startsWith(href + '/');
+
+  // Un groupe est actif si un de ses items est actif
+  const isGroupActive = (group: NavGroup) =>
+    group.items.some((item) => isItemActive(item.href));
 
   return (
     <div
       className={`
         fixed inset-y-0 left-0 z-40 bg-gray-900 transform transition-all duration-300 ease-in-out
-        ${isCollapsed ? 'w-16' : 'w-56'}
+        ${isCollapsed ? 'w-16' : 'w-60'}
       `}
       onMouseEnter={() => handleToggle(false)}
       onMouseLeave={() => handleToggle(true)}
     >
       <div className="flex-1 flex flex-col min-h-0 h-full">
         <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-          {/* Bouton TalosPrimes pour déconnexion */}
+          {/* Logo / Déconnexion */}
           <div className="flex items-center flex-shrink-0 px-4 mb-6">
             <button
               onClick={handleLogout}
@@ -79,34 +130,93 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
             </button>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 px-2 space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+            {/* Items standalone (Dashboard, Assistant IA) */}
+            {standaloneItems.map((item) => {
+              const active = isItemActive(item.href);
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={`
                     group flex items-center px-2 py-2 text-sm font-medium rounded-md
-                    ${
-                      isActive
-                        ? 'bg-gray-800 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }
+                    ${active ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
                     ${isCollapsed ? 'justify-center' : ''}
                   `}
                   title={isCollapsed ? item.name : ''}
                 >
                   <item.icon
-                    className={`
-                      flex-shrink-0 h-6 w-6
-                      ${isCollapsed ? '' : 'mr-3'}
-                      ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}
-                    `}
+                    className={`flex-shrink-0 h-6 w-6 ${isCollapsed ? '' : 'mr-3'} ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}
                   />
                   {!isCollapsed && <span>{item.name}</span>}
                 </Link>
+              );
+            })}
+
+            {/* Séparateur */}
+            {!isCollapsed && <div className="border-t border-gray-700 my-2" />}
+            {isCollapsed && <div className="my-2" />}
+
+            {/* Groupes avec menus déroulants */}
+            {navGroups.map((group) => {
+              const groupActive = isGroupActive(group);
+              const isOpen = openGroups[group.label] || false;
+
+              return (
+                <div key={group.label}>
+                  {/* Bouton du groupe */}
+                  <button
+                    onClick={() => {
+                      if (!isCollapsed) {
+                        toggleGroup(group.label);
+                      }
+                    }}
+                    className={`
+                      w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md
+                      ${groupActive ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
+                      ${isCollapsed ? 'justify-center' : ''}
+                    `}
+                    title={isCollapsed ? group.label : ''}
+                  >
+                    <group.icon
+                      className={`flex-shrink-0 h-6 w-6 ${isCollapsed ? '' : 'mr-3'} ${groupActive ? 'text-amber-400' : 'text-gray-400 group-hover:text-gray-300'}`}
+                    />
+                    {!isCollapsed && (
+                      <>
+                        <span className="flex-1 text-left">{group.label}</span>
+                        <ChevronDownIcon
+                          className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                        />
+                      </>
+                    )}
+                  </button>
+
+                  {/* Items du groupe (déroulant) */}
+                  {!isCollapsed && isOpen && (
+                    <div className="ml-4 mt-1 space-y-0.5">
+                      {group.items.map((item) => {
+                        const active = isItemActive(item.href);
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className={`
+                              group flex items-center pl-4 pr-2 py-1.5 text-sm rounded-md border-l-2
+                              ${active
+                                ? 'border-amber-400 bg-gray-800/60 text-white'
+                                : 'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-white hover:border-gray-500'}
+                            `}
+                          >
+                            <item.icon
+                              className={`flex-shrink-0 h-5 w-5 mr-2.5 ${active ? 'text-amber-400' : 'text-gray-500 group-hover:text-gray-300'}`}
+                            />
+                            <span>{item.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </nav>
@@ -115,4 +225,3 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
     </div>
   );
 }
-

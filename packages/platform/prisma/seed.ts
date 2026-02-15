@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedModules } from './seeds/01-modules';
-import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma } from './seeds/02-workflow-links';
+import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications } from './seeds/02-workflow-links';
 import { runSeedLanding } from './seed-landing';
 
 const prisma = new PrismaClient();
@@ -94,6 +94,8 @@ async function main() {
   await seedWorkflowLinksDevis(prisma, tenant.id);
   await seedWorkflowLinksAvoir(prisma, tenant.id);
   await seedWorkflowLinksProforma(prisma, tenant.id);
+  await seedWorkflowLinksLogs(prisma, tenant.id);
+  await seedWorkflowLinksNotifications(prisma, tenant.id);
 
   console.log('\n🎉 Seed terminé avec succès !');
   console.log('\n📋 Résumé:');

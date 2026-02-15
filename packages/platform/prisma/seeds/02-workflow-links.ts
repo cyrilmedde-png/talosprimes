@@ -56,6 +56,18 @@ const PROFORMA_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'proforma_delete', workflowN8nId: 'proforma_delete', workflowN8nNom: 'proforma-deleted' },
 ];
 
+const LOGS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'logs_list', workflowN8nId: 'logs_list', workflowN8nNom: 'logs-list' },
+  { typeEvenement: 'logs_stats', workflowN8nId: 'logs_stats', workflowN8nNom: 'logs-stats' },
+];
+
+const NOTIFICATIONS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'notifications_list', workflowN8nId: 'notifications_list', workflowN8nNom: 'notifications-list' },
+  { typeEvenement: 'notification_create', workflowN8nId: 'notification_create', workflowN8nNom: 'notification-created' },
+  { typeEvenement: 'notification_read', workflowN8nId: 'notification_read', workflowN8nNom: 'notification-read' },
+  { typeEvenement: 'notification_delete', workflowN8nId: 'notification_delete', workflowN8nNom: 'notification-deleted' },
+];
+
 /** Upsert une liste de workflow links pour un module et un tenant. */
 async function seedWorkflowLinks(
   prisma: PrismaClient,
@@ -156,4 +168,24 @@ export async function seedWorkflowLinksProforma(
   tenantId: string
 ): Promise<void> {
   await seedWorkflowLinks(prisma, tenantId, 'proformas', PROFORMA_WORKFLOWS, 'proformas');
+}
+
+/**
+ * Attache les workflow links logs au tenant donné.
+ */
+export async function seedWorkflowLinksLogs(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'logs', LOGS_WORKFLOWS, 'logs');
+}
+
+/**
+ * Attache les workflow links notifications au tenant donné.
+ */
+export async function seedWorkflowLinksNotifications(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'notifications', NOTIFICATIONS_WORKFLOWS, 'notifications');
 }

@@ -57,6 +57,14 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   proforma_accept: 'proforma-accepted',
   proforma_convert_to_invoice: 'proforma-convert-to-invoice',
   proforma_delete: 'proforma-deleted',
+  // Logs
+  logs_list: 'logs-list',
+  logs_stats: 'logs-stats',
+  // Notifications
+  notifications_list: 'notifications-list',
+  notification_create: 'notification-created',
+  notification_read: 'notification-read',
+  notification_delete: 'notification-deleted',
 };
 
 /**

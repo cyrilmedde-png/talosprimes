@@ -109,4 +109,38 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module proformas OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'logs' },
+    update: {
+      nomAffiche: 'Logs',
+      description: 'Module de consultation des logs et événements système',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'logs',
+      nomAffiche: 'Logs',
+      description: 'Module de consultation des logs et événements système',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module logs OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'notifications' },
+    update: {
+      nomAffiche: 'Notifications',
+      description: 'Module de gestion des notifications : création, lecture, suppression',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'notifications',
+      nomAffiche: 'Notifications',
+      description: 'Module de gestion des notifications : création, lecture, suppression',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module notifications OK');
 }
