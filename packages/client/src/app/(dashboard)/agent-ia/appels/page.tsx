@@ -112,7 +112,7 @@ export default function AppelsPage() {
     try {
       setUpdatingFollowup(true);
       const response = await apiClient.callLogs.update(selectedCall.id, {
-        suivi: true,
+        followUpDone: true,
       });
 
       if (response.success) {
