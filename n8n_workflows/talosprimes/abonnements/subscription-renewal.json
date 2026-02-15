@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    renewalDate: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst data = payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = data?.tenantId || '';\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    renewalDate: new Date().toISOString()\n  }\n};"
       },
       "id": "parse-payload",
       "name": "02. Parser payload",

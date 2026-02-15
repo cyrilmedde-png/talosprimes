@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id } }];\n"
+        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",

@@ -15,7 +15,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nif(!tenantId)return [{json:{_error:true,message:'tenantId requis'}}];\nreturn [{json:{tenantId}}];"
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nconst payload=(raw&&typeof raw==='object'&&raw.data&&typeof raw.data==='object')?{...raw.data,tenantId:raw.data.tenantId||raw.tenantId}:raw;\nconst data=isO(payload)?payload:{};\nconst tenantId=g(data,'tenantId')||g(raw,'tenantId');\nif(!tenantId)return [{json:{_error:true,message:'tenantId requis'}}];\nreturn [{json:{tenantId}}];"
       },
       "id": "parser",
       "name": "02. Parser",
