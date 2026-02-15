@@ -143,12 +143,17 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       }
 
       // Appel depuis n8n (callback) → mise à jour BDD directe
+      const updateData: Record<string, unknown> = { ...body };
+      // basePrice est string dans Prisma, s'assurer de la conversion
+      if (updateData.basePrice !== undefined) {
+        updateData.basePrice = String(updateData.basePrice);
+      }
       const config = await prisma.twilioConfig.upsert({
-        where: { tenantId },
-        update: body,
+        where: { tenantId: tenantId! },
+        update: updateData as any,
         create: {
-          tenantId,
-          ...body,
+          tenant: { connect: { id: tenantId! } },
+          ...updateData as any,
         },
       });
 

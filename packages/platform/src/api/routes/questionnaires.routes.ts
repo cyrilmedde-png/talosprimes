@@ -50,7 +50,7 @@ const createQuestionnaireSchema = z.object({
 
 const updateQuestionnaireSchema = z.object({
   questions: z.array(questionSchema).optional(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']).optional(),
+  status: z.enum(['en_cours', 'complete', 'abandonne']).optional(),
   completedAt: z.string().datetime({ offset: true }).optional().nullable(),
 });
 
@@ -106,7 +106,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       // Appel depuis n8n (callback) → lecture BDD directe
       const skip = (page - 1) * limit;
       const where: Record<string, unknown> = { tenantId };
-      if (query.status) where.status = query.status as 'pending' | 'in_progress' | 'completed' | 'cancelled';
+      if (query.status) where.status = query.status as 'en_cours' | 'complete' | 'abandonne';
       if (query.channel) where.channel = query.channel as 'telephone' | 'sms' | 'web';
 
       const [questionnaires, total] = await Promise.all([
@@ -115,8 +115,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           skip,
           take: limit,
           include: {
-            lead: { select: { id: true, email: true, phone: true, nom: true, prenom: true } },
-            questions: { orderBy: { order: 'asc' } },
+            lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
           },
           orderBy: { createdAt: 'desc' },
         }),
@@ -164,8 +163,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const questionnaire = await prisma.questionnaire.findUnique({
         where: { id: params.id, tenantId },
         include: {
-          lead: { select: { id: true, email: true, phone: true, nom: true, prenom: true } },
-          questions: { orderBy: { order: 'asc' } },
+          lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
         },
       });
 
@@ -219,18 +217,11 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           tenantId,
           leadId: body.leadId,
           channel: body.channel,
-          status: 'pending',
-          questions: {
-            create: body.questions.map(q => ({
-              question: q.question,
-              answer: q.answer,
-              order: q.order,
-            })),
-          },
+          status: 'en_cours',
+          questions: body.questions as any,
         },
         include: {
-          lead: { select: { id: true, email: true, phone: true, nom: true, prenom: true } },
-          questions: { orderBy: { order: 'asc' } },
+          lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
         },
       });
 
@@ -301,39 +292,19 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const updateData: Record<string, unknown> = {};
       if (body.status !== undefined) updateData.status = body.status;
       if (body.completedAt !== undefined) updateData.completedAt = body.completedAt ? new Date(body.completedAt) : null;
+      if (body.questions !== undefined) updateData.questions = body.questions as any;
 
-      await prisma.questionnaire.update({
+      const updatedQuestionnaire = await prisma.questionnaire.update({
         where: { id: params.id },
         data: updateData,
         include: {
-          lead: { select: { id: true, email: true, phone: true, nom: true, prenom: true } },
-          questions: { orderBy: { order: 'asc' } },
-        },
-      });
-
-      if (body.questions && Array.isArray(body.questions)) {
-        await prisma.questionnaireQuestion.deleteMany({ where: { questionnaireId: params.id } });
-        await prisma.questionnaireQuestion.createMany({
-          data: body.questions.map(q => ({
-            questionnaireId: params.id,
-            question: q.question,
-            answer: q.answer,
-            order: q.order,
-          })),
-        });
-      }
-
-      const finalQuestionnaire = await prisma.questionnaire.findUnique({
-        where: { id: params.id },
-        include: {
-          lead: { select: { id: true, email: true, phone: true, nom: true, prenom: true } },
-          questions: { orderBy: { order: 'asc' } },
+          lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
         },
       });
 
       await logEvent(tenantId as string, 'questionnaire_update', 'questionnaire', params.id, body);
 
-      return reply.status(200).send({ success: true, data: finalQuestionnaire });
+      return reply.status(200).send({ success: true, data: updatedQuestionnaire });
     } catch (error) {
       const tenantId = request.tenantId;
       if (error instanceof z.ZodError) {

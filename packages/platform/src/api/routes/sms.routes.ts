@@ -43,7 +43,7 @@ const sendSmsSchema = z.object({
 
 const createSmsLogSchema = z.object({
   callLogId: z.string().uuid().optional().nullable(),
-  direction: z.enum(['inbound', 'outbound']),
+  direction: z.enum(['entrant', 'sortant']),
   fromNumber: z.string().min(1),
   toNumber: z.string().min(1),
   body: z.string().min(1),
@@ -102,7 +102,7 @@ export async function smsRoutes(fastify: FastifyInstance) {
       // Appel depuis n8n (callback) → lecture BDD directe
       const skip = (page - 1) * limit;
       const where: Record<string, unknown> = { tenantId };
-      if (query.direction) where.direction = query.direction as 'inbound' | 'outbound';
+      if (query.direction) where.direction = query.direction as 'entrant' | 'sortant';
       if (query.startDate) where.createdAt = { gte: new Date(query.startDate) };
       if (query.endDate) {
         if (where.createdAt) {
@@ -162,8 +162,8 @@ export async function smsRoutes(fastify: FastifyInstance) {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       const [totalSent, totalReceived, todayCount] = await Promise.all([
-        prisma.smsLog.count({ where: { tenantId, direction: 'outbound' } }),
-        prisma.smsLog.count({ where: { tenantId, direction: 'inbound' } }),
+        prisma.smsLog.count({ where: { tenantId, direction: 'sortant' } }),
+        prisma.smsLog.count({ where: { tenantId, direction: 'entrant' } }),
         prisma.smsLog.count({ where: { tenantId, createdAt: { gte: today } } }),
       ]);
 
