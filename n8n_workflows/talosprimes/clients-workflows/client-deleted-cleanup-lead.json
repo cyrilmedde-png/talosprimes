@@ -12,31 +12,45 @@
       "name": "Webhook - client-deleted-cleanup-lead",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Payload envoyé par l'app : { event, tenantId, timestamp, data: { clientId, tenantId, email } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nconst email = (payload?.email || '').trim().toLowerCase();\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\n\nif (!email) {\n  return [{ json: { email: '', tenantId, skip: true } }];\n}\n\nreturn [{ json: { email, tenantId, skip: false } }];\n"
+        "jsCode": "// Payload envoyé par l'app : { event, tenantId, timestamp, data: { clientId, tenantId, email } }\nconst raw = $input.first().json;\nconst body = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (body && body.data && typeof body.data === \"object\") ? { ...body.data, tenantId: body.data.tenantId || body.tenantId } : body;\n\nconst email = (payload?.email || '').trim().toLowerCase();\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\n\nif (!email) {\n  return [{ json: { email: '', tenantId, skip: true } }];\n}\n\nreturn [{ json: { email, tenantId, skip: false } }];\n"
       },
       "id": "Code_Extract",
       "name": "Extraire email client",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 300]
+      "position": [
+        520,
+        300
+      ]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/leads?statut=converti&limit=500",
-        "options": { "timeout": 15000 }
+        "options": {
+          "timeout": 15000
+        }
       },
       "id": "HTTP_GetLeads",
       "name": "API TalosPrimes - GET leads convertis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [740, 300],
+      "position": [
+        740,
+        300
+      ],
       "credentials": {
-        "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "TalosPrimes API Auth" }
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
       }
     },
     {
@@ -47,7 +61,10 @@
       "name": "Trouver lead par email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 300]
+      "position": [
+        960,
+        300
+      ]
     },
     {
       "parameters": {
@@ -64,7 +81,10 @@
       "name": "Lead trouvé ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1180, 300]
+      "position": [
+        1180,
+        300
+      ]
     },
     {
       "parameters": {
@@ -73,15 +93,23 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{\"statut\":\"abandonne\"}",
-        "options": { "timeout": 15000 }
+        "options": {
+          "timeout": 15000
+        }
       },
       "id": "HTTP_PatchLeadStatut",
       "name": "API TalosPrimes - PATCH lead statut abandonné",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1400, 200],
+      "position": [
+        1400,
+        200
+      ],
       "credentials": {
-        "httpHeaderAuth": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "TalosPrimes API Auth" }
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "TalosPrimes API Auth"
+        }
       }
     },
     {
@@ -94,33 +122,90 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1620, 300]
+      "position": [
+        1620,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook - client-deleted-cleanup-lead": {
-      "main": [[{ "node": "Extraire email client", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Extraire email client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extraire email client": {
-      "main": [[{ "node": "API TalosPrimes - GET leads convertis", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "API TalosPrimes - GET leads convertis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "API TalosPrimes - GET leads convertis": {
-      "main": [[{ "node": "Trouver lead par email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Trouver lead par email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Trouver lead par email": {
-      "main": [[{ "node": "Lead trouvé ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Lead trouvé ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Lead trouvé ?": {
       "main": [
-        [{ "node": "API TalosPrimes - PATCH lead statut abandonné", "type": "main", "index": 0 }],
-        [{ "node": "Respond", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "API TalosPrimes - PATCH lead statut abandonné",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "API TalosPrimes - PATCH lead statut abandonné": {
-      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "v1"
 }

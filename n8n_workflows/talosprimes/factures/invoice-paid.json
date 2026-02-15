@@ -11,27 +11,43 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];if(k2&&o[k2]!=null&&o[k2]!=='')return o[k2];return null}\nconst payload=(raw&&typeof raw==='object'&&raw.data&&typeof raw.data==='object')?{...raw.data,tenantId:raw.data.tenantId||raw.tenantId}:raw;\nconst data=isO(payload)?payload:{};\nconst invoiceId=g(data,'invoiceId','invoice_id');\nconst tenantId=g(data,'tenantId','tenant_id')||g(raw,'tenantId');\nconst referencePayment=g(data,'referencePayment','reference_payment')||'';\nif(!invoiceId||!tenantId)return [{json:{_error:true,message:'invoiceId et tenantId requis'}}];\nreturn [{json:{invoiceId,tenantId,referencePayment}}];"
+        "jsCode": "const _raw=$input.first().json;\nconst raw=(_raw && _raw.body && typeof _raw.body === \"object\") ? _raw.body : _raw;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];if(k2&&o[k2]!=null&&o[k2]!=='')return o[k2];return null}\nconst payload=(raw&&typeof raw==='object'&&raw.data&&typeof raw.data==='object')?{...raw.data,tenantId:raw.data.tenantId||raw.tenantId}:raw;\nconst data=isO(payload)?payload:{};\nconst invoiceId=g(data,'invoiceId','invoice_id');\nconst tenantId=g(data,'tenantId','tenant_id')||g(raw,'tenantId');\nconst referencePayment=g(data,'referencePayment','reference_payment')||'';\nif(!invoiceId||!tenantId)return [{json:{_error:true,message:'invoiceId et tenantId requis'}}];\nreturn [{json:{invoiceId,tenantId,referencePayment}}];"
       },
       "id": "parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json._error === true }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._error === true }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "if-valid",
       "name": "03. Payload valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,7 +58,10 @@
       "name": "04. Repondre invalide",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [860, 480]
+      "position": [
+        860,
+        480
+      ]
     },
     {
       "parameters": {
@@ -53,18 +72,35 @@
       "name": "05. Verifier facture existe",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [860, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.existing_id }}", "operation": "isNotEmpty" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.existing_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "id": "if-found",
       "name": "06. Facture trouvee ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1080, 300]
+      "position": [
+        1080,
+        300
+      ]
     },
     {
       "parameters": {
@@ -75,7 +111,10 @@
       "name": "07. Repondre 404",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1080, 480]
+      "position": [
+        1080,
+        480
+      ]
     },
     {
       "parameters": {
@@ -86,8 +125,15 @@
       "name": "08. UPDATE payee",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1300, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        1300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -98,8 +144,15 @@
       "name": "09. Recuperer mise a jour",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1520, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        1520,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -109,7 +162,10 @@
       "name": "10. Formater",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1740, 300]
+      "position": [
+        1740,
+        300
+      ]
     },
     {
       "parameters": {
@@ -120,29 +176,118 @@
       "name": "11. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1960, 300]
+      "position": [
+        1960,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Payload valide ?", "type": "main", "index": 0 }]] },
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Payload valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "03. Payload valide ?": {
       "main": [
-        [{ "node": "04. Repondre invalide", "type": "main", "index": 0 }],
-        [{ "node": "05. Verifier facture existe", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "04. Repondre invalide",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. Verifier facture existe",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "05. Verifier facture existe": { "main": [[{ "node": "06. Facture trouvee ?", "type": "main", "index": 0 }]] },
+    "05. Verifier facture existe": {
+      "main": [
+        [
+          {
+            "node": "06. Facture trouvee ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "06. Facture trouvee ?": {
       "main": [
-        [{ "node": "08. UPDATE payee", "type": "main", "index": 0 }],
-        [{ "node": "07. Repondre 404", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "08. UPDATE payee",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "07. Repondre 404",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "08. UPDATE payee": { "main": [[{ "node": "09. Recuperer mise a jour", "type": "main", "index": 0 }]] },
-    "09. Recuperer mise a jour": { "main": [[{ "node": "10. Formater", "type": "main", "index": 0 }]] },
-    "10. Formater": { "main": [[{ "node": "11. Repondre succes", "type": "main", "index": 0 }]] }
+    "08. UPDATE payee": {
+      "main": [
+        [
+          {
+            "node": "09. Recuperer mise a jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Recuperer mise a jour": {
+      "main": [
+        [
+          {
+            "node": "10. Formater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Formater": {
+      "main": [
+        [
+          {
+            "node": "11. Repondre succes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

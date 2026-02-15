@@ -11,27 +11,43 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nconst tenantId = payload?.tenantId || payload?.tenant_id;\nconst articleCodeId = payload?.articleCodeId || payload?.article_code_id;\n\nif (!tenantId || !articleCodeId) {\n  return [{ json: { _error: true, message: 'tenantId et articleCodeId requis' } }];\n}\n\nreturn [{ json: { tenantId, articleCodeId } }];"
+        "jsCode": "const raw = $input.first().json;\nconst body = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (body && body.data && typeof body.data === \"object\") ? { ...body.data, tenantId: body.data.tenantId || body.tenantId } : body;\n\nconst tenantId = payload?.tenantId || payload?.tenant_id;\nconst articleCodeId = payload?.articleCodeId || payload?.article_code_id;\n\nif (!tenantId || !articleCodeId) {\n  return [{ json: { _error: true, message: 'tenantId et articleCodeId requis' } }];\n}\n\nreturn [{ json: { tenantId, articleCodeId } }];"
       },
       "id": "parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json._error === true }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._error === true }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "if-valid",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,7 +58,10 @@
       "name": "04. Repondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [860, 480]
+      "position": [
+        860,
+        480
+      ]
     },
     {
       "parameters": {
@@ -53,18 +72,35 @@
       "name": "05. Verifier existence",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [860, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.existing_id }}", "operation": "isNotEmpty" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.existing_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
       "id": "if-exists",
       "name": "06. Existe ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1080, 300]
+      "position": [
+        1080,
+        300
+      ]
     },
     {
       "parameters": {
@@ -75,7 +111,10 @@
       "name": "07. Repondre 404",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1080, 480]
+      "position": [
+        1080,
+        480
+      ]
     },
     {
       "parameters": {
@@ -85,7 +124,10 @@
       "name": "08. Construire DELETE",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -96,8 +138,15 @@
       "name": "09. Executer DELETE",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1520, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        1520,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -107,7 +156,10 @@
       "name": "10. Formater",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1740, 300]
+      "position": [
+        1740,
+        300
+      ]
     },
     {
       "parameters": {
@@ -118,29 +170,118 @@
       "name": "11. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1960, 300]
+      "position": [
+        1960,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "03. Valide ?": {
       "main": [
-        [{ "node": "04. Repondre erreur", "type": "main", "index": 0 }],
-        [{ "node": "05. Verifier existence", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. Verifier existence",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "05. Verifier existence": { "main": [[{ "node": "06. Existe ?", "type": "main", "index": 0 }]] },
+    "05. Verifier existence": {
+      "main": [
+        [
+          {
+            "node": "06. Existe ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "06. Existe ?": {
       "main": [
-        [{ "node": "08. Construire DELETE", "type": "main", "index": 0 }],
-        [{ "node": "07. Repondre 404", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "08. Construire DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "07. Repondre 404",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "08. Construire DELETE": { "main": [[{ "node": "09. Executer DELETE", "type": "main", "index": 0 }]] },
-    "09. Executer DELETE": { "main": [[{ "node": "10. Formater", "type": "main", "index": 0 }]] },
-    "10. Formater": { "main": [[{ "node": "11. Repondre succes", "type": "main", "index": 0 }]] }
+    "08. Construire DELETE": {
+      "main": [
+        [
+          {
+            "node": "09. Executer DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Executer DELETE": {
+      "main": [
+        [
+          {
+            "node": "10. Formater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Formater": {
+      "main": [
+        [
+          {
+            "node": "11. Repondre succes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

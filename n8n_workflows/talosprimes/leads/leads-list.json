@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { event, tenantId, timestamp, data: { source?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n// Le backend envoie { event, tenantId, timestamp, data: { source, statut, limit } }\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst source = data?.source ? String(data.source).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\n\nreturn [{ json: { source, statut, limit } }];"
+        "jsCode": "// Parser le payload: { body: { event, tenantId, timestamp, data: { source?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst body = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (body && body.data && typeof body.data === \"object\") ? { ...body.data, tenantId: body.data.tenantId || body.tenantId } : body;\n// Le backend envoie { event, tenantId, timestamp, data: { source, statut, limit } }\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst source = data?.source ? String(data.source).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\n\nreturn [{ json: { source, statut, limit } }];"
       },
       "id": "Code_Parse",
       "name": "Parser filtres",

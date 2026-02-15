@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nif (!payload.proformaId) {\n  throw new Error('proformaId is required');\n}\n\nreturn {\n  proformaId: payload.proformaId\n};"
+        "code": "const raw = $input.first().json;\nconst body = (raw && raw.body && typeof raw.body === \"object\") ? raw.body : raw;\nconst payload = (body && body.data && typeof body.data === \"object\") ? { ...body.data, tenantId: body.data.tenantId || body.tenantId } : body;\n\nif (!payload.proformaId) {\n  throw new Error('proformaId is required');\n}\n\nreturn {\n  proformaId: payload.proformaId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
