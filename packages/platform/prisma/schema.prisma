@@ -150,6 +150,8 @@ model Tenant {
   subscription       Subscription?
   clients            ClientFinal[]
   invoices           Invoice[]
+  articleCodes       ArticleCode[]
+  bonsCommande       BonCommande[]
   workflowLinks      WorkflowLink[]
   eventLogs          EventLog[]
   notifications      Notification[]
@@ -209,6 +211,7 @@ model ClientFinal {
   tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   subscriptions  ClientSubscription[]
   invoices       Invoice[]
+  bonsCommande   BonCommande[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -307,9 +310,10 @@ model Invoice {
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
-  lines      InvoiceLine[]
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal  ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+  lines        InvoiceLine[]
+  bonsCommande BonCommande[]
 
   @@index([tenantId])
   @@index([clientFinalId])
@@ -335,6 +339,78 @@ model InvoiceLine {
 
   @@index([invoiceId])
   @@map("invoice_lines")
+}
+
+// Code Article (catalogue réutilisable)
+model ArticleCode {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  code          String   @map("code")
+  designation   String   @map("designation")
+  prixUnitaireHt Decimal? @map("prix_unitaire_ht") @db.Decimal(10, 2)
+  tvaTaux       Decimal? @map("tva_taux") @db.Decimal(5, 2)
+  unite         String?  @map("unite")
+  actif         Boolean  @default(true) @map("actif")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("article_codes")
+}
+
+// Bon de commande
+enum BonCommandeStatus {
+  brouillon
+  valide
+  facture
+  annule
+}
+
+model BonCommande {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenantId        String            @map("tenant_id") @db.Uuid
+  clientFinalId   String?           @map("client_final_id") @db.Uuid
+  numeroBdc       String            @unique @map("numero_bdc")
+  dateBdc         DateTime          @map("date_bdc") @db.Timestamptz(6)
+  dateValidite    DateTime?         @map("date_validite") @db.Timestamptz(6)
+  montantHt       Decimal           @map("montant_ht") @db.Decimal(10, 2)
+  montantTtc      Decimal           @map("montant_ttc") @db.Decimal(10, 2)
+  tvaTaux         Decimal?          @map("tva_taux") @db.Decimal(5, 2)
+  description     String?           @map("description") @db.Text
+  modePaiement    String?           @map("mode_paiement")
+  statut          BonCommandeStatus @default(brouillon)
+  invoiceId       String?           @map("invoice_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  lines       BonCommandeLine[]
+
+  @@index([tenantId])
+  @@index([clientFinalId])
+  @@index([statut])
+  @@map("bons_commande")
+}
+
+model BonCommandeLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  bonCommandeId   String   @map("bon_commande_id") @db.Uuid
+  codeArticle     String?  @map("code_article")
+  designation     String   @map("designation")
+  quantite        Int      @default(1)
+  prixUnitaireHt  Decimal  @map("prix_unitaire_ht") @db.Decimal(10, 2)
+  totalHt         Decimal  @map("total_ht") @db.Decimal(10, 2)
+  ordre           Int      @default(0) @map("ordre")
+
+  bonCommande BonCommande @relation(fields: [bonCommandeId], references: [id], onDelete: Cascade)
+
+  @@index([bonCommandeId])
+  @@map("bon_commande_lines")
 }
 
 // Lien Workflow n8n

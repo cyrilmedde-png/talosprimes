@@ -17,6 +17,8 @@ import { usersRoutes } from './api/routes/users.routes.js';
 import { logsRoutes } from './api/routes/logs.routes.js';
 import { landingRoutes } from './api/routes/landing.routes.js';
 import { agentRoutes } from './api/routes/agent.routes.js';
+import { articleCodesRoutes } from './api/routes/article-codes.routes.js';
+import { bonsCommandeRoutes } from './api/routes/bons-commande.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -138,6 +140,16 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes agent IA (chat super-assistant)
 await fastify.register(async (fastify) => {
   await fastify.register(agentRoutes, { prefix: '/api/agent' });
+});
+
+// Enregistrer les routes codes articles
+await fastify.register(async (fastify) => {
+  await fastify.register(articleCodesRoutes, { prefix: '/api/article-codes' });
+});
+
+// Enregistrer les routes bons de commande
+await fastify.register(async (fastify) => {
+  await fastify.register(bonsCommandeRoutes, { prefix: '/api/bons-commande' });
 });
 
 // Route de test

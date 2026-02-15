@@ -410,6 +410,62 @@ export const apiClient = {
     },
   },
 
+  // Codes articles
+  articleCodes: {
+    list: () => authenticatedFetch<{ success: boolean; data: { articles: ArticleCode[] } }>('/api/article-codes'),
+    create: (data: { code: string; designation: string; prixUnitaireHt?: number | null; tvaTaux?: number | null; unite?: string | null }) =>
+      authenticatedFetch<{ success: boolean; data: { article: ArticleCode } }>('/api/article-codes', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<{ code: string; designation: string; prixUnitaireHt?: number | null; tvaTaux?: number | null; unite?: string | null; actif?: boolean }>) =>
+      authenticatedFetch<{ success: boolean; data: { article: ArticleCode } }>(`/api/article-codes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string }>(`/api/article-codes/${id}`, { method: 'DELETE' }),
+  },
+
+  // Bons de commande
+  bonsCommande: {
+    list: (params?: { page?: number; limit?: number; statut?: string; clientFinalId?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.page) qp.append('page', params.page.toString());
+      if (params?.limit) qp.append('limit', params.limit.toString());
+      if (params?.statut) qp.append('statut', params.statut);
+      if (params?.clientFinalId) qp.append('clientFinalId', params.clientFinalId);
+      const q = qp.toString();
+      return authenticatedFetch<BonsCommandeListResponse>(`/api/bons-commande${q ? `?${q}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { bon: BonCommande } }>(`/api/bons-commande/${id}`),
+    create: (data: {
+      clientFinalId: string;
+      montantHt: number;
+      tvaTaux?: number;
+      dateBdc?: string;
+      dateValidite?: string;
+      description?: string;
+      modePaiement?: string;
+      lines?: { designation: string; quantite: number; prixUnitaireHt: number; codeArticle?: string | null }[];
+    }) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { bon: BonCommande } }>('/api/bons-commande', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    validate: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { bon: BonCommande } }>(`/api/bons-commande/${id}/validate`, {
+        method: 'PUT',
+      }),
+    convertToInvoice: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice; bon: BonCommande } }>(`/api/bons-commande/${id}/convert-to-invoice`, {
+        method: 'POST',
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string }>(`/api/bons-commande/${id}`, { method: 'DELETE' }),
+  },
+
   // Logs
   logs: {
     list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
@@ -504,6 +560,54 @@ export interface LogStats {
   byWorkflow: {
     leads: { total: number; errors: number; succeeded: number };
     clients: { total: number; errors: number; succeeded: number };
+  };
+}
+
+// Type pour les codes articles
+export interface ArticleCode {
+  id: string;
+  tenantId: string;
+  code: string;
+  designation: string;
+  prixUnitaireHt?: number | null;
+  tvaTaux?: number | null;
+  unite?: string | null;
+  actif: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Type pour les bons de commande
+export interface BonCommande {
+  id: string;
+  tenantId: string;
+  clientFinalId?: string | null;
+  numeroBdc: string;
+  dateBdc: string;
+  dateValidite?: string | null;
+  montantHt: number;
+  montantTtc: number;
+  tvaTaux?: number | null;
+  description?: string | null;
+  modePaiement?: string | null;
+  statut: 'brouillon' | 'valide' | 'facture' | 'annule';
+  invoiceId?: string | null;
+  clientFinal?: { id: string; email: string; nom?: string | null; prenom?: string | null; raisonSociale?: string | null };
+  lines?: { id: string; codeArticle?: string | null; designation: string; quantite: number; prixUnitaireHt: number; totalHt: number; ordre: number }[];
+  invoice?: { id: string; numeroFacture: string; statut: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BonsCommandeListResponse {
+  success: boolean;
+  data: {
+    bons: BonCommande[];
+    count: number;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
   };
 }
 

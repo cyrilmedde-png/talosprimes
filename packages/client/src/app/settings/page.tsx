@@ -4,8 +4,8 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import type { Tenant, User, StatutJuridique } from '@talosprimes/shared';
-import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
-import { apiClient } from '@/lib/api-client';
+import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon, QueueListIcon } from '@heroicons/react/24/outline';
+import { apiClient, type ArticleCode } from '@/lib/api-client';
 
 const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
   { value: 'SA', label: 'SA - Société Anonyme' },
@@ -43,7 +43,7 @@ type AgentConfigEmail = {
 };
 type AgentConfigQonto = { apiSecret?: string; bankAccountId?: string; configured: boolean };
 
-type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'configPdf';
+type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'configPdf' | 'codesArticles';
 
 function SettingsContent() {
   const router = useRouter();
@@ -87,6 +87,13 @@ function SettingsContent() {
     apiUrlFacturation: '',
   });
 
+  // Codes articles
+  const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [newArticle, setNewArticle] = useState({ code: '', designation: '', prixUnitaireHt: '', tvaTaux: '', unite: '' });
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [editArticle, setEditArticle] = useState({ code: '', designation: '', prixUnitaireHt: '', tvaTaux: '', unite: '' });
+
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
@@ -98,10 +105,16 @@ function SettingsContent() {
   // Ouvrir l'onglet depuis l'URL (?tab=facturation)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf') {
+    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf' || tab === 'codesArticles') {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (activeTab === 'codesArticles' && articleCodes.length === 0) {
+      loadArticleCodes();
+    }
+  }, [activeTab]);
 
   const loadData = async () => {
     try {
@@ -109,7 +122,7 @@ function SettingsContent() {
       setError(null);
 
       const token = localStorage.getItem('accessToken');
-      
+
       // Charger le profil entreprise
       const tenantResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tenant`, {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -159,6 +172,78 @@ function SettingsContent() {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadArticleCodes = async () => {
+    try {
+      setLoadingArticles(true);
+      const res = await apiClient.articleCodes.list();
+      if (res.success) {
+        setArticleCodes(res.data.articles || []);
+      }
+    } catch {
+      // silencieux
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  const handleCreateArticle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      setError(null);
+      await apiClient.articleCodes.create({
+        code: newArticle.code,
+        designation: newArticle.designation,
+        prixUnitaireHt: newArticle.prixUnitaireHt ? parseFloat(newArticle.prixUnitaireHt) : undefined,
+        tvaTaux: newArticle.tvaTaux ? parseFloat(newArticle.tvaTaux) : undefined,
+        unite: newArticle.unite || undefined,
+      });
+      setNewArticle({ code: '', designation: '', prixUnitaireHt: '', tvaTaux: '', unite: '' });
+      setSuccess('Code article créé');
+      await loadArticleCodes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur création code article');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateArticle = async (id: string) => {
+    try {
+      setSaving(true);
+      setError(null);
+      await apiClient.articleCodes.update(id, {
+        code: editArticle.code,
+        designation: editArticle.designation,
+        prixUnitaireHt: editArticle.prixUnitaireHt ? parseFloat(editArticle.prixUnitaireHt) : undefined,
+        tvaTaux: editArticle.tvaTaux ? parseFloat(editArticle.tvaTaux) : undefined,
+        unite: editArticle.unite || undefined,
+      });
+      setEditingArticleId(null);
+      setSuccess('Code article mis à jour');
+      await loadArticleCodes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur modification code article');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteArticle = async (id: string) => {
+    if (!confirm('Supprimer ce code article ?')) return;
+    try {
+      setSaving(true);
+      setError(null);
+      await apiClient.articleCodes.delete(id);
+      setSuccess('Code article supprimé');
+      await loadArticleCodes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur suppression code article');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -317,6 +402,17 @@ function SettingsContent() {
             <DocumentTextIcon className="h-5 w-5 inline mr-2" />
             Config PDF
           </button>
+          <button
+            onClick={() => setActiveTab('codesArticles')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'codesArticles'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <QueueListIcon className="h-5 w-5 inline mr-2" />
+            Codes Articles
+          </button>
         </nav>
       </div>
 
@@ -333,7 +429,165 @@ function SettingsContent() {
       )}
 
       {/* Tab Contenu */}
-      {activeTab === 'configPdf' ? (
+      {activeTab === 'codesArticles' ? (
+        <div className="space-y-6">
+          <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
+            <h2 className="text-xl font-bold text-white mb-2">Codes Articles</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Gérez vos codes articles pour les utiliser rapidement dans les factures et bons de commande.
+            </p>
+
+            {/* Formulaire ajout */}
+            <form onSubmit={handleCreateArticle} className="mb-6 p-4 rounded-lg bg-gray-700/30 border border-gray-600/50">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Ajouter un code article</h3>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newArticle.code}
+                    onChange={(e) => setNewArticle({ ...newArticle, code: e.target.value })}
+                    placeholder="Ex: 901"
+                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-400 mb-1">Désignation *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newArticle.designation}
+                    onChange={(e) => setNewArticle({ ...newArticle, designation: e.target.value })}
+                    placeholder="Ex: Setup initial"
+                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Prix HT (€)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={newArticle.prixUnitaireHt}
+                    onChange={(e) => setNewArticle({ ...newArticle, prixUnitaireHt: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Unité</label>
+                  <input
+                    type="text"
+                    value={newArticle.unite}
+                    onChange={(e) => setNewArticle({ ...newArticle, unite: e.target.value })}
+                    placeholder="h, j, forfait..."
+                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end mt-3">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md disabled:opacity-50"
+                >
+                  {saving ? 'Ajout...' : 'Ajouter'}
+                </button>
+              </div>
+            </form>
+
+            {/* Tableau des codes articles */}
+            {loadingArticles ? (
+              <div className="text-center py-8 text-gray-400">Chargement...</div>
+            ) : articleCodes.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <QueueListIcon className="mx-auto h-12 w-12 text-gray-600" />
+                <p className="mt-4 text-gray-400">Aucun code article</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700/30">
+                  <thead className="bg-gray-800/30">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Code</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Désignation</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Prix HT</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Unité</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
+                    {articleCodes.map((art) => (
+                      <tr key={art.id}>
+                        {editingArticleId === art.id ? (
+                          <>
+                            <td className="px-4 py-2">
+                              <input type="text" value={editArticle.code} onChange={(e) => setEditArticle({ ...editArticle, code: e.target.value })} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm" />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="text" value={editArticle.designation} onChange={(e) => setEditArticle({ ...editArticle, designation: e.target.value })} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm" />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="text" inputMode="decimal" value={editArticle.prixUnitaireHt} onChange={(e) => setEditArticle({ ...editArticle, prixUnitaireHt: e.target.value })} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm text-right" />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="text" value={editArticle.unite} onChange={(e) => setEditArticle({ ...editArticle, unite: e.target.value })} className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm" />
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-400">—</td>
+                            <td className="px-4 py-2 text-right">
+                              <button type="button" onClick={() => handleUpdateArticle(art.id)} disabled={saving} className="text-green-400 hover:text-green-300 text-sm mr-2">Sauver</button>
+                              <button type="button" onClick={() => setEditingArticleId(null)} className="text-gray-400 hover:text-gray-300 text-sm">Annuler</button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 text-sm text-white font-mono">{art.code}</td>
+                            <td className="px-4 py-3 text-sm text-gray-300">{art.designation}</td>
+                            <td className="px-4 py-3 text-sm text-gray-300 text-right">{art.prixUnitaireHt ? `${Number(art.prixUnitaireHt).toFixed(2)} €` : '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-300">{art.unite || '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${art.actif ? 'bg-green-400/20 text-green-300' : 'bg-gray-400/20 text-gray-400'}`}>
+                                {art.actif ? 'Actif' : 'Inactif'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingArticleId(art.id);
+                                  setEditArticle({
+                                    code: art.code,
+                                    designation: art.designation,
+                                    prixUnitaireHt: art.prixUnitaireHt ? String(Number(art.prixUnitaireHt)) : '',
+                                    tvaTaux: art.tvaTaux ? String(Number(art.tvaTaux)) : '',
+                                    unite: art.unite || '',
+                                  });
+                                }}
+                                className="text-indigo-400 hover:text-indigo-300 text-sm mr-3"
+                              >
+                                Modifier
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteArticle(art.id)}
+                                disabled={saving}
+                                className="text-red-400 hover:text-red-300 text-sm"
+                              >
+                                Supprimer
+                              </button>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : activeTab === 'configPdf' ? (
         <div className="space-y-6">
           <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
             <h2 className="text-xl font-bold text-white mb-2">Configuration du PDF Facture</h2>

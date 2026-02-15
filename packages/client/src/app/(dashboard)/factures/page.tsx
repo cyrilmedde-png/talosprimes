@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { apiClient, type Invoice } from '@/lib/api-client';
+import { apiClient, type Invoice, type ArticleCode } from '@/lib/api-client';
 import type { ClientFinal } from '@talosprimes/shared';
 import {
   BanknotesIcon,
@@ -53,6 +53,7 @@ const CONDITIONS_PAIEMENT_OPTIONS = [
 
 type LigneArticle = {
   id: string;
+  codeArticle: string;
   designation: string;
   quantite: string;
   unite: string;
@@ -89,12 +90,14 @@ export default function FacturesPage() {
     notes: '',
   });
   const [lignes, setLignes] = useState<LigneArticle[]>([]);
+  const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
   const createSubmittingRef = useRef(false);
 
   const selectedClient = clients.find((c) => c.id === createForm.clientFinalId);
 
   const getDefaultLigne = (): LigneArticle => ({
     id: `ligne-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    codeArticle: '',
     designation: '',
     quantite: '1',
     unite: '',
@@ -146,6 +149,14 @@ export default function FacturesPage() {
       setLignes([getDefaultLigne()]);
     }
   }, [showCreateModal, lignes.length]);
+
+  useEffect(() => {
+    if (showCreateModal && articleCodes.length === 0) {
+      apiClient.articleCodes.list().then((r) => {
+        if (r.success) setArticleCodes(r.data.articles || []);
+      }).catch(() => {});
+    }
+  }, [showCreateModal, articleCodes.length]);
 
   const loadInvoices = async () => {
     try {
@@ -306,7 +317,7 @@ export default function FacturesPage() {
           designation: l.designation.trim(),
           quantite: Math.max(1, Math.round(parseFloat(l.quantite.replace(',', '.')) || 1)),
           prixUnitaireHt: parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0,
-          codeArticle: null as string | null,
+          codeArticle: l.codeArticle || null,
         }));
 
       const dateEcheance = createForm.dateEcheance
@@ -713,6 +724,7 @@ export default function FacturesPage() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-700/70 text-gray-300">
                       <tr>
+                        <th className="px-3 py-2 text-left w-32 font-medium">Code Art.</th>
                         <th className="px-3 py-2 text-left font-medium">Désignation</th>
                         <th className="px-3 py-2 text-right w-20">Qté</th>
                         <th className="px-3 py-2 text-left w-24">Unité</th>
@@ -729,6 +741,28 @@ export default function FacturesPage() {
                         const mtHt = Math.round(qte * pu * 100) / 100;
                         return (
                           <tr key={ligne.id} className="bg-gray-800/50">
+                            <td className="px-3 py-2">
+                              <select
+                                value={ligne.codeArticle}
+                                onChange={(e) => {
+                                  const code = e.target.value;
+                                  const found = articleCodes.find((a) => a.code === code);
+                                  setLignes((prev) => prev.map((l) => l.id === ligne.id ? {
+                                    ...l,
+                                    codeArticle: code,
+                                    designation: found ? found.designation : l.designation,
+                                    prixUnitaireHT: found?.prixUnitaireHt ? String(Number(found.prixUnitaireHt)) : l.prixUnitaireHT,
+                                    unite: found?.unite || l.unite,
+                                  } : l));
+                                }}
+                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-sm focus:ring-1 focus:ring-amber-500"
+                              >
+                                <option value="">—</option>
+                                {articleCodes.filter((a) => a.actif).map((a) => (
+                                  <option key={a.id} value={a.code}>{a.code}</option>
+                                ))}
+                              </select>
+                            </td>
                             <td className="px-3 py-2">
                               <input
                                 type="text"

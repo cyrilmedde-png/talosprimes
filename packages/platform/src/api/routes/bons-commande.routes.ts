@@ -1,0 +1,291 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { z } from 'zod';
+import { prisma } from '../../config/database.js';
+import { Prisma } from '@prisma/client';
+
+const lineSchema = z.object({
+  codeArticle: z.string().optional().nullable(),
+  designation: z.string().min(1),
+  quantite: z.number().int().positive().default(1),
+  prixUnitaireHt: z.number().positive(),
+});
+
+const createSchema = z.object({
+  clientFinalId: z.string().uuid(),
+  montantHt: z.number().positive(),
+  tvaTaux: z.number().min(0).max(100).default(20),
+  dateBdc: z.string().datetime({ offset: true }).optional().nullable(),
+  dateValidite: z.string().datetime({ offset: true }).optional().nullable(),
+  description: z.string().optional().nullable(),
+  modePaiement: z.string().optional().nullable(),
+  lines: z.array(lineSchema).optional(),
+});
+
+const paramsSchema = z.object({ id: z.string().uuid() });
+
+export async function bonsCommandeRoutes(fastify: FastifyInstance) {
+  // GET /api/bons-commande - Liste
+  fastify.get('/', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
+
+      const query = request.query as { page?: string; limit?: string; statut?: string; clientFinalId?: string };
+      const page = query.page ? parseInt(query.page, 10) : 1;
+      const limit = query.limit ? parseInt(query.limit, 10) : 20;
+      const skip = (page - 1) * limit;
+
+      const where: Prisma.BonCommandeWhereInput = { tenantId };
+      if (query.statut) where.statut = query.statut as 'brouillon' | 'valide' | 'facture' | 'annule';
+      if (query.clientFinalId) where.clientFinalId = query.clientFinalId;
+
+      const [bons, total] = await Promise.all([
+        prisma.bonCommande.findMany({
+          where,
+          skip,
+          take: limit,
+          include: {
+            clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
+            lines: { orderBy: { ordre: 'asc' } },
+          },
+          orderBy: { dateBdc: 'desc' },
+        }),
+        prisma.bonCommande.count({ where }),
+      ]);
+
+      return reply.send({
+        success: true,
+        data: { bons, count: bons.length, total, page, limit, totalPages: Math.ceil(total / limit) },
+      });
+    } catch (error) {
+      fastify.log.error(error, 'Erreur liste bons de commande');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+
+  // GET /api/bons-commande/:id
+  fastify.get('/:id', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
+      const params = paramsSchema.parse(request.params);
+
+      const bon = await prisma.bonCommande.findFirst({
+        where: { id: params.id, tenantId },
+        include: {
+          clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true, adresse: true, telephone: true } },
+          lines: { orderBy: { ordre: 'asc' } },
+          invoice: { select: { id: true, numeroFacture: true, statut: true } },
+        },
+      });
+
+      if (!bon) return reply.status(404).send({ success: false, error: 'Bon de commande non trouvé' });
+      return reply.send({ success: true, data: { bon } });
+    } catch (error) {
+      fastify.log.error(error, 'Erreur récupération bon de commande');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+
+  // POST /api/bons-commande - Créer
+  fastify.post('/', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const body = createSchema.parse(request.body);
+
+      // Vérifier client
+      const client = await prisma.clientFinal.findFirst({ where: { id: body.clientFinalId, tenantId } });
+      if (!client) return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+
+      // Numéro auto
+      const count = await prisma.bonCommande.count({ where: { tenantId } });
+      const year = new Date().getFullYear();
+      const numeroBdc = `BDC-${year}-${String(count + 1).padStart(6, '0')}`;
+
+      const tvaTaux = body.tvaTaux ?? 20;
+      const montantTtc = Number((body.montantHt * (1 + tvaTaux / 100)).toFixed(2));
+      const dateBdc = body.dateBdc ? new Date(body.dateBdc) : new Date();
+      const dateValidite = body.dateValidite
+        ? new Date(body.dateValidite)
+        : new Date(dateBdc.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const bon = await prisma.bonCommande.create({
+        data: {
+          tenantId,
+          clientFinalId: body.clientFinalId,
+          numeroBdc,
+          dateBdc,
+          dateValidite,
+          montantHt: body.montantHt,
+          montantTtc,
+          tvaTaux,
+          description: body.description,
+          modePaiement: body.modePaiement,
+          statut: 'brouillon',
+          ...(body.lines && body.lines.length > 0 ? {
+            lines: {
+              create: body.lines.map((l, i) => ({
+                codeArticle: l.codeArticle ?? null,
+                designation: l.designation,
+                quantite: l.quantite ?? 1,
+                prixUnitaireHt: l.prixUnitaireHt,
+                totalHt: (l.quantite ?? 1) * l.prixUnitaireHt,
+                ordre: i,
+              })),
+            },
+          } : {}),
+        },
+        include: {
+          clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
+          lines: true,
+        },
+      });
+
+      return reply.status(201).send({ success: true, message: 'Bon de commande créé', data: { bon } });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+      }
+      fastify.log.error(error, 'Erreur création bon de commande');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+
+  // PUT /api/bons-commande/:id/validate - Valider
+  fastify.put('/:id/validate', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
+      const params = paramsSchema.parse(request.params);
+
+      const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
+      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (bon.statut !== 'brouillon') return reply.status(400).send({ success: false, error: 'Seul un brouillon peut être validé' });
+
+      const updated = await prisma.bonCommande.update({
+        where: { id: params.id },
+        data: { statut: 'valide' },
+        include: { clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } } },
+      });
+
+      return reply.send({ success: true, message: 'Bon validé', data: { bon: updated } });
+    } catch (error) {
+      fastify.log.error(error, 'Erreur validation bon de commande');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+
+  // POST /api/bons-commande/:id/convert-to-invoice - Convertir en facture
+  fastify.post('/:id/convert-to-invoice', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const params = paramsSchema.parse(request.params);
+
+      const bon = await prisma.bonCommande.findFirst({
+        where: { id: params.id, tenantId },
+        include: { lines: { orderBy: { ordre: 'asc' } } },
+      });
+
+      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
+      if (bon.statut === 'annule') return reply.status(400).send({ success: false, error: 'Bon annulé' });
+
+      // Créer la facture
+      const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
+      const year = new Date().getFullYear();
+      const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;
+
+      const invoice = await prisma.invoice.create({
+        data: {
+          tenantId,
+          type: 'facture_client_final',
+          clientFinalId: bon.clientFinalId,
+          numeroFacture,
+          dateFacture: new Date(),
+          dateEcheance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          montantHt: bon.montantHt,
+          montantTtc: bon.montantTtc,
+          tvaTaux: bon.tvaTaux,
+          description: bon.description ? `BDC ${bon.numeroBdc} - ${bon.description}` : `Depuis BDC ${bon.numeroBdc}`,
+          modePaiement: bon.modePaiement,
+          statut: 'brouillon',
+          ...(bon.lines.length > 0 ? {
+            lines: {
+              create: bon.lines.map((l, i) => ({
+                codeArticle: l.codeArticle,
+                designation: l.designation,
+                quantite: l.quantite,
+                prixUnitaireHt: l.prixUnitaireHt,
+                totalHt: l.totalHt,
+                ordre: i,
+              })),
+            },
+          } : {}),
+        },
+        include: {
+          clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
+          lines: true,
+        },
+      });
+
+      // Mettre à jour le bon
+      await prisma.bonCommande.update({
+        where: { id: params.id },
+        data: { statut: 'facture', invoiceId: invoice.id },
+      });
+
+      return reply.status(201).send({
+        success: true,
+        message: `Facture ${numeroFacture} créée depuis ${bon.numeroBdc}`,
+        data: { invoice, bon: { ...bon, statut: 'facture', invoiceId: invoice.id } },
+      });
+    } catch (error) {
+      fastify.log.error(error, 'Erreur conversion bon → facture');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+
+  // DELETE /api/bons-commande/:id
+  fastify.delete('/:id', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
+      if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const params = paramsSchema.parse(request.params);
+      const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
+      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un bon déjà facturé' });
+
+      await prisma.bonCommande.delete({ where: { id: params.id } });
+      return reply.send({ success: true, message: 'Bon de commande supprimé' });
+    } catch (error) {
+      fastify.log.error(error, 'Erreur suppression bon de commande');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+}

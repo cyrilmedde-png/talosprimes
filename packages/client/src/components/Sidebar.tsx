@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  HomeIcon, 
-  UsersIcon, 
+import {
+  HomeIcon,
+  UsersIcon,
   Cog6ToothIcon,
   UserPlusIcon,
   BellIcon,
@@ -13,6 +13,7 @@ import {
   PencilSquareIcon,
   SparklesIcon,
   BanknotesIcon,
+  DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
 // DocumentTextIcon — réactiver avec l'onglet Documents
 import { useAuthStore } from '@/store/auth-store';
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
   { name: 'Clients', href: '/clients', icon: UsersIcon },
   { name: 'Factures', href: '/factures', icon: BanknotesIcon },
+  { name: 'Bons de commande', href: '/bons-commande', icon: DocumentDuplicateIcon },
   // Onglet Documents — désactivé temporairement, à réactiver plus tard
   // { name: 'Documents', href: '/dashboard/documents', icon: DocumentTextIcon },
 ];
