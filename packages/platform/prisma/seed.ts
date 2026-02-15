@@ -121,7 +121,7 @@ async function main() {
   // Créer un lead de démo d'abord (nécessaire pour le questionnaire)
   const demoLead = await prisma.lead.create({
     data: {
-      tenantId: tenant.id,
+      tenant: { connect: { id: tenant.id } },
       nom: 'Dupont',
       prenom: 'Jean',
       email: 'jean.dupont@email.com',
