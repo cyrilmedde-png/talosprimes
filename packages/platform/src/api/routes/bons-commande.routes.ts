@@ -4,6 +4,38 @@ import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 
+async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
+  try {
+    await prisma.eventLog.create({
+      data: {
+        tenantId,
+        typeEvenement,
+        entiteType,
+        entiteId,
+        payload: payload as any,
+        workflowN8nDeclenche: true,
+        workflowN8nId: typeEvenement,
+        statutExecution: statut,
+        messageErreur: messageErreur || null,
+      },
+    });
+    // Notification uniquement en cas d'erreur
+    if (statut === 'erreur') {
+      await prisma.notification.create({
+        data: {
+          tenantId,
+          type: `${typeEvenement}_erreur`,
+          titre: `Erreur: ${typeEvenement}`,
+          message: messageErreur || `Erreur lors de ${typeEvenement}`,
+          donnees: { entiteType, entiteId, typeEvenement } as any,
+        },
+      });
+    }
+  } catch (e) {
+    console.error('[logEvent] Erreur logging:', e);
+  }
+}
+
 const lineSchema = z.object({
   codeArticle: z.string().optional().nullable(),
   designation: z.string().min(1),
@@ -252,12 +284,22 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // Log the event
+      await logEvent(tenantId, 'bdc_create', 'BonCommande', bon.id, { numeroBdc: bon.numeroBdc, montantTtc: Number(bon.montantTtc) }, 'succes');
+
       return reply.status(201).send({
         success: true,
         message: 'Bon de commande créé',
         data: { bon },
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      // Try to log the error (don't let logging failure mask the real error)
+      try {
+        if (fromN8n && tenantId) {
+          await logEvent(tenantId, 'bdc_create', 'BonCommande', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+        }
+      } catch (_) {}
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
@@ -314,8 +356,18 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         include: { clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } } },
       });
 
+      // Log the event
+      await logEvent(tenantId, 'bdc_validate', 'BonCommande', updated.id, { numeroBdc: bon.numeroBdc }, 'succes');
+
       return reply.status(200).send({ success: true, message: 'Bon validé', data: { bon: updated } });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      // Try to log the error (don't let logging failure mask the real error)
+      try {
+        if (fromN8n && tenantId) {
+          await logEvent(tenantId, 'bdc_validate', 'BonCommande', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        }
+      } catch (_) {}
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
@@ -417,12 +469,22 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // Log the event
+      await logEvent(tenantId, 'bdc_convert_to_invoice', 'BonCommande', bon.id, { numeroBdc: bon.numeroBdc, numeroFacture }, 'succes');
+
       return reply.status(201).send({
         success: true,
         message: `Facture ${numeroFacture} créée depuis ${bon.numeroBdc}`,
         data: { invoice, bon: updatedBon },
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      // Try to log the error (don't let logging failure mask the real error)
+      try {
+        if (fromN8n && tenantId) {
+          await logEvent(tenantId, 'bdc_convert_to_invoice', 'BonCommande', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        }
+      } catch (_) {}
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }
@@ -473,8 +535,19 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       // Appel depuis n8n : supprimer en base
       await prisma.bonCommande.delete({ where: { id: params.id } });
+
+      // Log the event
+      await logEvent(tenantId, 'bdc_delete', 'BonCommande', params.id, { numeroBdc: bon.numeroBdc }, 'succes');
+
       return reply.status(200).send({ success: true, message: 'Bon de commande supprimé' });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      // Try to log the error (don't let logging failure mask the real error)
+      try {
+        if (fromN8n && tenantId) {
+          await logEvent(tenantId, 'bdc_delete', 'BonCommande', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        }
+      } catch (_) {}
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
       }

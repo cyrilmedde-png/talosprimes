@@ -1,0 +1,117 @@
+{
+  "name": "notification-created",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "notification-created",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.type || !payload.titre || !payload.message) {\n  throw new Error('tenantId, type, titre, message are required');\n}\n\nconst donnees = payload.donnees ? JSON.stringify(payload.donnees) : null;\n\nreturn {\n  tenantId: payload.tenantId,\n  type: payload.type,\n  titre: payload.titre,\n  message: payload.message,\n  donnees: donnees\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "comparator": "equal",
+              "value1": "=true",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.type }}', '{{ $json.titre }}', '{{ $json.message }}', {{ $json.donnees ? \"'\" + $json.donnees + \"'\" : \"NULL\" }}, false, NOW(), NOW()) RETURNING id, tenant_id, type, titre, message, donnees, lu, created_at, updated_at"
+      },
+      "id": "05. Insert Notification",
+      "name": "05. Insert Notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "code": "const notification = $('05. Insert Notification').first();\n\nreturn {\n  success: true,\n  message: 'Notification created successfully',\n  notification: notification\n};"
+      },
+      "id": "06. Format Response",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Insert Notification", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Insert Notification": {
+      "main": [[{"node": "06. Format Response", "type": "main", "index": 0}]]
+    },
+    "06. Format Response": {
+      "main": [[{"node": "07. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

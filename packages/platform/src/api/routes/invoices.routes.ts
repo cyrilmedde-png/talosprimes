@@ -7,6 +7,38 @@ import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { generateInvoicePdf } from '../../services/pdf.service.js';
 
+async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
+  try {
+    await prisma.eventLog.create({
+      data: {
+        tenantId,
+        typeEvenement,
+        entiteType,
+        entiteId,
+        payload: payload as any,
+        workflowN8nDeclenche: true,
+        workflowN8nId: typeEvenement,
+        statutExecution: statut,
+        messageErreur: messageErreur || null,
+      },
+    });
+    // Notification uniquement en cas d'erreur
+    if (statut === 'erreur') {
+      await prisma.notification.create({
+        data: {
+          tenantId,
+          type: `${typeEvenement}_erreur`,
+          titre: `Erreur: ${typeEvenement}`,
+          message: messageErreur || `Erreur lors de ${typeEvenement}`,
+          donnees: { entiteType, entiteId, typeEvenement } as any,
+        },
+      });
+    }
+  } catch (e) {
+    console.error('[logEvent] Erreur logging:', e);
+  }
+}
+
 // Schema de validation pour créer une facture
 const invoiceLineSchema = z.object({
   codeArticle: z.string().optional().nullable(),
@@ -637,12 +669,22 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Log the event
+        await logEvent(tenantId, 'invoice_create', 'Invoice', invoice.id, { numeroFacture: invoice.numeroFacture, montantTtc: Number(invoice.montantTtc) }, 'succes');
+
         return reply.status(201).send({
           success: true,
           message: 'Facture créée',
           data: { invoice },
         });
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        // Try to log the error (don't let logging failure mask the real error)
+        try {
+          if (fromN8n && tenantId) {
+            await logEvent(tenantId, 'invoice_create', 'Invoice', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          }
+        } catch (_) {}
         if (error instanceof z.ZodError) {
           return reply.status(400).send({
             success: false,
@@ -741,12 +783,22 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Log the event
+        await logEvent(tenantId, 'invoice_update', 'Invoice', updated.id, { numeroFacture: invoice.numeroFacture, statut: body.statut }, 'succes');
+
         return reply.status(200).send({
           success: true,
           message: 'Facture mise à jour',
           data: { invoice: updated },
         });
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+        // Try to log the error (don't let logging failure mask the real error)
+        try {
+          if (fromN8n && tenantId) {
+            await logEvent(tenantId, 'invoice_update', 'Invoice', params.id, { error: errorMessage }, 'erreur', errorMessage);
+          }
+        } catch (_) {}
         if (error instanceof z.ZodError) {
           return reply.status(400).send({
             success: false,

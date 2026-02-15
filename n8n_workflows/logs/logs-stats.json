@@ -1,0 +1,193 @@
+{
+  "name": "logs-stats",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "logs-stats",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst workflow = payload.workflow || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  workflow: workflow\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "comparator": "equal",
+              "value1": "=true",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
+      },
+      "id": "05. Count Total",
+      "name": "05. Count Total",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT COUNT(*) as succeeded FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' AND statut_execution = 'succes'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
+      },
+      "id": "06. Count Succeeded",
+      "name": "06. Count Succeeded",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT COUNT(*) as errors FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' AND statut_execution = 'erreur'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
+      },
+      "id": "07. Count Errors",
+      "name": "07. Count Errors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT COUNT(*) as en_attente FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' AND statut_execution = 'en_attente'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}"
+      },
+      "id": "08. Count Pending",
+      "name": "08. Count Pending",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT workflow, COUNT(*) as count FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}' GROUP BY workflow"
+      },
+      "id": "09. Count By Workflow",
+      "name": "09. Count By Workflow",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "code": "const totalResult = $('05. Count Total').first();\nconst succeededResult = $('06. Count Succeeded').first();\nconst errorsResult = $('07. Count Errors').first();\nconst pendingResult = $('08. Count Pending').first();\nconst byWorkflowData = $('09. Count By Workflow').all();\n\nconst byWorkflow = {};\nbyWorkflowData.forEach(item => {\n  byWorkflow[item.workflow] = item.count;\n});\n\nreturn {\n  total: totalResult.total,\n  succeeded: succeededResult.succeeded,\n  errors: errorsResult.errors,\n  enAttente: pendingResult.en_attente,\n  byWorkflow: byWorkflow\n};"
+      },
+      "id": "10. Format Response",
+      "name": "10. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "11. Respond",
+      "name": "11. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1900, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Count Total", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Count Total": {
+      "main": [[{"node": "06. Count Succeeded", "type": "main", "index": 0}]]
+    },
+    "06. Count Succeeded": {
+      "main": [[{"node": "07. Count Errors", "type": "main", "index": 0}]]
+    },
+    "07. Count Errors": {
+      "main": [[{"node": "08. Count Pending", "type": "main", "index": 0}]]
+    },
+    "08. Count Pending": {
+      "main": [[{"node": "09. Count By Workflow", "type": "main", "index": 0}]]
+    },
+    "09. Count By Workflow": {
+      "main": [[{"node": "10. Format Response", "type": "main", "index": 0}]]
+    },
+    "10. Format Response": {
+      "main": [[{"node": "11. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}
