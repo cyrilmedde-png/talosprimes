@@ -89,7 +89,7 @@ export default function ConfigurationPage() {
       // Load niches
       const nichesResponse = await apiClient.twilioConfig.niches();
       if (nichesResponse.success && nichesResponse.data) {
-        setNiches((nichesResponse.data.niches || []) as Niche[]);
+        setNiches((nichesResponse.data.niches || []) as unknown as Niche[]);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement';
