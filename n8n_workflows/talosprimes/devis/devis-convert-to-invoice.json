@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
+        "code": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",

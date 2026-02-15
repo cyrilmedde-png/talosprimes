@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  invoiceId: body.invoiceId || null,\n  montantHt: body.montantHt,\n  tvaTaux: body.tvaTaux || 0,\n  dateAvoir: body.dateAvoir || new Date().toISOString().split('T')[0],\n  motif: body.motif || '',\n  description: body.description || '',\n  lines: body.lines || []\n};"
+        "jsCode": "const raw = $input.first().json;\nconst body = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nreturn {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  invoiceId: body.invoiceId || null,\n  montantHt: body.montantHt,\n  tvaTaux: body.tvaTaux || 0,\n  dateAvoir: body.dateAvoir || new Date().toISOString().split('T')[0],\n  motif: body.motif || '',\n  description: body.description || '',\n  lines: body.lines || []\n};"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",

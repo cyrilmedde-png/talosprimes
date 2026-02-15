@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  callLogId: body.callLogId || null,\n  title: body.title || '',\n  description: body.description || '',\n  content: body.content || {},\n  status: body.status || 'pending',\n  completedAt: body.completedAt || null\n};"
+        "jsCode": "const raw = $input.first().json;\nconst body = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  callLogId: body.callLogId || null,\n  title: body.title || '',\n  description: body.description || '',\n  content: body.content || {},\n  status: body.status || 'pending',\n  completedAt: body.completedAt || null\n};"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",

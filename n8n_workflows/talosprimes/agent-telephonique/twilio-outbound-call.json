@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nif (!payload.to) {\n  throw new Error('to (phone number) is required');\n}\n\nif (!payload.reason) {\n  throw new Error('reason is required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  to: payload.to,\n  reason: payload.reason\n};"
+        "code": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nif (!payload.to) {\n  throw new Error('to (phone number) is required');\n}\n\nif (!payload.reason) {\n  throw new Error('reason is required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  to: payload.to,\n  reason: payload.reason\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",

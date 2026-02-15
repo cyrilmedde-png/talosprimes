@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.id || payload.lu === undefined) {\n  throw new Error('tenantId, id, and lu (boolean) are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  id: payload.id,\n  lu: payload.lu === true || payload.lu === 'true'\n};"
+        "code": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object') ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nif (!payload.tenantId || !payload.id || payload.lu === undefined) {\n  throw new Error('tenantId, id, and lu (boolean) are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  id: payload.id,\n  lu: payload.lu === true || payload.lu === 'true'\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
