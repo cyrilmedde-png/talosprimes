@@ -14,6 +14,10 @@ fi
 echo "🔗 n8n URL: $N8N_URL"
 echo ""
 
+# Récupérer la liste des workflows existants une seule fois
+echo "📋 Récupération des workflows existants..."
+EXISTING_WORKFLOWS=$(curl -s -H "X-N8N-API-KEY: $API_KEY" "$N8N_URL/api/v1/workflows")
+
 TOTAL=0
 SUCCESS=0
 ERRORS=0
@@ -22,14 +26,28 @@ for dir in n8n_workflows/*/; do
   [ -d "$dir" ] || continue
   for file in "$dir"*.json; do
     [ -f "$file" ] || continue
-    
+
     NAME=$(basename "$file" .json)
     TOTAL=$((TOTAL + 1))
-    
+
+    # Injecter "settings" si absent via python3
+    PAYLOAD=$(python3 -c "
+import sys, json
+with open('$file') as f:
+    wf = json.load(f)
+if 'settings' not in wf:
+    wf['settings'] = {}
+print(json.dumps(wf))
+" 2>/dev/null)
+
+    if [ -z "$PAYLOAD" ]; then
+      echo "❌ JSON invalide: $file"
+      ERRORS=$((ERRORS + 1))
+      continue
+    fi
+
     # Vérifier si le workflow existe déjà (par nom)
-    EXISTING=$(curl -s -H "X-N8N-API-KEY: $API_KEY" \
-      "$N8N_URL/api/v1/workflows" | \
-      python3 -c "
+    EXISTING=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 workflows = data.get('data', [])
@@ -38,28 +56,29 @@ for w in workflows:
         print(w['id'])
         break
 " 2>/dev/null)
-    
+
     if [ -n "$EXISTING" ]; then
       # Mettre à jour le workflow existant
       RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
         -H "X-N8N-API-KEY: $API_KEY" \
         -H "Content-Type: application/json" \
-        -d @"$file" \
+        -d "$PAYLOAD" \
         "$N8N_URL/api/v1/workflows/$EXISTING")
-      
+
       HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-      
+
       if [ "$HTTP_CODE" = "200" ]; then
         # Activer le workflow
         curl -s -X POST \
           -H "X-N8N-API-KEY: $API_KEY" \
           -H "Content-Type: application/json" \
-          -d '{"active": true}' \
           "$N8N_URL/api/v1/workflows/$EXISTING/activate" > /dev/null 2>&1
-        echo "✅ [$HTTP_CODE] Mis à jour + activé: $NAME (id: $EXISTING)"
+        echo "✅ Mis à jour + activé: $NAME (id: $EXISTING)"
         SUCCESS=$((SUCCESS + 1))
       else
-        echo "❌ [$HTTP_CODE] Erreur update: $NAME"
+        BODY=$(echo "$RESPONSE" | sed '$d')
+        MSG=$(echo "$BODY" | python3 -c "import sys,json;print(json.load(sys.stdin).get('message',''))" 2>/dev/null)
+        echo "❌ [$HTTP_CODE] Erreur update: $NAME — $MSG"
         ERRORS=$((ERRORS + 1))
       fi
     else
@@ -67,12 +86,12 @@ for w in workflows:
       RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
         -H "X-N8N-API-KEY: $API_KEY" \
         -H "Content-Type: application/json" \
-        -d @"$file" \
+        -d "$PAYLOAD" \
         "$N8N_URL/api/v1/workflows")
-      
+
       HTTP_CODE=$(echo "$RESPONSE" | tail -1)
       BODY=$(echo "$RESPONSE" | sed '$d')
-      
+
       if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
         NEW_ID=$(echo "$BODY" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
         # Activer le workflow
@@ -80,13 +99,13 @@ for w in workflows:
           curl -s -X POST \
             -H "X-N8N-API-KEY: $API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"active": true}' \
             "$N8N_URL/api/v1/workflows/$NEW_ID/activate" > /dev/null 2>&1
         fi
-        echo "✅ [$HTTP_CODE] Créé + activé: $NAME (id: $NEW_ID)"
+        echo "✅ Créé + activé: $NAME (id: $NEW_ID)"
         SUCCESS=$((SUCCESS + 1))
       else
-        echo "❌ [$HTTP_CODE] Erreur create: $NAME"
+        MSG=$(echo "$BODY" | python3 -c "import sys,json;print(json.load(sys.stdin).get('message',''))" 2>/dev/null)
+        echo "❌ [$HTTP_CODE] Erreur create: $NAME — $MSG"
         ERRORS=$((ERRORS + 1))
       fi
     fi
