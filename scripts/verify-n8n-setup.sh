@@ -162,17 +162,32 @@ if [ -d "n8n_workflows" ]; then
     WORKFLOW_COUNT=$(find n8n_workflows -name "*.json" | wc -l)
     if [ "$WORKFLOW_COUNT" -gt 0 ]; then
         info "$WORKFLOW_COUNT workflow(s) JSON trouvé(s)"
-        
-        # Lister les catégories
-        echo "   Catégories disponibles:"
-        for dir in n8n_workflows/*/; do
-            if [ -d "$dir" ]; then
-                COUNT=$(find "$dir" -name "*.json" | wc -l)
-                if [ "$COUNT" -gt 0 ]; then
-                    echo "   - $(basename "$dir"): $COUNT workflow(s)"
+
+        # TalosPrimes
+        if [ -d "n8n_workflows/talosprimes" ]; then
+            TP_COUNT=$(find n8n_workflows/talosprimes -name "*.json" | wc -l)
+            echo "   TalosPrimes: $TP_COUNT workflow(s)"
+            for dir in n8n_workflows/talosprimes/*/; do
+                if [ -d "$dir" ]; then
+                    COUNT=$(find "$dir" -name "*.json" | wc -l)
+                    if [ "$COUNT" -gt 0 ]; then
+                        echo "   - $(basename "$dir"): $COUNT workflow(s)"
+                    fi
                 fi
-            fi
-        done
+            done
+        fi
+
+        # Clients
+        if [ -d "n8n_workflows/clients" ]; then
+            for client_dir in n8n_workflows/clients/*/; do
+                if [ -d "$client_dir" ]; then
+                    CLIENT_COUNT=$(find "$client_dir" -name "*.json" | wc -l)
+                    if [ "$CLIENT_COUNT" -gt 0 ]; then
+                        echo "   Client $(basename "$client_dir"): $CLIENT_COUNT workflow(s)"
+                    fi
+                fi
+            done
+        fi
     else
         warn "Aucun workflow JSON trouvé"
     fi
