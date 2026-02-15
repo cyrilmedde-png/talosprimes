@@ -10,7 +10,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 250]
+      "position": [
+        250,
+        250
+      ]
     },
     {
       "parameters": {
@@ -19,23 +22,26 @@
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 250]
+      "position": [
+        450,
+        250
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
               "value1": "={{ $json.tenantId }}",
-              "operation": "notEmpty"
+              "operation": "isNotEmpty"
             },
             {
               "value1": "={{ $json.clientFinalId }}",
-              "operation": "notEmpty"
+              "operation": "isNotEmpty"
             },
             {
               "value1": "={{ $json.montantHt }}",
-              "operation": "notEmpty"
+              "operation": "isNotEmpty"
             }
           ]
         }
@@ -43,7 +49,10 @@
       "name": "If",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 250]
+      "position": [
+        650,
+        250
+      ]
     },
     {
       "parameters": {
@@ -53,22 +62,28 @@
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 150]
+      "position": [
+        850,
+        150
+      ]
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
-        "operation": "executeQueryFetch",
+        "operation": "executeQuery",
         "query": "SELECT COUNT(*) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'"
       },
       "name": "Postgres Get Next Number",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 250]
+      "position": [
+        850,
+        250
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -77,22 +92,28 @@
       "name": "Code Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 350]
+      "position": [
+        850,
+        350
+      ]
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES ('{{ $json.avoirId }}', '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', {{ $json.invoiceId ? \"'\" + $json.invoiceId + \"'\" : 'NULL' }}, '{{ $json.numeroAvoir }}', '{{ $json.dateAvoir }}', {{ $json.montantHt }}, {{ $json.montantHt * (1 + $json.tvaTaux / 100) }}, {{ $json.tvaTaux }}, '{{ $json.motif }}', '{{ $json.description }}', 'brouillon', NOW(), NOW())"
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 450]
+      "position": [
+        850,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -101,22 +122,28 @@
       "name": "Code Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 550]
+      "position": [
+        850,
+        550
+      ]
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "INSERT INTO avoir_lines (avoir_id, ordre, description, quantite, prix_unitaire, montant) VALUES{% for item in $json.lineQueries %} ('{{ item.avoirId }}', {{ item.ordre }}, '{{ item.description }}', {{ item.quantite }}, {{ item.prixUnitaire }}, {{ item.montant }}){{ not loop.last ? ',' : '' }}{% endfor %}"
       },
       "name": "Postgres Insert Lines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 650]
+      "position": [
+        850,
+        650
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -125,7 +152,10 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 500]
+      "position": [
+        1050,
+        500
+      ]
     },
     {
       "parameters": {
@@ -134,7 +164,10 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 500]
+      "position": [
+        1250,
+        500
+      ]
     }
   ],
   "connections": {

@@ -10,7 +10,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 250]
+      "position": [
+        250,
+        250
+      ]
     },
     {
       "parameters": {
@@ -19,19 +22,22 @@
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 250]
+      "position": [
+        450,
+        250
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
               "value1": "={{ $json.avoirId }}",
-              "operation": "notEmpty"
+              "operation": "isNotEmpty"
             },
             {
               "value1": "={{ $json.tenantId }}",
-              "operation": "notEmpty"
+              "operation": "isNotEmpty"
             }
           ]
         }
@@ -39,7 +45,10 @@
       "name": "If",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [650, 250]
+      "position": [
+        650,
+        250
+      ]
     },
     {
       "parameters": {
@@ -49,22 +58,28 @@
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 150]
+      "position": [
+        850,
+        150
+      ]
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
-        "operation": "executeQueryFetch",
+        "operation": "executeQuery",
         "query": "UPDATE avoirs SET statut = 'validee', updated_at = NOW() WHERE id = '{{ $json.avoirId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'brouillon' RETURNING *"
       },
       "name": "Postgres Update",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 250]
+      "position": [
+        850,
+        250
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -73,7 +88,10 @@
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 250]
+      "position": [
+        1050,
+        250
+      ]
     },
     {
       "parameters": {
@@ -82,7 +100,10 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 250]
+      "position": [
+        1250,
+        250
+      ]
     }
   ],
   "connections": {
