@@ -120,8 +120,10 @@ async function main() {
   });
 
   // Créer un lead de démo d'abord (nécessaire pour le questionnaire)
-  const demoLead = await prisma.lead.create({
-    data: {
+  const demoLead = await prisma.lead.upsert({
+    where: { email: 'jean.dupont@email.com' },
+    update: {},
+    create: {
       tenant: { connect: { id: tenant.id } },
       nom: 'Dupont',
       prenom: 'Jean',
@@ -132,6 +134,11 @@ async function main() {
       notes: 'Fuite d\'eau sous l\'évier — 123 Rue de la Paix, 75000 Paris',
     },
   });
+
+  // Nettoyer les anciennes données de démo Agent IA (seed idempotent)
+  await prisma.questionnaire.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.smsLog.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.callLog.deleteMany({ where: { tenantId: tenant.id } });
 
   // Créer les appels téléphoniques (CallLogs)
   await prisma.callLog.create({
