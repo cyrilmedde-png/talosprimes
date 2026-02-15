@@ -24,4 +24,38 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module facturation OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'articles' },
+    update: {
+      nomAffiche: 'Codes Articles',
+      description: 'Module de gestion du catalogue articles : création, modification, suppression',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'articles',
+      nomAffiche: 'Codes Articles',
+      description: 'Module de gestion du catalogue articles : création, modification, suppression',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module articles OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'bons_commande' },
+    update: {
+      nomAffiche: 'Bons de Commande',
+      description: 'Module de gestion des bons de commande : création, validation, conversion en facture',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'bons_commande',
+      nomAffiche: 'Bons de Commande',
+      description: 'Module de gestion des bons de commande : création, validation, conversion en facture',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module bons_commande OK');
 }
