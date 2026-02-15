@@ -291,10 +291,11 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
+
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'proforma_create', 'Proforma', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'proforma_create', 'Proforma', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -354,10 +355,11 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Proforma envoyé', data: { proforma: updated } });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
+
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'proforma_send', 'Proforma', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'proforma_send', 'Proforma', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -417,10 +419,11 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Proforma accepté', data: { proforma: updated } });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
+
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'proforma_accept', 'Proforma', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'proforma_accept', 'Proforma', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -529,10 +532,11 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
+
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'proforma_convert_to_invoice', 'Proforma', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'proforma_convert_to_invoice', 'Proforma', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -582,15 +586,16 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       await prisma.proforma.delete({ where: { id: params.id } });
 
       // Log the event
-      await logEvent(tenantId, 'proforma_delete', 'Proforma', params.id, { numeroProforma: proforma.numeroProforma }, 'succes');
+      await logEvent(tenantId, 'proforma_delete', 'Proforma', (request.params as any)?.id || 'unknown', { numeroProforma: proforma.numeroProforma }, 'succes');
 
       return reply.status(200).send({ success: true, message: 'Proforma supprimé' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
+
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'proforma_delete', 'Proforma', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'proforma_delete', 'Proforma', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {

@@ -291,10 +291,10 @@ export async function devisRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'devis_create', 'Devis', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'devis_create', 'Devis', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -354,10 +354,10 @@ export async function devisRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Devis envoyé', data: { devis: updated } });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'devis_send', 'Devis', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'devis_send', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -417,10 +417,10 @@ export async function devisRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Devis accepté', data: { devis: updated } });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'devis_accept', 'Devis', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'devis_accept', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -529,10 +529,10 @@ export async function devisRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'devis_convert_to_invoice', 'Devis', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'devis_convert_to_invoice', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -587,10 +587,10 @@ export async function devisRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Devis supprimé' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'devis_delete', 'Devis', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'devis_delete', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {

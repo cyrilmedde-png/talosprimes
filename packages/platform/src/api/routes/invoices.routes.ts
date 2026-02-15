@@ -679,10 +679,11 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        // Try to log the error (don't let logging failure mask the real error)
+        
         try {
-          if (fromN8n && tenantId) {
-            await logEvent(tenantId, 'invoice_create', 'Invoice', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          const _tid = request.tenantId;
+          if (request.isN8nRequest && _tid) {
+            await logEvent(_tid, 'invoice_create', 'Invoice', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
           }
         } catch (_) {}
         if (error instanceof z.ZodError) {
@@ -793,10 +794,10 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-        // Try to log the error (don't let logging failure mask the real error)
         try {
-          if (fromN8n && tenantId) {
-            await logEvent(tenantId, 'invoice_update', 'Invoice', params.id, { error: errorMessage }, 'erreur', errorMessage);
+          const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+            await logEvent(_tid, 'invoice_update', 'Invoice', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
           }
         } catch (_) {}
         if (error instanceof z.ZodError) {

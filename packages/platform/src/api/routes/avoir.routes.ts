@@ -287,10 +287,10 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'avoir_create', 'Avoir', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'avoir_create', 'Avoir', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -350,10 +350,10 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Avoir validé', data: { avoir: updated } });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'avoir_validate', 'Avoir', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'avoir_validate', 'Avoir', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -408,10 +408,10 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Avoir supprimé' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'avoir_delete', 'Avoir', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'avoir_delete', 'Avoir', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {

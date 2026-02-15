@@ -294,10 +294,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'bdc_create', 'BonCommande', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'bdc_create', 'BonCommande', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -362,10 +362,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Bon validé', data: { bon: updated } });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'bdc_validate', 'BonCommande', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'bdc_validate', 'BonCommande', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -479,10 +479,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'bdc_convert_to_invoice', 'BonCommande', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'bdc_convert_to_invoice', 'BonCommande', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -542,10 +542,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, message: 'Bon de commande supprimé' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      // Try to log the error (don't let logging failure mask the real error)
       try {
-        if (fromN8n && tenantId) {
-          await logEvent(tenantId, 'bdc_delete', 'BonCommande', params.id, { error: errorMessage }, 'erreur', errorMessage);
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'bdc_delete', 'BonCommande', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {

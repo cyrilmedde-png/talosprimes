@@ -49,7 +49,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
         // Appel depuis n8n (callback) → création BDD directe
         const notification = await prisma.notification.create({
           data: {
-            tenantId,
+            tenantId: tenantId as string,
             type: body.type,
             titre: body.titre,
             message: body.message,
