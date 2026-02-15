@@ -482,6 +482,30 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           if (!res.success) {
             return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
           }
+
+          // Après création via n8n, insérer les lignes d'articles en base
+          if (body.lines && body.lines.length > 0 && res.data) {
+            try {
+              const invoiceData = (res.data as { invoice?: { id?: string } }).invoice;
+              const invoiceId = invoiceData?.id;
+              if (invoiceId) {
+                await prisma.invoiceLine.createMany({
+                  data: body.lines.map((l, i) => ({
+                    invoiceId,
+                    codeArticle: l.codeArticle ?? null,
+                    designation: l.designation,
+                    quantite: l.quantite ?? 1,
+                    prixUnitaireHt: l.prixUnitaireHt,
+                    totalHt: (l.quantite ?? 1) * l.prixUnitaireHt,
+                    ordre: i,
+                  })),
+                });
+              }
+            } catch (lineErr) {
+              fastify.log.warn(lineErr, 'Impossible de créer les lignes de facture après n8n');
+            }
+          }
+
           return reply.status(201).send({
             success: true,
             message: 'Facture créée via n8n',
