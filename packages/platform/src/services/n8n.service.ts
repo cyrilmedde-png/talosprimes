@@ -28,6 +28,14 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   article_code_create: 'article-code-created',
   article_code_update: 'article-code-updated',
   article_code_delete: 'article-code-deleted',
+  // Devis
+  devis_list: 'devis-list',
+  devis_get: 'devis-get',
+  devis_create: 'devis-created',
+  devis_send: 'devis-sent',
+  devis_accept: 'devis-accepted',
+  devis_convert_to_invoice: 'devis-convert-to-invoice',
+  devis_delete: 'devis-deleted',
   // Bons de commande
   bdc_list: 'bdc-list',
   bdc_get: 'bdc-get',

@@ -466,6 +466,49 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; message: string }>(`/api/bons-commande/${id}`, { method: 'DELETE' }),
   },
 
+  // Devis
+  devis: {
+    list: (params?: { page?: number; limit?: number; statut?: string; clientFinalId?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.page) qp.append('page', params.page.toString());
+      if (params?.limit) qp.append('limit', params.limit.toString());
+      if (params?.statut) qp.append('statut', params.statut);
+      if (params?.clientFinalId) qp.append('clientFinalId', params.clientFinalId);
+      const q = qp.toString();
+      return authenticatedFetch<DevisListResponse>(`/api/devis${q ? `?${q}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { devis: Devis } }>(`/api/devis/${id}`),
+    create: (data: {
+      clientFinalId: string;
+      montantHt: number;
+      tvaTaux?: number;
+      dateDevis?: string;
+      dateValidite?: string;
+      description?: string;
+      modePaiement?: string;
+      lines?: { designation: string; quantite: number; prixUnitaireHt: number; codeArticle?: string | null }[];
+    }) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { devis: Devis } }>('/api/devis', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    send: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { devis: Devis } }>(`/api/devis/${id}/send`, {
+        method: 'PUT',
+      }),
+    accept: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { devis: Devis } }>(`/api/devis/${id}/accept`, {
+        method: 'PUT',
+      }),
+    convertToInvoice: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice; devis: Devis } }>(`/api/devis/${id}/convert-to-invoice`, {
+        method: 'POST',
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string }>(`/api/devis/${id}`, { method: 'DELETE' }),
+  },
+
   // Logs
   logs: {
     list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
@@ -603,6 +646,41 @@ export interface BonsCommandeListResponse {
   success: boolean;
   data: {
     bons: BonCommande[];
+    count: number;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+// Type pour les devis
+export interface Devis {
+  id: string;
+  tenantId: string;
+  clientFinalId?: string | null;
+  numeroDevis: string;
+  dateDevis: string;
+  dateValidite?: string | null;
+  montantHt: number;
+  montantTtc: number;
+  tvaTaux?: number | null;
+  description?: string | null;
+  modePaiement?: string | null;
+  statut: 'brouillon' | 'envoyee' | 'acceptee' | 'refusee' | 'expiree' | 'facturee';
+  invoiceId?: string | null;
+  lienPdf?: string | null;
+  clientFinal?: { id: string; email: string; nom?: string | null; prenom?: string | null; raisonSociale?: string | null };
+  lines?: { id: string; codeArticle?: string | null; designation: string; quantite: number; prixUnitaireHt: number; totalHt: number; ordre: number }[];
+  invoice?: { id: string; numeroFacture: string; statut: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DevisListResponse {
+  success: boolean;
+  data: {
+    devis: Devis[];
     count: number;
     total: number;
     page: number;

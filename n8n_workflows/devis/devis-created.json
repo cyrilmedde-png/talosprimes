@@ -1,0 +1,181 @@
+{
+  "name": "devis-created",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "devis-created",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || !payload.montantHt || !payload.tvaTaux) {\n  throw new Error('tenantId, clientFinalId, montantHt, tvaTaux are required');\n}\n\nconst montantHt = parseFloat(payload.montantHt);\nconst tvaTaux = parseFloat(payload.tvaTaux) / 100;\nconst montantTtc = montantHt * (1 + tvaTaux);\nconst dateDevis = payload.dateDevis || new Date().toISOString().split('T')[0];\nconst dateValidite = payload.dateValidite || new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst description = payload.description || '';\nconst modePaiement = payload.modePaiement || 'virement';\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: payload.tvaTaux,\n  dateDevis: dateDevis,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "comparator": "equal",
+              "value1": "=true",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_devis, 9) AS INTEGER)), 0) + 1 as next_num FROM devis WHERE numero_devis LIKE 'DEV-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+      },
+      "id": "05. Get Next Number",
+      "name": "05. Get Next Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "code": "const nextNum = $('05. Get Next Number').first().next_num;\nconst numeroDevis = 'DEV-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nreturn {\n  ...JSON.parse(JSON.stringify($json)),\n  numeroDevis: numeroDevis\n};"
+      },
+      "id": "06. Generate Number",
+      "name": "06. Generate Number",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=INSERT INTO devis (tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $json.numeroDevis }}', '{{ $json.dateDevis }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, '{{ $json.description }}', '{{ $json.modePaiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+      },
+      "id": "07. Insert Devis",
+      "name": "07. Insert Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "code": "const devisId = $('07. Insert Devis').first().id;\nconst lines = $json.lines || [];\nconst lineInserts = lines.map((line, index) => ({\n  devisId: devisId,\n  ligneNumero: index + 1,\n  description: line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaire: parseFloat(line.prixUnitaire) || 0,\n  montantHt: parseFloat(line.montantHt) || 0,\n  tvaTaux: parseFloat(line.tvaTaux) || 0,\n  montantTtc: parseFloat(line.montantTtc) || 0\n}));\n\nreturn {\n  devisId: devisId,\n  lineInserts: lineInserts\n};"
+      },
+      "id": "08. Prepare Lines",
+      "name": "08. Prepare Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "resource": "executeQuery",
+        "query": "=INSERT INTO devis_lines (devis_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ('{{ each(item).devisId }}', {{ each(item).ligneNumero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prixUnitaire }}, {{ each(item).montantHt }}, {{ each(item).tvaTaux }}, {{ each(item).montantTtc }});"
+      },
+      "id": "09. Insert Lines",
+      "name": "09. Insert Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "code": "return {\n  success: true,\n  message: 'Devis created successfully',\n  devisId: $('07. Insert Devis').first().id,\n  numeroDevis: $json.numeroDevis\n};"
+      },
+      "id": "10. Format Response",
+      "name": "10. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "11. Respond",
+      "name": "11. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1900, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Get Next Number", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Get Next Number": {
+      "main": [[{"node": "06. Generate Number", "type": "main", "index": 0}]]
+    },
+    "06. Generate Number": {
+      "main": [[{"node": "07. Insert Devis", "type": "main", "index": 0}]]
+    },
+    "07. Insert Devis": {
+      "main": [[{"node": "08. Prepare Lines", "type": "main", "index": 0}]]
+    },
+    "08. Prepare Lines": {
+      "main": [[{"node": "09. Insert Lines", "type": "main", "index": 0}]]
+    },
+    "09. Insert Lines": {
+      "main": [[{"node": "10. Format Response", "type": "main", "index": 0}]]
+    },
+    "10. Format Response": {
+      "main": [[{"node": "11. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

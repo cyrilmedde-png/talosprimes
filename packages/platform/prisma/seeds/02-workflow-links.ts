@@ -19,6 +19,16 @@ const ARTICLES_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'article_code_delete', workflowN8nId: 'article_code_delete', workflowN8nNom: 'article-code-deleted' },
 ];
 
+const DEVIS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'devis_list', workflowN8nId: 'devis_list', workflowN8nNom: 'devis-list' },
+  { typeEvenement: 'devis_get', workflowN8nId: 'devis_get', workflowN8nNom: 'devis-get' },
+  { typeEvenement: 'devis_create', workflowN8nId: 'devis_create', workflowN8nNom: 'devis-created' },
+  { typeEvenement: 'devis_send', workflowN8nId: 'devis_send', workflowN8nNom: 'devis-sent' },
+  { typeEvenement: 'devis_accept', workflowN8nId: 'devis_accept', workflowN8nNom: 'devis-accepted' },
+  { typeEvenement: 'devis_convert_to_invoice', workflowN8nId: 'devis_convert_to_invoice', workflowN8nNom: 'devis-convert-to-invoice' },
+  { typeEvenement: 'devis_delete', workflowN8nId: 'devis_delete', workflowN8nNom: 'devis-deleted' },
+];
+
 const BDC_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'bdc_list', workflowN8nId: 'bdc_list', workflowN8nNom: 'bdc-list' },
   { typeEvenement: 'bdc_get', workflowN8nId: 'bdc_get', workflowN8nNom: 'bdc-get' },
@@ -93,6 +103,16 @@ export async function seedWorkflowLinksArticles(
 /**
  * Attache les workflow links bons de commande au tenant donné.
  */
+/**
+ * Attache les workflow links devis au tenant donné.
+ */
+export async function seedWorkflowLinksDevis(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'devis', DEVIS_WORKFLOWS, 'devis');
+}
+
 export async function seedWorkflowLinksBdc(
   prisma: PrismaClient,
   tenantId: string

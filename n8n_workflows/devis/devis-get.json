@@ -1,0 +1,136 @@
+{
+  "name": "devis-get",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "devis-get",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.devisId) {\n  throw new Error('devisId is required');\n}\n\nreturn {\n  devisId: payload.devisId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "comparator": "equal",
+              "value1": "=true",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, c.id as client_id, c.nom as client_nom, c.email as client_email FROM devis d LEFT JOIN clients c ON d.client_final_id = c.id WHERE d.id = {{ $json.devisId }}"
+      },
+      "id": "05. Get Devis",
+      "name": "05. Get Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT id, devis_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
+      },
+      "id": "06. Get Lines",
+      "name": "06. Get Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "code": "const devis = $('05. Get Devis').first();\nconst lines = $('06. Get Lines').all();\n\nif (!devis) {\n  throw new Error('Devis not found');\n}\n\nreturn {\n  devis: devis,\n  lines: lines,\n  success: true\n};"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 350]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 350]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Get Devis", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Get Devis": {
+      "main": [[{"node": "06. Get Lines", "type": "main", "index": 0}]]
+    },
+    "06. Get Lines": {
+      "main": [[{"node": "07. Format Response", "type": "main", "index": 0}]]
+    },
+    "07. Format Response": {
+      "main": [[{"node": "08. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

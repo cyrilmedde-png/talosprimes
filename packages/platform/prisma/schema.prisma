@@ -156,6 +156,7 @@ model Tenant {
   eventLogs          EventLog[]
   notifications      Notification[]
   agentCalendarEvents AgentCalendarEvent[]
+  devis              Devis[]
   agentConfig        TenantAgentConfig?
 
   @@index([emailContact])
@@ -212,6 +213,7 @@ model ClientFinal {
   subscriptions  ClientSubscription[]
   invoices       Invoice[]
   bonsCommande   BonCommande[]
+  devis          Devis[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -314,6 +316,7 @@ model Invoice {
   clientFinal  ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
   lines        InvoiceLine[]
   bonsCommande BonCommande[]
+  devis        Devis[]
 
   @@index([tenantId])
   @@index([clientFinalId])
@@ -411,6 +414,61 @@ model BonCommandeLine {
 
   @@index([bonCommandeId])
   @@map("bon_commande_lines")
+}
+
+// Devis (quote / proposition commerciale)
+enum DevisStatus {
+  brouillon
+  envoyee
+  acceptee
+  refusee
+  expiree
+  facturee
+}
+
+model Devis {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @map("tenant_id") @db.Uuid
+  clientFinalId   String?      @map("client_final_id") @db.Uuid
+  numeroDevis     String       @unique @map("numero_devis")
+  dateDevis       DateTime     @map("date_devis") @db.Timestamptz(6)
+  dateValidite    DateTime?    @map("date_validite") @db.Timestamptz(6)
+  montantHt       Decimal      @map("montant_ht") @db.Decimal(10, 2)
+  montantTtc      Decimal      @map("montant_ttc") @db.Decimal(10, 2)
+  tvaTaux         Decimal?     @map("tva_taux") @db.Decimal(5, 2)
+  description     String?      @map("description") @db.Text
+  modePaiement    String?      @map("mode_paiement")
+  statut          DevisStatus  @default(brouillon)
+  invoiceId       String?      @map("invoice_id") @db.Uuid
+  lienPdf         String?      @map("lien_pdf")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  lines       DevisLine[]
+
+  @@index([tenantId])
+  @@index([clientFinalId])
+  @@index([statut])
+  @@map("devis")
+}
+
+model DevisLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  devisId         String   @map("devis_id") @db.Uuid
+  codeArticle     String?  @map("code_article")
+  designation     String   @map("designation")
+  quantite        Int      @default(1)
+  prixUnitaireHt  Decimal  @map("prix_unitaire_ht") @db.Decimal(10, 2)
+  totalHt         Decimal  @map("total_ht") @db.Decimal(10, 2)
+  ordre           Int      @default(0) @map("ordre")
+
+  devis Devis @relation(fields: [devisId], references: [id], onDelete: Cascade)
+
+  @@index([devisId])
+  @@map("devis_lines")
 }
 
 // Lien Workflow n8n

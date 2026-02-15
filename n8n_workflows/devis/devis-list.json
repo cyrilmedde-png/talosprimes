@@ -1,0 +1,136 @@
+{
+  "name": "devis-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "devis-list",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = payload.statut || null;\nconst clientFinalId = payload.clientFinalId || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  statut,\n  clientFinalId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "comparator": "equal",
+              "value1": "=true",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT COUNT(*) as total FROM devis WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : '' }}"
+      },
+      "id": "05. Count Query",
+      "name": "05. Count Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT id, tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, invoice_id, lien_pdf, created_at, updated_at FROM devis WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : '' }} ORDER BY date_devis DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+      },
+      "id": "06. List Query",
+      "name": "06. List Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "code": "const devis = $('06. List Query').all();\nconst countResult = $('05. Count Query').first();\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $json.limit);\n\nreturn {\n  devis: devis,\n  count: devis.length,\n  total: total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages: totalPages\n};"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 350]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 350]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Count Query", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Count Query": {
+      "main": [[{"node": "06. List Query", "type": "main", "index": 0}]]
+    },
+    "06. List Query": {
+      "main": [[{"node": "07. Format Response", "type": "main", "index": 0}]]
+    },
+    "07. Format Response": {
+      "main": [[{"node": "08. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

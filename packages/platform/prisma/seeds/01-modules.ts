@@ -58,4 +58,21 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module bons_commande OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'devis' },
+    update: {
+      nomAffiche: 'Devis',
+      description: 'Module de gestion des devis : création, envoi, acceptation, conversion en facture',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'devis',
+      nomAffiche: 'Devis',
+      description: 'Module de gestion des devis : création, envoi, acceptation, conversion en facture',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module devis OK');
 }

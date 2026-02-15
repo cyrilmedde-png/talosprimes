@@ -387,12 +387,8 @@ export default function FacturesPage() {
           </button>
           <button
             type="button"
-            title="Bientôt disponible"
-            onClick={() => {
-              setBientotMessage('Devis — bientôt disponible');
-              setTimeout(() => setBientotMessage(null), 2500);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium text-sm border border-gray-600"
+            onClick={() => router.push('/devis')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm"
           >
             <DocumentTextIcon className="h-5 w-5" />
             Devis

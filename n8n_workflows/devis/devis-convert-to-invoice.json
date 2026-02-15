@@ -1,0 +1,238 @@
+{
+  "name": "devis-convert-to-invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "devis-convert-to-invoice",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "code": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "comparator": "equal",
+              "value1": "=true",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT id, tenant_id, client_final_id, numero_devis, date_devis, montant_ht, montant_ttc, tva_taux, description, mode_paiement FROM devis WHERE id = {{ $json.devisId }} AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
+      },
+      "id": "05. Get Devis",
+      "name": "05. Get Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture, 5) AS INTEGER)), 0) + 1 as next_num FROM factures WHERE numero_facture LIKE 'FAC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+      },
+      "id": "06. Get Next Invoice Number",
+      "name": "06. Get Next Invoice Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "code": "const devis = $('05. Get Devis').first();\nconst nextNum = $('06. Get Next Invoice Number').first().next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!devis) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nreturn {\n  devisId: $json.devisId,\n  tenantId: $json.tenantId,\n  devis: devis,\n  numeroFacture: numeroFacture\n};"
+      },
+      "id": "07. Prepare Invoice Data",
+      "name": "07. Prepare Invoice Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 350]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=INSERT INTO factures (tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.devis.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, {{ $json.devis.montant_ht }}, {{ $json.devis.montant_ttc }}, {{ $json.devis.tva_taux }}, '{{ $json.devis.description }}', '{{ $json.devis.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+      },
+      "id": "08. Create Invoice",
+      "name": "08. Create Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1100, 350]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=SELECT id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
+      },
+      "id": "09. Get Devis Lines",
+      "name": "09. Get Devis Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1100, 450]
+    },
+    {
+      "parameters": {
+        "code": "const invoiceId = $('08. Create Invoice').first().id;\nconst lines = $('09. Get Devis Lines').all();\n\nreturn {\n  invoiceId: invoiceId,\n  lines: lines\n};"
+      },
+      "id": "10. Prepare Lines",
+      "name": "10. Prepare Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "resource": "executeQuery",
+        "query": "=INSERT INTO facture_lines (facture_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ({{ each(item).invoiceId }}, {{ each(item).ligne_numero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prix_unitaire }}, {{ each(item).montant_ht }}, {{ each(item).tva_taux }}, {{ each(item).montant_ttc }});"
+      },
+      "id": "11. Create Invoice Lines",
+      "name": "11. Create Invoice Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "resource": "queryResource",
+        "query": "=UPDATE devis SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().id }}, updated_at = NOW() WHERE id = {{ $json.devisId }}"
+      },
+      "id": "12. Update Devis",
+      "name": "12. Update Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Postgres"
+        }
+      },
+      "position": [1700, 400]
+    },
+    {
+      "parameters": {
+        "code": "return {\n  success: true,\n  message: 'Devis converted to invoice successfully',\n  devisId: $json.devisId,\n  invoiceId: $('08. Create Invoice').first().id,\n  numeroFacture: $json.numeroFacture\n};"
+      },
+      "id": "13. Format Response",
+      "name": "13. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 400]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "14. Respond",
+      "name": "14. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2100, 400]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Get Devis", "type": "main", "index": 0}],
+        [{"node": "04. Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Get Devis": {
+      "main": [[{"node": "06. Get Next Invoice Number", "type": "main", "index": 0}]]
+    },
+    "06. Get Next Invoice Number": {
+      "main": [[{"node": "07. Prepare Invoice Data", "type": "main", "index": 0}]]
+    },
+    "07. Prepare Invoice Data": {
+      "main": [[{"node": "08. Create Invoice", "type": "main", "index": 0}], [{"node": "09. Get Devis Lines", "type": "main", "index": 0}]]
+    },
+    "08. Create Invoice": {
+      "main": [[{"node": "10. Prepare Lines", "type": "main", "index": 0}]]
+    },
+    "09. Get Devis Lines": {
+      "main": [[{"node": "10. Prepare Lines", "type": "main", "index": 0}]]
+    },
+    "10. Prepare Lines": {
+      "main": [[{"node": "11. Create Invoice Lines", "type": "main", "index": 0}]]
+    },
+    "11. Create Invoice Lines": {
+      "main": [[{"node": "12. Update Devis", "type": "main", "index": 0}]]
+    },
+    "12. Update Devis": {
+      "main": [[{"node": "13. Format Response", "type": "main", "index": 0}]]
+    },
+    "13. Format Response": {
+      "main": [[{"node": "14. Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

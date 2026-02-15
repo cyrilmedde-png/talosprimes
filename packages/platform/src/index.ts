@@ -19,6 +19,7 @@ import { landingRoutes } from './api/routes/landing.routes.js';
 import { agentRoutes } from './api/routes/agent.routes.js';
 import { articleCodesRoutes } from './api/routes/article-codes.routes.js';
 import { bonsCommandeRoutes } from './api/routes/bons-commande.routes.js';
+import { devisRoutes } from './api/routes/devis.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -150,6 +151,7 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes bons de commande
 await fastify.register(async (fastify) => {
   await fastify.register(bonsCommandeRoutes, { prefix: '/api/bons-commande' });
+  await fastify.register(devisRoutes, { prefix: '/api/devis' });
 });
 
 // Route de test
