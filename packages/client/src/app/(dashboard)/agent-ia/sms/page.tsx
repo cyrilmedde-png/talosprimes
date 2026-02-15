@@ -110,7 +110,7 @@ export default function SMSPage() {
 
       const response = await apiClient.sms.send({
         toNumber,
-        message,
+        body: message,
       });
 
       if (response.success) {
