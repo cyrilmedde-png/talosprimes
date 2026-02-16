@@ -576,8 +576,15 @@ print(json.dumps(wf))
         rm -f "$tmp_payload"
 
         if [ "$http_code" = "200" ]; then
-          # Le PUT desactive le workflow (car on envoie sans 'active').
-          # On re-active immediatement avec POST /activate (SANS deactivate avant).
+          # Le PUT met a jour le contenu mais desactive le workflow.
+          # Il faut faire deactivate → activate pour forcer n8n a
+          # re-enregistrer les webhooks proprement.
+          # (Avant ca cassait a cause des credentials fausses, maintenant
+          # les credentials sont resolues correctement.)
+          curl -s -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id/deactivate" > /dev/null 2>&1 || true
+          sleep 0.5
           curl -s -X POST \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
