@@ -224,14 +224,14 @@
       "main": [
         [
           {
-            "node": "04. Repondre ignore",
+            "node": "05. Dedup check",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "05. Dedup check",
+            "node": "04. Repondre ignore",
             "type": "main",
             "index": 0
           }

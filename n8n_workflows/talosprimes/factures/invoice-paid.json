@@ -212,14 +212,14 @@
       "main": [
         [
           {
-            "node": "04. Repondre invalide",
+            "node": "05. Verifier facture existe",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "05. Verifier facture existe",
+            "node": "04. Repondre invalide",
             "type": "main",
             "index": 0
           }
