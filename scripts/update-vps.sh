@@ -494,12 +494,28 @@ except:
       if [ -n "$existing_id" ]; then
         # --- UPDATE ---
         payload=$(python3 -c "
-import sys, json
+import sys, json, os
+
+# Charger le mapping des credentials
+cred_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
+
 with open('$file') as f:
     wf = json.load(f)
 wf.setdefault('settings', {})
 for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
     wf.pop(k, None)
+
+# Remplacer les credential IDs par les vrais IDs de n8n
+for node in wf.get('nodes', []):
+    creds = node.get('credentials', {})
+    for cred_type, cred_info in creds.items():
+        if isinstance(cred_info, dict):
+            cred_name = cred_info.get('name', '')
+            cred_id = cred_info.get('id', '')
+            # Si le nom existe dans notre mapping, remplacer l'ID
+            if cred_name and cred_name in cred_map:
+                cred_info['id'] = cred_map[cred_name]
+
 print(json.dumps(wf))
 " 2>/dev/null || true)
 
@@ -534,13 +550,29 @@ print(json.dumps(wf))
       else
         # --- CREATE ---
         payload=$(python3 -c "
-import sys, json
+import sys, json, os
+
+# Charger le mapping des credentials
+cred_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
+
 with open('$file') as f:
     wf = json.load(f)
 wf.setdefault('settings', {})
 allowed = {'name','nodes','connections','settings','staticData'}
 wf = {k: v for k, v in wf.items() if k in allowed}
 wf.setdefault('settings', {})
+
+# Remplacer les credential IDs par les vrais IDs de n8n
+for node in wf.get('nodes', []):
+    creds = node.get('credentials', {})
+    for cred_type, cred_info in creds.items():
+        if isinstance(cred_info, dict):
+            cred_name = cred_info.get('name', '')
+            cred_id = cred_info.get('id', '')
+            # Si le nom existe dans notre mapping, remplacer l'ID
+            if cred_name and cred_name in cred_map:
+                cred_info['id'] = cred_map[cred_name]
+
 print(json.dumps(wf))
 " 2>/dev/null || true)
 
@@ -614,6 +646,36 @@ print(json.dumps({'data': all_workflows}))
 " 2>/dev/null || echo "")
 
     EXISTING_PROJECTS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/projects" 2>/dev/null || echo "{}")
+
+    # ---------------------------------------------------------------
+    # Recuperer les credentials existantes pour remplacement auto
+    # ---------------------------------------------------------------
+    log_info "Recuperation des credentials n8n..."
+    N8N_CREDENTIALS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/credentials" 2>/dev/null || echo "{}")
+
+    # Construire le mapping name->id en JSON pour python
+    CREDENTIAL_MAP=$(echo "$N8N_CREDENTIALS" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    creds = data.get('data', data) if isinstance(data, dict) else data
+    if not isinstance(creds, list):
+        creds = []
+    # Mapping: nom de credential -> id reel
+    mapping = {}
+    for c in creds:
+        name = c.get('name', '')
+        cid = str(c.get('id', ''))
+        if name and cid:
+            mapping[name] = cid
+    print(json.dumps(mapping))
+except:
+    print('{}')
+" 2>/dev/null || echo "{}")
+
+    export CREDENTIAL_MAP
+    CRED_COUNT=$(echo "$CREDENTIAL_MAP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    log_info "$CRED_COUNT credentials trouvees dans n8n"
 
     # Verifier que les reponses sont du JSON valide
     if [ -z "$EXISTING_WORKFLOWS" ] || ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
