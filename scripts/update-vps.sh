@@ -1022,26 +1022,49 @@ for w in inactive:
         done
       fi
 
-      # --- REDEMARRAGE n8n pour forcer l'enregistrement des webhooks ---
-      # L'API POST /activate ne re-enregistre pas les webhooks dans cette
-      # version de n8n. Le seul moyen fiable est de redemarrer le conteneur.
-      # Au demarrage, n8n re-enregistre les webhooks de tous les workflows actifs.
+      # --- AUTO-PUBLISH: Utiliser le workflow n8n interne pour publier ---
+      # Le noeud n8n interne "Publish a workflow" fait le VRAI publish
+      # (avec enregistrement des webhooks), contrairement a l'API REST.
+      # On appelle le webhook du workflow "Deploy - Auto Publish All Workflows".
       if [ "$N8N_SUCCESS" -gt 0 ]; then
-        log_info "Redemarrage de n8n pour re-enregistrer les webhooks..."
-        docker restart n8n > /dev/null 2>&1 || true
-        # Attendre que n8n soit pret
-        n8n_ready=false
-        for i in $(seq 1 30); do
-          if curl -s -o /dev/null -w "%{http_code}" "$N8N_API_URL/healthz" 2>/dev/null | grep -q "200"; then
-            n8n_ready=true
-            break
-          fi
-          sleep 2
-        done
-        if [ "$n8n_ready" = true ]; then
-          log_ok "n8n redemarre et pret (webhooks re-enregistres)"
+        log_info "Declenchement du workflow Auto-Publish pour re-enregistrer les webhooks..."
+
+        # Determiner l'URL webhook de n8n
+        # N8N_API_URL est du type http://localhost:5678
+        # Le webhook est accessible sur le meme host
+        N8N_WEBHOOK_URL="${N8N_API_URL}/webhook/deploy-publish-all"
+
+        # Attendre un peu que n8n soit pret apres les PUTs
+        sleep 2
+
+        # Appeler le webhook auto-publish
+        publish_resp=$(curl -s -w "\n%{http_code}" -X POST \
+          "$N8N_WEBHOOK_URL" \
+          -H "Content-Type: application/json" \
+          -d '{"source": "deploy-script"}' \
+          --max-time 120 2>/dev/null || true)
+        publish_code=$(echo "$publish_resp" | tail -1)
+        publish_body=$(echo "$publish_resp" | sed '$d')
+
+        if [ "$publish_code" = "200" ]; then
+          log_ok "Auto-Publish OK: $(echo "$publish_body" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('message',''))" 2>/dev/null || echo "$publish_body")"
         else
-          log_warn "n8n redemarre mais health check echoue — verifier manuellement"
+          log_warn "Auto-Publish echoue (HTTP $publish_code) — tentative docker restart..."
+          # Fallback: redemarrer n8n pour forcer l'enregistrement des webhooks
+          docker restart n8n > /dev/null 2>&1 || true
+          n8n_ready=false
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" "$N8N_API_URL/healthz" 2>/dev/null | grep -q "200"; then
+              n8n_ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$n8n_ready" = true ]; then
+            log_ok "n8n redemarre (fallback) — webhooks re-enregistres au demarrage"
+          else
+            log_warn "n8n redemarre mais health check echoue — verifier manuellement"
+          fi
         fi
       fi
     fi

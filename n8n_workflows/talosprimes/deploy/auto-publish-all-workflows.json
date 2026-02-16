@@ -1,0 +1,178 @@
+{
+  "name": "Deploy - Auto Publish All Workflows",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "deploy-publish-all",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "01. Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "resource": "workflow",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {}
+      },
+      "id": "get-all-workflows",
+      "name": "02. Get All Workflows",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-active",
+              "leftValue": "={{ $json.active }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-active",
+      "name": "03. Filtrer Actifs",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "resource": "workflow",
+        "operation": "deactivate",
+        "workflowId": "={{ $json.id }}"
+      },
+      "id": "deactivate-workflow",
+      "name": "04. Deactivate",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "amount": 0.5,
+        "unit": "seconds"
+      },
+      "id": "wait-node",
+      "name": "05. Wait 500ms",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "resource": "workflow",
+        "operation": "activate",
+        "workflowId": "={{ $json.id }}"
+      },
+      "id": "publish-workflow",
+      "name": "06. Publish (Activate)",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const items = $input.all();\nconst published = items.length;\nreturn [{ json: { success: true, message: `${published} workflows publies avec succes`, count: published } }];"
+      },
+      "id": "summary-response",
+      "name": "07. Resume",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "02. Get All Workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Get All Workflows": {
+      "main": [
+        [
+          {
+            "node": "03. Filtrer Actifs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Filtrer Actifs": {
+      "main": [
+        [
+          {
+            "node": "04. Deactivate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Deactivate": {
+      "main": [
+        [
+          {
+            "node": "05. Wait 500ms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Wait 500ms": {
+      "main": [
+        [
+          {
+            "node": "06. Publish (Activate)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Publish (Activate)": {
+      "main": [
+        [
+          {
+            "node": "07. Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
