@@ -531,10 +531,30 @@ print(json.dumps(wf))
         http_code=$(echo "$response" | tail -1)
 
         if [ "$http_code" = "200" ]; then
-          # Activer
-          curl -s -X POST \
+          # Attendre que n8n traite la mise a jour
+          sleep 1
+
+          # Activer via PUT avec active:true (plus fiable que POST /activate)
+          local activate_response activate_code
+          activate_response=$(curl -s -w "\n%{http_code}" -X PUT \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
+            -H "Content-Type: application/json" \
+            -d "{\"active\": true}" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || true)
+          activate_code=$(echo "$activate_response" | tail -1)
+
+          if [ "$activate_code" != "200" ]; then
+            # Retry avec POST /activate en fallback
+            sleep 1
+            activate_response=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_API_URL/api/v1/workflows/$existing_id/activate" 2>/dev/null || true)
+            activate_code=$(echo "$activate_response" | tail -1)
+            if [ "$activate_code" != "200" ]; then
+              log_warn "    ⚠ Activation echouee pour $(basename "$file") (HTTP $activate_code)"
+            fi
+          fi
+
           # Transferer dans le bon projet si necessaire
           if [ -n "$project_id" ]; then
             curl -s -X PUT \
@@ -592,10 +612,30 @@ print(json.dumps(wf))
           local new_id
           new_id=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
           if [ -n "$new_id" ]; then
-            # Activer
-            curl -s -X POST \
+            # Attendre que n8n traite la creation
+            sleep 1
+
+            # Activer via PUT avec active:true (plus fiable que POST /activate)
+            local activate_response activate_code
+            activate_response=$(curl -s -w "\n%{http_code}" -X PUT \
               -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              "$N8N_API_URL/api/v1/workflows/$new_id/activate" > /dev/null 2>&1 || true
+              -H "Content-Type: application/json" \
+              -d "{\"active\": true}" \
+              "$N8N_API_URL/api/v1/workflows/$new_id" 2>/dev/null || true)
+            activate_code=$(echo "$activate_response" | tail -1)
+
+            if [ "$activate_code" != "200" ]; then
+              # Retry avec POST /activate en fallback
+              sleep 1
+              activate_response=$(curl -s -w "\n%{http_code}" -X POST \
+                -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                "$N8N_API_URL/api/v1/workflows/$new_id/activate" 2>/dev/null || true)
+              activate_code=$(echo "$activate_response" | tail -1)
+              if [ "$activate_code" != "200" ]; then
+                log_warn "    ⚠ Activation echouee pour $(basename "$file") (HTTP $activate_code)"
+              fi
+            fi
+
             # Transferer dans le bon projet
             if [ -n "$project_id" ]; then
               curl -s -X PUT \
@@ -676,6 +716,18 @@ except:
     export CREDENTIAL_MAP
     CRED_COUNT=$(echo "$CREDENTIAL_MAP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
     log_info "$CRED_COUNT credentials trouvees dans n8n"
+
+    # Afficher le mapping pour debug
+    if [ "$CRED_COUNT" != "0" ]; then
+      echo "$CREDENTIAL_MAP" | python3 -c "
+import sys, json
+mapping = json.load(sys.stdin)
+for name, cid in mapping.items():
+    print(f'    → {name} = {cid}')
+" 2>/dev/null || true
+    else
+      log_warn "AUCUNE credential trouvee — les workflows ne pourront pas s'activer!"
+    fi
 
     # Verifier que les reponses sont du JSON valide
     if [ -z "$EXISTING_WORKFLOWS" ] || ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
@@ -815,6 +867,101 @@ except:
         log_ok "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL synchronises"
       else
         log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_ERRORS erreurs"
+      fi
+
+      # --- VERIFICATION POST-SYNC: lister les workflows inactifs ---
+      log_info "Verification de l'activation des workflows..."
+      INACTIVE_LIST=$(python3 -c "
+import json, urllib.request, os
+
+api_url = os.environ.get('N8N_API_URL', '')
+api_key = os.environ.get('N8N_API_KEY', '')
+all_workflows = []
+cursor = ''
+
+for _ in range(20):
+    url = f'{api_url}/api/v1/workflows?limit=250'
+    if cursor:
+        url += f'&cursor={cursor}'
+    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
+    try:
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read())
+    except:
+        break
+    wfs = data.get('data', [])
+    all_workflows.extend(wfs)
+    cursor = data.get('nextCursor', '')
+    if not cursor or not wfs:
+        break
+
+active = [w for w in all_workflows if w.get('active')]
+inactive = [w for w in all_workflows if not w.get('active')]
+
+print(f'ACTIFS: {len(active)} | INACTIFS: {len(inactive)}')
+if inactive:
+    for w in inactive:
+        print(f'  ✗ [{w.get(\"id\")}] {w.get(\"name\", \"?\")}')
+" 2>/dev/null || echo "Impossible de verifier")
+
+      echo "$INACTIVE_LIST" | while IFS= read -r line; do
+        if echo "$line" | grep -q "INACTIFS: 0"; then
+          log_ok "$line"
+        elif echo "$line" | grep -q "ACTIFS:"; then
+          log_warn "$line"
+        else
+          echo "$line"
+        fi
+      done
+
+      # --- ACTIVATION FORCEE des workflows inactifs ---
+      INACTIVE_IDS=$(python3 -c "
+import json, urllib.request, os
+
+api_url = os.environ.get('N8N_API_URL', '')
+api_key = os.environ.get('N8N_API_KEY', '')
+all_workflows = []
+cursor = ''
+
+for _ in range(20):
+    url = f'{api_url}/api/v1/workflows?limit=250'
+    if cursor:
+        url += f'&cursor={cursor}'
+    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
+    try:
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read())
+    except:
+        break
+    wfs = data.get('data', [])
+    all_workflows.extend(wfs)
+    cursor = data.get('nextCursor', '')
+    if not cursor or not wfs:
+        break
+
+inactive = [w for w in all_workflows if not w.get('active')]
+for w in inactive:
+    print(w['id'])
+" 2>/dev/null || true)
+
+      if [ -n "$INACTIVE_IDS" ]; then
+        FORCE_OK=0
+        FORCE_FAIL=0
+        log_info "Tentative d'activation forcee des workflows inactifs..."
+
+        echo "$INACTIVE_IDS" | while IFS= read -r wf_id; do
+          [ -z "$wf_id" ] && continue
+          local act_resp act_code
+          act_resp=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$wf_id/activate" 2>/dev/null || true)
+          act_code=$(echo "$act_resp" | tail -1)
+          if [ "$act_code" = "200" ]; then
+            echo "    ✓ $wf_id active"
+          else
+            echo "    ✗ $wf_id ECHEC (HTTP $act_code)"
+          fi
+        done
       fi
     fi
   fi
