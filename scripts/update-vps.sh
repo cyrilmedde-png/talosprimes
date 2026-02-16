@@ -500,61 +500,81 @@ except:
         curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
           "$N8N_API_URL/api/v1/workflows/$existing_id" > "$tmp_current" 2>/dev/null || echo "{}" > "$tmp_current"
 
+        local tmp_pyerr="/tmp/n8n_pyerr_$existing_id.txt"
         payload=$(python3 -c "
-import sys, json, os
-
-# Charger le mapping global des credentials (fallback)
-global_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
-
-# Charger le workflow ACTUEL de n8n pour extraire ses vrais credential IDs
-local_map = {}
+import sys, json, os, traceback
 try:
-    with open('$tmp_current') as f:
-        current_wf = json.load(f)
-    for node in current_wf.get('nodes', []):
-        for cred_type, cred_info in node.get('credentials', {}).items():
+    # Charger le mapping global des credentials (fallback)
+    global_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
+
+    # Charger le workflow ACTUEL de n8n pour extraire ses vrais credential IDs
+    local_map = {}
+    try:
+        with open('$tmp_current') as f:
+            current_wf = json.load(f)
+        for node in current_wf.get('nodes', []):
+            for cred_type, cred_info in node.get('credentials', {}).items():
+                if isinstance(cred_info, dict):
+                    cname = cred_info.get('name', '')
+                    cid = str(cred_info.get('id', ''))
+                    if cname and cid and 'REPLACE' not in cid and cid not in ('', 'null', 'None'):
+                        local_map[cname] = cid
+    except:
+        pass
+
+    # Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
+    cred_map = {**global_map, **local_map}
+
+    with open('$file') as f:
+        wf = json.load(f)
+    wf.setdefault('settings', {})
+    # Retirer TOUS les champs que l'API n8n PUT n'accepte pas
+    for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
+        wf.pop(k, None)
+
+    # Remplacer les credential IDs par les vrais IDs de n8n
+    replaced = 0
+    unresolved = []
+    for node in wf.get('nodes', []):
+        creds = node.get('credentials', {})
+        for cred_type, cred_info in creds.items():
             if isinstance(cred_info, dict):
-                cname = cred_info.get('name', '')
-                cid = str(cred_info.get('id', ''))
-                if cname and cid and 'REPLACE' not in cid and cid not in ('', 'null', 'None'):
-                    local_map[cname] = cid
-except:
-    pass
+                cred_name = cred_info.get('name', '')
+                cred_id = str(cred_info.get('id', ''))
+                if cred_name and cred_name in cred_map:
+                    cred_info['id'] = cred_map[cred_name]
+                    replaced += 1
+                elif 'REPLACE' in cred_id:
+                    unresolved.append(cred_name)
 
-# Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
-cred_map = {**global_map, **local_map}
+    if replaced > 0:
+        print(f'      {replaced} credentials resolues depuis n8n', file=sys.stderr)
+    if unresolved:
+        names = ', '.join(set(unresolved))
+        print(f'      ATTENTION: credentials non resolues: {names}', file=sys.stderr)
 
-with open('$file') as f:
-    wf = json.load(f)
-wf.setdefault('settings', {})
-# Retirer TOUS les champs que l'API n8n PUT n'accepte pas
-# (l'API renvoie 400 "must NOT have additional properties" sinon)
-for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
-    wf.pop(k, None)
+    print(json.dumps(wf))
+except Exception as e:
+    traceback.print_exc(file=sys.stderr)
+    with open('$tmp_pyerr', 'w') as ef:
+        traceback.print_exc(file=ef)
+    sys.exit(1)
+")
+        local py_exit=$?
 
-# Remplacer les credential IDs par les vrais IDs de n8n
-replaced = 0
-unresolved = []
-for node in wf.get('nodes', []):
-    creds = node.get('credentials', {})
-    for cred_type, cred_info in creds.items():
-        if isinstance(cred_info, dict):
-            cred_name = cred_info.get('name', '')
-            cred_id = str(cred_info.get('id', ''))
-            if cred_name and cred_name in cred_map:
-                cred_info['id'] = cred_map[cred_name]
-                replaced += 1
-            elif 'REPLACE' in cred_id:
-                unresolved.append(cred_name)
-
-if replaced > 0:
-    print(f'      {replaced} credentials resolues depuis n8n', file=sys.stderr)
-if unresolved:
-    names = ', '.join(set(unresolved))
-    print(f'      ATTENTION: credentials non resolues: {names}', file=sys.stderr)
-
-print(json.dumps(wf))
-" || true)
+        # Si Python a echoue, afficher l'erreur
+        if [ $py_exit -ne 0 ] || [ -z "$payload" ]; then
+          if [ -f "$tmp_pyerr" ]; then
+            log_warn "    Python erreur pour $(basename "$file"):"
+            cat "$tmp_pyerr" >&2
+            rm -f "$tmp_pyerr"
+          elif [ $py_exit -ne 0 ]; then
+            log_warn "    Python crash (exit=$py_exit) pour $(basename "$file")"
+          else
+            log_warn "    Payload vide pour $(basename "$file")"
+          fi
+        fi
+        rm -f "$tmp_pyerr"
 
         rm -f "$tmp_current"
 
@@ -576,8 +596,11 @@ print(json.dumps(wf))
         rm -f "$tmp_payload"
 
         if [ "$http_code" = "200" ]; then
-          # Le PUT met a jour le contenu. Les webhooks seront re-enregistres
-          # par le redemarrage de n8n apres la sync (docker restart).
+          # Re-activer le workflow (le PUT peut le desactiver)
+          # Le docker restart en fin de sync re-enregistrera les webhooks
+          curl -s -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
 
           # Transferer dans le bon projet si necessaire
           if [ -n "$project_id" ]; then
@@ -1007,7 +1030,7 @@ for w in inactive:
         log_info "Redemarrage de n8n pour re-enregistrer les webhooks..."
         docker restart n8n > /dev/null 2>&1 || true
         # Attendre que n8n soit pret
-        local n8n_ready=false
+        n8n_ready=false
         for i in $(seq 1 30); do
           if curl -s -o /dev/null -w "%{http_code}" "$N8N_API_URL/healthz" 2>/dev/null | grep -q "200"; then
             n8n_ready=true
