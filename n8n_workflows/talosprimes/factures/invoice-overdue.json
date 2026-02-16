@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -21,17 +24,30 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json._error === true }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._error === true }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "if-valid",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,7 +58,10 @@
       "name": "04. Repondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [860, 480]
+      "position": [
+        860,
+        480
+      ]
     },
     {
       "parameters": {
@@ -53,8 +72,16 @@
       "name": "05. SELECT factures en retard",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [860, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+        }
+      }
     },
     {
       "parameters": {
@@ -64,7 +91,10 @@
       "name": "06. Formater",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 300]
+      "position": [
+        1080,
+        300
+      ]
     },
     {
       "parameters": {
@@ -75,21 +105,78 @@
       "name": "07. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
-    "03. Valide ?": {
+    "01. Webhook": {
       "main": [
-        [{ "node": "04. Repondre erreur", "type": "main", "index": 0 }],
-        [{ "node": "05. SELECT factures en retard", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "05. SELECT factures en retard": { "main": [[{ "node": "06. Formater", "type": "main", "index": 0 }]] },
-    "06. Formater": { "main": [[{ "node": "07. Repondre", "type": "main", "index": 0 }]] }
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. SELECT factures en retard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. SELECT factures en retard": {
+      "main": [
+        [
+          {
+            "node": "06. Formater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Formater": {
+      "main": [
+        [
+          {
+            "node": "07. Repondre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -21,17 +24,30 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json._skip === true }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._skip === true }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "if-skip",
       "name": "03. Payload complet ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,7 +58,10 @@
       "name": "04. Repondre ignore",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [860, 480]
+      "position": [
+        860,
+        480
+      ]
     },
     {
       "parameters": {
@@ -53,8 +72,16 @@
       "name": "05. Dedup check",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [860, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+        }
+      }
     },
     {
       "parameters": {
@@ -64,17 +91,30 @@
       "name": "06. Cache ou creer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 300]
+      "position": [
+        1080,
+        300
+      ]
     },
     {
       "parameters": {
-        "conditions": { "boolean": [{ "value1": "={{ $json.fromCache }}", "value2": true }] }
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.fromCache }}",
+              "value2": true
+            }
+          ]
+        }
       },
       "id": "if-cache",
       "name": "07. Deja existante ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -83,13 +123,18 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": { "timeout": 15000 }
+        "options": {
+          "timeout": 15000
+        }
       },
       "id": "api-create",
       "name": "08. API Creer facture",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1520, 400]
+      "position": [
+        1520,
+        400
+      ]
     },
     {
       "parameters": {
@@ -99,7 +144,10 @@
       "name": "09. Extraire invoiceId",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1740, 400]
+      "position": [
+        1740,
+        400
+      ]
     },
     {
       "parameters": {
@@ -110,8 +158,16 @@
       "name": "10. Recuperer facture",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1740, 200],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        1740,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+        }
+      }
     },
     {
       "parameters": {
@@ -121,7 +177,10 @@
       "name": "11. Formater reponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1960, 300]
+      "position": [
+        1960,
+        300
+      ]
     },
     {
       "parameters": {
@@ -132,31 +191,140 @@
       "name": "12. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2180, 300]
+      "position": [
+        2180,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Payload complet ?", "type": "main", "index": 0 }]] },
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Payload complet ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "03. Payload complet ?": {
       "main": [
-        [{ "node": "04. Repondre ignore", "type": "main", "index": 0 }],
-        [{ "node": "05. Dedup check", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "04. Repondre ignore",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. Dedup check",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "05. Dedup check": { "main": [[{ "node": "06. Cache ou creer", "type": "main", "index": 0 }]] },
-    "06. Cache ou creer": { "main": [[{ "node": "07. Deja existante ?", "type": "main", "index": 0 }]] },
+    "05. Dedup check": {
+      "main": [
+        [
+          {
+            "node": "06. Cache ou creer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Cache ou creer": {
+      "main": [
+        [
+          {
+            "node": "07. Deja existante ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "07. Deja existante ?": {
       "main": [
-        [{ "node": "10. Recuperer facture", "type": "main", "index": 0 }],
-        [{ "node": "08. API Creer facture", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "10. Recuperer facture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08. API Creer facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "08. API Creer facture": { "main": [[{ "node": "09. Extraire invoiceId", "type": "main", "index": 0 }]] },
-    "09. Extraire invoiceId": { "main": [[{ "node": "10. Recuperer facture", "type": "main", "index": 0 }]] },
-    "10. Recuperer facture": { "main": [[{ "node": "11. Formater reponse", "type": "main", "index": 0 }]] },
-    "11. Formater reponse": { "main": [[{ "node": "12. Repondre succes", "type": "main", "index": 0 }]] }
+    "08. API Creer facture": {
+      "main": [
+        [
+          {
+            "node": "09. Extraire invoiceId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Extraire invoiceId": {
+      "main": [
+        [
+          {
+            "node": "10. Recuperer facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Recuperer facture": {
+      "main": [
+        [
+          {
+            "node": "11. Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Formater reponse": {
+      "main": [
+        [
+          {
+            "node": "12. Repondre succes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

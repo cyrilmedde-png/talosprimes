@@ -12,7 +12,10 @@
       "name": "01. Webhook - Suspension",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "subscription-suspended"
     },
     {
@@ -23,7 +26,10 @@
       "name": "02. Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -34,11 +40,14 @@
       "name": "03. Récupérer abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -57,7 +66,10 @@
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -67,7 +79,10 @@
       "name": "05. Préparer suspension",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -84,7 +99,10 @@
       "name": "06. Vérifier Stripe ID",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -116,7 +134,10 @@
       "name": "07. Mettre en pause Stripe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 180],
+      "position": [
+        1560,
+        180
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -133,11 +154,14 @@
       "name": "08. Suspendre abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1780, 300],
+      "position": [
+        1780,
+        300
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -150,11 +174,14 @@
       "name": "09. Vérifier autres abonnements actifs",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2000, 300],
+      "position": [
+        2000,
+        300
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -174,7 +201,10 @@
       "name": "10. Abonnements actifs restants ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2220, 300]
+      "position": [
+        2220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -185,11 +215,14 @@
       "name": "11. Suspendre le client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2440, 180],
+      "position": [
+        2440,
+        180
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -201,7 +234,10 @@
       "name": "12. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 300]
+      "position": [
+        2660,
+        300
+      ]
     },
     {
       "parameters": {
@@ -226,7 +262,10 @@
       "name": "13. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 300],
+      "position": [
+        2880,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "resend-api-credential",
@@ -257,7 +296,10 @@
       "name": "14. Créer notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3100, 300],
+      "position": [
+        3100,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -275,7 +317,10 @@
       "name": "15. Répondre succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3320, 300]
+      "position": [
+        3320,
+        300
+      ]
     },
     {
       "parameters": {
@@ -287,7 +332,10 @@
       "name": "Répondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     },
     {
       "parameters": {
@@ -299,7 +347,10 @@
       "name": "Répondre erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 450]
+      "position": [
+        1560,
+        450
+      ]
     }
   ],
   "connections": {

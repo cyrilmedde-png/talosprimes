@@ -12,7 +12,10 @@
       "name": "Webhook - Onboarding Client",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "client-onboarding"
     },
     {
@@ -23,7 +26,10 @@
       "name": "01. Préparer données onboarding",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -44,7 +50,10 @@
       "name": "02. Validation données",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [680, 400]
+      "position": [
+        680,
+        400
+      ]
     },
     {
       "parameters": {
@@ -61,7 +70,10 @@
       "name": "03. IF - Stripe activé ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -105,7 +117,10 @@
       "name": "04. Stripe - Créer Customer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 300],
+      "position": [
+        1120,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -147,7 +162,10 @@
       "name": "05. Stripe - Créer Produit",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1340, 300],
+      "position": [
+        1340,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -201,7 +219,10 @@
       "name": "06. Stripe - Créer Prix",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 300],
+      "position": [
+        1560,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -217,7 +238,10 @@
       "name": "06b. Préparer URLs Checkout",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 380]
+      "position": [
+        1560,
+        380
+      ]
     },
     {
       "parameters": {
@@ -293,7 +317,10 @@
       "name": "07. Stripe - Créer Session Checkout",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 380],
+      "position": [
+        1780,
+        380
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -309,7 +336,10 @@
       "name": "08. Préparer avec IDs Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 380]
+      "position": [
+        2000,
+        380
+      ]
     },
     {
       "parameters": {
@@ -319,7 +349,10 @@
       "name": "10a. Préparer après abonnement",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 500]
+      "position": [
+        1780,
+        500
+      ]
     },
     {
       "parameters": {
@@ -329,7 +362,10 @@
       "name": "09. Préparer requête SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 500]
+      "position": [
+        1120,
+        500
+      ]
     },
     {
       "parameters": {
@@ -339,7 +375,10 @@
       "name": "09c. Conserver données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 600]
+      "position": [
+        1340,
+        600
+      ]
     },
     {
       "parameters": {
@@ -350,11 +389,14 @@
       "name": "10. Créer abonnement client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1340, 400],
+      "position": [
+        1340,
+        400
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -367,7 +409,10 @@
       "name": "10-merge. Combiner abonnement et données",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1560, 500]
+      "position": [
+        1560,
+        500
+      ]
     },
     {
       "parameters": {
@@ -377,7 +422,10 @@
       "name": "09a. Générer mot de passe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     },
     {
       "parameters": {
@@ -388,7 +436,10 @@
       "name": "09b. Merge - Ajouter mot de passe",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1120, 500]
+      "position": [
+        1120,
+        500
+      ]
     },
     {
       "parameters": {
@@ -398,7 +449,10 @@
       "name": "10b. Préparer création Tenant et User",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 500]
+      "position": [
+        2000,
+        500
+      ]
     },
     {
       "parameters": {
@@ -423,7 +477,10 @@
       "name": "10c. Créer Tenant et User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 500],
+      "position": [
+        2220,
+        500
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -439,7 +496,10 @@
       "name": "11. Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2440, 500]
+      "position": [
+        2440,
+        500
+      ]
     },
     {
       "parameters": {
@@ -449,7 +509,10 @@
       "name": "11b. Préparer notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2440, 650]
+      "position": [
+        2440,
+        650
+      ]
     },
     {
       "parameters": {
@@ -474,7 +537,10 @@
       "name": "12. Créer notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2660, 650],
+      "position": [
+        2660,
+        650
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -492,7 +558,10 @@
       "name": "13. Répondre au webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2880, 500]
+      "position": [
+        2880,
+        500
+      ]
     },
     {
       "parameters": {
@@ -504,7 +573,10 @@
       "name": "Répondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [680, 600]
+      "position": [
+        680,
+        600
+      ]
     }
   ],
   "connections": {

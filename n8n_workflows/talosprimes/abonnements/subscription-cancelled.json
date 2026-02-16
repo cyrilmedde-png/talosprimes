@@ -12,7 +12,10 @@
       "name": "01. Webhook - Annulation",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "subscription-cancelled"
     },
     {
@@ -23,7 +26,10 @@
       "name": "02. Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -34,11 +40,14 @@
       "name": "03. Récupérer abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -57,7 +66,10 @@
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -67,7 +79,10 @@
       "name": "05a. Préparer notification admin (erreur)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     },
     {
       "parameters": {
@@ -92,7 +107,10 @@
       "name": "05b. Envoyer notification admin",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 600],
+      "position": [
+        1120,
+        600
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -108,7 +126,10 @@
       "name": "06. Préparer annulation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -125,7 +146,10 @@
       "name": "07. IF - Stripe configuré ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -138,7 +162,10 @@
       "name": "08. Stripe - Annuler abonnement",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 200],
+      "position": [
+        1560,
+        200
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -161,7 +188,10 @@
       "name": "08a. Valider réponse Stripe",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1780, 200]
+      "position": [
+        1780,
+        200
+      ]
     },
     {
       "parameters": {
@@ -171,7 +201,10 @@
       "name": "08b. Confirmer Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 100]
+      "position": [
+        2000,
+        100
+      ]
     },
     {
       "parameters": {
@@ -181,7 +214,10 @@
       "name": "08c. Préparer notification erreur Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 300]
+      "position": [
+        2000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -206,7 +242,10 @@
       "name": "08d. Envoyer notification erreur Stripe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 300],
+      "position": [
+        2220,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -224,7 +263,10 @@
       "name": "08e. Répondre erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2440, 300]
+      "position": [
+        2440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -235,7 +277,10 @@
       "name": "09. Merge - Stripe et sans Stripe",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [2220, 100]
+      "position": [
+        2220,
+        100
+      ]
     },
     {
       "parameters": {
@@ -246,11 +291,14 @@
       "name": "10. Annuler abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2440, 100],
+      "position": [
+        2440,
+        100
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -262,7 +310,10 @@
       "name": "11. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 100]
+      "position": [
+        2660,
+        100
+      ]
     },
     {
       "parameters": {
@@ -287,7 +338,10 @@
       "name": "12. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 100],
+      "position": [
+        2880,
+        100
+      ],
       "credentials": {
         "headerAuth": {
           "id": "resend-api-credential",
@@ -303,7 +357,10 @@
       "name": "13. Préparer notification TalosPrimes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 100]
+      "position": [
+        3100,
+        100
+      ]
     },
     {
       "parameters": {
@@ -328,7 +385,10 @@
       "name": "14. Envoyer notification TalosPrimes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3320, 100],
+      "position": [
+        3320,
+        100
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -346,7 +406,10 @@
       "name": "15. Répondre succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3540, 100]
+      "position": [
+        3540,
+        100
+      ]
     },
     {
       "parameters": {
@@ -358,7 +421,10 @@
       "name": "16. Répondre erreur (non trouvé)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 600]
+      "position": [
+        1340,
+        600
+      ]
     }
   ],
   "connections": {

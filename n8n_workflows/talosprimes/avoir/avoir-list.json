@@ -73,7 +73,8 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -91,7 +92,8 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },

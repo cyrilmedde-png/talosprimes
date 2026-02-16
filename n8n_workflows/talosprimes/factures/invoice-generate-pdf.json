@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -21,19 +24,30 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [{ "value1": "={{ $json._error === true }}", "value2": true }]
+          "boolean": [
+            {
+              "value1": "={{ $json._error === true }}",
+              "value2": true
+            }
+          ]
         }
       },
       "id": "if-valid",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -44,7 +58,10 @@
       "name": "04. Repondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [860, 480]
+      "position": [
+        860,
+        480
+      ]
     },
     {
       "parameters": {
@@ -56,20 +73,36 @@
       "name": "05. Verifier facture existe",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [860, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+        }
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [{ "value1": "={{ $json.invoice !== null && $json.invoice !== undefined }}", "value2": true }]
+          "boolean": [
+            {
+              "value1": "={{ $json.invoice !== null && $json.invoice !== undefined }}",
+              "value2": true
+            }
+          ]
         }
       },
       "id": "if-found",
       "name": "06. Facture trouvee ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1080, 300]
+      "position": [
+        1080,
+        300
+      ]
     },
     {
       "parameters": {
@@ -80,7 +113,10 @@
       "name": "07. Repondre 404",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 480]
+      "position": [
+        1300,
+        480
+      ]
     },
     {
       "parameters": {
@@ -92,8 +128,16 @@
       "name": "08. UPDATE lien_pdf",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1300, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        1300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+        }
+      }
     },
     {
       "parameters": {
@@ -103,7 +147,10 @@
       "name": "09. Formater reponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1520, 300]
+      "position": [
+        1520,
+        300
+      ]
     },
     {
       "parameters": {
@@ -114,38 +161,107 @@
       "name": "10. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1740, 300]
+      "position": [
+        1740,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "04. Repondre erreur", "type": "main", "index": 0 }],
-        [{ "node": "05. Verifier facture existe", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. Verifier facture existe",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Verifier facture existe": {
-      "main": [[{ "node": "06. Facture trouvee ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Facture trouvee ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Facture trouvee ?": {
       "main": [
-        [{ "node": "07. Repondre 404", "type": "main", "index": 0 }],
-        [{ "node": "08. UPDATE lien_pdf", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "07. Repondre 404",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08. UPDATE lien_pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "08. UPDATE lien_pdf": {
-      "main": [[{ "node": "09. Formater reponse", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "09. Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Formater reponse": {
-      "main": [[{ "node": "10. Repondre succes", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Repondre succes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

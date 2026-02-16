@@ -12,7 +12,10 @@
       "name": "01. Webhook - Changement de plan",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "subscription-upgrade"
     },
     {
@@ -23,7 +26,10 @@
       "name": "02. Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -34,11 +40,14 @@
       "name": "03. Récupérer abonnement actuel",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -57,7 +66,10 @@
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -67,7 +79,10 @@
       "name": "05. Calculer prorata (affichage)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -84,7 +99,10 @@
       "name": "06. IF - Stripe configuré ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
     },
     {
       "parameters": {
@@ -120,7 +138,10 @@
       "name": "07. Stripe - Mettre à jour abonnement",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 200],
+      "position": [
+        1560,
+        200
+      ],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -138,7 +159,10 @@
       "name": "07a. Erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 400]
+      "position": [
+        1560,
+        400
+      ]
     },
     {
       "parameters": {
@@ -148,7 +172,10 @@
       "name": "08. Confirmer Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 200]
+      "position": [
+        1780,
+        200
+      ]
     },
     {
       "parameters": {
@@ -159,7 +186,10 @@
       "name": "09. Merge - Stripe et sans Stripe",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [2000, 300]
+      "position": [
+        2000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -169,7 +199,10 @@
       "name": "10. Préparer paramètres SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 300]
+      "position": [
+        2220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -181,11 +214,14 @@
       "name": "11. Mettre à jour abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2440, 300],
+      "position": [
+        2440,
+        300
+      ],
       "credentials": {
         "postgres": {
-          "id": "postgres-credential",
-          "name": "Postgres Supabase"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       }
     },
@@ -197,7 +233,10 @@
       "name": "12. Préparer notification TalosPrimes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 250]
+      "position": [
+        2660,
+        250
+      ]
     },
     {
       "parameters": {
@@ -222,7 +261,10 @@
       "name": "13. Envoyer notification TalosPrimes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 250],
+      "position": [
+        2880,
+        250
+      ],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -239,7 +281,10 @@
       "name": "14. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 300]
+      "position": [
+        3100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -264,7 +309,10 @@
       "name": "15. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3320, 300],
+      "position": [
+        3320,
+        300
+      ],
       "credentials": {
         "headerAuth": {
           "id": "resend-api-credential",
@@ -282,7 +330,10 @@
       "name": "16. Répondre succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3540, 300]
+      "position": [
+        3540,
+        300
+      ]
     },
     {
       "parameters": {
@@ -294,7 +345,10 @@
       "name": "Répondre erreur - Abonnement non trouvé",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     }
   ],
   "connections": {

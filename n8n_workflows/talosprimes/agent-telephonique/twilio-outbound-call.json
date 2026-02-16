@@ -76,7 +76,8 @@
       "typeVersion": 2,
       "credentials": {
         "postgres": {
-          "name": "Postgres"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       },
       "position": [
@@ -128,7 +129,8 @@
       "typeVersion": 2,
       "credentials": {
         "postgres": {
-          "name": "Postgres"
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
         }
       },
       "position": [

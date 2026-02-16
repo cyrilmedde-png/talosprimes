@@ -4,14 +4,21 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "expression": "0 8 * * *" }]
+          "interval": [
+            {
+              "expression": "0 8 * * *"
+            }
+          ]
         }
       },
       "id": "cron",
       "name": "01. CRON 08h UTC",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -22,8 +29,16 @@
       "name": "02. UPDATE en retard",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [420, 300],
-      "credentials": { "postgres": { "name": "Postgres" } }
+      "position": [
+        420,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+        }
+      }
     },
     {
       "parameters": {
@@ -33,13 +48,38 @@
       "name": "03. Resume",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. CRON 08h UTC": { "main": [[{ "node": "02. UPDATE en retard", "type": "main", "index": 0 }]] },
-    "02. UPDATE en retard": { "main": [[{ "node": "03. Resume", "type": "main", "index": 0 }]] }
+    "01. CRON 08h UTC": {
+      "main": [
+        [
+          {
+            "node": "02. UPDATE en retard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. UPDATE en retard": {
+      "main": [
+        [
+          {
+            "node": "03. Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
