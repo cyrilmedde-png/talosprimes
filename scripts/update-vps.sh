@@ -524,28 +524,13 @@ except:
 # Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
 cred_map = {**global_map, **local_map}
 
-# Lire le versionId actuel du workflow dans n8n (necessaire pour le PUT)
-current_version_id = None
-try:
-    with open('$tmp_current') as f:
-        current_wf = json.load(f)
-    current_version_id = current_wf.get('versionId')
-except:
-    pass
-
 with open('$file') as f:
     wf = json.load(f)
 wf.setdefault('settings', {})
-# Retirer les champs non-modifiables
-for k in ['id','createdAt','updatedAt','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
+# Retirer TOUS les champs que l'API n8n PUT n'accepte pas
+# (l'API renvoie 400 "must NOT have additional properties" sinon)
+for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
     wf.pop(k, None)
-
-# Reproduire le comportement du bouton "Publish" de l'UI n8n:
-# - active: true pour que n8n enregistre les webhooks
-# - versionId: du workflow actuel pour eviter les conflits de version
-wf['active'] = True
-if current_version_id:
-    wf['versionId'] = current_version_id
 
 # Remplacer les credential IDs par les vrais IDs de n8n
 replaced = 0
@@ -591,8 +576,8 @@ print(json.dumps(wf))
         rm -f "$tmp_payload"
 
         if [ "$http_code" = "200" ]; then
-          # PUT avec active:true + versionId = equivalent du "Publish" de l'UI n8n
-          # Les webhooks doivent etre enregistres par n8n automatiquement.
+          # Le PUT met a jour le contenu. Les webhooks seront re-enregistres
+          # par le redemarrage de n8n apres la sync (docker restart).
 
           # Transferer dans le bon projet si necessaire
           if [ -n "$project_id" ]; then
@@ -1012,6 +997,29 @@ for w in inactive:
             echo "    ECHEC $wf_id (HTTP $act_code)"
           fi
         done
+      fi
+
+      # --- REDEMARRAGE n8n pour forcer l'enregistrement des webhooks ---
+      # L'API POST /activate ne re-enregistre pas les webhooks dans cette
+      # version de n8n. Le seul moyen fiable est de redemarrer le conteneur.
+      # Au demarrage, n8n re-enregistre les webhooks de tous les workflows actifs.
+      if [ "$N8N_SUCCESS" -gt 0 ]; then
+        log_info "Redemarrage de n8n pour re-enregistrer les webhooks..."
+        docker restart n8n > /dev/null 2>&1 || true
+        # Attendre que n8n soit pret
+        local n8n_ready=false
+        for i in $(seq 1 30); do
+          if curl -s -o /dev/null -w "%{http_code}" "$N8N_API_URL/healthz" 2>/dev/null | grep -q "200"; then
+            n8n_ready=true
+            break
+          fi
+          sleep 2
+        done
+        if [ "$n8n_ready" = true ]; then
+          log_ok "n8n redemarre et pret (webhooks re-enregistres)"
+        else
+          log_warn "n8n redemarre mais health check echoue — verifier manuellement"
+        fi
       fi
     fi
   fi
