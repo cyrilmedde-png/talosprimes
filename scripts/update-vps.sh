@@ -531,28 +531,28 @@ print(json.dumps(wf))
         http_code=$(echo "$response" | tail -1)
 
         if [ "$http_code" = "200" ]; then
-          # Attendre que n8n traite la mise a jour
-          sleep 1
+          # IMPORTANT: Cycle deactivate → activate pour forcer l'enregistrement des webhooks
+          # Un simple PUT active:true ne fait que mettre le flag en base sans enregistrer les webhooks
 
-          # Activer via PUT avec active:true (plus fiable que POST /activate)
-          local activate_response activate_code
-          activate_response=$(curl -s -w "\n%{http_code}" -X PUT \
+          # 1. Desactiver d'abord (force n8n a de-enregistrer les webhooks)
+          curl -s -X POST \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"active\": true}" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || true)
+            "$N8N_API_URL/api/v1/workflows/$existing_id/deactivate" > /dev/null 2>&1 || true
+          sleep 0.5
+
+          # 2. Activer (force n8n a RE-enregistrer les webhooks)
+          local activate_response activate_code
+          activate_response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" 2>/dev/null || true)
           activate_code=$(echo "$activate_response" | tail -1)
 
           if [ "$activate_code" != "200" ]; then
-            # Retry avec POST /activate en fallback
-            sleep 1
-            activate_response=$(curl -s -w "\n%{http_code}" -X POST \
-              -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              "$N8N_API_URL/api/v1/workflows/$existing_id/activate" 2>/dev/null || true)
-            activate_code=$(echo "$activate_response" | tail -1)
-            if [ "$activate_code" != "200" ]; then
-              log_warn "    ⚠ Activation echouee pour $(basename "$file") (HTTP $activate_code)"
-            fi
+            log_warn "    ⚠ Activation echouee pour $(basename "$file") (HTTP $activate_code)"
+            # Afficher le body d'erreur pour debug
+            local activate_body
+            activate_body=$(echo "$activate_response" | sed '$d')
+            echo "      $activate_body" | head -1
           fi
 
           # Transferer dans le bon projet si necessaire
@@ -612,28 +612,23 @@ print(json.dumps(wf))
           local new_id
           new_id=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
           if [ -n "$new_id" ]; then
-            # Attendre que n8n traite la creation
-            sleep 1
-
-            # Activer via PUT avec active:true (plus fiable que POST /activate)
-            local activate_response activate_code
-            activate_response=$(curl -s -w "\n%{http_code}" -X PUT \
+            # Cycle deactivate → activate pour forcer l'enregistrement des webhooks
+            curl -s -X POST \
               -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "{\"active\": true}" \
-              "$N8N_API_URL/api/v1/workflows/$new_id" 2>/dev/null || true)
+              "$N8N_API_URL/api/v1/workflows/$new_id/deactivate" > /dev/null 2>&1 || true
+            sleep 0.5
+
+            local activate_response activate_code
+            activate_response=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_API_URL/api/v1/workflows/$new_id/activate" 2>/dev/null || true)
             activate_code=$(echo "$activate_response" | tail -1)
 
             if [ "$activate_code" != "200" ]; then
-              # Retry avec POST /activate en fallback
-              sleep 1
-              activate_response=$(curl -s -w "\n%{http_code}" -X POST \
-                -H "X-N8N-API-KEY: $N8N_API_KEY" \
-                "$N8N_API_URL/api/v1/workflows/$new_id/activate" 2>/dev/null || true)
-              activate_code=$(echo "$activate_response" | tail -1)
-              if [ "$activate_code" != "200" ]; then
-                log_warn "    ⚠ Activation echouee pour $(basename "$file") (HTTP $activate_code)"
-              fi
+              log_warn "    ⚠ Activation echouee pour $(basename "$file") (HTTP $activate_code)"
+              local activate_body
+              activate_body=$(echo "$activate_response" | sed '$d')
+              echo "      $activate_body" | head -1
             fi
 
             # Transferer dans le bon projet
@@ -945,12 +940,15 @@ for w in inactive:
 " 2>/dev/null || true)
 
       if [ -n "$INACTIVE_IDS" ]; then
-        FORCE_OK=0
-        FORCE_FAIL=0
         log_info "Tentative d'activation forcee des workflows inactifs..."
 
         echo "$INACTIVE_IDS" | while IFS= read -r wf_id; do
           [ -z "$wf_id" ] && continue
+          # Cycle deactivate → activate
+          curl -s -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$wf_id/deactivate" > /dev/null 2>&1 || true
+          sleep 0.3
           local act_resp act_code
           act_resp=$(curl -s -w "\n%{http_code}" -X POST \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
