@@ -683,34 +683,53 @@ print(json.dumps({'data': all_workflows}))
     EXISTING_PROJECTS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/projects" 2>/dev/null || echo "{}")
 
     # ---------------------------------------------------------------
-    # Recuperer les credentials existantes pour remplacement auto
+    # Recuperer les credentials depuis les workflows existants
+    # L'API GET /credentials n'est pas disponible sur cette version de n8n.
+    # On recupere quelques workflows COMPLETS (avec nodes) pour extraire
+    # les vrais credential IDs configures dans n8n.
     # ---------------------------------------------------------------
-    log_info "Recuperation des credentials n8n..."
-    N8N_CREDENTIALS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/credentials" 2>/dev/null || echo "{}")
+    log_info "Extraction des credentials depuis les workflows existants..."
+    CREDENTIAL_MAP=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
+import sys, json, urllib.request, os
 
-    # Construire le mapping name->id en JSON pour python
-    CREDENTIAL_MAP=$(echo "$N8N_CREDENTIALS" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    creds = data.get('data', data) if isinstance(data, dict) else data
-    if not isinstance(creds, list):
-        creds = []
-    # Mapping: nom de credential -> id reel
-    mapping = {}
-    for c in creds:
-        name = c.get('name', '')
-        cid = str(c.get('id', ''))
-        if name and cid:
-            mapping[name] = cid
-    print(json.dumps(mapping))
-except:
-    print('{}')
+api_url = os.environ.get('N8N_API_URL', '')
+api_key = os.environ.get('N8N_API_KEY', '')
+
+data = json.load(sys.stdin)
+workflows = data.get('data', [])
+mapping = {}
+
+# Recuperer les details complets de quelques workflows pour extraire les credentials
+# On prend les 10 premiers actifs (suffisant pour trouver toutes les credentials)
+active_wfs = [w for w in workflows if w.get('active')][:10]
+
+for wf in active_wfs:
+    wf_id = wf.get('id', '')
+    if not wf_id:
+        continue
+    try:
+        url = f'{api_url}/api/v1/workflows/{wf_id}'
+        req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
+        resp = urllib.request.urlopen(req, timeout=10)
+        full_wf = json.loads(resp.read())
+
+        for node in full_wf.get('nodes', []):
+            creds = node.get('credentials', {})
+            for cred_type, cred_info in creds.items():
+                if isinstance(cred_info, dict):
+                    name = cred_info.get('name', '')
+                    cid = str(cred_info.get('id', ''))
+                    if name and cid and not cid.startswith('REPLACE') and cid != '':
+                        mapping[name] = cid
+    except:
+        continue
+
+print(json.dumps(mapping))
 " 2>/dev/null || echo "{}")
 
     export CREDENTIAL_MAP
     CRED_COUNT=$(echo "$CREDENTIAL_MAP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
-    log_info "$CRED_COUNT credentials trouvees dans n8n"
+    log_info "$CRED_COUNT credentials trouvees dans les workflows n8n"
 
     # Afficher le mapping pour debug
     if [ "$CRED_COUNT" != "0" ]; then
@@ -718,10 +737,10 @@ except:
 import sys, json
 mapping = json.load(sys.stdin)
 for name, cid in mapping.items():
-    print(f'    → {name} = {cid}')
+    print(f'    -> {name} = {cid}')
 " 2>/dev/null || true
     else
-      log_warn "AUCUNE credential trouvee — les workflows ne pourront pas s'activer!"
+      log_warn "Aucune credential extraite — n8n resoudra par nom de credential"
     fi
 
     # Verifier que les reponses sont du JSON valide
@@ -949,15 +968,14 @@ for w in inactive:
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             "$N8N_API_URL/api/v1/workflows/$wf_id/deactivate" > /dev/null 2>&1 || true
           sleep 0.3
-          local act_resp act_code
           act_resp=$(curl -s -w "\n%{http_code}" -X POST \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             "$N8N_API_URL/api/v1/workflows/$wf_id/activate" 2>/dev/null || true)
           act_code=$(echo "$act_resp" | tail -1)
           if [ "$act_code" = "200" ]; then
-            echo "    ✓ $wf_id active"
+            echo "    OK $wf_id active"
           else
-            echo "    ✗ $wf_id ECHEC (HTTP $act_code)"
+            echo "    ECHEC $wf_id (HTTP $act_code)"
           fi
         done
       fi
