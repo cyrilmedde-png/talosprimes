@@ -173,7 +173,7 @@
     },
     {
       "parameters": {
-        "resource": "executeQuery",
+        "operation": "executeQuery",
         "query": "=INSERT INTO facture_lines (facture_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ({{ each(item).invoiceId }}, {{ each(item).ligne_numero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prix_unitaire }}, {{ each(item).montant_ht }}, {{ each(item).tva_taux }}, {{ each(item).montant_ttc }});"
       },
       "id": "11. Create Invoice Lines",

@@ -133,7 +133,7 @@
     },
     {
       "parameters": {
-        "resource": "executeQuery",
+        "operation": "executeQuery",
         "query": "=INSERT INTO proforma_lines (proforma_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ('{{ each(item).proformaId }}', {{ each(item).ligneNumero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prixUnitaire }}, {{ each(item).montantHt }}, {{ each(item).tvaTaux }}, {{ each(item).montantTtc }});"
       },
       "id": "09. Insert Lines",
