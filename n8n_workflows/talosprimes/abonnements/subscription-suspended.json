@@ -12,24 +12,18 @@
       "name": "01. Webhook - Suspension",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        240,
-        400
-      ],
+      "position": [240, 400],
       "webhookId": "subscription-suspended"
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst _wb = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst payload = (raw && typeof raw === 'object' && _wb.data && typeof _wb.data === 'object') ? { ..._wb.data, tenantId: _wb.data.tenantId || raw.tenantId } : raw;\nconst data = payload;\n\n// Extraire les données\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = data?.tenantId || '';\nconst reason = data?.reason || 'Paiement en retard';\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    reason,\n    suspendDate: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire les données\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\nconst reason = data?.reason || 'Paiement en retard';\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    reason,\n    suspendDate: new Date().toISOString()\n  }\n};"
       },
       "id": "parse-payload",
       "name": "02. Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        460,
-        400
-      ]
+      "position": [460, 400]
     },
     {
       "parameters": {
@@ -40,10 +34,7 @@
       "name": "03. Récupérer abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        680,
-        400
-      ],
+      "position": [680, 400],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -66,23 +57,17 @@
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        900,
-        400
-      ]
+      "position": [900, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour la suspension\nconst subscriptionData = $input.item.json[0];\nconst _body = (subscriptionData && subscriptionData.data && typeof subscriptionData.data === \"object\") ? { ...subscriptionData.data, tenantId: subscriptionData.data.tenantId || subscriptionData.tenantId } : subscriptionData;;\nconst parseData = $node['02. Parser payload'].json;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    reason: parseData.reason,\n    clientId: _body.client_id,\n    clientEmail: _body.email,\n    clientName: _body.nom || _body.prenom || _body.raison_sociale || 'Client',\n    idAbonnementStripe: _body.id_abonnement_stripe,\n    planName: _body.nom_plan\n  }\n};"
+        "jsCode": "// Préparer les données pour la suspension\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    reason: parseData.reason,\n    clientId: subscriptionData.client_id,\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    idAbonnementStripe: subscriptionData.id_abonnement_stripe,\n    planName: subscriptionData.nom_plan\n  }\n};"
       },
       "id": "prepare-suspend",
       "name": "05. Préparer suspension",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1120,
-        300
-      ]
+      "position": [1120, 300]
     },
     {
       "parameters": {
@@ -99,10 +84,7 @@
       "name": "06. Vérifier Stripe ID",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        1340,
-        300
-      ]
+      "position": [1340, 300]
     },
     {
       "parameters": {
@@ -134,10 +116,7 @@
       "name": "07. Mettre en pause Stripe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1560,
-        180
-      ],
+      "position": [1560, 180],
       "credentials": {
         "headerAuth": {
           "id": "stripe-api-credential",
@@ -154,10 +133,7 @@
       "name": "08. Suspendre abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        1780,
-        300
-      ],
+      "position": [1780, 300],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -174,10 +150,7 @@
       "name": "09. Vérifier autres abonnements actifs",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        2000,
-        300
-      ],
+      "position": [2000, 300],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -201,10 +174,7 @@
       "name": "10. Abonnements actifs restants ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        2220,
-        300
-      ]
+      "position": [2220, 300]
     },
     {
       "parameters": {
@@ -215,10 +185,7 @@
       "name": "11. Suspendre le client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        2440,
-        180
-      ],
+      "position": [2440, 180],
       "credentials": {
         "postgres": {
           "id": "postgres-credential",
@@ -234,10 +201,7 @@
       "name": "12. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2660,
-        300
-      ]
+      "position": [2660, 300]
     },
     {
       "parameters": {
@@ -262,10 +226,7 @@
       "name": "13. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        2880,
-        300
-      ],
+      "position": [2880, 300],
       "credentials": {
         "headerAuth": {
           "id": "resend-api-credential",
@@ -296,10 +257,7 @@
       "name": "14. Créer notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        3100,
-        300
-      ],
+      "position": [3100, 300],
       "credentials": {
         "headerAuth": {
           "id": "talosprimes-api-credential",
@@ -317,10 +275,7 @@
       "name": "15. Répondre succès",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        3320,
-        300
-      ]
+      "position": [3320, 300]
     },
     {
       "parameters": {
@@ -332,10 +287,7 @@
       "name": "Répondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        900,
-        600
-      ]
+      "position": [900, 600]
     },
     {
       "parameters": {
@@ -347,10 +299,7 @@
       "name": "Répondre erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1560,
-        450
-      ]
+      "position": [1560, 450]
     }
   ],
   "connections": {

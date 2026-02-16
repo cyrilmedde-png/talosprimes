@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst _wb = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst body = (_wb && _wb.data && typeof _wb.data === \"object\") ? { ..._wb.data, tenantId: _wb.data.tenantId || _wb.tenantId } : _wb;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  status: body.status || 'sent',\n  direction: body.direction || 'outbound',\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sentAt: body.sentAt || new Date().toISOString(),\n  deliveredAt: body.deliveredAt || null,\n  failureReason: body.failureReason || null\n};"
+        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  status: body.status || 'sent',\n  direction: body.direction || 'outbound',\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sentAt: body.sentAt || new Date().toISOString(),\n  deliveredAt: body.deliveredAt || null,\n  failureReason: body.failureReason || null\n};"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -79,12 +79,7 @@
       "position": [
         850,
         250
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres"
-        }
-      }
+      ]
     },
     {
       "parameters": {

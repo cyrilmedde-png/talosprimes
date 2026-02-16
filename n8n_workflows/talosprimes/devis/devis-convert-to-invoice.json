@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const raw = $input.first().json;\nconst payload = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
+        "code": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -105,7 +105,7 @@
     },
     {
       "parameters": {
-        "code": "const devis = $('05. Get Devis').json;\nconst nextNum = $('06. Get Next Invoice Number').json.next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!devis) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nreturn {\n  devisId: $json.devisId,\n  tenantId: $json.tenantId,\n  devis: devis,\n  numeroFacture: numeroFacture\n};"
+        "code": "const devis = $('05. Get Devis').first();\nconst nextNum = $('06. Get Next Invoice Number').first().next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!devis) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nreturn {\n  devisId: $json.devisId,\n  tenantId: $json.tenantId,\n  devis: devis,\n  numeroFacture: numeroFacture\n};"
       },
       "id": "07. Prepare Invoice Data",
       "name": "07. Prepare Invoice Data",
@@ -119,7 +119,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (type, tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('invoice', '{{ $json.tenantId }}', '{{ $json.devis.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, {{ $json.devis.montant_ht }}, {{ $json.devis.montant_ttc }}, {{ $json.devis.tva_taux }}, '{{ $json.devis.description }}', '{{ $json.devis.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+        "query": "=INSERT INTO factures (tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.devis.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, {{ $json.devis.montant_ht }}, {{ $json.devis.montant_ttc }}, {{ $json.devis.tva_taux }}, '{{ $json.devis.description }}', '{{ $json.devis.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
       },
       "id": "08. Create Invoice",
       "name": "08. Create Invoice",
@@ -138,7 +138,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = {{ $json.devisId }} ORDER BY ordre ASC"
+        "query": "=SELECT id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
       },
       "id": "09. Get Devis Lines",
       "name": "09. Get Devis Lines",
@@ -156,7 +156,7 @@
     },
     {
       "parameters": {
-        "code": "const invoiceId = $('08. Create Invoice').json.id;\nconst lines = $('09. Get Devis Lines').json;\n\nif (!invoiceId) {\n  throw new Error('Failed to create invoice');\n}\n\nif (!Array.isArray(lines)) {\n  throw new Error('No lines found');\n}\n\n// Build INSERT statement for all lines at once\nconst valueClauses = lines.map(line => \n  `(${invoiceId}, '${line.code_article}', '${line.designation}', ${line.quantite}, ${line.prix_unitaire_ht}, ${line.total_ht}, ${line.ordre})`\n).join(', ');\n\nconst insertSql = `INSERT INTO invoice_lines (invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${valueClauses}`;\n\nreturn {\n  invoiceId: invoiceId,\n  lines: lines,\n  insertSql: insertSql\n};"
+        "code": "const invoiceId = $('08. Create Invoice').first().id;\nconst lines = $('09. Get Devis Lines').all();\n\nreturn {\n  invoiceId: invoiceId,\n  lines: lines\n};"
       },
       "id": "10. Prepare Lines",
       "name": "10. Prepare Lines",
@@ -169,8 +169,8 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.insertSql }}"
+        "resource": "executeQuery",
+        "query": "=INSERT INTO facture_lines (facture_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ({{ each(item).invoiceId }}, {{ each(item).ligne_numero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prix_unitaire }}, {{ each(item).montant_ht }}, {{ each(item).tva_taux }}, {{ each(item).montant_ttc }});"
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",
@@ -189,7 +189,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE devis SET statut = 'facturee', updated_at = NOW() WHERE id = {{ $json.devisId }}"
+        "query": "=UPDATE devis SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().id }}, updated_at = NOW() WHERE id = {{ $json.devisId }}"
       },
       "id": "12. Update Devis",
       "name": "12. Update Devis",
@@ -207,7 +207,7 @@
     },
     {
       "parameters": {
-        "code": "return {\n  success: true,\n  message: 'Devis converted to invoice successfully',\n  devisId: $json.devisId,\n  invoiceId: $json.invoiceId,\n  numeroFacture: $json.numeroFacture\n};"
+        "code": "return {\n  success: true,\n  message: 'Devis converted to invoice successfully',\n  devisId: $json.devisId,\n  invoiceId: $('08. Create Invoice').first().id,\n  numeroFacture: $json.numeroFacture\n};"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",

@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst _wb = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst body = (_wb && _wb.data && typeof _wb.data === \"object\") ? { ..._wb.data, tenantId: _wb.data.tenantId || _wb.tenantId } : _wb;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  agentId: body.agentId,\n  endedAt: body.endedAt,\n  duration: body.duration,\n  status: body.status,\n  transcript: body.transcript,\n  summary: body.summary,\n  actionTaken: body.actionTaken,\n  urgency: body.urgency,\n  sentiment: body.sentiment,\n  notes: body.notes,\n  recordingUrl: body.recordingUrl\n};"
+        "jsCode": "const body = $input.body;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  agentId: body.agentId,\n  endedAt: body.endedAt,\n  duration: body.duration,\n  status: body.status,\n  transcript: body.transcript,\n  summary: body.summary,\n  actionTaken: body.actionTaken,\n  urgency: body.urgency,\n  sentiment: body.sentiment,\n  notes: body.notes,\n  recordingUrl: body.recordingUrl\n};"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -79,12 +79,7 @@
       "position": [
         850,
         250
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres"
-        }
-      }
+      ]
     },
     {
       "parameters": {

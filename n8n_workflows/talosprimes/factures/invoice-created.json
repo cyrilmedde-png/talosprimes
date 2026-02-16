@@ -11,43 +11,27 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        200,
-        300
-      ]
+      "position": [200, 300]
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];if(k2&&o[k2]!=null&&o[k2]!=='')return o[k2];return null}\nconst payload=(raw&&typeof raw==='object'&&raw.data&&typeof raw.data==='object')?{...raw.data,tenantId:raw.data.tenantId||raw.tenantId}:raw;\nconst data=isO(payload)?payload:{};\nconst tenantId=g(data,'tenantId')||g(raw,'tenantId');\nconst clientFinalId=g(data,'clientFinalId','client_final_id');\nconst mhtv=g(data,'montantHt','montant_ht');\nconst montantHt=mhtv!=null?Number(mhtv):null;\nif(!tenantId||!clientFinalId||montantHt==null||isNaN(montantHt)){\n  return [{json:{_skip:true,reason:'Payload incomplet: tenantId='+tenantId+' clientFinalId='+clientFinalId+' montantHt='+montantHt}}];\n}\nconst body={tenantId,clientFinalId,type:g(data,'type')||'facture_client_final',montantHt,tvaTaux:(function(){var v=g(data,'tvaTaux','tva_taux');return v!=null&&v!==''?Number(v):20})()};\nfunction opt(k,sk){var v=g(data,k,sk);if(v!=null&&v!=='')body[k]=String(v)}\nopt('dateFacture','date_facture');opt('dateEcheance','date_echeance');opt('numeroFacture','numero_facture');opt('description');opt('lienPdf','lien_pdf');\nreturn [{json:body}];"
+        "jsCode": "const raw = $input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];if(k2&&o[k2]!=null&&o[k2]!=='')return o[k2];return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(typeof data==='string')data=pj(data);\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nconst clientFinalId=g(data,'clientFinalId','client_final_id')||g(payload,'clientFinalId','client_final_id');\nconst mhtv=g(data,'montantHt','montant_ht')||g(payload,'montantHt','montant_ht');\nconst montantHt=mhtv!=null?Number(mhtv):null;\nif(!tenantId||!clientFinalId||montantHt==null||isNaN(montantHt)){\n  return [{json:{_skip:true,reason:'Payload incomplet: tenantId='+tenantId+' clientFinalId='+clientFinalId+' montantHt='+montantHt}}];\n}\nconst body={tenantId,clientFinalId,type:g(data,'type')||g(payload,'type')||'facture_client_final',montantHt,tvaTaux:(function(){var v=g(data,'tvaTaux','tva_taux')||g(payload,'tvaTaux','tva_taux');return v!=null&&v!==''?Number(v):20})()};\nfunction opt(k,sk){var v=g(data,k,sk)||g(payload,k,sk);if(v!=null&&v!=='')body[k]=String(v)}\nopt('dateFacture','date_facture');opt('dateEcheance','date_echeance');opt('numeroFacture','numero_facture');opt('description');opt('lienPdf','lien_pdf');\nreturn [{json:body}];"
       },
       "id": "parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        420,
-        300
-      ]
+      "position": [420, 300]
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json._skip === true }}",
-              "value2": true
-            }
-          ]
-        }
+        "conditions": { "boolean": [{ "value1": "={{ $json._skip === true }}", "value2": true }] }
       },
       "id": "if-skip",
       "name": "03. Payload complet ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        640,
-        300
-      ]
+      "position": [640, 300]
     },
     {
       "parameters": {
@@ -58,10 +42,7 @@
       "name": "04. Repondre ignore",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        860,
-        480
-      ]
+      "position": [860, 480]
     },
     {
       "parameters": {
@@ -72,15 +53,8 @@
       "name": "05. Dedup check",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        860,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres"
-        }
-      }
+      "position": [860, 300],
+      "credentials": { "postgres": { "name": "Postgres" } }
     },
     {
       "parameters": {
@@ -90,30 +64,17 @@
       "name": "06. Cache ou creer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1080,
-        300
-      ]
+      "position": [1080, 300]
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.fromCache }}",
-              "value2": true
-            }
-          ]
-        }
+        "conditions": { "boolean": [{ "value1": "={{ $json.fromCache }}", "value2": true }] }
       },
       "id": "if-cache",
       "name": "07. Deja existante ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
@@ -122,31 +83,23 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "timeout": 15000
-        }
+        "options": { "timeout": 15000 }
       },
       "id": "api-create",
       "name": "08. API Creer facture",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1520,
-        400
-      ]
+      "position": [1520, 400]
     },
     {
       "parameters": {
-        "jsCode": "const res=$input.first().json;\nconst _body = (res && res.data && typeof res.data === \"object\") ? { ...res.data, tenantId: res.data.tenantId || res.tenantId } : res;\nconst inv=_body.data&&_body.data.invoice?_body.data.invoice:null;\nif(!inv||!inv.id)throw new Error('API: facture non creee - '+JSON.stringify(res).substring(0,200));\nreturn [{json:{invoiceId:inv.id,tenantId:inv.tenantId||inv.tenant_id}}];"
+        "jsCode": "const res=$input.first().json;\nconst inv=res.data&&res.data.invoice?res.data.invoice:null;\nif(!inv||!inv.id)throw new Error('API: facture non creee - '+JSON.stringify(res).substring(0,200));\nreturn [{json:{invoiceId:inv.id,tenantId:inv.tenantId||inv.tenant_id}}];"
       },
       "id": "extract",
       "name": "09. Extraire invoiceId",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1740,
-        400
-      ]
+      "position": [1740, 400]
     },
     {
       "parameters": {
@@ -157,15 +110,8 @@
       "name": "10. Recuperer facture",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        1740,
-        200
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres"
-        }
-      }
+      "position": [1740, 200],
+      "credentials": { "postgres": { "name": "Postgres" } }
     },
     {
       "parameters": {
@@ -175,10 +121,7 @@
       "name": "11. Formater reponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1960,
-        300
-      ]
+      "position": [1960, 300]
     },
     {
       "parameters": {
@@ -189,140 +132,31 @@
       "name": "12. Repondre succes",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2180,
-        300
-      ]
+      "position": [2180, 300]
     }
   ],
   "connections": {
-    "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Payload complet ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Payload complet ?", "type": "main", "index": 0 }]] },
     "03. Payload complet ?": {
       "main": [
-        [
-          {
-            "node": "04. Repondre ignore",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "05. Dedup check",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "04. Repondre ignore", "type": "main", "index": 0 }],
+        [{ "node": "05. Dedup check", "type": "main", "index": 0 }]
       ]
     },
-    "05. Dedup check": {
-      "main": [
-        [
-          {
-            "node": "06. Cache ou creer",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "06. Cache ou creer": {
-      "main": [
-        [
-          {
-            "node": "07. Deja existante ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
+    "05. Dedup check": { "main": [[{ "node": "06. Cache ou creer", "type": "main", "index": 0 }]] },
+    "06. Cache ou creer": { "main": [[{ "node": "07. Deja existante ?", "type": "main", "index": 0 }]] },
     "07. Deja existante ?": {
       "main": [
-        [
-          {
-            "node": "10. Recuperer facture",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "08. API Creer facture",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "10. Recuperer facture", "type": "main", "index": 0 }],
+        [{ "node": "08. API Creer facture", "type": "main", "index": 0 }]
       ]
     },
-    "08. API Creer facture": {
-      "main": [
-        [
-          {
-            "node": "09. Extraire invoiceId",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "09. Extraire invoiceId": {
-      "main": [
-        [
-          {
-            "node": "10. Recuperer facture",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10. Recuperer facture": {
-      "main": [
-        [
-          {
-            "node": "11. Formater reponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "11. Formater reponse": {
-      "main": [
-        [
-          {
-            "node": "12. Repondre succes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "08. API Creer facture": { "main": [[{ "node": "09. Extraire invoiceId", "type": "main", "index": 0 }]] },
+    "09. Extraire invoiceId": { "main": [[{ "node": "10. Recuperer facture", "type": "main", "index": 0 }]] },
+    "10. Recuperer facture": { "main": [[{ "node": "11. Formater reponse", "type": "main", "index": 0 }]] },
+    "11. Formater reponse": { "main": [[{ "node": "12. Repondre succes", "type": "main", "index": 0 }]] }
   },
   "active": false,
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": { "executionOrder": "v1" }
 }

@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { event, tenantId, timestamp, data: { type?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst payload = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n// Le backend envoie { event, tenantId, timestamp, data: { type, statut, limit } }\nconst tenantId = String(payload?.tenantId || '').trim();\nconst data = payload;\n\nconst type = data?.type ? String(data.type).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\n\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { type, statut, limit, tenantId } }];"
+        "jsCode": "// Parser le payload: { body: { event, tenantId, timestamp, data: { type?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\n// Le backend envoie { event, tenantId, timestamp, data: { type, statut, limit } }\nconst tenantId = String(payload?.tenantId || '').trim();\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst type = data?.type ? String(data.type).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\n\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { type, statut, limit, tenantId } }];"
       },
       "id": "Code_Parse",
       "name": "Parser filtres",

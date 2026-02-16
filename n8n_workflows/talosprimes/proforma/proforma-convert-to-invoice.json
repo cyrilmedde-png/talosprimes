@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const raw = $input.first().json;\nconst payload = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
+        "code": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -105,7 +105,7 @@
     },
     {
       "parameters": {
-        "code": "const proforma = $('05. Get Proforma').first();\nconst nextNum = $('06. Get Next Invoice Number').first().json.next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!proforma) {\n  throw new Error('Proforma not found or not in acceptee status');\n}\n\nreturn {\n  proformaId: $json.proformaId,\n  tenantId: $json.tenantId,\n  proforma: proforma,\n  numeroFacture: numeroFacture\n};"
+        "code": "const proforma = $('05. Get Proforma').first();\nconst nextNum = $('06. Get Next Invoice Number').first().next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!devis) {\n  throw new Error('Proforma not found or not in acceptee status');\n}\n\nreturn {\n  proformaId: $json.proformaId,\n  tenantId: $json.tenantId,\n  proforma: proforma,\n  numeroFacture: numeroFacture\n};"
       },
       "id": "07. Prepare Invoice Data",
       "name": "07. Prepare Invoice Data",
@@ -119,7 +119,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.proforma.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, {{ $json.proforma.montant_ht }}, {{ $json.proforma.montant_ttc }}, {{ $json.proforma.tva_taux }}, '{{ $json.proforma.description }}', '{{ $json.proforma.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+        "query": "=INSERT INTO factures (tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.devis.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, {{ $json.devis.montant_ht }}, {{ $json.devis.montant_ttc }}, {{ $json.devis.tva_taux }}, '{{ $json.devis.description }}', '{{ $json.devis.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
       },
       "id": "08. Create Invoice",
       "name": "08. Create Invoice",
@@ -138,7 +138,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
+        "query": "=SELECT id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
       },
       "id": "09. Get Proforma Lines",
       "name": "09. Get Proforma Lines",
@@ -156,7 +156,7 @@
     },
     {
       "parameters": {
-        "code": "const invoiceId = $('08. Create Invoice').first().json.id;\nconst lines = $('09. Get Proforma Lines').all();\n\nreturn {\n  invoiceId: invoiceId,\n  lines: lines\n};"
+        "code": "const invoiceId = $('08. Create Invoice').first().id;\nconst lines = $('09. Get Proforma Lines').all();\n\nreturn {\n  invoiceId: invoiceId,\n  lines: lines\n};"
       },
       "id": "10. Prepare Lines",
       "name": "10. Prepare Lines",
@@ -169,21 +169,8 @@
     },
     {
       "parameters": {
-        "code": "const invoiceId = $json.invoiceId;\nconst lines = $json.lines;\n\nlet values = [];\nfor (const line of lines) {\n  const order = line.ordre || 1;\n  const code = line.code_article ? `'${line.code_article}'` : 'NULL';\n  const designation = line.designation ? `'${line.designation.replace(/'/g, \"''\")}' ` : \"''\"; \n  const quantity = line.quantite || 0;\n  const priceHT = line.prix_unitaire_ht || 0;\n  const totalHT = line.total_ht || 0;\n  \n  values.push(`(${invoiceId}, ${order}, ${code}, ${designation}, ${quantity}, ${priceHT}, ${totalHT})`);\n}\n\nconst query = `INSERT INTO invoice_lines (invoice_id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht) VALUES ${values.join(', ')}`;\n\nreturn {\n  invoiceId: invoiceId,\n  lines: lines,\n  insertQuery: query\n};"
-      },
-      "id": "10b. Build Invoice Lines Insert",
-      "name": "10b. Build Invoice Lines Insert",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1400,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.insertQuery }}"
+        "resource": "executeQuery",
+        "query": "=INSERT INTO facture_lines (facture_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ({{ each(item).invoiceId }}, {{ each(item).ligne_numero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prix_unitaire }}, {{ each(item).montant_ht }}, {{ each(item).tva_taux }}, {{ each(item).montant_ttc }});"
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",
@@ -195,14 +182,14 @@
         }
       },
       "position": [
-        1600,
+        1500,
         400
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().json.id }}, updated_at = NOW() WHERE id = {{ $json.proformaId }}"
+        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().id }}, updated_at = NOW() WHERE id = {{ $json.proformaId }}"
       },
       "id": "12. Update Proforma",
       "name": "12. Update Proforma",
@@ -220,7 +207,7 @@
     },
     {
       "parameters": {
-        "code": "return {\n  success: true,\n  message: 'Proforma converted to invoice successfully',\n  proformaId: $json.proformaId,\n  invoiceId: $('08. Create Invoice').first().json.id,\n  numeroFacture: $json.numeroFacture\n};"
+        "code": "return {\n  success: true,\n  message: 'Proforma converted to invoice successfully',\n  proformaId: $json.proformaId,\n  invoiceId: $('08. Create Invoice').first().id,\n  numeroFacture: $json.numeroFacture\n};"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",
@@ -352,17 +339,6 @@
       ]
     },
     "10. Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "10b. Build Invoice Lines Insert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10b. Build Invoice Lines Insert": {
       "main": [
         [
           {

@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { data: { id, tenantId } } }\nconst raw = $input.first().json;\nconst payload = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst data = payload;\n\nconst id = data?.id ? String(data.id).trim() : null;\nconst tenantId = data?.tenantId ? String(data.tenantId) : null;\n\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { id, tenantId } }];\n"
+        "jsCode": "// Parser le payload: { body: { data: { id, tenantId } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id).trim() : null;\nconst tenantId = data?.tenantId ? String(data.tenantId) : null;\n\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { id, tenantId } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",

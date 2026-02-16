@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst _wb = (raw && raw.data && typeof raw.data === \"object\") ? { ...raw.data, tenantId: raw.data.tenantId || raw.tenantId } : raw;\nconst body = (_wb && _wb.data && typeof _wb.data === \"object\") ? { ..._wb.data, tenantId: _wb.data.tenantId || _wb.tenantId } : _wb;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  agentId: body.agentId || null,\n  phone: body.phone || '',\n  direction: body.direction || 'inbound',\n  startedAt: body.startedAt || new Date().toISOString(),\n  endedAt: body.endedAt || null,\n  duration: body.duration || 0,\n  status: body.status || 'completed',\n  transcript: body.transcript || '',\n  summary: body.summary || '',\n  actionTaken: body.actionTaken || null,\n  urgency: body.urgency || 'normal',\n  sentiment: body.sentiment || null,\n  notes: body.notes || '',\n  recordingUrl: body.recordingUrl || null,\n  tags: body.tags || []\n};"
+        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  agentId: body.agentId || null,\n  phone: body.phone || '',\n  direction: body.direction || 'inbound',\n  startedAt: body.startedAt || new Date().toISOString(),\n  endedAt: body.endedAt || null,\n  duration: body.duration || 0,\n  status: body.status || 'completed',\n  transcript: body.transcript || '',\n  summary: body.summary || '',\n  actionTaken: body.actionTaken || null,\n  urgency: body.urgency || 'normal',\n  sentiment: body.sentiment || null,\n  notes: body.notes || '',\n  recordingUrl: body.recordingUrl || null,\n  tags: body.tags || []\n};"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -79,12 +79,7 @@
       "position": [
         850,
         250
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "Postgres"
-        }
-      }
+      ]
     },
     {
       "parameters": {
