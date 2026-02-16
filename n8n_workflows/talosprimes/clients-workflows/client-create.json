@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "client-create",
+        "path": "client_create",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -12,10 +12,7 @@
       "name": "Webhook - client_create",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [300, 300]
     },
     {
       "parameters": {
@@ -25,10 +22,7 @@
       "name": "Valider données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        540,
-        300
-      ]
+      "position": [540, 300]
     },
     {
       "parameters": {
@@ -45,10 +39,7 @@
       "name": "API TalosPrimes - Create Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ],
+      "position": [780, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -66,10 +57,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1020,
-        300
-      ]
+      "position": [1020, 300]
     }
   ],
   "connections": {
@@ -113,3 +101,4 @@
   },
   "versionId": "v1"
 }
+

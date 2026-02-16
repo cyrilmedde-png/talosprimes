@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "lead-delete",
+        "path": "lead_delete",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -12,10 +12,7 @@
       "name": "Webhook - lead_delete",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [300, 300]
     },
     {
       "parameters": {
@@ -25,10 +22,7 @@
       "name": "Parser ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        560,
-        300
-      ]
+      "position": [560, 300]
     },
     {
       "parameters": {
@@ -42,10 +36,7 @@
       "name": "API TalosPrimes - Delete Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ],
+      "position": [780, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -62,10 +53,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1020,
-        300
-      ]
+      "position": [1020, 300]
     }
   ],
   "connections": {
@@ -109,3 +97,5 @@
   },
   "versionId": "v1"
 }
+
+

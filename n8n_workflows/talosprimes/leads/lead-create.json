@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "lead-create",
+        "path": "lead_create",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -12,10 +12,7 @@
       "name": "Webhook - lead_create",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [300, 300]
     },
     {
       "parameters": {
@@ -25,10 +22,7 @@
       "name": "Normaliser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        540,
-        300
-      ]
+      "position": [540, 300]
     },
     {
       "parameters": {
@@ -50,10 +44,7 @@
       "name": "API TalosPrimes - Save Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ],
+      "position": [780, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_WITH_CREDENTIAL_ID",
@@ -71,10 +62,7 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1020,
-        300
-      ]
+      "position": [1020, 300]
     }
   ],
   "connections": {
@@ -118,3 +106,5 @@
   },
   "versionId": "v1"
 }
+
+
