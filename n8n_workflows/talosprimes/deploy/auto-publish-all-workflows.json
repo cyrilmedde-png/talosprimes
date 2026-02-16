@@ -36,10 +36,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extraire les workflows actifs et exclure ce workflow\nconst response = $input.first().json;\nconst workflows = response.data || response;\nconst selfName = 'Deploy - Auto Publish All Workflows';\nconst filtered = workflows.filter(w => w.name !== selfName);\nreturn filtered.map(w => ({ json: { id: String(w.id), name: w.name } }));"
+        "jsCode": "// Extraire les workflows et trier: sub-workflows d'abord (ceux sans webhook trigger)\n// pour qu'ils soient publies avant les parents qui les referencent\nconst response = $input.first().json;\nconst workflows = response.data || response;\nconst selfName = 'Deploy - Auto Publish All Workflows';\nconst filtered = workflows.filter(w => w.name !== selfName);\n\n// Trier: workflows sans 'Execute Workflow Trigger' en premier (sub-workflows),\n// puis les autres (parents)\nconst sorted = filtered.sort((a, b) => {\n  const aHasSubTrigger = (a.nodes || []).some(n => n.type === 'n8n-nodes-base.executeWorkflowTrigger');\n  const bHasSubTrigger = (b.nodes || []).some(n => n.type === 'n8n-nodes-base.executeWorkflowTrigger');\n  if (aHasSubTrigger && !bHasSubTrigger) return -1;\n  if (!aHasSubTrigger && bHasSubTrigger) return 1;\n  return 0;\n});\n\nreturn sorted.map(w => ({ json: { id: String(w.id), name: w.name } }));"
       },
-      "id": "filter-self",
-      "name": "02b. Extraire & Filtrer",
+      "id": "filter-sort",
+      "name": "02b. Trier & Filtrer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [680, 300]
@@ -50,14 +50,7 @@
         "url": "=http://localhost:5678/api/v1/workflows/{{ $json.id }}/deactivate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {
-          "batching": {
-            "batch": {
-              "batchSize": 1,
-              "batchInterval": 200
-            }
-          }
-        }
+        "options": {}
       },
       "id": "deactivate-workflow",
       "name": "03. Deactivate",
@@ -69,18 +62,8 @@
           "id": "REPLACE_HEADER_AUTH_ID",
           "name": "n8n API Key"
         }
-      }
-    },
-    {
-      "parameters": {
-        "amount": 0.5,
-        "unit": "seconds"
       },
-      "id": "wait-node",
-      "name": "04. Wait 500ms",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [1160, 300]
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -88,36 +71,72 @@
         "url": "=http://localhost:5678/api/v1/workflows/{{ $json.id }}/activate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {
-          "batching": {
-            "batch": {
-              "batchSize": 1,
-              "batchInterval": 200
-            }
-          }
-        }
+        "options": {}
       },
-      "id": "publish-workflow",
-      "name": "05. Publish (Activate)",
+      "id": "publish-pass1",
+      "name": "04. Publish Pass 1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1400, 300],
+      "position": [1160, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_HEADER_AUTH_ID",
           "name": "n8n API Key"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst count = items.length;\nreturn [{ json: { success: true, message: `${count} workflows publies avec succes`, count } }];"
+        "amount": 1,
+        "unit": "seconds"
       },
-      "id": "summary-response",
-      "name": "06. Resume",
+      "id": "wait-node",
+      "name": "05. Wait 1s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collecter les workflows qui ont echoue au pass 1\n// On recupere la liste originale et on retente tout\n// (ceux deja actifs seront juste re-actives, pas grave)\nconst items = $input.all();\nreturn items.map(item => ({ json: { id: item.json.id || item.json.id, name: item.json.name || 'unknown' } }));"
+      },
+      "id": "prep-pass2",
+      "name": "05b. Prep Pass 2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:5678/api/v1/workflows/{{ $json.id }}/activate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "publish-pass2",
+      "name": "06. Publish Pass 2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1880, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_HEADER_AUTH_ID",
+          "name": "n8n API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst total = items.length;\nconst successes = items.filter(i => !i.json.error && i.json.active !== false).length;\nconst failures = total - successes;\nreturn [{ json: { success: true, message: `${successes}/${total} workflows publies avec succes${failures > 0 ? `, ${failures} erreurs` : ''}`, total, successes, failures } }];"
+      },
+      "id": "summary-response",
+      "name": "07. Resume",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2120, 300]
     }
   ],
   "connections": {
@@ -125,19 +144,25 @@
       "main": [[{ "node": "02. Get All Active Workflows", "type": "main", "index": 0 }]]
     },
     "02. Get All Active Workflows": {
-      "main": [[{ "node": "02b. Extraire & Filtrer", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "02b. Trier & Filtrer", "type": "main", "index": 0 }]]
     },
-    "02b. Extraire & Filtrer": {
+    "02b. Trier & Filtrer": {
       "main": [[{ "node": "03. Deactivate", "type": "main", "index": 0 }]]
     },
     "03. Deactivate": {
-      "main": [[{ "node": "04. Wait 500ms", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "04. Publish Pass 1", "type": "main", "index": 0 }]]
     },
-    "04. Wait 500ms": {
-      "main": [[{ "node": "05. Publish (Activate)", "type": "main", "index": 0 }]]
+    "04. Publish Pass 1": {
+      "main": [[{ "node": "05. Wait 1s", "type": "main", "index": 0 }]]
     },
-    "05. Publish (Activate)": {
-      "main": [[{ "node": "06. Resume", "type": "main", "index": 0 }]]
+    "05. Wait 1s": {
+      "main": [[{ "node": "05b. Prep Pass 2", "type": "main", "index": 0 }]]
+    },
+    "05b. Prep Pass 2": {
+      "main": [[{ "node": "06. Publish Pass 2", "type": "main", "index": 0 }]]
+    },
+    "06. Publish Pass 2": {
+      "main": [[{ "node": "07. Resume", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
