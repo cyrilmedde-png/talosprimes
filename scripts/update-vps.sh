@@ -524,24 +524,13 @@ except:
 # Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
 cred_map = {**global_map, **local_map}
 
-# Lire l'etat actif du workflow actuel dans n8n pour le preserver
-current_active = False
-try:
-    with open('$tmp_current') as f:
-        current_wf = json.load(f)
-    current_active = current_wf.get('active', False)
-except:
-    pass
-
 with open('$file') as f:
     wf = json.load(f)
 wf.setdefault('settings', {})
-for k in ['id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
+# IMPORTANT: retirer 'active' du payload — n8n ne l'accepte PAS dans le PUT body
+# L'etat actif est gere via les endpoints separés /activate et /deactivate
+for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
     wf.pop(k, None)
-
-# CRUCIAL: preserver l'etat actif du workflow dans n8n
-# Sans ca, n8n desactive le workflow et les webhooks sont detruits
-wf['active'] = current_active
 
 # Remplacer les credential IDs par les vrais IDs de n8n
 replaced = 0
@@ -573,17 +562,25 @@ print(json.dumps(wf))
           return 1
         fi
 
+        # Ecrire le payload dans un fichier temp pour eviter les limites de taille de -d
+        local tmp_payload="/tmp/n8n_payload_$existing_id.json"
+        echo "$payload" > "$tmp_payload"
+
         response=$(curl -s -w "\n%{http_code}" -X PUT \
           -H "X-N8N-API-KEY: $N8N_API_KEY" \
           -H "Content-Type: application/json" \
-          -d "$payload" \
+          -d @"$tmp_payload" \
           "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || true)
         http_code=$(echo "$response" | tail -1)
+        body=$(echo "$response" | sed '$d')
+        rm -f "$tmp_payload"
 
         if [ "$http_code" = "200" ]; then
-          # NE PAS faire deactivate/activate pour un workflow existant !
-          # Le PUT met a jour le contenu sans toucher a l'etat actif ni aux webhooks.
-          # Le cycle deactivate/activate detruit les webhooks enregistres.
+          # Le PUT desactive le workflow (car on envoie sans 'active').
+          # On re-active immediatement avec POST /activate (SANS deactivate avant).
+          curl -s -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
 
           # Transferer dans le bon projet si necessaire
           if [ -n "$project_id" ]; then
@@ -594,6 +591,9 @@ print(json.dumps(wf))
               "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
           fi
           return 0
+        else
+          log_warn "    PUT echoue HTTP $http_code pour $(basename "$file")"
+          echo "      $(echo "$body" | head -c 200)" >&2
         fi
         return 1
 
