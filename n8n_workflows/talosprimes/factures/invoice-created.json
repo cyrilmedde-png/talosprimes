@@ -32,10 +32,11 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
-              "value1": "={{ $json._skip === true }}",
-              "value2": true
+              "value1": "={{ String($json._skip || '') }}",
+              "operation": "notEqual",
+              "value2": "true"
             }
           ]
         }
@@ -99,10 +100,11 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
-              "value1": "={{ $json.fromCache }}",
-              "value2": true
+              "value1": "={{ String($json.fromCache || '') }}",
+              "operation": "equals",
+              "value2": "true"
             }
           ]
         }

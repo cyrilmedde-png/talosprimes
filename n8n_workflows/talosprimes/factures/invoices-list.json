@@ -32,10 +32,11 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
-              "value1": "={{ $json._error === true }}",
-              "value2": true
+              "value1": "={{ String($json._error || '') }}",
+              "operation": "notEqual",
+              "value2": "true"
             }
           ]
         }
