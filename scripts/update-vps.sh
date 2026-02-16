@@ -524,11 +524,24 @@ except:
 # Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
 cred_map = {**global_map, **local_map}
 
+# Lire l'etat actif du workflow actuel dans n8n pour le preserver
+current_active = False
+try:
+    with open('$tmp_current') as f:
+        current_wf = json.load(f)
+    current_active = current_wf.get('active', False)
+except:
+    pass
+
 with open('$file') as f:
     wf = json.load(f)
 wf.setdefault('settings', {})
-for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
+for k in ['id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
     wf.pop(k, None)
+
+# CRUCIAL: preserver l'etat actif du workflow dans n8n
+# Sans ca, n8n desactive le workflow et les webhooks sont detruits
+wf['active'] = current_active
 
 # Remplacer les credential IDs par les vrais IDs de n8n
 replaced = 0
@@ -972,15 +985,11 @@ for w in inactive:
 " 2>/dev/null || true)
 
       if [ -n "$INACTIVE_IDS" ]; then
-        log_info "Tentative d'activation forcee des workflows inactifs..."
+        log_info "Tentative d'activation des workflows inactifs (sans deactivate)..."
 
         echo "$INACTIVE_IDS" | while IFS= read -r wf_id; do
           [ -z "$wf_id" ] && continue
-          # Cycle deactivate → activate
-          curl -s -X POST \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$wf_id/deactivate" > /dev/null 2>&1 || true
-          sleep 0.3
+          # IMPORTANT: PAS de deactivate avant activate pour ne pas casser les webhooks
           act_resp=$(curl -s -w "\n%{http_code}" -X POST \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             "$N8N_API_URL/api/v1/workflows/$wf_id/activate" 2>/dev/null || true)
