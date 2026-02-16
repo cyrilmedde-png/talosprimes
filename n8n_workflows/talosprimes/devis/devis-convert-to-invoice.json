@@ -88,7 +88,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture, 5) AS INTEGER)), 0) + 1 as next_num FROM factures WHERE numero_facture LIKE 'FAC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture, 5) AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE numero_facture LIKE 'FAC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
       },
       "id": "06. Get Next Invoice Number",
       "name": "06. Get Next Invoice Number",
@@ -121,7 +121,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO factures (tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.devis.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, {{ $json.devis.montant_ht }}, {{ $json.devis.montant_ttc }}, {{ $json.devis.tva_taux }}, '{{ $json.devis.description }}', '{{ $json.devis.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+        "query": "=INSERT INTO invoices (type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('standard', '{{ $json.tenantId }}', '{{ $json.devis.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, (NOW() + INTERVAL '30 days')::date, {{ $json.devis.montant_ht }}, {{ $json.devis.montant_ttc }}, {{ $json.devis.tva_taux }}, '{{ $json.devis.description }}', '{{ $json.devis.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
       },
       "id": "08. Create Invoice",
       "name": "08. Create Invoice",
@@ -141,7 +141,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
+        "query": "=SELECT id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
       },
       "id": "09. Get Devis Lines",
       "name": "09. Get Devis Lines",
@@ -174,7 +174,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO facture_lines (facture_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ({{ each(item).invoiceId }}, {{ each(item).ligne_numero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prix_unitaire }}, {{ each(item).montant_ht }}, {{ each(item).tva_taux }}, {{ each(item).montant_ttc }});"
+        "query": "=INSERT INTO invoice_lines (invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ('{{ each(item).invoiceId }}', '{{ each(item).code_article }}', '{{ each(item).designation }}', {{ each(item).quantite }}, {{ each(item).prix_unitaire_ht }}, {{ each(item).total_ht }}, {{ each(item).ordre }});"
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",

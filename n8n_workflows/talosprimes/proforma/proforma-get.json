@@ -88,7 +88,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, proforma_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
+        "query": "=SELECT id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",

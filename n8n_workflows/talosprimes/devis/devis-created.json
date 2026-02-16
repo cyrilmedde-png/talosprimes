@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO devis_lines (devis_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc) VALUES ('{{ each(item).devisId }}', {{ each(item).ligneNumero }}, '{{ each(item).description }}', {{ each(item).quantite }}, {{ each(item).prixUnitaire }}, {{ each(item).montantHt }}, {{ each(item).tvaTaux }}, {{ each(item).montantTtc }});"
+        "query": "=INSERT INTO devis_lines (devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ('{{ each(item).devisId }}', '{{ each(item).codeArticle }}', '{{ each(item).designation }}', {{ each(item).quantite }}, {{ each(item).prixUnitaireHt }}, {{ each(item).totalHt }}, {{ each(item).ordre }});"
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",

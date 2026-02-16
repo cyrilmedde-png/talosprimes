@@ -88,7 +88,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, devis_id, ligne_numero, description, quantite, prix_unitaire, montant_ht, tva_taux, montant_ttc FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
+        "query": "=SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",

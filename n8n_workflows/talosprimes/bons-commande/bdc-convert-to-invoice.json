@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) SELECT gen_random_uuid(), tenant_id, client_final_id, '{{ $('08. Generate Numero').first().numeroFacture }}', date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, 'brouillon', NOW(), NOW() FROM bon_commandes WHERE id = '{{ $json.bdcId }}' RETURNING *"
+        "query": "=INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) SELECT gen_random_uuid(), 'standard', tenant_id, client_final_id, '{{ $('08. Generate Numero').first().numeroFacture }}', date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, 'brouillon', NOW(), NOW() FROM bon_commandes WHERE id = '{{ $json.bdcId }}' RETURNING *"
       },
       "id": "09. Create Invoice",
       "name": "09. Create Invoice",

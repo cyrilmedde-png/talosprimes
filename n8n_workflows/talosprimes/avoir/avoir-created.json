@@ -132,7 +132,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO avoir_lines (avoir_id, ordre, description, quantite, prix_unitaire, montant) VALUES{% for item in $json.lineQueries %} ('{{ item.avoirId }}', {{ item.ordre }}, '{{ item.description }}', {{ item.quantite }}, {{ item.prixUnitaire }}, {{ item.montant }}){{ not loop.last ? ',' : '' }}{% endfor %}"
+        "query": "INSERT INTO avoir_lines (avoir_id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht) VALUES{% for item in $json.lineQueries %} ('{{ item.avoirId }}', {{ item.ordre }}, '{{ item.codeArticle }}', '{{ item.designation }}', {{ item.quantite }}, {{ item.prixUnitaireHt }}, {{ item.totalHt }}){{ not loop.last ? ',' : '' }}{% endfor %}"
       },
       "name": "Postgres Insert Lines",
       "type": "n8n-nodes-base.postgres",
