@@ -268,6 +268,7 @@ export const apiClient = {
   n8n: {
     test: () => authenticatedFetch<{ success: boolean; message: string }>('/api/n8n/test'),
     workflows: () => authenticatedFetch<{ success: boolean; data: { workflows: unknown[] } }>('/api/n8n/workflows'),
+    publishAll: () => authenticatedFetch<{ success: boolean; message: string; count?: number }>('/api/n8n/publish-all', { method: 'POST' }),
   },
 
   // Notifications

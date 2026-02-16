@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import type { Tenant, User, StatutJuridique } from '@talosprimes/shared';
-import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon, QueueListIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon, QueueListIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
 import { apiClient, type ArticleCode } from '@/lib/api-client';
 
 const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
@@ -43,7 +43,7 @@ type AgentConfigEmail = {
 };
 type AgentConfigQonto = { apiSecret?: string; bankAccountId?: string; configured: boolean };
 
-type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'configPdf' | 'codesArticles';
+type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'configPdf' | 'codesArticles' | 'systeme';
 
 function SettingsContent() {
   const router = useRouter();
@@ -87,6 +87,12 @@ function SettingsContent() {
     apiUrlFacturation: '',
   });
 
+  // Système (n8n)
+  const [publishingWorkflows, setPublishingWorkflows] = useState(false);
+  const [publishResult, setPublishResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [n8nStatus, setN8nStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [testingN8n, setTestingN8n] = useState(false);
+
   // Codes articles
   const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(false);
@@ -105,7 +111,7 @@ function SettingsContent() {
   // Ouvrir l'onglet depuis l'URL (?tab=facturation)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf' || tab === 'codesArticles') {
+    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf' || tab === 'codesArticles' || tab === 'systeme') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -412,6 +418,17 @@ function SettingsContent() {
           >
             <QueueListIcon className="h-5 w-5 inline mr-2" />
             Codes Articles
+          </button>
+          <button
+            onClick={() => setActiveTab('systeme')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'systeme'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <WrenchScrewdriverIcon className="h-5 w-5 inline mr-2" />
+            Système
           </button>
         </nav>
       </div>
@@ -1080,6 +1097,93 @@ function SettingsContent() {
               >
                 {saving ? 'Enregistrement...' : 'Enregistrer'}
               </button>
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'systeme' ? (
+        <div className="space-y-6">
+          <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
+            <h2 className="text-xl font-bold text-white mb-2">Système &amp; Workflows</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Outils de maintenance pour les workflows n8n et le système.
+            </p>
+
+            {/* Connexion n8n */}
+            <div className="mb-8 p-4 rounded-lg bg-gray-700/30 border border-gray-600/50">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Connexion n8n</h3>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={async () => {
+                    setTestingN8n(true);
+                    setN8nStatus(null);
+                    try {
+                      const result = await apiClient.n8n.test();
+                      setN8nStatus(result);
+                    } catch (err) {
+                      setN8nStatus({ success: false, message: err instanceof Error ? err.message : 'Erreur' });
+                    } finally {
+                      setTestingN8n(false);
+                    }
+                  }}
+                  disabled={testingN8n}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm font-medium rounded-md disabled:opacity-50"
+                >
+                  {testingN8n ? 'Test en cours...' : 'Tester la connexion'}
+                </button>
+                {n8nStatus && (
+                  <span className={`text-sm ${n8nStatus.success ? 'text-green-400' : 'text-red-400'}`}>
+                    {n8nStatus.success ? '\u2705' : '\u274C'} {n8nStatus.message}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Publier tous les workflows */}
+            <div className="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50">
+              <h3 className="text-sm font-medium text-gray-300 mb-2">Publier tous les workflows</h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Re-publie tous les workflows n8n actifs pour r&eacute;-enregistrer les webhooks.
+                Utile apr&egrave;s un d&eacute;ploiement ou si certaines fonctionnalit&eacute;s ne r&eacute;pondent plus.
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={async () => {
+                    setPublishingWorkflows(true);
+                    setPublishResult(null);
+                    try {
+                      const result = await apiClient.n8n.publishAll();
+                      setPublishResult(result);
+                    } catch (err) {
+                      setPublishResult({ success: false, message: err instanceof Error ? err.message : 'Erreur' });
+                    } finally {
+                      setPublishingWorkflows(false);
+                    }
+                  }}
+                  disabled={publishingWorkflows}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {publishingWorkflows ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Publication en cours...
+                    </span>
+                  ) : (
+                    'Publier tous les workflows'
+                  )}
+                </button>
+              </div>
+              {publishResult && (
+                <div className={`mt-4 p-3 rounded-md text-sm ${
+                  publishResult.success
+                    ? 'bg-green-900/20 border border-green-700/30 text-green-300'
+                    : 'bg-red-900/20 border border-red-700/30 text-red-300'
+                }`}>
+                  {publishResult.success ? '\u2705' : '\u274C'} {publishResult.message}
+                </div>
+              )}
             </div>
           </div>
         </div>

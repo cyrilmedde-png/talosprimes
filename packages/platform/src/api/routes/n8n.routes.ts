@@ -30,6 +30,27 @@ export async function n8nRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // POST /api/n8n/publish-all - Publie tous les workflows (re-enregistre les webhooks)
+  fastify.post(
+    '/publish-all',
+    {
+      preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const result = await n8nService.publishAllWorkflows();
+
+        reply.code(result.success ? 200 : 500).send(result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erreur inconnue';
+        reply.code(500).send({
+          success: false,
+          message: `Erreur serveur: ${message}`,
+        });
+      }
+    }
+  );
+
   // GET /api/n8n/workflows - Liste les workflows du tenant
   fastify.get(
     '/workflows',

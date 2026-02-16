@@ -414,6 +414,44 @@ export class N8nService {
       return [];
     }
   }
+  /**
+   * Déclenche le workflow "Auto Publish All Workflows" via son webhook.
+   * Ce workflow utilise le nœud n8n interne pour faire un vrai "Publish"
+   * avec enregistrement des webhooks (contrairement à l'API REST /activate).
+   */
+  async publishAllWorkflows(): Promise<{ success: boolean; message: string; count?: number }> {
+    if (!this.apiUrl) {
+      return { success: false, message: 'N8N_API_URL non configuré' };
+    }
+
+    try {
+      const webhookUrl = `${this.apiUrl.replace(/\/$/, '')}/webhook/deploy-publish-all`;
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'talosprimes-ui', timestamp: new Date().toISOString() }),
+        signal: AbortSignal.timeout(120_000), // 2 min timeout
+      });
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: `Erreur n8n: HTTP ${response.status} — ${response.statusText}`,
+        };
+      }
+
+      const data = await response.json() as Record<string, unknown>;
+      return {
+        success: true,
+        message: (data.message as string) || 'Workflows publiés avec succès',
+        count: (data.count as number) || undefined,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      return { success: false, message: `Erreur: ${errorMessage}` };
+    }
+  }
 }
 
 export const n8nService = new N8nService();
