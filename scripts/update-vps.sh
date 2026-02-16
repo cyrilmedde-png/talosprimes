@@ -524,13 +524,28 @@ except:
 # Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
 cred_map = {**global_map, **local_map}
 
+# Lire le versionId actuel du workflow dans n8n (necessaire pour le PUT)
+current_version_id = None
+try:
+    with open('$tmp_current') as f:
+        current_wf = json.load(f)
+    current_version_id = current_wf.get('versionId')
+except:
+    pass
+
 with open('$file') as f:
     wf = json.load(f)
 wf.setdefault('settings', {})
-# IMPORTANT: retirer 'active' du payload — n8n ne l'accepte PAS dans le PUT body
-# L'etat actif est gere via les endpoints separés /activate et /deactivate
-for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
+# Retirer les champs non-modifiables
+for k in ['id','createdAt','updatedAt','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
     wf.pop(k, None)
+
+# Reproduire le comportement du bouton "Publish" de l'UI n8n:
+# - active: true pour que n8n enregistre les webhooks
+# - versionId: du workflow actuel pour eviter les conflits de version
+wf['active'] = True
+if current_version_id:
+    wf['versionId'] = current_version_id
 
 # Remplacer les credential IDs par les vrais IDs de n8n
 replaced = 0
@@ -576,18 +591,8 @@ print(json.dumps(wf))
         rm -f "$tmp_payload"
 
         if [ "$http_code" = "200" ]; then
-          # Le PUT met a jour le contenu mais desactive le workflow.
-          # Il faut faire deactivate → activate pour forcer n8n a
-          # re-enregistrer les webhooks proprement.
-          # (Avant ca cassait a cause des credentials fausses, maintenant
-          # les credentials sont resolues correctement.)
-          curl -s -X POST \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id/deactivate" > /dev/null 2>&1 || true
-          sleep 0.5
-          curl -s -X POST \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
+          # PUT avec active:true + versionId = equivalent du "Publish" de l'UI n8n
+          # Les webhooks doivent etre enregistres par n8n automatiquement.
 
           # Transferer dans le bon projet si necessaire
           if [ -n "$project_id" ]; then
