@@ -493,11 +493,36 @@ except:
 
       if [ -n "$existing_id" ]; then
         # --- UPDATE ---
+        # ETAPE CRUCIALE: Recuperer le workflow ACTUEL de n8n pour extraire
+        # les vrais credential IDs AVANT de les ecraser avec nos placeholders
+        # Sauvegarder le workflow actuel de n8n dans un fichier temp
+        local tmp_current="/tmp/n8n_current_$existing_id.json"
+        curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+          "$N8N_API_URL/api/v1/workflows/$existing_id" > "$tmp_current" 2>/dev/null || echo "{}" > "$tmp_current"
+
         payload=$(python3 -c "
 import sys, json, os
 
-# Charger le mapping des credentials
-cred_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
+# Charger le mapping global des credentials (fallback)
+global_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
+
+# Charger le workflow ACTUEL de n8n pour extraire ses vrais credential IDs
+local_map = {}
+try:
+    with open('$tmp_current') as f:
+        current_wf = json.load(f)
+    for node in current_wf.get('nodes', []):
+        for cred_type, cred_info in node.get('credentials', {}).items():
+            if isinstance(cred_info, dict):
+                cname = cred_info.get('name', '')
+                cid = str(cred_info.get('id', ''))
+                if cname and cid and 'REPLACE' not in cid and cid not in ('', 'null', 'None'):
+                    local_map[cname] = cid
+except:
+    pass
+
+# Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
+cred_map = {**global_map, **local_map}
 
 with open('$file') as f:
     wf = json.load(f)
@@ -506,18 +531,30 @@ for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','shar
     wf.pop(k, None)
 
 # Remplacer les credential IDs par les vrais IDs de n8n
+replaced = 0
+unresolved = []
 for node in wf.get('nodes', []):
     creds = node.get('credentials', {})
     for cred_type, cred_info in creds.items():
         if isinstance(cred_info, dict):
             cred_name = cred_info.get('name', '')
-            cred_id = cred_info.get('id', '')
-            # Si le nom existe dans notre mapping, remplacer l'ID
+            cred_id = str(cred_info.get('id', ''))
             if cred_name and cred_name in cred_map:
                 cred_info['id'] = cred_map[cred_name]
+                replaced += 1
+            elif 'REPLACE' in cred_id:
+                unresolved.append(cred_name)
+
+if replaced > 0:
+    print(f'      {replaced} credentials resolues depuis n8n', file=sys.stderr)
+if unresolved:
+    names = ', '.join(set(unresolved))
+    print(f'      ATTENTION: credentials non resolues: {names}', file=sys.stderr)
 
 print(json.dumps(wf))
-" 2>/dev/null || true)
+" || true)
+
+        rm -f "$tmp_current"
 
         if [ -z "$payload" ]; then
           return 1
@@ -699,11 +736,13 @@ data = json.load(sys.stdin)
 workflows = data.get('data', [])
 mapping = {}
 
-# Recuperer les details complets de quelques workflows pour extraire les credentials
-# On prend les 10 premiers actifs (suffisant pour trouver toutes les credentials)
-active_wfs = [w for w in workflows if w.get('active')][:10]
+# Recuperer les details complets de workflows pour extraire les credentials
+# On prend TOUS les workflows (actifs ou non) - max 20 pour ne pas surcharger
+# Les workflows inactifs conservent souvent les vrais credential IDs
+sample_wfs = workflows[:20]
 
-for wf in active_wfs:
+fetched = 0
+for wf in sample_wfs:
     wf_id = wf.get('id', '')
     if not wf_id:
         continue
@@ -712,6 +751,7 @@ for wf in active_wfs:
         req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
         resp = urllib.request.urlopen(req, timeout=10)
         full_wf = json.loads(resp.read())
+        fetched += 1
 
         for node in full_wf.get('nodes', []):
             creds = node.get('credentials', {})
@@ -719,11 +759,12 @@ for wf in active_wfs:
                 if isinstance(cred_info, dict):
                     name = cred_info.get('name', '')
                     cid = str(cred_info.get('id', ''))
-                    if name and cid and not cid.startswith('REPLACE') and cid != '':
+                    if name and cid and 'REPLACE' not in cid and cid not in ('', 'null', 'None'):
                         mapping[name] = cid
     except:
         continue
 
+print(f'{fetched} workflows inspectes', file=sys.stderr)
 print(json.dumps(mapping))
 " 2>/dev/null || echo "{}")
 
