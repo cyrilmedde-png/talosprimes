@@ -16,46 +16,13 @@
     },
     {
       "parameters": {
-        "resource": "workflow",
-        "operation": "getAll",
-        "returnAll": true,
-        "filters": {}
+        "jsCode": "// Lister tous les workflows via l'API REST interne n8n\n// Utilise l'env N8N_API_KEY si dispo, sinon essaie sans auth\nconst baseUrl = process.env.N8N_HOST || process.env.WEBHOOK_URL?.replace(/\\/webhook.*/, '') || 'http://localhost:5678';\nconst apiKey = process.env.N8N_API_KEY || '';\n\nconst headers = { 'Content-Type': 'application/json' };\nif (apiKey) headers['X-N8N-API-KEY'] = apiKey;\n\nlet allWorkflows = [];\nlet cursor = '';\n\n// Pagination pour recuperer tous les workflows\nfor (let page = 0; page < 20; page++) {\n  let url = `${baseUrl}/api/v1/workflows?limit=250`;\n  if (cursor) url += `&cursor=${cursor}`;\n\n  const resp = await fetch(url, { headers });\n  if (!resp.ok) throw new Error(`API error: ${resp.status} ${resp.statusText}`);\n\n  const data = await resp.json();\n  const wfs = data.data || [];\n  allWorkflows.push(...wfs);\n\n  cursor = data.nextCursor || '';\n  if (!cursor || wfs.length === 0) break;\n}\n\n// Filtrer: seulement les actifs, exclure ce workflow lui-meme\nconst selfName = 'Deploy - Auto Publish All Workflows';\nconst activeWorkflows = allWorkflows.filter(w => w.active && w.name !== selfName);\n\n// Retourner chaque workflow comme un item separe\nreturn activeWorkflows.map(w => ({ json: { id: w.id, name: w.name } }));"
       },
-      "id": "get-all-workflows",
-      "name": "02. Get All Workflows",
-      "type": "n8n-nodes-base.n8n",
-      "typeVersion": 1,
-      "position": [420, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "filter-active",
-              "leftValue": "={{ $json.active }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "filter-active",
-      "name": "03. Filtrer Actifs",
-      "type": "n8n-nodes-base.filter",
+      "id": "list-workflows",
+      "name": "02. Lister Workflows (API)",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [640, 300]
+      "position": [440, 300]
     },
     {
       "parameters": {
@@ -64,10 +31,16 @@
         "workflowId": "={{ $json.id }}"
       },
       "id": "deactivate-workflow",
-      "name": "04. Deactivate",
+      "name": "03. Deactivate",
       "type": "n8n-nodes-base.n8n",
       "typeVersion": 1,
-      "position": [860, 300]
+      "position": [700, 300],
+      "credentials": {
+        "n8nApi": {
+          "id": "REPLACE_N8N_API_CRED_ID",
+          "name": "n8n API"
+        }
+      }
     },
     {
       "parameters": {
@@ -75,10 +48,10 @@
         "unit": "seconds"
       },
       "id": "wait-node",
-      "name": "05. Wait 500ms",
+      "name": "04. Wait 500ms",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [1080, 300]
+      "position": [940, 300]
     },
     {
       "parameters": {
@@ -87,88 +60,43 @@
         "workflowId": "={{ $json.id }}"
       },
       "id": "publish-workflow",
-      "name": "06. Publish (Activate)",
+      "name": "05. Publish (Activate)",
       "type": "n8n-nodes-base.n8n",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [1180, 300],
+      "credentials": {
+        "n8nApi": {
+          "id": "REPLACE_N8N_API_CRED_ID",
+          "name": "n8n API"
+        }
+      }
     },
     {
       "parameters": {
-        "functionCode": "const items = $input.all();\nconst published = items.length;\nreturn [{ json: { success: true, message: `${published} workflows publies avec succes`, count: published } }];"
+        "jsCode": "const items = $input.all();\nconst count = items.length;\nreturn [{ json: { success: true, message: `${count} workflows publies avec succes`, count } }];"
       },
       "id": "summary-response",
-      "name": "07. Resume",
+      "name": "06. Resume",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1520, 300]
+      "position": [1420, 300]
     }
   ],
   "connections": {
     "01. Webhook Trigger": {
-      "main": [
-        [
-          {
-            "node": "02. Get All Workflows",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Lister Workflows (API)", "type": "main", "index": 0 }]]
     },
-    "02. Get All Workflows": {
-      "main": [
-        [
-          {
-            "node": "03. Filtrer Actifs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "02. Lister Workflows (API)": {
+      "main": [[{ "node": "03. Deactivate", "type": "main", "index": 0 }]]
     },
-    "03. Filtrer Actifs": {
-      "main": [
-        [
-          {
-            "node": "04. Deactivate",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "03. Deactivate": {
+      "main": [[{ "node": "04. Wait 500ms", "type": "main", "index": 0 }]]
     },
-    "04. Deactivate": {
-      "main": [
-        [
-          {
-            "node": "05. Wait 500ms",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "04. Wait 500ms": {
+      "main": [[{ "node": "05. Publish (Activate)", "type": "main", "index": 0 }]]
     },
-    "05. Wait 500ms": {
-      "main": [
-        [
-          {
-            "node": "06. Publish (Activate)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "06. Publish (Activate)": {
-      "main": [
-        [
-          {
-            "node": "07. Resume",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Publish (Activate)": {
+      "main": [[{ "node": "06. Resume", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
