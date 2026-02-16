@@ -16,13 +16,34 @@
     },
     {
       "parameters": {
-        "jsCode": "// Lister tous les workflows via l'API REST interne n8n\n// Utilise $http (helper natif n8n) au lieu de fetch\nconst baseUrl = 'http://localhost:5678';\n\nlet allWorkflows = [];\nlet cursor = '';\n\nfor (let page = 0; page < 20; page++) {\n  let url = `${baseUrl}/api/v1/workflows?limit=250`;\n  if (cursor) url += `&cursor=${cursor}`;\n\n  const data = await this.helpers.httpRequest({ method: 'GET', url, json: true });\n  const wfs = data.data || [];\n  allWorkflows.push(...wfs);\n\n  cursor = data.nextCursor || '';\n  if (!cursor || wfs.length === 0) break;\n}\n\nconst selfName = 'Deploy - Auto Publish All Workflows';\nconst activeWorkflows = allWorkflows.filter(w => w.active && w.name !== selfName);\n\nreturn activeWorkflows.map(w => ({ json: { id: String(w.id), name: w.name } }));"
+        "resource": "workflow",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {
+          "active": true
+        }
       },
       "id": "list-workflows",
-      "name": "02. Lister Workflows (API)",
+      "name": "02. Get All Active Workflows",
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [440, 300],
+      "credentials": {
+        "n8nApi": {
+          "id": "REPLACE_N8N_API_CRED_ID",
+          "name": "n8n API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrer: exclure ce workflow lui-meme\nconst items = $input.all();\nconst selfName = 'Deploy - Auto Publish All Workflows';\nconst filtered = items.filter(item => item.json.name !== selfName);\nreturn filtered;"
+      },
+      "id": "filter-self",
+      "name": "02b. Exclure Self",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [660, 300]
     },
     {
       "parameters": {
@@ -34,7 +55,7 @@
       "name": "03. Deactivate",
       "type": "n8n-nodes-base.n8n",
       "typeVersion": 1,
-      "position": [700, 300],
+      "position": [900, 300],
       "credentials": {
         "n8nApi": {
           "id": "REPLACE_N8N_API_CRED_ID",
@@ -51,7 +72,7 @@
       "name": "04. Wait 500ms",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [940, 300]
+      "position": [1140, 300]
     },
     {
       "parameters": {
@@ -63,7 +84,7 @@
       "name": "05. Publish (Activate)",
       "type": "n8n-nodes-base.n8n",
       "typeVersion": 1,
-      "position": [1180, 300],
+      "position": [1380, 300],
       "credentials": {
         "n8nApi": {
           "id": "REPLACE_N8N_API_CRED_ID",
@@ -79,14 +100,17 @@
       "name": "06. Resume",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1420, 300]
+      "position": [1620, 300]
     }
   ],
   "connections": {
     "01. Webhook Trigger": {
-      "main": [[{ "node": "02. Lister Workflows (API)", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "02. Get All Active Workflows", "type": "main", "index": 0 }]]
     },
-    "02. Lister Workflows (API)": {
+    "02. Get All Active Workflows": {
+      "main": [[{ "node": "02b. Exclure Self", "type": "main", "index": 0 }]]
+    },
+    "02b. Exclure Self": {
       "main": [[{ "node": "03. Deactivate", "type": "main", "index": 0 }]]
     },
     "03. Deactivate": {
