@@ -282,11 +282,22 @@ for node in nodes:
                 explicit_ref = "$('{}').first().json.".format(parser_node_name)
                 query = query.replace('$json.', explicit_ref)
             # Fix schema mismatches
-            if ', updated_at' in query and 'notifications' in query:
+            # Notifications table has NO updated_at column
+            if 'notifications' in query and 'updated_at' in query:
+                import re
+                # Fix UPDATE SET clause first: remove ', updated_at = NOW()'
+                query = re.sub(r',\s*updated_at\s*=\s*NOW\(\)', '', query)
+                # Fix INSERT: remove updated_at from column list and NOW() from values
+                query = re.sub(r',\s*updated_at\)', ')', query)
+                query = re.sub(r",\s*NOW\(\)\)\s*RETURNING", ') RETURNING', query)
+                # Fix SELECT/RETURNING: remove ', updated_at' from column lists
                 query = query.replace(', updated_at', '')
             # Fix table name: bon_commandes -> bons_commande
             if 'bon_commandes' in query:
                 query = query.replace('bon_commandes', 'bons_commande')
+            # Fix proforma alias: FROM proformas d -> FROM proformas p
+            if 'FROM proformas d ' in query:
+                query = query.replace('FROM proformas d ', 'FROM proformas p ')
             # Fix event_logs column names (backup vs actual DB schema)
             # Only rename SQL column names, NOT JS property refs (preceded by '.')
             if 'event_logs' in query:
