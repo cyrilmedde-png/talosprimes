@@ -249,21 +249,41 @@ for node in nodes:
         params = node.get('parameters', {})
         if 'code' in params and 'jsCode' not in params:
             params['jsCode'] = params.pop('code')
-        # Fix old-style $input.body -> $input.first().json.body
         js = params.get('jsCode', '')
-        if js and '$input.body' in js:
-            js = js.replace('$input.body', '$input.first().json.body')
+        if js:
+            import re
+            # Fix old-style $input.body -> $input.first().json.body
+            if '$input.body' in js:
+                js = js.replace('$input.body', '$input.first().json.body')
+            # Fix $('NodeName').all() -> .all().map(item => item.json)
+            # Unwrap n8n item wrappers so responses return clean data
+            js = re.sub(r"\$\('([^']+)'\)\.all\(\)(?!\.map)", r"$('\1').all().map(item => item.json)", js)
+            # Fix $('NodeName').first() assigned to variable -> .first().json
+            # e.g. const x = $('Node').first(); -> const x = $('Node').first().json;
+            js = re.sub(r"\$\('([^']+)'\)\.first\(\)(?=\s*[;,\)])", r"$('\1').first().json", js)
+            # Fix $('NodeName').first().field -> .first().json.field (inline usage)
+            # In n8n, .first() returns an item with a .json property
+            js = re.sub(r"\$\('([^']+)'\)\.first\(\)\.(?!json\b)(\w+)", r"$('\1').first().json.\2", js)
+            # Fix $json.page/limit/offset in Format Response nodes
+            # These reference Parser data, not the previous connected node
+            node_name = node.get('name', '').lower()
+            if parser_node_name and ('format' in node_name or 'response' in node_name):
+                for field in ['page', 'limit', 'offset']:
+                    js = js.replace('$json.' + field, "$('{}').first().json.{}".format(parser_node_name, field))
             params['jsCode'] = js
 
-    # Fix Postgres nodes: replace $json. with explicit Parser reference
-    # This fixes the serial chain issue where Count Query -> List Query
-    # causes $json in List Query to point to Count Query output instead of Parser
-    if node.get('type') == 'n8n-nodes-base.postgres' and parser_node_name:
+    # Fix Postgres nodes
+    if node.get('type') == 'n8n-nodes-base.postgres':
         params = node.get('parameters', {})
         query = params.get('query', '')
-        if query and '$json.' in query:
-            explicit_ref = "$('{}').first().json.".format(parser_node_name)
-            query = query.replace('$json.', explicit_ref)
+        if query:
+            # Replace $json. with explicit Parser reference
+            if '$json.' in query and parser_node_name:
+                explicit_ref = "$('{}').first().json.".format(parser_node_name)
+                query = query.replace('$json.', explicit_ref)
+            # Fix schema mismatches: remove updated_at from notifications queries
+            if ', updated_at' in query and 'notifications' in query:
+                query = query.replace(', updated_at', '')
             params['query'] = query
 
     # Replace credential IDs
