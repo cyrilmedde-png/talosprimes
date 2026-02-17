@@ -264,9 +264,13 @@ for node in nodes:
             # Fix $('NodeName').first().field -> .first().json.field (inline usage)
             # In n8n, .first() returns an item with a .json property
             js = re.sub(r"\$\('([^']+)'\)\.first\(\)\.(?!json\b)(\w+)", r"$('\1').first().json.\2", js)
+            # Fix $json.lines in ALL Code nodes -> Parser reference
+            # 'lines' always comes from the Parser/webhook input, never from Postgres output
+            node_name = node.get('name', '').lower()
+            if parser_node_name and '$json.lines' in js:
+                js = js.replace('$json.lines', "$('{}').first().json.lines".format(parser_node_name))
             # Fix $json.page/limit/offset in Format Response nodes
             # These reference Parser data, not the previous connected node
-            node_name = node.get('name', '').lower()
             if parser_node_name and ('format' in node_name or 'response' in node_name):
                 for field in ['page', 'limit', 'offset']:
                     js = js.replace('$json.' + field, "$('{}').first().json.{}".format(parser_node_name, field))
@@ -281,12 +285,37 @@ for node in nodes:
         params = node.get('parameters', {})
         query = params.get('query', '')
         if query:
-            # Replace $json. with explicit Parser reference
-            if '$json.' in query and parser_node_name:
+            import re
+            skip_json_replace = False
+            # ---- Jinja syntax handling (MUST be done BEFORE $json replacement) ----
+            # Strip {% if %}...{% endif %} blocks (e.g. bdc-get conditional AND FALSE)
+            query = re.sub(r'\{%\s*if\s+[^%]*%\}.*?\{%\s*endif\s*%\}', '', query, flags=re.DOTALL)
+            # Convert {% for %} loops to JavaScript .map().join() expressions
+            if '{%' in query and 'for' in query:
+                if 'bon_commande_lines' in query:
+                    # bdc-created: Insert Lines - use explicit node refs to avoid $json confusion
+                    pn = "08. Prepare Lines"
+                    ref = "$('{}').first().json".format(pn)
+                    parts = []
+                    parts.append("={{ " + ref + ".lines && " + ref + ".lines.length > 0")
+                    parts.append(" ? " + ref + '.lines.map((line, idx) => ')
+                    parts.append('"INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), ')
+                    parts.append("'\" + " + ref + ".bonId + \"', \" + ")
+                    parts.append('(line.codeArticle ? "\'" + line.codeArticle + "\'" : "null") + ", ')
+                    parts.append("'\" + (line.designation || '') + \"', \" + ")
+                    parts.append('(line.quantite || 0) + ", " + (line.prixUnitaireHt || 0) + ", " + (line.totalHt || 0) + ", " + idx + ")"')
+                    parts.append(').join("; ") + "; SELECT 1" : "SELECT 1" }}')
+                    query = ''.join(parts)
+                    skip_json_replace = True
+                elif 'avoir_lines' in query:
+                    # avoir-created: Insert Lines
+                    query = '={{ $json.lineQueries && $json.lineQueries.length > 0 ? "INSERT INTO avoir_lines (avoir_id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht) VALUES " + $json.lineQueries.map(item => "(\'" + item.avoirId + "\', " + item.ordre + ", \'" + (item.codeArticle || \'\') + "\', \'" + (item.designation || \'\') + "\', " + item.quantite + ", " + item.prixUnitaireHt + ", " + item.totalHt + ")").join(", ") : "SELECT 1" }}'
+                    skip_json_replace = True
+            # Replace $json. with explicit Parser reference (skip if Jinja for-loop was converted)
+            if '$json.' in query and parser_node_name and not skip_json_replace:
                 explicit_ref = "$('{}').first().json.".format(parser_node_name)
                 query = query.replace('$json.', explicit_ref)
             # Fix $('NodeName').first().field -> .first().json.field in Postgres expressions
-            import re
             query = re.sub(r"\$\('([^']+)'\)\.first\(\)\.(?!json\b)(\w+)", r"$('\1').first().json.\2", query)
             # Fix schema mismatches
             # Notifications table has NO updated_at column
