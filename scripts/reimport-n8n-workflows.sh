@@ -478,6 +478,7 @@ activate_workflow() {
 
     if [ "$http_code" -eq 200 ]; then
         log "SUCCESS" "Workflow activated: $workflow_name"
+        sleep 0.2  # Small delay for webhook registration
         return 0
     else
         local error_msg

@@ -7,7 +7,8 @@
 # Usage: ./scripts/deploy-and-test.sh
 ################################################################################
 
-set -euo pipefail
+set -uo pipefail
+# Note: -e intentionally omitted so script continues after test failures
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -83,6 +84,10 @@ git pull origin main 2>&1 | tail -5
 echo ""
 log_info "Running reimport script..."
 bash scripts/reimport-n8n-workflows.sh 2>&1 | tail -10
+
+echo ""
+log_info "Waiting 5 seconds for webhooks to register..."
+sleep 5
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
