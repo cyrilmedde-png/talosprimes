@@ -287,6 +287,18 @@ for node in nodes:
             # Fix table name: bon_commandes -> bons_commande
             if 'bon_commandes' in query:
                 query = query.replace('bon_commandes', 'bons_commande')
+            # Fix event_logs column names (backup vs actual DB schema)
+            # Only rename SQL column names, NOT JS property refs (preceded by '.')
+            if 'event_logs' in query:
+                import re
+                # workflow -> workflow_n8n_id (SQL column only, not .json.workflow)
+                query = re.sub(r'(?<!\.)workflow\b(?!_n8n)', 'workflow_n8n_id', query)
+                # message -> message_erreur (SQL column only, not .json.message)
+                query = re.sub(r'(?<!\.)message\b(?!_erreur)', 'message_erreur', query)
+                # metadata -> payload (SQL column only)
+                query = re.sub(r'(?<!\.)metadata\b', 'payload', query)
+                # updated_at doesn't exist in event_logs
+                query = query.replace(', updated_at', '')
             params['query'] = query
 
     # Replace credential IDs
