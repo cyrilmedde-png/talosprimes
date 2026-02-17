@@ -415,9 +415,14 @@ export class N8nService {
     }
   }
   /**
-   * Déclenche le workflow "Auto Publish All Workflows" via son webhook.
-   * Ce workflow utilise le nœud n8n interne pour faire un vrai "Publish"
-   * avec enregistrement des webhooks (contrairement à l'API REST /activate).
+   * Publie tous les workflows n8n : active via API + docker restart.
+   *
+   * IMPORTANT (n8n bug #21614) : L'API REST de n8n (POST /activate, PATCH active:true)
+   * marque les workflows comme "actifs" dans la DB mais N'ENREGISTRE PAS les webhooks.
+   * Seul le bouton "Publish" de l'UI n8n enregistre les webhooks.
+   *
+   * WORKAROUND : Activer via API (met le flag active=true en DB) puis redémarrer n8n.
+   * Au démarrage, n8n lit tous les workflows actifs et enregistre leurs webhooks.
    */
   async publishAllWorkflows(): Promise<{ success: boolean; message: string; count?: number }> {
     if (!this.apiUrl || !this.apiKey) {
@@ -427,72 +432,108 @@ export class N8nService {
     const baseUrl = this.apiUrl.replace(/\/$/, '');
 
     try {
-      // 1. Lister tous les workflows actifs
-      const listResp = await fetch(`${baseUrl}/api/v1/workflows?limit=250&active=true`, {
-        headers: { 'X-N8N-API-KEY': this.apiKey },
-        signal: AbortSignal.timeout(15_000),
-      });
+      // 1. Lister TOUS les workflows (pas seulement les actifs)
+      const allWorkflows: Array<{ id: string; name: string; active: boolean }> = [];
+      let cursor = '';
 
-      if (!listResp.ok) {
-        return { success: false, message: `Erreur API n8n: HTTP ${listResp.status}` };
+      for (let page = 0; page < 20; page++) {
+        const url = cursor
+          ? `${baseUrl}/api/v1/workflows?limit=250&cursor=${cursor}`
+          : `${baseUrl}/api/v1/workflows?limit=250`;
+
+        const listResp = await fetch(url, {
+          headers: { 'X-N8N-API-KEY': this.apiKey },
+          signal: AbortSignal.timeout(15_000),
+        });
+
+        if (!listResp.ok) {
+          return { success: false, message: `Erreur API n8n: HTTP ${listResp.status}` };
+        }
+
+        const listData = await listResp.json() as {
+          data?: Array<{ id: string; name: string; active: boolean }>;
+          nextCursor?: string;
+        };
+        const workflows = listData.data || [];
+        allWorkflows.push(...workflows);
+
+        cursor = listData.nextCursor || '';
+        if (!cursor || workflows.length === 0) break;
       }
 
-      const listData = await listResp.json() as { data?: Array<{ id: string; name: string }> };
-      const workflows = listData.data || [];
-
-      // 2. Pour chaque workflow: GET complet → PATCH deactivate → PATCH activate avec contenu complet
-      // Le bouton "Publish" de l'UI n8n envoie TOUT le workflow avec active:true
-      // Envoyer juste {active:true} ne trigger PAS l'enregistrement des webhooks
+      // 2. Activer chaque workflow inactif via POST /activate (met le flag en DB)
+      const inactiveWorkflows = allWorkflows.filter(wf => !wf.active);
       let successCount = 0;
       let errorCount = 0;
 
-      for (const wf of workflows) {
+      for (const wf of inactiveWorkflows) {
         try {
-          // GET le workflow complet
-          const fullResp = await fetch(`${baseUrl}/api/v1/workflows/${wf.id}`, {
+          const resp = await fetch(`${baseUrl}/api/v1/workflows/${wf.id}/activate`, {
+            method: 'POST',
             headers: { 'X-N8N-API-KEY': this.apiKey! },
             signal: AbortSignal.timeout(10_000),
           });
-          if (!fullResp.ok) { errorCount++; continue; }
-          const fullWf = await fullResp.json() as Record<string, unknown>;
-
-          // Nettoyer les champs non-acceptes par PATCH
-          const { id, createdAt, updatedAt, ...patchBody } = fullWf;
-
-          // Deactivate avec le contenu complet
-          await fetch(`${baseUrl}/rest/workflows/${wf.id}`, {
-            method: 'PATCH',
-            headers: { 'X-N8N-API-KEY': this.apiKey!, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...patchBody, active: false }),
-            signal: AbortSignal.timeout(10_000),
-          });
-
-          // Petite pause
-          await new Promise(resolve => setTimeout(resolve, 300));
-
-          // Activate avec le contenu complet (simule le bouton Publish)
-          const activateResp = await fetch(`${baseUrl}/rest/workflows/${wf.id}`, {
-            method: 'PATCH',
-            headers: { 'X-N8N-API-KEY': this.apiKey!, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...patchBody, active: true }),
-            signal: AbortSignal.timeout(10_000),
-          });
-
-          if (activateResp.ok) {
+          if (resp.ok) {
             successCount++;
           } else {
             errorCount++;
+            console.warn(`[n8n] Échec activation workflow ${wf.id} (${wf.name}): HTTP ${resp.status}`);
           }
         } catch {
           errorCount++;
         }
       }
 
-      const message = errorCount > 0
-        ? `${successCount}/${workflows.length} workflows republies (${errorCount} erreurs)`
-        : `${successCount}/${workflows.length} workflows republies avec succes`;
+      const alreadyActive = allWorkflows.length - inactiveWorkflows.length;
+      const totalActive = alreadyActive + successCount;
 
-      return { success: true, message, count: successCount };
+      // 3. Redémarrer n8n pour enregistrer les webhooks
+      // Le restart est OBLIGATOIRE car l'API ne register pas les webhooks (bug #21614)
+      console.log('[n8n] Redémarrage de n8n pour enregistrer les webhooks...');
+
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      try {
+        await execAsync('docker restart n8n', { timeout: 30_000 });
+      } catch (restartErr) {
+        console.error('[n8n] Erreur docker restart:', restartErr);
+        return {
+          success: false,
+          message: `${totalActive}/${allWorkflows.length} workflows activés en DB mais docker restart échoué — webhooks non enregistrés`,
+          count: totalActive,
+        };
+      }
+
+      // 4. Attendre que n8n soit prêt (health check)
+      let n8nReady = false;
+      for (let i = 0; i < 30; i++) {
+        try {
+          const healthResp = await fetch(`${baseUrl}/healthz`, {
+            signal: AbortSignal.timeout(3_000),
+          });
+          if (healthResp.ok) {
+            n8nReady = true;
+            break;
+          }
+        } catch { /* n8n pas encore prêt */ }
+        await new Promise(resolve => setTimeout(resolve, 2_000));
+      }
+
+      if (!n8nReady) {
+        return {
+          success: true,
+          message: `${totalActive}/${allWorkflows.length} workflows activés, n8n redémarré mais health check échoué — vérifier manuellement`,
+          count: totalActive,
+        };
+      }
+
+      const message = errorCount > 0
+        ? `${totalActive}/${allWorkflows.length} workflows publiés (${errorCount} erreurs d'activation, ${alreadyActive} déjà actifs) — webhooks enregistrés`
+        : `${totalActive}/${allWorkflows.length} workflows publiés — webhooks enregistrés`;
+
+      return { success: true, message, count: totalActive };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
       return { success: false, message: `Erreur: ${errorMessage}` };

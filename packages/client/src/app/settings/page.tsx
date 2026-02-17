@@ -1142,8 +1142,8 @@ function SettingsContent() {
             <div className="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50">
               <h3 className="text-sm font-medium text-gray-300 mb-2">Publier tous les workflows</h3>
               <p className="text-xs text-gray-500 mb-4">
-                Re-publie tous les workflows n8n actifs pour r&eacute;-enregistrer les webhooks.
-                Utile apr&egrave;s un d&eacute;ploiement ou si certaines fonctionnalit&eacute;s ne r&eacute;pondent plus.
+                Active tous les workflows n8n puis red&eacute;marre le service n8n pour enregistrer les webhooks.
+                L&apos;op&eacute;ration prend ~30 secondes (red&eacute;marrage inclus). Utile apr&egrave;s un d&eacute;ploiement.
               </p>
               <div className="flex items-center gap-4">
                 <button

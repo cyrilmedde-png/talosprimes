@@ -17,13 +17,13 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "http://localhost:5678/api/v1/workflows?limit=250&active=true",
+        "url": "http://localhost:5678/api/v1/workflows?limit=250",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "list-workflows",
-      "name": "02. List Active Workflows",
+      "id": "list-all-workflows",
+      "name": "02. List ALL Workflows",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [440, 300],
@@ -36,95 +36,37 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst workflows = response.data || response;\nconst selfName = 'Deploy - Auto Publish All Workflows';\nconst filtered = workflows.filter(w => w.name !== selfName);\n\n// Sub-workflows d'abord\nconst sorted = filtered.sort((a, b) => {\n  const aIsSub = (a.nodes || []).some(n => n.type === 'n8n-nodes-base.executeWorkflowTrigger');\n  const bIsSub = (b.nodes || []).some(n => n.type === 'n8n-nodes-base.executeWorkflowTrigger');\n  if (aIsSub && !bIsSub) return -1;\n  if (!aIsSub && bIsSub) return 1;\n  return 0;\n});\n\nreturn sorted.map(w => ({ json: { id: String(w.id), name: w.name } }));"
+        "jsCode": "const response = $input.first().json;\nconst workflows = response.data || response;\nconst selfName = 'Deploy - Auto Publish All Workflows';\n\n// Filtrer: exclure ce workflow lui-même\nconst filtered = workflows.filter(w => w.name !== selfName);\n\n// Séparer actifs et inactifs\nconst inactive = filtered.filter(w => !w.active);\nconst active = filtered.filter(w => w.active);\n\nreturn [{\n  json: {\n    totalWorkflows: filtered.length,\n    alreadyActive: active.length,\n    toActivate: inactive.length,\n    inactiveIds: inactive.map(w => ({ id: String(w.id), name: w.name }))\n  }\n}];"
       },
-      "id": "filter-sort",
-      "name": "02b. Trier & Filtrer",
+      "id": "analyze-status",
+      "name": "02b. Analyser Statuts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [680, 300]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "=http://localhost:5678/api/v1/workflows/{{ $json.id }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "jsCode": "const data = $input.first().json;\nconst inactiveIds = data.inactiveIds || [];\n\nif (inactiveIds.length === 0) {\n  return [{ json: { id: 'none', name: 'Tous déjà actifs' } }];\n}\n\nreturn inactiveIds.map(w => ({ json: w }));"
       },
-      "id": "get-full-workflow",
-      "name": "03. GET Full Workflow",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [920, 300],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_HEADER_AUTH_ID",
-          "name": "n8n API Key"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Preparer le payload PATCH: contenu complet du workflow + active:false\nconst wf = $input.first().json;\nconst payload = { ...wf };\ndelete payload.id;\ndelete payload.createdAt;\ndelete payload.updatedAt;\npayload.active = false;\nreturn [{ json: { workflowId: wf.id, payload } }];"
-      },
-      "id": "prep-deactivate",
-      "name": "03b. Prep Deactivate",
+      "id": "split-inactive",
+      "name": "03. Split Inactifs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1140, 300]
+      "position": [920, 300]
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "=http://localhost:5678/rest/workflows/{{ $json.workflowId }}",
+        "method": "POST",
+        "url": "=http://localhost:5678/api/v1/workflows/{{ $json.id }}/activate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.payload) }}",
-        "options": {}
-      },
-      "id": "deactivate-workflow",
-      "name": "04. PATCH Deactivate",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1360, 300],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_HEADER_AUTH_ID",
-          "name": "n8n API Key"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Preparer le payload PATCH: meme contenu mais active:true\nconst wf = $input.first().json;\nconst payload = { ...wf };\ndelete payload.id;\ndelete payload.createdAt;\ndelete payload.updatedAt;\npayload.active = true;\nreturn [{ json: { workflowId: wf.id, payload } }];"
-      },
-      "id": "prep-activate",
-      "name": "04b. Prep Activate",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1580, 300]
-    },
-    {
-      "parameters": {
-        "method": "PATCH",
-        "url": "=http://localhost:5678/rest/workflows/{{ $json.workflowId }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.payload) }}",
         "options": {}
       },
       "id": "activate-workflow",
-      "name": "05. PATCH Activate (Publish)",
+      "name": "04. POST Activate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1800, 300],
+      "position": [1160, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_HEADER_AUTH_ID",
@@ -135,39 +77,30 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst total = items.length;\nlet successes = 0;\nfor (const item of items) {\n  if (item.json.active === true) successes++;\n}\nconst failures = total - successes;\nreturn [{ json: { success: true, message: `${successes}/${total} workflows publies${failures > 0 ? ` (${failures} erreurs)` : ''}`, total, successes, failures } }];"
+        "jsCode": "// NOTE IMPORTANTE:\n// L'API n8n POST /activate marque le workflow comme actif en DB\n// MAIS n'enregistre PAS les webhooks (bug connu n8n #21614).\n//\n// Pour que les webhooks fonctionnent, il faut REDEMARRER n8n après\n// cette étape. n8n enregistre les webhooks au démarrage.\n//\n// => Le script de déploiement (update-vps.sh) fait 'docker restart n8n' après.\n// => Le backend (publishAllWorkflows) fait aussi docker restart.\n\nconst items = $input.all();\nconst total = items.length;\nconst firstItem = items[0]?.json;\n\n// Si aucun à activer\nif (firstItem?.id === 'none') {\n  return [{ json: {\n    success: true,\n    message: 'Tous les workflows sont déjà actifs. Docker restart nécessaire pour enregistrer les webhooks.',\n    activated: 0,\n    total: 0,\n    needsRestart: true\n  }}];\n}\n\nlet activated = 0;\nlet errors = 0;\nfor (const item of items) {\n  if (item.json.active === true) {\n    activated++;\n  } else if (item.json.statusCode && item.json.statusCode < 300) {\n    activated++;\n  } else {\n    // Vérifier si la réponse indique un succès\n    const resp = item.json;\n    if (resp.id || resp.name) activated++;\n    else errors++;\n  }\n}\n\nreturn [{ json: {\n  success: true,\n  message: `${activated}/${total} workflows activés en DB. IMPORTANT: docker restart n8n nécessaire pour enregistrer les webhooks.`,\n  activated,\n  errors,\n  total,\n  needsRestart: true\n}}];"
       },
       "id": "summary-response",
-      "name": "06. Resume",
+      "name": "05. Résumé",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2040, 300]
+      "position": [1400, 300]
     }
   ],
   "connections": {
     "01. Webhook Trigger": {
-      "main": [[{ "node": "02. List Active Workflows", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "02. List ALL Workflows", "type": "main", "index": 0 }]]
     },
-    "02. List Active Workflows": {
-      "main": [[{ "node": "02b. Trier & Filtrer", "type": "main", "index": 0 }]]
+    "02. List ALL Workflows": {
+      "main": [[{ "node": "02b. Analyser Statuts", "type": "main", "index": 0 }]]
     },
-    "02b. Trier & Filtrer": {
-      "main": [[{ "node": "03. GET Full Workflow", "type": "main", "index": 0 }]]
+    "02b. Analyser Statuts": {
+      "main": [[{ "node": "03. Split Inactifs", "type": "main", "index": 0 }]]
     },
-    "03. GET Full Workflow": {
-      "main": [[{ "node": "03b. Prep Deactivate", "type": "main", "index": 0 }]]
+    "03. Split Inactifs": {
+      "main": [[{ "node": "04. POST Activate", "type": "main", "index": 0 }]]
     },
-    "03b. Prep Deactivate": {
-      "main": [[{ "node": "04. PATCH Deactivate", "type": "main", "index": 0 }]]
-    },
-    "04. PATCH Deactivate": {
-      "main": [[{ "node": "04b. Prep Activate", "type": "main", "index": 0 }]]
-    },
-    "04b. Prep Activate": {
-      "main": [[{ "node": "05. PATCH Activate (Publish)", "type": "main", "index": 0 }]]
-    },
-    "05. PATCH Activate (Publish)": {
-      "main": [[{ "node": "06. Resume", "type": "main", "index": 0 }]]
+    "04. POST Activate": {
+      "main": [[{ "node": "05. Résumé", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
