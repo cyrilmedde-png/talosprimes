@@ -446,20 +446,26 @@ export class N8nService {
 
       for (const wf of workflows) {
         try {
-          // Deactivate
-          await fetch(`${baseUrl}/api/v1/workflows/${wf.id}/deactivate`, {
-            method: 'POST',
-            headers: { 'X-N8N-API-KEY': this.apiKey },
+          // Utiliser l'API INTERNE n8n (/rest/) au lieu de l'API publique (/api/v1/)
+          // L'API publique POST /activate ne register PAS les webhooks (bug n8n #21614)
+          // L'API interne PATCH /rest/workflows/{id} avec {active:true} le fait
+
+          // Deactivate via API interne
+          await fetch(`${baseUrl}/rest/workflows/${wf.id}`, {
+            method: 'PATCH',
+            headers: { 'X-N8N-API-KEY': this.apiKey!, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: false }),
             signal: AbortSignal.timeout(10_000),
           });
 
           // Petite pause
           await new Promise(resolve => setTimeout(resolve, 200));
 
-          // Activate
-          const activateResp = await fetch(`${baseUrl}/api/v1/workflows/${wf.id}/activate`, {
-            method: 'POST',
-            headers: { 'X-N8N-API-KEY': this.apiKey },
+          // Activate via API interne (register les webhooks comme le bouton Publish)
+          const activateResp = await fetch(`${baseUrl}/rest/workflows/${wf.id}`, {
+            method: 'PATCH',
+            headers: { 'X-N8N-API-KEY': this.apiKey!, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active: true }),
             signal: AbortSignal.timeout(10_000),
           });
 

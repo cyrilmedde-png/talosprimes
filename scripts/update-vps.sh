@@ -596,11 +596,21 @@ except Exception as e:
         rm -f "$tmp_payload"
 
         if [ "$http_code" = "200" ]; then
-          # Re-activer le workflow (le PUT peut le desactiver)
-          # Le docker restart en fin de sync re-enregistrera les webhooks
-          curl -s -X POST \
+          # Re-publier le workflow via l'API INTERNE n8n (/rest/workflows/)
+          # L'API publique POST /activate ne register PAS les webhooks (bug n8n #21614)
+          # L'API interne PATCH /rest/workflows/{id} avec {active:true} le fait
+          # D'abord deactivate
+          curl -s -X PATCH \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
+            -H "Content-Type: application/json" \
+            -d '{"active": false}' \
+            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
+          # Puis activate (ceci register les webhooks comme le fait le bouton Publish)
+          curl -s -X PATCH \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"active": true}' \
+            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
 
           # Transferer dans le bon projet si necessaire
           if [ -n "$project_id" ]; then
