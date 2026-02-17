@@ -285,6 +285,9 @@ for node in nodes:
             if '$json.' in query and parser_node_name:
                 explicit_ref = "$('{}').first().json.".format(parser_node_name)
                 query = query.replace('$json.', explicit_ref)
+            # Fix $('NodeName').first().field -> .first().json.field in Postgres expressions
+            import re
+            query = re.sub(r"\$\('([^']+)'\)\.first\(\)\.(?!json\b)(\w+)", r"$('\1').first().json.\2", query)
             # Fix schema mismatches
             # Notifications table has NO updated_at column
             if 'notifications' in query and 'updated_at' in query:
