@@ -235,6 +235,13 @@ cred_map = {
 
 # Process each node
 for node in workflow.get('nodes', []):
+    # Fix Code nodes: rename 'code' -> 'jsCode' (backup format vs n8n API format)
+    if node.get('type') == 'n8n-nodes-base.code':
+        params = node.get('parameters', {})
+        if 'code' in params and 'jsCode' not in params:
+            params['jsCode'] = params.pop('code')
+
+    # Replace credential IDs
     credentials = node.get('credentials', {})
     for cred_type, cred_info in credentials.items():
         if isinstance(cred_info, dict):
