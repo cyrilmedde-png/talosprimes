@@ -311,7 +311,25 @@ for node in nodes:
                     # avoir-created: Insert Lines
                     query = '={{ $json.lineQueries && $json.lineQueries.length > 0 ? "INSERT INTO avoir_lines (avoir_id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht) VALUES " + $json.lineQueries.map(item => "(\'" + item.avoirId + "\', " + item.ordre + ", \'" + (item.codeArticle || \'\') + "\', \'" + (item.designation || \'\') + "\', " + item.quantite + ", " + item.prixUnitaireHt + ", " + item.totalHt + ")").join(", ") : "SELECT 1" }}'
                     skip_json_replace = True
-            # Replace $json. with explicit Parser reference (skip if Jinja for-loop was converted)
+            # Convert each(item) pseudo-syntax to JavaScript .map().join() expressions
+            # each(item) is NOT valid n8n - it was used as a placeholder for per-item iteration
+            if 'each(item)' in query:
+                if 'devis_lines' in query:
+                    # devis-created: iterate lineInserts from "08. Prepare Lines"
+                    ref = "$('08. Prepare Lines').first().json"
+                    query = '={{ ' + ref + '.lineInserts && ' + ref + '.lineInserts.length > 0 ? ' + ref + ".lineInserts.map(item => \"INSERT INTO devis_lines (id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.devisId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || item.description || '') + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || item.prixUnitaire || 0) + \", \" + (item.totalHt || item.montantHt || 0) + \", \" + (item.ordre || item.ligneNumero || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+                    skip_json_replace = True
+                elif 'proforma_lines' in query:
+                    # proforma-created: iterate lineInserts from "08. Prepare Lines"
+                    ref = "$('08. Prepare Lines').first().json"
+                    query = '={{ ' + ref + '.lineInserts && ' + ref + '.lineInserts.length > 0 ? ' + ref + ".lineInserts.map(item => \"INSERT INTO proforma_lines (id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.proformaId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || item.description || '') + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || item.prixUnitaire || 0) + \", \" + (item.totalHt || item.montantHt || 0) + \", \" + (item.ordre || item.ligneNumero || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+                    skip_json_replace = True
+                elif 'invoice_lines' in query:
+                    # convert-to-invoice: iterate lines from "10. Prepare Lines"
+                    ref = "$('10. Prepare Lines').first().json"
+                    query = '={{ ' + ref + '.lines && ' + ref + '.lines.length > 0 ? ' + ref + ".lines.map(item => \"INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + " + ref + ".invoiceId + \"', \" + (item.code_article ? \"'\" + item.code_article + \"'\" : \"null\") + \", '\" + (item.designation || '') + \"', \" + (item.quantite || 0) + \", \" + (item.prix_unitaire_ht || 0) + \", \" + (item.total_ht || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+                    skip_json_replace = True
+            # Replace $json. with explicit Parser reference (skip if loop/each was converted)
             if '$json.' in query and parser_node_name and not skip_json_replace:
                 explicit_ref = "$('{}').first().json.".format(parser_node_name)
                 query = query.replace('$json.', explicit_ref)
