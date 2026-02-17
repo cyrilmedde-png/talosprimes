@@ -1069,8 +1069,15 @@ for w in inactive:
       # pas toujours les webhooks. Un restart de n8n force le re-enregistrement
       # de tous les webhooks au demarrage.
       if [ "$N8N_SUCCESS" -gt 0 ]; then
-        log_info "Redemarrage de n8n pour re-enregistrer les webhooks ($N8N_SUCCESS workflows mis a jour)..."
-        docker restart n8n > /dev/null 2>&1 || true
+        # Appliquer le patch webhook (fix isFullPath priority) avant restart
+        if [ -f /home/root/n8n-agent/apply-webhook-patch.sh ]; then
+          log_info "Application du patch webhook n8n..."
+          /home/root/n8n-agent/apply-webhook-patch.sh > /dev/null 2>&1 || log_warn "Patch webhook echoue (non bloquant)"
+          log_ok "Patch webhook applique + n8n redemarre"
+        else
+          log_info "Redemarrage de n8n pour re-enregistrer les webhooks ($N8N_SUCCESS workflows mis a jour)..."
+          docker restart n8n > /dev/null 2>&1 || true
+        fi
 
         # Attendre que n8n soit pret
         n8n_ready=false

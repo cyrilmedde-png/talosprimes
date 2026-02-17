@@ -1,0 +1,479 @@
+#!/bin/bash
+
+################################################################################
+# N8N Workflow Reimporter - TalosPrimes
+################################################################################
+# Reimports n8n workflows from JSON backup files, updating broken workflows
+# that have empty Code nodes with full implementations from backups.
+#
+# Features:
+# - Finds existing workflow IDs by matching webhook paths
+# - Replaces old credential IDs with current n8n instance credentials
+# - Updates workflows via PUT /api/v1/workflows/{id}
+# - Activates workflows after successful import
+# - Comprehensive logging and error handling
+#
+# Usage:
+#   ./scripts/reimport-n8n-workflows.sh [API_KEY] [N8N_URL]
+#   ./scripts/reimport-n8n-workflows.sh                    (uses .env)
+#
+# Environment Variables:
+#   N8N_API_KEY     - n8n API key (required)
+#   N8N_API_URL     - n8n API endpoint (default: http://localhost:5678)
+#   ENV_FILE        - Path to .env file (default: packages/platform/.env)
+#
+# Examples:
+#   ./scripts/reimport-n8n-workflows.sh
+#   ./scripts/reimport-n8n-workflows.sh "my-api-key" "https://n8n.example.com"
+#   N8N_API_KEY="my-key" ./scripts/reimport-n8n-workflows.sh
+#
+################################################################################
+
+set -euo pipefail
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+BACKUP_DIR="${PROJECT_DIR}/n8n_workflows/talosprimes"
+PLATFORM_DIR="${PROJECT_DIR}/packages/platform"
+LOG_FILE="${SCRIPT_DIR}/../reimport-workflows-$(date +%Y%m%d_%H%M%S).log"
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+
+# Credential ID mappings (current n8n instance)
+declare -A CREDENTIAL_MAP=(
+    ["postgres"]="6Kosza77d9Ld32mw"
+    ["Supabase Postgres"]="6Kosza77d9Ld32mw"
+    ["httpHeaderAuth:talosprimes"]="AuJmz6W8aeutvysV"
+    ["TalosPrimes API Auth"]="AuJmz6W8aeutvysV"
+    ["httpHeaderAuth:resend"]="ZoJkKnTqGisK2Idh"
+    ["RESEND"]="ZoJkKnTqGisK2Idh"
+    ["twilio"]="9dKAFunSg4lJcj77"
+    ["Twilio account"]="9dKAFunSg4lJcj77"
+    ["n8nApi"]="UOxVqcaXs0NeqsmD"
+    ["X-N8N-API-KEY"]="UOxVqcaXs0NeqsmD"
+)
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Statistics
+TOTAL_WORKFLOWS=0
+SUCCESSFUL_UPDATES=0
+FAILED_UPDATES=0
+SKIPPED_WORKFLOWS=0
+
+# ============================================================================
+# Functions
+# ============================================================================
+
+# Log function with timestamp and colors
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local color=""
+
+    case "$level" in
+        "INFO") color="$BLUE" ;;
+        "SUCCESS") color="$GREEN" ;;
+        "WARN") color="$YELLOW" ;;
+        "ERROR") color="$RED" ;;
+        *) color="$NC" ;;
+    esac
+
+    echo -e "${color}[${TIMESTAMP}] [${level}]${NC} ${message}" | tee -a "$LOG_FILE"
+}
+
+# Print section header
+header() {
+    local title="$1"
+    echo "" | tee -a "$LOG_FILE"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" | tee -a "$LOG_FILE"
+    echo -e "${BLUE}${title}${NC}" | tee -a "$LOG_FILE"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" | tee -a "$LOG_FILE"
+}
+
+# Validate required tools
+validate_tools() {
+    local required_tools=("curl" "python3" "jq")
+    for tool in "${required_tools[@]}"; do
+        if ! command -v "$tool" &> /dev/null; then
+            log "ERROR" "Required tool not found: $tool"
+            exit 1
+        fi
+    done
+    log "SUCCESS" "All required tools are available"
+}
+
+# Load API key from .env if not provided
+load_api_key() {
+    if [ -n "${N8N_API_KEY:-}" ]; then
+        log "INFO" "Using N8N_API_KEY from environment"
+        return 0
+    fi
+
+    if [ -f "$PLATFORM_DIR/.env" ]; then
+        log "INFO" "Loading N8N_API_KEY from $PLATFORM_DIR/.env"
+        N8N_API_KEY=$(grep -E '^N8N_API_KEY=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" || echo "")
+        if [ -n "$N8N_API_KEY" ]; then
+            export N8N_API_KEY
+            return 0
+        fi
+    fi
+
+    log "ERROR" "N8N_API_KEY not found. Please provide it via:"
+    log "ERROR" "  - Command argument: ./script.sh 'API_KEY'"
+    log "ERROR" "  - Environment variable: export N8N_API_KEY='...'"
+    log "ERROR" "  - Or add N8N_API_KEY to $PLATFORM_DIR/.env"
+    return 1
+}
+
+# Validate n8n connection
+validate_n8n_connection() {
+    log "INFO" "Testing connection to n8n at $N8N_API_URL..."
+
+    local response
+    response=$(curl -s -w "\n%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows" 2>&1)
+    local http_code
+    http_code=$(echo "$response" | tail -1)
+
+    if [ "$http_code" -eq 200 ]; then
+        log "SUCCESS" "Connection successful (HTTP $http_code)"
+        return 0
+    else
+        log "ERROR" "Failed to connect to n8n (HTTP $http_code)"
+        log "ERROR" "Response: $(echo "$response" | head -1)"
+        return 1
+    fi
+}
+
+# Get all workflows from n8n API
+get_all_workflows() {
+    log "INFO" "Fetching all workflows from n8n..."
+
+    local response
+    response=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows")
+
+    if [ $? -eq 0 ]; then
+        echo "$response"
+    else
+        log "ERROR" "Failed to fetch workflows from n8n"
+        return 1
+    fi
+}
+
+# Find workflow ID by webhook path
+# Returns the workflow ID if found, empty string otherwise
+find_workflow_by_webhook() {
+    local webhook_path="$1"
+    local workflows_json="$2"
+
+    echo "$workflows_json" | python3 << 'PYTHON_EOF' 2>/dev/null || echo ""
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    workflows = data.get('data', [])
+    webhook_path = sys.argv[1]
+
+    for workflow in workflows:
+        nodes = workflow.get('nodes', [])
+        for node in nodes:
+            if node.get('type') == 'n8n-nodes-base.webhook':
+                node_path = node.get('parameters', {}).get('path', '')
+                if node_path == webhook_path:
+                    print(workflow.get('id', ''))
+                    sys.exit(0)
+    print('')
+except Exception:
+    print('')
+PYTHON_EOF
+}
+
+# Replace credential IDs in workflow JSON
+replace_credentials_in_workflow() {
+    local backup_json="$1"
+
+    # Create temporary file for Python script
+    python3 << 'PYTHON_EOF'
+import sys, json, re
+
+backup_file = sys.argv[1]
+
+with open(backup_file, 'r') as f:
+    workflow = json.load(f)
+
+# Credential mappings
+cred_map = {
+    "postgres": "6Kosza77d9Ld32mw",
+    "Supabase Postgres": "6Kosza77d9Ld32mw",
+    "httpHeaderAuth:talosprimes": "AuJmz6W8aeutvysV",
+    "TalosPrimes API Auth": "AuJmz6W8aeutvysV",
+    "httpHeaderAuth:resend": "ZoJkKnTqGisK2Idh",
+    "RESEND": "ZoJkKnTqGisK2Idh",
+    "twilio": "9dKAFunSg4lJcj77",
+    "Twilio account": "9dKAFunSg4lJcj77",
+    "n8nApi": "UOxVqcaXs0NeqsmD",
+    "X-N8N-API-KEY": "UOxVqcaXs0NeqsmD"
+}
+
+# Process each node
+for node in workflow.get('nodes', []):
+    credentials = node.get('credentials', {})
+
+    # Replace credential IDs for each credential type
+    for cred_type, cred_info in credentials.items():
+        if isinstance(cred_info, dict):
+            cred_name = cred_info.get('name', '')
+            cred_id = cred_info.get('id', '')
+
+            # Check if old ID is a placeholder or needs replacement
+            if 'REPLACE_WITH' in cred_id or cred_name in cred_map:
+                new_id = cred_map.get(cred_name) or cred_map.get(cred_type)
+                if new_id:
+                    node['credentials'][cred_type]['id'] = new_id
+
+# Remove read-only fields for PUT request
+read_only_fields = [
+    'active', 'id', 'createdAt', 'updatedAt', 'versionId',
+    'triggerCount', 'sharedWithProjects', 'homeProject', 'tags',
+    'meta', 'pinData', 'staticData'
+]
+
+for field in read_only_fields:
+    workflow.pop(field, None)
+
+# Ensure nodes and connections exist
+if 'nodes' not in workflow:
+    workflow['nodes'] = []
+if 'connections' not in workflow:
+    workflow['connections'] = {}
+if 'settings' not in workflow:
+    workflow['settings'] = {}
+
+print(json.dumps(workflow))
+PYTHON_EOF
+}
+
+# Update workflow via n8n API
+update_workflow() {
+    local workflow_id="$1"
+    local workflow_json="$2"
+    local workflow_name="$3"
+
+    log "INFO" "Updating workflow: $workflow_name (ID: $workflow_id)"
+
+    # Send PUT request
+    local response
+    response=$(curl -s -w "\n%{http_code}" -X PUT \
+        -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$workflow_json" \
+        "$N8N_API_URL/api/v1/workflows/$workflow_id" 2>&1)
+
+    local http_code
+    http_code=$(echo "$response" | tail -1)
+    local body
+    body=$(echo "$response" | sed '$d')
+
+    if [ "$http_code" -eq 200 ]; then
+        log "SUCCESS" "Workflow updated successfully: $workflow_name"
+        return 0
+    else
+        local error_msg
+        error_msg=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('message', 'Unknown error'))" 2>/dev/null || echo "Unknown error")
+        log "ERROR" "Failed to update workflow: $workflow_name (HTTP $http_code) - $error_msg"
+        return 1
+    fi
+}
+
+# Activate workflow
+activate_workflow() {
+    local workflow_id="$1"
+    local workflow_name="$2"
+
+    log "INFO" "Activating workflow: $workflow_name"
+
+    local response
+    response=$(curl -s -w "\n%{http_code}" -X POST \
+        -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        -H "Content-Type: application/json" \
+        "$N8N_API_URL/api/v1/workflows/$workflow_id/activate" 2>&1)
+
+    local http_code
+    http_code=$(echo "$response" | tail -1)
+
+    if [ "$http_code" -eq 200 ]; then
+        log "SUCCESS" "Workflow activated: $workflow_name"
+        return 0
+    else
+        local error_msg
+        error_msg=$(echo "$response" | sed '$d' | python3 -c "import sys, json; print(json.load(sys.stdin).get('message', 'Unknown error'))" 2>/dev/null || echo "Unknown error")
+        log "WARN" "Failed to activate workflow: $workflow_name (HTTP $http_code) - $error_msg"
+        return 0  # Don't fail the whole process
+    fi
+}
+
+# Process a single workflow
+process_workflow() {
+    local backup_file="$1"
+    local workflows_json="$2"
+    local relative_path="${backup_file#$BACKUP_DIR/}"
+
+    TOTAL_WORKFLOWS=$((TOTAL_WORKFLOWS + 1))
+
+    log "INFO" "Processing: $relative_path"
+
+    # Extract webhook path from filename
+    # e.g., "devis/devis-list.json" -> "devis-list"
+    local filename
+    filename=$(basename "$backup_file" .json)
+
+    # Try to find workflow with matching webhook path
+    local workflow_id
+    workflow_id=$(find_workflow_by_webhook "$filename" "$workflows_json")
+
+    if [ -z "$workflow_id" ]; then
+        log "WARN" "No existing workflow found with webhook path: $filename (skipping)"
+        SKIPPED_WORKFLOWS=$((SKIPPED_WORKFLOWS + 1))
+        return 1
+    fi
+
+    log "INFO" "Found existing workflow ID: $workflow_id"
+
+    # Validate backup JSON
+    if ! python3 -m json.tool "$backup_file" > /dev/null 2>&1; then
+        log "ERROR" "Invalid JSON in backup file: $backup_file"
+        FAILED_UPDATES=$((FAILED_UPDATES + 1))
+        return 1
+    fi
+
+    # Replace credentials in the backup JSON
+    local updated_json
+    updated_json=$(replace_credentials_in_workflow "$backup_file")
+
+    if [ -z "$updated_json" ]; then
+        log "ERROR" "Failed to process credentials for: $relative_path"
+        FAILED_UPDATES=$((FAILED_UPDATES + 1))
+        return 1
+    fi
+
+    # Update workflow
+    if update_workflow "$workflow_id" "$updated_json" "$filename"; then
+        # Try to activate
+        activate_workflow "$workflow_id" "$filename"
+        SUCCESSFUL_UPDATES=$((SUCCESSFUL_UPDATES + 1))
+        return 0
+    else
+        FAILED_UPDATES=$((FAILED_UPDATES + 1))
+        return 1
+    fi
+}
+
+# Main execution
+main() {
+    header "N8N Workflow Reimporter - TalosPrimes"
+
+    # Handle command-line arguments
+    if [ $# -gt 0 ]; then
+        N8N_API_KEY="$1"
+        export N8N_API_KEY
+    fi
+    if [ $# -gt 1 ]; then
+        N8N_API_URL="$2"
+        export N8N_API_URL
+    fi
+
+    # Set defaults
+    N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
+
+    log "INFO" "Starting workflow reimport process..."
+    log "INFO" "Log file: $LOG_FILE"
+    log "INFO" "Backup directory: $BACKUP_DIR"
+    log "INFO" "n8n API URL: $N8N_API_URL"
+
+    # Validation
+    header "Pre-flight Checks"
+    validate_tools || exit 1
+    load_api_key || exit 1
+    validate_n8n_connection || exit 1
+
+    # Get all existing workflows
+    header "Fetching Existing Workflows"
+    local all_workflows
+    all_workflows=$(get_all_workflows) || exit 1
+    log "INFO" "Retrieved workflow list from n8n"
+
+    # Define workflows to reimport
+    header "Processing Workflows"
+    declare -a WORKFLOWS_TO_REIMPORT=(
+        "devis/devis-list.json"
+        "devis/devis-get.json"
+        "devis/devis-created.json"
+        "devis/devis-sent.json"
+        "devis/devis-accepted.json"
+        "devis/devis-deleted.json"
+        "devis/devis-convert-to-invoice.json"
+        "bons-commande/bdc-list.json"
+        "bons-commande/bdc-get.json"
+        "bons-commande/bdc-created.json"
+        "bons-commande/bdc-validated.json"
+        "bons-commande/bdc-deleted.json"
+        "bons-commande/bdc-convert-to-invoice.json"
+        "proforma/proforma-list.json"
+        "proforma/proforma-get.json"
+        "proforma/proforma-created.json"
+        "proforma/proforma-sent.json"
+        "proforma/proforma-accepted.json"
+        "proforma/proforma-deleted.json"
+        "proforma/proforma-convert-to-invoice.json"
+        "notifications/notification-created.json"
+        "notifications/notification-deleted.json"
+        "notifications/notification-read.json"
+        "notifications/notifications-list.json"
+        "logs/logs-list.json"
+        "logs/logs-stats.json"
+        "agent-telephonique/twilio-outbound-call.json"
+        "agent-telephonique/twilio-test-call.json"
+    )
+
+    # Process each workflow
+    for workflow_path in "${WORKFLOWS_TO_REIMPORT[@]}"; do
+        local backup_file="$BACKUP_DIR/$workflow_path"
+
+        if [ ! -f "$backup_file" ]; then
+            log "WARN" "Backup file not found: $workflow_path"
+            SKIPPED_WORKFLOWS=$((SKIPPED_WORKFLOWS + 1))
+            continue
+        fi
+
+        process_workflow "$backup_file" "$all_workflows"
+        echo "" | tee -a "$LOG_FILE"
+    done
+
+    # Summary
+    header "Summary"
+    log "INFO" "Total workflows processed: $TOTAL_WORKFLOWS"
+    log "SUCCESS" "Successful updates: $SUCCESSFUL_UPDATES"
+    log "ERROR" "Failed updates: $FAILED_UPDATES"
+    log "WARN" "Skipped workflows: $SKIPPED_WORKFLOWS"
+
+    echo "" | tee -a "$LOG_FILE"
+
+    if [ $FAILED_UPDATES -eq 0 ]; then
+        log "SUCCESS" "✅ All workflows reimported successfully!"
+        return 0
+    else
+        log "WARN" "⚠️  Some workflows failed to reimport. Check log: $LOG_FILE"
+        return 1
+    fi
+}
+
+# Run main function
+main "$@"
