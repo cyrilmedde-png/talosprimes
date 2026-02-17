@@ -235,11 +235,16 @@ cred_map = {
 
 # Process each node
 for node in workflow.get('nodes', []):
-    # Fix Code nodes: rename 'code' -> 'jsCode' (backup format vs n8n API format)
+    # Fix Code nodes: rename 'code' -> 'jsCode' AND fix $input.body references
     if node.get('type') == 'n8n-nodes-base.code':
         params = node.get('parameters', {})
         if 'code' in params and 'jsCode' not in params:
             params['jsCode'] = params.pop('code')
+        # Fix old-style $input.body -> $input.first().json.body
+        js = params.get('jsCode', '')
+        if js and '$input.body' in js:
+            js = js.replace('$input.body', '$input.first().json.body')
+            params['jsCode'] = js
 
     # Replace credential IDs
     credentials = node.get('credentials', {})
