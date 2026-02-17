@@ -420,33 +420,64 @@ export class N8nService {
    * avec enregistrement des webhooks (contrairement à l'API REST /activate).
    */
   async publishAllWorkflows(): Promise<{ success: boolean; message: string; count?: number }> {
-    if (!this.apiUrl) {
-      return { success: false, message: 'N8N_API_URL non configuré' };
+    if (!this.apiUrl || !this.apiKey) {
+      return { success: false, message: 'N8N_API_URL ou N8N_API_KEY non configuré' };
     }
 
-    try {
-      const webhookUrl = `${this.apiUrl.replace(/\/$/, '')}/webhook/deploy-publish-all`;
+    const baseUrl = this.apiUrl.replace(/\/$/, '');
 
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'talosprimes-ui', timestamp: new Date().toISOString() }),
-        signal: AbortSignal.timeout(120_000), // 2 min timeout
+    try {
+      // 1. Lister tous les workflows actifs
+      const listResp = await fetch(`${baseUrl}/api/v1/workflows?limit=250&active=true`, {
+        headers: { 'X-N8N-API-KEY': this.apiKey },
+        signal: AbortSignal.timeout(15_000),
       });
 
-      if (!response.ok) {
-        return {
-          success: false,
-          message: `Erreur n8n: HTTP ${response.status} — ${response.statusText}`,
-        };
+      if (!listResp.ok) {
+        return { success: false, message: `Erreur API n8n: HTTP ${listResp.status}` };
       }
 
-      const data = await response.json() as Record<string, unknown>;
-      return {
-        success: true,
-        message: (data.message as string) || 'Workflows publiés avec succès',
-        count: (data.count as number) || undefined,
-      };
+      const listData = await listResp.json() as { data?: Array<{ id: string; name: string }> };
+      const workflows = listData.data || [];
+
+      // 2. Pour chaque workflow actif: deactivate puis activate
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const wf of workflows) {
+        try {
+          // Deactivate
+          await fetch(`${baseUrl}/api/v1/workflows/${wf.id}/deactivate`, {
+            method: 'POST',
+            headers: { 'X-N8N-API-KEY': this.apiKey },
+            signal: AbortSignal.timeout(10_000),
+          });
+
+          // Petite pause
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          // Activate
+          const activateResp = await fetch(`${baseUrl}/api/v1/workflows/${wf.id}/activate`, {
+            method: 'POST',
+            headers: { 'X-N8N-API-KEY': this.apiKey },
+            signal: AbortSignal.timeout(10_000),
+          });
+
+          if (activateResp.ok) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch {
+          errorCount++;
+        }
+      }
+
+      const message = errorCount > 0
+        ? `${successCount}/${workflows.length} workflows republies (${errorCount} erreurs)`
+        : `${successCount}/${workflows.length} workflows republies avec succes`;
+
+      return { success: true, message, count: successCount };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
       return { success: false, message: `Erreur: ${errorMessage}` };
