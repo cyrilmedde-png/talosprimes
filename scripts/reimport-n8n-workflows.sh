@@ -154,46 +154,56 @@ validate_n8n_connection() {
     fi
 }
 
-# Get all workflows from n8n API
-get_all_workflows() {
+# Temp file for workflows cache
+export WORKFLOWS_CACHE="/tmp/n8n_workflows_cache_$$.json"
+
+# Cleanup on exit
+cleanup() {
+    rm -f "$WORKFLOWS_CACHE"
+}
+trap cleanup EXIT
+
+# Fetch all workflows from n8n API into temp file
+fetch_all_workflows() {
     log "INFO" "Fetching all workflows from n8n..."
 
-    local response
-    response=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=250")
+    curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        "$N8N_API_URL/api/v1/workflows?limit=250" > "$WORKFLOWS_CACHE" 2>/dev/null
 
-    if [ $? -eq 0 ]; then
-        echo "$response"
-    else
-        log "ERROR" "Failed to fetch workflows from n8n"
+    local count
+    count=$(python3 -c "import json; print(len(json.load(open('$WORKFLOWS_CACHE')).get('data',[])))" 2>/dev/null || echo "0")
+    log "INFO" "Found $count workflows in n8n"
+
+    if [ "$count" -eq 0 ]; then
+        log "ERROR" "No workflows found - check API key and connection"
         return 1
     fi
+    return 0
 }
 
-# Find workflow ID by webhook path
-# Returns the workflow ID if found, empty string otherwise
+# Find workflow ID by webhook path (reads from cache file)
 find_workflow_by_webhook() {
     local webhook_path="$1"
-    local workflows_json="$2"
 
     export WEBHOOK_PATH="$webhook_path"
-    echo "$workflows_json" | python3 -c "
-import sys, json, os
-try:
-    data = json.load(sys.stdin)
-    workflows = data.get('data', [])
-    webhook_path = os.environ.get('WEBHOOK_PATH', '')
-    for workflow in workflows:
-        nodes = workflow.get('nodes', [])
-        for node in nodes:
-            if node.get('type') == 'n8n-nodes-base.webhook':
-                node_path = node.get('parameters', {}).get('path', '')
-                if node_path == webhook_path:
-                    print(workflow.get('id', ''))
-                    sys.exit(0)
-    print('')
-except Exception:
-    print('')
-" 2>/dev/null || echo ""
+    python3 << 'PYEOF'
+import json, os
+
+webhook_path = os.environ.get('WEBHOOK_PATH', '')
+cache_file = os.environ.get('WORKFLOWS_CACHE', '')
+
+with open(cache_file, 'r') as f:
+    data = json.load(f)
+
+for workflow in data.get('data', []):
+    for node in workflow.get('nodes', []):
+        if node.get('type') == 'n8n-nodes-base.webhook':
+            node_path = node.get('parameters', {}).get('path', '')
+            if node_path == webhook_path:
+                print(workflow.get('id', ''))
+                exit(0)
+print('')
+PYEOF
 }
 
 # Replace credential IDs in workflow JSON
@@ -315,7 +325,6 @@ activate_workflow() {
 # Process a single workflow
 process_workflow() {
     local backup_file="$1"
-    local workflows_json="$2"
     local relative_path="${backup_file#$BACKUP_DIR/}"
 
     TOTAL_WORKFLOWS=$((TOTAL_WORKFLOWS + 1))
@@ -329,7 +338,7 @@ process_workflow() {
 
     # Try to find workflow with matching webhook path
     local workflow_id
-    workflow_id=$(find_workflow_by_webhook "$filename" "$workflows_json")
+    workflow_id=$(find_workflow_by_webhook "$filename")
 
     if [ -z "$workflow_id" ]; then
         log "WARN" "No existing workflow found with webhook path: $filename (skipping)"
@@ -398,9 +407,7 @@ main() {
 
     # Get all existing workflows
     header "Fetching Existing Workflows"
-    local all_workflows
-    all_workflows=$(get_all_workflows) || exit 1
-    log "INFO" "Retrieved workflow list from n8n"
+    fetch_all_workflows || exit 1
 
     # Define workflows to reimport
     header "Processing Workflows"
@@ -445,7 +452,7 @@ main() {
             continue
         fi
 
-        process_workflow "$backup_file" "$all_workflows"
+        process_workflow "$backup_file"
         echo "" | tee -a "$LOG_FILE"
     done
 
