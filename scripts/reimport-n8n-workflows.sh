@@ -159,7 +159,7 @@ get_all_workflows() {
     log "INFO" "Fetching all workflows from n8n..."
 
     local response
-    response=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows")
+    response=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/workflows?limit=250")
 
     if [ $? -eq 0 ]; then
         echo "$response"
@@ -175,13 +175,13 @@ find_workflow_by_webhook() {
     local webhook_path="$1"
     local workflows_json="$2"
 
-    echo "$workflows_json" | python3 << 'PYTHON_EOF' 2>/dev/null || echo ""
-import sys, json
+    export WEBHOOK_PATH="$webhook_path"
+    echo "$workflows_json" | python3 -c "
+import sys, json, os
 try:
     data = json.load(sys.stdin)
     workflows = data.get('data', [])
-    webhook_path = sys.argv[1]
-
+    webhook_path = os.environ.get('WEBHOOK_PATH', '')
     for workflow in workflows:
         nodes = workflow.get('nodes', [])
         for node in nodes:
@@ -193,18 +193,18 @@ try:
     print('')
 except Exception:
     print('')
-PYTHON_EOF
+" 2>/dev/null || echo ""
 }
 
 # Replace credential IDs in workflow JSON
 replace_credentials_in_workflow() {
     local backup_json="$1"
 
-    # Create temporary file for Python script
-    python3 << 'PYTHON_EOF'
-import sys, json, re
+    export BACKUP_FILE="$backup_json"
+    python3 << 'PYEOF'
+import json, os
 
-backup_file = sys.argv[1]
+backup_file = os.environ.get('BACKUP_FILE', '')
 
 with open(backup_file, 'r') as f:
     workflow = json.load(f)
@@ -226,27 +226,19 @@ cred_map = {
 # Process each node
 for node in workflow.get('nodes', []):
     credentials = node.get('credentials', {})
-
-    # Replace credential IDs for each credential type
     for cred_type, cred_info in credentials.items():
         if isinstance(cred_info, dict):
             cred_name = cred_info.get('name', '')
             cred_id = cred_info.get('id', '')
-
-            # Check if old ID is a placeholder or needs replacement
             if 'REPLACE_WITH' in cred_id or cred_name in cred_map:
                 new_id = cred_map.get(cred_name) or cred_map.get(cred_type)
                 if new_id:
                     node['credentials'][cred_type]['id'] = new_id
 
 # Remove read-only fields for PUT request
-read_only_fields = [
-    'active', 'id', 'createdAt', 'updatedAt', 'versionId',
-    'triggerCount', 'sharedWithProjects', 'homeProject', 'tags',
-    'meta', 'pinData', 'staticData'
-]
-
-for field in read_only_fields:
+for field in ['active', 'id', 'createdAt', 'updatedAt', 'versionId',
+              'triggerCount', 'sharedWithProjects', 'homeProject', 'tags',
+              'meta', 'pinData', 'staticData']:
     workflow.pop(field, None)
 
 # Ensure nodes and connections exist
@@ -258,7 +250,7 @@ if 'settings' not in workflow:
     workflow['settings'] = {}
 
 print(json.dumps(workflow))
-PYTHON_EOF
+PYEOF
 }
 
 # Update workflow via n8n API
