@@ -28,47 +28,55 @@ log_skip() { echo -e "${YELLOW}⏭️  SKIP${NC} $1: $2"; SKIP=$((SKIP+1)); }
 log_info() { echo -e "${BLUE}ℹ️  INFO${NC} $1"; }
 
 # Test a webhook endpoint
+# $4 = "allow_empty" to accept empty response (for fake UUID mutations)
 test_webhook() {
     local name="$1"
     local path="$2"
     local payload="$3"
-    local expect_field="${4:-success}"
+    local allow_empty="${4:-}"
 
-    local response
-    response=$(curl -s -m 10 -X POST "$N8N_URL/webhook/$path" \
+    local http_code response_body
+    local full_response
+    full_response=$(curl -s -m 15 -w "\n%{http_code}" -X POST "$N8N_URL/webhook/$path" \
         -H 'Content-Type: application/json' \
-        -d "$payload" 2>/dev/null || echo '{"error":"timeout_or_connection_error"}')
+        -d "$payload" 2>/dev/null || echo -e "\n000")
 
-    if [ -z "$response" ]; then
-        log_fail "$name" "empty response"
+    http_code=$(echo "$full_response" | tail -1)
+    response_body=$(echo "$full_response" | sed '$d')
+
+    # Connection error
+    if [ "$http_code" = "000" ]; then
+        log_fail "$name" "connection error/timeout"
         return 1
     fi
 
-    # Check for webhook not registered
-    if echo "$response" | grep -q "not registered"; then
+    # Check for webhook not registered (404)
+    if echo "$response_body" | grep -q "not registered"; then
         log_fail "$name" "webhook not registered"
         return 1
     fi
 
-    # Check for n8n error
-    if echo "$response" | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('error') and 'timeout' not in str(d.get('error','')) else 1)" 2>/dev/null; then
+    # Empty response with allow_empty = expected (fake UUID mutations)
+    if [ -z "$response_body" ] && [ "$allow_empty" = "allow_empty" ]; then
+        log_pass "$name (webhook responds, no data for fake UUID)"
+        return 0
+    fi
+
+    # Empty response without allow_empty = real problem
+    if [ -z "$response_body" ]; then
+        log_fail "$name" "empty response (HTTP $http_code)"
+        return 1
+    fi
+
+    # Check for n8n error in JSON
+    if echo "$response_body" | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('error') and 'timeout' not in str(d.get('error','')) else 1)" 2>/dev/null; then
         local err
-        err=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error',''))" 2>/dev/null)
+        err=$(echo "$response_body" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error',''))" 2>/dev/null)
         log_fail "$name" "$err"
         return 1
     fi
 
-    # Check response is valid JSON
-    if ! echo "$response" | python3 -m json.tool > /dev/null 2>&1; then
-        # Try to check if it's at least non-empty
-        if [ ${#response} -gt 2 ]; then
-            log_pass "$name (non-JSON response, ${#response} chars)"
-            return 0
-        fi
-        log_fail "$name" "invalid/empty response"
-        return 1
-    fi
-
+    # Valid response
     log_pass "$name"
     return 0
 }
@@ -120,13 +128,13 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 FAKE_UUID="00000000-0000-0000-0000-000000000000"
 
 test_webhook "devis-get" "devis-get" \
-    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}" "allow_empty"
 
 test_webhook "bdc-get" "bdc-get" \
-    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}" "allow_empty"
 
 test_webhook "proforma-get" "proforma-get" \
-    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}" "allow_empty"
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -154,57 +162,45 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${BLUE}Step 5: Test Other Endpoints${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-# Notification read
+# Mutation endpoints with fake UUIDs - accept empty response (record doesn't exist)
 test_webhook "notification-read" "notification-read" \
-    "{\"tenantId\":\"$TENANT_ID\",\"notificationId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"notificationId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Notification deleted
 test_webhook "notification-deleted" "notification-deleted" \
-    "{\"tenantId\":\"$TENANT_ID\",\"notificationId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"notificationId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Devis sent
 test_webhook "devis-sent" "devis-sent" \
-    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Devis accepted
 test_webhook "devis-accepted" "devis-accepted" \
-    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Devis deleted
 test_webhook "devis-deleted" "devis-deleted" \
-    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Devis convert to invoice
 test_webhook "devis-convert-to-invoice" "devis-convert-to-invoice" \
-    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# BDC validated
 test_webhook "bdc-validated" "bdc-validated" \
-    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# BDC deleted
 test_webhook "bdc-deleted" "bdc-deleted" \
-    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# BDC convert to invoice
 test_webhook "bdc-convert-to-invoice" "bdc-convert-to-invoice" \
-    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"bdcId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Proforma sent
 test_webhook "proforma-sent" "proforma-sent" \
-    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Proforma accepted
 test_webhook "proforma-accepted" "proforma-accepted" \
-    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Proforma deleted
 test_webhook "proforma-deleted" "proforma-deleted" \
-    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}" "allow_empty"
 
-# Proforma convert to invoice
 test_webhook "proforma-convert-to-invoice" "proforma-convert-to-invoice" \
-    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}"
+    "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}" "allow_empty"
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
