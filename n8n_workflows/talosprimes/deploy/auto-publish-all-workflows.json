@@ -46,17 +46,14 @@
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "=http://localhost:5678/rest/workflows/{{ $json.id }}",
+        "method": "GET",
+        "url": "=http://localhost:5678/api/v1/workflows/{{ $json.id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={ \"active\": false, \"versionId\": \"\" }",
         "options": {}
       },
-      "id": "deactivate-workflow",
-      "name": "03. Deactivate (Internal API)",
+      "id": "get-full-workflow",
+      "name": "03. GET Full Workflow",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [920, 300],
@@ -70,20 +67,30 @@
     },
     {
       "parameters": {
+        "jsCode": "// Preparer le payload PATCH: contenu complet du workflow + active:false\nconst wf = $input.first().json;\nconst payload = { ...wf };\ndelete payload.id;\ndelete payload.createdAt;\ndelete payload.updatedAt;\npayload.active = false;\nreturn [{ json: { workflowId: wf.id, payload } }];"
+      },
+      "id": "prep-deactivate",
+      "name": "03b. Prep Deactivate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
         "method": "PATCH",
-        "url": "=http://localhost:5678/rest/workflows/{{ $json.id }}",
+        "url": "=http://localhost:5678/rest/workflows/{{ $json.workflowId }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"active\": true, \"versionId\": \"\" }",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
         "options": {}
       },
-      "id": "activate-workflow",
-      "name": "04. Activate (Internal API)",
+      "id": "deactivate-workflow",
+      "name": "04. PATCH Deactivate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1160, 300],
+      "position": [1360, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "REPLACE_HEADER_AUTH_ID",
@@ -94,13 +101,47 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst total = items.length;\nlet successes = 0;\nlet failures = 0;\nfor (const item of items) {\n  if (item.json.active === true) {\n    successes++;\n  } else {\n    failures++;\n  }\n}\nreturn [{ json: { success: true, message: `${successes}/${total} workflows publies avec succes${failures > 0 ? `, ${failures} erreurs` : ''}`, total, successes, failures } }];"
+        "jsCode": "// Preparer le payload PATCH: meme contenu mais active:true\nconst wf = $input.first().json;\nconst payload = { ...wf };\ndelete payload.id;\ndelete payload.createdAt;\ndelete payload.updatedAt;\npayload.active = true;\nreturn [{ json: { workflowId: wf.id, payload } }];"
       },
-      "id": "summary-response",
-      "name": "05. Resume",
+      "id": "prep-activate",
+      "name": "04b. Prep Activate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, 300]
+      "position": [1580, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://localhost:5678/rest/workflows/{{ $json.workflowId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "id": "activate-workflow",
+      "name": "05. PATCH Activate (Publish)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1800, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_HEADER_AUTH_ID",
+          "name": "n8n API Key"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst total = items.length;\nlet successes = 0;\nfor (const item of items) {\n  if (item.json.active === true) successes++;\n}\nconst failures = total - successes;\nreturn [{ json: { success: true, message: `${successes}/${total} workflows publies${failures > 0 ? ` (${failures} erreurs)` : ''}`, total, successes, failures } }];"
+      },
+      "id": "summary-response",
+      "name": "06. Resume",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2040, 300]
     }
   ],
   "connections": {
@@ -111,13 +152,22 @@
       "main": [[{ "node": "02b. Trier & Filtrer", "type": "main", "index": 0 }]]
     },
     "02b. Trier & Filtrer": {
-      "main": [[{ "node": "03. Deactivate (Internal API)", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "03. GET Full Workflow", "type": "main", "index": 0 }]]
     },
-    "03. Deactivate (Internal API)": {
-      "main": [[{ "node": "04. Activate (Internal API)", "type": "main", "index": 0 }]]
+    "03. GET Full Workflow": {
+      "main": [[{ "node": "03b. Prep Deactivate", "type": "main", "index": 0 }]]
     },
-    "04. Activate (Internal API)": {
-      "main": [[{ "node": "05. Resume", "type": "main", "index": 0 }]]
+    "03b. Prep Deactivate": {
+      "main": [[{ "node": "04. PATCH Deactivate", "type": "main", "index": 0 }]]
+    },
+    "04. PATCH Deactivate": {
+      "main": [[{ "node": "04b. Prep Activate", "type": "main", "index": 0 }]]
+    },
+    "04b. Prep Activate": {
+      "main": [[{ "node": "05. PATCH Activate (Publish)", "type": "main", "index": 0 }]]
+    },
+    "05. PATCH Activate (Publish)": {
+      "main": [[{ "node": "06. Resume", "type": "main", "index": 0 }]]
     }
   },
   "active": true,

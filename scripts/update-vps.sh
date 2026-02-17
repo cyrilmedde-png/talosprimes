@@ -598,18 +598,50 @@ except Exception as e:
         if [ "$http_code" = "200" ]; then
           # Re-publier le workflow via l'API INTERNE n8n (/rest/workflows/)
           # L'API publique POST /activate ne register PAS les webhooks (bug n8n #21614)
-          # L'API interne PATCH /rest/workflows/{id} avec {active:true} le fait
-          # D'abord deactivate
+          # Le bouton Publish de l'UI envoie TOUT le contenu + active:true
+          # On doit faire pareil: GET complet → PATCH avec tout + active:true
+
+          # GET le workflow complet depuis n8n
+          local full_wf
+          full_wf=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || echo "{}")
+
+          # Preparer le payload PATCH avec le contenu complet
+          local patch_payload
+          patch_payload=$(echo "$full_wf" | python3 -c "
+import sys, json
+try:
+    wf = json.load(sys.stdin)
+    # Retirer les champs que PATCH n'accepte pas
+    for k in ['id','createdAt','updatedAt']:
+        wf.pop(k, None)
+    wf['active'] = False
+    print(json.dumps(wf))
+except:
+    print('{\"active\": false}')
+" 2>/dev/null)
+
+          # Deactivate avec contenu complet
           curl -s -X PATCH \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"active": false}' \
+            -d "$patch_payload" \
             "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
-          # Puis activate (ceci register les webhooks comme le fait le bouton Publish)
+
+          sleep 0.3
+
+          # Activate avec contenu complet (simule le bouton Publish)
+          patch_payload=$(echo "$patch_payload" | python3 -c "
+import sys, json
+wf = json.load(sys.stdin)
+wf['active'] = True
+print(json.dumps(wf))
+" 2>/dev/null)
+
           curl -s -X PATCH \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"active": true}' \
+            -d "$patch_payload" \
             "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
 
           # Transferer dans le bon projet si necessaire

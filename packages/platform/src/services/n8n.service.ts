@@ -440,32 +440,41 @@ export class N8nService {
       const listData = await listResp.json() as { data?: Array<{ id: string; name: string }> };
       const workflows = listData.data || [];
 
-      // 2. Pour chaque workflow actif: deactivate puis activate
+      // 2. Pour chaque workflow: GET complet → PATCH deactivate → PATCH activate avec contenu complet
+      // Le bouton "Publish" de l'UI n8n envoie TOUT le workflow avec active:true
+      // Envoyer juste {active:true} ne trigger PAS l'enregistrement des webhooks
       let successCount = 0;
       let errorCount = 0;
 
       for (const wf of workflows) {
         try {
-          // Utiliser l'API INTERNE n8n (/rest/) au lieu de l'API publique (/api/v1/)
-          // L'API publique POST /activate ne register PAS les webhooks (bug n8n #21614)
-          // L'API interne PATCH /rest/workflows/{id} avec {active:true} le fait
+          // GET le workflow complet
+          const fullResp = await fetch(`${baseUrl}/api/v1/workflows/${wf.id}`, {
+            headers: { 'X-N8N-API-KEY': this.apiKey! },
+            signal: AbortSignal.timeout(10_000),
+          });
+          if (!fullResp.ok) { errorCount++; continue; }
+          const fullWf = await fullResp.json() as Record<string, unknown>;
 
-          // Deactivate via API interne
+          // Nettoyer les champs non-acceptes par PATCH
+          const { id, createdAt, updatedAt, ...patchBody } = fullWf;
+
+          // Deactivate avec le contenu complet
           await fetch(`${baseUrl}/rest/workflows/${wf.id}`, {
             method: 'PATCH',
             headers: { 'X-N8N-API-KEY': this.apiKey!, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ active: false }),
+            body: JSON.stringify({ ...patchBody, active: false }),
             signal: AbortSignal.timeout(10_000),
           });
 
           // Petite pause
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 300));
 
-          // Activate via API interne (register les webhooks comme le bouton Publish)
+          // Activate avec le contenu complet (simule le bouton Publish)
           const activateResp = await fetch(`${baseUrl}/rest/workflows/${wf.id}`, {
             method: 'PATCH',
             headers: { 'X-N8N-API-KEY': this.apiKey!, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ active: true }),
+            body: JSON.stringify({ ...patchBody, active: true }),
             signal: AbortSignal.timeout(10_000),
           });
 
