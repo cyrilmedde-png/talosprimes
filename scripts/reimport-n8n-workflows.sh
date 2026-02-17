@@ -281,9 +281,12 @@ for node in nodes:
             if '$json.' in query and parser_node_name:
                 explicit_ref = "$('{}').first().json.".format(parser_node_name)
                 query = query.replace('$json.', explicit_ref)
-            # Fix schema mismatches: remove updated_at from notifications queries
+            # Fix schema mismatches
             if ', updated_at' in query and 'notifications' in query:
                 query = query.replace(', updated_at', '')
+            # Fix table name: bon_commandes -> bons_commande
+            if 'bon_commandes' in query:
+                query = query.replace('bon_commandes', 'bons_commande')
             params['query'] = query
 
     # Replace credential IDs
