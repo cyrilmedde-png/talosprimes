@@ -270,6 +270,10 @@ for node in nodes:
             if parser_node_name and ('format' in node_name or 'response' in node_name):
                 for field in ['page', 'limit', 'offset']:
                     js = js.replace('$json.' + field, "$('{}').first().json.{}".format(parser_node_name, field))
+            # Code nodes MUST return items in n8n v2
+            # If no return statement, add passthrough to avoid "doesn't return items properly"
+            if 'return ' not in js and 'return\n' not in js:
+                js = js.rstrip() + '\nreturn $input.all();'
             params['jsCode'] = js
 
     # Fix Postgres nodes
@@ -295,6 +299,26 @@ for node in nodes:
             # Fix table name: bon_commandes -> bons_commande
             if 'bon_commandes' in query:
                 query = query.replace('bon_commandes', 'bons_commande')
+            # Fix INSERT INTO notifications: add id = gen_random_uuid()
+            if 'INSERT INTO notifications' in query and 'gen_random_uuid' not in query:
+                query = query.replace(
+                    'INSERT INTO notifications (tenant_id,',
+                    'INSERT INTO notifications (id, tenant_id,'
+                )
+                query = query.replace(
+                    "VALUES (",
+                    "VALUES (gen_random_uuid(), "
+                )
+            # Fix INSERT INTO call_logs: add id = gen_random_uuid()
+            if 'INSERT INTO call_logs' in query and 'gen_random_uuid' not in query:
+                query = query.replace(
+                    'INSERT INTO call_logs (tenant_id,',
+                    'INSERT INTO call_logs (id, tenant_id,'
+                )
+                query = query.replace(
+                    "VALUES (",
+                    "VALUES (gen_random_uuid(), "
+                )
             # Fix proforma alias: FROM proformas d -> FROM proformas p
             if 'FROM proformas d ' in query:
                 query = query.replace('FROM proformas d ', 'FROM proformas p ')
