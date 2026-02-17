@@ -449,8 +449,8 @@ deactivate_workflow() {
         -H "X-N8N-API-KEY: $N8N_API_KEY" \
         -H "Content-Type: application/json" \
         "$N8N_API_URL/api/v1/workflows/$workflow_id/deactivate" > /dev/null 2>&1
-    # Small delay to let n8n clean up webhook registrations
-    sleep 0.3
+    # Delay to let n8n clean up webhook registrations
+    sleep 0.5
 }
 
 # Activate workflow
@@ -471,7 +471,7 @@ activate_workflow() {
 
     if [ "$http_code" -eq 200 ]; then
         log "SUCCESS" "Workflow activated: $workflow_name"
-        sleep 0.2  # Small delay for webhook registration
+        sleep 0.5  # Delay for webhook registration
         return 0
     else
         local error_msg

@@ -94,8 +94,8 @@ log_info "Running reimport script..."
 bash scripts/reimport-n8n-workflows.sh 2>&1 | tail -10
 
 echo ""
-log_info "Waiting 5 seconds for webhooks to register..."
-sleep 5
+log_info "Waiting 10 seconds for webhooks to register..."
+sleep 10
 
 # Check for inactive workflows that should be active
 echo ""
