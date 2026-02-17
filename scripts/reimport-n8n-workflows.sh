@@ -233,8 +233,17 @@ cred_map = {
     "X-N8N-API-KEY": "UOxVqcaXs0NeqsmD"
 }
 
-# Process each node
-for node in workflow.get('nodes', []):
+# ---- Step 1: Find Parser node name dynamically ----
+parser_node_name = None
+nodes = workflow.get('nodes', [])
+for node in nodes:
+    name = node.get('name', '')
+    if 'parser' in name.lower():
+        parser_node_name = name
+        break
+
+# ---- Step 2: Process each node ----
+for node in nodes:
     # Fix Code nodes: rename 'code' -> 'jsCode' AND fix $input.body references
     if node.get('type') == 'n8n-nodes-base.code':
         params = node.get('parameters', {})
@@ -245,6 +254,17 @@ for node in workflow.get('nodes', []):
         if js and '$input.body' in js:
             js = js.replace('$input.body', '$input.first().json.body')
             params['jsCode'] = js
+
+    # Fix Postgres nodes: replace $json. with explicit Parser reference
+    # This fixes the serial chain issue where Count Query -> List Query
+    # causes $json in List Query to point to Count Query output instead of Parser
+    if node.get('type') == 'n8n-nodes-base.postgres' and parser_node_name:
+        params = node.get('parameters', {})
+        query = params.get('query', '')
+        if query and '$json.' in query:
+            explicit_ref = "$('{}').first().json.".format(parser_node_name)
+            query = query.replace('$json.', explicit_ref)
+            params['query'] = query
 
     # Replace credential IDs
     credentials = node.get('credentials', {})
