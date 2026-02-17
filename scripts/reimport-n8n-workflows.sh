@@ -373,6 +373,19 @@ update_workflow() {
     fi
 }
 
+# Deactivate workflow (to force webhook re-registration on activate)
+deactivate_workflow() {
+    local workflow_id="$1"
+    local workflow_name="$2"
+
+    curl -s -X POST \
+        -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        -H "Content-Type: application/json" \
+        "$N8N_API_URL/api/v1/workflows/$workflow_id/deactivate" > /dev/null 2>&1
+    # Small delay to let n8n clean up webhook registrations
+    sleep 0.3
+}
+
 # Activate workflow
 activate_workflow() {
     local workflow_id="$1"
@@ -443,9 +456,12 @@ process_workflow() {
         return 1
     fi
 
+    # Deactivate first to force webhook re-registration on activate
+    deactivate_workflow "$workflow_id" "$filename"
+
     # Update workflow
     if update_workflow "$workflow_id" "$updated_json" "$filename"; then
-        # Try to activate
+        # Activate (webhooks will be freshly registered)
         activate_workflow "$workflow_id" "$filename"
         SUCCESSFUL_UPDATES=$((SUCCESSFUL_UPDATES + 1))
         return 0
