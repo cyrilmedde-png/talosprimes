@@ -2,10 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
-import {
-  ClipboardDocumentListIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline';
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 
 type LigneGrandLivre = {
   date: string;
