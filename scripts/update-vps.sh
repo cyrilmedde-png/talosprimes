@@ -593,19 +593,44 @@ except Exception as e:
             "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || echo "{}")
 
           # Preparer le payload PATCH avec le contenu complet
+          # IMPORTANT: Fusionner les credentials du payload transforme avec full_wf
+          # car /api/v1/workflows/{id} peut ne pas retourner les credentials complets
+          local tmp_full_wf="/tmp/n8n_full_wf_$existing_id.json"
+          local tmp_transformed="/tmp/n8n_transformed_$existing_id.json"
+          echo "$full_wf" > "$tmp_full_wf"
+          echo "$payload" > "$tmp_transformed"
+
           local patch_payload
-          patch_payload=$(echo "$full_wf" | python3 -c "
+          patch_payload=$(python3 -c "
 import sys, json
 try:
-    wf = json.load(sys.stdin)
+    with open('$tmp_full_wf') as f:
+        full_wf = json.load(f)
+    with open('$tmp_transformed') as f:
+        transformed = json.load(f)
+
+    # Copier les credentials du payload transforme (qui ont les vrais IDs)
+    # vers le full_wf, pour s'assurer qu'ils sont preserves lors du PATCH
+    for node in full_wf.get('nodes', []):
+        node_id = node.get('id')
+        # Trouver le node correspondant dans transformed
+        for tnode in transformed.get('nodes', []):
+            if tnode.get('id') == node_id:
+                # Copier les credentials
+                if 'credentials' in tnode:
+                    node['credentials'] = tnode['credentials']
+                break
+
     # Retirer les champs que PATCH n'accepte pas
     for k in ['id','createdAt','updatedAt']:
-        wf.pop(k, None)
-    wf['active'] = False
-    print(json.dumps(wf))
-except:
-    print('{\"active\": false}')
+        full_wf.pop(k, None)
+    full_wf['active'] = False
+    print(json.dumps(full_wf))
+except Exception as e:
+    print(json.dumps({'active': False}), file=sys.stderr)
+    sys.exit(1)
 " 2>/dev/null)
+          rm -f "$tmp_full_wf" "$tmp_transformed"
 
           # Deactivate avec contenu complet
           curl -s -X PATCH \

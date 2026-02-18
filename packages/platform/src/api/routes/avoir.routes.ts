@@ -88,12 +88,12 @@ export async function avoirRoutes(fastify: FastifyInstance) {
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow avoir_list indisponible' });
         }
-        const raw = res.data as { avoir?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const avoir = Array.isArray(raw.avoir) ? raw.avoir : [];
+        const raw = res.data as { avoirs?: unknown[]; avoir?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+        const avoir = Array.isArray(raw.avoirs) ? raw.avoirs : (Array.isArray(raw.avoir) ? raw.avoir : []);
         return reply.status(200).send({
           success: true,
           data: {
-            avoir,
+            avoirs: avoir,
             count: avoir.length,
             total: raw.total ?? avoir.length,
             page: raw.page ?? 1,
@@ -125,7 +125,7 @@ export async function avoirRoutes(fastify: FastifyInstance) {
 
       return reply.status(200).send({
         success: true,
-        data: { avoir, count: avoir.length, total, page, limit, totalPages: Math.ceil(total / limit) },
+        data: { avoirs: avoir, count: avoir.length, total, page, limit, totalPages: Math.ceil(total / limit) },
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur liste avoir');

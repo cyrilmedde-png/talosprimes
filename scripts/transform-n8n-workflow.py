@@ -221,8 +221,9 @@ def transform_workflow(wf_path, current_n8n_path=None):
                         cid = str(cred_info.get('id', ''))
                         if cname and cid and 'REPLACE' not in cid and cid not in ('', 'null', 'None'):
                             local_map[cname] = cid
-        except Exception:
-            pass
+                            print(f"      Extrait depuis n8n: {cname} -> {cid}", file=sys.stderr)
+        except Exception as e:
+            print(f"      ERREUR lors de l'extraction des credentials depuis n8n: {e}", file=sys.stderr)
 
     # Merge: local_map has priority, then global_map as fallback
     cred_map = {**global_map, **local_map}
@@ -269,16 +270,19 @@ def transform_workflow(wf_path, current_n8n_path=None):
                 cred_name = cred_info.get('name', '')
                 cred_id = str(cred_info.get('id', ''))
                 if cred_name and cred_name in cred_map:
+                    old_id = cred_info['id']
                     cred_info['id'] = cred_map[cred_name]
                     replaced += 1
+                    print(f"      Credential '{cred_name}': {old_id} -> {cred_map[cred_name]}", file=sys.stderr)
                 elif 'REPLACE' in cred_id:
                     unresolved.append(cred_name)
+                    print(f"      ATTENTION: Credential '{cred_name}' n'a pas pu être resolu (maps disponibles: {list(cred_map.keys())})", file=sys.stderr)
 
     if replaced > 0:
         print(f'      {replaced} credentials resolues depuis n8n', file=sys.stderr)
     if unresolved:
         names = ', '.join(set(unresolved))
-        print(f'      ATTENTION: credentials non resolues: {names}', file=sys.stderr)
+        print(f'      ATTENTION: {len(unresolved)} credential(s) non resolu(e)s: {names}', file=sys.stderr)
 
     # Ensure required fields
     wf.setdefault('nodes', [])

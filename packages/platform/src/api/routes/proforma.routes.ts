@@ -88,12 +88,12 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow proforma_list indisponible' });
         }
-        const raw = res.data as { proforma?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const proforma = Array.isArray(raw.proforma) ? raw.proforma : [];
+        const raw = res.data as { proforma?: unknown[]; proformas?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+        const proforma = Array.isArray(raw.proformas) ? raw.proformas : (Array.isArray(raw.proforma) ? raw.proforma : []);
         return reply.status(200).send({
           success: true,
           data: {
-            proforma,
+            proformas: proforma,
             count: proforma.length,
             total: raw.total ?? proforma.length,
             page: raw.page ?? 1,
@@ -125,7 +125,7 @@ export async function proformaRoutes(fastify: FastifyInstance) {
 
       return reply.status(200).send({
         success: true,
-        data: { proforma, count: proforma.length, total, page, limit, totalPages: Math.ceil(total / limit) },
+        data: { proformas: proforma, count: proforma.length, total, page, limit, totalPages: Math.ceil(total / limit) },
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur liste proforma');
