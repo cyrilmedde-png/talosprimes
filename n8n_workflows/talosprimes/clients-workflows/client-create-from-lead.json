@@ -12,7 +12,10 @@
       "name": "Webhook - client_create_from_lead",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -22,7 +25,10 @@
       "name": "Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [540, 300]
+      "position": [
+        540,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,10 +47,13 @@
       "name": "API TalosPrimes - Get Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [780, 300],
+      "position": [
+        780,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "id": "AuJmz6W8aeutvysV",
           "name": "TalosPrimes API Auth"
         }
       }
@@ -57,7 +66,10 @@
       "name": "Préparer données client",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1020, 300]
+      "position": [
+        1020,
+        300
+      ]
     },
     {
       "parameters": {
@@ -74,10 +86,13 @@
       "name": "API TalosPrimes - Update Lead Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1260, 300],
+      "position": [
+        1260,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "id": "AuJmz6W8aeutvysV",
           "name": "TalosPrimes API Auth"
         }
       }
@@ -97,10 +112,13 @@
       "name": "API TalosPrimes - Create Client",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1500, 300],
+      "position": [
+        1500,
+        300
+      ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "id": "AuJmz6W8aeutvysV",
           "name": "TalosPrimes API Auth"
         }
       }
@@ -115,7 +133,10 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1740, 300]
+      "position": [
+        1740,
+        300
+      ]
     }
   ],
   "connections": {
@@ -191,4 +212,3 @@
   },
   "versionId": "v1"
 }
-

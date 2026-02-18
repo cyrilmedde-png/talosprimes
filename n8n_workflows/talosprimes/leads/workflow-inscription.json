@@ -12,7 +12,10 @@
       "name": "Webhook - Réception",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "inscription"
     },
     {
@@ -23,7 +26,10 @@
       "name": "Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -53,7 +59,10 @@
       "name": "Sauvegarder Lead",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
@@ -63,7 +72,10 @@
       "name": "Diagnostic Erreur Sauvegarde",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 500]
+      "position": [
+        900,
+        500
+      ]
     },
     {
       "parameters": {
@@ -73,7 +85,10 @@
       "name": "Formatage Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 200]
+      "position": [
+        900,
+        200
+      ]
     },
     {
       "parameters": {
@@ -98,10 +113,13 @@
       "name": "Resend - Email Confirmation",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 200],
+      "position": [
+        1120,
+        200
+      ],
       "credentials": {
         "headerAuth": {
-          "id": "resend-api",
+          "id": "ZoJkKnTqGisK2Idh",
           "name": "Resend API"
         }
       }
@@ -114,7 +132,10 @@
       "name": "Formatage SMS",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -128,10 +149,13 @@
       "name": "Twilio - SMS",
       "type": "n8n-nodes-base.twilio",
       "typeVersion": 1,
-      "position": [1120, 400],
+      "position": [
+        1120,
+        400
+      ],
       "credentials": {
         "twilioApi": {
-          "id": "twilio-api",
+          "id": "9dKAFunSg4lJcj77",
           "name": "Twilio"
         }
       }
@@ -144,7 +168,10 @@
       "name": "Formatage Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 600]
+      "position": [
+        900,
+        600
+      ]
     },
     {
       "parameters": {
@@ -169,10 +196,13 @@
       "name": "Resend - Notification Équipe",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 600],
+      "position": [
+        1120,
+        600
+      ],
       "credentials": {
         "headerAuth": {
-          "id": "resend-api",
+          "id": "ZoJkKnTqGisK2Idh",
           "name": "Resend API"
         }
       }
@@ -189,7 +219,10 @@
       "name": "Réponse Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 400]
+      "position": [
+        1340,
+        400
+      ]
     },
     {
       "parameters": {
@@ -199,7 +232,10 @@
       "name": "Formatage Alerte Erreur",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 800]
+      "position": [
+        680,
+        800
+      ]
     },
     {
       "parameters": {
@@ -209,7 +245,10 @@
       "name": "Formatage Email Alerte",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 800]
+      "position": [
+        900,
+        800
+      ]
     },
     {
       "parameters": {
@@ -234,10 +273,13 @@
       "name": "Resend - Email Alerte",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1120, 800],
+      "position": [
+        1120,
+        800
+      ],
       "credentials": {
         "headerAuth": {
-          "id": "resend-api",
+          "id": "ZoJkKnTqGisK2Idh",
           "name": "Resend API"
         }
       }
@@ -254,7 +296,10 @@
       "name": "Réponse Webhook Erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 800]
+      "position": [
+        1340,
+        800
+      ]
     }
   ],
   "connections": {

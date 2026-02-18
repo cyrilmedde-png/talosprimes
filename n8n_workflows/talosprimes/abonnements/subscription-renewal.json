@@ -51,7 +51,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+          "id": "6Kosza77d9Ld32mw"
         }
       }
     },
@@ -125,7 +125,7 @@
       ],
       "credentials": {
         "headerAuth": {
-          "id": "stripe-api-credential",
+          "id": "hTgbVXtv3dG8wSJ4",
           "name": "Stripe API"
         }
       }
@@ -192,7 +192,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+          "id": "6Kosza77d9Ld32mw"
         }
       }
     },
@@ -222,7 +222,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID"
+          "id": "6Kosza77d9Ld32mw"
         }
       }
     },
@@ -267,7 +267,7 @@
       ],
       "credentials": {
         "headerAuth": {
-          "id": "resend-api-credential",
+          "id": "ZoJkKnTqGisK2Idh",
           "name": "Resend API"
         }
       }
@@ -300,7 +300,7 @@
       ],
       "credentials": {
         "headerAuth": {
-          "id": "talosprimes-api-credential",
+          "id": "FLSZWCszgEFfXDoK",
           "name": "TalosPrimes API"
         }
       }

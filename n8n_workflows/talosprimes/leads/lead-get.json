@@ -12,7 +12,10 @@
       "name": "Webhook - lead_get",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -22,7 +25,10 @@
       "name": "Parser ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 300]
+      "position": [
+        520,
+        300
+      ]
     },
     {
       "parameters": {
@@ -33,10 +39,13 @@
       "name": "Postgres - SELECT lead",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [740, 300],
+      "position": [
+        740,
+        300
+      ],
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "id": "6Kosza77d9Ld32mw",
           "name": "Supabase Postgres"
         }
       }
@@ -49,7 +58,10 @@
       "name": "Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 300]
+      "position": [
+        960,
+        300
+      ]
     },
     {
       "parameters": {
@@ -60,7 +72,10 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1180, 300]
+      "position": [
+        1180,
+        300
+      ]
     }
   ],
   "connections": {

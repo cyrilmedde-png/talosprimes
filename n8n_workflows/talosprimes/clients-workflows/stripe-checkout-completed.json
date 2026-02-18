@@ -12,7 +12,10 @@
       "name": "01. Webhook Stripe",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 400],
+      "position": [
+        240,
+        400
+      ],
       "webhookId": "stripe-checkout-completed"
     },
     {
@@ -23,7 +26,10 @@
       "name": "02. Extraire données",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -44,7 +50,10 @@
       "name": "03. Validation données",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [680, 400]
+      "position": [
+        680,
+        400
+      ]
     },
     {
       "parameters": {
@@ -69,10 +78,13 @@
       "name": "04. Récupérer identifiants",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 300],
+      "position": [
+        900,
+        300
+      ],
       "credentials": {
         "headerAuth": {
-          "id": "talosprimes-api-credential",
+          "id": "FLSZWCszgEFfXDoK",
           "name": "API TalosPrimes - Header Auth"
         }
       }
@@ -85,7 +97,10 @@
       "name": "05. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -110,10 +125,13 @@
       "name": "06. Envoyer email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1340, 300],
+      "position": [
+        1340,
+        300
+      ],
       "credentials": {
         "headerAuth": {
-          "id": "resend-api-credential",
+          "id": "ZoJkKnTqGisK2Idh",
           "name": "Resend API"
         }
       }
@@ -128,7 +146,10 @@
       "name": "07. Répondre au webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1560, 300]
+      "position": [
+        1560,
+        300
+      ]
     },
     {
       "parameters": {
@@ -140,7 +161,10 @@
       "name": "Répondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [900, 500]
+      "position": [
+        900,
+        500
+      ]
     }
   ],
   "connections": {
@@ -228,4 +252,3 @@
   "updatedAt": "2026-01-09T18:00:00.000Z",
   "versionId": "1"
 }
-
