@@ -611,15 +611,14 @@ try:
 
     # Copier les credentials du payload transforme (qui ont les vrais IDs)
     # vers le full_wf, pour s'assurer qu'ils sont preserves lors du PATCH
+    # NOTE: On match par NOM de node (pas par id) car les backups utilisent
+    # le nom comme id tandis que n8n assigne des UUIDs
+    tnode_by_name = {t.get('name'): t for t in transformed.get('nodes', [])}
     for node in full_wf.get('nodes', []):
-        node_id = node.get('id')
-        # Trouver le node correspondant dans transformed
-        for tnode in transformed.get('nodes', []):
-            if tnode.get('id') == node_id:
-                # Copier les credentials
-                if 'credentials' in tnode:
-                    node['credentials'] = tnode['credentials']
-                break
+        node_name = node.get('name')
+        tnode = tnode_by_name.get(node_name)
+        if tnode and 'credentials' in tnode:
+            node['credentials'] = tnode['credentials']
 
     # Retirer les champs que PATCH n'accepte pas
     for k in ['id','createdAt','updatedAt']:
@@ -627,9 +626,14 @@ try:
     full_wf['active'] = False
     print(json.dumps(full_wf))
 except Exception as e:
-    print(json.dumps({'active': False}), file=sys.stderr)
-    sys.exit(1)
-" 2>/dev/null)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    # En cas d'erreur, utiliser full_wf tel quel (sans merge credentials)
+    for k in ['id','createdAt','updatedAt']:
+        full_wf.pop(k, None)
+    full_wf['active'] = False
+    print(json.dumps(full_wf))
+" 2>/tmp/n8n_merge_err.log)
           rm -f "$tmp_full_wf" "$tmp_transformed"
 
           # Deactivate avec contenu complet
@@ -802,9 +806,9 @@ workflows = data.get('data', [])
 mapping = {}
 
 # Recuperer les details complets de workflows pour extraire les credentials
-# On prend TOUS les workflows (actifs ou non) - max 20 pour ne pas surcharger
+# On prend TOUS les workflows pour ne rater aucune credential
 # Les workflows inactifs conservent souvent les vrais credential IDs
-sample_wfs = workflows[:20]
+sample_wfs = workflows
 
 fetched = 0
 for wf in sample_wfs:
