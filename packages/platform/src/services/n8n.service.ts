@@ -185,6 +185,9 @@ export class N8nService {
       //   headers['Authorization'] = `Basic ${credentials}`;
       // }
 
+      // Envoyer le payload à plat + dans data pour compatibilité avec tous les workflows
+      // Nouveaux workflows (devis, bdc, proforma, notifications, logs) : lisent $input.body.tenantId, .page, etc.
+      // Anciens workflows (clients, leads, invoices) : lisent payload.data.xxx avec fallback sur payload.xxx
       const webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
       const response = await fetch(`${this.apiUrl}/webhook/${webhookPath}`, {
         method: 'POST',
@@ -193,7 +196,8 @@ export class N8nService {
           event: eventType,
           tenantId,
           timestamp: new Date().toISOString(),
-          data: payload,
+          ...payload,     // champs à plat pour les nouveaux workflows
+          data: payload,   // wrapper data pour les anciens workflows
         }),
       });
 
@@ -269,12 +273,13 @@ export class N8nService {
         return { success: true, workflowId: undefined };
       }
 
-      // Préparer le payload pour n8n
+      // Préparer le payload pour n8n — à plat + data wrapper pour compatibilité
       const n8nPayload = {
         event: eventType,
         tenantId,
         timestamp: new Date().toISOString(),
-        data: payload,
+        ...payload,     // champs à plat pour les nouveaux workflows
+        data: payload,   // wrapper data pour les anciens workflows
         metadata: {
           workflowId: workflowLink.workflowN8nId,
           workflowName: workflowLink.workflowN8nNom,
