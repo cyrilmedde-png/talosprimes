@@ -88,7 +88,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, type, titre, message, donnees, lu, created_at, updated_at FROM notifications WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.lu !== null ? (\" AND lu = \" + ($json.lu ? \"true\" : \"false\")) : '' }} ORDER BY created_at DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+        "query": "=SELECT id, tenant_id, type, titre, message, donnees, lu, created_at, updated_at FROM notifications WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}'{{ $('02. Parser').first().json.lu !== null ? (\" AND lu = \" + ($('02. Parser').first().json.lu ? \"true\" : \"false\")) : '' }} ORDER BY created_at DESC LIMIT {{ $('02. Parser').first().json.limit }} OFFSET {{ $('02. Parser').first().json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",

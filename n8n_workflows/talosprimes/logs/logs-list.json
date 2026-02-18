@@ -88,7 +88,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, workflow, type_evenement, statut_execution, message, metadata, created_at, updated_at FROM event_logs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.workflow ? \" AND workflow = '\" + $json.workflow + \"'\" : '' }}{{ $json.typeEvenement ? \" AND type_evenement = '\" + $json.typeEvenement + \"'\" : '' }}{{ $json.statutExecution ? \" AND statut_execution = '\" + $json.statutExecution + \"'\" : '' }} ORDER BY created_at DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+        "query": "=SELECT id, tenant_id, workflow, type_evenement, statut_execution, message, metadata, created_at, updated_at FROM event_logs WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}'{{ $('02. Parser').first().json.workflow ? \" AND workflow = '\" + $('02. Parser').first().json.workflow + \"'\" : '' }}{{ $('02. Parser').first().json.typeEvenement ? \" AND type_evenement = '\" + $('02. Parser').first().json.typeEvenement + \"'\" : '' }}{{ $('02. Parser').first().json.statutExecution ? \" AND statut_execution = '\" + $('02. Parser').first().json.statutExecution + \"'\" : '' }} ORDER BY created_at DESC LIMIT {{ $('02. Parser').first().json.limit }} OFFSET {{ $('02. Parser').first().json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",
