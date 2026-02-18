@@ -570,46 +570,27 @@ except Exception as e:
           return 1
         fi
 
-        # Ecrire le payload dans un fichier temp pour eviter les limites de taille de -d
+        # =================================================================
+        # STRATEGIE: On n'utilise PAS le PUT (API publique) car il ecrase
+        # les credentials. On utilise UNIQUEMENT le PATCH sur l'API interne
+        # /rest/workflows/ qui preserve les credentials.
+        #
+        # 1. Prendre le payload transforme (nodes/connections du backup)
+        # 2. Y injecter les credentials du workflow ORIGINAL de n8n
+        # 3. PATCH deactivate puis PATCH activate
+        # =================================================================
+
         local tmp_payload="/tmp/n8n_payload_$existing_id.json"
         echo "$payload" > "$tmp_payload"
 
-        response=$(curl -s -w "\n%{http_code}" -X PUT \
-          -H "X-N8N-API-KEY: $N8N_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d @"$tmp_payload" \
-          "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || true)
-        http_code=$(echo "$response" | tail -1)
-        body=$(echo "$response" | sed '$d')
-        rm -f "$tmp_payload"
-
-        if [ "$http_code" = "200" ]; then
-          # Re-publier le workflow via l'API INTERNE n8n (/rest/workflows/)
-          # L'API publique POST /activate ne register PAS les webhooks (bug n8n #21614)
-          # Le bouton Publish de l'UI envoie TOUT le contenu + active:true
-          # On doit faire pareil: GET complet → PATCH avec tout + active:true
-
-          # GET le workflow complet depuis n8n
-          local full_wf
-          full_wf=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || echo "{}")
-
-          # Preparer le payload PATCH avec le contenu complet
-          # IMPORTANT: Fusionner les credentials depuis le workflow ORIGINAL de n8n
-          # (tmp_current, sauvegarde AVANT le PUT) vers full_wf (apres PUT).
-          # On utilise tmp_current car c'est la seule source fiable des vrais credential IDs.
-          # Le payload transforme peut contenir des IDs faux venant des fichiers backup.
-          local tmp_full_wf="/tmp/n8n_full_wf_$existing_id.json"
-          echo "$full_wf" > "$tmp_full_wf"
-
-          local patch_payload
-          patch_payload=$(python3 -c "
+        local patch_payload
+        patch_payload=$(python3 -c "
 import sys, json
 try:
-    with open('$tmp_full_wf') as f:
-        full_wf = json.load(f)
+    with open('$tmp_payload') as f:
+        new_wf = json.load(f)
 
-    # Charger le workflow ORIGINAL de n8n (avant le PUT) qui a les vrais credential IDs
+    # Charger le workflow ORIGINAL de n8n (tmp_current) pour les vrais credential IDs
     original_creds = {}
     try:
         with open('$tmp_current') as f:
@@ -618,74 +599,73 @@ try:
             creds = node.get('credentials', {})
             if creds:
                 original_creds[node.get('name', '')] = creds
-    except:
-        pass
+    except Exception as e:
+        print(f'      WARN: Impossible de lire tmp_current: {e}', file=sys.stderr)
 
-    # Restaurer les credentials originales dans full_wf (apres PUT)
-    # On match par NOM de node car les backups utilisent le nom comme id
+    # Injecter les credentials originales dans les nodes du payload transforme
     restored = 0
-    for node in full_wf.get('nodes', []):
+    for node in new_wf.get('nodes', []):
         node_name = node.get('name', '')
         if node_name in original_creds:
             node['credentials'] = original_creds[node_name]
             restored += 1
 
     if restored > 0:
-        print(f'      {restored} nodes avec credentials restaurees depuis original', file=sys.stderr)
+        print(f'      {restored} nodes: credentials restaurees depuis n8n original', file=sys.stderr)
+    else:
+        print(f'      WARN: 0 credentials restaurees (original_creds={len(original_creds)} entries)', file=sys.stderr)
 
     # Retirer les champs que PATCH n'accepte pas
-    for k in ['id','createdAt','updatedAt']:
-        full_wf.pop(k, None)
-    full_wf['active'] = False
-    print(json.dumps(full_wf))
+    for k in ['id','createdAt','updatedAt','versionId','triggerCount']:
+        new_wf.pop(k, None)
+    new_wf['active'] = False
+    print(json.dumps(new_wf))
 except Exception as e:
     import traceback
     traceback.print_exc(file=sys.stderr)
-    # En cas d'erreur, utiliser full_wf tel quel (sans merge credentials)
-    for k in ['id','createdAt','updatedAt']:
-        full_wf.pop(k, None)
-    full_wf['active'] = False
-    print(json.dumps(full_wf))
+    sys.exit(1)
 " 2>/tmp/n8n_merge_err.log)
-          rm -f "$tmp_full_wf" "$tmp_current"
+        local py_merge_exit=$?
+        rm -f "$tmp_payload" "$tmp_current"
 
-          # Deactivate avec contenu complet
-          curl -s -X PATCH \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$patch_payload" \
-            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
+        if [ $py_merge_exit -ne 0 ] || [ -z "$patch_payload" ]; then
+          log_warn "    Erreur lors du merge credentials pour $(basename "$file")"
+          [ -f /tmp/n8n_merge_err.log ] && cat /tmp/n8n_merge_err.log >&2
+          return 1
+        fi
 
-          sleep 0.3
+        # Deactivate via API interne (pas de PUT qui ecrase les credentials)
+        curl -s -X PATCH \
+          -H "X-N8N-API-KEY: $N8N_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d "$patch_payload" \
+          "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
 
-          # Activate avec contenu complet (simule le bouton Publish)
-          patch_payload=$(echo "$patch_payload" | python3 -c "
+        sleep 0.3
+
+        # Activate (simule le bouton Publish de l'UI n8n)
+        patch_payload=$(echo "$patch_payload" | python3 -c "
 import sys, json
 wf = json.load(sys.stdin)
 wf['active'] = True
 print(json.dumps(wf))
 " 2>/dev/null)
 
-          curl -s -X PATCH \
+        curl -s -X PATCH \
+          -H "X-N8N-API-KEY: $N8N_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d "$patch_payload" \
+          "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
+
+        # Transferer dans le bon projet si necessaire
+        if [ -n "$project_id" ]; then
+          curl -s -X PUT \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$patch_payload" \
-            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
-
-          # Transferer dans le bon projet si necessaire
-          if [ -n "$project_id" ]; then
-            curl -s -X PUT \
-              -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "{\"destinationProjectId\": \"$project_id\"}" \
-              "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
-          fi
-          return 0
-        else
-          log_warn "    PUT echoue HTTP $http_code pour $(basename "$file")"
-          echo "      $(echo "$body" | head -c 200)" >&2
+            -d "{\"destinationProjectId\": \"$project_id\"}" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
         fi
-        return 1
+        return 0
 
       else
         # --- CREATE ---
