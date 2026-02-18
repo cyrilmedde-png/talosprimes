@@ -47,7 +47,8 @@ export default function ComptabilitePage() {
       setError('');
       const res = await apiClient.comptabilite.dashboard();
       if (res.success && res.data) {
-        setDashboard(res.data);
+        // Si le backend renvoie success, la compta est initialisée
+        setDashboard({ initialized: true, ...res.data });
       } else {
         setDashboard({ initialized: false });
       }
@@ -68,6 +69,8 @@ export default function ComptabilitePage() {
       const res = await apiClient.comptabilite.init();
       if (res.success) {
         setSuccess('Comptabilité initialisée ! Plan comptable PCG, journaux et exercice créés.');
+        // Forcer initialized pour basculer immédiatement vers le dashboard
+        setDashboard(prev => ({ ...prev, initialized: true, kpis: res.data?.kpis || prev?.kpis }));
         await loadDashboard();
       }
     } catch (e: any) {
