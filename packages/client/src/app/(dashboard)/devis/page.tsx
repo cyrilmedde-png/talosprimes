@@ -145,13 +145,18 @@ export default function DevisPage() {
           prixUnitaireHt: parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0,
         }));
 
+      // Convertir la date de validité en ISO datetime si présente
+      const dateValiditeISO = createForm.dateValidite
+        ? new Date(createForm.dateValidite + 'T00:00:00').toISOString()
+        : undefined;
+
       await apiClient.devis.create({
         clientFinalId: createForm.clientFinalId,
         montantHt: Math.round(tot.montantHt * 100) / 100,
         tvaTaux: parseFloat(createForm.tvaTaux.replace(',', '.')) || 20,
         description: createForm.description || undefined,
         modePaiement: createForm.modePaiement || undefined,
-        dateValidite: createForm.dateValidite || undefined,
+        dateValidite: dateValiditeISO,
         lines: apiLines.length > 0 ? apiLines : undefined,
       });
       setShowCreateModal(false);
