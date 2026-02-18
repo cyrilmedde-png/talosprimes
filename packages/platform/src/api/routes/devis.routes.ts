@@ -47,8 +47,8 @@ const createSchema = z.object({
   clientFinalId: z.string().uuid(),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateDevis: z.string().datetime({ offset: true }).optional().nullable(),
-  dateValidite: z.string().datetime({ offset: true }).optional().nullable(),
+  dateDevis: z.string().optional().nullable(),
+  dateValidite: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   modePaiement: z.string().optional().nullable(),
   lines: z.array(lineSchema).optional(),
@@ -73,7 +73,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
       const page = query.page ? parseInt(query.page, 10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
+      // Appel frontend → essai n8n avec fallback BDD si indisponible
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ devis: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -85,22 +85,23 @@ export async function devisRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow devis_list indisponible' });
+        if (res.success) {
+          const raw = res.data as { devis?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+          const devis = Array.isArray(raw.devis) ? raw.devis : [];
+          return reply.status(200).send({
+            success: true,
+            data: {
+              devis,
+              count: devis.length,
+              total: raw.total ?? devis.length,
+              page: raw.page ?? 1,
+              limit: raw.limit ?? 20,
+              totalPages: raw.totalPages ?? 1,
+            },
+          });
         }
-        const raw = res.data as { devis?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const devis = Array.isArray(raw.devis) ? raw.devis : [];
-        return reply.status(200).send({
-          success: true,
-          data: {
-            devis,
-            count: devis.length,
-            total: raw.total ?? devis.length,
-            page: raw.page ?? 1,
-            limit: raw.limit ?? 20,
-            totalPages: raw.totalPages ?? 1,
-          },
-        });
+        // Fallback BDD si n8n indisponible (continue vers la lecture directe ci-dessous)
+        fastify.log.warn(`n8n devis_list indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe
@@ -147,20 +148,21 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
       const params = paramsSchema.parse(request.params);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
+      // Appel frontend → essai n8n avec fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ devis: unknown }>(
           tenantId,
           'devis_get',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow devis_get indisponible' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n devis_get indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe

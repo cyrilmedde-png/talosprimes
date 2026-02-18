@@ -52,7 +52,7 @@ const createCallLogSchema = z.object({
   actionTaken: z.enum(['RDV', 'DISPATCH', 'DEVIS', 'TRANSFERT', 'INFO']).optional().nullable(),
   sentiment: z.enum(['POSITIF', 'NEUTRE', 'FRUSTRE', 'EN_DETRESSE']).optional(),
   leadId: z.string().uuid().optional().nullable(),
-  appointmentDate: z.string().datetime({ offset: true }).optional().nullable(),
+  appointmentDate: z.string().optional().nullable(),
   niche: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   followUpRequired: z.boolean().optional().default(false),
