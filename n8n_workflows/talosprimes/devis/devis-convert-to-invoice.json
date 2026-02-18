@@ -131,7 +131,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $('08. Create Invoice').first().json;\nconst devisLines = $('09. Get Devis Lines').all();\nconst lines = devisLines.map(item => item.json);\n\nreturn [{ json: {\n  invoiceId: invoice.id,\n  lines,\n  hasLines: lines.length > 0\n} }];"
+        "jsCode": "const invoice = $('08. Create Invoice').first().json;\nconst lines = $('09. Get Devis Lines').all().map(item => item.json);\n\nreturn [{ json: {\n  invoiceId: invoice.id,\n  lines,\n  hasLines: lines.length > 0\n} }];"
       },
       "id": "10. Prepare Lines",
       "name": "10. Prepare Lines",
