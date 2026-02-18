@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_proforma, date_proforma, montant_ht, montant_ttc, tva_taux, description, mode_paiement FROM proformas WHERE id = {{ $json.proformaId }} AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
+        "query": "=SELECT id, tenant_id, client_final_id, numero_proforma, date_proforma, montant_ht, montant_ttc, tva_taux, description, mode_paiement FROM proformas WHERE id = '{{ $json.proformaId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
       },
       "id": "05. Get Proforma",
       "name": "05. Get Proforma",
@@ -141,7 +141,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = {{ $json.proformaId }}"
+        "query": "=SELECT id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = '{{ $json.proformaId }}'"
       },
       "id": "09. Get Proforma Lines",
       "name": "09. Get Proforma Lines",
@@ -194,7 +194,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().json.id }}, updated_at = NOW() WHERE id = {{ $json.proformaId }}"
+        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = '{{ $('08. Create Invoice').first().json.id }}', updated_at = NOW() WHERE id = '{{ $json.proformaId }}'"
       },
       "id": "12. Update Proforma",
       "name": "12. Update Proforma",

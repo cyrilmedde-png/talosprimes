@@ -80,7 +80,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}"
+        "query": "={{ $('05. Construire requete').first().json.query }}"
       },
       "id": "pg-list",
       "name": "06. SELECT article_codes",

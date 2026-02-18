@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE devis SET statut = 'acceptee', updated_at = NOW() WHERE id = {{ $json.devisId }} AND tenant_id = '{{ $json.tenantId }}' AND statut = 'envoyee' RETURNING id"
+        "query": "=UPDATE devis SET statut = 'acceptee', updated_at = NOW() WHERE id = '{{ $json.devisId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'envoyee' RETURNING id"
       },
       "id": "05. Update Devis",
       "name": "05. Update Devis",

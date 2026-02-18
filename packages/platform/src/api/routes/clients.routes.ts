@@ -996,7 +996,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           // Déclencher le workflow n8n client.onboarding avec les données du plan
           const res = await n8nService.callWorkflowReturn<{ subscription: unknown; plan: unknown }>(
             tenantId,
-            'client.onboarding',
+            'client_onboarding',
             {
               client: {
                 id: client.id,

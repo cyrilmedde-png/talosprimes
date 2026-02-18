@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_devis, date_devis, montant_ht, montant_ttc, tva_taux, description, mode_paiement FROM devis WHERE id = {{ $json.devisId }} AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
+        "query": "=SELECT id, tenant_id, client_final_id, numero_devis, date_devis, montant_ht, montant_ttc, tva_taux, description, mode_paiement FROM devis WHERE id = '{{ $json.devisId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
       },
       "id": "05. Get Devis",
       "name": "05. Get Devis",
@@ -141,7 +141,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = {{ $json.devisId }}"
+        "query": "=SELECT id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = '{{ $json.devisId }}'"
       },
       "id": "09. Get Devis Lines",
       "name": "09. Get Devis Lines",
