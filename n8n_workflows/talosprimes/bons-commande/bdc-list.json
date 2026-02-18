@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rawBons = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('\\02. Parser').first().json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst bons = rawBons.map(b => ({\n  ...b,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  bons,\n  count: bons.length,\n  total,\n  page: $('\\02. Parser').first().json.page,\n  limit: $('\\02. Parser').first().json.limit,\n  totalPages,\n}}];"
+        "jsCode": "const rawBons = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst bons = rawBons.map(b => ({\n  ...b,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  bons,\n  count: bons.length,\n  total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages,\n}}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
