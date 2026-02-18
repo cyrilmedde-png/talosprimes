@@ -5,7 +5,6 @@ import { apiClient } from '@/lib/api-client';
 import {
   CalculatorIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   BanknotesIcon,
   CurrencyEuroIcon,
   ChartBarIcon,
