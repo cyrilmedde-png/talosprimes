@@ -99,7 +99,11 @@ export default function DevisPage() {
       const params: Record<string, string | number> = { page, limit: 20 };
       if (statutFilter) params.statut = statutFilter;
       const res = await apiClient.devis.list(params as Parameters<typeof apiClient.devis.list>[0]);
-      setDevisList(res.data.devis || []);
+      // Filtrer les entrées fantômes (sans numéro de devis ou sans date valide)
+      const validDevis = (res.data.devis || []).filter(
+        (d: Devis) => d.numeroDevis && d.dateDevis && !isNaN(new Date(d.dateDevis).getTime())
+      );
+      setDevisList(validDevis);
       setTotalPages(res.data.totalPages ?? 1);
       setTotal(res.data.total ?? 0);
     } catch (err) {

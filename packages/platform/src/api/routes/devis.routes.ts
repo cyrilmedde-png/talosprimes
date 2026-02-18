@@ -238,6 +238,10 @@ export async function devisRoutes(fastify: FastifyInstance) {
       }
 
       // Appel depuis n8n (callback) : persister en base
+      // Validation supplémentaire pour éviter les enregistrements fantômes
+      if (!body.clientFinalId || body.montantHt <= 0) {
+        return reply.status(400).send({ success: false, error: 'clientFinalId et montantHt > 0 sont requis' });
+      }
       const count = await prisma.devis.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroDevis = `DEV-${year}-${String(count + 1).padStart(6, '0')}`;
