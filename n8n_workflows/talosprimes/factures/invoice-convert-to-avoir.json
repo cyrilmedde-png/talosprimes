@@ -1,0 +1,232 @@
+{
+  "name": "invoice-convert-to-avoir",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "invoice-convert-to-avoir",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM invoices WHERE id = '{{ $json.invoiceId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut NOT IN ('brouillon', 'annulee')"
+      },
+      "id": "05. Get Invoice",
+      "name": "05. Get Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inv = $('05. Get Invoice').first().json;\n\nif (!inv || !inv.id) {\n  throw new Error('Facture non trouvée ou statut incompatible (brouillon/annulée)');\n}\n\nreturn [{ json: inv }];"
+      },
+      "id": "06. Check Invoice",
+      "name": "06. Check Invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_avoir FROM 'AVO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenant_id }}' AND numero_avoir LIKE 'AVO-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
+      },
+      "id": "07. Get Next Avoir Number",
+      "name": "07. Get Next Avoir Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inv = $('06. Check Invoice').first().json;\nconst nextNum = $('07. Get Next Avoir Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroAvoir = 'AVO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...inv, numeroAvoir } }];"
+      },
+      "id": "08. Prepare Avoir",
+      "name": "08. Prepare Avoir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', {{ $json.client_final_id ? \"'\" + $json.client_final_id + \"'\" : 'NULL' }}, '{{ $json.id }}', '{{ $json.numeroAvoir }}', NOW(), {{ $json.montant_ht }}, {{ $json.montant_ttc }}, {{ $json.tva_taux || 20 }}, 'Avoir sur facture {{ $json.numero_facture }}', {{ $json.description ? \"'\" + $json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, statut, created_at"
+      },
+      "id": "09. Create Avoir",
+      "name": "09. Create Avoir",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM invoice_lines WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}' ORDER BY ordre ASC"
+      },
+      "id": "10. Get Invoice Lines",
+      "name": "10. Get Invoice Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const avoir = $('09. Create Avoir').first().json;\nconst lines = $('10. Get Invoice Lines').all().map(item => item.json).filter(l => l.id);\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, hasLines: false } }];\n}\n\nconst lineInserts = lines.map(line => ({\n  avoirId: avoir.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}));\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];"
+      },
+      "id": "11. Prepare Avoir Lines",
+      "name": "11. Prepare Avoir Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.hasLines && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO avoir_lines (id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.avoirId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+      },
+      "id": "12. Insert Avoir Lines",
+      "name": "12. Insert Avoir Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [2100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const avoir = $('09. Create Avoir').first().json;\n\nreturn [{ json: {\n  success: true,\n  avoir: {\n    id: avoir.id,\n    tenantId: avoir.tenant_id,\n    clientFinalId: avoir.client_final_id,\n    invoiceId: avoir.invoice_id,\n    numeroAvoir: avoir.numero_avoir,\n    dateAvoir: avoir.date_avoir,\n    montantHt: avoir.montant_ht,\n    montantTtc: avoir.montant_ttc,\n    tvaTaux: avoir.tva_taux,\n    motif: avoir.motif,\n    statut: avoir.statut,\n    createdAt: avoir.created_at\n  }\n} }];"
+      },
+      "id": "13. Format Response",
+      "name": "13. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2300, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "14. Respond",
+      "name": "14. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2500, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. Get Invoice", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Get Invoice": {
+      "main": [[{ "node": "06. Check Invoice", "type": "main", "index": 0 }]]
+    },
+    "06. Check Invoice": {
+      "main": [[{ "node": "07. Get Next Avoir Number", "type": "main", "index": 0 }]]
+    },
+    "07. Get Next Avoir Number": {
+      "main": [[{ "node": "08. Prepare Avoir", "type": "main", "index": 0 }]]
+    },
+    "08. Prepare Avoir": {
+      "main": [[{ "node": "09. Create Avoir", "type": "main", "index": 0 }]]
+    },
+    "09. Create Avoir": {
+      "main": [[{ "node": "10. Get Invoice Lines", "type": "main", "index": 0 }]]
+    },
+    "10. Get Invoice Lines": {
+      "main": [[{ "node": "11. Prepare Avoir Lines", "type": "main", "index": 0 }]]
+    },
+    "11. Prepare Avoir Lines": {
+      "main": [[{ "node": "12. Insert Avoir Lines", "type": "main", "index": 0 }]]
+    },
+    "12. Insert Avoir Lines": {
+      "main": [[{ "node": "13. Format Response", "type": "main", "index": 0 }]]
+    },
+    "13. Format Response": {
+      "main": [[{ "node": "14. Respond", "type": "main", "index": 0 }]]
+    }
+  }
+}

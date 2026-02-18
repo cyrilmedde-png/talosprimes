@@ -31,10 +31,12 @@ function transformKeys(data: unknown): unknown {
 const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   // Factures
   invoice_create: 'invoice-created',
+  invoice_send: 'invoice-sent',
   invoice_paid: 'invoice-paid',
   invoice_overdue: 'invoice-overdue',
   invoice_get: 'invoice-get',
   invoice_update: 'invoice-update',
+  invoice_delete: 'invoice-deleted',
   invoice_generate_pdf: 'invoice-generate-pdf',
   invoices_list: 'invoices-list',
   // Abonnements

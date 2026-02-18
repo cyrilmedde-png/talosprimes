@@ -4,329 +4,176 @@
     {
       "parameters": {
         "path": "invoice-created",
-        "httpMethod": "POST",
-        "responseMode": "responseNode"
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
       },
-      "id": "webhook",
+      "id": "01. Webhook",
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        200,
-        300
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;if(o[k1]!=null&&o[k1]!=='')return o[k1];if(k2&&o[k2]!=null&&o[k2]!=='')return o[k2];return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(typeof data==='string')data=pj(data);\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nconst clientFinalId=g(data,'clientFinalId','client_final_id')||g(payload,'clientFinalId','client_final_id');\nconst mhtv=g(data,'montantHt','montant_ht')||g(payload,'montantHt','montant_ht');\nconst montantHt=mhtv!=null?Number(mhtv):null;\nif(!tenantId||!clientFinalId||montantHt==null||isNaN(montantHt)){\n  return [{json:{_skip:true,reason:'Payload incomplet: tenantId='+tenantId+' clientFinalId='+clientFinalId+' montantHt='+montantHt}}];\n}\nconst body={tenantId,clientFinalId,type:g(data,'type')||g(payload,'type')||'facture_client_final',montantHt,tvaTaux:(function(){var v=g(data,'tvaTaux','tva_taux')||g(payload,'tvaTaux','tva_taux');return v!=null&&v!==''?Number(v):20})()};\nfunction opt(k,sk){var v=g(data,k,sk)||g(payload,k,sk);if(v!=null&&v!=='')body[k]=String(v)}\nopt('dateFacture','date_facture');opt('dateEcheance','date_echeance');opt('numeroFacture','numero_facture');opt('description');opt('lienPdf','lien_pdf');\nreturn [{json:body}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst montantHt = parseFloat(body.montantHt) || 0;\nconst tvaTaux = parseFloat(body.tvaTaux) || 20;\nconst montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId || null,\n  type: body.type || 'facture_client_final',\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateFacture: body.dateFacture || new Date().toISOString(),\n  dateEcheance: body.dateEcheance || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lienPdf: body.lienPdf || null,\n  lines: body.lines || []\n} }];"
       },
-      "id": "parser",
+      "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        420,
-        300
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
             {
-              "value1": "={{ String($json._skip || '') }}",
-              "operation": "notEqual",
-              "value2": "true"
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
             }
           ]
         }
       },
-      "id": "if-skip",
-      "name": "03. Payload complet ?",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        640,
-        300
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\"success\":true,\"message\":\"Payload incomplet, execution ignoree\",\"reason\":\"{{ $json.reason }}\"}"
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
-      "id": "respond-skip",
-      "name": "04. Repondre ignore",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        860,
-        480
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT (SELECT id FROM invoices WHERE tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"' AND client_final_id = '\" + ($json.clientFinalId || '').replace(/'/g, \"''\") + \"' AND montant_ht = \" + Number($json.montantHt) + \" AND created_at >= NOW() - INTERVAL '10 minutes' ORDER BY created_at DESC LIMIT 1) AS existing_id\" }}"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'FAC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenantId }}' AND numero_facture LIKE 'FAC-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
       },
-      "id": "pg-check",
-      "name": "05. Dedup check",
+      "id": "05. Get Next Number",
+      "name": "05. Get Next Number",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        860,
-        300
-      ],
+      "typeVersion": 2,
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "6Kosza77d9Ld32mw"
         }
-      }
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "const p=$('02. Parser').first().json;\nconst row=$input.first().json;\nif(row.existing_id){\n  return [{json:{invoiceId:row.existing_id,tenantId:p.tenantId,fromCache:true}}];\n}\nreturn [{json:Object.assign({},p,{fromCache:false})}];"
+        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroFacture = 'FAC-' + year + '-' + String(nextNum).padStart(6, '0');\n\n// Calculer date d'échéance si pas fournie (J+30)\nlet dateEcheance = parser.dateEcheance;\nif (!dateEcheance) {\n  const d = new Date(parser.dateFacture);\n  d.setDate(d.getDate() + 30);\n  dateEcheance = d.toISOString();\n}\n\nreturn [{ json: { ...parser, numeroFacture, dateEcheance } }];"
       },
-      "id": "decide",
-      "name": "06. Cache ou creer",
+      "id": "06. Generate Number",
+      "name": "06. Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1080,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ String($json.fromCache || '') }}",
-              "operation": "equals",
-              "value2": "true"
-            }
-          ]
-        }
-      },
-      "id": "if-cache",
-      "name": "07. Deja existante ?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        1300,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/invoices",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "id": "api-create",
-      "name": "08. API Creer facture",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1520,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const res=$input.first().json;\nconst inv=res.data&&res.data.invoice?res.data.invoice:null;\nif(!inv||!inv.id)throw new Error('API: facture non creee - '+JSON.stringify(res).substring(0,200));\nreturn [{json:{invoiceId:inv.id,tenantId:inv.tenantId||inv.tenant_id}}];"
-      },
-      "id": "extract",
-      "name": "09. Extraire invoiceId",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1740,
-        400
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, statut, lien_pdf, created_at FROM invoices WHERE id = '\" + ($json.invoiceId || '').replace(/'/g, \"''\") + \"' AND tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS invoice\" }}"
+        "query": "=INSERT INTO invoices (id, tenant_id, client_final_id, type, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, lien_pdf, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $('06. Generate Number').first().json.tenantId }}', {{ $('06. Generate Number').first().json.clientFinalId ? \"'\" + $('06. Generate Number').first().json.clientFinalId + \"'\" : 'NULL' }}, '{{ $('06. Generate Number').first().json.type }}', '{{ $('06. Generate Number').first().json.numeroFacture }}', '{{ $('06. Generate Number').first().json.dateFacture }}', '{{ $('06. Generate Number').first().json.dateEcheance }}', {{ $('06. Generate Number').first().json.montantHt }}, {{ $('06. Generate Number').first().json.montantTtc }}, {{ $('06. Generate Number').first().json.tvaTaux }}, {{ $('06. Generate Number').first().json.description ? \"'\" + $('06. Generate Number').first().json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.modePaiement ? \"'\" + $('06. Generate Number').first().json.modePaiement.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.lienPdf ? \"'\" + $('06. Generate Number').first().json.lienPdf + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, type, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, lien_pdf, created_at, updated_at"
       },
-      "id": "pg-fetch",
-      "name": "10. Recuperer facture",
+      "id": "07. Insert Invoice",
+      "name": "07. Insert Invoice",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1740,
-        200
-      ],
+      "typeVersion": 2,
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "6Kosza77d9Ld32mw"
         }
-      }
+      },
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "jsCode": "const row=$input.first().json;\nconst inv=row.invoice;\nif(!inv)return [{json:{success:false,error:'Facture non trouvee apres creation'}}];\nconst parsed=typeof inv==='string'?JSON.parse(inv):inv;\nreturn [{json:{success:true,message:'Facture creee',data:{invoice:parsed}}}];"
+        "jsCode": "const invoice = $('07. Insert Invoice').first().json;\nconst parser = $('02. Parser').first().json;\nconst lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { invoiceId: invoice.id, lineInserts: [], hasLines: false } }];\n}\n\nconst lineInserts = lines.map((line, idx) => ({\n  invoiceId: invoice.id,\n  codeArticle: line.codeArticle || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || line.prixUnitaireHT || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || line.prixUnitaireHT || 0),\n  ordre: idx\n}));\n\nreturn [{ json: { invoiceId: invoice.id, lineInserts, hasLines: true } }];"
       },
-      "id": "format",
-      "name": "11. Formater reponse",
+      "id": "08. Prepare Lines",
+      "name": "08. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1960,
-        300
-      ]
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.hasLines && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.invoiceId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+      },
+      "id": "09. Insert Lines",
+      "name": "09. Insert Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('07. Insert Invoice').first().json;\n\nreturn [{ json: {\n  id: invoice.id,\n  tenantId: invoice.tenant_id,\n  clientFinalId: invoice.client_final_id,\n  type: invoice.type,\n  numeroFacture: invoice.numero_facture,\n  dateFacture: invoice.date_facture,\n  dateEcheance: invoice.date_echeance,\n  montantHt: invoice.montant_ht,\n  montantTtc: invoice.montant_ttc,\n  tvaTaux: invoice.tva_taux,\n  description: invoice.description,\n  modePaiement: invoice.mode_paiement,\n  statut: invoice.statut,\n  lienPdf: invoice.lien_pdf,\n  createdAt: invoice.created_at,\n  updatedAt: invoice.updated_at\n} }];"
+      },
+      "id": "10. Format Response",
+      "name": "10. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "respond-ok",
-      "name": "12. Repondre succes",
+      "id": "11. Respond",
+      "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2180,
-        300
-      ]
+      "position": [1900, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
+    "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "03. Payload complet ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Next Number", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "03. Payload complet ?": {
-      "main": [
-        [
-          {
-            "node": "05. Dedup check",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Repondre ignore",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Get Next Number": {
+      "main": [[{ "node": "06. Generate Number", "type": "main", "index": 0 }]]
     },
-    "05. Dedup check": {
-      "main": [
-        [
-          {
-            "node": "06. Cache ou creer",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Generate Number": {
+      "main": [[{ "node": "07. Insert Invoice", "type": "main", "index": 0 }]]
     },
-    "06. Cache ou creer": {
-      "main": [
-        [
-          {
-            "node": "07. Deja existante ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Insert Invoice": {
+      "main": [[{ "node": "08. Prepare Lines", "type": "main", "index": 0 }]]
     },
-    "07. Deja existante ?": {
-      "main": [
-        [
-          {
-            "node": "10. Recuperer facture",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "08. API Creer facture",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. Prepare Lines": {
+      "main": [[{ "node": "09. Insert Lines", "type": "main", "index": 0 }]]
     },
-    "08. API Creer facture": {
-      "main": [
-        [
-          {
-            "node": "09. Extraire invoiceId",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "09. Insert Lines": {
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
     },
-    "09. Extraire invoiceId": {
-      "main": [
-        [
-          {
-            "node": "10. Recuperer facture",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10. Recuperer facture": {
-      "main": [
-        [
-          {
-            "node": "11. Formater reponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "11. Formater reponse": {
-      "main": [
-        [
-          {
-            "node": "12. Repondre succes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Format Response": {
+      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
     }
-  },
-  "active": false,
-  "settings": {
-    "executionOrder": "v1"
   }
 }

@@ -47,14 +47,22 @@ const invoiceLineSchema = z.object({
   prixUnitaireHt: z.number().positive(),
 });
 
+const flexibleDate = z.string().refine(
+  (val) => {
+    if (!val) return true;
+    return !isNaN(Date.parse(val));
+  },
+  { message: 'Date invalide' }
+).optional().nullable();
+
 const createInvoiceSchema = z.object({
   tenantId: z.string().uuid().optional(),
   clientFinalId: z.string().uuid(),
   type: z.enum(['facture_entreprise', 'facture_client_final']).default('facture_client_final'),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateFacture: z.string().datetime({ offset: true }).optional().nullable(),
-  dateEcheance: z.string().datetime({ offset: true }).optional().nullable(),
+  dateFacture: flexibleDate,
+  dateEcheance: flexibleDate,
   numeroFacture: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   modePaiement: z.string().optional().nullable(),
