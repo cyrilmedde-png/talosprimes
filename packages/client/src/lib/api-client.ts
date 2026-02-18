@@ -531,6 +531,10 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; data: { avoir: Avoir } }>(`/api/avoirs/${id}/validate`, { method: 'PUT' }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean }>(`/api/avoirs/${id}`, { method: 'DELETE' }),
+    convertFromInvoice: (invoiceId: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { avoir: Avoir; invoiceId: string; numeroFacture: string } }>(`/api/invoices/${invoiceId}/convert-to-avoir`, {
+        method: 'POST',
+      }),
   },
 
   proformas: {

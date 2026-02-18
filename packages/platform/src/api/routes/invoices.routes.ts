@@ -990,6 +990,90 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // POST /api/invoices/:id/convert-to-avoir - Créer un avoir depuis une facture
+  fastify.post(
+    '/:id/convert-to-avoir',
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+      try {
+        const params = paramsSchema.parse(request.params);
+        const tenantId = request.tenantId as string;
+
+        if (!tenantId) {
+          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        }
+
+        // Vérifier que la facture existe et peut être convertie
+        const invoice = await prisma.invoice.findFirst({
+          where: { id: params.id, tenantId },
+          include: {
+            lines: { orderBy: { ordre: 'asc' } },
+          },
+        });
+
+        if (!invoice) {
+          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+        }
+
+        if (invoice.statut === 'brouillon' || invoice.statut === 'annulee') {
+          return reply.status(400).send({ success: false, error: 'Impossible de créer un avoir pour une facture en brouillon ou annulée' });
+        }
+
+        // Générer le numéro d'avoir
+        const count = await prisma.avoir.count({ where: { tenantId } });
+        const year = new Date().getFullYear();
+        const numeroAvoir = `AVO-${year}-${String(count + 1).padStart(6, '0')}`;
+
+        // Créer l'avoir avec les mêmes montants et lignes
+        const avoir = await prisma.avoir.create({
+          data: {
+            tenantId,
+            clientFinalId: invoice.clientFinalId,
+            invoiceId: invoice.id,
+            numeroAvoir,
+            dateAvoir: new Date(),
+            montantHt: invoice.montantHt,
+            montantTtc: invoice.montantTtc,
+            tvaTaux: invoice.tvaTaux ?? 20,
+            motif: `Avoir sur facture ${invoice.numeroFacture}`,
+            description: invoice.description,
+            statut: 'brouillon',
+            ...(invoice.lines && invoice.lines.length > 0 ? {
+              lines: {
+                create: invoice.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber: () => number }; totalHt: number | { toNumber: () => number }; ordre: number }, i: number) => ({
+                  codeArticle: l.codeArticle ?? null,
+                  designation: l.designation,
+                  quantite: l.quantite,
+                  prixUnitaireHt: typeof l.prixUnitaireHt === 'object' && 'toNumber' in l.prixUnitaireHt ? l.prixUnitaireHt.toNumber() : Number(l.prixUnitaireHt),
+                  totalHt: typeof l.totalHt === 'object' && 'toNumber' in l.totalHt ? l.totalHt.toNumber() : Number(l.totalHt),
+                  ordre: i,
+                })),
+              },
+            } : {}),
+          },
+          include: {
+            clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
+            lines: true,
+          },
+        });
+
+        return reply.status(201).send({
+          success: true,
+          message: 'Avoir créé depuis la facture',
+          data: { avoir, invoiceId: invoice.id, numeroFacture: invoice.numeroFacture },
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });
+        }
+        fastify.log.error(error, 'Erreur conversion facture vers avoir');
+        return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      }
+    }
+  );
+
   // DELETE /api/invoices/:id - Supprimer une facture (brouillon uniquement)
   fastify.delete(
     '/:id',

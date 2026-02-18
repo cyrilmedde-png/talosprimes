@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { apiClient, type Avoir, type ArticleCode } from '@/lib/api-client';
+import { apiClient, type Avoir, type ArticleCode, type Invoice } from '@/lib/api-client';
 import type { ClientFinal } from '@talosprimes/shared';
 import {
   ReceiptRefundIcon,
@@ -45,6 +45,8 @@ export default function AvoirPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [clients, setClients] = useState<ClientFinal[]>([]);
   const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
+  const [factures, setFactures] = useState<Invoice[]>([]);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({
     clientFinalId: '',
@@ -67,6 +69,42 @@ export default function AvoirPage() {
   const resetCreateForm = () => {
     setCreateForm({ clientFinalId: '', invoiceId: '', motif: '', description: '', tvaTaux: '20' });
     setLignes([getDefaultLigne()]);
+    setSelectedInvoiceId('');
+  };
+
+  const handleInvoiceSelect = async (invoiceId: string) => {
+    setSelectedInvoiceId(invoiceId);
+    if (!invoiceId) {
+      setCreateForm((f) => ({ ...f, invoiceId: '' }));
+      return;
+    }
+    setCreateForm((f) => ({ ...f, invoiceId }));
+    try {
+      const res = await apiClient.invoices.get(invoiceId);
+      const inv = res.data?.invoice || res.data;
+      if (inv) {
+        const i = inv as Invoice & { lines?: { codeArticle?: string | null; designation: string; quantite: number; prixUnitaireHt: number | string }[] };
+        setCreateForm((f) => ({
+          ...f,
+          invoiceId,
+          clientFinalId: i.clientFinalId || f.clientFinalId,
+          tvaTaux: i.tvaTaux != null ? String(Number(i.tvaTaux)) : f.tvaTaux,
+          motif: `Avoir sur facture ${i.numeroFacture || ''}`,
+          description: (i.description as string) || f.description,
+        }));
+        if (i.lines && i.lines.length > 0) {
+          setLignes(i.lines.map((il: { codeArticle?: string | null; designation: string; quantite: number; prixUnitaireHt: number | string }) => ({
+            id: `l-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            codeArticle: il.codeArticle || '',
+            designation: il.designation || '',
+            quantite: String(il.quantite || 1),
+            prixUnitaireHT: String(Number(il.prixUnitaireHt) || 0),
+          })));
+        }
+      }
+    } catch {
+      // Silently fail
+    }
   };
 
   useEffect(() => {
@@ -80,6 +118,13 @@ export default function AvoirPage() {
     }
     if (showCreateModal && articleCodes.length === 0) {
       apiClient.articleCodes.list().then((r) => { if (r.success) setArticleCodes(r.data.articles || []); }).catch(() => {});
+    }
+    if (showCreateModal) {
+      apiClient.invoices.list({ limit: 200 }).then((r) => {
+        const inv = (r.data?.invoices || []) as Invoice[];
+        // Filtrer les factures non-brouillon et non-annulée
+        setFactures(inv.filter((f) => f.statut !== 'brouillon' && f.statut !== 'annulee'));
+      }).catch(() => {});
     }
   }, [showCreateModal, clients.length, articleCodes.length]);
 
@@ -357,13 +402,16 @@ export default function AvoirPage() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Facture liée</label>
-                  <input
-                    type="text"
-                    value={createForm.invoiceId}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, invoiceId: e.target.value }))}
-                    placeholder="ID facture (optionnel)"
+                  <select
+                    value={selectedInvoiceId}
+                    onChange={(e) => handleInvoiceSelect(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-rose-500"
-                  />
+                  >
+                    <option value="">Aucune (optionnel)</option>
+                    {factures.map((f) => (
+                      <option key={f.id} value={f.id}>{f.numeroFacture} — {(Number(f.montantTtc) || 0).toFixed(2)} € ({f.statut})</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">TVA % *</label>

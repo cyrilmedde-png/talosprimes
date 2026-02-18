@@ -7,34 +7,26 @@
         "responseMode": "responseNode",
         "httpMethod": "POST"
       },
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        250
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  avoirId: body.avoirId,\n  tenantId: body.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.avoirId) {\n  throw new Error('tenantId and avoirId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
       },
-      "name": "Parser",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        450,
-        250
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
-            {
-              "value1": "={{ $json.avoirId }}",
-              "operation": "isNotEmpty"
-            },
             {
               "value1": "={{ $json.tenantId }}",
               "operation": "isNotEmpty"
@@ -42,170 +34,100 @@
           ]
         }
       },
-      "name": "If",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        650,
-        250
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing avoirId or tenantId'}) }}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
-      "name": "Respond Error",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        850,
-        150
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT a.*, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, cf.adresse as client_adresse, i.id as invoice_id, i.numero_facture, i.statut as invoice_statut FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT a.id, a.tenant_id, a.client_final_id, a.invoice_id, a.numero_avoir, a.date_avoir, a.montant_ht, a.montant_ttc, a.tva_taux, a.motif, a.description, a.statut, a.lien_pdf, a.created_at, a.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, inv.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices inv ON a.invoice_id = inv.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}'"
       },
-      "name": "Postgres Get",
+      "id": "05. Get Avoir",
+      "name": "05. Get Avoir",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        850,
-        250
-      ],
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "6Kosza77d9Ld32mw"
         }
-      }
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT * FROM avoir_lines WHERE avoir_id = '{{ $json.avoirId }}' ORDER BY ordre ASC"
+        "query": "=SELECT id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM avoir_lines WHERE avoir_id = '{{ $('02. Parser').first().json.avoirId }}' ORDER BY ordre ASC"
       },
-      "name": "Postgres Get Lines",
+      "id": "06. Get Lines",
+      "name": "06. Get Lines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        850,
-        350
-      ],
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "6Kosza77d9Ld32mw"
         }
-      }
+      },
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const rawAvoir = $('Postgres Get').first().json;\nconst rawLines = $('Postgres Get Lines').all().map(item => item.json);\n\nif (!rawAvoir || !rawAvoir.id) {\n  return [{json: { success: false, error: 'Avoir not found' }}];\n}\n\nconst avoir = {\n  ...rawAvoir,\n  clientFinal: rawAvoir.client_final_id ? {\n    id: rawAvoir.client_final_id,\n    nom: rawAvoir.client_nom || null,\n    prenom: rawAvoir.client_prenom || null,\n    email: rawAvoir.client_email || null,\n    telephone: rawAvoir.client_telephone || null,\n    raisonSociale: rawAvoir.client_raison_sociale || null,\n    adresse: rawAvoir.client_adresse || null,\n  } : null,\n  lines: rawLines,\n};\n\nreturn [{json: { avoir, success: true }}];"
+        "jsCode": "const avoirItem = $('05. Get Avoir').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\n\nif (!avoirItem || !avoirItem.id) {\n  return [{ json: { error: 'Avoir not found' } }];\n}\n\nconst a = avoirItem;\n\nconst avoir = {\n  id: a.id,\n  tenant_id: a.tenant_id,\n  client_final_id: a.client_final_id,\n  invoice_id: a.invoice_id,\n  invoiceId: a.invoice_id,\n  numero_avoir: a.numero_avoir,\n  numeroAvoir: a.numero_avoir,\n  date_avoir: a.date_avoir,\n  dateAvoir: a.date_avoir,\n  montant_ht: a.montant_ht,\n  montantHt: a.montant_ht,\n  montant_ttc: a.montant_ttc,\n  montantTtc: a.montant_ttc,\n  tva_taux: a.tva_taux,\n  tvaTaux: a.tva_taux,\n  motif: a.motif,\n  description: a.description,\n  statut: a.statut,\n  lien_pdf: a.lien_pdf,\n  lienPdf: a.lien_pdf,\n  created_at: a.created_at,\n  createdAt: a.created_at,\n  updated_at: a.updated_at,\n  updatedAt: a.updated_at,\n  clientFinal: a.client_final_id ? {\n    id: a.client_final_id,\n    nom: a.client_nom || null,\n    prenom: a.client_prenom || null,\n    email: a.client_email || null,\n    telephone: a.client_telephone || null,\n    raisonSociale: a.client_raison_sociale || null\n  } : null,\n  invoiceNumero: a.invoice_numero || null,\n  lines: lines\n};\n\nreturn [{ json: avoir }];"
       },
-      "name": "Format Response",
+      "id": "07. Format Response",
+      "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1050,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "name": "Respond",
+      "id": "08. Respond",
+      "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1250,
-        300
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
-    "Webhook": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
+    "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "Parser",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
+        [{ "node": "05. Get Avoir", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "Parser": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "05. Get Avoir": {
+      "main": [[{ "node": "06. Get Lines", "type": "main", "index": 0 }]]
     },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Postgres Get",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "node": "Respond Error",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "06. Get Lines": {
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
-    "Postgres Get": {
-      "main": [
-        [
-          {
-            "node": "Postgres Get Lines",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Postgres Get Lines": {
-      "main": [
-        [
-          {
-            "node": "Format Response",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Format Response": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "07. Format Response": {
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

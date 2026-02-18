@@ -7,25 +7,21 @@
         "responseMode": "responseNode",
         "httpMethod": "POST"
       },
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        250
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  invoiceId: body.invoiceId || null,\n  montantHt: body.montantHt,\n  tvaTaux: body.tvaTaux || 0,\n  dateAvoir: body.dateAvoir || new Date().toISOString().split('T')[0],\n  motif: body.motif || '',\n  description: body.description || '',\n  lines: body.lines || []\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst montantHt = parseFloat(body.montantHt) || 0;\nconst tvaTaux = parseFloat(body.tvaTaux) || 20;\nconst montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId || null,\n  invoiceId: body.invoiceId || null,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateAvoir: body.dateAvoir || new Date().toISOString(),\n  motif: body.motif || null,\n  description: body.description || null,\n  lines: body.lines || []\n} }];"
       },
-      "name": "Parser",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        450,
-        250
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -34,261 +30,150 @@
             {
               "value1": "={{ $json.tenantId }}",
               "operation": "isNotEmpty"
-            },
-            {
-              "value1": "={{ $json.clientFinalId }}",
-              "operation": "isNotEmpty"
-            },
-            {
-              "value1": "={{ $json.montantHt }}",
-              "operation": "isNotEmpty"
             }
           ]
         }
       },
-      "name": "If",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        650,
-        250
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: tenantId, clientFinalId, montantHt'}) }}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
-      "name": "Respond Error",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        850,
-        150
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_avoir FROM 'AVO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}' AND numero_avoir LIKE 'AVO-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
       },
-      "name": "Postgres Get Next Number",
+      "id": "05. Get Next Number",
+      "name": "05. Get Next Number",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        850,
-        250
-      ],
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "6Kosza77d9Ld32mw"
         }
-      }
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "const nextNum = $('Postgres Get Next Number').first().json.next_num;\nconst year = new Date().getFullYear();\nconst paddedNum = String(nextNum).padStart(6, '0');\nconst numeroAvoir = `AVO-${year}-${paddedNum}`;\n\nreturn {\n  ...($input.all()[0].json),\n  numeroAvoir: numeroAvoir,\n  avoirId: require('crypto').randomUUID()\n};"
+        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroAvoir = 'AVO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroAvoir } }];"
       },
-      "name": "Code Generate Number",
+      "id": "06. Generate Number",
+      "name": "06. Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        850,
-        350
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES ('{{ $json.avoirId }}', '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', {{ $json.invoiceId ? \"'\" + $json.invoiceId + \"'\" : 'NULL' }}, '{{ $json.numeroAvoir }}', '{{ $json.dateAvoir }}', {{ $json.montantHt }}, {{ $json.montantHt * (1 + $json.tvaTaux / 100) }}, {{ $json.tvaTaux }}, '{{ $json.motif }}', '{{ $json.description }}', 'brouillon', NOW(), NOW())"
+        "query": "=INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $('06. Generate Number').first().json.tenantId }}', {{ $('06. Generate Number').first().json.clientFinalId ? \"'\" + $('06. Generate Number').first().json.clientFinalId + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.invoiceId ? \"'\" + $('06. Generate Number').first().json.invoiceId + \"'\" : 'NULL' }}, '{{ $('06. Generate Number').first().json.numeroAvoir }}', '{{ $('06. Generate Number').first().json.dateAvoir }}', {{ $('06. Generate Number').first().json.montantHt }}, {{ $('06. Generate Number').first().json.montantTtc }}, {{ $('06. Generate Number').first().json.tvaTaux }}, {{ $('06. Generate Number').first().json.motif ? \"'\" + $('06. Generate Number').first().json.motif.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.description ? \"'\" + $('06. Generate Number').first().json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at"
       },
-      "name": "Postgres Insert",
+      "id": "07. Insert Avoir",
+      "name": "07. Insert Avoir",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        850,
-        450
-      ],
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "6Kosza77d9Ld32mw"
         }
-      }
+      },
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "jsCode": "const lines = $json.lines || [];\nconst avoirId = $json.avoirId;\n\nif (lines.length === 0) {\n  return { lineQueries: [], linesCount: 0 };\n}\n\nconst lineQueries = lines.map((line, idx) => ({\n  avoirId: avoirId,\n  ordre: idx + 1,\n  codeArticle: line.codeArticle || line.code_article || '',\n  designation: line.designation || line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: parseFloat(line.prixUnitaireHt || line.prixUnitaire || line.prix_unitaire_ht || 0),\n  totalHt: parseFloat(line.totalHt || line.montant || line.total_ht || 0)\n}));\n\nreturn { lineQueries, linesCount: lineQueries.length };"
+        "jsCode": "const avoir = $('07. Insert Avoir').first().json;\nconst parser = $('02. Parser').first().json;\nconst lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, lineInserts: [], hasLines: false } }];\n}\n\nconst lineInserts = lines.map((line, idx) => ({\n  avoirId: avoir.id,\n  codeArticle: line.codeArticle || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || line.prixUnitaireHT || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || line.prixUnitaireHT || 0),\n  ordre: idx\n}));\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];"
       },
-      "name": "Code Prepare Lines",
+      "id": "08. Prepare Lines",
+      "name": "08. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        850,
-        550
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.lineQueries && $json.lineQueries.length > 0 ? \"INSERT INTO avoir_lines (avoir_id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht) VALUES \" + $json.lineQueries.map(item => \"('\" + item.avoirId + \"', \" + item.ordre + \", \" + (item.codeArticle ? \"'\" + item.codeArticle.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (item.designation || \"\").replace(/'/g, \"''\") + \"', \" + item.quantite + \", \" + item.prixUnitaireHt + \", \" + item.totalHt + \")\").join(\", \") : \"SELECT 1\" }}"
+        "query": "={{ $json.hasLines && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO avoir_lines (id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.avoirId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
       },
-      "name": "Postgres Insert Lines",
+      "id": "09. Insert Lines",
+      "name": "09. Insert Lines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        850,
-        650
-      ],
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "6Kosza77d9Ld32mw"
         }
-      }
+      },
+      "position": [1500, 300]
     },
     {
       "parameters": {
-        "jsCode": "return {\n  avoirId: $json.avoirId,\n  numeroAvoir: $json.numeroAvoir,\n  statut: 'brouillon',\n  dateAvoir: $json.dateAvoir,\n  montantHt: $json.montantHt,\n  montantTtc: $json.montantHt * (1 + $json.tvaTaux / 100),\n  tvaTaux: $json.tvaTaux,\n  linesCount: $json.linesCount || 0,\n  success: true,\n  message: 'Avoir created successfully'\n};"
+        "jsCode": "const avoir = $('07. Insert Avoir').first().json;\n\nreturn [{ json: {\n  id: avoir.id,\n  tenant_id: avoir.tenant_id,\n  client_final_id: avoir.client_final_id,\n  invoice_id: avoir.invoice_id,\n  numero_avoir: avoir.numero_avoir,\n  date_avoir: avoir.date_avoir,\n  montant_ht: avoir.montant_ht,\n  montant_ttc: avoir.montant_ttc,\n  tva_taux: avoir.tva_taux,\n  motif: avoir.motif,\n  description: avoir.description,\n  statut: avoir.statut,\n  created_at: avoir.created_at,\n  updated_at: avoir.updated_at\n} }];"
       },
-      "name": "Format Response",
+      "id": "10. Format Response",
+      "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1050,
-        500
-      ]
+      "position": [1700, 300]
     },
     {
       "parameters": {
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "name": "Respond",
+      "id": "11. Respond",
+      "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1250,
-        500
-      ]
+      "position": [1900, 300]
     }
   ],
   "connections": {
-    "Webhook": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
+    "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "Parser",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
+        [{ "node": "05. Get Next Number", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "Parser": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "05. Get Next Number": {
+      "main": [[{ "node": "06. Generate Number", "type": "main", "index": 0 }]]
     },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Postgres Get Next Number",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "node": "Respond Error",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "06. Generate Number": {
+      "main": [[{ "node": "07. Insert Avoir", "type": "main", "index": 0 }]]
     },
-    "Postgres Get Next Number": {
-      "main": [
-        [
-          {
-            "node": "Code Generate Number",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "07. Insert Avoir": {
+      "main": [[{ "node": "08. Prepare Lines", "type": "main", "index": 0 }]]
     },
-    "Code Generate Number": {
-      "main": [
-        [
-          {
-            "node": "Postgres Insert",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "08. Prepare Lines": {
+      "main": [[{ "node": "09. Insert Lines", "type": "main", "index": 0 }]]
     },
-    "Postgres Insert": {
-      "main": [
-        [
-          {
-            "node": "Code Prepare Lines",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "09. Insert Lines": {
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
     },
-    "Code Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "Postgres Insert Lines",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Postgres Insert Lines": {
-      "main": [
-        [
-          {
-            "node": "Format Response",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Format Response": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "10. Format Response": {
+      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

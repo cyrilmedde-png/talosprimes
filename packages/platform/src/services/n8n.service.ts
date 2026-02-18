@@ -90,6 +90,7 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   avoir_create: 'avoir-created',
   avoir_validate: 'avoir-validated',
   avoir_delete: 'avoir-deleted',
+  invoice_convert_to_avoir: 'invoice-convert-to-avoir',
   // Proformas
   proforma_list: 'proforma-list',
   proforma_get: 'proforma-get',

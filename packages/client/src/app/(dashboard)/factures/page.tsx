@@ -253,6 +253,19 @@ export default function FacturesPage() {
     }
   };
 
+  const handleConvertToAvoir = async (inv: Invoice) => {
+    if (!confirm(`Créer un avoir depuis la facture ${inv.numeroFacture} ?`)) return;
+    try {
+      setActionLoading(inv.id);
+      await apiClient.avoirs.convertFromInvoice(inv.id);
+      router.push('/avoir');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur conversion en avoir');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const computeTotauxFromLignes = (): { montantHt: number; montantTva: number; montantTtc: number; tvaTauxMoyen: number } => {
     let totalHt = 0;
     let totalTva = 0;
@@ -536,6 +549,18 @@ export default function FacturesPage() {
                             title="Marquer payée"
                           >
                             <CheckCircleIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                        {inv.statut !== 'brouillon' && inv.statut !== 'annulee' && (
+                          <button
+                            type="button"
+                            onClick={() => handleConvertToAvoir(inv)}
+                            disabled={!!actionLoading}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-rose-400 hover:bg-gray-600 disabled:opacity-40"
+                            title="Créer un avoir"
+                          >
+                            <ReceiptRefundIcon className="h-4 w-4" />
+                            Avoir
                           </button>
                         )}
                       </div>
