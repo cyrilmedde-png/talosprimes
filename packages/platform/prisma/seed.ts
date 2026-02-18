@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedModules } from './seeds/01-modules';
-import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications, seedWorkflowLinksAgentTelephonique, seedWorkflowLinksClients, seedWorkflowLinksLeads } from './seeds/02-workflow-links';
+import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications, seedWorkflowLinksAgentTelephonique, seedWorkflowLinksClients, seedWorkflowLinksLeads, seedWorkflowLinksComptabilite } from './seeds/02-workflow-links';
 import { runSeedLanding } from './seed-landing';
 
 const prisma = new PrismaClient();
@@ -99,6 +99,7 @@ async function main() {
   await seedWorkflowLinksAgentTelephonique(prisma, tenant.id);
   await seedWorkflowLinksClients(prisma, tenant.id);
   await seedWorkflowLinksLeads(prisma, tenant.id);
+  await seedWorkflowLinksComptabilite(prisma, tenant.id);
 
   // 7. Agent Téléphonique - données de démo
   console.log('📱 Création des données Agent Téléphonique...');

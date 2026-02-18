@@ -194,4 +194,21 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module leads OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'comptabilite' },
+    update: {
+      nomAffiche: 'Comptabilité PCG',
+      description: 'Module comptabilité complète : écritures, grand livre, balance, bilan, TVA, agent IA comptable',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'comptabilite',
+      nomAffiche: 'Comptabilité PCG',
+      description: 'Module comptabilité complète : écritures, grand livre, balance, bilan, TVA, agent IA comptable',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module comptabilite OK');
 }

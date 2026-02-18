@@ -110,6 +110,26 @@ const LEADS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'workflow_inscription', workflowN8nId: 'workflow_inscription', workflowN8nNom: 'workflow-inscription' },
 ];
 
+const COMPTABILITE_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'compta_init',                workflowN8nId: 'compta_init',                workflowN8nNom: 'compta-init' },
+  { typeEvenement: 'compta_plan_comptable_list',  workflowN8nId: 'compta_plan_comptable_list', workflowN8nNom: 'compta-plan-comptable-list' },
+  { typeEvenement: 'compta_ecriture_create',      workflowN8nId: 'compta_ecriture_create',     workflowN8nNom: 'compta-ecriture-create' },
+  { typeEvenement: 'compta_ecritures_list',       workflowN8nId: 'compta_ecritures_list',      workflowN8nNom: 'compta-ecritures-list' },
+  { typeEvenement: 'compta_ecriture_get',         workflowN8nId: 'compta_ecriture_get',        workflowN8nNom: 'compta-ecriture-get' },
+  { typeEvenement: 'compta_auto_facture',         workflowN8nId: 'compta_auto_facture',        workflowN8nNom: 'compta-auto-facture' },
+  { typeEvenement: 'compta_auto_avoir',           workflowN8nId: 'compta_auto_avoir',          workflowN8nNom: 'compta-auto-avoir' },
+  { typeEvenement: 'compta_auto_paiement',        workflowN8nId: 'compta_auto_paiement',       workflowN8nNom: 'compta-auto-paiement' },
+  { typeEvenement: 'compta_grand_livre',          workflowN8nId: 'compta_grand_livre',         workflowN8nNom: 'compta-grand-livre' },
+  { typeEvenement: 'compta_balance',              workflowN8nId: 'compta_balance',             workflowN8nNom: 'compta-balance' },
+  { typeEvenement: 'compta_bilan',                workflowN8nId: 'compta_bilan',               workflowN8nNom: 'compta-bilan' },
+  { typeEvenement: 'compta_compte_resultat',      workflowN8nId: 'compta_compte_resultat',     workflowN8nNom: 'compta-compte-resultat' },
+  { typeEvenement: 'compta_tva',                  workflowN8nId: 'compta_tva',                 workflowN8nNom: 'compta-tva' },
+  { typeEvenement: 'compta_lettrage',             workflowN8nId: 'compta_lettrage',            workflowN8nNom: 'compta-lettrage' },
+  { typeEvenement: 'compta_cloture',              workflowN8nId: 'compta_cloture',             workflowN8nNom: 'compta-cloture' },
+  { typeEvenement: 'compta_dashboard',            workflowN8nId: 'compta_dashboard',           workflowN8nNom: 'compta-dashboard' },
+  { typeEvenement: 'compta_ia_agent',             workflowN8nId: 'compta_ia_agent',            workflowN8nNom: 'compta-ia-agent' },
+];
+
 const NOTIFICATIONS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'notifications_list', workflowN8nId: 'notifications_list', workflowN8nNom: 'notifications-list' },
   { typeEvenement: 'notification_create', workflowN8nId: 'notification_create', workflowN8nNom: 'notification-created' },
@@ -261,4 +281,11 @@ export async function seedWorkflowLinksNotifications(
   tenantId: string
 ): Promise<void> {
   await seedWorkflowLinks(prisma, tenantId, 'notifications', NOTIFICATIONS_WORKFLOWS, 'notifications');
+}
+
+export async function seedWorkflowLinksComptabilite(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'comptabilite', COMPTABILITE_WORKFLOWS, 'comptabilité');
 }
