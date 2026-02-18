@@ -90,7 +90,7 @@ export default function BonsCommandePage() {
         // Pre-fill lines from devis
         const devisLines = devis.lines || [];
         if (devisLines.length > 0) {
-          setLignes(devisLines.map((dl: { codeArticle?: string; designation?: string; quantite?: number; prixUnitaireHt?: number }) => ({
+          setLignes(devisLines.map((dl: { codeArticle?: string | null; designation?: string; quantite?: number; prixUnitaireHt?: number }) => ({
             id: `l-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             codeArticle: dl.codeArticle || '',
             designation: dl.designation || '',
