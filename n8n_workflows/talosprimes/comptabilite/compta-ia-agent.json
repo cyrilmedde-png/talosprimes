@@ -1,0 +1,104 @@
+{
+  "name": "compta-ia-agent",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-ia-agent", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.action) throw new Error('action is required');\n\n// Actions supportées:\n// 'classifier' - classifier une opération comptable\n// 'analyser' - analyser les écritures et détecter anomalies\n// 'suggestion' - suggérer des écritures pour un document\n// 'rapport' - générer un rapport/analyse textuelle\n// 'question' - répondre à une question comptable\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  action: body.action,\n  data: body.data || {},\n  question: body.question || null,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null\n} }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT numero_compte, libelle, classe, nature FROM plan_comptable WHERE tenant_id = '{{ $json.tenantId }}' AND actif = true ORDER BY numero_compte LIMIT 200;"
+      },
+      "id": "05. Get Plan Comptable", "name": "05. Get Plan Comptable", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT le.numero_compte, pc.libelle as compte_libelle, COALESCE(SUM(le.debit),0) as total_debit, COALESCE(SUM(le.credit),0) as total_credit, COALESCE(SUM(le.debit),0) - COALESCE(SUM(le.credit),0) as solde, COUNT(*) as nb_ecritures FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut != 'brouillon'{{ $('02. Parser').first().json.dateFrom ? \" AND e.date_ecriture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : '' }}{{ $('02. Parser').first().json.dateTo ? \" AND e.date_ecriture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : '' }} GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte LIMIT 100;"
+      },
+      "id": "06. Get Balance Rapide", "name": "06. Get Balance Rapide", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('02. Parser').first().json;\nconst planComptable = $('05. Get Plan Comptable').all().map(i => i.json).filter(c => c.numero_compte);\nconst balance = $('06. Get Balance Rapide').all().map(i => i.json).filter(c => c.numero_compte);\n\nconst pcSummary = planComptable.map(c => `${c.numero_compte} ${c.libelle} (${c.nature})`).join('\\n');\nconst balanceSummary = balance.map(c => `${c.numero_compte} ${c.compte_libelle}: D=${c.total_debit} C=${c.total_credit} S=${c.solde} (${c.nb_ecritures} écr.)`).join('\\n');\n\nlet userPrompt = '';\n\nswitch (p.action) {\n  case 'classifier':\n    userPrompt = `CLASSIFICATION COMPTABLE\\n\\nOpération à classifier:\\n${JSON.stringify(p.data, null, 2)}\\n\\nPlan comptable disponible:\\n${pcSummary}\\n\\nClassifie cette opération en indiquant les comptes à débiter et créditer avec les montants. Réponds en JSON.`;\n    break;\n  case 'analyser':\n    userPrompt = `ANALYSE COMPTABLE ET DÉTECTION D'ANOMALIES\\n\\nBalance actuelle des comptes:\\n${balanceSummary}\\n\\nAnalyse ces comptes et détecte:\\n1. Comptes avec soldes anormaux\\n2. Déséquilibres potentiels\\n3. Comptes d'attente non soldés\\n4. TVA à régulariser\\n5. Toute anomalie comptable\\n\\nRéponds en JSON avec anomalies[], score_sante (0-100), recommandations[].`;\n    break;\n  case 'suggestion':\n    userPrompt = `SUGGESTION D'ÉCRITURES COMPTABLES\\n\\nDocument source:\\n${JSON.stringify(p.data, null, 2)}\\n\\nPlan comptable:\\n${pcSummary}\\n\\nSuggère les écritures comptables pour ce document. Respecte la partie double (débit = crédit). Inclus la TVA si applicable. Réponds en JSON.`;\n    break;\n  case 'rapport':\n    userPrompt = `RAPPORT COMPTABLE\\n\\nBalance des comptes:\\n${balanceSummary}\\n\\nGénère un rapport d'analyse financière incluant:\\n1. Synthèse de la situation\\n2. Points forts et faiblesses\\n3. Indicateurs clés (trésorerie, endettement, rentabilité)\\n4. Recommandations\\n\\nRéponds en JSON avec rapport{type, sections[], totaux{}, observations[]}.`;\n    break;\n  case 'question':\n    userPrompt = `QUESTION COMPTABLE\\n\\nContexte - Balance des comptes:\\n${balanceSummary}\\n\\nQuestion: ${p.question}\\n\\nRéponds de manière précise et professionnelle en citant les articles du PCG, CGI ou Code de Commerce pertinents. Réponds en JSON avec {reponse, references[], confiance}.`;\n    break;\n  default:\n    userPrompt = `Action non reconnue: ${p.action}. Actions valides: classifier, analyser, suggestion, rapport, question`;\n}\n\nreturn [{ json: { ...p, userPrompt, planComptableCount: planComptable.length, balanceCount: balance.length } }];"
+      },
+      "id": "07. Build AI Prompt", "name": "07. Build AI Prompt", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es un Expert-Comptable IA de haut niveau, intégré au système TalosPrimes.\nTu opères dans le cadre strict du Plan Comptable Général (PCG) français et du Code de Commerce.\n\nTu n'es PAS un expert-comptable inscrit à l'Ordre. Tu assistes les professionnels.\nTu respectes : PCG (ANC 2014-03), CGI pour TVA, Code de Commerce (L123-12 à L123-28).\n\nPrincipes : prudence, continuité d'exploitation, indépendance des exercices, permanence des méthodes, coût historique, non-compensation, intangibilité du bilan d'ouverture.\n\nSchémas d'écritures standards :\n- Facture vente : 411(D) / 70x(C) + 445710(C)\n- Facture achat : 60x(D) + 445660(D) / 401(C)\n- Paiement client : 512(D) / 411(C)\n- Paiement fournisseur : 401(D) / 512(C)\n- Avoir émis : 70x(D) + 445710(D) / 411(C)\n- Amortissement : 681(D) / 28x(C)\n\nTaux TVA : 20%, 10%, 5.5%, 2.1%\n\nRÈGLES IMPÉRATIVES :\n1. JAMAIS d'écriture déséquilibrée (débit DOIT = crédit)\n2. JAMAIS de conseil fiscal définitif\n3. TOUJOURS utiliser numéros PCG standards\n4. TOUJOURS inclure TVA quand applicable\n5. TOUJOURS répondre en JSON valide\n6. TOUJOURS indiquer score de confiance (0-1)\n7. JAMAIS inventer de données\n\nAVERTISSEMENT : Tes analyses ne constituent pas un avis d'expert-comptable certifié."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 4000
+        }
+      },
+      "id": "08. OpenAI GPT-4o", "name": "08. OpenAI GPT-4o", "type": "@n8n/n8n-nodes-langchain.openAi", "typeVersion": 1,
+      "credentials": { "openAiApi": { "name": "OpenAI", "id": "OPENAI_CREDENTIAL_ID" } },
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('02. Parser').first().json;\nconst aiResponse = $('08. OpenAI GPT-4o').first().json;\n\nlet parsedResponse;\ntry {\n  // Extraire le JSON de la réponse\n  const content = aiResponse.message?.content || aiResponse.text || JSON.stringify(aiResponse);\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  parsedResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { reponse: content };\n} catch (e) {\n  parsedResponse = { reponse: aiResponse.message?.content || 'Erreur de parsing' };\n}\n\nreturn [{ json: {\n  success: true,\n  action: p.action,\n  resultat: parsedResponse,\n  metadata: {\n    modele: 'gpt-4o',\n    planComptableComptes: $('07. Build AI Prompt').first().json.planComptableCount,\n    balanceComptes: $('07. Build AI Prompt').first().json.balanceCount,\n    timestamp: new Date().toISOString()\n  }\n} }];"
+      },
+      "id": "09. Format Response", "name": "09. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO compta_ia_logs (tenant_id, action, prompt, reponse, modele) VALUES ('{{ $('02. Parser').first().json.tenantId }}', '{{ $('02. Parser').first().json.action }}', '{{ $('07. Build AI Prompt').first().json.userPrompt.substring(0, 2000).replace(/'/g, \"''\") }}', '{{ JSON.stringify($json.resultat).substring(0, 5000).replace(/'/g, \"''\") }}', 'gpt-4o');"
+      },
+      "id": "10. Log IA", "name": "10. Log IA", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1700, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($('09. Format Response').first().json) }}" },
+      "id": "11. Respond", "name": "11. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1900, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Get Plan Comptable", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Get Plan Comptable": { "main": [[{ "node": "06. Get Balance Rapide", "type": "main", "index": 0 }]] },
+    "06. Get Balance Rapide": { "main": [[{ "node": "07. Build AI Prompt", "type": "main", "index": 0 }]] },
+    "07. Build AI Prompt": { "main": [[{ "node": "08. OpenAI GPT-4o", "type": "main", "index": 0 }]] },
+    "08. OpenAI GPT-4o": { "main": [[{ "node": "09. Format Response", "type": "main", "index": 0 }]] },
+    "09. Format Response": { "main": [[{ "node": "10. Log IA", "type": "main", "index": 0 }]] },
+    "10. Log IA": { "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]] }
+  }
+}

@@ -132,6 +132,24 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   questionnaire_create: 'questionnaire-create',
   questionnaire_update: 'questionnaire-update',
   questionnaire_delete: 'questionnaire-delete',
+  // Comptabilité
+  compta_init: 'compta-init',
+  compta_plan_comptable_list: 'compta-plan-comptable-list',
+  compta_ecriture_create: 'compta-ecriture-create',
+  compta_ecritures_list: 'compta-ecritures-list',
+  compta_ecriture_get: 'compta-ecriture-get',
+  compta_auto_facture: 'compta-auto-facture',
+  compta_auto_avoir: 'compta-auto-avoir',
+  compta_auto_paiement: 'compta-auto-paiement',
+  compta_grand_livre: 'compta-grand-livre',
+  compta_balance: 'compta-balance',
+  compta_bilan: 'compta-bilan',
+  compta_compte_resultat: 'compta-compte-resultat',
+  compta_tva: 'compta-tva',
+  compta_lettrage: 'compta-lettrage',
+  compta_cloture: 'compta-cloture',
+  compta_dashboard: 'compta-dashboard',
+  compta_ia_agent: 'compta-ia-agent',
 };
 
 /**

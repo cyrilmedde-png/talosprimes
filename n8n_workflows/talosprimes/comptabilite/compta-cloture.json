@@ -1,0 +1,95 @@
+{
+  "name": "compta-cloture",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-cloture", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.exerciceId) throw new Error('exerciceId is required');\nreturn [{ json: { tenantId: body.tenantId, exerciceId: body.exerciceId, confirme: body.confirme === true } }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM exercices_comptables WHERE id = '{{ $json.exerciceId }}' AND tenant_id = '{{ $json.tenantId }}' AND cloture = false;"
+      },
+      "id": "05. Get Exercice", "name": "05. Get Exercice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COUNT(*) as nb_brouillon FROM ecritures_comptables WHERE exercice_id = '{{ $('02. Parser').first().json.exerciceId }}' AND tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND statut = 'brouillon';"
+      },
+      "id": "06. Check Brouillons", "name": "06. Check Brouillons", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE(SUM(le.debit),0) as total_debit, COALESCE(SUM(le.credit),0) as total_credit, COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END),0) as total_produits, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END),0) as total_charges FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.exercice_id = '{{ $('02. Parser').first().json.exerciceId }}' AND e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut = 'validee';"
+      },
+      "id": "07. Calc Resultat", "name": "07. Calc Resultat", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const exerciceArr = $('05. Get Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceArr.length === 0) throw new Error('Exercice non trouvé ou déjà clôturé');\nconst exercice = exerciceArr[0];\n\nconst nbBrouillon = parseInt($('06. Check Brouillons').first().json.nb_brouillon) || 0;\nconst calc = $('07. Calc Resultat').first().json;\nconst p = $('02. Parser').first().json;\n\nconst totalDebit = parseFloat(calc.total_debit) || 0;\nconst totalCredit = parseFloat(calc.total_credit) || 0;\nconst totalProduits = parseFloat(calc.total_produits) || 0;\nconst totalCharges = parseFloat(calc.total_charges) || 0;\nconst resultatNet = Math.round((totalProduits - totalCharges) * 100) / 100;\nconst equilibre = Math.abs(totalDebit - totalCredit) < 0.01;\n\nconst avertissements = [];\nif (nbBrouillon > 0) avertissements.push(`${nbBrouillon} écriture(s) en brouillon non validée(s)`);\nif (!equilibre) avertissements.push(`Balance déséquilibrée: débit ${totalDebit} ≠ crédit ${totalCredit}`);\n\nreturn [{ json: {\n  tenantId: p.tenantId,\n  exerciceId: p.exerciceId,\n  confirme: p.confirme,\n  exercice: { code: exercice.code, dateDebut: exercice.date_debut, dateFin: exercice.date_fin },\n  resultatNet,\n  benefice: resultatNet >= 0,\n  totalProduits,\n  totalCharges,\n  equilibre,\n  nbBrouillon,\n  avertissements,\n  peutCloturer: equilibre && nbBrouillon === 0\n} }];"
+      },
+      "id": "08. Pre-Cloture Check", "name": "08. Pre-Cloture Check", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json.confirme && $json.peutCloturer }}", "value2": true }] }
+      },
+      "id": "09. Confirme ?", "name": "09. Confirme ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE exercices_comptables SET cloture = true, date_cloture = NOW(), resultat_net = {{ $('08. Pre-Cloture Check').first().json.resultatNet }}, updated_at = NOW() WHERE id = '{{ $('08. Pre-Cloture Check').first().json.exerciceId }}' AND tenant_id = '{{ $('08. Pre-Cloture Check').first().json.tenantId }}' RETURNING id, code, resultat_net;"
+      },
+      "id": "10. Cloturer", "name": "10. Cloturer", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1700, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const check = $('08. Pre-Cloture Check').first().json;\nif (check.confirme && check.peutCloturer) {\n  const clot = $('10. Cloturer').first().json;\n  return [{ json: { success: true, message: `Exercice ${clot.code} clôturé. Résultat net: ${clot.resultat_net}€`, resultatNet: parseFloat(clot.resultat_net), cloture: true } }];\n} else {\n  return [{ json: {\n    success: true,\n    cloture: false,\n    message: check.peutCloturer ? 'Prêt à clôturer. Renvoyez avec confirme=true pour valider.' : 'Impossible de clôturer.',\n    verification: {\n      resultatNet: check.resultatNet,\n      benefice: check.benefice,\n      equilibre: check.equilibre,\n      nbBrouillon: check.nbBrouillon,\n      avertissements: check.avertissements,\n      peutCloturer: check.peutCloturer\n    }\n  } }];\n}"
+      },
+      "id": "11. Format Response", "name": "11. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1900, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "12. Respond", "name": "12. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [2100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Get Exercice", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Get Exercice": { "main": [[{ "node": "06. Check Brouillons", "type": "main", "index": 0 }]] },
+    "06. Check Brouillons": { "main": [[{ "node": "07. Calc Resultat", "type": "main", "index": 0 }]] },
+    "07. Calc Resultat": { "main": [[{ "node": "08. Pre-Cloture Check", "type": "main", "index": 0 }]] },
+    "08. Pre-Cloture Check": { "main": [[{ "node": "09. Confirme ?", "type": "main", "index": 0 }]] },
+    "09. Confirme ?": { "main": [[{ "node": "10. Cloturer", "type": "main", "index": 0 }], [{ "node": "11. Format Response", "type": "main", "index": 0 }]] },
+    "10. Cloturer": { "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]] },
+    "11. Format Response": { "main": [[{ "node": "12. Respond", "type": "main", "index": 0 }]] }
+  }
+}

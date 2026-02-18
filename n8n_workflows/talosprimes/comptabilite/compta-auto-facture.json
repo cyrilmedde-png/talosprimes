@@ -1,0 +1,108 @@
+{
+  "name": "compta-auto-facture",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-auto-facture", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.invoiceId) throw new Error('invoiceId is required');\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT i.*, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '{{ $json.invoiceId }}' AND i.tenant_id = '{{ $json.tenantId }}';"
+      },
+      "id": "05. Get Invoice", "name": "05. Get Invoice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM invoice_lines WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}' ORDER BY ordre ASC;"
+      },
+      "id": "06. Get Lines", "name": "06. Get Lines", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id FROM exercices_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND cloture = false ORDER BY date_debut DESC LIMIT 1;"
+      },
+      "id": "07. Get Exercice", "name": "07. Get Exercice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';"
+      },
+      "id": "08. Next Number", "name": "08. Next Number", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inv = $('05. Get Invoice').all().map(i => i.json).filter(i => i.id);\nif (inv.length === 0) throw new Error('Facture non trouvée');\nconst invoice = inv[0];\n\nconst exerciceArr = $('07. Get Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\n\nconst exerciceId = exerciceArr[0].id;\nconst nextNum = parseInt($('08. Next Number').first().json.next_num) || 1;\nconst year = new Date().getFullYear();\nconst numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nconst montantHt = parseFloat(invoice.montant_ht) || 0;\nconst montantTtc = parseFloat(invoice.montant_ttc) || 0;\nconst tva = montantTtc - montantHt;\nconst clientName = invoice.client_raison_sociale || invoice.client_nom || 'Client';\nconst dateEcriture = invoice.date_facture || new Date().toISOString().split('T')[0];\n\n// Déterminer compte de produit selon type\nconst compteProduit = invoice.type === 'facture_entreprise' ? '706000' : '707000';\n\nreturn [{ json: {\n  tenantId: invoice.tenant_id,\n  exerciceId,\n  numeroPiece,\n  dateEcriture,\n  dateEcheance: invoice.date_echeance,\n  libelle: `Facture ${invoice.numero_facture} - ${clientName}`,\n  reference: invoice.numero_facture,\n  invoiceId: invoice.id,\n  montantHt,\n  montantTtc,\n  tva: Math.round(tva * 100) / 100,\n  compteProduit\n} }];"
+      },
+      "id": "09. Build Ecriture", "name": "09. Build Ecriture", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO ecritures_comptables (tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, date_echeance, libelle, reference, type_piece, entite_type, entite_id, montant_total, source, statut) VALUES ('{{ $json.tenantId }}', '{{ $json.exerciceId }}', 'VE', '{{ $json.numeroPiece }}', '{{ $json.dateEcriture }}', {{ $json.dateEcheance ? \"'\" + $json.dateEcheance + \"'\" : 'NULL' }}, '{{ $json.libelle.replace(/'/g, \"''\") }}', '{{ $json.reference }}', 'facture', 'invoice', '{{ $json.invoiceId }}', {{ $json.montantTtc }}, 'automatique', 'validee') RETURNING id, numero_piece;"
+      },
+      "id": "10. Insert Ecriture", "name": "10. Insert Ecriture", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES\n('{{ $('10. Insert Ecriture').first().json.id }}', '411000', 'Client - {{ $('09. Build Ecriture').first().json.reference }}', {{ $('09. Build Ecriture').first().json.montantTtc }}, 0, 0),\n('{{ $('10. Insert Ecriture').first().json.id }}', '{{ $('09. Build Ecriture').first().json.compteProduit }}', 'Produit HT - {{ $('09. Build Ecriture').first().json.reference }}', 0, {{ $('09. Build Ecriture').first().json.montantHt }}, 1),\n('{{ $('10. Insert Ecriture').first().json.id }}', '445710', 'TVA collectée - {{ $('09. Build Ecriture').first().json.reference }}', 0, {{ $('09. Build Ecriture').first().json.tva }}, 2)\nRETURNING id, numero_compte, debit, credit;"
+      },
+      "id": "11. Insert Lines", "name": "11. Insert Lines", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ecriture = $('10. Insert Ecriture').first().json;\nconst lignes = $('11. Insert Lines').all().map(i => i.json).filter(l => l.id);\nconst b = $('09. Build Ecriture').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: `Écriture comptable ${ecriture.numero_piece} créée automatiquement`,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    journal: 'VE',\n    montantTtc: b.montantTtc,\n    montantHt: b.montantHt,\n    tva: b.tva,\n    lignes: lignes.map(l => ({ numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }))\n  }\n} }];"
+      },
+      "id": "12. Format Response", "name": "12. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1900, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "13. Respond", "name": "13. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [2100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Get Invoice", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Get Invoice": { "main": [[{ "node": "06. Get Lines", "type": "main", "index": 0 }, { "node": "07. Get Exercice", "type": "main", "index": 0 }]] },
+    "06. Get Lines": { "main": [[{ "node": "08. Next Number", "type": "main", "index": 0 }]] },
+    "07. Get Exercice": { "main": [[{ "node": "08. Next Number", "type": "main", "index": 0 }]] },
+    "08. Next Number": { "main": [[{ "node": "09. Build Ecriture", "type": "main", "index": 0 }]] },
+    "09. Build Ecriture": { "main": [[{ "node": "10. Insert Ecriture", "type": "main", "index": 0 }]] },
+    "10. Insert Ecriture": { "main": [[{ "node": "11. Insert Lines", "type": "main", "index": 0 }]] },
+    "11. Insert Lines": { "main": [[{ "node": "12. Format Response", "type": "main", "index": 0 }]] },
+    "12. Format Response": { "main": [[{ "node": "13. Respond", "type": "main", "index": 0 }]] }
+  }
+}

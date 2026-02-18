@@ -1,0 +1,95 @@
+{
+  "name": "compta-ecriture-create",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-ecriture-create", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.journalCode) throw new Error('journalCode is required');\nif (!body.libelle) throw new Error('libelle is required');\nif (!body.lignes || !Array.isArray(body.lignes) || body.lignes.length < 2) throw new Error('Au moins 2 lignes requises');\n\nconst dateEcriture = body.dateEcriture || new Date().toISOString().split('T')[0];\nconst lignes = body.lignes;\n\n// Vérifier équilibre débit = crédit\nconst totalDebit = lignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);\nconst totalCredit = lignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);\nif (Math.abs(totalDebit - totalCredit) > 0.01) {\n  throw new Error(`Écriture déséquilibrée: débit ${totalDebit.toFixed(2)} ≠ crédit ${totalCredit.toFixed(2)}`);\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  journalCode: body.journalCode,\n  dateEcriture,\n  dateEcheance: body.dateEcheance || null,\n  libelle: body.libelle,\n  reference: body.reference || null,\n  typePiece: body.typePiece || 'manuelle',\n  entiteType: body.entiteType || null,\n  entiteId: body.entiteId || null,\n  montantTotal: totalDebit,\n  source: body.source || 'manuelle',\n  lignes: JSON.stringify(lignes)\n} }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données invalides\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id FROM exercices_comptables WHERE tenant_id = '{{ $json.tenantId }}' AND date_debut <= '{{ $json.dateEcriture }}' AND date_fin >= '{{ $json.dateEcriture }}' AND cloture = false LIMIT 1;"
+      },
+      "id": "05. Find Exercice", "name": "05. Find Exercice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';"
+      },
+      "id": "06. Next Number", "name": "06. Next Number", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const exerciceResult = $('05. Find Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceResult.length === 0) throw new Error('Aucun exercice ouvert pour cette date');\n\nconst exerciceId = exerciceResult[0].id;\nconst nextNum = parseInt($('06. Next Number').first().json.next_num) || 1;\nconst year = new Date().getFullYear();\nconst numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\nconst p = $('02. Parser').first().json;\n\nreturn [{ json: { ...p, exerciceId, numeroPiece } }];"
+      },
+      "id": "07. Build Numero", "name": "07. Build Numero", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO ecritures_comptables (tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, date_echeance, libelle, reference, type_piece, entite_type, entite_id, montant_total, source) VALUES ('{{ $json.tenantId }}', '{{ $json.exerciceId }}', '{{ $json.journalCode }}', '{{ $json.numeroPiece }}', '{{ $json.dateEcriture }}', {{ $json.dateEcheance ? \"'\" + $json.dateEcheance + \"'\" : 'NULL' }}, '{{ $json.libelle.replace(/'/g, \"''\") }}', {{ $json.reference ? \"'\" + $json.reference + \"'\" : 'NULL' }}, '{{ $json.typePiece }}', {{ $json.entiteType ? \"'\" + $json.entiteType + \"'\" : 'NULL' }}, {{ $json.entiteId ? \"'\" + $json.entiteId + \"'\" : 'NULL' }}, {{ $json.montantTotal }}, '{{ $json.source }}') RETURNING id, numero_piece, date_ecriture, libelle, montant_total, statut;"
+      },
+      "id": "08. Insert Ecriture", "name": "08. Insert Ecriture", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ecriture = $('08. Insert Ecriture').first().json;\nconst lignes = JSON.parse($('02. Parser').first().json.lignes);\n\n// Build INSERT pour toutes les lignes\nconst values = lignes.map((l, i) => {\n  const debit = parseFloat(l.debit) || 0;\n  const credit = parseFloat(l.credit) || 0;\n  const libelle = (l.libelle || '').replace(/'/g, \"''\");\n  return `('${ecriture.id}', '${l.numeroCompte}', '${libelle}', ${debit}, ${credit}, ${i})`;\n}).join(',\\n');\n\nreturn [{ json: { ecritureId: ecriture.id, insertQuery: `INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES ${values} RETURNING id, numero_compte, libelle, debit, credit, ordre;` } }];"
+      },
+      "id": "09. Build Lines SQL", "name": "09. Build Lines SQL", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.insertQuery }}"
+      },
+      "id": "10. Insert Lines", "name": "10. Insert Lines", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ecriture = $('08. Insert Ecriture').first().json;\nconst lignes = $('10. Insert Lines').all().map(i => i.json).filter(l => l.id);\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    dateEcriture: ecriture.date_ecriture,\n    libelle: ecriture.libelle,\n    montantTotal: parseFloat(ecriture.montant_total),\n    statut: ecriture.statut,\n    lignes: lignes.map(l => ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0\n    }))\n  }\n} }];"
+      },
+      "id": "11. Format Response", "name": "11. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1900, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "12. Respond", "name": "12. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [2100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Find Exercice", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Find Exercice": { "main": [[{ "node": "06. Next Number", "type": "main", "index": 0 }]] },
+    "06. Next Number": { "main": [[{ "node": "07. Build Numero", "type": "main", "index": 0 }]] },
+    "07. Build Numero": { "main": [[{ "node": "08. Insert Ecriture", "type": "main", "index": 0 }]] },
+    "08. Insert Ecriture": { "main": [[{ "node": "09. Build Lines SQL", "type": "main", "index": 0 }]] },
+    "09. Build Lines SQL": { "main": [[{ "node": "10. Insert Lines", "type": "main", "index": 0 }]] },
+    "10. Insert Lines": { "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]] },
+    "11. Format Response": { "main": [[{ "node": "12. Respond", "type": "main", "index": 0 }]] }
+  }
+}

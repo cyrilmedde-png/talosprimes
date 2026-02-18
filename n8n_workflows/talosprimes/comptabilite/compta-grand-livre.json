@@ -1,0 +1,51 @@
+{
+  "name": "compta-grand-livre",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-grand-livre", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: {\n  tenantId: body.tenantId,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  compteFrom: body.compteFrom || null,\n  compteTo: body.compteTo || null,\n  classe: body.classe ? parseInt(body.classe) : null\n} }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT le.numero_compte, pc.libelle as compte_libelle, pc.classe, e.date_ecriture, e.numero_piece, e.journal_code, le.libelle, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $json.tenantId }}' AND e.statut != 'brouillon'{{ $json.dateFrom ? \" AND e.date_ecriture >= '\" + $json.dateFrom + \"'\" : '' }}{{ $json.dateTo ? \" AND e.date_ecriture <= '\" + $json.dateTo + \"'\" : '' }}{{ $json.compteFrom ? \" AND le.numero_compte >= '\" + $json.compteFrom + \"'\" : '' }}{{ $json.compteTo ? \" AND le.numero_compte <= '\" + $json.compteTo + \"'\" : '' }}{{ $json.classe ? \" AND pc.classe = \" + $json.classe : '' }} ORDER BY le.numero_compte ASC, e.date_ecriture ASC;"
+      },
+      "id": "05. Query Grand Livre", "name": "05. Query Grand Livre", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('05. Query Grand Livre').all().map(i => i.json).filter(l => l.numero_compte);\n\n// Grouper par compte\nconst comptes = {};\nlet totalDebit = 0, totalCredit = 0;\n\nfor (const l of items) {\n  const key = l.numero_compte;\n  if (!comptes[key]) {\n    comptes[key] = {\n      numeroCompte: l.numero_compte,\n      libelle: l.compte_libelle || l.numero_compte,\n      classe: l.classe,\n      mouvements: [],\n      totalDebit: 0,\n      totalCredit: 0\n    };\n  }\n  const debit = parseFloat(l.debit) || 0;\n  const credit = parseFloat(l.credit) || 0;\n  comptes[key].mouvements.push({\n    date: l.date_ecriture,\n    numeroPiece: l.numero_piece,\n    journal: l.journal_code,\n    libelle: l.libelle,\n    debit, credit,\n    lettrage: l.lettrage\n  });\n  comptes[key].totalDebit += debit;\n  comptes[key].totalCredit += credit;\n  totalDebit += debit;\n  totalCredit += credit;\n}\n\nconst grandLivre = Object.values(comptes).map(c => ({\n  ...c,\n  totalDebit: Math.round(c.totalDebit * 100) / 100,\n  totalCredit: Math.round(c.totalCredit * 100) / 100,\n  solde: Math.round((c.totalDebit - c.totalCredit) * 100) / 100,\n  nbMouvements: c.mouvements.length\n}));\n\nreturn [{ json: {\n  success: true,\n  grandLivre,\n  totaux: {\n    totalDebit: Math.round(totalDebit * 100) / 100,\n    totalCredit: Math.round(totalCredit * 100) / 100,\n    equilibre: Math.abs(totalDebit - totalCredit) < 0.01\n  },\n  nbComptes: grandLivre.length,\n  nbMouvements: items.length\n} }];"
+      },
+      "id": "06. Format Response", "name": "06. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "07. Respond", "name": "07. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Query Grand Livre", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Query Grand Livre": { "main": [[{ "node": "06. Format Response", "type": "main", "index": 0 }]] },
+    "06. Format Response": { "main": [[{ "node": "07. Respond", "type": "main", "index": 0 }]] }
+  }
+}

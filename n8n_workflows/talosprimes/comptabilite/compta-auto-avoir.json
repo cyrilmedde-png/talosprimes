@@ -1,0 +1,98 @@
+{
+  "name": "compta-auto-avoir",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-auto-avoir", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.avoirId) throw new Error('avoirId is required');\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT a.*, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}';"
+      },
+      "id": "05. Get Avoir", "name": "05. Get Avoir", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id FROM exercices_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND cloture = false ORDER BY date_debut DESC LIMIT 1;"
+      },
+      "id": "06. Get Exercice", "name": "06. Get Exercice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';"
+      },
+      "id": "07. Next Number", "name": "07. Next Number", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const avoirArr = $('05. Get Avoir').all().map(i => i.json).filter(a => a.id);\nif (avoirArr.length === 0) throw new Error('Avoir non trouvé');\nconst avoir = avoirArr[0];\n\nconst exerciceArr = $('06. Get Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\n\nconst exerciceId = exerciceArr[0].id;\nconst nextNum = parseInt($('07. Next Number').first().json.next_num) || 1;\nconst year = new Date().getFullYear();\nconst numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nconst montantHt = parseFloat(avoir.montant_ht) || 0;\nconst montantTtc = parseFloat(avoir.montant_ttc) || 0;\nconst tva = Math.round((montantTtc - montantHt) * 100) / 100;\nconst clientName = avoir.client_raison_sociale || avoir.client_nom || 'Client';\nconst dateEcriture = avoir.date_avoir || new Date().toISOString().split('T')[0];\n\nreturn [{ json: {\n  tenantId: avoir.tenant_id, exerciceId, numeroPiece, dateEcriture,\n  libelle: `Avoir ${avoir.numero_avoir} - ${clientName}`,\n  reference: avoir.numero_avoir,\n  avoirId: avoir.id,\n  montantHt, montantTtc, tva\n} }];"
+      },
+      "id": "08. Build Ecriture", "name": "08. Build Ecriture", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO ecritures_comptables (tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference, type_piece, entite_type, entite_id, montant_total, source, statut) VALUES ('{{ $json.tenantId }}', '{{ $json.exerciceId }}', 'VE', '{{ $json.numeroPiece }}', '{{ $json.dateEcriture }}', '{{ $json.libelle.replace(/'/g, \"''\") }}', '{{ $json.reference }}', 'avoir', 'avoir', '{{ $json.avoirId }}', {{ $json.montantTtc }}, 'automatique', 'validee') RETURNING id, numero_piece;"
+      },
+      "id": "09. Insert Ecriture", "name": "09. Insert Ecriture", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES\n('{{ $('09. Insert Ecriture').first().json.id }}', '706000', 'Avoir HT - {{ $('08. Build Ecriture').first().json.reference }}', {{ $('08. Build Ecriture').first().json.montantHt }}, 0, 0),\n('{{ $('09. Insert Ecriture').first().json.id }}', '445710', 'TVA collectée (annulation) - {{ $('08. Build Ecriture').first().json.reference }}', {{ $('08. Build Ecriture').first().json.tva }}, 0, 1),\n('{{ $('09. Insert Ecriture').first().json.id }}', '411000', 'Client - avoir {{ $('08. Build Ecriture').first().json.reference }}', 0, {{ $('08. Build Ecriture').first().json.montantTtc }}, 2)\nRETURNING id, numero_compte, debit, credit;"
+      },
+      "id": "10. Insert Lines", "name": "10. Insert Lines", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ecriture = $('09. Insert Ecriture').first().json;\nconst lignes = $('10. Insert Lines').all().map(i => i.json).filter(l => l.id);\nconst b = $('08. Build Ecriture').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: `Écriture avoir ${ecriture.numero_piece} créée (contrepassation)`,\n  ecriture: {\n    id: ecriture.id, numeroPiece: ecriture.numero_piece, journal: 'VE',\n    montantTtc: b.montantTtc, montantHt: b.montantHt, tva: b.tva,\n    lignes: lignes.map(l => ({ numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }))\n  }\n} }];"
+      },
+      "id": "11. Format Response", "name": "11. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1900, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "12. Respond", "name": "12. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [2100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Get Avoir", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Get Avoir": { "main": [[{ "node": "06. Get Exercice", "type": "main", "index": 0 }]] },
+    "06. Get Exercice": { "main": [[{ "node": "07. Next Number", "type": "main", "index": 0 }]] },
+    "07. Next Number": { "main": [[{ "node": "08. Build Ecriture", "type": "main", "index": 0 }]] },
+    "08. Build Ecriture": { "main": [[{ "node": "09. Insert Ecriture", "type": "main", "index": 0 }]] },
+    "09. Insert Ecriture": { "main": [[{ "node": "10. Insert Lines", "type": "main", "index": 0 }]] },
+    "10. Insert Lines": { "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]] },
+    "11. Format Response": { "main": [[{ "node": "12. Respond", "type": "main", "index": 0 }]] }
+  }
+}

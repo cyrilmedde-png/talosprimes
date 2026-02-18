@@ -1,0 +1,81 @@
+{
+  "name": "compta-init",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-init", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nconst exerciceCode = body.exerciceCode || new Date().getFullYear().toString();\nconst dateDebut = body.dateDebut || `${exerciceCode}-01-01`;\nconst dateFin = body.dateFin || `${exerciceCode}-12-31`;\nreturn [{ json: { tenantId: body.tenantId, exerciceCode, dateDebut, dateFin } }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO exercices_comptables (tenant_id, code, libelle, date_debut, date_fin) VALUES ('{{ $json.tenantId }}', '{{ $json.exerciceCode }}', 'Exercice {{ $json.exerciceCode }}', '{{ $json.dateDebut }}', '{{ $json.dateFin }}') ON CONFLICT (tenant_id, code) DO NOTHING RETURNING id, code, libelle, date_debut, date_fin;"
+      },
+      "id": "05. Create Exercice", "name": "05. Create Exercice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO journaux_comptables (tenant_id, code, libelle, type, compte_contrepartie) VALUES\n('{{ $('02. Parser').first().json.tenantId }}', 'VE', 'Journal des Ventes', 'ventes', '411000'),\n('{{ $('02. Parser').first().json.tenantId }}', 'AC', 'Journal des Achats', 'achats', '401000'),\n('{{ $('02. Parser').first().json.tenantId }}', 'BQ', 'Journal de Banque', 'banque', '512000'),\n('{{ $('02. Parser').first().json.tenantId }}', 'OD', 'Journal des Opérations Diverses', 'operations_diverses', NULL),\n('{{ $('02. Parser').first().json.tenantId }}', 'AN', 'Journal des À-Nouveaux', 'a_nouveaux', NULL)\nON CONFLICT (tenant_id, code) DO NOTHING RETURNING id, code, libelle;"
+      },
+      "id": "06. Create Journaux", "name": "06. Create Journaux", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO plan_comptable (tenant_id, numero_compte, libelle, classe, type, nature) VALUES\n-- CLASSE 1\n('{{ $('02. Parser').first().json.tenantId }}', '101000', 'Capital social', 1, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '106000', 'Réserves', 1, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '108000', 'Compte de l''exploitant', 1, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '110000', 'Report à nouveau (créditeur)', 1, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '119000', 'Report à nouveau (débiteur)', 1, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '120000', 'Résultat de l''exercice (bénéfice)', 1, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '129000', 'Résultat de l''exercice (perte)', 1, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '164000', 'Emprunts', 1, 'detail', 'passif'),\n-- CLASSE 2\n('{{ $('02. Parser').first().json.tenantId }}', '205000', 'Concessions, brevets, licences', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '211000', 'Terrains', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '213000', 'Constructions', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '215400', 'Matériel industriel', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '218200', 'Matériel de transport', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '218300', 'Matériel informatique', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '280500', 'Amort. concessions', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '281300', 'Amort. constructions', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '281540', 'Amort. matériel industriel', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '281820', 'Amort. matériel transport', 2, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '281830', 'Amort. matériel informatique', 2, 'detail', 'actif'),\n-- CLASSE 3\n('{{ $('02. Parser').first().json.tenantId }}', '310000', 'Matières premières', 3, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '370000', 'Stocks de marchandises', 3, 'detail', 'actif'),\n-- CLASSE 4\n('{{ $('02. Parser').first().json.tenantId }}', '401000', 'Fournisseurs', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '404000', 'Fournisseurs d''immobilisations', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '411000', 'Clients', 4, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '416000', 'Clients douteux', 4, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '421000', 'Personnel - rémunérations dues', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '431000', 'Sécurité sociale', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '437000', 'Autres organismes sociaux', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '445100', 'TVA à décaisser', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '445620', 'TVA déductible sur immobilisations', 4, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '445660', 'TVA déductible sur ABS', 4, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '445710', 'TVA collectée', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '445800', 'TVA à régulariser', 4, 'detail', 'passif'),\n('{{ $('02. Parser').first().json.tenantId }}', '467000', 'Autres comptes débiteurs/créditeurs', 4, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '471000', 'Comptes d''attente', 4, 'detail', 'actif'),\n-- CLASSE 5\n('{{ $('02. Parser').first().json.tenantId }}', '512000', 'Banque', 5, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '514000', 'Chèques postaux', 5, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '530000', 'Caisse', 5, 'detail', 'actif'),\n('{{ $('02. Parser').first().json.tenantId }}', '580000', 'Virements internes', 5, 'detail', 'actif'),\n-- CLASSE 6\n('{{ $('02. Parser').first().json.tenantId }}', '601000', 'Achats matières premières', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '602000', 'Achats autres approvisionnements', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '604000', 'Achats études et prestations', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '606000', 'Achats non stockés', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '607000', 'Achats de marchandises', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '611000', 'Sous-traitance', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '613000', 'Locations', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '615000', 'Entretien et réparations', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '616000', 'Assurances', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '622000', 'Rémunérations intermédiaires', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '623000', 'Publicité', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '625000', 'Déplacements', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '626000', 'Frais postaux / télécommunications', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '627000', 'Services bancaires', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '631000', 'Impôts et taxes', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '635000', 'Autres impôts', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '641000', 'Rémunérations du personnel', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '645000', 'Charges sociales', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '651000', 'Redevances', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '661000', 'Charges d''intérêts', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '671000', 'Charges exceptionnelles', 6, 'detail', 'charge'),\n('{{ $('02. Parser').first().json.tenantId }}', '681120', 'Dotations amort. immobilisations', 6, 'detail', 'charge'),\n-- CLASSE 7\n('{{ $('02. Parser').first().json.tenantId }}', '701000', 'Ventes de produits finis', 7, 'detail', 'produit'),\n('{{ $('02. Parser').first().json.tenantId }}', '706000', 'Prestations de services', 7, 'detail', 'produit'),\n('{{ $('02. Parser').first().json.tenantId }}', '707000', 'Ventes de marchandises', 7, 'detail', 'produit'),\n('{{ $('02. Parser').first().json.tenantId }}', '708000', 'Produits activités annexes', 7, 'detail', 'produit'),\n('{{ $('02. Parser').first().json.tenantId }}', '741000', 'Subventions d''exploitation', 7, 'detail', 'produit'),\n('{{ $('02. Parser').first().json.tenantId }}', '761000', 'Produits financiers', 7, 'detail', 'produit'),\n('{{ $('02. Parser').first().json.tenantId }}', '771000', 'Produits exceptionnels', 7, 'detail', 'produit'),\n('{{ $('02. Parser').first().json.tenantId }}', '781000', 'Reprises amortissements/provisions', 7, 'detail', 'produit')\nON CONFLICT (tenant_id, numero_compte) DO NOTHING;"
+      },
+      "id": "07. Insert PCG", "name": "07. Insert PCG", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COUNT(*) as nb_comptes FROM plan_comptable WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}';"
+      },
+      "id": "08. Count Comptes", "name": "08. Count Comptes", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const exercice = $('05. Create Exercice').all().map(i => i.json).filter(e => e.id);\nconst nbComptes = parseInt($('08. Count Comptes').first().json.nb_comptes) || 0;\n\nreturn [{ json: {\n  success: true,\n  message: `Comptabilité initialisée: ${nbComptes} comptes PCG, 5 journaux, exercice ${$('02. Parser').first().json.exerciceCode}`,\n  exercice: exercice[0] || { code: $('02. Parser').first().json.exerciceCode, status: 'already_exists' },\n  nbComptes,\n  journaux: ['VE - Ventes', 'AC - Achats', 'BQ - Banque', 'OD - Opérations Diverses', 'AN - À-Nouveaux']\n}}];"
+      },
+      "id": "09. Format Response", "name": "09. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1500, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "10. Respond", "name": "10. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1700, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Create Exercice", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Create Exercice": { "main": [[{ "node": "06. Create Journaux", "type": "main", "index": 0 }]] },
+    "06. Create Journaux": { "main": [[{ "node": "07. Insert PCG", "type": "main", "index": 0 }]] },
+    "07. Insert PCG": { "main": [[{ "node": "08. Count Comptes", "type": "main", "index": 0 }]] },
+    "08. Count Comptes": { "main": [[{ "node": "09. Format Response", "type": "main", "index": 0 }]] },
+    "09. Format Response": { "main": [[{ "node": "10. Respond", "type": "main", "index": 0 }]] }
+  }
+}

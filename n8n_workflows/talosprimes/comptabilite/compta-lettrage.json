@@ -1,0 +1,78 @@
+{
+  "name": "compta-lettrage",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-lettrage", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.numeroCompte) throw new Error('numeroCompte is required');\nif (!body.ligneIds || !Array.isArray(body.ligneIds) || body.ligneIds.length < 2) throw new Error('Au moins 2 ligneIds requises');\nreturn [{ json: { tenantId: body.tenantId, numeroCompte: body.numeroCompte, ligneIds: body.ligneIds } }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT le.id, le.numero_compte, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = '{{ $json.tenantId }}' AND le.numero_compte = '{{ $json.numeroCompte }}' AND le.id IN ({{ $json.ligneIds.map(id => \"'\" + id + \"'\").join(',') }}) AND le.lettrage IS NULL;"
+      },
+      "id": "05. Get Lignes", "name": "05. Get Lignes", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lignes = $('05. Get Lignes').all().map(i => i.json).filter(l => l.id);\nif (lignes.length < 2) throw new Error('Lignes insuffisantes ou déjà lettrées');\n\nconst totalDebit = lignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);\nconst totalCredit = lignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);\nconst ecart = Math.round((totalDebit - totalCredit) * 100) / 100;\n\n// Tolérance d'écart de 0.05€ (arrondis)\nif (Math.abs(ecart) > 0.05) {\n  throw new Error(`Écart de lettrage trop important: ${ecart}€ (débit: ${totalDebit}, crédit: ${totalCredit})`);\n}\n\n// Générer code lettrage unique\nconst chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';\nconst now = Date.now();\nconst code = chars[Math.floor(now / 676) % 26] + chars[Math.floor(now / 26) % 26] + chars[now % 26];\n\nconst p = $('02. Parser').first().json;\nreturn [{ json: { ...p, codeLettrage: code, ecart, nbLignes: lignes.length, ligneIdsStr: lignes.map(l => \"'\" + l.id + \"'\").join(',') } }];"
+      },
+      "id": "06. Verify Balance", "name": "06. Verify Balance", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE lignes_ecritures SET lettrage = '{{ $json.codeLettrage }}', date_lettrage = CURRENT_DATE WHERE id IN ({{ $json.ligneIdsStr }}) RETURNING id, lettrage;"
+      },
+      "id": "07. Apply Lettrage", "name": "07. Apply Lettrage", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO lettrages (tenant_id, code_lettrage, numero_compte, date_lettrage, montant, ecart) VALUES ('{{ $json.tenantId }}', '{{ $json.codeLettrage }}', '{{ $json.numeroCompte }}', CURRENT_DATE, (SELECT COALESCE(SUM(debit),0) FROM lignes_ecritures WHERE lettrage = '{{ $json.codeLettrage }}'), {{ $json.ecart }}) RETURNING id, code_lettrage;"
+      },
+      "id": "08. Insert Lettrage", "name": "08. Insert Lettrage", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $('06. Verify Balance').first().json;\nreturn [{ json: { success: true, message: `Lettrage ${b.codeLettrage} appliqué sur ${b.nbLignes} lignes du compte ${b.numeroCompte}`, codeLettrage: b.codeLettrage, ecart: b.ecart } }];"
+      },
+      "id": "09. Format Response", "name": "09. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1500, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "10. Respond", "name": "10. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1700, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Get Lignes", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Get Lignes": { "main": [[{ "node": "06. Verify Balance", "type": "main", "index": 0 }]] },
+    "06. Verify Balance": { "main": [[{ "node": "07. Apply Lettrage", "type": "main", "index": 0 }]] },
+    "07. Apply Lettrage": { "main": [[{ "node": "08. Insert Lettrage", "type": "main", "index": 0 }]] },
+    "08. Insert Lettrage": { "main": [[{ "node": "09. Format Response", "type": "main", "index": 0 }]] },
+    "09. Format Response": { "main": [[{ "node": "10. Respond", "type": "main", "index": 0 }]] }
+  }
+}

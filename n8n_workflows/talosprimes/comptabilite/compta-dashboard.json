@@ -1,0 +1,71 @@
+{
+  "name": "compta-dashboard",
+  "nodes": [
+    {
+      "parameters": { "path": "compta-dashboard", "responseMode": "responseNode", "httpMethod": "POST" },
+      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId } }];"
+      },
+      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+      },
+      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }" },
+      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT (SELECT COUNT(*) FROM ecritures_comptables WHERE tenant_id = '{{ $json.tenantId }}') as total_ecritures, (SELECT COUNT(*) FROM ecritures_comptables WHERE tenant_id = '{{ $json.tenantId }}' AND statut = 'brouillon') as ecritures_brouillon, (SELECT COUNT(*) FROM ecritures_comptables WHERE tenant_id = '{{ $json.tenantId }}' AND statut = 'validee') as ecritures_validees, (SELECT COUNT(*) FROM plan_comptable WHERE tenant_id = '{{ $json.tenantId }}' AND actif = true) as nb_comptes, (SELECT code FROM exercices_comptables WHERE tenant_id = '{{ $json.tenantId }}' AND cloture = false ORDER BY date_debut DESC LIMIT 1) as exercice_courant;"
+      },
+      "id": "05. Stats Generales", "name": "05. Stats Generales", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END),0) as total_produits, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END),0) as total_charges, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '512%' OR le.numero_compte LIKE '530%' THEN le.debit - le.credit ELSE 0 END),0) as tresorerie, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '411%' THEN le.debit - le.credit ELSE 0 END),0) as creances_clients, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '401%' THEN le.credit - le.debit ELSE 0 END),0) as dettes_fournisseurs, COALESCE(SUM(CASE WHEN le.numero_compte = '445710' THEN le.credit - le.debit ELSE 0 END),0) as tva_collectee, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '44566%' OR le.numero_compte LIKE '44562%' THEN le.debit - le.credit ELSE 0 END),0) as tva_deductible FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut = 'validee';"
+      },
+      "id": "06. Stats Financieres", "name": "06. Stats Financieres", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT TO_CHAR(e.date_ecriture, 'YYYY-MM') as mois, COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END),0) as produits, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END),0) as charges FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut = 'validee' AND e.date_ecriture >= (CURRENT_DATE - INTERVAL '12 months') GROUP BY TO_CHAR(e.date_ecriture, 'YYYY-MM') ORDER BY mois;"
+      },
+      "id": "07. Evolution Mensuelle", "name": "07. Evolution Mensuelle", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stats = $('05. Stats Generales').first().json;\nconst fin = $('06. Stats Financieres').first().json;\nconst evolution = $('07. Evolution Mensuelle').all().map(i => i.json).filter(e => e.mois);\n\nconst totalProduits = Math.round((parseFloat(fin.total_produits) || 0) * 100) / 100;\nconst totalCharges = Math.round((parseFloat(fin.total_charges) || 0) * 100) / 100;\nconst resultatNet = Math.round((totalProduits - totalCharges) * 100) / 100;\nconst tresorerie = Math.round((parseFloat(fin.tresorerie) || 0) * 100) / 100;\nconst creancesClients = Math.round((parseFloat(fin.creances_clients) || 0) * 100) / 100;\nconst dettesFournisseurs = Math.round((parseFloat(fin.dettes_fournisseurs) || 0) * 100) / 100;\nconst tvaCollectee = Math.round((parseFloat(fin.tva_collectee) || 0) * 100) / 100;\nconst tvaDeductible = Math.round((parseFloat(fin.tva_deductible) || 0) * 100) / 100;\nconst tvaDue = Math.round((tvaCollectee - tvaDeductible) * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  dashboard: {\n    exerciceCourant: stats.exercice_courant,\n    stats: {\n      totalEcritures: parseInt(stats.total_ecritures) || 0,\n      ecrituresBrouillon: parseInt(stats.ecritures_brouillon) || 0,\n      ecrituresValidees: parseInt(stats.ecritures_validees) || 0,\n      nbComptes: parseInt(stats.nb_comptes) || 0\n    },\n    indicateurs: {\n      chiffreAffaires: totalProduits,\n      totalCharges,\n      resultatNet,\n      margeNette: totalProduits > 0 ? Math.round((resultatNet / totalProduits) * 10000) / 100 : 0,\n      tresorerie,\n      creancesClients,\n      dettesFournisseurs,\n      besoinFondsRoulement: Math.round((creancesClients - dettesFournisseurs) * 100) / 100\n    },\n    tva: { collectee: tvaCollectee, deductible: tvaDeductible, due: tvaDue > 0 ? tvaDue : 0, credit: tvaDue < 0 ? Math.abs(tvaDue) : 0 },\n    evolutionMensuelle: evolution.map(e => ({\n      mois: e.mois,\n      produits: Math.round((parseFloat(e.produits) || 0) * 100) / 100,\n      charges: Math.round((parseFloat(e.charges) || 0) * 100) / 100,\n      resultat: Math.round(((parseFloat(e.produits) || 0) - (parseFloat(e.charges) || 0)) * 100) / 100\n    }))\n  }\n} }];"
+      },
+      "id": "08. Format Dashboard", "name": "08. Format Dashboard", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1300, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "09. Respond", "name": "09. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1500, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Stats Generales", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Stats Generales": { "main": [[{ "node": "06. Stats Financieres", "type": "main", "index": 0 }]] },
+    "06. Stats Financieres": { "main": [[{ "node": "07. Evolution Mensuelle", "type": "main", "index": 0 }]] },
+    "07. Evolution Mensuelle": { "main": [[{ "node": "08. Format Dashboard", "type": "main", "index": 0 }]] },
+    "08. Format Dashboard": { "main": [[{ "node": "09. Respond", "type": "main", "index": 0 }]] }
+  }
+}
