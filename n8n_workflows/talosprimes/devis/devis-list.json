@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = payload.statut || null;\nconst clientFinalId = payload.clientFinalId || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  statut,\n  clientFinalId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = body.statut || null;\nconst clientFinalId = body.clientFinalId || null;\n\nreturn [{ json: { tenantId: body.tenantId, page, limit, offset, statut, clientFinalId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,26 +38,18 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
@@ -80,10 +66,7 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
@@ -100,114 +83,51 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        400
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const rawDevis = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst devis = rawDevis.map(d => ({\n  ...d,\n  clientFinal: d.client_final_id ? {\n    id: d.client_final_id,\n    nom: d.client_nom || null,\n    prenom: d.client_prenom || null,\n    email: d.client_email || null,\n    telephone: d.client_telephone || null,\n    raisonSociale: d.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  devis,\n  count: devis.length,\n  total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages,\n}}];"
+        "jsCode": "const items = $('06. List Query').all();\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\nconst devis = items.map(item => {\n  const d = item.json;\n  return {\n    id: d.id,\n    tenant_id: d.tenant_id,\n    client_final_id: d.client_final_id,\n    numero_devis: d.numero_devis,\n    date_devis: d.date_devis,\n    date_validite: d.date_validite,\n    montant_ht: d.montant_ht,\n    montant_ttc: d.montant_ttc,\n    tva_taux: d.tva_taux,\n    description: d.description,\n    mode_paiement: d.mode_paiement,\n    statut: d.statut,\n    invoice_id: d.invoice_id,\n    lien_pdf: d.lien_pdf,\n    created_at: d.created_at,\n    updated_at: d.updated_at,\n    clientFinal: d.client_final_id ? {\n      id: d.client_final_id,\n      nom: d.client_nom || null,\n      prenom: d.client_prenom || null,\n      email: d.client_email || null,\n      telephone: d.client_telephone || null,\n      raison_sociale: d.client_raison_sociale || null\n    } : null\n  };\n});\n\nreturn [{ json: {\n  devis,\n  count: devis.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        350
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1100,
-        350
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Count Query",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Count Query", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Count Query": {
-      "main": [
-        [
-          {
-            "node": "06. List Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. List Query", "type": "main", "index": 0 }]]
     },
     "06. List Query": {
-      "main": [
-        [
-          {
-            "node": "07. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
     "07. Format Response": {
-      "main": [
-        [
-          {
-            "node": "08. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

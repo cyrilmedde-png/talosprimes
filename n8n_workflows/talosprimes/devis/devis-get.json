@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.devisId) {\n  throw new Error('devisId is required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId || null\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,31 +38,23 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.id = '{{ $json.devisId }}'"
+        "query": "=SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.id = '{{ $json.devisId }}' AND d.tenant_id = '{{ $json.tenantId }}'"
       },
       "id": "05. Get Devis",
       "name": "05. Get Devis",
@@ -80,15 +66,12 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = '{{ $json.devisId }}'"
+        "query": "=SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = '{{ $('02. Parser').first().json.devisId }}' ORDER BY ordre ASC"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
@@ -100,114 +83,51 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        400
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const rawDevis = $('05. Get Devis').first().json;\nconst rawLines = $('06. Get Lines').all().map(item => item.json);\n\nif (!rawDevis || !rawDevis.id) {\n  throw new Error('Devis not found');\n}\n\nconst devis = {\n  ...rawDevis,\n  clientFinal: rawDevis.client_final_id ? {\n    id: rawDevis.client_final_id,\n    nom: rawDevis.client_nom || null,\n    prenom: rawDevis.client_prenom || null,\n    email: rawDevis.client_email || null,\n    telephone: rawDevis.client_telephone || null,\n    raisonSociale: rawDevis.client_raison_sociale || null,\n  } : null,\n  lines: rawLines,\n};\n\nreturn [{json: { devis, success: true }}];"
+        "jsCode": "const devisItem = $('05. Get Devis').first().json;\nconst lineItems = $('06. Get Lines').all();\n\nif (!devisItem || !devisItem.id) {\n  return [{ json: { error: 'Devis not found' } }];\n}\n\nconst d = devisItem;\nconst lines = lineItems.map(item => item.json);\n\nconst devis = {\n  id: d.id,\n  tenant_id: d.tenant_id,\n  client_final_id: d.client_final_id,\n  numero_devis: d.numero_devis,\n  date_devis: d.date_devis,\n  date_validite: d.date_validite,\n  montant_ht: d.montant_ht,\n  montant_ttc: d.montant_ttc,\n  tva_taux: d.tva_taux,\n  description: d.description,\n  mode_paiement: d.mode_paiement,\n  statut: d.statut,\n  invoice_id: d.invoice_id,\n  lien_pdf: d.lien_pdf,\n  created_at: d.created_at,\n  updated_at: d.updated_at,\n  clientFinal: d.client_final_id ? {\n    id: d.client_final_id,\n    nom: d.client_nom || null,\n    prenom: d.client_prenom || null,\n    email: d.client_email || null,\n    telephone: d.client_telephone || null,\n    raison_sociale: d.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: devis }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        350
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1100,
-        350
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Devis",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Devis", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Get Devis": {
-      "main": [
-        [
-          {
-            "node": "06. Get Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. Get Lines", "type": "main", "index": 0 }]]
     },
     "06. Get Lines": {
-      "main": [
-        [
-          {
-            "node": "07. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
     "07. Format Response": {
-      "main": [
-        [
-          {
-            "node": "08. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }
