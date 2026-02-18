@@ -6,7 +6,6 @@ import {
   DocumentTextIcon,
   PlusIcon,
   XMarkIcon,
-  MagnifyingGlassIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
