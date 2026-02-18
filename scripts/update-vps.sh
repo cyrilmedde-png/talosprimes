@@ -562,9 +562,11 @@ except Exception as e:
         fi
         rm -f "$tmp_pyerr"
 
-        rm -f "$tmp_current"
+        # NOTE: on garde tmp_current pour le merge des credentials apres le PUT
+        # rm -f "$tmp_current"  -- supprime plus bas apres le merge
 
         if [ -z "$payload" ]; then
+          rm -f "$tmp_current"
           return 1
         fi
 
@@ -593,12 +595,12 @@ except Exception as e:
             "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null || echo "{}")
 
           # Preparer le payload PATCH avec le contenu complet
-          # IMPORTANT: Fusionner les credentials du payload transforme avec full_wf
-          # car /api/v1/workflows/{id} peut ne pas retourner les credentials complets
+          # IMPORTANT: Fusionner les credentials depuis le workflow ORIGINAL de n8n
+          # (tmp_current, sauvegarde AVANT le PUT) vers full_wf (apres PUT).
+          # On utilise tmp_current car c'est la seule source fiable des vrais credential IDs.
+          # Le payload transforme peut contenir des IDs faux venant des fichiers backup.
           local tmp_full_wf="/tmp/n8n_full_wf_$existing_id.json"
-          local tmp_transformed="/tmp/n8n_transformed_$existing_id.json"
           echo "$full_wf" > "$tmp_full_wf"
-          echo "$payload" > "$tmp_transformed"
 
           local patch_payload
           patch_payload=$(python3 -c "
@@ -606,19 +608,30 @@ import sys, json
 try:
     with open('$tmp_full_wf') as f:
         full_wf = json.load(f)
-    with open('$tmp_transformed') as f:
-        transformed = json.load(f)
 
-    # Copier les credentials du payload transforme (qui ont les vrais IDs)
-    # vers le full_wf, pour s'assurer qu'ils sont preserves lors du PATCH
-    # NOTE: On match par NOM de node (pas par id) car les backups utilisent
-    # le nom comme id tandis que n8n assigne des UUIDs
-    tnode_by_name = {t.get('name'): t for t in transformed.get('nodes', [])}
+    # Charger le workflow ORIGINAL de n8n (avant le PUT) qui a les vrais credential IDs
+    original_creds = {}
+    try:
+        with open('$tmp_current') as f:
+            original_wf = json.load(f)
+        for node in original_wf.get('nodes', []):
+            creds = node.get('credentials', {})
+            if creds:
+                original_creds[node.get('name', '')] = creds
+    except:
+        pass
+
+    # Restaurer les credentials originales dans full_wf (apres PUT)
+    # On match par NOM de node car les backups utilisent le nom comme id
+    restored = 0
     for node in full_wf.get('nodes', []):
-        node_name = node.get('name')
-        tnode = tnode_by_name.get(node_name)
-        if tnode and 'credentials' in tnode:
-            node['credentials'] = tnode['credentials']
+        node_name = node.get('name', '')
+        if node_name in original_creds:
+            node['credentials'] = original_creds[node_name]
+            restored += 1
+
+    if restored > 0:
+        print(f'      {restored} nodes avec credentials restaurees depuis original', file=sys.stderr)
 
     # Retirer les champs que PATCH n'accepte pas
     for k in ['id','createdAt','updatedAt']:
@@ -634,7 +647,7 @@ except Exception as e:
     full_wf['active'] = False
     print(json.dumps(full_wf))
 " 2>/tmp/n8n_merge_err.log)
-          rm -f "$tmp_full_wf" "$tmp_transformed"
+          rm -f "$tmp_full_wf" "$tmp_current"
 
           # Deactivate avec contenu complet
           curl -s -X PATCH \
