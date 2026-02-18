@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.proformaId) {\n  throw new Error('tenantId and proformaId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, proformaId: body.proformaId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,26 +38,18 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
@@ -80,15 +66,12 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=DELETE FROM proformas WHERE id = '{{ $json.proformaId }}' AND tenant_id = '{{ $json.tenantId }}' RETURNING id"
+        "query": "=DELETE FROM proformas WHERE id = '{{ $('02. Parser').first().json.proformaId }}' AND tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND statut != 'facturee' RETURNING id, numero_proforma"
       },
       "id": "06. Delete Proforma",
       "name": "06. Delete Proforma",
@@ -100,114 +83,51 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const deleted = $('06. Delete Proforma').all().map(item => item.json);\n\nif (deleted.length === 0) {\n  throw new Error('Proforma not found');\n}\n\nreturn {\n  success: true,\n  message: 'Proforma deleted successfully',\n  proformaId: $json.proformaId\n};"
+        "jsCode": "const result = $('06. Delete Proforma').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { success: false, error: 'Proforma not found or already converted to invoice' } }];\n}\n\nreturn [{ json: { success: true, deletedId: result.id, numeroProforma: result.numero_proforma } }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Delete Lines",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Delete Lines", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Delete Lines": {
-      "main": [
-        [
-          {
-            "node": "06. Delete Proforma",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. Delete Proforma", "type": "main", "index": 0 }]]
     },
     "06. Delete Proforma": {
-      "main": [
-        [
-          {
-            "node": "07. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
     "07. Format Response": {
-      "main": [
-        [
-          {
-            "node": "08. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

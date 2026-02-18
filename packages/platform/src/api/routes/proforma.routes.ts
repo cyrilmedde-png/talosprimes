@@ -43,12 +43,20 @@ const lineSchema = z.object({
   prixUnitaireHt: z.number().positive(),
 });
 
+const flexibleDate = z.string().refine(
+  (val) => {
+    if (!val) return true;
+    return !isNaN(Date.parse(val));
+  },
+  { message: 'Date invalide' }
+).optional().nullable();
+
 const createSchema = z.object({
   clientFinalId: z.string().uuid(),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateProforma: z.string().datetime({ offset: true }).optional().nullable(),
-  dateValidite: z.string().datetime({ offset: true }).optional().nullable(),
+  dateProforma: flexibleDate,
+  dateValidite: flexibleDate,
   description: z.string().optional().nullable(),
   modePaiement: z.string().optional().nullable(),
   lines: z.array(lineSchema).optional(),

@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || !payload.montantHt || !payload.tvaTaux) {\n  throw new Error('tenantId, clientFinalId, montantHt, tvaTaux are required');\n}\n\nconst montantHt = parseFloat(payload.montantHt);\nconst tvaTaux = parseFloat(payload.tvaTaux) / 100;\nconst montantTtc = montantHt * (1 + tvaTaux);\nconst dateDevis = payload.dateDevis || new Date().toISOString().split('T')[0];\nconst dateValidite = payload.dateValidite || new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst description = payload.description || '';\nconst modePaiement = payload.modePaiement || 'virement';\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: payload.tvaTaux,\n  dateDevis: dateDevis,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst montantHt = parseFloat(body.montantHt) || 0;\nconst tvaTaux = parseFloat(body.tvaTaux) || 20;\nconst montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId || null,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateProforma: body.dateProforma || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,31 +38,23 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_proforma, 9) AS INTEGER)), 0) + 1 as next_num FROM proformas WHERE numero_proforma LIKE 'PRO-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_proforma FROM 'PRO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM proformas WHERE tenant_id = '{{ $json.tenantId }}' AND numero_proforma LIKE 'PRO-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
       },
       "id": "05. Get Next Number",
       "name": "05. Get Next Number",
@@ -80,28 +66,22 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "const nextNum = $('05. Get Next Number').first().json.next_num;\nconst numeroProforma = 'PRO-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nreturn {\n  ...JSON.parse(JSON.stringify($json)),\n  numeroProforma: numeroProforma\n};"
+        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroProforma = 'PRO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroProforma } }];"
       },
       "id": "06. Generate Number",
       "name": "06. Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO proformas (tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $json.numeroProforma }}', '{{ $json.dateDevis }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, '{{ $json.description }}', '{{ $json.modePaiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+        "query": "=INSERT INTO proformas (id, tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $('06. Generate Number').first().json.tenantId }}', {{ $('06. Generate Number').first().json.clientFinalId ? \"'\" + $('06. Generate Number').first().json.clientFinalId + \"'\" : 'NULL' }}, '{{ $('06. Generate Number').first().json.numeroProforma }}', '{{ $('06. Generate Number').first().json.dateProforma }}', {{ $('06. Generate Number').first().json.dateValidite ? \"'\" + $('06. Generate Number').first().json.dateValidite + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.montantHt }}, {{ $('06. Generate Number').first().json.montantTtc }}, {{ $('06. Generate Number').first().json.tvaTaux }}, {{ $('06. Generate Number').first().json.description ? \"'\" + $('06. Generate Number').first().json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.modePaiement ? \"'\" + $('06. Generate Number').first().json.modePaiement.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at"
       },
       "id": "07. Insert Proforma",
       "name": "07. Insert Proforma",
@@ -113,28 +93,22 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "jsCode": "const proformaId = $('07. Insert Proforma').first().json.id;\nconst lines = $json.lines || [];\n\nif (lines.length === 0) {\n  return { proformaId, lineInserts: [], hasLines: false };\n}\n\nconst lineInserts = lines.map((line, index) => ({\n  proformaId: proformaId,\n  ordre: index + 1,\n  codeArticle: line.codeArticle || line.code_article || '',\n  designation: line.designation || line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: parseFloat(line.prixUnitaireHt || line.prixUnitaire || line.prix_unitaire_ht || 0),\n  totalHt: parseFloat(line.totalHt || line.montantHt || line.total_ht || 0)\n}));\n\nreturn { proformaId, lineInserts, hasLines: true };"
+        "jsCode": "const proforma = $('07. Insert Proforma').first().json;\nconst parser = $('02. Parser').first().json;\nconst lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { proformaId: proforma.id, lineInserts: [], hasLines: false } }];\n}\n\nconst lineInserts = lines.map((line, idx) => ({\n  proformaId: proforma.id,\n  codeArticle: line.codeArticle || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || line.prixUnitaireHT || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || line.prixUnitaireHT || 0),\n  ordre: idx\n}));\n\nreturn [{ json: { proformaId: proforma.id, lineInserts, hasLines: true } }];"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.lineInserts && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO proforma_lines (id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.proformaId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (item.designation || \"\").replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+        "query": "={{ $json.hasLines && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO proforma_lines (id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.proformaId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",
@@ -146,147 +120,60 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1500,
-        300
-      ]
+      "position": [1500, 300]
     },
     {
       "parameters": {
-        "jsCode": "return {\n  success: true,\n  message: 'Proforma created successfully',\n  proformaId: $('07. Insert Proforma').first().json.id,\n  numeroProforma: $json.numeroProforma\n};"
+        "jsCode": "const proforma = $('07. Insert Proforma').first().json;\n\nreturn [{ json: {\n  id: proforma.id,\n  tenant_id: proforma.tenant_id,\n  client_final_id: proforma.client_final_id,\n  numero_proforma: proforma.numero_proforma,\n  date_proforma: proforma.date_proforma,\n  date_validite: proforma.date_validite,\n  montant_ht: proforma.montant_ht,\n  montant_ttc: proforma.montant_ttc,\n  tva_taux: proforma.tva_taux,\n  description: proforma.description,\n  mode_paiement: proforma.mode_paiement,\n  statut: proforma.statut,\n  created_at: proforma.created_at,\n  updated_at: proforma.updated_at\n} }];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1700,
-        300
-      ]
+      "position": [1700, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "11. Respond",
       "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1900,
-        300
-      ]
+      "position": [1900, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Next Number",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Next Number", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Get Next Number": {
-      "main": [
-        [
-          {
-            "node": "06. Generate Number",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. Generate Number", "type": "main", "index": 0 }]]
     },
     "06. Generate Number": {
-      "main": [
-        [
-          {
-            "node": "07. Insert Proforma",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Insert Proforma", "type": "main", "index": 0 }]]
     },
     "07. Insert Proforma": {
-      "main": [
-        [
-          {
-            "node": "08. Prepare Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Prepare Lines", "type": "main", "index": 0 }]]
     },
     "08. Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "09. Insert Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "09. Insert Lines", "type": "main", "index": 0 }]]
     },
     "09. Insert Lines": {
-      "main": [
-        [
-          {
-            "node": "10. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
     },
     "10. Format Response": {
-      "main": [
-        [
-          {
-            "node": "11. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

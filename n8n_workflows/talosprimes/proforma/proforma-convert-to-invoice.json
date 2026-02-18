@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.proformaId) {\n  throw new Error('tenantId and proformaId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, proformaId: body.proformaId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,31 +38,23 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_proforma, date_proforma, montant_ht, montant_ttc, tva_taux, description, mode_paiement FROM proformas WHERE id = '{{ $json.proformaId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
+        "query": "=SELECT id, tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM proformas WHERE id = '{{ $json.proformaId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
       },
       "id": "05. Get Proforma",
       "name": "05. Get Proforma",
@@ -80,51 +66,25 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture, 5) AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE numero_facture LIKE 'FAC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+        "jsCode": "const proforma = $('05. Get Proforma').first().json;\n\nif (!proforma || !proforma.id) {\n  throw new Error('Proforma not found or not in acceptee status');\n}\n\nreturn [{ json: proforma }];"
       },
-      "id": "06. Get Next Invoice Number",
-      "name": "06. Get Next Invoice Number",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
-        }
-      },
-      "position": [
-        700,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const proforma = $('05. Get Proforma').first().json;\nconst nextNum = $('06. Get Next Invoice Number').first().json.next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!proforma) {\n  throw new Error('Proforma not found or not in acceptee status');\n}\n\nreturn {\n  proformaId: $json.proformaId,\n  tenantId: $json.tenantId,\n  proforma: proforma,\n  numeroFacture: numeroFacture\n};"
-      },
-      "id": "07. Prepare Invoice Data",
-      "name": "07. Prepare Invoice Data",
+      "id": "06. Check Proforma",
+      "name": "06. Check Proforma",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        350
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES ('standard', '{{ $json.tenantId }}', '{{ $json.proforma.client_final_id }}', '{{ $json.numeroFacture }}', NOW()::date, (NOW() + INTERVAL '30 days')::date, {{ $json.proforma.montant_ht }}, {{ $json.proforma.montant_ttc }}, {{ $json.proforma.tva_taux }}, '{{ $json.proforma.description }}', '{{ $json.proforma.mode_paiement }}', 'brouillon', NOW(), NOW()) RETURNING id"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'FAC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenant_id }}' AND numero_facture LIKE 'FAC-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
       },
-      "id": "08. Create Invoice",
-      "name": "08. Create Invoice",
+      "id": "07. Get Next Invoice Number",
+      "name": "07. Get Next Invoice Number",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -133,51 +93,25 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1100,
-        350
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = '{{ $json.proformaId }}'"
+        "jsCode": "const proforma = $('06. Check Proforma').first().json;\nconst nextNum = $('07. Get Next Invoice Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroFacture = 'FAC-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: {\n  ...proforma,\n  numeroFacture,\n  dateFacture: new Date().toISOString()\n} }];"
       },
-      "id": "09. Get Proforma Lines",
-      "name": "09. Get Proforma Lines",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
-        }
-      },
-      "position": [
-        1100,
-        450
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const invoiceId = $('08. Create Invoice').first().json.id;\nconst rawLines = $('09. Get Proforma Lines').all().map(item => item.json);\n\nreturn {\n  invoiceId,\n  lines: rawLines,\n  hasLines: rawLines.length > 0\n};"
-      },
-      "id": "10. Prepare Lines",
-      "name": "10. Prepare Lines",
+      "id": "08. Prepare Invoice",
+      "name": "08. Prepare Invoice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        400
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.lines && $json.lines.length > 0 ? $json.lines.map(item => \"INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + $json.invoiceId + \"', \" + (item.code_article ? \"'\" + item.code_article.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (item.designation || \"\").replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prix_unitaire_ht || 0) + \", \" + (item.total_ht || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+        "query": "=INSERT INTO invoices (id, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', {{ $json.client_final_id ? \"'\" + $json.client_final_id + \"'\" : 'NULL' }}, '{{ $json.id }}', '{{ $json.numeroFacture }}', '{{ $json.dateFacture }}', {{ $json.montant_ht }}, {{ $json.montant_ttc }}, {{ $json.tva_taux || 20 }}, {{ $json.description ? \"'\" + $json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $json.mode_paiement ? \"'\" + $json.mode_paiement.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, statut, created_at, updated_at"
       },
-      "id": "11. Create Invoice Lines",
-      "name": "11. Create Invoice Lines",
+      "id": "09. Create Invoice",
+      "name": "09. Create Invoice",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -186,18 +120,15 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1500,
-        400
-      ]
+      "position": [1500, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = '{{ $('08. Create Invoice').first().json.id }}', updated_at = NOW() WHERE id = '{{ $json.proformaId }}'"
+        "query": "=SELECT id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = '{{ $('02. Parser').first().json.proformaId }}' ORDER BY ordre ASC"
       },
-      "id": "12. Update Proforma",
-      "name": "12. Update Proforma",
+      "id": "10. Get Proforma Lines",
+      "name": "10. Get Proforma Lines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -206,187 +137,116 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1700,
-        400
-      ]
+      "position": [1700, 300]
     },
     {
       "parameters": {
-        "jsCode": "return {\n  success: true,\n  message: 'Proforma converted to invoice successfully',\n  proformaId: $json.proformaId,\n  invoiceId: $('08. Create Invoice').first().json.id,\n  numeroFacture: $json.numeroFacture\n};"
+        "jsCode": "const invoice = $('09. Create Invoice').first().json;\nconst lines = $('10. Get Proforma Lines').all().map(item => item.json);\n\nif (lines.length === 0) {\n  return [{ json: { invoiceId: invoice.id, hasLines: false } }];\n}\n\nconst lineInserts = lines.map(line => ({\n  invoiceId: invoice.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}));\n\nreturn [{ json: { invoiceId: invoice.id, lineInserts, hasLines: true } }];"
       },
-      "id": "13. Format Response",
-      "name": "13. Format Response",
+      "id": "11. Prepare Invoice Lines",
+      "name": "11. Prepare Invoice Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1900,
-        400
-      ]
+      "position": [1900, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "operation": "executeQuery",
+        "query": "={{ $json.hasLines && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.invoiceId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+      },
+      "id": "12. Insert Invoice Lines",
+      "name": "12. Insert Invoice Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [2100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = '{{ $('09. Create Invoice').first().json.id }}', updated_at = NOW() WHERE id = '{{ $('02. Parser').first().json.proformaId }}' AND tenant_id = '{{ $('02. Parser').first().json.tenantId }}'"
+      },
+      "id": "13. Update Proforma Status",
+      "name": "13. Update Proforma Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [2300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('09. Create Invoice').first().json;\n\nreturn [{ json: {\n  success: true,\n  invoice: {\n    id: invoice.id,\n    tenant_id: invoice.tenant_id,\n    client_final_id: invoice.client_final_id,\n    proforma_id: invoice.proforma_id,\n    numero_facture: invoice.numero_facture,\n    numeroFacture: invoice.numero_facture,\n    date_facture: invoice.date_facture,\n    dateFacture: invoice.date_facture,\n    montant_ht: invoice.montant_ht,\n    montantHt: invoice.montant_ht,\n    montant_ttc: invoice.montant_ttc,\n    montantTtc: invoice.montant_ttc,\n    tva_taux: invoice.tva_taux,\n    tvaTaux: invoice.tva_taux,\n    statut: invoice.statut,\n    created_at: invoice.created_at,\n    updated_at: invoice.updated_at\n  }\n} }];"
+      },
+      "id": "14. Format Response",
+      "name": "14. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "14. Respond",
-      "name": "14. Respond",
+      "id": "15. Respond",
+      "name": "15. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2100,
-        400
-      ]
+      "position": [2700, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Proforma",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Proforma", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Get Proforma": {
-      "main": [
-        [
-          {
-            "node": "06. Get Next Invoice Number",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. Check Proforma", "type": "main", "index": 0 }]]
     },
-    "06. Get Next Invoice Number": {
-      "main": [
-        [
-          {
-            "node": "07. Prepare Invoice Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Check Proforma": {
+      "main": [[{ "node": "07. Get Next Invoice Number", "type": "main", "index": 0 }]]
     },
-    "07. Prepare Invoice Data": {
-      "main": [
-        [
-          {
-            "node": "08. Create Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "09. Get Proforma Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Get Next Invoice Number": {
+      "main": [[{ "node": "08. Prepare Invoice", "type": "main", "index": 0 }]]
     },
-    "08. Create Invoice": {
-      "main": [
-        [
-          {
-            "node": "10. Prepare Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. Prepare Invoice": {
+      "main": [[{ "node": "09. Create Invoice", "type": "main", "index": 0 }]]
     },
-    "09. Get Proforma Lines": {
-      "main": [
-        [
-          {
-            "node": "10. Prepare Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "09. Create Invoice": {
+      "main": [[{ "node": "10. Get Proforma Lines", "type": "main", "index": 0 }]]
     },
-    "10. Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "11. Create Invoice Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Get Proforma Lines": {
+      "main": [[{ "node": "11. Prepare Invoice Lines", "type": "main", "index": 0 }]]
     },
-    "11. Create Invoice Lines": {
-      "main": [
-        [
-          {
-            "node": "12. Update Proforma",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "11. Prepare Invoice Lines": {
+      "main": [[{ "node": "12. Insert Invoice Lines", "type": "main", "index": 0 }]]
     },
-    "12. Update Proforma": {
-      "main": [
-        [
-          {
-            "node": "13. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "12. Insert Invoice Lines": {
+      "main": [[{ "node": "13. Update Proforma Status", "type": "main", "index": 0 }]]
     },
-    "13. Format Response": {
-      "main": [
-        [
-          {
-            "node": "14. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "13. Update Proforma Status": {
+      "main": [[{ "node": "14. Format Response", "type": "main", "index": 0 }]]
+    },
+    "14. Format Response": {
+      "main": [[{ "node": "15. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = payload.statut || null;\nconst clientFinalId = payload.clientFinalId || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  statut,\n  clientFinalId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = body.statut || null;\nconst clientFinalId = body.clientFinalId || null;\n\nreturn [{ json: { tenantId: body.tenantId, page, limit, offset, statut, clientFinalId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,31 +38,23 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) as total FROM proformas WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : '' }}"
+        "query": "=SELECT COUNT(*) as total FROM proformas WHERE tenant_id = '{{ $json.tenantId }}' AND numero_proforma IS NOT NULL AND date_proforma IS NOT NULL{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : '' }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -80,15 +66,12 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT p.id, p.tenant_id, p.client_final_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.invoice_id, p.lien_pdf, p.created_at, p.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM proformas p LEFT JOIN client_finals cf ON p.client_final_id = cf.id WHERE p.tenant_id = '{{ $('02. Parser').first().json.tenantId }}'{{ $('02. Parser').first().json.statut ? \" AND p.statut = '\" + $('02. Parser').first().json.statut + \"'\" : '' }}{{ $('02. Parser').first().json.clientFinalId ? \" AND p.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : '' }} ORDER BY p.date_proforma DESC LIMIT {{ $('02. Parser').first().json.limit }} OFFSET {{ $('02. Parser').first().json.offset }}"
+        "query": "=SELECT p.id, p.tenant_id, p.client_final_id, p.invoice_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.lien_pdf, p.created_at, p.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM proformas p LEFT JOIN client_finals cf ON p.client_final_id = cf.id WHERE p.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND p.numero_proforma IS NOT NULL AND p.date_proforma IS NOT NULL{{ $('02. Parser').first().json.statut ? \" AND p.statut = '\" + $('02. Parser').first().json.statut + \"'\" : '' }}{{ $('02. Parser').first().json.clientFinalId ? \" AND p.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : '' }} ORDER BY p.date_proforma DESC LIMIT {{ $('02. Parser').first().json.limit }} OFFSET {{ $('02. Parser').first().json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",
@@ -100,114 +83,51 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        400
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const rawProforma = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst proforma = rawProforma.map(p => ({\n  ...p,\n  clientFinal: p.client_final_id ? {\n    id: p.client_final_id,\n    nom: p.client_nom || null,\n    prenom: p.client_prenom || null,\n    email: p.client_email || null,\n    telephone: p.client_telephone || null,\n    raisonSociale: p.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  proforma,\n  count: proforma.length,\n  total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages,\n}}];"
+        "jsCode": "const items = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\nconst proformas = items.map(p => ({\n  id: p.id,\n  tenant_id: p.tenant_id,\n  client_final_id: p.client_final_id,\n  invoice_id: p.invoice_id,\n  invoiceId: p.invoice_id,\n  numero_proforma: p.numero_proforma,\n  numeroProforma: p.numero_proforma,\n  date_proforma: p.date_proforma,\n  dateProforma: p.date_proforma,\n  date_validite: p.date_validite,\n  dateValidite: p.date_validite,\n  montant_ht: p.montant_ht,\n  montantHt: p.montant_ht,\n  montant_ttc: p.montant_ttc,\n  montantTtc: p.montant_ttc,\n  tva_taux: p.tva_taux,\n  tvaTaux: p.tva_taux,\n  description: p.description,\n  mode_paiement: p.mode_paiement,\n  modePaiement: p.mode_paiement,\n  statut: p.statut,\n  lien_pdf: p.lien_pdf,\n  lienPdf: p.lien_pdf,\n  created_at: p.created_at,\n  createdAt: p.created_at,\n  updated_at: p.updated_at,\n  updatedAt: p.updated_at,\n  clientFinal: p.client_final_id ? {\n    id: p.client_final_id,\n    nom: p.client_nom || null,\n    prenom: p.client_prenom || null,\n    email: p.client_email || null,\n    telephone: p.client_telephone || null,\n    raisonSociale: p.client_raison_sociale || null\n  } : null\n}));\n\nreturn [{ json: {\n  proformas,\n  count: proformas.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        350
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1100,
-        350
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Count Query",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Count Query", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Count Query": {
-      "main": [
-        [
-          {
-            "node": "06. List Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. List Query", "type": "main", "index": 0 }]]
     },
     "06. List Query": {
-      "main": [
-        [
-          {
-            "node": "07. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
     "07. Format Response": {
-      "main": [
-        [
-          {
-            "node": "08. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

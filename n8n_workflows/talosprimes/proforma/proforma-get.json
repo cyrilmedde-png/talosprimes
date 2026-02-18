@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.proformaId) {\n  throw new Error('proformaId is required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId || null\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.proformaId) {\n  throw new Error('tenantId and proformaId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, proformaId: body.proformaId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,31 +38,23 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT p.id, p.tenant_id, p.client_final_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.invoice_id, p.lien_pdf, p.created_at, p.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM proformas p LEFT JOIN client_finals cf ON p.client_final_id = cf.id WHERE p.id = '{{ $json.proformaId }}'"
+        "query": "=SELECT p.id, p.tenant_id, p.client_final_id, p.invoice_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.lien_pdf, p.created_at, p.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM proformas p LEFT JOIN client_finals cf ON p.client_final_id = cf.id WHERE p.id = '{{ $json.proformaId }}' AND p.tenant_id = '{{ $json.tenantId }}'"
       },
       "id": "05. Get Proforma",
       "name": "05. Get Proforma",
@@ -80,15 +66,12 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = '{{ $json.proformaId }}'"
+        "query": "=SELECT id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = '{{ $('02. Parser').first().json.proformaId }}' ORDER BY ordre ASC"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
@@ -100,114 +83,51 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        400
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const rawProforma = $('05. Get Proforma').first().json;\nconst rawLines = $('06. Get Lines').all().map(item => item.json);\n\nif (!rawProforma || !rawProforma.id) {\n  throw new Error('Proforma not found');\n}\n\nconst proforma = {\n  ...rawProforma,\n  clientFinal: rawProforma.client_final_id ? {\n    id: rawProforma.client_final_id,\n    nom: rawProforma.client_nom || null,\n    prenom: rawProforma.client_prenom || null,\n    email: rawProforma.client_email || null,\n    telephone: rawProforma.client_telephone || null,\n    raisonSociale: rawProforma.client_raison_sociale || null,\n  } : null,\n  lines: rawLines,\n};\n\nreturn [{json: { proforma, success: true }}];"
+        "jsCode": "const proformaItem = $('05. Get Proforma').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\n\nif (!proformaItem || !proformaItem.id) {\n  return [{ json: { error: 'Proforma not found' } }];\n}\n\nconst p = proformaItem;\n\nconst proforma = {\n  id: p.id,\n  tenant_id: p.tenant_id,\n  client_final_id: p.client_final_id,\n  invoice_id: p.invoice_id,\n  invoiceId: p.invoice_id,\n  numero_proforma: p.numero_proforma,\n  numeroProforma: p.numero_proforma,\n  date_proforma: p.date_proforma,\n  dateProforma: p.date_proforma,\n  date_validite: p.date_validite,\n  dateValidite: p.date_validite,\n  montant_ht: p.montant_ht,\n  montantHt: p.montant_ht,\n  montant_ttc: p.montant_ttc,\n  montantTtc: p.montant_ttc,\n  tva_taux: p.tva_taux,\n  tvaTaux: p.tva_taux,\n  description: p.description,\n  mode_paiement: p.mode_paiement,\n  modePaiement: p.mode_paiement,\n  statut: p.statut,\n  lien_pdf: p.lien_pdf,\n  lienPdf: p.lien_pdf,\n  created_at: p.created_at,\n  createdAt: p.created_at,\n  updated_at: p.updated_at,\n  updatedAt: p.updated_at,\n  clientFinal: p.client_final_id ? {\n    id: p.client_final_id,\n    nom: p.client_nom || null,\n    prenom: p.client_prenom || null,\n    email: p.client_email || null,\n    telephone: p.client_telephone || null,\n    raisonSociale: p.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: proforma }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        350
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1100,
-        350
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Proforma",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Proforma", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Get Proforma": {
-      "main": [
-        [
-          {
-            "node": "06. Get Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. Get Lines", "type": "main", "index": 0 }]]
     },
     "06. Get Lines": {
-      "main": [
-        [
-          {
-            "node": "07. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
     "07. Format Response": {
-      "main": [
-        [
-          {
-            "node": "08. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }
