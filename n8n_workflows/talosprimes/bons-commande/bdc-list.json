@@ -88,7 +88,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, invoice_id, created_at, updated_at FROM bon_commandes WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? ` AND statut = '${$json.statut}'` : '' }}{{ $json.clientFinalId ? ` AND client_final_id = '${$json.clientFinalId}'` : '' }} ORDER BY date_bdc DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+        "query": "=SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bons_commande b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND b.statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND b.client_final_id = '\" + $json.clientFinalId + \"'\" : '' }} ORDER BY b.date_bdc DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "code": "const bons = $('06. List Query').all();\nconst countResult = $('05. Count Query').first();\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $json.limit);\n\nreturn {\n  bons: bons,\n  count: bons.length,\n  total: total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages: totalPages\n};"
+        "jsCode": "const rawBons = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst bons = rawBons.map(b => ({\n  ...b,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  bons,\n  count: bons.length,\n  total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages,\n}}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
