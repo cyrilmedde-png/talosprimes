@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  bdcId: payload.bdcId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, bdcId: body.bdcId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,34 +38,26 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bons_commande b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.id = '{{ $json.bdcId }}' AND b.tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bon_commandes b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.id = '{{ $json.bdcId }}' AND b.tenant_id = '{{ $json.tenantId }}'"
       },
-      "id": "05. Get Bon",
-      "name": "05. Get Bon",
+      "id": "05. Get BdC",
+      "name": "05. Get BdC",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -80,15 +66,12 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = '{{ $json.bdcId }}' ORDER BY ordre"
+        "query": "=SELECT id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = '{{ $('02. Parser').first().json.bdcId }}' ORDER BY ordre ASC"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
@@ -100,169 +83,51 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const bon = $('05. Get Bon').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\nlet hasInvoice = false;\n\nif (bon && bon.invoice_id) {\n  hasInvoice = true;\n}\n\nreturn [{json: { ...bon, hasInvoice, lines }}];"
+        "jsCode": "const bdcItem = $('05. Get BdC').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\n\nif (!bdcItem || !bdcItem.id) {\n  return [{ json: { error: 'Bon de commande not found' } }];\n}\n\nconst b = bdcItem;\n\nconst bon = {\n  id: b.id,\n  tenant_id: b.tenant_id,\n  client_final_id: b.client_final_id,\n  numero_bdc: b.numero_bdc,\n  numeroBdc: b.numero_bdc,\n  date_bdc: b.date_bdc,\n  dateBdc: b.date_bdc,\n  date_validite: b.date_validite,\n  dateValidite: b.date_validite,\n  montant_ht: b.montant_ht,\n  montantHt: b.montant_ht,\n  montant_ttc: b.montant_ttc,\n  montantTtc: b.montant_ttc,\n  tva_taux: b.tva_taux,\n  tvaTaux: b.tva_taux,\n  description: b.description,\n  mode_paiement: b.mode_paiement,\n  modePaiement: b.mode_paiement,\n  statut: b.statut,\n  invoice_id: b.invoice_id,\n  invoiceId: b.invoice_id,\n  created_at: b.created_at,\n  createdAt: b.created_at,\n  updated_at: b.updated_at,\n  updatedAt: b.updated_at,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: bon }];"
       },
-      "id": "07. Check Invoice",
-      "name": "07. Check Invoice",
+      "id": "07. Format Response",
+      "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $('05. Get Bon').first().json.invoice_id ? \"SELECT id, numero_facture, statut FROM invoices WHERE id = '\" + $(\"05. Get Bon\").first().json.invoice_id + \"'\" : \"SELECT NULL as id, NULL as numero_facture, NULL as statut WHERE false\" }}"
-      },
-      "id": "08. Get Invoice",
-      "name": "08. Get Invoice",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
-        }
-      },
-      "position": [
-        1300,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const bon = $('05. Get Bon').first().json;\nconst rawLines = $('06. Get Lines').all().map(item => item.json);\nconst invoiceRows = $('08. Get Invoice').all().map(item => item.json);\nconst invoice = invoiceRows.length > 0 && invoiceRows[0].id ? invoiceRows[0] : null;\n\nif (!bon || !bon.id) {\n  throw new Error('Bon de commande not found');\n}\n\nconst bonData = {\n  ...bon,\n  clientFinal: bon.client_final_id ? {\n    id: bon.client_final_id,\n    nom: bon.client_nom || null,\n    prenom: bon.client_prenom || null,\n    email: bon.client_email || null,\n    telephone: bon.client_telephone || null,\n    raisonSociale: bon.client_raison_sociale || null,\n  } : null,\n  lines: rawLines,\n  invoice: invoice\n};\n\nreturn [{json: { bon: bonData, success: true }}];"
-      },
-      "id": "09. Format Response",
-      "name": "09. Format Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1500,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "10. Respond",
-      "name": "10. Respond",
+      "id": "08. Respond",
+      "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1700,
-        300
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Bon",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get BdC", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "05. Get Bon": {
-      "main": [
-        [
-          {
-            "node": "06. Get Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Get BdC": {
+      "main": [[{ "node": "06. Get Lines", "type": "main", "index": 0 }]]
     },
     "06. Get Lines": {
-      "main": [
-        [
-          {
-            "node": "07. Check Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
-    "07. Check Invoice": {
-      "main": [
-        [
-          {
-            "node": "08. Get Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "08. Get Invoice": {
-      "main": [
-        [
-          {
-            "node": "09. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "09. Format Response": {
-      "main": [
-        [
-          {
-            "node": "10. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Format Response": {
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

@@ -1,0 +1,219 @@
+{
+  "name": "devis-convert-to-bdc",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "devis-convert-to-bdc",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, tenant_id, client_final_id, numero_devis, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM devis WHERE id = '{{ $json.devisId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'acceptee'"
+      },
+      "id": "05. Get Devis",
+      "name": "05. Get Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_bdc FROM 'BDC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM bon_commandes WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_bdc LIKE 'BDC-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
+      },
+      "id": "06. Get Next BDC Number",
+      "name": "06. Get Next BDC Number",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const devis = $('05. Get Devis').first().json;\nconst nextNum = $('06. Get Next BDC Number').first().json.next_num || 1;\n\nif (!devis || !devis.id) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nconst year = new Date().getFullYear();\nconst numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\nconst now = new Date().toISOString();\nconst validite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  devisId: devis.id,\n  tenantId: devis.tenant_id,\n  clientFinalId: devis.client_final_id,\n  numeroDevis: devis.numero_devis,\n  numeroBdc,\n  dateBdc: now,\n  dateValidite: validite,\n  montantHt: devis.montant_ht,\n  montantTtc: devis.montant_ttc,\n  tvaTaux: devis.tva_taux,\n  description: devis.description ? 'Devis ' + devis.numero_devis + ' - ' + devis.description : 'Depuis devis ' + devis.numero_devis,\n  modePaiement: devis.mode_paiement\n} }];"
+      },
+      "id": "07. Prepare BdC Data",
+      "name": "07. Prepare BdC Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO bon_commandes (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $('07. Prepare BdC Data').first().json.tenantId }}', '{{ $('07. Prepare BdC Data').first().json.clientFinalId }}', '{{ $('07. Prepare BdC Data').first().json.numeroBdc }}', '{{ $('07. Prepare BdC Data').first().json.dateBdc }}', '{{ $('07. Prepare BdC Data').first().json.dateValidite }}', {{ $('07. Prepare BdC Data').first().json.montantHt }}, {{ $('07. Prepare BdC Data').first().json.montantTtc }}, {{ $('07. Prepare BdC Data').first().json.tvaTaux || 20 }}, {{ $('07. Prepare BdC Data').first().json.description ? \"'\" + $('07. Prepare BdC Data').first().json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $('07. Prepare BdC Data').first().json.modePaiement ? \"'\" + $('07. Prepare BdC Data').first().json.modePaiement + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, numero_bdc, statut, created_at"
+      },
+      "id": "08. Create BdC",
+      "name": "08. Create BdC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = '{{ $('07. Prepare BdC Data').first().json.devisId }}' ORDER BY ordre ASC"
+      },
+      "id": "09. Get Devis Lines",
+      "name": "09. Get Devis Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const bdc = $('08. Create BdC').first().json;\nconst lines = $('09. Get Devis Lines').all().map(item => item.json);\n\nreturn [{ json: {\n  bdcId: bdc.id,\n  lines,\n  hasLines: lines.length > 0\n} }];"
+      },
+      "id": "10. Prepare Lines",
+      "name": "10. Prepare Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.hasLines && $json.lines.length > 0 ? $json.lines.map(item => \"INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + $json.bdcId + \"', \" + (item.code_article ? \"'\" + item.code_article + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prix_unitaire_ht || 0) + \", \" + (item.total_ht || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+      },
+      "id": "11. Create BdC Lines",
+      "name": "11. Create BdC Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const bdc = $('08. Create BdC').first().json;\nconst prepData = $('07. Prepare BdC Data').first().json;\n\nreturn [{ json: {\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  devis_id: prepData.devisId,\n  numero_devis: prepData.numeroDevis\n} }];"
+      },
+      "id": "12. Format Response",
+      "name": "12. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "13. Respond",
+      "name": "13. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2300, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. Get Devis", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Get Devis": {
+      "main": [[{ "node": "06. Get Next BDC Number", "type": "main", "index": 0 }]]
+    },
+    "06. Get Next BDC Number": {
+      "main": [[{ "node": "07. Prepare BdC Data", "type": "main", "index": 0 }]]
+    },
+    "07. Prepare BdC Data": {
+      "main": [[{ "node": "08. Create BdC", "type": "main", "index": 0 }]]
+    },
+    "08. Create BdC": {
+      "main": [[{ "node": "09. Get Devis Lines", "type": "main", "index": 0 }]]
+    },
+    "09. Get Devis Lines": {
+      "main": [[{ "node": "10. Prepare Lines", "type": "main", "index": 0 }]]
+    },
+    "10. Prepare Lines": {
+      "main": [[{ "node": "11. Create BdC Lines", "type": "main", "index": 0 }]]
+    },
+    "11. Create BdC Lines": {
+      "main": [[{ "node": "12. Format Response", "type": "main", "index": 0 }]]
+    },
+    "12. Format Response": {
+      "main": [[{ "node": "13. Respond", "type": "main", "index": 0 }]]
+    }
+  }
+}

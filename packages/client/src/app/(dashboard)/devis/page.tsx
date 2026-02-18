@@ -14,6 +14,7 @@ import {
   PaperAirplaneIcon,
   ExclamationTriangleIcon,
   ArrowLeftIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -211,6 +212,20 @@ export default function DevisPage() {
     }
   };
 
+  const handleConvertToBdc = async (id: string) => {
+    if (!confirm('Convertir ce devis en bon de commande ?')) return;
+    try {
+      setActionLoading(id);
+      const res = await apiClient.devis.convertToBdc(id);
+      setSuccess(res.message || 'Bon de commande créé depuis le devis');
+      await loadDevis();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur conversion en BdC');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleDelete = async (devis: Devis) => {
     if (!confirm(`Supprimer le devis ${devis.numeroDevis} ?`)) return;
     try {
@@ -354,15 +369,26 @@ export default function DevisPage() {
                           </button>
                         )}
                         {(devis.statut === 'acceptee') && (
-                          <button
-                            type="button"
-                            onClick={() => handleConvert(devis.id)}
-                            disabled={!!actionLoading}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-green-400 hover:bg-gray-600 disabled:opacity-40"
-                            title="Convertir en facture"
-                          >
-                            <DocumentArrowDownIcon className="h-4 w-4" />Facturer
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleConvertToBdc(devis.id)}
+                              disabled={!!actionLoading}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-blue-400 hover:bg-gray-600 disabled:opacity-40"
+                              title="Convertir en bon de commande"
+                            >
+                              <ClipboardDocumentListIcon className="h-4 w-4" />BdC
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleConvert(devis.id)}
+                              disabled={!!actionLoading}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-green-400 hover:bg-gray-600 disabled:opacity-40"
+                              title="Convertir en facture"
+                            >
+                              <DocumentArrowDownIcon className="h-4 w-4" />Facturer
+                            </button>
+                          </>
                         )}
                         {devis.statut !== 'facturee' && (
                           <button

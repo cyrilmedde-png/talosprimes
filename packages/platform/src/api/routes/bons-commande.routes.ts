@@ -43,14 +43,21 @@ const lineSchema = z.object({
   prixUnitaireHt: z.number().positive(),
 });
 
+// Accepte les dates au format ISO datetime (2026-02-18T00:00:00Z) ou date simple (2026-02-18)
+const flexibleDate = z.string().refine(
+  (val) => !isNaN(new Date(val).getTime()),
+  { message: 'Date invalide' }
+).optional().nullable();
+
 const createSchema = z.object({
   clientFinalId: z.string().uuid(),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateBdc: z.string().datetime({ offset: true }).optional().nullable(),
-  dateValidite: z.string().datetime({ offset: true }).optional().nullable(),
+  dateBdc: flexibleDate,
+  dateValidite: flexibleDate,
   description: z.string().optional().nullable(),
   modePaiement: z.string().optional().nullable(),
+  devisId: z.string().uuid().optional().nullable(),
   lines: z.array(lineSchema).optional(),
 });
 

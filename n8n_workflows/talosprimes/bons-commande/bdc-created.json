@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || payload.montantHt === undefined) {\n  throw new Error('tenantId, clientFinalId, and montantHt are required');\n}\n\nconst tvaTaux = parseFloat(payload.tvaTaux) || 0;\nconst montantHt = parseFloat(payload.montantHt);\nconst montantTtc = montantHt * (1 + tvaTaux / 100);\nconst dateBdc = payload.dateBdc || new Date().toISOString();\nconst dateValidite = payload.dateValidite || null;\nconst description = payload.description || null;\nconst modePaiement = payload.modePaiement || null;\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: tvaTaux,\n  dateBdc: dateBdc,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\nif (!body.clientFinalId) {\n  throw new Error('clientFinalId is required');\n}\n\nconst montantHt = parseFloat(body.montantHt) || 0;\nconst tvaTaux = parseFloat(body.tvaTaux) || 20;\nconst montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateBdc: body.dateBdc || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,34 +38,26 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_bdc, -6) AS INTEGER)), 0) + 1 as next_num FROM bons_commande WHERE tenant_id = '{{ $json.tenantId }}' AND numero_bdc LIKE 'BDC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_bdc FROM 'BDC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM bon_commandes WHERE tenant_id = '{{ $json.tenantId }}' AND numero_bdc LIKE 'BDC-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
       },
-      "id": "05. Get Next Numero",
-      "name": "05. Get Next Numero",
+      "id": "05. Get Next Number",
+      "name": "05. Get Next Number",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -80,31 +66,25 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "const nextNum = $('05. Get Next Numero').first().json.next_num;\nconst year = new Date().getFullYear();\nconst numeroBdc = `BDC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nreturn {\n  numeroBdc: numeroBdc\n};"
+        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroBdc } }];"
       },
-      "id": "06. Generate Numero",
-      "name": "06. Generate Numero",
+      "id": "06. Generate Number",
+      "name": "06. Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO bons_commande (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $('06. Generate Numero').first().json.numeroBdc }}', '{{ $json.dateBdc }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, {{ $json.description ? `'${$json.description}'` : 'NULL' }}, {{ $json.modePaiement ? `'${$json.modePaiement}'` : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING *"
+        "query": "=INSERT INTO bon_commandes (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $('06. Generate Number').first().json.tenantId }}', '{{ $('06. Generate Number').first().json.clientFinalId }}', '{{ $('06. Generate Number').first().json.numeroBdc }}', '{{ $('06. Generate Number').first().json.dateBdc }}', {{ $('06. Generate Number').first().json.dateValidite ? \"'\" + $('06. Generate Number').first().json.dateValidite + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.montantHt }}, {{ $('06. Generate Number').first().json.montantTtc }}, {{ $('06. Generate Number').first().json.tvaTaux }}, {{ $('06. Generate Number').first().json.description ? \"'\" + $('06. Generate Number').first().json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $('06. Generate Number').first().json.modePaiement ? \"'\" + $('06. Generate Number').first().json.modePaiement + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at"
       },
-      "id": "07. Insert Bon",
-      "name": "07. Insert Bon",
+      "id": "07. Insert BdC",
+      "name": "07. Insert BdC",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -113,28 +93,22 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "jsCode": "const bon = $('07. Insert Bon').first().json;\nconst inputLines = $json.lines || [];\nconst bonId = bon.id;\n\nif (!inputLines || inputLines.length === 0) {\n  return { bonId, lines: [], hasLines: false };\n}\n\nconst lines = inputLines.map((line, idx) => ({\n  codeArticle: line.codeArticle || line.code_article || '',\n  designation: line.designation || line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: parseFloat(line.prixUnitaireHt || line.prix_unitaire_ht || line.prixUnitaire || 0),\n  totalHt: parseFloat(line.totalHt || line.total_ht || line.montant || 0),\n  ordre: idx\n}));\n\nreturn { bonId, lines, hasLines: true };"
+        "jsCode": "const bdc = $('07. Insert BdC').first().json;\nconst parser = $('02. Parser').first().json;\nconst lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { bdcId: bdc.id, lineInserts: [], hasLines: false } }];\n}\n\nconst lineInserts = lines.map((line, idx) => ({\n  bdcId: bdc.id,\n  codeArticle: line.codeArticle || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || line.prixUnitaireHT || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || line.prixUnitaireHT || 0),\n  ordre: idx\n}));\n\nreturn [{ json: { bdcId: bdc.id, lineInserts, hasLines: true } }];"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.lines && $json.lines.length > 0 ? $json.lines.map((line, idx) => \"INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + $json.bonId + \"', \" + (line.codeArticle ? \"'\" + line.codeArticle.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (line.designation || \"\").replace(/'/g, \"''\") + \"', \" + (line.quantite || 0) + \", \" + (line.prixUnitaireHt || 0) + \", \" + (line.totalHt || 0) + \", \" + line.ordre + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+        "query": "={{ $json.hasLines && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.bdcId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",
@@ -146,178 +120,60 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1500,
-        300
-      ]
+      "position": [1500, 300]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, invoice_id, created_at, updated_at FROM bons_commande WHERE id = '{{ $('08. Prepare Lines').first().json.bonId }}'"
+        "jsCode": "const bdc = $('07. Insert BdC').first().json;\n\nreturn [{ json: {\n  id: bdc.id,\n  tenant_id: bdc.tenant_id,\n  client_final_id: bdc.client_final_id,\n  numero_bdc: bdc.numero_bdc,\n  date_bdc: bdc.date_bdc,\n  date_validite: bdc.date_validite,\n  montant_ht: bdc.montant_ht,\n  montant_ttc: bdc.montant_ttc,\n  tva_taux: bdc.tva_taux,\n  description: bdc.description,\n  mode_paiement: bdc.mode_paiement,\n  statut: bdc.statut,\n  created_at: bdc.created_at,\n  updated_at: bdc.updated_at\n} }];"
       },
-      "id": "10. Get Created Bon",
-      "name": "10. Get Created Bon",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
-        }
-      },
-      "position": [
-        1700,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const bon = $('10. Get Created Bon').first().json;\n\nreturn {\n  success: true,\n  data: {\n    bon: bon\n  }\n};"
-      },
-      "id": "11. Format Response",
-      "name": "11. Format Response",
+      "id": "10. Format Response",
+      "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1900,
-        300
-      ]
+      "position": [1700, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "12. Respond",
-      "name": "12. Respond",
+      "id": "11. Respond",
+      "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2100,
-        300
-      ]
+      "position": [1900, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Next Numero",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Next Number", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "05. Get Next Numero": {
-      "main": [
-        [
-          {
-            "node": "06. Generate Numero",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Get Next Number": {
+      "main": [[{ "node": "06. Generate Number", "type": "main", "index": 0 }]]
     },
-    "06. Generate Numero": {
-      "main": [
-        [
-          {
-            "node": "07. Insert Bon",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Generate Number": {
+      "main": [[{ "node": "07. Insert BdC", "type": "main", "index": 0 }]]
     },
-    "07. Insert Bon": {
-      "main": [
-        [
-          {
-            "node": "08. Prepare Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Insert BdC": {
+      "main": [[{ "node": "08. Prepare Lines", "type": "main", "index": 0 }]]
     },
     "08. Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "09. Insert Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "09. Insert Lines", "type": "main", "index": 0 }]]
     },
     "09. Insert Lines": {
-      "main": [
-        [
-          {
-            "node": "10. Get Created Bon",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
     },
-    "10. Get Created Bon": {
-      "main": [
-        [
-          {
-            "node": "11. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "11. Format Response": {
-      "main": [
-        [
-          {
-            "node": "12. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Format Response": {
+      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

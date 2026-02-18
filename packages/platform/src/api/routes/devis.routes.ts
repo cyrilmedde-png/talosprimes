@@ -553,6 +553,108 @@ export async function devisRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // POST /api/devis/:id/convert-to-bdc - Convertir en bon de commande
+  fastify.post('/:id/convert-to-bdc', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const fromN8n = request.isN8nRequest === true;
+      const params = paramsSchema.parse(request.params);
+      const tenantId = request.tenantId as string;
+
+      if (!tenantId) {
+        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+      }
+
+      if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const devis = await prisma.devis.findFirst({
+        where: { id: params.id, tenantId },
+        include: { lines: { orderBy: { ordre: 'asc' } } },
+      });
+
+      if (!devis) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (devis.statut !== 'acceptee') return reply.status(400).send({ success: false, error: 'Seul un devis accepté peut être converti en bon de commande' });
+
+      if (!fromN8n) {
+        const res = await n8nService.callWorkflowReturn<{ bdc_id: string; numero_bdc: string }>(
+          tenantId,
+          'devis_convert_to_bdc',
+          { devisId: params.id }
+        );
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
+        return reply.status(201).send({
+          success: true,
+          message: 'Bon de commande créé via n8n',
+          data: res.data,
+        });
+      }
+
+      // Appel depuis n8n (callback) : créer le BdC et copier les lignes
+      const bdcCount = await prisma.bonCommande.count({ where: { tenantId } });
+      const year = new Date().getFullYear();
+      const numeroBdc = `BDC-${year}-${String(bdcCount + 1).padStart(6, '0')}`;
+
+      const bon = await prisma.bonCommande.create({
+        data: {
+          tenantId,
+          clientFinalId: devis.clientFinalId,
+          numeroBdc,
+          dateBdc: new Date(),
+          dateValidite: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          montantHt: devis.montantHt,
+          montantTtc: devis.montantTtc,
+          tvaTaux: devis.tvaTaux,
+          description: devis.description ? `Devis ${devis.numeroDevis} - ${devis.description}` : `Depuis devis ${devis.numeroDevis}`,
+          modePaiement: devis.modePaiement,
+          statut: 'brouillon',
+          ...(devis.lines.length > 0 ? {
+            lines: {
+              create: devis.lines.map((l: any, i: number) => ({
+                codeArticle: l.codeArticle,
+                designation: l.designation,
+                quantite: l.quantite,
+                prixUnitaireHt: l.prixUnitaireHt,
+                totalHt: l.totalHt,
+                ordre: i,
+              })),
+            },
+          } : {}),
+        },
+        include: {
+          clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
+          lines: true,
+        },
+      });
+
+      // Log the event
+      await logEvent(tenantId, 'devis_convert_to_bdc', 'Devis', devis.id, { numeroDevis: devis.numeroDevis, numeroBdc }, 'succes');
+
+      return reply.status(201).send({
+        success: true,
+        message: `Bon de commande ${numeroBdc} créé depuis ${devis.numeroDevis}`,
+        data: { bon, devisId: devis.id, numeroDevis: devis.numeroDevis },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      try {
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'devis_convert_to_bdc', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+        }
+      } catch (_) {}
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+      }
+      fastify.log.error(error, 'Erreur conversion devis → bon de commande');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+
   // DELETE /api/devis/:id
   fastify.delete('/:id', {
     preHandler: [n8nOrAuthMiddleware],

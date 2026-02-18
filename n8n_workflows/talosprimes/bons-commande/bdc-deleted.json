@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  bdcId: payload.bdcId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, bdcId: body.bdcId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,67 +38,26 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT id, statut FROM bons_commande WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}'"
-      },
-      "id": "05. Check Bon",
-      "name": "05. Check Bon",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
-        }
-      },
-      "position": [
-        700,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const bon = $('05. Check Bon').first().json;\n\nif (!bon) {\n  throw new Error('Bon de commande not found');\n}\n\nif (bon.statut === 'facture') {\n  throw new Error('Cannot delete bon with statut facture');\n}\n\nreturn {\n  bonValid: true\n};"
-      },
-      "id": "06. Validate Bon",
-      "name": "06. Validate Bon",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "=DELETE FROM bon_commande_lines WHERE bon_commande_id = '{{ $json.bdcId }}'"
       },
-      "id": "07. Delete Lines",
-      "name": "07. Delete Lines",
+      "id": "05. Delete Lines",
+      "name": "05. Delete Lines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -113,18 +66,15 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1100,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=DELETE FROM bons_commande WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}'"
+        "query": "=DELETE FROM bon_commandes WHERE id = '{{ $('02. Parser').first().json.bdcId }}' AND tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND statut != 'facture' RETURNING id, numero_bdc"
       },
-      "id": "08. Delete Bon",
-      "name": "08. Delete Bon",
+      "id": "06. Delete BdC",
+      "name": "06. Delete BdC",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -133,136 +83,51 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1300,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "return {\n  success: true,\n  message: \"Bon de commande supprime\"\n};"
+        "jsCode": "const result = $('06. Delete BdC').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { deleted: false, error: 'Bon de commande not found or already invoiced' } }];\n}\n\nreturn [{ json: { deleted: true, id: result.id, numero_bdc: result.numero_bdc } }];"
       },
-      "id": "09. Format Response",
-      "name": "09. Format Response",
+      "id": "07. Format Response",
+      "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1500,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "10. Respond",
-      "name": "10. Respond",
+      "id": "08. Respond",
+      "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1700,
-        300
-      ]
+      "position": [1300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Check Bon",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Delete Lines", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "05. Check Bon": {
-      "main": [
-        [
-          {
-            "node": "06. Validate Bon",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Delete Lines": {
+      "main": [[{ "node": "06. Delete BdC", "type": "main", "index": 0 }]]
     },
-    "06. Validate Bon": {
-      "main": [
-        [
-          {
-            "node": "07. Delete Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Delete BdC": {
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
-    "07. Delete Lines": {
-      "main": [
-        [
-          {
-            "node": "08. Delete Bon",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "08. Delete Bon": {
-      "main": [
-        [
-          {
-            "node": "09. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "09. Format Response": {
-      "main": [
-        [
-          {
-            "node": "10. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Format Response": {
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

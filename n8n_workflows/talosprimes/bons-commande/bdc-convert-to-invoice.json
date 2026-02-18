@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  bdcId: payload.bdcId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, bdcId: body.bdcId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,34 +38,26 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Validation failed\"\n}"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT * FROM bons_commande WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT id, tenant_id, client_final_id, numero_bdc, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM bon_commandes WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut IN ('brouillon', 'valide')"
       },
-      "id": "05. Get Bon",
-      "name": "05. Get Bon",
+      "id": "05. Get BdC",
+      "name": "05. Get BdC",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -80,31 +66,15 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        700,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const bon = $('05. Get Bon').first().json;\n\nif (!bon) {\n  throw new Error('Bon de commande not found');\n}\n\nif (bon.statut === 'facture' || bon.statut === 'annule') {\n  throw new Error('Cannot convert bon with statut: ' + bon.statut);\n}\n\nreturn {\n  bonValid: true\n};"
-      },
-      "id": "06. Validate Bon",
-      "name": "06. Validate Bon",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture, -6) AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenantId }}' AND numero_facture LIKE 'INV-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_facture LIKE 'INV-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
       },
-      "id": "07. Get Next Numero",
-      "name": "07. Get Next Numero",
+      "id": "06. Get Next Invoice Number",
+      "name": "06. Get Next Invoice Number",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -113,31 +83,25 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1100,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const nextNum = $('07. Get Next Numero').first().json.next_num;\nconst year = new Date().getFullYear();\nconst numeroFacture = `INV-${year}-${String(nextNum).padStart(6, '0')}`;\n\nreturn {\n  numeroFacture: numeroFacture\n};"
+        "jsCode": "const bdc = $('05. Get BdC').first().json;\nconst nextNum = $('06. Get Next Invoice Number').first().json.next_num || 1;\n\nif (!bdc || !bdc.id) {\n  throw new Error('Bon de commande not found or not in valid status');\n}\n\nconst year = new Date().getFullYear();\nconst numeroFacture = 'INV-' + year + '-' + String(nextNum).padStart(6, '0');\nconst now = new Date().toISOString();\nconst echeance = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  bdcId: bdc.id,\n  tenantId: bdc.tenant_id,\n  clientFinalId: bdc.client_final_id,\n  numeroBdc: bdc.numero_bdc,\n  numeroFacture,\n  dateFacture: now,\n  dateEcheance: echeance,\n  montantHt: bdc.montant_ht,\n  montantTtc: bdc.montant_ttc,\n  tvaTaux: bdc.tva_taux,\n  description: bdc.description ? 'BDC ' + bdc.numero_bdc + ' - ' + bdc.description : 'Depuis BDC ' + bdc.numero_bdc,\n  modePaiement: bdc.mode_paiement\n} }];"
       },
-      "id": "08. Generate Numero",
-      "name": "08. Generate Numero",
+      "id": "07. Prepare Invoice Data",
+      "name": "07. Prepare Invoice Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) SELECT gen_random_uuid(), 'standard', tenant_id, client_final_id, '{{ $('08. Generate Numero').first().json.numeroFacture }}', date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, 'brouillon', NOW(), NOW() FROM bons_commande WHERE id = '{{ $json.bdcId }}' RETURNING *"
+        "query": "=INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut) VALUES (gen_random_uuid(), 'facture_client_final', '{{ $('07. Prepare Invoice Data').first().json.tenantId }}', {{ $('07. Prepare Invoice Data').first().json.clientFinalId ? \"'\" + $('07. Prepare Invoice Data').first().json.clientFinalId + \"'\" : 'NULL' }}, '{{ $('07. Prepare Invoice Data').first().json.numeroFacture }}', '{{ $('07. Prepare Invoice Data').first().json.dateFacture }}', '{{ $('07. Prepare Invoice Data').first().json.dateEcheance }}', {{ $('07. Prepare Invoice Data').first().json.montantHt }}, {{ $('07. Prepare Invoice Data').first().json.montantTtc }}, {{ $('07. Prepare Invoice Data').first().json.tvaTaux || 20 }}, {{ $('07. Prepare Invoice Data').first().json.description ? \"'\" + $('07. Prepare Invoice Data').first().json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $('07. Prepare Invoice Data').first().json.modePaiement ? \"'\" + $('07. Prepare Invoice Data').first().json.modePaiement + \"'\" : 'NULL' }}, 'brouillon') RETURNING id, tenant_id, numero_facture, statut, created_at"
       },
-      "id": "09. Create Invoice",
-      "name": "09. Create Invoice",
+      "id": "08. Create Invoice",
+      "name": "08. Create Invoice",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -146,28 +110,39 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1500,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const invoice = $('09. Create Invoice').first().json;\nconst invoiceId = invoice.id;\n\nreturn {\n  invoiceId: invoiceId\n};"
-      },
-      "id": "10. Get Invoice ID",
-      "name": "10. Get Invoice ID",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1700,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) SELECT gen_random_uuid(), '{{ $('10. Get Invoice ID').first().json.invoiceId }}', code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = '{{ $json.bdcId }}' ORDER BY ordre"
+        "query": "=SELECT id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = '{{ $('07. Prepare Invoice Data').first().json.bdcId }}' ORDER BY ordre ASC"
+      },
+      "id": "09. Get BdC Lines",
+      "name": "09. Get BdC Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('08. Create Invoice').first().json;\nconst lines = $('09. Get BdC Lines').all().map(item => item.json);\n\nreturn [{ json: {\n  invoiceId: invoice.id,\n  lines,\n  hasLines: lines.length > 0\n} }];"
+      },
+      "id": "10. Prepare Lines",
+      "name": "10. Prepare Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.hasLines && $json.lines.length > 0 ? $json.lines.map(item => \"INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + $json.invoiceId + \"', \" + (item.code_article ? \"'\" + item.code_article + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prix_unitaire_ht || 0) + \", \" + (item.total_ht || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",
@@ -179,18 +154,15 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        1900,
-        300
-      ]
+      "position": [1900, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE bons_commande SET statut = 'facture', invoice_id = '{{ $('10. Get Invoice ID').first().json.invoiceId }}', updated_at = NOW() WHERE id = '{{ $json.bdcId }}' RETURNING *"
+        "query": "=UPDATE bon_commandes SET statut = 'facture', invoice_id = '{{ $('10. Prepare Lines').first().json.invoiceId }}', updated_at = NOW() WHERE id = '{{ $('07. Prepare Invoice Data').first().json.bdcId }}' RETURNING id, numero_bdc, statut, invoice_id"
       },
-      "id": "12. Update Bon Status",
-      "name": "12. Update Bon Status",
+      "id": "12. Update BdC",
+      "name": "12. Update BdC",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -199,211 +171,69 @@
           "id": "6Kosza77d9Ld32mw"
         }
       },
-      "position": [
-        2100,
-        300
-      ]
+      "position": [2100, 300]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at FROM invoices WHERE id = '{{ $('10. Get Invoice ID').first().json.invoiceId }}'"
+        "jsCode": "const invoice = $('08. Create Invoice').first().json;\nconst bdc = $('12. Update BdC').first().json;\n\nreturn [{ json: {\n  invoice_id: invoice.id,\n  numero_facture: invoice.numero_facture,\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  bdc_statut: bdc.statut\n} }];"
       },
-      "id": "13. Get Invoice",
-      "name": "13. Get Invoice",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
-        }
-      },
-      "position": [
-        2300,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const invoice = $('13. Get Invoice').first().json;\nconst bon = $('12. Update Bon Status').first().json;\n\nreturn {\n  success: true,\n  data: {\n    invoice: invoice,\n    bon: bon\n  }\n};"
-      },
-      "id": "14. Format Response",
-      "name": "14. Format Response",
+      "id": "13. Format Response",
+      "name": "13. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2500,
-        300
-      ]
+      "position": [2300, 300]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
+        "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "15. Respond",
-      "name": "15. Respond",
+      "id": "14. Respond",
+      "name": "14. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2700,
-        300
-      ]
+      "position": [2500, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Bon",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get BdC", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "05. Get Bon": {
-      "main": [
-        [
-          {
-            "node": "06. Validate Bon",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Get BdC": {
+      "main": [[{ "node": "06. Get Next Invoice Number", "type": "main", "index": 0 }]]
     },
-    "06. Validate Bon": {
-      "main": [
-        [
-          {
-            "node": "07. Get Next Numero",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Get Next Invoice Number": {
+      "main": [[{ "node": "07. Prepare Invoice Data", "type": "main", "index": 0 }]]
     },
-    "07. Get Next Numero": {
-      "main": [
-        [
-          {
-            "node": "08. Generate Numero",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Prepare Invoice Data": {
+      "main": [[{ "node": "08. Create Invoice", "type": "main", "index": 0 }]]
     },
-    "08. Generate Numero": {
-      "main": [
-        [
-          {
-            "node": "09. Create Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. Create Invoice": {
+      "main": [[{ "node": "09. Get BdC Lines", "type": "main", "index": 0 }]]
     },
-    "09. Create Invoice": {
-      "main": [
-        [
-          {
-            "node": "10. Get Invoice ID",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "09. Get BdC Lines": {
+      "main": [[{ "node": "10. Prepare Lines", "type": "main", "index": 0 }]]
     },
-    "10. Get Invoice ID": {
-      "main": [
-        [
-          {
-            "node": "11. Create Invoice Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Prepare Lines": {
+      "main": [[{ "node": "11. Create Invoice Lines", "type": "main", "index": 0 }]]
     },
     "11. Create Invoice Lines": {
-      "main": [
-        [
-          {
-            "node": "12. Update Bon Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "12. Update BdC", "type": "main", "index": 0 }]]
     },
-    "12. Update Bon Status": {
-      "main": [
-        [
-          {
-            "node": "13. Get Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "12. Update BdC": {
+      "main": [[{ "node": "13. Format Response", "type": "main", "index": 0 }]]
     },
-    "13. Get Invoice": {
-      "main": [
-        [
-          {
-            "node": "14. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "14. Format Response": {
-      "main": [
-        [
-          {
-            "node": "15. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "13. Format Response": {
+      "main": [[{ "node": "14. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

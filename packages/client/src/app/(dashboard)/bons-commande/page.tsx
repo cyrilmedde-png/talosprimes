@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { apiClient, type BonCommande, type ArticleCode } from '@/lib/api-client';
+import { apiClient, type BonCommande, type ArticleCode, type Devis } from '@/lib/api-client';
 import type { ClientFinal } from '@talosprimes/shared';
 import {
   ClipboardDocumentListIcon,
@@ -11,6 +11,7 @@ import {
   TrashIcon,
   CheckCircleIcon,
   DocumentArrowDownIcon,
+  DocumentTextIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
@@ -54,6 +55,8 @@ export default function BonsCommandePage() {
     tvaTaux: '20',
   });
   const [lignes, setLignes] = useState<LigneBdc[]>([]);
+  const [devisAcceptes, setDevisAcceptes] = useState<Devis[]>([]);
+  const [selectedDevisId, setSelectedDevisId] = useState('');
   const createSubmittingRef = useRef(false);
 
   const getDefaultLigne = (): LigneBdc => ({
@@ -67,6 +70,38 @@ export default function BonsCommandePage() {
   const resetCreateForm = () => {
     setCreateForm({ clientFinalId: '', description: '', modePaiement: '', tvaTaux: '20' });
     setLignes([getDefaultLigne()]);
+    setSelectedDevisId('');
+  };
+
+  const handleDevisSelect = async (devisId: string) => {
+    setSelectedDevisId(devisId);
+    if (!devisId) return;
+    try {
+      const res = await apiClient.devis.get(devisId);
+      const devis = res.data.devis || res.data;
+      if (devis) {
+        setCreateForm((f) => ({
+          ...f,
+          clientFinalId: devis.clientFinalId || '',
+          description: devis.description ? `Depuis devis ${devis.numeroDevis}${devis.description ? ' - ' + devis.description : ''}` : `Depuis devis ${devis.numeroDevis}`,
+          tvaTaux: devis.tvaTaux != null ? String(devis.tvaTaux) : '20',
+          modePaiement: devis.modePaiement || '',
+        }));
+        // Pre-fill lines from devis
+        const devisLines = devis.lines || [];
+        if (devisLines.length > 0) {
+          setLignes(devisLines.map((dl: { codeArticle?: string; designation?: string; quantite?: number; prixUnitaireHt?: number }) => ({
+            id: `l-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            codeArticle: dl.codeArticle || '',
+            designation: dl.designation || '',
+            quantite: String(dl.quantite || 1),
+            prixUnitaireHT: String(dl.prixUnitaireHt || 0),
+          })));
+        }
+      }
+    } catch {
+      // silently ignore
+    }
   };
 
   useEffect(() => {
@@ -86,6 +121,15 @@ export default function BonsCommandePage() {
   useEffect(() => {
     if (showCreateModal && lignes.length === 0) setLignes([getDefaultLigne()]);
   }, [showCreateModal, lignes.length]);
+
+  useEffect(() => {
+    if (showCreateModal && devisAcceptes.length === 0) {
+      apiClient.devis.list({ statut: 'acceptee', limit: 100 }).then((r) => {
+        const valid = (r.data.devis || []).filter((d: Devis) => d.numeroDevis && d.dateDevis);
+        setDevisAcceptes(valid);
+      }).catch(() => {});
+    }
+  }, [showCreateModal, devisAcceptes.length]);
 
   const loadBons = async () => {
     try {
@@ -354,6 +398,27 @@ export default function BonsCommandePage() {
               </button>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-5 overflow-y-auto shrink min-h-0 flex-1">
+              {devisAcceptes.length > 0 && (
+                <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/30 p-3">
+                  <label className="block text-sm font-medium text-indigo-300 mb-1 flex items-center gap-1.5">
+                    <DocumentTextIcon className="h-4 w-4" />
+                    Pré-remplir depuis un devis accepté
+                  </label>
+                  <select
+                    value={selectedDevisId}
+                    onChange={(e) => handleDevisSelect(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">— Aucun (saisie manuelle) —</option>
+                    {devisAcceptes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.numeroDevis} — {d.clientFinal?.raisonSociale || [d.clientFinal?.prenom, d.clientFinal?.nom].filter(Boolean).join(' ') || '?'} — {(Number(d.montantTtc) || 0).toFixed(2)} €
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Client *</label>
                 <select

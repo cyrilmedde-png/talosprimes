@@ -506,6 +506,10 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice; devis: Devis } }>(`/api/devis/${id}/convert-to-invoice`, {
         method: 'POST',
       }),
+    convertToBdc: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { bon: BonCommande; devisId: string; numeroDevis: string } }>(`/api/devis/${id}/convert-to-bdc`, {
+        method: 'POST',
+      }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string }>(`/api/devis/${id}`, { method: 'DELETE' }),
   },
