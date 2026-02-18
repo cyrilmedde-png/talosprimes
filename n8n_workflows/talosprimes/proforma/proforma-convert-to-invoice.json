@@ -160,7 +160,7 @@
     },
     {
       "parameters": {
-        "code": "const invoiceId = $('08. Create Invoice').first().id;\nconst lines = $('09. Get Proforma Lines').all();\n\nreturn {\n  invoiceId: invoiceId,\n  lines: lines\n};"
+        "jsCode": "const invoiceId = $('08. Create Invoice').first().json.id;\nconst rawLines = $('09. Get Proforma Lines').all().map(item => item.json);\n\nreturn {\n  invoiceId,\n  lines: rawLines,\n  hasLines: rawLines.length > 0\n};"
       },
       "id": "10. Prepare Lines",
       "name": "10. Prepare Lines",
@@ -174,7 +174,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoice_lines (invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ('{{ each(item).invoiceId }}', '{{ each(item).code_article }}', '{{ each(item).designation }}', {{ each(item).quantite }}, {{ each(item).prix_unitaire_ht }}, {{ each(item).total_ht }}, {{ each(item).ordre }});"
+        "query": "={{ $json.lines && $json.lines.length > 0 ? $json.lines.map(item => \"INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + $json.invoiceId + \"', \" + (item.code_article ? \"'\" + item.code_article.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (item.designation || \"\").replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prix_unitaire_ht || 0) + \", \" + (item.total_ht || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",

@@ -99,6 +99,19 @@ def fix_postgres_node(node, parser_node_name):
 
     skip_json_replace = False
 
+    # ---- Skip already-fixed queries (valid n8n expressions with .map()) ----
+    # If query uses n8n expressions with .map() and .join(), it's already correct
+    if '.map(' in query and '.join(' in query and '={{ ' in query:
+        skip_json_replace = True
+        # Still apply schema fixes below, but skip syntax transformations
+        params['query'] = query
+        # Jump to schema fixes only
+        # Fix table name: bon_commandes -> bons_commande
+        if 'bon_commandes' in query:
+            query = query.replace('bon_commandes', 'bons_commande')
+        params['query'] = query
+        return
+
     # ---- Jinja syntax handling ----
     # Strip {% if %}...{% endif %} blocks
     query = re.sub(r'\{%\s*if\s+[^%]*%\}.*?\{%\s*endif\s*%\}', '', query, flags=re.DOTALL)

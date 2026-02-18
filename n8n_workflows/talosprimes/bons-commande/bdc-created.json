@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "code": "const bon = $('07. Insert Bon').first();\nconst lines = $json.lines;\nconst bonId = bon.id;\n\nif (lines && lines.length > 0) {\n  return {\n    bonId: bonId,\n    lines: lines\n  };\n} else {\n  return {\n    bonId: bonId,\n    lines: []\n  };\n}"
+        "jsCode": "const bon = $('07. Insert Bon').first().json;\nconst inputLines = $json.lines || [];\nconst bonId = bon.id;\n\nif (!inputLines || inputLines.length === 0) {\n  return { bonId, lines: [], hasLines: false };\n}\n\nconst lines = inputLines.map((line, idx) => ({\n  codeArticle: line.codeArticle || line.code_article || '',\n  designation: line.designation || line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: parseFloat(line.prixUnitaireHt || line.prix_unitaire_ht || line.prixUnitaire || 0),\n  totalHt: parseFloat(line.totalHt || line.total_ht || line.montant || 0),\n  ordre: idx\n}));\n\nreturn { bonId, lines, hasLines: true };"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={% for line, index in $json.lines %}INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '{{ $json.bonId }}', '{{ line.codeArticle ? line.codeArticle : null }}', '{{ line.designation }}', {{ line.quantite }}, {{ line.prixUnitaireHt }}, {{ line.totalHt }}, {{ index }});{% endfor %}SELECT 1"
+        "query": "={{ $json.lines && $json.lines.length > 0 ? $json.lines.map((line, idx) => \"INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + $json.bonId + \"', \" + (line.codeArticle ? \"'\" + line.codeArticle.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (line.designation || \"\").replace(/'/g, \"''\") + \"', \" + (line.quantite || 0) + \", \" + (line.prixUnitaireHt || 0) + \", \" + (line.totalHt || 0) + \", \" + line.ordre + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",

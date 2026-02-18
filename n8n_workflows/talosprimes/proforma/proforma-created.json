@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "code": "const proformaId = $('07. Insert Proforma').first().id;\nconst lines = $json.lines || [];\nconst lineInserts = lines.map((line, index) => ({\n  proformaId: proformaId,\n  ligneNumero: index + 1,\n  description: line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaire: parseFloat(line.prixUnitaire) || 0,\n  montantHt: parseFloat(line.montantHt) || 0,\n  tvaTaux: parseFloat(line.tvaTaux) || 0,\n  montantTtc: parseFloat(line.montantTtc) || 0\n}));\n\nreturn {\n  proformaId: proformaId,\n  lineInserts: lineInserts\n};"
+        "jsCode": "const proformaId = $('07. Insert Proforma').first().json.id;\nconst lines = $json.lines || [];\n\nif (lines.length === 0) {\n  return { proformaId, lineInserts: [], hasLines: false };\n}\n\nconst lineInserts = lines.map((line, index) => ({\n  proformaId: proformaId,\n  ordre: index + 1,\n  codeArticle: line.codeArticle || line.code_article || '',\n  designation: line.designation || line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: parseFloat(line.prixUnitaireHt || line.prixUnitaire || line.prix_unitaire_ht || 0),\n  totalHt: parseFloat(line.totalHt || line.montantHt || line.total_ht || 0)\n}));\n\nreturn { proformaId, lineInserts, hasLines: true };"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO proforma_lines (proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ('{{ each(item).proformaId }}', '{{ each(item).codeArticle }}', '{{ each(item).designation }}', {{ each(item).quantite }}, {{ each(item).prixUnitaireHt }}, {{ each(item).totalHt }}, {{ each(item).ordre }});"
+        "query": "={{ $json.lineInserts && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO proforma_lines (id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.proformaId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (item.designation || \"\").replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",

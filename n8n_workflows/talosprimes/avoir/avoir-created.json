@@ -119,7 +119,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const lines = $json.lines || [];\nconst avoirId = $json.avoirId;\n\nif (lines.length === 0) {\n  return { success: true, linesInserted: 0 };\n}\n\nconst lineQueries = lines.map((line, idx) => ({\n  avoirId: avoirId,\n  ordre: idx + 1,\n  description: line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaire: line.prixUnitaire || 0,\n  montant: (line.quantite || 1) * (line.prixUnitaire || 0)\n}));\n\nreturn { lineQueries, linesCount: lineQueries.length };"
+        "jsCode": "const lines = $json.lines || [];\nconst avoirId = $json.avoirId;\n\nif (lines.length === 0) {\n  return { lineQueries: [], linesCount: 0 };\n}\n\nconst lineQueries = lines.map((line, idx) => ({\n  avoirId: avoirId,\n  ordre: idx + 1,\n  codeArticle: line.codeArticle || line.code_article || '',\n  designation: line.designation || line.description || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: parseFloat(line.prixUnitaireHt || line.prixUnitaire || line.prix_unitaire_ht || 0),\n  totalHt: parseFloat(line.totalHt || line.montant || line.total_ht || 0)\n}));\n\nreturn { lineQueries, linesCount: lineQueries.length };"
       },
       "name": "Code Prepare Lines",
       "type": "n8n-nodes-base.code",
@@ -132,7 +132,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO avoir_lines (avoir_id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht) VALUES{% for item in $json.lineQueries %} ('{{ item.avoirId }}', {{ item.ordre }}, '{{ item.codeArticle }}', '{{ item.designation }}', {{ item.quantite }}, {{ item.prixUnitaireHt }}, {{ item.totalHt }}){{ not loop.last ? ',' : '' }}{% endfor %}"
+        "query": "={{ $json.lineQueries && $json.lineQueries.length > 0 ? \"INSERT INTO avoir_lines (avoir_id, ordre, code_article, designation, quantite, prix_unitaire_ht, total_ht) VALUES \" + $json.lineQueries.map(item => \"('\" + item.avoirId + \"', \" + item.ordre + \", \" + (item.codeArticle ? \"'\" + item.codeArticle.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", '\" + (item.designation || \"\").replace(/'/g, \"''\") + \"', \" + item.quantite + \", \" + item.prixUnitaireHt + \", \" + item.totalHt + \")\").join(\", \") : \"SELECT 1\" }}"
       },
       "name": "Postgres Insert Lines",
       "type": "n8n-nodes-base.postgres",
