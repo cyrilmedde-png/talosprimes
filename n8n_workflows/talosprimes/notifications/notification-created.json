@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.type || !payload.titre || !payload.message) {\n  throw new Error('tenantId, type, titre, message are required');\n}\n\nconst donnees = payload.donnees ? JSON.stringify(payload.donnees) : null;\n\nreturn {\n  tenantId: payload.tenantId,\n  type: payload.type,\n  titre: payload.titre,\n  message: payload.message,\n  donnees: donnees\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.type || !payload.titre || !payload.message) {\n  throw new Error('tenantId, type, titre, message are required');\n}\n\nconst donnees = payload.donnees ? JSON.stringify(payload.donnees) : null;\n\nreturn {\n  tenantId: payload.tenantId,\n  type: payload.type,\n  titre: payload.titre,\n  message: payload.message,\n  donnees: donnees\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "code": "const notification = $('05. Insert Notification').first();\n\nreturn {\n  success: true,\n  message: 'Notification created successfully',\n  notification: notification\n};"
+        "jsCode": "const notification = $('05. Insert Notification').first().json;\n\nreturn {\n  success: true,\n  message: 'Notification created successfully',\n  notification: notification\n};"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

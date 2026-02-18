@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing avoirId or tenantId', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing avoirId or tenantId'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM avoir_lines WHERE avoir_id = '{{ $json.avoirId }}'"
+        "query": "=DELETE FROM avoir_lines WHERE avoir_id = '{{ $json.avoirId }}'"
       },
       "name": "Postgres Delete Lines",
       "type": "n8n-nodes-base.postgres",
@@ -85,7 +85,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM avoirs WHERE id = '{{ $json.avoirId }}' AND tenant_id = '{{ $json.tenantId }}' RETURNING id"
+        "query": "=DELETE FROM avoirs WHERE id = '{{ $json.avoirId }}' AND tenant_id = '{{ $json.tenantId }}' RETURNING id"
       },
       "name": "Postgres Delete",
       "type": "n8n-nodes-base.postgres",
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const result = $input[0][0];\n\nif (!result || !result.json || !result.json.id) {\n  return {\n    success: false,\n    error: 'Avoir not found or already deleted'\n  };\n}\n\nreturn {\n  avoirId: result.json.id,\n  success: true,\n  message: 'Avoir deleted successfully'\n};"
+        "jsCode": "const result = $('Postgres Delete').first().json;\n\nif (!result || !result.id) {\n  return {\n    success: false,\n    error: 'Avoir not found or already deleted'\n  };\n}\n\nreturn {\n  avoirId: result.id,\n  success: true,\n  message: 'Avoir deleted successfully'\n};"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

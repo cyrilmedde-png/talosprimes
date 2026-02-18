@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst workflow = payload.workflow || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  workflow: workflow\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst workflow = payload.workflow || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  workflow: workflow\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -167,7 +167,7 @@
     },
     {
       "parameters": {
-        "code": "const totalResult = $('05. Count Total').first();\nconst succeededResult = $('06. Count Succeeded').first();\nconst errorsResult = $('07. Count Errors').first();\nconst pendingResult = $('08. Count Pending').first();\nconst byWorkflowData = $('09. Count By Workflow').all();\n\nconst byWorkflow = {};\nbyWorkflowData.forEach(item => {\n  byWorkflow[item.workflow] = item.count;\n});\n\nreturn {\n  total: totalResult.total,\n  succeeded: succeededResult.succeeded,\n  errors: errorsResult.errors,\n  enAttente: pendingResult.en_attente,\n  byWorkflow: byWorkflow\n};"
+        "jsCode": "const totalResult = $('05. Count Total').first().json;\nconst succeededResult = $('06. Count Succeeded').first().json;\nconst errorsResult = $('07. Count Errors').first().json;\nconst pendingResult = $('08. Count Pending').first().json;\nconst byWorkflowData = $('09. Count By Workflow').all().map(item => item.json);\n\nconst byWorkflow = {};\nbyWorkflowData.forEach(item => {\n  byWorkflow[item.workflow] = item.count;\n});\n\nreturn {\n  total: totalResult.total,\n  succeeded: succeededResult.succeeded,\n  errors: errorsResult.errors,\n  enAttente: pendingResult.en_attente,\n  byWorkflow: byWorkflow\n};"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",

@@ -57,7 +57,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing required fields: tenantId, phoneNumber, message', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: tenantId, phoneNumber, message'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",

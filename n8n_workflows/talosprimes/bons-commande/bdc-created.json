@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || payload.montantHt === undefined) {\n  throw new Error('tenantId, clientFinalId, and montantHt are required');\n}\n\nconst tvaTaux = parseFloat(payload.tvaTaux) || 0;\nconst montantHt = parseFloat(payload.montantHt);\nconst montantTtc = montantHt * (1 + tvaTaux / 100);\nconst dateBdc = payload.dateBdc || new Date().toISOString();\nconst dateValidite = payload.dateValidite || null;\nconst description = payload.description || null;\nconst modePaiement = payload.modePaiement || null;\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: tvaTaux,\n  dateBdc: dateBdc,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || payload.montantHt === undefined) {\n  throw new Error('tenantId, clientFinalId, and montantHt are required');\n}\n\nconst tvaTaux = parseFloat(payload.tvaTaux) || 0;\nconst montantHt = parseFloat(payload.montantHt);\nconst montantTtc = montantHt * (1 + tvaTaux / 100);\nconst dateBdc = payload.dateBdc || new Date().toISOString();\nconst dateValidite = payload.dateValidite || null;\nconst description = payload.description || null;\nconst modePaiement = payload.modePaiement || null;\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: tvaTaux,\n  dateBdc: dateBdc,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_bdc, -6) AS INTEGER)), 0) + 1 as next_num FROM bon_commandes WHERE tenant_id = '{{ $json.tenantId }}' AND numero_bdc LIKE 'BDC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_bdc, -6) AS INTEGER)), 0) + 1 as next_num FROM bons_commande WHERE tenant_id = '{{ $json.tenantId }}' AND numero_bdc LIKE 'BDC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'"
       },
       "id": "05. Get Next Numero",
       "name": "05. Get Next Numero",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "code": "const nextNum = $('05. Get Next Numero').first().next_num;\nconst year = new Date().getFullYear();\nconst numeroBdc = `BDC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nreturn {\n  numeroBdc: numeroBdc\n};"
+        "jsCode": "const nextNum = $('05. Get Next Numero').first().json.next_num;\nconst year = new Date().getFullYear();\nconst numeroBdc = `BDC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nreturn {\n  numeroBdc: numeroBdc\n};"
       },
       "id": "06. Generate Numero",
       "name": "06. Generate Numero",
@@ -101,7 +101,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO bon_commandes (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $('06. Generate Numero').first().numeroBdc }}', '{{ $json.dateBdc }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, {{ $json.description ? `'${$json.description}'` : 'NULL' }}, {{ $json.modePaiement ? `'${$json.modePaiement}'` : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING *"
+        "query": "=INSERT INTO bons_commande (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', '{{ $('06. Generate Numero').first().json.numeroBdc }}', '{{ $json.dateBdc }}', '{{ $json.dateValidite }}', {{ $json.montantHt }}, {{ $json.montantTtc }}, {{ $json.tvaTaux }}, {{ $json.description ? `'${$json.description}'` : 'NULL' }}, {{ $json.modePaiement ? `'${$json.modePaiement}'` : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING *"
       },
       "id": "07. Insert Bon",
       "name": "07. Insert Bon",
@@ -154,7 +154,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, invoice_id, created_at, updated_at FROM bon_commandes WHERE id = '{{ $('08. Prepare Lines').first().bonId }}'"
+        "query": "=SELECT id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, invoice_id, created_at, updated_at FROM bons_commande WHERE id = '{{ $('08. Prepare Lines').first().json.bonId }}'"
       },
       "id": "10. Get Created Bon",
       "name": "10. Get Created Bon",
@@ -173,7 +173,7 @@
     },
     {
       "parameters": {
-        "code": "const bon = $('10. Get Created Bon').first();\n\nreturn {\n  success: true,\n  data: {\n    bon: bon\n  }\n};"
+        "jsCode": "const bon = $('10. Get Created Bon').first().json;\n\nreturn {\n  success: true,\n  data: {\n    bon: bon\n  }\n};"
       },
       "id": "11. Format Response",
       "name": "11. Format Response",

@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing required fields: tenantId, phone', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: tenantId, phone'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -71,7 +71,7 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "INSERT INTO call_logs (id, tenant_id, lead_id, agent_id, phone, direction, started_at, ended_at, duration, status, transcript, summary, action_taken, urgency, sentiment, notes, recording_url, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, {{ $json.agentId ? \"'\" + $json.agentId + \"'\" : 'NULL' }}, '{{ $json.phone }}', '{{ $json.direction }}', '{{ $json.startedAt }}', {{ $json.endedAt ? \"'\" + $json.endedAt + \"'\" : 'NULL' }}, {{ $json.duration }}, '{{ $json.status }}', '{{ $json.transcript }}', '{{ $json.summary }}', {{ $json.actionTaken ? \"'\" + $json.actionTaken + \"'\" : 'NULL' }}, '{{ $json.urgency }}', {{ $json.sentiment ? \"'\" + $json.sentiment + \"'\" : 'NULL' }}, '{{ $json.notes }}', {{ $json.recordingUrl ? \"'\" + $json.recordingUrl + \"'\" : 'NULL' }}, NOW(), NOW())"
+        "query": "=INSERT INTO call_logs (id, tenant_id, lead_id, agent_id, phone, direction, started_at, ended_at, duration, status, transcript, summary, action_taken, urgency, sentiment, notes, recording_url, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, {{ $json.agentId ? \"'\" + $json.agentId + \"'\" : 'NULL' }}, '{{ $json.phone }}', '{{ $json.direction }}', '{{ $json.startedAt }}', {{ $json.endedAt ? \"'\" + $json.endedAt + \"'\" : 'NULL' }}, {{ $json.duration }}, '{{ $json.status }}', '{{ $json.transcript }}', '{{ $json.summary }}', {{ $json.actionTaken ? \"'\" + $json.actionTaken + \"'\" : 'NULL' }}, '{{ $json.urgency }}', {{ $json.sentiment ? \"'\" + $json.sentiment + \"'\" : 'NULL' }}, '{{ $json.notes }}', {{ $json.recordingUrl ? \"'\" + $json.recordingUrl + \"'\" : 'NULL' }}, NOW(), NOW())"
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

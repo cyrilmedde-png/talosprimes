@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing required fields: tenantId, phoneNumber', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: tenantId, phoneNumber'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -71,7 +71,7 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "INSERT INTO sms_logs (id, tenant_id, lead_id, phone_number, message, status, direction, template_id, campaign_id, sent_at, delivered_at, failure_reason, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, '{{ $json.phoneNumber }}', '{{ $json.message }}', '{{ $json.status }}', '{{ $json.direction }}', {{ $json.templateId ? \"'\" + $json.templateId + \"'\" : 'NULL' }}, {{ $json.campaignId ? \"'\" + $json.campaignId + \"'\" : 'NULL' }}, '{{ $json.sentAt }}', {{ $json.deliveredAt ? \"'\" + $json.deliveredAt + \"'\" : 'NULL' }}, {{ $json.failureReason ? \"'\" + $json.failureReason + \"'\" : 'NULL' }}, NOW(), NOW())"
+        "query": "=INSERT INTO sms_logs (id, tenant_id, lead_id, phone_number, message, status, direction, template_id, campaign_id, sent_at, delivered_at, failure_reason, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, '{{ $json.phoneNumber }}', '{{ $json.message }}', '{{ $json.status }}', '{{ $json.direction }}', {{ $json.templateId ? \"'\" + $json.templateId + \"'\" : 'NULL' }}, {{ $json.campaignId ? \"'\" + $json.campaignId + \"'\" : 'NULL' }}, '{{ $json.sentAt }}', {{ $json.deliveredAt ? \"'\" + $json.deliveredAt + \"'\" : 'NULL' }}, {{ $json.failureReason ? \"'\" + $json.failureReason + \"'\" : 'NULL' }}, NOW(), NOW())"
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

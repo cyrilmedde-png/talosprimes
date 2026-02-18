@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "code": "const deleted = $('06. Delete Devis').all();\n\nif (deleted.length === 0) {\n  throw new Error('Devis not found');\n}\n\nreturn {\n  success: true,\n  message: 'Devis deleted successfully',\n  devisId: $json.devisId\n};"
+        "jsCode": "const deleted = $('06. Delete Devis').all().map(item => item.json);\n\nif (deleted.length === 0) {\n  throw new Error('Devis not found');\n}\n\nreturn {\n  success: true,\n  message: 'Devis deleted successfully',\n  devisId: $json.devisId\n};"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

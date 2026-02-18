@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst workflow = payload.workflow || null;\nconst typeEvenement = payload.typeEvenement || null;\nconst statutExecution = payload.statutExecution || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  workflow,\n  typeEvenement,\n  statutExecution\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst workflow = payload.workflow || null;\nconst typeEvenement = payload.typeEvenement || null;\nconst statutExecution = payload.statutExecution || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  workflow,\n  typeEvenement,\n  statutExecution\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "code": "const logs = $('06. List Query').all();\nconst countResult = $('05. Count Query').first();\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $json.limit);\n\nreturn {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages: totalPages\n};"
+        "jsCode": "const logs = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $json.limit);\n\nreturn {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages: totalPages\n};"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = payload.statut || null;\nconst clientFinalId = payload.clientFinalId || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  statut,\n  clientFinalId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst statut = payload.statut || null;\nconst clientFinalId = payload.clientFinalId || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  statut,\n  clientFinalId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) as total FROM bon_commandes WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? ` AND statut = '${$json.statut}'` : '' }}{{ $json.clientFinalId ? ` AND client_final_id = '${$json.clientFinalId}'` : '' }}"
+        "query": "=SELECT COUNT(*) as total FROM bons_commande WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? ` AND statut = '${$json.statut}'` : '' }}{{ $json.clientFinalId ? ` AND client_final_id = '${$json.clientFinalId}'` : '' }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",

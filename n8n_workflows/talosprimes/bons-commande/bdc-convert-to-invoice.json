@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  bdcId: payload.bdcId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  bdcId: payload.bdcId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT * FROM bon_commandes WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT * FROM bons_commande WHERE id = '{{ $json.bdcId }}' AND tenant_id = '{{ $json.tenantId }}'"
       },
       "id": "05. Get Bon",
       "name": "05. Get Bon",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "code": "const bon = $('05. Get Bon').first();\n\nif (!bon) {\n  throw new Error('Bon de commande not found');\n}\n\nif (bon.statut === 'facture' || bon.statut === 'annule') {\n  throw new Error('Cannot convert bon with statut: ' + bon.statut);\n}\n\nreturn {\n  bonValid: true\n};"
+        "jsCode": "const bon = $('05. Get Bon').first().json;\n\nif (!bon) {\n  throw new Error('Bon de commande not found');\n}\n\nif (bon.statut === 'facture' || bon.statut === 'annule') {\n  throw new Error('Cannot convert bon with statut: ' + bon.statut);\n}\n\nreturn {\n  bonValid: true\n};"
       },
       "id": "06. Validate Bon",
       "name": "06. Validate Bon",
@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "code": "const nextNum = $('07. Get Next Numero').first().next_num;\nconst year = new Date().getFullYear();\nconst numeroFacture = `INV-${year}-${String(nextNum).padStart(6, '0')}`;\n\nreturn {\n  numeroFacture: numeroFacture\n};"
+        "jsCode": "const nextNum = $('07. Get Next Numero').first().json.next_num;\nconst year = new Date().getFullYear();\nconst numeroFacture = `INV-${year}-${String(nextNum).padStart(6, '0')}`;\n\nreturn {\n  numeroFacture: numeroFacture\n};"
       },
       "id": "08. Generate Numero",
       "name": "08. Generate Numero",
@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) SELECT gen_random_uuid(), 'standard', tenant_id, client_final_id, '{{ $('08. Generate Numero').first().numeroFacture }}', date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, 'brouillon', NOW(), NOW() FROM bon_commandes WHERE id = '{{ $json.bdcId }}' RETURNING *"
+        "query": "=INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) SELECT gen_random_uuid(), 'standard', tenant_id, client_final_id, '{{ $('08. Generate Numero').first().json.numeroFacture }}', date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, 'brouillon', NOW(), NOW() FROM bons_commande WHERE id = '{{ $json.bdcId }}' RETURNING *"
       },
       "id": "09. Create Invoice",
       "name": "09. Create Invoice",
@@ -153,7 +153,7 @@
     },
     {
       "parameters": {
-        "code": "const invoice = $('09. Create Invoice').first();\nconst invoiceId = invoice.id;\n\nreturn {\n  invoiceId: invoiceId\n};"
+        "jsCode": "const invoice = $('09. Create Invoice').first().json;\nconst invoiceId = invoice.id;\n\nreturn {\n  invoiceId: invoiceId\n};"
       },
       "id": "10. Get Invoice ID",
       "name": "10. Get Invoice ID",
@@ -167,7 +167,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) SELECT gen_random_uuid(), '{{ $('10. Get Invoice ID').first().invoiceId }}', code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = '{{ $json.bdcId }}' ORDER BY ordre"
+        "query": "=INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) SELECT gen_random_uuid(), '{{ $('10. Get Invoice ID').first().json.invoiceId }}', code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = '{{ $json.bdcId }}' ORDER BY ordre"
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",
@@ -187,7 +187,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE bon_commandes SET statut = 'facture', invoice_id = '{{ $('10. Get Invoice ID').first().invoiceId }}', updated_at = NOW() WHERE id = '{{ $json.bdcId }}' RETURNING *"
+        "query": "=UPDATE bons_commande SET statut = 'facture', invoice_id = '{{ $('10. Get Invoice ID').first().json.invoiceId }}', updated_at = NOW() WHERE id = '{{ $json.bdcId }}' RETURNING *"
       },
       "id": "12. Update Bon Status",
       "name": "12. Update Bon Status",
@@ -207,7 +207,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at FROM invoices WHERE id = '{{ $('10. Get Invoice ID').first().invoiceId }}'"
+        "query": "=SELECT id, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at FROM invoices WHERE id = '{{ $('10. Get Invoice ID').first().json.invoiceId }}'"
       },
       "id": "13. Get Invoice",
       "name": "13. Get Invoice",
@@ -226,7 +226,7 @@
     },
     {
       "parameters": {
-        "code": "const invoice = $('13. Get Invoice').first();\nconst bon = $('12. Update Bon Status').first();\n\nreturn {\n  success: true,\n  data: {\n    invoice: invoice,\n    bon: bon\n  }\n};"
+        "jsCode": "const invoice = $('13. Get Invoice').first().json;\nconst bon = $('12. Update Bon Status').first().json;\n\nreturn {\n  success: true,\n  data: {\n    invoice: invoice,\n    bon: bon\n  }\n};"
       },
       "id": "14. Format Response",
       "name": "14. Format Response",

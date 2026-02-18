@@ -57,7 +57,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing required fields: tenantId, clientFinalId, montantHt', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: tenantId, clientFinalId, montantHt'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -70,7 +70,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COUNT(*) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT COUNT(*) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'"
       },
       "name": "Postgres Get Next Number",
       "type": "n8n-nodes-base.postgres",
@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const nextNum = $input[0][0].json.next_num;\nconst year = new Date().getFullYear();\nconst paddedNum = String(nextNum).padStart(6, '0');\nconst numeroAvoir = `AVO-${year}-${paddedNum}`;\n\nreturn {\n  ...($input.all()[0].json),\n  numeroAvoir: numeroAvoir,\n  avoirId: require('crypto').randomUUID()\n};"
+        "jsCode": "const nextNum = $('Postgres Get Next Number').first().json.next_num;\nconst year = new Date().getFullYear();\nconst paddedNum = String(nextNum).padStart(6, '0');\nconst numeroAvoir = `AVO-${year}-${paddedNum}`;\n\nreturn {\n  ...($input.all()[0].json),\n  numeroAvoir: numeroAvoir,\n  avoirId: require('crypto').randomUUID()\n};"
       },
       "name": "Code Generate Number",
       "type": "n8n-nodes-base.code",
@@ -101,7 +101,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES ('{{ $json.avoirId }}', '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', {{ $json.invoiceId ? \"'\" + $json.invoiceId + \"'\" : 'NULL' }}, '{{ $json.numeroAvoir }}', '{{ $json.dateAvoir }}', {{ $json.montantHt }}, {{ $json.montantHt * (1 + $json.tvaTaux / 100) }}, {{ $json.tvaTaux }}, '{{ $json.motif }}', '{{ $json.description }}', 'brouillon', NOW(), NOW())"
+        "query": "=INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES ('{{ $json.avoirId }}', '{{ $json.tenantId }}', '{{ $json.clientFinalId }}', {{ $json.invoiceId ? \"'\" + $json.invoiceId + \"'\" : 'NULL' }}, '{{ $json.numeroAvoir }}', '{{ $json.dateAvoir }}', {{ $json.montantHt }}, {{ $json.montantHt * (1 + $json.tvaTaux / 100) }}, {{ $json.tvaTaux }}, '{{ $json.motif }}', '{{ $json.description }}', 'brouillon', NOW(), NOW())"
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

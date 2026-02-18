@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || !payload.montantHt || !payload.tvaTaux) {\n  throw new Error('tenantId, clientFinalId, montantHt, tvaTaux are required');\n}\n\nconst montantHt = parseFloat(payload.montantHt);\nconst tvaTaux = parseFloat(payload.tvaTaux) / 100;\nconst montantTtc = montantHt * (1 + tvaTaux);\nconst dateDevis = payload.dateDevis || new Date().toISOString().split('T')[0];\nconst dateValidite = payload.dateValidite || new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst description = payload.description || '';\nconst modePaiement = payload.modePaiement || 'virement';\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: payload.tvaTaux,\n  dateDevis: dateDevis,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.clientFinalId || !payload.montantHt || !payload.tvaTaux) {\n  throw new Error('tenantId, clientFinalId, montantHt, tvaTaux are required');\n}\n\nconst montantHt = parseFloat(payload.montantHt);\nconst tvaTaux = parseFloat(payload.tvaTaux) / 100;\nconst montantTtc = montantHt * (1 + tvaTaux);\nconst dateDevis = payload.dateDevis || new Date().toISOString().split('T')[0];\nconst dateValidite = payload.dateValidite || new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst description = payload.description || '';\nconst modePaiement = payload.modePaiement || 'virement';\nconst lines = payload.lines || [];\n\nreturn {\n  tenantId: payload.tenantId,\n  clientFinalId: payload.clientFinalId,\n  montantHt: montantHt,\n  montantTtc: montantTtc,\n  tvaTaux: payload.tvaTaux,\n  dateDevis: dateDevis,\n  dateValidite: dateValidite,\n  description: description,\n  modePaiement: modePaiement,\n  lines: lines\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "code": "const nextNum = $('05. Get Next Number').first().next_num;\nconst numeroProforma = 'PRO-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nreturn {\n  ...JSON.parse(JSON.stringify($json)),\n  numeroProforma: numeroProforma\n};"
+        "jsCode": "const nextNum = $('05. Get Next Number').first().json.next_num;\nconst numeroProforma = 'PRO-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nreturn {\n  ...JSON.parse(JSON.stringify($json)),\n  numeroProforma: numeroProforma\n};"
       },
       "id": "06. Generate Number",
       "name": "06. Generate Number",
@@ -153,7 +153,7 @@
     },
     {
       "parameters": {
-        "code": "return {\n  success: true,\n  message: 'Proforma created successfully',\n  proformaId: $('07. Insert Proforma').first().id,\n  numeroProforma: $json.numeroProforma\n};"
+        "jsCode": "return {\n  success: true,\n  message: 'Proforma created successfully',\n  proformaId: $('07. Insert Proforma').first().json.id,\n  numeroProforma: $json.numeroProforma\n};"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",

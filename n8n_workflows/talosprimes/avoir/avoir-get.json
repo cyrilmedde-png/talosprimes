@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing avoirId or tenantId', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing avoirId or tenantId'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.*, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, cf.adresse as client_adresse, i.id as invoice_id, i.numero_facture, i.statut as invoice_statut FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT a.*, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, cf.adresse as client_adresse, i.id as invoice_id, i.numero_facture, i.statut as invoice_statut FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}'"
       },
       "name": "Postgres Get",
       "type": "n8n-nodes-base.postgres",
@@ -85,7 +85,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM avoir_lines WHERE avoir_id = '{{ $json.avoirId }}' ORDER BY ordre ASC"
+        "query": "=SELECT * FROM avoir_lines WHERE avoir_id = '{{ $json.avoirId }}' ORDER BY ordre ASC"
       },
       "name": "Postgres Get Lines",
       "type": "n8n-nodes-base.postgres",

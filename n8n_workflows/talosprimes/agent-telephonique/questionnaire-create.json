@@ -49,7 +49,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing required field: tenantId', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required field: tenantId'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -67,7 +67,7 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "INSERT INTO questionnaires (id, tenant_id, lead_id, call_log_id, title, description, content, status, completed_at, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, {{ $json.callLogId ? \"'\" + $json.callLogId + \"'\" : 'NULL' }}, '{{ $json.title }}', '{{ $json.description }}', '{{ JSON.stringify($json.content).replace(/'/g, \"''\")}}'::jsonb, '{{ $json.status }}', {{ $json.completedAt ? \"'\" + $json.completedAt + \"'\" : 'NULL' }}, NOW(), NOW())"
+        "query": "=INSERT INTO questionnaires (id, tenant_id, lead_id, call_log_id, title, description, content, status, completed_at, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, {{ $json.callLogId ? \"'\" + $json.callLogId + \"'\" : 'NULL' }}, '{{ $json.title }}', '{{ $json.description }}', '{{ JSON.stringify($json.content).replace(/'/g, \"''\")}}'::jsonb, '{{ $json.status }}', {{ $json.completedAt ? \"'\" + $json.completedAt + \"'\" : 'NULL' }}, NOW(), NOW())"
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

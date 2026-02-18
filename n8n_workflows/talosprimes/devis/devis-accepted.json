@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "code": "const updated = $('05. Update Devis').all();\n\nif (updated.length === 0) {\n  throw new Error('Devis not found or not in envoyee status');\n}\n\nreturn {\n  success: true,\n  message: 'Devis accepted successfully',\n  devisId: $json.devisId\n};"
+        "jsCode": "const updated = $('05. Update Devis').all().map(item => item.json);\n\nif (updated.length === 0) {\n  throw new Error('Devis not found or not in envoyee status');\n}\n\nreturn {\n  success: true,\n  message: 'Devis accepted successfully',\n  devisId: $json.devisId\n};"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

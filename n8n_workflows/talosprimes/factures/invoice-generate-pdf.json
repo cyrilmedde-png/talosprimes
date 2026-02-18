@@ -67,7 +67,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT (SELECT row_to_json(sub) FROM (\n  SELECT id, numero_facture, lien_pdf, statut\n  FROM invoices\n  WHERE id = '{{ $('02. Parser').first().json.safeInvoiceId }}'\n    AND tenant_id = '{{ $('02. Parser').first().json.safeTenantId }}'\n) sub) AS invoice",
+        "query": "=SELECT (SELECT row_to_json(sub) FROM (\n  SELECT id, numero_facture, lien_pdf, statut\n  FROM invoices\n  WHERE id = '{{ $('02. Parser').first().json.safeInvoiceId }}'\n    AND tenant_id = '{{ $('02. Parser').first().json.safeTenantId }}'\n) sub) AS invoice",
         "options": {}
       },
       "id": "pg-check",
@@ -123,7 +123,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE invoices\nSET lien_pdf = '{{ $('02. Parser').first().json.lienPdf.replace(/'/g, \"''\") }}',\n    updated_at = NOW()\nWHERE id = '{{ $('02. Parser').first().json.safeInvoiceId }}'\n  AND tenant_id = '{{ $('02. Parser').first().json.safeTenantId }}'\nRETURNING id, numero_facture, lien_pdf, statut",
+        "query": "=UPDATE invoices\nSET lien_pdf = '{{ $('02. Parser').first().json.lienPdf.replace(/'/g, \"''\") }}',\n    updated_at = NOW()\nWHERE id = '{{ $('02. Parser').first().json.safeInvoiceId }}'\n  AND tenant_id = '{{ $('02. Parser').first().json.safeTenantId }}'\nRETURNING id, numero_facture, lien_pdf, statut",
         "options": {}
       },
       "id": "pg-update",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "code": "const updated = $('05. Update Proforma').all();\n\nif (updated.length === 0) {\n  throw new Error('Proforma not found or not in envoyee status');\n}\n\nreturn {\n  success: true,\n  message: 'Proforma accepted successfully',\n  proformaId: $json.proformaId\n};"
+        "jsCode": "const updated = $('05. Update Proforma').all().map(item => item.json);\n\nif (updated.length === 0) {\n  throw new Error('Proforma not found or not in envoyee status');\n}\n\nreturn {\n  success: true,\n  message: 'Proforma accepted successfully',\n  proformaId: $json.proformaId\n};"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

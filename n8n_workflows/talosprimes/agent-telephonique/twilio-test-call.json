@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nreturn {\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nreturn {\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "code": "const results = $input.all();\nconst config = results.length > 0 ? results[0].json : null;\n\nif (!config) {\n  return {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant'\n  };\n}\n\nif (!config.active) {\n  return {\n    success: false,\n    error: 'La configuration Twilio est désactivée'\n  };\n}\n\nreturn {\n  success: true,\n  message: 'Test call triggered successfully',\n  data: {\n    phoneNumber: config.phone_number,\n    agentName: config.agent_name,\n    companyName: config.company_name,\n    niche: config.niche,\n    active: config.active\n  }\n};"
+        "jsCode": "const results = $input.all();\nconst config = results.length > 0 ? results[0].json : null;\n\nif (!config) {\n  return {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant'\n  };\n}\n\nif (!config.active) {\n  return {\n    success: false,\n    error: 'La configuration Twilio est désactivée'\n  };\n}\n\nreturn {\n  success: true,\n  message: 'Test call triggered successfully',\n  data: {\n    phoneNumber: config.phone_number,\n    agentName: config.agent_name,\n    companyName: config.company_name,\n    niche: config.niche,\n    active: config.active\n  }\n};"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

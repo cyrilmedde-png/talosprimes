@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "code": "const proforma = $('05. Get Proforma').first();\nconst nextNum = $('06. Get Next Invoice Number').first().next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!proforma) {\n  throw new Error('Proforma not found or not in acceptee status');\n}\n\nreturn {\n  proformaId: $json.proformaId,\n  tenantId: $json.tenantId,\n  proforma: proforma,\n  numeroFacture: numeroFacture\n};"
+        "jsCode": "const proforma = $('05. Get Proforma').first().json;\nconst nextNum = $('06. Get Next Invoice Number').first().json.next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!proforma) {\n  throw new Error('Proforma not found or not in acceptee status');\n}\n\nreturn {\n  proformaId: $json.proformaId,\n  tenantId: $json.tenantId,\n  proforma: proforma,\n  numeroFacture: numeroFacture\n};"
       },
       "id": "07. Prepare Invoice Data",
       "name": "07. Prepare Invoice Data",
@@ -194,7 +194,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().id }}, updated_at = NOW() WHERE id = {{ $json.proformaId }}"
+        "query": "=UPDATE proformas SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().json.id }}, updated_at = NOW() WHERE id = {{ $json.proformaId }}"
       },
       "id": "12. Update Proforma",
       "name": "12. Update Proforma",
@@ -213,7 +213,7 @@
     },
     {
       "parameters": {
-        "code": "return {\n  success: true,\n  message: 'Proforma converted to invoice successfully',\n  proformaId: $json.proformaId,\n  invoiceId: $('08. Create Invoice').first().id,\n  numeroFacture: $json.numeroFacture\n};"
+        "jsCode": "return {\n  success: true,\n  message: 'Proforma converted to invoice successfully',\n  proformaId: $json.proformaId,\n  invoiceId: $('08. Create Invoice').first().json.id,\n  numeroFacture: $json.numeroFacture\n};"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",

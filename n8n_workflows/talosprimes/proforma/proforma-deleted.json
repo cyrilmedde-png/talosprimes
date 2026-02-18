@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.proformaId || !payload.tenantId) {\n  throw new Error('proformaId and tenantId are required');\n}\n\nreturn {\n  proformaId: payload.proformaId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "code": "const deleted = $('06. Delete Proforma').all();\n\nif (deleted.length === 0) {\n  throw new Error('Proforma not found');\n}\n\nreturn {\n  success: true,\n  message: 'Proforma deleted successfully',\n  proformaId: $json.proformaId\n};"
+        "jsCode": "const deleted = $('06. Delete Proforma').all().map(item => item.json);\n\nif (deleted.length === 0) {\n  throw new Error('Proforma not found');\n}\n\nreturn {\n  success: true,\n  message: 'Proforma deleted successfully',\n  proformaId: $json.proformaId\n};"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

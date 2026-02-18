@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing required fields: id, tenantId', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: id, tenantId'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -71,7 +71,7 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "UPDATE twilio_configs SET {{ $json.accountSid !== undefined ? \"account_sid = '\" + $json.accountSid + \"',\" : \"\" }} {{ $json.authToken !== undefined ? \"auth_token = '\" + $json.authToken + \"',\" : \"\" }} {{ $json.phoneNumber !== undefined ? \"phone_number = '\" + $json.phoneNumber + \"',\" : \"\" }} {{ $json.isActive !== undefined ? \"is_active = \" + ($json.isActive ? \"true\" : \"false\") + \",\" : \"\" }} updated_at = NOW() WHERE id = '{{ $json.id }}' AND tenant_id = '{{ $json.tenantId }}'"
+        "query": "=UPDATE twilio_configs SET {{ $json.accountSid !== undefined ? \"account_sid = '\" + $json.accountSid + \"',\" : \"\" }} {{ $json.authToken !== undefined ? \"auth_token = '\" + $json.authToken + \"',\" : \"\" }} {{ $json.phoneNumber !== undefined ? \"phone_number = '\" + $json.phoneNumber + \"',\" : \"\" }} {{ $json.isActive !== undefined ? \"is_active = \" + ($json.isActive ? \"true\" : \"false\") + \",\" : \"\" }} updated_at = NOW() WHERE id = '{{ $json.id }}' AND tenant_id = '{{ $json.tenantId }}'"
       },
       "name": "Postgres Update",
       "type": "n8n-nodes-base.postgres",

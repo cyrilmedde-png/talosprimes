@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing required fields: id, tenantId', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: id, tenantId'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -71,7 +71,7 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "UPDATE questionnaires SET {{ $json.leadId !== undefined ? \"lead_id = \" + ($json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.callLogId !== undefined ? \"call_log_id = \" + ($json.callLogId ? \"'\" + $json.callLogId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.title !== undefined ? \"title = '\" + $json.title + \"',\" : \"\" }} {{ $json.description !== undefined ? \"description = '\" + $json.description + \"',\" : \"\" }} {{ $json.content !== undefined ? \"content = '\" + JSON.stringify($json.content).replace(/'/g, \"''\") + \"'::jsonb,\" : \"\" }} {{ $json.status !== undefined ? \"status = '\" + $json.status + \"',\" : \"\" }} {{ $json.completedAt !== undefined ? \"completed_at = \" + ($json.completedAt ? \"'\" + $json.completedAt + \"'\" : 'NULL') + \",\" : \"\" }} updated_at = NOW() WHERE id = '{{ $json.id }}' AND tenant_id = '{{ $json.tenantId }}'"
+        "query": "=UPDATE questionnaires SET {{ $json.leadId !== undefined ? \"lead_id = \" + ($json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.callLogId !== undefined ? \"call_log_id = \" + ($json.callLogId ? \"'\" + $json.callLogId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.title !== undefined ? \"title = '\" + $json.title + \"',\" : \"\" }} {{ $json.description !== undefined ? \"description = '\" + $json.description + \"',\" : \"\" }} {{ $json.content !== undefined ? \"content = '\" + JSON.stringify($json.content).replace(/'/g, \"''\") + \"'::jsonb,\" : \"\" }} {{ $json.status !== undefined ? \"status = '\" + $json.status + \"',\" : \"\" }} {{ $json.completedAt !== undefined ? \"completed_at = \" + ($json.completedAt ? \"'\" + $json.completedAt + \"'\" : 'NULL') + \",\" : \"\" }} updated_at = NOW() WHERE id = '{{ $json.id }}' AND tenant_id = '{{ $json.tenantId }}'"
       },
       "name": "Postgres Update",
       "type": "n8n-nodes-base.postgres",

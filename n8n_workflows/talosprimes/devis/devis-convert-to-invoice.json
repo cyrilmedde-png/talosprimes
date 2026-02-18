@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "code": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
+        "jsCode": "const payload = $input.body;\n\nif (!payload.devisId || !payload.tenantId) {\n  throw new Error('devisId and tenantId are required');\n}\n\nreturn {\n  devisId: payload.devisId,\n  tenantId: payload.tenantId\n};"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "code": "const devis = $('05. Get Devis').first();\nconst nextNum = $('06. Get Next Invoice Number').first().next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!devis) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nreturn {\n  devisId: $json.devisId,\n  tenantId: $json.tenantId,\n  devis: devis,\n  numeroFacture: numeroFacture\n};"
+        "jsCode": "const devis = $('05. Get Devis').first().json;\nconst nextNum = $('06. Get Next Invoice Number').first().json.next_num;\nconst numeroFacture = 'FAC-' + new Date().getFullYear() + '-' + String(nextNum).padStart(6, '0');\n\nif (!devis) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nreturn {\n  devisId: $json.devisId,\n  tenantId: $json.tenantId,\n  devis: devis,\n  numeroFacture: numeroFacture\n};"
       },
       "id": "07. Prepare Invoice Data",
       "name": "07. Prepare Invoice Data",
@@ -194,7 +194,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE devis SET statut = 'facturee', invoice_id = {{ $('08. Create Invoice').first().id }}, updated_at = NOW() WHERE id = {{ $json.devisId }}"
+        "query": "=UPDATE devis SET statut = 'facturee', invoice_id = '{{ $('08. Create Invoice').first().json.id }}', updated_at = NOW() WHERE id = '{{ $json.devisId }}'"
       },
       "id": "12. Update Devis",
       "name": "12. Update Devis",
@@ -213,7 +213,7 @@
     },
     {
       "parameters": {
-        "code": "return {\n  success: true,\n  message: 'Devis converted to invoice successfully',\n  devisId: $json.devisId,\n  invoiceId: $('08. Create Invoice').first().id,\n  numeroFacture: $json.numeroFacture\n};"
+        "jsCode": "return {\n  success: true,\n  message: 'Devis converted to invoice successfully',\n  devisId: $json.devisId,\n  invoiceId: $('08. Create Invoice').first().json.id,\n  numeroFacture: $json.numeroFacture\n};"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",

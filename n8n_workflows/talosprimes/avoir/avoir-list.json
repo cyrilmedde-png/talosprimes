@@ -49,7 +49,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{ { error: 'Missing tenantId', success: false } }}"
+        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing tenantId'}) }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -62,7 +62,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as total FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }}"
+        "query": "=SELECT COUNT(*) as total FROM avoirs WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }}"
       },
       "name": "Postgres Count",
       "type": "n8n-nodes-base.postgres",
@@ -81,7 +81,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.*, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, i.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND a.statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND a.client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }} ORDER BY a.date_avoir DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+        "query": "=SELECT a.*, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, i.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND a.statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND a.client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }} ORDER BY a.date_avoir DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
       },
       "name": "Postgres List",
       "type": "n8n-nodes-base.postgres",
