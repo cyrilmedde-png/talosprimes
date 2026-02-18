@@ -90,7 +90,6 @@ export default function AvoirPage() {
           clientFinalId: i.clientFinalId || f.clientFinalId,
           tvaTaux: i.tvaTaux != null ? String(Number(i.tvaTaux)) : f.tvaTaux,
           motif: `Avoir sur facture ${i.numeroFacture || ''}`,
-          description: (i.description as string) || f.description,
         }));
         if (i.lines && i.lines.length > 0) {
           setLignes(i.lines.map((il: { codeArticle?: string | null; designation: string; quantite: number; prixUnitaireHt: number | string }) => ({
