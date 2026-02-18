@@ -48,7 +48,7 @@ const createSchema = z.object({
   invoiceId: z.string().uuid().optional().nullable(),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
-  dateAvoir: z.string().optional().nullable(),
+  dateAvoir: z.string().datetime({ offset: true }).optional().nullable(),
   motif: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   lines: z.array(lineSchema).optional(),

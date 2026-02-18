@@ -51,7 +51,7 @@ const createQuestionnaireSchema = z.object({
 const updateQuestionnaireSchema = z.object({
   questions: z.array(questionSchema).optional(),
   status: z.enum(['en_cours', 'complete', 'abandonne']).optional(),
-  completedAt: z.string().optional().nullable(),
+  completedAt: z.string().datetime({ offset: true }).optional().nullable(),
 });
 
 const paramsSchema = z.object({ id: z.string().uuid() });
