@@ -81,7 +81,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.*, cf.email, cf.nom, cf.prenom, cf.raison_sociale, i.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND a.statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND a.client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }} ORDER BY a.date_avoir DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
+        "query": "SELECT a.*, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, i.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.tenant_id = '{{ $json.tenantId }}'{{ $json.statut ? \" AND a.statut = '\" + $json.statut + \"'\" : \"\" }}{{ $json.clientFinalId ? \" AND a.client_final_id = '\" + $json.clientFinalId + \"'\" : \"\" }} ORDER BY a.date_avoir DESC LIMIT {{ $json.limit }} OFFSET {{ $json.offset }}"
       },
       "name": "Postgres List",
       "type": "n8n-nodes-base.postgres",
@@ -99,7 +99,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const count = $input[0][0].json.total;\nconst avoirs = $input[1].json;\nconst page = $json.page;\nconst limit = $json.limit;\nconst totalPages = Math.ceil(count / limit);\n\nreturn {\n  avoirs: avoirs,\n  count: avoirs.length,\n  total: parseInt(count),\n  page: page,\n  limit: limit,\n  totalPages: totalPages,\n  success: true\n};"
+        "jsCode": "const rawAvoirs = $('Postgres List').all().map(item => item.json);\nconst countResult = $('Postgres Count').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst avoirs = rawAvoirs.map(a => ({\n  ...a,\n  clientFinal: a.client_final_id ? {\n    id: a.client_final_id,\n    nom: a.client_nom || null,\n    prenom: a.client_prenom || null,\n    email: a.client_email || null,\n    telephone: a.client_telephone || null,\n    raisonSociale: a.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  avoirs,\n  count: avoirs.length,\n  total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages,\n}}];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ $json }}"
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

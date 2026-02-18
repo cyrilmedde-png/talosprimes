@@ -67,7 +67,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT i.id, i.type, i.tenant_id, i.client_final_id, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, cf.email, cf.nom, cf.prenom, cf.raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '\" + ($json.invoiceId || '').replace(/'/g, \"''\") + \"' AND i.tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS invoice\" }}"
+        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT i.id, i.type, i.tenant_id, i.client_final_id, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '\" + ($json.invoiceId || '').replace(/'/g, \"''\") + \"' AND i.tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS invoice\" }}"
       },
       "id": "pg-get",
       "name": "05. SELECT facture",
@@ -86,7 +86,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row=$input.first().json;\nconst inv=row.invoice;\nif(!inv)return [{json:{success:false,error:'Facture non trouvee'}}];\nconst parsed=typeof inv==='string'?JSON.parse(inv):inv;\nreturn [{json:{success:true,data:{invoice:parsed}}}];"
+        "jsCode": "const row = $input.first().json;\nconst inv = row.invoice;\nif (!inv) return [{json: {success: false, error: 'Facture non trouvee'}}];\nconst parsed = typeof inv === 'string' ? JSON.parse(inv) : inv;\n\n// Nest client data into clientFinal object\nconst invoice = {\n  ...parsed,\n  clientFinal: parsed.client_final_id ? {\n    id: parsed.client_final_id,\n    nom: parsed.client_nom || null,\n    prenom: parsed.client_prenom || null,\n    email: parsed.client_email || null,\n    telephone: parsed.client_telephone || null,\n    raisonSociale: parsed.client_raison_sociale || null,\n  } : null,\n};\n\nreturn [{json: {success: true, data: {invoice}}}];"
       },
       "id": "format",
       "name": "06. Formater",

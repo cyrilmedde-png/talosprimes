@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT a.*, cf.email, cf.nom, cf.prenom, cf.raison_sociale, cf.adresse, cf.telephone, i.id as invoice_id, i.numero_facture, i.statut as invoice_statut FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}'"
+        "query": "SELECT a.*, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, cf.adresse as client_adresse, i.id as invoice_id, i.numero_facture, i.statut as invoice_statut FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices i ON a.invoice_id = i.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}'"
       },
       "name": "Postgres Get",
       "type": "n8n-nodes-base.postgres",
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const avoir = $input[0][0].json;\nconst lines = $input[1].json;\n\nreturn {\n  avoir: {\n    ...avoir,\n    lines: lines\n  },\n  success: true\n};"
+        "jsCode": "const rawAvoir = $('Postgres Get').first().json;\nconst rawLines = $('Postgres Get Lines').all().map(item => item.json);\n\nif (!rawAvoir || !rawAvoir.id) {\n  return [{json: { success: false, error: 'Avoir not found' }}];\n}\n\nconst avoir = {\n  ...rawAvoir,\n  clientFinal: rawAvoir.client_final_id ? {\n    id: rawAvoir.client_final_id,\n    nom: rawAvoir.client_nom || null,\n    prenom: rawAvoir.client_prenom || null,\n    email: rawAvoir.client_email || null,\n    telephone: rawAvoir.client_telephone || null,\n    raisonSociale: rawAvoir.client_raison_sociale || null,\n    adresse: rawAvoir.client_adresse || null,\n  } : null,\n  lines: rawLines,\n};\n\nreturn [{json: { avoir, success: true }}];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
@@ -115,7 +115,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ $json }}"
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

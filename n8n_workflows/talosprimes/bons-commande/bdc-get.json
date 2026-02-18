@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, c.id as client_id, c.nom as client_nom, c.email as client_email, c.telephone as client_telephone FROM bon_commandes b LEFT JOIN client_finals c ON b.client_final_id = c.id WHERE b.id = '{{ $json.bdcId }}' AND b.tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bons_commande b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.id = '{{ $json.bdcId }}' AND b.tenant_id = '{{ $json.tenantId }}'"
       },
       "id": "05. Get Bon",
       "name": "05. Get Bon",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "code": "const bon = $('05. Get Bon').first();\nconst lines = $('06. Get Lines').all();\nlet invoice = null;\n\nif (bon.invoice_id) {\n  // Will get invoice in next node\n  invoice = true;\n}"
+        "jsCode": "const bon = $('05. Get Bon').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\nlet hasInvoice = false;\n\nif (bon && bon.invoice_id) {\n  hasInvoice = true;\n}\n\nreturn [{json: { ...bon, hasInvoice, lines }}];"
       },
       "id": "07. Check Invoice",
       "name": "07. Check Invoice",
@@ -140,7 +140,7 @@
     },
     {
       "parameters": {
-        "code": "const bon = $('05. Get Bon').first();\nconst lines = $('06. Get Lines').all();\nconst invoices = $('08. Get Invoice').all();\nconst invoice = invoices.length > 0 ? invoices[0] : null;\n\nconst clientFinal = bon.client_id ? {\n  id: bon.client_id,\n  nom: bon.client_nom,\n  email: bon.client_email,\n  telephone: bon.client_telephone\n} : null;\n\nconst bonData = {\n  id: bon.id,\n  tenant_id: bon.tenant_id,\n  client_final_id: bon.client_final_id,\n  numero_bdc: bon.numero_bdc,\n  date_bdc: bon.date_bdc,\n  date_validite: bon.date_validite,\n  montant_ht: bon.montant_ht,\n  montant_ttc: bon.montant_ttc,\n  tva_taux: bon.tva_taux,\n  description: bon.description,\n  mode_paiement: bon.mode_paiement,\n  statut: bon.statut,\n  invoice_id: bon.invoice_id,\n  created_at: bon.created_at,\n  updated_at: bon.updated_at,\n  clientFinal: clientFinal,\n  lines: lines,\n  invoice: invoice\n};\n\nreturn bonData;"
+        "jsCode": "const bon = $('05. Get Bon').first().json;\nconst rawLines = $('06. Get Lines').all().map(item => item.json);\nconst invoiceRows = $('08. Get Invoice').all().map(item => item.json);\nconst invoice = invoiceRows.length > 0 && invoiceRows[0].id ? invoiceRows[0] : null;\n\nif (!bon || !bon.id) {\n  throw new Error('Bon de commande not found');\n}\n\nconst bonData = {\n  ...bon,\n  clientFinal: bon.client_final_id ? {\n    id: bon.client_final_id,\n    nom: bon.client_nom || null,\n    prenom: bon.client_prenom || null,\n    email: bon.client_email || null,\n    telephone: bon.client_telephone || null,\n    raisonSociale: bon.client_raison_sociale || null,\n  } : null,\n  lines: rawLines,\n  invoice: invoice\n};\n\nreturn [{json: { bon: bonData, success: true }}];"
       },
       "id": "09. Format Response",
       "name": "09. Format Response",

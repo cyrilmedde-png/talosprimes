@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ $json }}"
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
