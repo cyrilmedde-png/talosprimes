@@ -333,6 +333,24 @@ export default function BonsCommandePage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setActionLoading(bon.id);
+                              await apiClient.bonsCommande.downloadPdf(bon.id);
+                            } catch {
+                              alert('Impossible de charger le PDF.');
+                            } finally {
+                              setActionLoading(null);
+                            }
+                          }}
+                          disabled={!!actionLoading}
+                          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Voir le PDF"
+                        >
+                          <DocumentArrowDownIcon className="h-5 w-5" />
+                        </button>
                         {bon.statut === 'brouillon' && (
                           <button
                             type="button"

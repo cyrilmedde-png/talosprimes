@@ -465,6 +465,19 @@ export const apiClient = {
       }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string }>(`/api/bons-commande/${id}`, { method: 'DELETE' }),
+    downloadPdf: async (id: string): Promise<void> => {
+      const token = getAccessToken();
+      if (!token) throw new Error('Non authentifié');
+      const response = await fetch(`${API_URL}/api/bons-commande/${id}/pdf`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error(`Erreur PDF : ${response.status}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
   },
 
   // Devis
@@ -512,6 +525,19 @@ export const apiClient = {
       }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string }>(`/api/devis/${id}`, { method: 'DELETE' }),
+    downloadPdf: async (id: string): Promise<void> => {
+      const token = getAccessToken();
+      if (!token) throw new Error('Non authentifié');
+      const response = await fetch(`${API_URL}/api/devis/${id}/pdf`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error(`Erreur PDF : ${response.status}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
   },
 
   avoirs: {
@@ -535,6 +561,19 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; message: string; data: { avoir: Avoir; invoiceId: string; numeroFacture: string } }>(`/api/invoices/${invoiceId}/convert-to-avoir`, {
         method: 'POST',
       }),
+    downloadPdf: async (id: string): Promise<void> => {
+      const token = getAccessToken();
+      if (!token) throw new Error('Non authentifié');
+      const response = await fetch(`${API_URL}/api/avoirs/${id}/pdf`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error(`Erreur PDF : ${response.status}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
   },
 
   proformas: {
@@ -558,6 +597,19 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; data: { invoice: unknown; proforma: Proforma } }>(`/api/proformas/${id}/convert-to-invoice`, { method: 'POST' }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean }>(`/api/proformas/${id}`, { method: 'DELETE' }),
+    downloadPdf: async (id: string): Promise<void> => {
+      const token = getAccessToken();
+      if (!token) throw new Error('Non authentifié');
+      const response = await fetch(`${API_URL}/api/proformas/${id}/pdf`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error(`Erreur PDF : ${response.status}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
   },
 
   // Comptabilité

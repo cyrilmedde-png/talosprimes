@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import { generateDocumentPdf } from '../../services/pdf.service.js';
+import type { DocumentForPdf } from '../../services/pdf.service.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -196,6 +198,109 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
+
+  // GET /api/proforma/:id/pdf - Génère et retourne le PDF du proforma
+  fastify.get(
+    '/:id/pdf',
+    {
+      preHandler: [n8nOrAuthMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+      try {
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
+        const params = paramsSchema.parse(request.params);
+
+        if (!tenantId && !fromN8n) {
+          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        }
+
+        const docWhere: Record<string, unknown> = { id: params.id };
+        if (tenantId) docWhere.tenantId = tenantId;
+
+        const proforma = await prisma.proforma.findFirst({
+          where: docWhere,
+          include: {
+            tenant: {
+              select: {
+                nomEntreprise: true,
+                siret: true,
+                tvaIntracom: true,
+                rib: true,
+                logoBase64: true,
+                adressePostale: true,
+                codePostal: true,
+                ville: true,
+                telephone: true,
+                emailContact: true,
+              },
+            },
+            clientFinal: {
+              select: {
+                raisonSociale: true,
+                nom: true,
+                prenom: true,
+                email: true,
+                telephone: true,
+                adresse: true,
+              },
+            },
+            lines: {
+              orderBy: { ordre: 'asc' },
+              select: {
+                codeArticle: true,
+                designation: true,
+                quantite: true,
+                prixUnitaireHt: true,
+                totalHt: true,
+              },
+            },
+          },
+        });
+
+        if (!proforma) {
+          return reply.status(404).send({ success: false, error: 'Proforma non trouvé' });
+        }
+
+        const forPdf: DocumentForPdf = {
+          numero: proforma.numeroProforma,
+          dateDocument: proforma.dateProforma,
+          dateSecondaire: proforma.dateValidite,
+          montantHt: Number(proforma.montantHt),
+          montantTtc: Number(proforma.montantTtc),
+          tvaTaux: proforma.tvaTaux != null ? Number(proforma.tvaTaux) : null,
+          description: proforma.description ?? undefined,
+          codeArticle: proforma.codeArticle ?? undefined,
+          modePaiement: proforma.modePaiement ?? undefined,
+          statut: proforma.statut,
+          lines: proforma.lines.map((l: any) => ({
+            codeArticle: l.codeArticle,
+            designation: l.designation,
+            quantite: l.quantite,
+            prixUnitaireHt: Number(l.prixUnitaireHt),
+            totalHt: Number(l.totalHt),
+          })),
+          clientFinal: proforma.clientFinal ?? undefined,
+          tenant: proforma.tenant ?? undefined,
+        };
+
+        const pdfBytes = await generateDocumentPdf(forPdf, 'proforma');
+        const filename = `proforma-${proforma.numeroProforma.replace(/\s+/g, '-')}.pdf`;
+
+        return reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `inline; filename="${filename}"`)
+          .send(Buffer.from(pdfBytes));
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });
+        }
+        console.error('=== ERREUR GENERATION PDF PROFORMA ===', error);
+        fastify.log.error(error, 'Erreur génération PDF proforma');
+        return reply.status(500).send({ success: false, error: 'Erreur lors de la génération du PDF' });
+      }
+    }
+  );
 
   // POST /api/proforma - Créer
   fastify.post('/', {

@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import { generateDocumentPdf } from '../../services/pdf.service.js';
+import type { DocumentForPdf } from '../../services/pdf.service.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -194,6 +196,109 @@ export async function devisRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
+
+  // GET /api/devis/:id/pdf - Génère et retourne le PDF du devis
+  fastify.get(
+    '/:id/pdf',
+    {
+      preHandler: [n8nOrAuthMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+      try {
+        const tenantId = request.tenantId;
+        const fromN8n = request.isN8nRequest === true;
+        const params = paramsSchema.parse(request.params);
+
+        if (!tenantId && !fromN8n) {
+          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        }
+
+        const docWhere: Record<string, unknown> = { id: params.id };
+        if (tenantId) docWhere.tenantId = tenantId;
+
+        const devis = await prisma.devis.findFirst({
+          where: docWhere,
+          include: {
+            tenant: {
+              select: {
+                nomEntreprise: true,
+                siret: true,
+                tvaIntracom: true,
+                rib: true,
+                logoBase64: true,
+                adressePostale: true,
+                codePostal: true,
+                ville: true,
+                telephone: true,
+                emailContact: true,
+              },
+            },
+            clientFinal: {
+              select: {
+                raisonSociale: true,
+                nom: true,
+                prenom: true,
+                email: true,
+                telephone: true,
+                adresse: true,
+              },
+            },
+            lines: {
+              orderBy: { ordre: 'asc' },
+              select: {
+                codeArticle: true,
+                designation: true,
+                quantite: true,
+                prixUnitaireHt: true,
+                totalHt: true,
+              },
+            },
+          },
+        });
+
+        if (!devis) {
+          return reply.status(404).send({ success: false, error: 'Devis non trouvé' });
+        }
+
+        const forPdf: DocumentForPdf = {
+          numero: devis.numeroDevis,
+          dateDocument: devis.dateDevis,
+          dateSecondaire: devis.dateValidite,
+          montantHt: Number(devis.montantHt),
+          montantTtc: Number(devis.montantTtc),
+          tvaTaux: devis.tvaTaux != null ? Number(devis.tvaTaux) : null,
+          description: devis.description ?? undefined,
+          codeArticle: devis.codeArticle ?? undefined,
+          modePaiement: devis.modePaiement ?? undefined,
+          statut: devis.statut,
+          lines: devis.lines.map((l: any) => ({
+            codeArticle: l.codeArticle,
+            designation: l.designation,
+            quantite: l.quantite,
+            prixUnitaireHt: Number(l.prixUnitaireHt),
+            totalHt: Number(l.totalHt),
+          })),
+          clientFinal: devis.clientFinal ?? undefined,
+          tenant: devis.tenant ?? undefined,
+        };
+
+        const pdfBytes = await generateDocumentPdf(forPdf, 'devis');
+        const filename = `devis-${devis.numeroDevis.replace(/\s+/g, '-')}.pdf`;
+
+        return reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `inline; filename="${filename}"`)
+          .send(Buffer.from(pdfBytes));
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });
+        }
+        console.error('=== ERREUR GENERATION PDF DEVIS ===', error);
+        fastify.log.error(error, 'Erreur génération PDF devis');
+        return reply.status(500).send({ success: false, error: 'Erreur lors de la génération du PDF' });
+      }
+    }
+  );
 
   // POST /api/devis - Créer
   fastify.post('/', {

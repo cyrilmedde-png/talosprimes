@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, rgb, PDFPage, PDFFont } from 'pdf-lib';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-export type InvoiceLineForPdf = {
+export type DocumentLineForPdf = {
   codeArticle?: string | null;
   designation: string;
   quantite: number;
@@ -10,10 +10,10 @@ export type InvoiceLineForPdf = {
   totalHt: number;
 };
 
-export type InvoiceForPdf = {
-  numeroFacture: string;
-  dateFacture: Date;
-  dateEcheance: Date;
+export type DocumentForPdf = {
+  numero: string;
+  dateDocument: Date;
+  dateSecondaire?: Date | null; // dateEcheance, dateValidite, etc.
   montantHt: number;
   montantTtc: number;
   tvaTaux: number | null;
@@ -21,7 +21,8 @@ export type InvoiceForPdf = {
   codeArticle?: string;
   modePaiement?: string;
   statut?: string;
-  lines?: InvoiceLineForPdf[];
+  motif?: string; // pour les avoirs
+  lines?: DocumentLineForPdf[];
   clientFinal?: {
     raisonSociale?: string | null;
     nom?: string | null;
@@ -42,6 +43,96 @@ export type InvoiceForPdf = {
     telephone?: string | null;
     emailContact: string;
   } | null;
+};
+
+export type DocumentType = 'facture' | 'devis' | 'avoir' | 'bon_commande' | 'proforma';
+
+// Configuration par type de document
+const DOC_CONFIG: Record<DocumentType, {
+  title: string;
+  numeroLabel: string;
+  clientLabel: string;
+  dateLabel: string;
+  dateSecondaireLabel: string;
+  mentionsLegales: string[];
+  showPaymentInfo: boolean;
+}> = {
+  facture: {
+    title: 'FACTURE',
+    numeroLabel: 'N\u00B0 Facture',
+    clientLabel: 'Facturer a',
+    dateLabel: 'Date de facturation',
+    dateSecondaireLabel: "Date d'echeance",
+    mentionsLegales: [
+      "En cas de retard, une penalite de 3 fois le taux d'interet legal sera appliquee (art. L441-10 Code de commerce).",
+      'Indemnite forfaitaire pour frais de recouvrement : 40,00 EUR.',
+    ],
+    showPaymentInfo: true,
+  },
+  devis: {
+    title: 'DEVIS',
+    numeroLabel: 'N\u00B0 Devis',
+    clientLabel: 'Client',
+    dateLabel: 'Date du devis',
+    dateSecondaireLabel: 'Date de validite',
+    mentionsLegales: [
+      'Ce devis est valable pour la duree indiquee. Passe ce delai, il devra etre renouvele.',
+      'Toute commande implique l\'acceptation des conditions generales de vente.',
+    ],
+    showPaymentInfo: true,
+  },
+  avoir: {
+    title: 'AVOIR',
+    numeroLabel: 'N\u00B0 Avoir',
+    clientLabel: 'Client',
+    dateLabel: "Date de l'avoir",
+    dateSecondaireLabel: '',
+    mentionsLegales: [
+      'Cet avoir est deductible de vos prochaines factures ou remboursable sur demande.',
+    ],
+    showPaymentInfo: false,
+  },
+  bon_commande: {
+    title: 'BON DE COMMANDE',
+    numeroLabel: 'N\u00B0 Bon de Commande',
+    clientLabel: 'Client',
+    dateLabel: 'Date du bon',
+    dateSecondaireLabel: 'Date de validite',
+    mentionsLegales: [
+      'Ce bon de commande confirme votre engagement. Les conditions generales de vente s\'appliquent.',
+    ],
+    showPaymentInfo: true,
+  },
+  proforma: {
+    title: 'FACTURE PROFORMA',
+    numeroLabel: 'N\u00B0 Proforma',
+    clientLabel: 'Client',
+    dateLabel: 'Date du proforma',
+    dateSecondaireLabel: 'Date de validite',
+    mentionsLegales: [
+      'Ce document est une facture proforma et ne constitue pas une facture definitive.',
+      'Il est emis a titre indicatif et n\'a pas de valeur comptable.',
+    ],
+    showPaymentInfo: true,
+  },
+};
+
+// ─── Legacy type alias for backward compatibility ───────────────────
+export type InvoiceLineForPdf = DocumentLineForPdf;
+export type InvoiceForPdf = {
+  numeroFacture: string;
+  dateFacture: Date;
+  dateEcheance: Date;
+  montantHt: number;
+  montantTtc: number;
+  tvaTaux: number | null;
+  description?: string;
+  codeArticle?: string;
+  modePaiement?: string;
+  statut?: string;
+  lines?: InvoiceLineForPdf[];
+  clientFinal?: DocumentForPdf['clientFinal'];
+  tenant?: DocumentForPdf['tenant'];
 };
 
 // ─── Couleurs ────────────────────────────────────────────────────────
@@ -109,13 +200,22 @@ function getStatutLabel(statut?: string): string {
     case 'en_retard': return 'EN RETARD';
     case 'brouillon': return 'BROUILLON';
     case 'annulee': return 'ANNULEE';
+    case 'acceptee': return 'ACCEPTEE';
+    case 'refusee': return 'REFUSEE';
+    case 'expiree': return 'EXPIREE';
+    case 'facturee': return 'FACTUREE';
+    case 'valide': return 'VALIDE';
+    case 'validee': return 'VALIDEE';
+    case 'facture': return 'FACTURE';
+    case 'annule': return 'ANNULE';
     default: return (statut || '').toUpperCase();
   }
 }
 
-// ─── PDF principal ───────────────────────────────────────────────────
+// ─── PDF principal (générique) ──────────────────────────────────────
 
-export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8Array> {
+export async function generateDocumentPdf(document: DocumentForPdf, documentType: DocumentType): Promise<Uint8Array> {
+  const config = DOC_CONFIG[documentType];
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -139,9 +239,9 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   // Logo (si disponible)
   let logoOffsetX = 0;
-  if (invoice.tenant?.logoBase64) {
+  if (document.tenant?.logoBase64) {
     try {
-      const dataUri = invoice.tenant.logoBase64;
+      const dataUri = document.tenant.logoBase64;
       const isJpeg = dataUri.startsWith('data:image/jpeg') || dataUri.startsWith('data:image/jpg');
       const isPng = dataUri.startsWith('data:image/png');
       const base64Data = dataUri.split(',')[1];
@@ -150,7 +250,6 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
         const image = isPng
           ? await doc.embedPng(imgBytes)
           : await doc.embedJpg(imgBytes);
-        // Redimensionner pour max 80x60
         const maxW = 80, maxH = 60;
         const scale = Math.min(maxW / image.width, maxH / image.height, 1);
         const drawW = image.width * scale;
@@ -169,7 +268,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   }
 
   // Nom entreprise (gauche, décalé si logo)
-  const tenantName = invoice.tenant?.nomEntreprise || 'TalosPrimes';
+  const tenantName = document.tenant?.nomEntreprise || 'TalosPrimes';
   page.drawText(tenantName, {
     x: ml + logoOffsetX, y: height - 30,
     size: 20, font: fontBold, color: COLORS.white,
@@ -178,14 +277,14 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   // Adresse sur 2 lignes sous le nom
   let headerLeftY = height - 46;
   const textLeftX = ml + logoOffsetX;
-  if (invoice.tenant?.adressePostale) {
-    page.drawText(safe(invoice.tenant.adressePostale), {
+  if (document.tenant?.adressePostale) {
+    page.drawText(safe(document.tenant.adressePostale), {
       x: textLeftX, y: headerLeftY,
       size: 8.5, font, color: rgb(0.78, 0.85, 0.95),
     });
     headerLeftY -= 12;
   }
-  const cpVille = [invoice.tenant?.codePostal, invoice.tenant?.ville].filter(Boolean).join(' ');
+  const cpVille = [document.tenant?.codePostal, document.tenant?.ville].filter(Boolean).join(' ');
   if (cpVille) {
     page.drawText(safe(cpVille), {
       x: textLeftX, y: headerLeftY,
@@ -195,8 +294,8 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   }
 
   // SIRET sous l'adresse (gauche)
-  if (invoice.tenant?.siret) {
-    page.drawText(`SIRET : ${safe(invoice.tenant.siret)}`, {
+  if (document.tenant?.siret) {
+    page.drawText(`SIRET : ${safe(document.tenant.siret)}`, {
       x: textLeftX, y: headerLeftY,
       size: 8, font, color: rgb(0.78, 0.85, 0.95),
     });
@@ -204,23 +303,23 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   }
 
   // TVA intra sous le SIRET (gauche)
-  if (invoice.tenant?.tvaIntracom) {
-    page.drawText(`TVA Intra : ${safe(invoice.tenant.tvaIntracom)}`, {
+  if (document.tenant?.tvaIntracom) {
+    page.drawText(`TVA Intra : ${safe(document.tenant.tvaIntracom)}`, {
       x: textLeftX, y: headerLeftY,
       size: 8, font, color: rgb(0.78, 0.85, 0.95),
     });
     headerLeftY -= 12;
   }
 
-  // "FACTURE" + statut sur la meme ligne a droite
-  const statutLabel = getStatutLabel(invoice.statut);
-  const factureStatut = statutLabel ? `FACTURE - ${statutLabel}` : 'FACTURE';
-  drawTextRight(page, factureStatut, width - mr, height - 95, fontBold, 14, COLORS.white);
+  // Titre document + statut sur la même ligne à droite
+  const statutLabel = getStatutLabel(document.statut);
+  const docTitle = statutLabel ? `${config.title} - ${statutLabel}` : config.title;
+  drawTextRight(page, docTitle, width - mr, height - 95, fontBold, 14, COLORS.white);
 
   y = height - headerH - 25;
 
   // ═══════════════════════════════════════════════════════════════════
-  // INFOS FACTURE - Numero + dates (ligne simple)
+  // INFOS DOCUMENT - Numéro + dates (ligne simple)
   // ═══════════════════════════════════════════════════════════════════
 
   const infoBoxH = 30;
@@ -235,20 +334,20 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   const infoY = y - 12;
   const col1 = ml + 16;
 
-  // Numero facture uniquement
-  page.drawText('N\u00B0 Facture', { x: col1, y: infoY, size: 7, font, color: COLORS.muted });
-  page.drawText(safe(invoice.numeroFacture), { x: col1, y: infoY - 13, size: 11, font: fontBold, color: COLORS.primary });
+  // Numéro document
+  page.drawText(config.numeroLabel, { x: col1, y: infoY, size: 7, font, color: COLORS.muted });
+  page.drawText(safe(document.numero), { x: col1, y: infoY - 13, size: 11, font: fontBold, color: COLORS.primary });
 
   y -= infoBoxH + 25;
 
   // ═══════════════════════════════════════════════════════════════════
-  // CLIENT - Facturer a
+  // CLIENT
   // ═══════════════════════════════════════════════════════════════════
 
-  page.drawText('Facturer a', { x: ml, y, size: 8, font, color: COLORS.muted });
+  page.drawText(config.clientLabel, { x: ml, y, size: 8, font, color: COLORS.muted });
   y -= 16;
 
-  const client = invoice.clientFinal;
+  const client = document.clientFinal;
   const clientName =
     (client?.raisonSociale || [client?.prenom, client?.nom].filter(Boolean).join(' ') || '-').trim() || 'Client';
 
@@ -256,7 +355,6 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   y -= 15;
 
   if (client?.adresse) {
-    // Adresse peut contenir des retours a la ligne, on split
     const adresseLines = safe(client.adresse).split('\n').filter(Boolean);
     for (const line of adresseLines) {
       page.drawText(line.trim(), { x: ml, y, size: 9, font, color: COLORS.text });
@@ -272,10 +370,17 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     y -= 13;
   }
 
+  // Motif pour les avoirs
+  if (documentType === 'avoir' && document.motif) {
+    y -= 5;
+    page.drawText(`Motif : ${safe(document.motif)}`, { x: ml, y, size: 9, font: fontOblique, color: COLORS.text });
+    y -= 13;
+  }
+
   y -= 20;
 
   // ═══════════════════════════════════════════════════════════════════
-  // TABLEAU - Detail des prestations
+  // TABLEAU - Détail des prestations
   // ═══════════════════════════════════════════════════════════════════
 
   const tableLeft = ml;
@@ -289,7 +394,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   const colPuHt = tableRight - 130;
   const colTotalHt = tableRight - 10;
 
-  // En-tete tableau
+  // En-tête tableau
   const thH = 28;
   page.drawRectangle({
     x: tableLeft, y: y - thH,
@@ -306,15 +411,15 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   y -= thH;
 
-  // Lignes de prestation (depuis InvoiceLine ou fallback ancien champ description)
-  const lines: InvoiceLineForPdf[] = (invoice.lines && invoice.lines.length > 0)
-    ? invoice.lines
+  // Lignes de prestation
+  const lines: DocumentLineForPdf[] = (document.lines && document.lines.length > 0)
+    ? document.lines
     : [{
-        codeArticle: invoice.codeArticle || null,
-        designation: invoice.description || '-',
+        codeArticle: document.codeArticle || null,
+        designation: document.description || '-',
         quantite: 1,
-        prixUnitaireHt: invoice.montantHt,
-        totalHt: invoice.montantHt,
+        prixUnitaireHt: document.montantHt,
+        totalHt: document.montantHt,
       }];
 
   const rowH = 26;
@@ -356,11 +461,11 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   const totalsX = tableRight - 200;
   const totalsValX = tableRight - 10;
-  const tva = invoice.montantTtc - invoice.montantHt;
-  const tvaTaux = invoice.tvaTaux ?? 20;
+  const tva = document.montantTtc - document.montantHt;
+  const tvaTaux = document.tvaTaux ?? 20;
 
   page.drawText('Sous-total HT', { x: totalsX, y, size: 9, font, color: COLORS.text });
-  drawTextRight(page, formatMoney(invoice.montantHt), totalsValX, y, font, 9, COLORS.text);
+  drawTextRight(page, formatMoney(document.montantHt), totalsValX, y, font, 9, COLORS.text);
   y -= 16;
 
   page.drawText(`TVA (${tvaTaux} %)`, { x: totalsX, y, size: 9, font, color: COLORS.text });
@@ -375,7 +480,7 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   });
   y -= 18;
 
-  // Total TTC (encadre bleu)
+  // Total TTC (encadré bleu)
   const totalBoxH = 32;
   page.drawRectangle({
     x: totalsX - 8, y: y - totalBoxH + 10,
@@ -387,56 +492,60 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
     x: totalsX + 4, y: y - 10,
     size: 11, font: fontBold, color: COLORS.white,
   });
-  drawTextRight(page, formatMoney(invoice.montantTtc), totalsValX - 4, y - 10, fontBold, 13, COLORS.white);
+  drawTextRight(page, formatMoney(document.montantTtc), totalsValX - 4, y - 10, fontBold, 13, COLORS.white);
 
   y -= totalBoxH + 30;
 
   // ═══════════════════════════════════════════════════════════════════
-  // TABLEAU INFORMATIONS DE PAIEMENT
+  // TABLEAU INFORMATIONS DE PAIEMENT (si applicable)
   // ═══════════════════════════════════════════════════════════════════
 
-  page.drawText('Informations de paiement', { x: ml, y, size: 10, font: fontBold, color: COLORS.primary });
-  y -= 18;
+  if (config.showPaymentInfo) {
+    page.drawText('Informations de paiement', { x: ml, y, size: 10, font: fontBold, color: COLORS.primary });
+    y -= 18;
 
-  // Tableau 2 colonnes : label | valeur
-  const payInfos: [string, string][] = [
-    ['Date de facturation', formatDateShort(invoice.dateFacture)],
-    ['Date d\'echeance', formatDateShort(invoice.dateEcheance)],
-    ['Mode de paiement', safe(invoice.modePaiement) || 'Virement bancaire'],
-    ['RIB / IBAN', safe(invoice.tenant?.rib) || '-'],
-  ];
+    const payInfos: [string, string][] = [
+      [config.dateLabel, formatDateShort(document.dateDocument)],
+    ];
 
-  const payColLabelW = 160;
-  const payRowH = 20;
+    if (config.dateSecondaireLabel && document.dateSecondaire) {
+      payInfos.push([config.dateSecondaireLabel, formatDateShort(document.dateSecondaire)]);
+    }
 
-  for (let i = 0; i < payInfos.length; i++) {
-    const [label, value] = payInfos[i];
-    const rowBg = i % 2 === 0 ? COLORS.rowAlt : COLORS.white;
+    payInfos.push(['Mode de paiement', safe(document.modePaiement) || 'Virement bancaire']);
+    payInfos.push(['RIB / IBAN', safe(document.tenant?.rib) || '-']);
 
-    page.drawRectangle({
-      x: ml, y: y - payRowH,
-      width: contentWidth, height: payRowH,
-      color: rowBg,
-      borderColor: COLORS.border,
-      borderWidth: 0.3,
-    });
+    const payColLabelW = 160;
+    const payRowH = 20;
 
-    page.drawText(label, { x: ml + 10, y: y - 14, size: 8.5, font: fontBold, color: COLORS.text });
-    page.drawText(value, { x: ml + payColLabelW, y: y - 14, size: 8.5, font, color: COLORS.dark });
+    for (let i = 0; i < payInfos.length; i++) {
+      const [label, value] = payInfos[i];
+      const rowBg = i % 2 === 0 ? COLORS.rowAlt : COLORS.white;
 
-    y -= payRowH;
+      page.drawRectangle({
+        x: ml, y: y - payRowH,
+        width: contentWidth, height: payRowH,
+        color: rowBg,
+        borderColor: COLORS.border,
+        borderWidth: 0.3,
+      });
+
+      page.drawText(label, { x: ml + 10, y: y - 14, size: 8.5, font: fontBold, color: COLORS.text });
+      page.drawText(value, { x: ml + payColLabelW, y: y - 14, size: 8.5, font, color: COLORS.dark });
+
+      y -= payRowH;
+    }
+
+    y -= 14;
   }
 
-  y -= 14;
-
-  // Mentions legales
-  page.drawText('En cas de retard, une penalite de 3 fois le taux d\'interet legal sera appliquee (art. L441-10 Code de commerce).', {
-    x: ml, y, size: 7, font: fontOblique, color: COLORS.light, maxWidth: contentWidth,
-  });
-  y -= 10;
-  page.drawText('Indemnite forfaitaire pour frais de recouvrement : 40,00 EUR.', {
-    x: ml, y, size: 7, font: fontOblique, color: COLORS.light,
-  });
+  // Mentions légales
+  for (const mention of config.mentionsLegales) {
+    page.drawText(mention, {
+      x: ml, y, size: 7, font: fontOblique, color: COLORS.light, maxWidth: contentWidth,
+    });
+    y -= 10;
+  }
 
   // ═══════════════════════════════════════════════════════════════════
   // FOOTER - Bande en bas
@@ -457,9 +566,9 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
 
   const footerParts = [
     tenantName,
-    invoice.tenant?.siret ? `SIRET ${invoice.tenant.siret}` : null,
-    invoice.tenant?.emailContact,
-    invoice.tenant?.telephone,
+    document.tenant?.siret ? `SIRET ${document.tenant.siret}` : null,
+    document.tenant?.emailContact,
+    document.tenant?.telephone,
   ].filter(Boolean);
 
   const footerText = footerParts.join('  |  ');
@@ -471,4 +580,25 @@ export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8A
   });
 
   return doc.save();
+}
+
+// ─── Legacy wrapper for backward compatibility ──────────────────────
+
+export async function generateInvoicePdf(invoice: InvoiceForPdf): Promise<Uint8Array> {
+  const docForPdf: DocumentForPdf = {
+    numero: invoice.numeroFacture,
+    dateDocument: invoice.dateFacture,
+    dateSecondaire: invoice.dateEcheance,
+    montantHt: invoice.montantHt,
+    montantTtc: invoice.montantTtc,
+    tvaTaux: invoice.tvaTaux,
+    description: invoice.description,
+    codeArticle: invoice.codeArticle,
+    modePaiement: invoice.modePaiement,
+    statut: invoice.statut,
+    lines: invoice.lines,
+    clientFinal: invoice.clientFinal,
+    tenant: invoice.tenant,
+  };
+  return generateDocumentPdf(docForPdf, 'facture');
 }
