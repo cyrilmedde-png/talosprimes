@@ -85,21 +85,45 @@ export async function avoirRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow avoir_list indisponible' });
+        if (res.success) {
+          const raw = res.data as { avoir?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+          const avoir = Array.isArray(raw.avoir) ? raw.avoir : [];
+          return reply.status(200).send({
+            success: true,
+            data: {
+              avoir,
+              count: avoir.length,
+              total: raw.total ?? avoir.length,
+              page: raw.page ?? 1,
+              limit: raw.limit ?? 20,
+              totalPages: raw.totalPages ?? 1,
+            },
+          });
         }
-        const raw = res.data as { avoir?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const avoir = Array.isArray(raw.avoir) ? raw.avoir : [];
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n avoir_list indisponible, fallback BDD: ${res.error}`);
+        const skip = (page - 1) * limit;
+        const where: Record<string, unknown> = { tenantId };
+        if (query.statut) where.statut = query.statut as 'brouillon' | 'validee' | 'annulee';
+        if (query.clientFinalId) where.clientFinalId = query.clientFinalId;
+
+        const [avoir, total] = await Promise.all([
+          prisma.avoir.findMany({
+            where,
+            skip,
+            take: limit,
+            include: {
+              clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
+              lines: { orderBy: { ordre: 'asc' } },
+            },
+            orderBy: { dateAvoir: 'desc' },
+          }),
+          prisma.avoir.count({ where }),
+        ]);
+
         return reply.status(200).send({
           success: true,
-          data: {
-            avoir,
-            count: avoir.length,
-            total: raw.total ?? avoir.length,
-            page: raw.page ?? 1,
-            limit: raw.limit ?? 20,
-            totalPages: raw.totalPages ?? 1,
-          },
+          data: { avoir, count: avoir.length, total, page, limit, totalPages: Math.ceil(total / limit) },
         });
       }
 
@@ -154,13 +178,14 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           'avoir_get',
           { avoirId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow avoir_get indisponible' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n avoir_get indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe
@@ -225,15 +250,15 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           'avoir_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Avoir créé via n8n',
+            data: res.data,
+          });
         }
-
-        return reply.status(201).send({
-          success: true,
-          message: 'Avoir créé via n8n',
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n avoir_create indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) : persister en base
@@ -391,13 +416,14 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           'avoir_delete',
           { avoirId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Avoir supprimé via n8n',
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Avoir supprimé via n8n',
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n avoir_delete indisponible, fallback BDD: ${res.error}`);
       }
 
       await prisma.avoir.delete({ where: { id: params.id } });

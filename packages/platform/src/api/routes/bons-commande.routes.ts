@@ -85,22 +85,23 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow bdc_list indisponible' });
+        if (res.success) {
+          const raw = res.data as { bons?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+          const bons = Array.isArray(raw.bons) ? raw.bons : [];
+          return reply.status(200).send({
+            success: true,
+            data: {
+              bons,
+              count: bons.length,
+              total: raw.total ?? bons.length,
+              page: raw.page ?? 1,
+              limit: raw.limit ?? 20,
+              totalPages: raw.totalPages ?? 1,
+            },
+          });
         }
-        const raw = res.data as { bons?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const bons = Array.isArray(raw.bons) ? raw.bons : [];
-        return reply.status(200).send({
-          success: true,
-          data: {
-            bons,
-            count: bons.length,
-            total: raw.total ?? bons.length,
-            page: raw.page ?? 1,
-            limit: raw.limit ?? 20,
-            totalPages: raw.totalPages ?? 1,
-          },
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n bdc_list indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe
@@ -154,13 +155,14 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_get',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow bdc_get indisponible' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n bdc_get indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe
@@ -229,15 +231,15 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Bon de commande créé via n8n',
+            data: res.data,
+          });
         }
-
-        return reply.status(201).send({
-          success: true,
-          message: 'Bon de commande créé via n8n',
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n bdc_create indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) : persister en base
@@ -339,14 +341,14 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_validate',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Bon validé via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Bon validé via n8n',
-          data: res.data,
-        });
+        fastify.log.warn(`n8n bdc_validate indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n : persister en base
@@ -412,14 +414,14 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_convert_to_invoice',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Facture créée via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(201).send({
-          success: true,
-          message: 'Facture créée via n8n',
-          data: res.data,
-        });
+        fastify.log.warn(`n8n bdc_convert_to_invoice indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) : créer la facture et mettre à jour le bon
@@ -524,13 +526,13 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_delete',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Bon de commande supprimé via n8n',
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Bon de commande supprimé via n8n',
-        });
+        fastify.log.warn(`n8n bdc_delete indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n : supprimer en base

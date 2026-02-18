@@ -266,16 +266,17 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               invoiceId: params.id,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+          if (res.success) {
+            return reply.status(200).send({
+              success: true,
+              data: res.data,
+            });
           }
-          return reply.status(200).send({
-            success: true,
-            data: res.data,
-          });
+          // Fallback BDD si n8n indisponible
+          fastify.log.warn(`n8n invoice_get indisponible, fallback BDD: ${res.error}`);
         }
 
-        // Sinon, récupérer depuis la base de données
+        // Récupérer depuis la base de données (fallback ou callback n8n)
         const invoiceWhere: Record<string, unknown> = { id: params.id };
         if (tenantId) {
           invoiceWhere.tenantId = tenantId;
@@ -512,9 +513,11 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           }
           const res = await pending;
           if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+            // Fallback BDD si n8n indisponible — on ne retourne pas 502, on tombe dans le code BDD ci-dessous
+            fastify.log.warn(`n8n invoice_create indisponible, fallback BDD: ${res.error}`);
           }
 
+          if (res.success) {
           // Après création via n8n, insérer les lignes d'articles en base
           if (body.lines && body.lines.length > 0) {
             try {
@@ -567,9 +570,10 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             message: 'Facture créée via n8n',
             data: res.data,
           });
+          } // end if (res.success)
         }
 
-        // Appel depuis n8n (callback du workflow) : persister en base, sans émettre d'événement (évite boucle)
+        // Appel depuis n8n (callback du workflow) ou fallback BDD : persister en base
         // Idempotence : si une facture identique a déjà été créée récemment (race doublon n8n), la renvoyer au lieu d'en créer une nouvelle
         const recentCutoffN8n = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes, aligné avec le check n8n 02b
         const existingFromN8n = await prisma.invoice.findFirst({
@@ -753,14 +757,14 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               ...body,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+          if (res.success) {
+            return reply.status(200).send({
+              success: true,
+              message: 'Facture mise à jour via n8n',
+              data: res.data,
+            });
           }
-          return reply.status(200).send({
-            success: true,
-            message: 'Facture mise à jour via n8n',
-            data: res.data,
-          });
+          fastify.log.warn(`n8n invoice_update indisponible, fallback BDD: ${res.error}`);
         }
 
         // Appel depuis n8n (callback du workflow) : persister en base

@@ -228,15 +228,15 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Devis créé via n8n',
+            data: res.data,
+          });
         }
-
-        return reply.status(201).send({
-          success: true,
-          message: 'Devis créé via n8n',
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n devis_create indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) : persister en base
@@ -334,14 +334,15 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_send',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Devis envoyé via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Devis envoyé via n8n',
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n devis_send indisponible, fallback BDD: ${res.error}`);
       }
 
       const updated = await prisma.devis.update({
@@ -397,14 +398,15 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_accept',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Devis accepté via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Devis accepté via n8n',
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n devis_accept indisponible, fallback BDD: ${res.error}`);
       }
 
       const updated = await prisma.devis.update({
@@ -465,14 +467,15 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_convert_to_invoice',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Facture créée via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(201).send({
-          success: true,
-          message: 'Facture créée via n8n',
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n devis_convert_to_invoice indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) : créer la facture et mettre à jour le devis
@@ -572,13 +575,14 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_delete',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Devis supprimé via n8n',
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Devis supprimé via n8n',
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n devis_delete indisponible, fallback BDD: ${res.error}`);
       }
 
       await prisma.devis.delete({ where: { id: params.id } });

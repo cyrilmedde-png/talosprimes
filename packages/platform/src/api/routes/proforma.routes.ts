@@ -85,22 +85,23 @@ export async function proformaRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow proforma_list indisponible' });
+        if (res.success) {
+          const raw = res.data as { proforma?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+          const proforma = Array.isArray(raw.proforma) ? raw.proforma : [];
+          return reply.status(200).send({
+            success: true,
+            data: {
+              proforma,
+              count: proforma.length,
+              total: raw.total ?? proforma.length,
+              page: raw.page ?? 1,
+              limit: raw.limit ?? 20,
+              totalPages: raw.totalPages ?? 1,
+            },
+          });
         }
-        const raw = res.data as { proforma?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-        const proforma = Array.isArray(raw.proforma) ? raw.proforma : [];
-        return reply.status(200).send({
-          success: true,
-          data: {
-            proforma,
-            count: proforma.length,
-            total: raw.total ?? proforma.length,
-            page: raw.page ?? 1,
-            limit: raw.limit ?? 20,
-            totalPages: raw.totalPages ?? 1,
-          },
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n proforma_list indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe
@@ -154,16 +155,17 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_get',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow proforma_get indisponible' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n proforma_get indisponible, fallback BDD: ${res.error}`);
       }
 
-      // Appel depuis n8n (callback) → lecture BDD directe
+      // Appel depuis n8n (callback) ou fallback BDD → lecture directe
       const where: Record<string, unknown> = { id: params.id };
       if (tenantId) {
         where.tenantId = tenantId;
@@ -226,15 +228,15 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Proforma créé via n8n',
+            data: res.data,
+          });
         }
-
-        return reply.status(201).send({
-          success: true,
-          message: 'Proforma créé via n8n',
-          data: res.data,
-        });
+        // Fallback BDD si n8n indisponible
+        fastify.log.warn(`n8n proforma_create indisponible, fallback BDD: ${res.error}`);
       }
 
       // Appel depuis n8n (callback) : persister en base
@@ -333,14 +335,14 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_send',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Proforma envoyé via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Proforma envoyé via n8n',
-          data: res.data,
-        });
+        fastify.log.warn(`n8n proforma_send indisponible, fallback BDD: ${res.error}`);
       }
 
       const updated = await prisma.proforma.update({
@@ -397,14 +399,14 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_accept',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Proforma accepté via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Proforma accepté via n8n',
-          data: res.data,
-        });
+        fastify.log.warn(`n8n proforma_accept indisponible, fallback BDD: ${res.error}`);
       }
 
       const updated = await prisma.proforma.update({
@@ -466,17 +468,17 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_convert_to_invoice',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Facture créée via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(201).send({
-          success: true,
-          message: 'Facture créée via n8n',
-          data: res.data,
-        });
+        fastify.log.warn(`n8n proforma_convert_to_invoice indisponible, fallback BDD: ${res.error}`);
       }
 
-      // Appel depuis n8n (callback) : créer la facture et mettre à jour le proforma
+      // Appel depuis n8n (callback) ou fallback BDD : créer la facture et mettre à jour le proforma
       const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;
@@ -574,13 +576,13 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_delete',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Proforma supprimé via n8n',
+          });
         }
-        return reply.status(200).send({
-          success: true,
-          message: 'Proforma supprimé via n8n',
-        });
+        fastify.log.warn(`n8n proforma_delete indisponible, fallback BDD: ${res.error}`);
       }
 
       await prisma.proforma.delete({ where: { id: params.id } });
