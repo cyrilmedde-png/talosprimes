@@ -501,13 +501,20 @@ except:
           "$N8N_API_URL/api/v1/workflows/$existing_id" > "$tmp_current" 2>/dev/null || echo "{}" > "$tmp_current"
 
         local tmp_pyerr="/tmp/n8n_pyerr_$existing_id.txt"
-        payload=$(python3 -c "
+        # Utiliser le script de transformation qui applique TOUTES les corrections:
+        # - Code nodes: code->jsCode, $input.body, $().all()/.first(), $json refs
+        # - Postgres: Jinja, each(item), $json->Parser refs, schema fixes
+        # - Credentials: remplacement des IDs
+        local transform_script="$PROJECT_DIR/scripts/transform-n8n-workflow.py"
+        if [ -f "$transform_script" ]; then
+          payload=$(python3 "$transform_script" "$file" "$tmp_current" 2>"$tmp_pyerr")
+        else
+          # Fallback: transformation minimale (credentials seulement, sans fixes n8n)
+          log_warn "    transform-n8n-workflow.py introuvable — credentials seulement"
+          payload=$(python3 -c "
 import sys, json, os, traceback
 try:
-    # Charger le mapping global des credentials (fallback)
     global_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
-
-    # Charger le workflow ACTUEL de n8n pour extraire ses vrais credential IDs
     local_map = {}
     try:
         with open('$tmp_current') as f:
@@ -521,45 +528,24 @@ try:
                         local_map[cname] = cid
     except:
         pass
-
-    # Fusionner: local_map (du workflow actuel) a priorite, puis global_map en fallback
     cred_map = {**global_map, **local_map}
-
     with open('$file') as f:
         wf = json.load(f)
     wf.setdefault('settings', {})
-    # Retirer TOUS les champs que l'API n8n PUT n'accepte pas
     for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
         wf.pop(k, None)
-
-    # Remplacer les credential IDs par les vrais IDs de n8n
-    replaced = 0
-    unresolved = []
     for node in wf.get('nodes', []):
-        creds = node.get('credentials', {})
-        for cred_type, cred_info in creds.items():
+        for cred_type, cred_info in node.get('credentials', {}).items():
             if isinstance(cred_info, dict):
                 cred_name = cred_info.get('name', '')
-                cred_id = str(cred_info.get('id', ''))
                 if cred_name and cred_name in cred_map:
                     cred_info['id'] = cred_map[cred_name]
-                    replaced += 1
-                elif 'REPLACE' in cred_id:
-                    unresolved.append(cred_name)
-
-    if replaced > 0:
-        print(f'      {replaced} credentials resolues depuis n8n', file=sys.stderr)
-    if unresolved:
-        names = ', '.join(set(unresolved))
-        print(f'      ATTENTION: credentials non resolues: {names}', file=sys.stderr)
-
     print(json.dumps(wf))
 except Exception as e:
     traceback.print_exc(file=sys.stderr)
-    with open('$tmp_pyerr', 'w') as ef:
-        traceback.print_exc(file=ef)
     sys.exit(1)
-")
+" 2>"$tmp_pyerr")
+        fi
         local py_exit=$?
 
         # Si Python a echoue, afficher l'erreur
@@ -661,32 +647,39 @@ print(json.dumps(wf))
 
       else
         # --- CREATE ---
-        payload=$(python3 -c "
-import sys, json, os
-
-# Charger le mapping des credentials
-cred_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
-
-with open('$file') as f:
-    wf = json.load(f)
-wf.setdefault('settings', {})
+        # Appliquer les memes transformations que pour UPDATE
+        local transform_script="$PROJECT_DIR/scripts/transform-n8n-workflow.py"
+        if [ -f "$transform_script" ]; then
+          payload=$(python3 "$transform_script" "$file" 2>/dev/null || true)
+          # Pour CREATE: filtrer les champs autorises seulement
+          if [ -n "$payload" ]; then
+            payload=$(echo "$payload" | python3 -c "
+import sys, json
+wf = json.load(sys.stdin)
 allowed = {'name','nodes','connections','settings','staticData'}
 wf = {k: v for k, v in wf.items() if k in allowed}
 wf.setdefault('settings', {})
-
-# Remplacer les credential IDs par les vrais IDs de n8n
-for node in wf.get('nodes', []):
-    creds = node.get('credentials', {})
-    for cred_type, cred_info in creds.items():
-        if isinstance(cred_info, dict):
-            cred_name = cred_info.get('name', '')
-            cred_id = cred_info.get('id', '')
-            # Si le nom existe dans notre mapping, remplacer l'ID
-            if cred_name and cred_name in cred_map:
-                cred_info['id'] = cred_map[cred_name]
-
 print(json.dumps(wf))
 " 2>/dev/null || true)
+          fi
+        else
+          payload=$(python3 -c "
+import sys, json, os
+cred_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
+with open('$file') as f:
+    wf = json.load(f)
+allowed = {'name','nodes','connections','settings','staticData'}
+wf = {k: v for k, v in wf.items() if k in allowed}
+wf.setdefault('settings', {})
+for node in wf.get('nodes', []):
+    for cred_type, cred_info in node.get('credentials', {}).items():
+        if isinstance(cred_info, dict):
+            cred_name = cred_info.get('name', '')
+            if cred_name and cred_name in cred_map:
+                cred_info['id'] = cred_map[cred_name]
+print(json.dumps(wf))
+" 2>/dev/null || true)
+        fi
 
         if [ -z "$payload" ]; then
           return 1
