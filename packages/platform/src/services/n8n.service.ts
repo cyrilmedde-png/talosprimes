@@ -3,6 +3,28 @@ import { prisma } from '../config/database.js';
 import { eventService } from './event.service.js';
 
 /**
+ * Convertit récursivement les clés snake_case en camelCase.
+ * Nécessaire car PostgreSQL renvoie des colonnes en snake_case
+ * mais le frontend attend du camelCase (conventions TypeScript/React).
+ */
+function snakeToCamelKey(key: string): string {
+  return key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+}
+
+function transformKeys(data: unknown): unknown {
+  if (data === null || data === undefined) return data;
+  if (Array.isArray(data)) return data.map(transformKeys);
+  if (typeof data === 'object' && data !== null) {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      result[snakeToCamelKey(key)] = transformKeys(value);
+    }
+    return result;
+  }
+  return data;
+}
+
+/**
  * Mapping des anciens workflowN8nId (underscore) vers les chemins webhook n8n (tiret).
  * Les workflows JSON utilisent path: "invoice-created", pas "invoice_create".
  */
@@ -206,7 +228,9 @@ export class N8nService {
         return { success: false, error: `n8n API error: ${response.status} - ${errorText}` };
       }
 
-      const data = (await response.json().catch(() => ({}))) as T;
+      const rawData = await response.json().catch(() => ({}));
+      // Convertir les clés snake_case (PostgreSQL) en camelCase (frontend)
+      const data = transformKeys(rawData) as T;
       return { success: true, data };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
