@@ -571,23 +571,14 @@ except Exception as e:
         fi
 
         # =================================================================
-        # STRATEGIE: PUT pour deployer le contenu + credentials hardcodees
-        # Les credentials sont deja les vrais IDs dans les fichiers JSON,
-        # donc le PUT fonctionne correctement.
+        # STRATEGIE: PUT sans deactivate + partage credentials AVANT activate
+        # Ordre: PUT contenu → transfer projet → share credentials → activate
+        # Cela evite que n8n marque les credentials comme "has issues"
         # =================================================================
 
         rm -f "$tmp_current"
 
-        # 1. Deactivate d'abord
-        curl -s -X PATCH \
-          -H "X-N8N-API-KEY: $N8N_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d '{"active": false}' \
-          "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
-
-        sleep 0.3
-
-        # 2. PUT le contenu complet (nodes, connections, credentials)
+        # 1. PUT le contenu complet (nodes, connections, credentials) — PAS de deactivate
         local put_response
         put_response=$(curl -s -w "\n%{http_code}" -X PUT \
           -H "X-N8N-API-KEY: $N8N_API_KEY" \
@@ -607,25 +598,18 @@ except Exception as e:
 
         sleep 0.3
 
-        # 3. Activate
-        curl -s -X PATCH \
-          -H "X-N8N-API-KEY: $N8N_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d '{"active": true}' \
-          "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
-
-        # Transferer dans le bon projet si necessaire
+        # 2. Transferer dans le bon projet AVANT d'activer
         if [ -n "$project_id" ]; then
           curl -s -X PUT \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"destinationProjectId\": \"$project_id\"}" \
             "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
+        fi
 
-          # Partager les credentials du workflow avec le projet destination
-          # pour eviter "authentication has issues" apres transfer
-          local cred_ids
-          cred_ids=$(echo "$payload" | python3 -c "
+        # 3. Partager les credentials AVANT d'activer (evite "authentication has issues")
+        local cred_ids
+        cred_ids=$(echo "$payload" | python3 -c "
 import sys, json
 wf = json.load(sys.stdin)
 seen = set()
@@ -638,17 +622,26 @@ for node in wf.get('nodes', []):
                 print(cid)
 " 2>/dev/null || true)
 
-          if [ -n "$cred_ids" ]; then
-            echo "$cred_ids" | while IFS= read -r cid; do
-              [ -z "$cid" ] && continue
-              curl -s -X PUT \
-                -H "X-N8N-API-KEY: $N8N_API_KEY" \
-                -H "Content-Type: application/json" \
-                -d "{\"shareWithIds\": [\"$project_id\"]}" \
-                "$N8N_API_URL/api/v1/credentials/$cid/share" > /dev/null 2>&1 || true
-            done
-          fi
+        if [ -n "$cred_ids" ] && [ -n "$project_id" ]; then
+          echo "$cred_ids" | while IFS= read -r cid; do
+            [ -z "$cid" ] && continue
+            curl -s -X PUT \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"shareWithIds\": [\"$project_id\"]}" \
+              "$N8N_API_URL/api/v1/credentials/$cid/share" > /dev/null 2>&1 || true
+          done
         fi
+
+        sleep 0.3
+
+        # 4. Activate APRES que les credentials sont partagees
+        curl -s -X PATCH \
+          -H "X-N8N-API-KEY: $N8N_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"active": true}' \
+          "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
+
         return 0
 
       else
