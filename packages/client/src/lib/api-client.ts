@@ -560,6 +560,98 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean }>(`/api/proformas/${id}`, { method: 'DELETE' }),
   },
 
+  // Comptabilité
+  comptabilite: {
+    // Dashboard KPIs
+    dashboard: (params?: { dateFrom?: string; dateTo?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) qp.append('dateTo', params.dateTo);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/dashboard${q ? `?${q}` : ''}`);
+    },
+    // Initialisation (plan comptable + journaux + exercice)
+    init: () =>
+      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/init', { method: 'POST' }),
+    // Plan comptable
+    planComptable: (params?: { classe?: number; search?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.classe) qp.append('classe', params.classe.toString());
+      if (params?.search) qp.append('search', params.search);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/plan-comptable${q ? `?${q}` : ''}`);
+    },
+    // Écritures
+    ecritures: {
+      list: (params?: { page?: number; limit?: number; journalCode?: string; statut?: string; dateFrom?: string; dateTo?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        if (params?.journalCode) qp.append('journalCode', params.journalCode);
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+        if (params?.dateTo) qp.append('dateTo', params.dateTo);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/ecritures${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/ecritures/${id}`),
+      create: (data: { journalCode: string; dateEcriture: string; libelle: string; lignes: { numeroCompte: string; libelleLigne: string; debit: number; credit: number }[] }) =>
+        authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/ecritures', { method: 'POST', body: JSON.stringify(data) }),
+    },
+    // Grand Livre
+    grandLivre: (params?: { dateFrom?: string; dateTo?: string; compteFrom?: string; compteTo?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) qp.append('dateTo', params.dateTo);
+      if (params?.compteFrom) qp.append('compteFrom', params.compteFrom);
+      if (params?.compteTo) qp.append('compteTo', params.compteTo);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/grand-livre${q ? `?${q}` : ''}`);
+    },
+    // Balance
+    balance: (params?: { dateFrom?: string; dateTo?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) qp.append('dateTo', params.dateTo);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/balance${q ? `?${q}` : ''}`);
+    },
+    // Bilan
+    bilan: (params?: { dateFrom?: string; dateTo?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) qp.append('dateTo', params.dateTo);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/bilan${q ? `?${q}` : ''}`);
+    },
+    // Compte de Résultat
+    compteResultat: (params?: { dateFrom?: string; dateTo?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+      if (params?.dateTo) qp.append('dateTo', params.dateTo);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/compte-resultat${q ? `?${q}` : ''}`);
+    },
+    // TVA
+    tva: (params: { dateFrom: string; dateTo: string; typeDeclaration?: string }) => {
+      const qp = new URLSearchParams();
+      qp.append('dateFrom', params.dateFrom);
+      qp.append('dateTo', params.dateTo);
+      if (params.typeDeclaration) qp.append('typeDeclaration', params.typeDeclaration);
+      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/tva?${qp.toString()}`);
+    },
+    // Agent IA Comptable
+    iaAgent: (data: { action: string; data?: any; question?: string; dateFrom?: string; dateTo?: string }) =>
+      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/ia-agent', { method: 'POST', body: JSON.stringify(data) }),
+    // Clôture
+    cloture: (data: { exerciceId: string; confirme?: boolean }) =>
+      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/cloture', { method: 'POST', body: JSON.stringify(data) }),
+    // Lettrage
+    lettrage: (data: { numeroCompte: string; ligneIds: string[] }) =>
+      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/lettrage', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
   // Logs
   logs: {
     list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {

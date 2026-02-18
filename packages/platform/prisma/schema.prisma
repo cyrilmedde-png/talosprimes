@@ -135,6 +135,55 @@ enum QuestionnaireChannel {
   web
 }
 
+// ============================================
+// ENUMS - COMPTABILITE
+// ============================================
+
+enum EcritureStatut {
+  brouillon
+  validee
+  annulee
+}
+
+enum JournalType {
+  VE   // Ventes
+  AC   // Achats
+  BQ   // Banque
+  OD   // Opérations Diverses
+  AN   // A Nouveaux
+}
+
+enum CompteNature {
+  actif
+  passif
+  charge
+  produit
+}
+
+enum CompteType {
+  general
+  auxiliaire
+  analytique
+}
+
+enum DeclarationTvaStatut {
+  brouillon
+  validee
+  transmise
+}
+
+enum ImmobilisationStatut {
+  en_cours
+  actif
+  cede
+  mis_au_rebut
+}
+
+enum RapprochementStatut {
+  en_cours
+  valide
+}
+
 enum StatutJuridique {
   SA
   SARL
@@ -204,6 +253,16 @@ model Tenant {
   twilioConfig       TwilioConfig?
   smsLogs            SmsLog[]
   questionnaires     Questionnaire[]
+  // Comptabilité
+  exercicesComptables   ExerciceComptable[]
+  planComptable         PlanComptable[]
+  journauxComptables    JournalComptable[]
+  ecrituresComptables   EcritureComptable[]
+  lettrages             Lettrage[]
+  rapprochementsBancaires RapprochementBancaire[]
+  declarationsTva       DeclarationTva[]
+  immobilisations       Immobilisation[]
+  comptaIaLogs          ComptaIaLog[]
 
   @@index([emailContact])
   @@index([statut])
@@ -919,5 +978,285 @@ model Questionnaire {
   @@index([status])
   @@index([tenantId, createdAt(sort: Desc)])
   @@map("questionnaires")
+}
+
+// ============================================
+// COMPTABILITE - MODELS
+// ============================================
+
+// Exercice Comptable (année fiscale)
+model ExerciceComptable {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  code          String   @map("code") // ex: "2025", "2024-2025"
+  dateDebut     DateTime @map("date_debut") @db.Date
+  dateFin       DateTime @map("date_fin") @db.Date
+  cloture       Boolean  @default(false) @map("cloture")
+  dateCloture   DateTime? @map("date_cloture") @db.Timestamptz(6)
+  resultatNet   Decimal? @map("resultat_net") @db.Decimal(15, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ecritures EcritureComptable[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([cloture])
+  @@map("exercices_comptables")
+}
+
+// Plan Comptable (chart of accounts)
+model PlanComptable {
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  numeroCompte   String       @map("numero_compte") // ex: "411000"
+  libelle        String       @map("libelle")
+  classe         Int          @map("classe") // 1-7
+  nature         CompteNature @map("nature")
+  type           CompteType   @default(general) @map("type")
+  compteParentId String?      @map("compte_parent_id")
+  actif          Boolean      @default(true) @map("actif")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, numeroCompte])
+  @@index([tenantId])
+  @@index([classe])
+  @@index([actif])
+  @@map("plan_comptable")
+}
+
+// Journal Comptable (accounting journal)
+model JournalComptable {
+  id        String      @id @default(uuid()) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  code      String      @map("code") // ex: "VE", "AC", "BQ"
+  libelle   String      @map("libelle")
+  type      JournalType @map("type")
+  actif     Boolean     @default(true) @map("actif")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ecritures EcritureComptable[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("journaux_comptables")
+}
+
+// Écriture Comptable (journal entry header)
+model EcritureComptable {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  exerciceId      String          @map("exercice_id") @db.Uuid
+  journalCode     String          @map("journal_code")
+  numeroPiece     String          @map("numero_piece")
+  dateEcriture    DateTime        @map("date_ecriture") @db.Date
+  libelle         String          @map("libelle")
+  referenceDoc    String?         @map("reference_doc") // ex: "FAC-2025-000012"
+  statut          EcritureStatut  @default(brouillon) @map("statut")
+  sourceAuto      String?         @map("source_auto") // ex: "facture", "avoir", "paiement"
+  sourceId        String?         @map("source_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exercice ExerciceComptable  @relation(fields: [exerciceId], references: [id], onDelete: Cascade)
+  journal  JournalComptable   @relation(fields: [tenantId, journalCode], references: [tenantId, code])
+  lignes   LigneEcriture[]
+
+  @@unique([tenantId, numeroPiece])
+  @@index([tenantId])
+  @@index([exerciceId])
+  @@index([journalCode])
+  @@index([dateEcriture])
+  @@index([statut])
+  @@index([sourceAuto, sourceId])
+  @@map("ecritures_comptables")
+}
+
+// Ligne d'écriture (journal entry line)
+model LigneEcriture {
+  id            String    @id @default(uuid()) @db.Uuid
+  ecritureId    String    @map("ecriture_id") @db.Uuid
+  numeroCompte  String    @map("numero_compte") // ex: "411000"
+  libelleLigne  String    @map("libelle_ligne")
+  debit         Decimal   @default(0) @map("debit") @db.Decimal(15, 2)
+  credit        Decimal   @default(0) @map("credit") @db.Decimal(15, 2)
+  lettrage      String?   @map("lettrage") // Code de lettrage (ex: "AAA")
+  dateLettrage  DateTime? @map("date_lettrage") @db.Date
+  ordre         Int       @default(0) @map("ordre")
+
+  ecriture EcritureComptable @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
+
+  @@index([ecritureId])
+  @@index([numeroCompte])
+  @@index([lettrage])
+  @@map("lignes_ecritures")
+}
+
+// Lettrage (account reconciliation tracking)
+model Lettrage {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  codeLettrage   String   @map("code_lettrage")
+  numeroCompte   String   @map("numero_compte")
+  dateLettrage   DateTime @map("date_lettrage") @db.Date
+  montant        Decimal  @map("montant") @db.Decimal(15, 2)
+  ecart          Decimal  @default(0) @map("ecart") @db.Decimal(15, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, codeLettrage])
+  @@index([tenantId])
+  @@index([numeroCompte])
+  @@map("lettrages")
+}
+
+// Rapprochement Bancaire (bank reconciliation)
+model RapprochementBancaire {
+  id              String              @id @default(uuid()) @db.Uuid
+  tenantId        String              @map("tenant_id") @db.Uuid
+  dateDebut       DateTime            @map("date_debut") @db.Date
+  dateFin         DateTime            @map("date_fin") @db.Date
+  soldeDebutBanque  Decimal           @map("solde_debut_banque") @db.Decimal(15, 2)
+  soldeFinBanque    Decimal           @map("solde_fin_banque") @db.Decimal(15, 2)
+  soldeDebutCompta  Decimal           @map("solde_debut_compta") @db.Decimal(15, 2)
+  soldeFinCompta    Decimal           @map("solde_fin_compta") @db.Decimal(15, 2)
+  ecart             Decimal           @default(0) @map("ecart") @db.Decimal(15, 2)
+  statut            RapprochementStatut @default(en_cours) @map("statut")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  tenant Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lignes LigneRapprochement[]
+
+  @@index([tenantId])
+  @@index([dateFin])
+  @@map("rapprochements_bancaires")
+}
+
+// Ligne de rapprochement bancaire
+model LigneRapprochement {
+  id                  String   @id @default(uuid()) @db.Uuid
+  rapprochementId     String   @map("rapprochement_id") @db.Uuid
+  ecritureId          String?  @map("ecriture_id") @db.Uuid
+  dateOperation       DateTime @map("date_operation") @db.Date
+  libelle             String   @map("libelle")
+  montant             Decimal  @map("montant") @db.Decimal(15, 2)
+  rapproche           Boolean  @default(false) @map("rapproche")
+
+  rapprochement RapprochementBancaire @relation(fields: [rapprochementId], references: [id], onDelete: Cascade)
+
+  @@index([rapprochementId])
+  @@index([rapproche])
+  @@map("lignes_rapprochement")
+}
+
+// Déclaration TVA (VAT declaration)
+model DeclarationTva {
+  id               String                @id @default(uuid()) @db.Uuid
+  tenantId         String                @map("tenant_id") @db.Uuid
+  dateDebut        DateTime              @map("date_debut") @db.Date
+  dateFin          DateTime              @map("date_fin") @db.Date
+  typeDeclaration  String                @default("mensuelle") @map("type_declaration") // mensuelle, trimestrielle
+  baseHtVentes     Decimal               @default(0) @map("base_ht_ventes") @db.Decimal(15, 2)
+  baseHtAchats     Decimal               @default(0) @map("base_ht_achats") @db.Decimal(15, 2)
+  tvaCollectee     Decimal               @default(0) @map("tva_collectee") @db.Decimal(15, 2)
+  tvaDeductible    Decimal               @default(0) @map("tva_deductible") @db.Decimal(15, 2)
+  tvaDue           Decimal               @default(0) @map("tva_due") @db.Decimal(15, 2)
+  creditTva        Decimal               @default(0) @map("credit_tva") @db.Decimal(15, 2)
+  statut           DeclarationTvaStatut  @default(brouillon) @map("statut")
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dateFin])
+  @@index([statut])
+  @@map("declarations_tva")
+}
+
+// Immobilisations (fixed assets)
+model Immobilisation {
+  id                  String                @id @default(uuid()) @db.Uuid
+  tenantId            String                @map("tenant_id") @db.Uuid
+  designation         String                @map("designation")
+  numeroCompte        String                @map("numero_compte") // ex: "2154"
+  dateAcquisition     DateTime              @map("date_acquisition") @db.Date
+  valeurAcquisition   Decimal               @map("valeur_acquisition") @db.Decimal(15, 2)
+  dureeAmortissement  Int                   @map("duree_amortissement") // en mois
+  methodeAmort        String                @default("lineaire") @map("methode_amort") // lineaire, degressif
+  valeurResiduelle    Decimal               @default(0) @map("valeur_residuelle") @db.Decimal(15, 2)
+  totalAmorti         Decimal               @default(0) @map("total_amorti") @db.Decimal(15, 2)
+  vnc                 Decimal               @default(0) @map("vnc") @db.Decimal(15, 2) // Valeur Nette Comptable
+  statut              ImmobilisationStatut  @default(actif) @map("statut")
+  dateCession         DateTime?             @map("date_cession") @db.Date
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  amortissements Amortissement[]
+
+  @@index([tenantId])
+  @@index([statut])
+  @@map("immobilisations")
+}
+
+// Amortissements (depreciation schedule)
+model Amortissement {
+  id                String   @id @default(uuid()) @db.Uuid
+  immobilisationId  String   @map("immobilisation_id") @db.Uuid
+  dateAmortissement DateTime @map("date_amortissement") @db.Date
+  montant           Decimal  @map("montant") @db.Decimal(15, 2)
+  cumulAmorti       Decimal  @map("cumul_amorti") @db.Decimal(15, 2)
+  vncApres          Decimal  @map("vnc_apres") @db.Decimal(15, 2)
+  ecritureId        String?  @map("ecriture_id") @db.Uuid // Lien vers l'écriture générée
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  immobilisation Immobilisation @relation(fields: [immobilisationId], references: [id], onDelete: Cascade)
+
+  @@index([immobilisationId])
+  @@index([dateAmortissement])
+  @@map("amortissements")
+}
+
+// Balance des comptes (snapshot/cache)
+model BalanceCompte {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  exerciceId    String   @map("exercice_id") @db.Uuid
+  numeroCompte  String   @map("numero_compte")
+  libelle       String   @map("libelle")
+  totalDebit    Decimal  @default(0) @map("total_debit") @db.Decimal(15, 2)
+  totalCredit   Decimal  @default(0) @map("total_credit") @db.Decimal(15, 2)
+  solde         Decimal  @default(0) @map("solde") @db.Decimal(15, 2)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, exerciceId, numeroCompte])
+  @@index([tenantId])
+  @@index([exerciceId])
+  @@map("balance_comptes")
+}
+
+// Logs IA Comptable (audit trail)
+model ComptaIaLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  action    String   @map("action") // classifier, analyser, suggestion, rapport, question
+  prompt    String   @map("prompt") @db.Text
+  reponse   String   @map("reponse") @db.Text
+  modele    String   @map("modele") // ex: "gpt-4o"
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("compta_ia_logs")
 }
 

@@ -26,6 +26,7 @@ import { callLogsRoutes } from './api/routes/call-logs.routes.js';
 import { twilioConfigRoutes } from './api/routes/twilio-config.routes.js';
 import { smsRoutes } from './api/routes/sms.routes.js';
 import { questionnairesRoutes } from './api/routes/questionnaires.routes.js';
+import { comptabiliteRoutes } from './api/routes/comptabilite.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -188,6 +189,9 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes questionnaires
 await fastify.register(async (fastify) => {
   await fastify.register(questionnairesRoutes, { prefix: '/api/questionnaires' });
+
+  // Comptabilité
+  await fastify.register(comptabiliteRoutes, { prefix: '/api/comptabilite' });
 });
 
 // Route de test

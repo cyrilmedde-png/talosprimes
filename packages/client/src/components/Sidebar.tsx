@@ -21,6 +21,7 @@ import {
   WrenchScrewdriverIcon,
   PhoneIcon,
   ChatBubbleLeftIcon,
+  CalculatorIcon,
   DocumentCheckIcon as QuestionIcon,
   Cog6ToothIcon as SettingsIcon,
 } from '@heroicons/react/24/outline';
@@ -54,6 +55,20 @@ const navGroups: NavGroup[] = [
       { name: 'Proformas', href: '/proforma', icon: DocumentCheckIcon },
       { name: 'Avoirs', href: '/avoir', icon: ReceiptRefundIcon },
       { name: 'Bons de commande', href: '/bons-commande', icon: DocumentDuplicateIcon },
+    ],
+  },
+  {
+    label: 'Comptabilité',
+    icon: CalculatorIcon,
+    items: [
+      { name: 'Tableau de bord', href: '/comptabilite', icon: CalculatorIcon },
+      { name: 'Écritures', href: '/comptabilite/ecritures', icon: DocumentTextIcon },
+      { name: 'Grand Livre', href: '/comptabilite/grand-livre', icon: ClipboardDocumentListIcon },
+      { name: 'Balance', href: '/comptabilite/balance', icon: BanknotesIcon },
+      { name: 'Bilan', href: '/comptabilite/bilan', icon: DocumentCheckIcon },
+      { name: 'Compte de Résultat', href: '/comptabilite/compte-resultat', icon: DocumentDuplicateIcon },
+      { name: 'TVA', href: '/comptabilite/tva', icon: ReceiptRefundIcon },
+      { name: 'Agent IA Comptable', href: '/comptabilite/ia', icon: SparklesIcon },
     ],
   },
   {
