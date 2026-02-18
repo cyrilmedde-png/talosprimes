@@ -356,15 +356,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             'client_create',
             bodyWithoutTenantId
           );
-          if (res.success) {
-            return reply.status(201).send({
-              success: true,
-              message: 'Client créé via n8n',
-              data: res.data,
-            });
+          if (!res.success) {
+            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
           }
-          // Fallback BDD si n8n indisponible
-          fastify.log.warn(`n8n client_create indisponible, fallback BDD: ${res.error}`);
+          return reply.status(201).send({
+            success: true,
+            message: 'Client créé via n8n',
+            data: res.data,
+          });
         }
 
         // Vérifier que l'email n'existe pas déjà pour ce tenant
@@ -514,27 +513,6 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Si on délègue les écritures à n8n (full no‑code)
-        if (tenantId && env.USE_N8N_COMMANDS) {
-          const res = await n8nService.callWorkflowReturn<{ client: unknown }>(
-            tenantId,
-            'client_update',
-            {
-              id: params.id,
-              ...body,
-            }
-          );
-          if (res.success) {
-            return reply.status(200).send({
-              success: true,
-              message: 'Client mis à jour via n8n',
-              data: res.data,
-            });
-          }
-          // Fallback BDD si n8n indisponible
-          fastify.log.warn(`n8n client_update indisponible, fallback BDD: ${res.error}`);
-        }
-
         // Mettre à jour le client
         const updatedClient = await prisma.clientFinal.update({
           where: {
@@ -648,15 +626,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             'client_delete',
             { id: params.id }
           );
-          if (res.success) {
-            return reply.status(200).send({
-              success: true,
-              message: 'Client supprimé via n8n',
-              data: res.data,
-            });
+          if (!res.success) {
+            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
           }
-          // Fallback BDD si n8n indisponible
-          fastify.log.warn(`n8n client_delete indisponible, fallback BDD: ${res.error}`);
+          return reply.status(200).send({
+            success: true,
+            message: 'Client supprimé via n8n',
+            data: res.data,
+          });
         }
 
         // Vérifier que le client existe et appartient au tenant

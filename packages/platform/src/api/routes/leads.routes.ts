@@ -70,15 +70,14 @@ export async function leadsRoutes(fastify: FastifyInstance) {
             ...data,
           }
         );
-        if (res.success) {
-          return reply.status(201).send({
-            success: true,
-            message: 'Lead créé via n8n',
-            data: { lead: res.data },
-          });
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
-        // Fallback BDD si n8n indisponible
-        fastify.log.warn(`n8n lead_create indisponible, fallback BDD: ${res.error}`);
+        return reply.status(201).send({
+          success: true,
+          message: 'Lead créé via n8n',
+          data: { lead: res.data },
+        });
       }
 
       // Vérifier si le lead existe déjà (par email)
@@ -224,11 +223,10 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'leads_list',
           { source, statut, limit: limit ?? '100' }
         );
-        if (result.success) {
-          return reply.send({ success: true, data: { leads: result.data?.leads ?? [] } });
+        if (!result.success) {
+          return reply.status(502).send({ success: false, error: result.error || 'Erreur n8n' });
         }
-        // Fallback BDD si n8n indisponible
-        fastify.log.warn(`n8n leads_list indisponible, fallback BDD: ${result.error}`);
+        return reply.send({ success: true, data: { leads: result.data?.leads ?? [] } });
       }
       
       const where: Record<string, unknown> = {};
@@ -293,14 +291,13 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'lead_get',
           { id: params.id }
         );
-        if (result.success) {
-          if (!result.data?.lead) {
-            return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
-          }
-          return reply.send({ success: true, data: { lead: result.data.lead } });
+        if (!result.success) {
+          return reply.status(502).send({ success: false, error: result.error || 'Erreur n8n' });
         }
-        // Fallback BDD si n8n indisponible
-        fastify.log.warn(`n8n lead_get indisponible, fallback BDD: ${result.error}`);
+        if (!result.data?.lead) {
+          return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+        }
+        return reply.send({ success: true, data: { lead: result.data.lead } });
       }
 
       const lead = await prisma.lead.findUnique({
@@ -350,15 +347,14 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'lead_update_status',
           { id: params.id, statut }
         );
-        if (res.success) {
-          return reply.send({
-            success: true,
-            message: 'Statut mis à jour (n8n)',
-            data: { lead: res.data },
-          });
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
-        // Fallback BDD si n8n indisponible
-        fastify.log.warn(`n8n lead_update_status indisponible, fallback BDD: ${res.error}`);
+        return reply.send({
+          success: true,
+          message: 'Statut mis à jour (n8n)',
+          data: { lead: res.data },
+        });
       }
 
       const lead = await prisma.lead.update({
@@ -420,14 +416,13 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'lead_delete',
           { id: params.id }
         );
-        if (res.success) {
-          return reply.send({
-            success: true,
-            message: 'Lead supprimé (n8n)',
-          });
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
-        // Fallback BDD si n8n indisponible
-        fastify.log.warn(`n8n lead_delete indisponible, fallback BDD: ${res.error}`);
+        return reply.send({
+          success: true,
+          message: 'Lead supprimé (n8n)',
+        });
       }
 
       // Fallback local si non délégué à n8n
