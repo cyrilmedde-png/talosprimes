@@ -99,7 +99,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rawAvoirs = $('Postgres List').all().map(item => item.json);\nconst countResult = $('Postgres Count').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst avoirs = rawAvoirs.map(a => ({\n  ...a,\n  clientFinal: a.client_final_id ? {\n    id: a.client_final_id,\n    nom: a.client_nom || null,\n    prenom: a.client_prenom || null,\n    email: a.client_email || null,\n    telephone: a.client_telephone || null,\n    raisonSociale: a.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  avoirs,\n  count: avoirs.length,\n  total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages,\n}}];"
+        "jsCode": "const rawAvoirs = $('Postgres List').all().map(item => item.json);\nconst countResult = $('Postgres Count').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('\\Parser').first().json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst avoirs = rawAvoirs.map(a => ({\n  ...a,\n  clientFinal: a.client_final_id ? {\n    id: a.client_final_id,\n    nom: a.client_nom || null,\n    prenom: a.client_prenom || null,\n    email: a.client_email || null,\n    telephone: a.client_telephone || null,\n    raisonSociale: a.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  avoirs,\n  count: avoirs.length,\n  total,\n  page: $('\\Parser').first().json.page,\n  limit: $('\\Parser').first().json.limit,\n  totalPages,\n}}];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

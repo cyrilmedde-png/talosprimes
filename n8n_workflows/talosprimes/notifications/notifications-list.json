@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const notifications = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $json.limit);\n\nreturn {\n  notifications: notifications,\n  count: notifications.length,\n  total: total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages: totalPages\n};"
+        "jsCode": "const notifications = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $('\\02. Parser').first().json.limit);\n\nreturn {\n  notifications: notifications,\n  count: notifications.length,\n  total: total,\n  page: $('\\02. Parser').first().json.page,\n  limit: $('\\02. Parser').first().json.limit,\n  totalPages: totalPages\n};"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

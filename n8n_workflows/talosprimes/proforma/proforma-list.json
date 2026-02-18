@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rawProforma = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst proforma = rawProforma.map(p => ({\n  ...p,\n  clientFinal: p.client_final_id ? {\n    id: p.client_final_id,\n    nom: p.client_nom || null,\n    prenom: p.client_prenom || null,\n    email: p.client_email || null,\n    telephone: p.client_telephone || null,\n    raisonSociale: p.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  proforma,\n  count: proforma.length,\n  total,\n  page: $json.page,\n  limit: $json.limit,\n  totalPages,\n}}];"
+        "jsCode": "const rawProforma = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\n// Nest client data into clientFinal object\nconst proforma = rawProforma.map(p => ({\n  ...p,\n  clientFinal: p.client_final_id ? {\n    id: p.client_final_id,\n    nom: p.client_nom || null,\n    prenom: p.client_prenom || null,\n    email: p.client_email || null,\n    telephone: p.client_telephone || null,\n    raisonSociale: p.client_raison_sociale || null,\n  } : null,\n}));\n\nreturn [{json: {\n  proforma,\n  count: proforma.length,\n  total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages,\n}}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
