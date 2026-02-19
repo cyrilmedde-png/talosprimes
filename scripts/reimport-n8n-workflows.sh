@@ -509,6 +509,12 @@ for node in nodes:
                     if new_id:
                         node['credentials'][cred_type]['id'] = new_id
 
+# STRIP credentials from ALL nodes before PUT
+# n8n re-validates on PUT and strips creds if API user lacks permissions.
+# By omitting them, n8n keeps existing credential assignments untouched.
+for node in nodes:
+    node.pop('credentials', None)
+
 # Remove read-only fields for PUT request
 for field in ['active', 'id', 'createdAt', 'updatedAt', 'versionId',
               'triggerCount', 'sharedWithProjects', 'homeProject', 'tags',
@@ -645,6 +651,13 @@ for node_name, backup_node in backup_nodes_by_name.items():
 # Update connections from backup (needed if new nodes were added or renamed)
 if backup.get('connections'):
     existing['connections'] = backup['connections']
+
+# STRIP credentials from ALL nodes before PUT
+# n8n re-validates credentials on PUT and strips them if the API user
+# doesn't have permission. By omitting them entirely, n8n keeps whatever
+# credentials were already assigned to existing nodes.
+for node in existing.get('nodes', []):
+    node.pop('credentials', None)
 
 # WHITELIST: only keep fields that n8n PUT /workflows/{id} accepts
 allowed_fields = {'name', 'nodes', 'connections', 'settings'}
