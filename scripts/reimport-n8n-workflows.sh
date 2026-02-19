@@ -182,6 +182,7 @@ fetch_all_workflows() {
 }
 
 # Find workflow ID by webhook path (reads from cache file)
+# Tries exact match first, then underscore/hyphen variants
 find_workflow_by_webhook() {
     local webhook_path="$1"
 
@@ -195,13 +196,34 @@ cache_file = os.environ.get('WORKFLOWS_CACHE', '')
 with open(cache_file, 'r') as f:
     data = json.load(f)
 
+# Build path variants: try hyphen, underscore, and original
+variants = {
+    webhook_path,
+    webhook_path.replace('-', '_'),
+    webhook_path.replace('_', '-'),
+}
+
+# Strategy 1: Match by webhook path (with variants)
 for workflow in data.get('data', []):
     for node in workflow.get('nodes', []):
         if node.get('type') == 'n8n-nodes-base.webhook':
             node_path = node.get('parameters', {}).get('path', '')
-            if node_path == webhook_path:
+            if node_path in variants:
                 print(workflow.get('id', ''))
                 exit(0)
+
+# Strategy 2: Match by workflow name (handles edge cases like inscription)
+name_variants = {
+    webhook_path.lower(),
+    webhook_path.replace('-', '_').lower(),
+    webhook_path.replace('_', '-').lower(),
+}
+for workflow in data.get('data', []):
+    wf_name = workflow.get('name', '').lower().strip()
+    if wf_name in name_variants:
+        print(workflow.get('id', ''))
+        exit(0)
+
 print('')
 PYEOF
 }
