@@ -741,12 +741,17 @@ async function executeTool(
         const tenantName = clientTenant?.nomEntreprise || 'Client inconnu';
 
         // Trouver le tenant parent (celui qui a créé l'espace client)
-        const clientSpace = await prisma.clientSpace.findFirst({
-          where: { clientTenantId: tenantId, status: 'actif' },
-          select: { tenantId: true },
-        });
-
-        const parentTenantId = clientSpace?.tenantId;
+        // Utilise $queryRawUnsafe pour éviter crash si table inexistante
+        let parentTenantId: string | null = null;
+        try {
+          const rows = (await prisma.$queryRawUnsafe(
+            `SELECT tenant_id FROM client_spaces WHERE client_tenant_id = $1 AND status = 'actif' LIMIT 1`,
+            tenantId
+          )) as Array<{ tenant_id: string }>;
+          parentTenantId = rows?.[0]?.tenant_id || null;
+        } catch {
+          // Table inexistante → on continue sans parent
+        }
 
         // Créer une notification dans le tenant parent (admin TalosPrimes)
         if (parentTenantId) {
@@ -801,14 +806,16 @@ export async function chatAgent(options: AgentChatOptions): Promise<AgentChatRes
   }
 
   // Détecter si le tenant est un client final (espace client restreint)
+  // Utilise $queryRawUnsafe pour éviter un crash si la table client_spaces n'existe pas encore
   let isClientFinal = false;
   try {
-    const clientSpace = await prisma.clientSpace.findFirst({
-      where: { clientTenantId: tenantId, status: 'actif' },
-    });
-    isClientFinal = !!clientSpace;
+    const rows = (await prisma.$queryRawUnsafe(
+      `SELECT id FROM client_spaces WHERE client_tenant_id = $1 AND status = 'actif' LIMIT 1`,
+      tenantId
+    )) as Array<{ id: string }>;
+    isClientFinal = Array.isArray(rows) && rows.length > 0;
   } catch {
-    // Si la table n'existe pas encore, ignorer
+    // Table inexistante ou migration pas encore jouée → mode admin par défaut
   }
 
   const systemPrompt = isClientFinal ? CLIENT_FINAL_SYSTEM_PROMPT : SUPER_AGENT_SYSTEM_PROMPT;
