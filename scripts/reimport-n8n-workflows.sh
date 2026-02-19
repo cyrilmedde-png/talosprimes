@@ -559,11 +559,11 @@ for node_name, backup_node in backup_nodes_by_name.items():
 if backup.get('connections'):
     existing['connections'] = backup['connections']
 
-# Remove read-only fields for PUT request
-for field in ['active', 'id', 'createdAt', 'updatedAt', 'versionId',
-              'triggerCount', 'sharedWithProjects', 'homeProject', 'tags',
-              'meta', 'pinData', 'staticData']:
-    existing.pop(field, None)
+# WHITELIST: only keep fields that n8n PUT /workflows/{id} accepts
+allowed_fields = {'name', 'nodes', 'connections', 'settings'}
+keys_to_remove = [k for k in existing.keys() if k not in allowed_fields]
+for k in keys_to_remove:
+    del existing[k]
 
 # Output changes to stderr for logging
 for c in changes:
