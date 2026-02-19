@@ -148,6 +148,15 @@ test_webhook "logs-list" "logs-list" \
 test_webhook "logs-stats" "logs-stats" \
     "{\"tenantId\":\"$TENANT_ID\"}"
 
+test_webhook "invoices-list" "invoices-list" \
+    "{\"tenantId\":\"$TENANT_ID\",\"page\":1,\"limit\":10}"
+
+test_webhook "avoir-list" "avoir-list" \
+    "{\"tenantId\":\"$TENANT_ID\",\"page\":1,\"limit\":10}"
+
+test_webhook "article-codes-list" "article-codes-list" \
+    "{\"tenantId\":\"$TENANT_ID\"}"
+
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}Step 3: Test GET Endpoints (with fake UUID)${NC}"
@@ -163,6 +172,12 @@ test_webhook "bdc-get" "bdc-get" \
 
 test_webhook "proforma-get" "proforma-get" \
     "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "invoice-get" "invoice-get" \
+    "{\"tenantId\":\"$TENANT_ID\",\"invoiceId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "avoir-get" "avoir-get" \
+    "{\"tenantId\":\"$TENANT_ID\",\"avoirId\":\"$FAKE_UUID\"}" "allow_empty"
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -182,6 +197,12 @@ test_webhook "bdc-created" "bdc-created" \
 
 test_webhook "proforma-created" "proforma-created" \
     "{\"tenantId\":\"$TENANT_ID\",\"clientFinalId\":\"$FAKE_UUID\",\"montantHt\":150,\"tvaTaux\":20,\"lines\":[]}" "allow_empty"
+
+test_webhook "invoice-created" "invoice-created" \
+    "{\"tenantId\":\"$TENANT_ID\",\"clientFinalId\":\"$FAKE_UUID\",\"montantHt\":300,\"tvaTaux\":20,\"type\":\"facture_client_final\",\"lines\":[]}" "allow_empty"
+
+test_webhook "avoir-created" "avoir-created" \
+    "{\"tenantId\":\"$TENANT_ID\",\"clientFinalId\":\"$FAKE_UUID\",\"montantHt\":50,\"tvaTaux\":20,\"lines\":[]}" "allow_empty"
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -227,6 +248,27 @@ test_webhook "proforma-deleted" "proforma-deleted" \
 
 test_webhook "proforma-convert-to-invoice" "proforma-convert-to-invoice" \
     "{\"tenantId\":\"$TENANT_ID\",\"proformaId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "invoice-sent" "invoice-sent" \
+    "{\"tenantId\":\"$TENANT_ID\",\"invoiceId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "invoice-paid" "invoice-paid" \
+    "{\"tenantId\":\"$TENANT_ID\",\"invoiceId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "invoice-deleted" "invoice-deleted" \
+    "{\"tenantId\":\"$TENANT_ID\",\"invoiceId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "invoice-convert-to-avoir" "invoice-convert-to-avoir" \
+    "{\"tenantId\":\"$TENANT_ID\",\"invoiceId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "avoir-validated" "avoir-validated" \
+    "{\"tenantId\":\"$TENANT_ID\",\"avoirId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "avoir-deleted" "avoir-deleted" \
+    "{\"tenantId\":\"$TENANT_ID\",\"avoirId\":\"$FAKE_UUID\"}" "allow_empty"
+
+test_webhook "devis-convert-to-bdc" "devis-convert-to-bdc" \
+    "{\"tenantId\":\"$TENANT_ID\",\"devisId\":\"$FAKE_UUID\"}" "allow_empty"
 
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

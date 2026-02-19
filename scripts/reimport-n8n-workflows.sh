@@ -206,20 +206,61 @@ print('')
 PYEOF
 }
 
+# Get existing workflow's credential configuration from n8n (keyed by node name)
+get_existing_credentials() {
+    local workflow_id="$1"
+
+    export WF_ID="$workflow_id"
+    python3 << 'PYEOF'
+import json, os
+
+cache_file = os.environ.get('WORKFLOWS_CACHE', '')
+wf_id = os.environ.get('WF_ID', '')
+
+with open(cache_file, 'r') as f:
+    data = json.load(f)
+
+# Find the workflow by ID and extract credential config per node
+creds = {}
+for workflow in data.get('data', []):
+    if str(workflow.get('id', '')) == wf_id:
+        for node in workflow.get('nodes', []):
+            node_creds = node.get('credentials', {})
+            if node_creds:
+                creds[node.get('name', '')] = node_creds
+                # Also map by node type for fallback matching
+                creds['__type__' + node.get('type', '')] = node_creds
+        break
+
+print(json.dumps(creds))
+PYEOF
+}
+
 # Replace credential IDs in workflow JSON
+# $1 = backup JSON file path
+# $2 = existing credentials JSON (from get_existing_credentials)
 replace_credentials_in_workflow() {
     local backup_json="$1"
+    local existing_creds="${2:-{}}"
 
     export BACKUP_FILE="$backup_json"
+    export EXISTING_CREDS="$existing_creds"
     python3 << 'PYEOF'
 import json, os
 
 backup_file = os.environ.get('BACKUP_FILE', '')
+existing_creds_str = os.environ.get('EXISTING_CREDS', '{}')
 
 with open(backup_file, 'r') as f:
     workflow = json.load(f)
 
-# Credential mappings
+# Parse existing credentials from n8n (already working in production)
+try:
+    existing_creds = json.loads(existing_creds_str)
+except:
+    existing_creds = {}
+
+# Fallback credential mappings (only used if no existing creds found)
 cred_map = {
     "postgres": "6Kosza77d9Ld32mw",
     "Supabase Postgres": "6Kosza77d9Ld32mw",
@@ -379,16 +420,26 @@ for node in nodes:
                 query = query.replace(', updated_at', '')
             params['query'] = query
 
-    # Replace credential IDs
-    credentials = node.get('credentials', {})
-    for cred_type, cred_info in credentials.items():
-        if isinstance(cred_info, dict):
-            cred_name = cred_info.get('name', '')
-            cred_id = cred_info.get('id', '')
-            if 'REPLACE_WITH' in cred_id or cred_name in cred_map:
-                new_id = cred_map.get(cred_name) or cred_map.get(cred_type)
-                if new_id:
-                    node['credentials'][cred_type]['id'] = new_id
+    # Replace credential IDs - prefer existing n8n credentials over hardcoded map
+    node_name = node.get('name', '')
+    node_type = node.get('type', '')
+
+    # Strategy 1: Use EXISTING credentials from the live n8n workflow (best - preserves auth)
+    if node_name in existing_creds:
+        node['credentials'] = existing_creds[node_name]
+    elif '__type__' + node_type in existing_creds:
+        node['credentials'] = existing_creds['__type__' + node_type]
+    else:
+        # Strategy 2: Fallback to hardcoded credential map
+        credentials = node.get('credentials', {})
+        for cred_type, cred_info in credentials.items():
+            if isinstance(cred_info, dict):
+                cred_name = cred_info.get('name', '')
+                cred_id = cred_info.get('id', '')
+                if 'REPLACE_WITH' in cred_id or cred_name in cred_map:
+                    new_id = cred_map.get(cred_name) or cred_map.get(cred_type)
+                    if new_id:
+                        node['credentials'][cred_type]['id'] = new_id
 
 # Remove read-only fields for PUT request
 for field in ['active', 'id', 'createdAt', 'updatedAt', 'versionId',
@@ -514,9 +565,14 @@ process_workflow() {
         return 1
     fi
 
-    # Replace credentials in the backup JSON
+    # Get existing credentials from the live n8n workflow (preserves auth links)
+    local existing_creds
+    existing_creds=$(get_existing_credentials "$workflow_id")
+    log "INFO" "Fetched existing credentials for workflow $workflow_id"
+
+    # Replace credentials in the backup JSON, preferring existing ones
     local updated_json
-    updated_json=$(replace_credentials_in_workflow "$backup_file")
+    updated_json=$(replace_credentials_in_workflow "$backup_file" "$existing_creds")
 
     if [ -z "$updated_json" ]; then
         log "ERROR" "Failed to process credentials for: $relative_path"
@@ -571,52 +627,26 @@ main() {
     header "Fetching Existing Workflows"
     fetch_all_workflows || exit 1
 
-    # Define workflows to reimport
+    # Auto-discover ALL workflow JSON files in backup directory
     header "Processing Workflows"
-    declare -a WORKFLOWS_TO_REIMPORT=(
-        "devis/devis-list.json"
-        "devis/devis-get.json"
-        "devis/devis-created.json"
-        "devis/devis-sent.json"
-        "devis/devis-accepted.json"
-        "devis/devis-deleted.json"
-        "devis/devis-convert-to-invoice.json"
-        "bons-commande/bdc-list.json"
-        "bons-commande/bdc-get.json"
-        "bons-commande/bdc-created.json"
-        "bons-commande/bdc-validated.json"
-        "bons-commande/bdc-deleted.json"
-        "bons-commande/bdc-convert-to-invoice.json"
-        "proforma/proforma-list.json"
-        "proforma/proforma-get.json"
-        "proforma/proforma-created.json"
-        "proforma/proforma-sent.json"
-        "proforma/proforma-accepted.json"
-        "proforma/proforma-deleted.json"
-        "proforma/proforma-convert-to-invoice.json"
-        "notifications/notification-created.json"
-        "notifications/notification-deleted.json"
-        "notifications/notification-read.json"
-        "notifications/notifications-list.json"
-        "logs/logs-list.json"
-        "logs/logs-stats.json"
-        "agent-telephonique/twilio-outbound-call.json"
-        "agent-telephonique/twilio-test-call.json"
-    )
+    log "INFO" "Auto-discovering all workflow JSON files in $BACKUP_DIR..."
 
-    # Process each workflow
-    for workflow_path in "${WORKFLOWS_TO_REIMPORT[@]}"; do
-        local backup_file="$BACKUP_DIR/$workflow_path"
-
-        if [ ! -f "$backup_file" ]; then
-            log "WARN" "Backup file not found: $workflow_path"
-            SKIPPED_WORKFLOWS=$((SKIPPED_WORKFLOWS + 1))
+    local workflow_count=0
+    while IFS= read -r -d '' backup_file; do
+        # Skip non-workflow files (e.g., Super-Agent mega-workflow)
+        local filename
+        filename=$(basename "$backup_file" .json)
+        if [[ "$filename" == "Super-Agent"* ]] || [[ "$filename" == "auto-publish"* ]]; then
+            log "INFO" "Skipping non-webhook workflow: $filename"
             continue
         fi
 
+        workflow_count=$((workflow_count + 1))
         process_workflow "$backup_file"
         echo "" | tee -a "$LOG_FILE"
-    done
+    done < <(find "$BACKUP_DIR" -name "*.json" -type f -print0 | sort -z)
+
+    log "INFO" "Discovered $workflow_count workflow files"
 
     # Summary
     header "Summary"
