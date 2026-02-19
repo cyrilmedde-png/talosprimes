@@ -81,6 +81,10 @@ declare -A CREDENTIAL_MAP=(
     ["Gmail account"]="jzveDrdzJcs9iv7R"
     # Google Calendar
     ["Google Calendar account"]="1098OxGMJM5eG3PU"
+    # SSH VPS
+    ["SSH VPS TalosPrimes"]="b7jMAjh1KJcIwqdo"
+    # SMTP
+    ["SMTP TalosPrimes"]="hepAQJGA9ubd1NF4"
 )
 
 # Color codes for output
