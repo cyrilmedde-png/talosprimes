@@ -81,6 +81,17 @@ DOCKER_CMD="$DOCKER_CMD -e N8N_PORT=443"
 DOCKER_CMD="$DOCKER_CMD -e WEBHOOK_URL=https://n8n.talosprimes.com/"
 DOCKER_CMD="$DOCKER_CMD -e N8N_METRICS=true"
 
+# Variable d'environnement pour l'API TalosPrimes (utilisée dans les workflows via $env.TALOSPRIMES_N8N_SECRET)
+if [ -n "$TALOSPRIMES_N8N_SECRET" ]; then
+  DOCKER_CMD="$DOCKER_CMD -e TALOSPRIMES_N8N_SECRET=$TALOSPRIMES_N8N_SECRET"
+elif [ -f "/var/www/talosprimes/packages/platform/.env" ]; then
+  TP_SECRET=$(grep -E '^N8N_WEBHOOK_SECRET=' /var/www/talosprimes/packages/platform/.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+  if [ -n "$TP_SECRET" ]; then
+    DOCKER_CMD="$DOCKER_CMD -e TALOSPRIMES_N8N_SECRET=$TP_SECRET"
+    echo -e "${GREEN}  ✓ TALOSPRIMES_N8N_SECRET chargé depuis .env${NC}"
+  fi
+fi
+
 # Image
 DOCKER_CMD="$DOCKER_CMD docker.n8n.io/n8nio/n8n"
 

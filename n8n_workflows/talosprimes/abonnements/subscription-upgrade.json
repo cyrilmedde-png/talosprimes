@@ -108,7 +108,7 @@
       "parameters": {
         "url": "=https://api.stripe.com/v1/subscriptions/{{ $json.idAbonnementStripe }}",
         "method": "POST",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -132,7 +132,8 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "genericAuthType": "stripeApi"
       },
       "id": "stripe-update-subscription",
       "name": "07. Stripe - Mettre à jour abonnement",
@@ -143,7 +144,7 @@
         200
       ],
       "credentials": {
-        "headerAuth": {
+        "stripeApi": {
           "id": "hTgbVXtv3dG8wSJ4",
           "name": "Stripe API"
         }
@@ -242,7 +243,6 @@
       "parameters": {
         "url": "https://api.talosprimes.com/api/notifications",
         "method": "POST",
-        "authentication": "headerAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -255,7 +255,16 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "id": "send-notification",
       "name": "13. Envoyer notification TalosPrimes",
@@ -265,12 +274,6 @@
         2880,
         250
       ],
-      "credentials": {
-        "headerAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      },
       "onError": "continueErrorOutput"
     },
     {
@@ -288,35 +291,27 @@
     },
     {
       "parameters": {
-        "url": "https://api.resend.com/emails",
-        "method": "POST",
-        "authentication": "headerAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  from: 'TalosPrimes <noreply@talosprimes.com>',\n  to: $json.to,\n  subject: $json.subject,\n  html: $json.html\n}) }}",
-        "options": {}
+        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
+        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "send-email",
       "name": "15. Envoyer email",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         3320,
         300
       ],
       "credentials": {
-        "headerAuth": {
-          "id": "ZoJkKnTqGisK2Idh",
-          "name": "Resend API"
+        "smtp": {
+          "id": "hepAQJGA9ubd1NF4",
+          "name": "SMTP account"
         }
       }
     },

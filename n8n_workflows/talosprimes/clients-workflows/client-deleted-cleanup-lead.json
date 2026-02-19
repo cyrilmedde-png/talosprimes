@@ -35,7 +35,15 @@
         "method": "GET",
         "url": "https://api.talosprimes.com/api/leads?statut=converti&limit=500",
         "options": {
-          "timeout": 15000
+          "timeout": 15000,
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
         }
       },
       "id": "HTTP_GetLeads",
@@ -45,13 +53,7 @@
       "position": [
         740,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -94,7 +96,15 @@
         "specifyBody": "json",
         "jsonBody": "{\"statut\":\"abandonne\"}",
         "options": {
-          "timeout": 15000
+          "timeout": 15000,
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
         }
       },
       "id": "HTTP_PatchLeadStatut",
@@ -104,13 +114,7 @@
       "position": [
         1400,
         200
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {

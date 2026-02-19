@@ -35,7 +35,15 @@
         "method": "DELETE",
         "url": "=https://api.talosprimes.com/api/leads/{{$json.id}}",
         "options": {
-          "timeout": 15000
+          "timeout": 15000,
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
         }
       },
       "id": "HTTP_Delete",
@@ -45,13 +53,7 @@
       "position": [
         780,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {

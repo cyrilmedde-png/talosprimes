@@ -92,35 +92,27 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "authentication": "headerAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"TalosPrimes <noreply@talosprimes.com>\",\n  \"to\": [\"{{ $json.to }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
+        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
+        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
         "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          }
+          "appendAttribution": false
         }
       },
       "id": "resend-email",
-      "name": "Resend - Email Confirmation",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "SMTP - Email Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         1120,
         200
       ],
       "credentials": {
-        "headerAuth": {
-          "id": "ZoJkKnTqGisK2Idh",
-          "name": "Resend API"
+        "smtp": {
+          "id": "hepAQJGA9ubd1NF4",
+          "name": "SMTP account"
         }
       }
     },
@@ -175,35 +167,27 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "authentication": "headerAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"TalosPrimes <noreply@talosprimes.com>\",\n  \"to\": [\"{{ $json.to }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
+        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
+        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
         "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          }
+          "appendAttribution": false
         }
       },
       "id": "resend-notif",
-      "name": "Resend - Notification Équipe",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "SMTP - Notification Équipe",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         1120,
         600
       ],
       "credentials": {
-        "headerAuth": {
-          "id": "ZoJkKnTqGisK2Idh",
-          "name": "Resend API"
+        "smtp": {
+          "id": "hepAQJGA9ubd1NF4",
+          "name": "SMTP account"
         }
       }
     },
@@ -252,35 +236,27 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "authentication": "headerAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"TalosPrimes <noreply@talosprimes.com>\",\n  \"to\": [\"{{ $json.to }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }}\n}",
+        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
+        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
         "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          }
+          "appendAttribution": false
         }
       },
       "id": "error-email",
-      "name": "Resend - Email Alerte",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "SMTP - Email Alerte",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         1120,
         800
       ],
       "credentials": {
-        "headerAuth": {
-          "id": "ZoJkKnTqGisK2Idh",
-          "name": "Resend API"
+        "smtp": {
+          "id": "hepAQJGA9ubd1NF4",
+          "name": "SMTP account"
         }
       }
     },
@@ -379,14 +355,14 @@
       "main": [
         [
           {
-            "node": "Resend - Email Confirmation",
+            "node": "SMTP - Email Confirmation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Resend - Email Confirmation": {
+    "SMTP - Email Confirmation": {
       "main": [
         [
           {
@@ -441,14 +417,14 @@
       "main": [
         [
           {
-            "node": "Resend - Notification Équipe",
+            "node": "SMTP - Notification Équipe",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Resend - Notification Équipe": {
+    "SMTP - Notification Équipe": {
       "main": [
         [
           {
@@ -483,14 +459,14 @@
       "main": [
         [
           {
-            "node": "Resend - Email Alerte",
+            "node": "SMTP - Email Alerte",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Resend - Email Alerte": {
+    "SMTP - Email Alerte": {
       "main": [
         [
           {

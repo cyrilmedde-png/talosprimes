@@ -40,6 +40,14 @@
             "response": {
               "fullResponse": false
             }
+          },
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
           }
         }
       },
@@ -50,13 +58,7 @@
       "position": [
         680,
         400
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -79,7 +81,15 @@
         "specifyBody": "json",
         "jsonBody": "={{ { statut: 'converti' } }}",
         "options": {
-          "timeout": 15000
+          "timeout": 15000,
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
         }
       },
       "id": "HTTP_UpdateStatus",
@@ -89,13 +99,7 @@
       "position": [
         1120,
         400
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -123,6 +127,14 @@
             "response": {
               "fullResponse": false
             }
+          },
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
           }
         }
       },
@@ -133,13 +145,7 @@
       "position": [
         1560,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -169,34 +175,27 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"{{ $json.from }}\",\n  \"to\": {{ JSON.stringify($json.to) }},\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": {{ JSON.stringify($json.html) }},\n  \"text\": {{ JSON.stringify($json.text) }}\n}",
+        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
+        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
         "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          }
+          "appendAttribution": false
         }
       },
       "id": "HTTP_Resend",
-      "name": "10. Resend - Email Client",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "10. SMTP - Email Client",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         2000,
         400
       ],
       "credentials": {
-        "headerAuth": {
-          "id": "ZoJkKnTqGisK2Idh",
-          "name": "Resend API"
+        "smtp": {
+          "id": "hepAQJGA9ubd1NF4",
+          "name": "SMTP account"
         }
       }
     },
@@ -226,6 +225,14 @@
             "response": {
               "fullResponse": false
             }
+          },
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
           }
         }
       },
@@ -236,13 +243,7 @@
       "position": [
         2440,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -287,6 +288,14 @@
             "response": {
               "fullResponse": false
             }
+          },
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
           }
         }
       },
@@ -297,13 +306,7 @@
       "position": [
         1120,
         800
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -468,7 +471,7 @@
       "main": [
         [
           {
-            "node": "10. Resend - Email Client",
+            "node": "10. SMTP - Email Client",
             "type": "main",
             "index": 0
           }
@@ -484,7 +487,7 @@
         ]
       ]
     },
-    "10. Resend - Email Client": {
+    "10. SMTP - Email Client": {
       "main": [
         [
           {

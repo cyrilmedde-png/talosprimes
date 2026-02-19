@@ -21,8 +21,8 @@
       "parameters": {
         "method": "GET",
         "url": "http://localhost:5678/api/v1/workflows?limit=250",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
+        "genericAuthType": "n8nApi",
         "options": {}
       },
       "id": "list-all-workflows",
@@ -34,9 +34,9 @@
         300
       ],
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "soHoxOtlUU9xdHDu",
-          "name": "n8n API Key"
+        "n8nApi": {
+          "id": "N5FiL4XUZONkuHqg",
+          "name": "n8n account"
         }
       }
     },
@@ -70,8 +70,8 @@
       "parameters": {
         "method": "POST",
         "url": "=http://localhost:5678/api/v1/workflows/{{ $json.id }}/activate",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
+        "genericAuthType": "n8nApi",
         "options": {}
       },
       "id": "activate-workflow",
@@ -83,9 +83,9 @@
         300
       ],
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "soHoxOtlUU9xdHDu",
-          "name": "n8n API Key"
+        "n8nApi": {
+          "id": "N5FiL4XUZONkuHqg",
+          "name": "n8n account"
         }
       },
       "onError": "continueRegularOutput"

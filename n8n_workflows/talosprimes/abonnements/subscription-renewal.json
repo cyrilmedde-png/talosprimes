@@ -112,8 +112,9 @@
       "parameters": {
         "url": "=https://api.stripe.com/v1/subscriptions/{{ $node['05. Préparer renouvellement'].json.subscription.id_abonnement_stripe }}",
         "method": "GET",
-        "authentication": "headerAuth",
-        "options": {}
+        "authentication": "predefinedCredentialType",
+        "options": {},
+        "genericAuthType": "stripeApi"
       },
       "id": "stripe-get-subscription",
       "name": "07. Stripe - Vérifier abonnement",
@@ -124,7 +125,7 @@
         200
       ],
       "credentials": {
-        "headerAuth": {
+        "stripeApi": {
           "id": "hTgbVXtv3dG8wSJ4",
           "name": "Stripe API"
         }
@@ -241,34 +242,27 @@
     },
     {
       "parameters": {
-        "url": "=https://api.resend.com/emails",
-        "method": "POST",
-        "authentication": "headerAuth",
+        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
+        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
         "options": {
-          "headers": {
-            "parameters": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          }
-        },
-        "bodyParametersUi": "json",
-        "body": "{{ JSON.stringify({\n  from: 'notifications@talosprimes.com',\n  to: $json.clientEmail,\n  subject: `Confirmation de renouvellement - Facture ${$json.invoiceNumber}`,\n  html: $json.htmlContent\n}) }}"
+          "appendAttribution": false
+        }
       },
       "id": "send-email",
       "name": "14. Envoyer email Resend",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         2880,
         300
       ],
       "credentials": {
-        "headerAuth": {
-          "id": "ZoJkKnTqGisK2Idh",
-          "name": "Resend API"
+        "smtp": {
+          "id": "hepAQJGA9ubd1NF4",
+          "name": "SMTP account"
         }
       }
     },
@@ -276,13 +270,18 @@
       "parameters": {
         "url": "=https://api.talosprimes.com/api/notifications",
         "method": "POST",
-        "authentication": "headerAuth",
         "options": {
           "headers": {
             "parameters": [
               {
                 "name": "Content-Type",
                 "value": "application/json"
+              }
+            ],
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
               }
             ]
           }
@@ -297,13 +296,7 @@
       "position": [
         3100,
         300
-      ],
-      "credentials": {
-        "headerAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      ]
     },
     {
       "parameters": {

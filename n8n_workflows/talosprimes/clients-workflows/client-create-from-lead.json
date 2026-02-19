@@ -40,6 +40,14 @@
             "response": {
               "fullResponse": false
             }
+          },
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
           }
         }
       },
@@ -50,13 +58,7 @@
       "position": [
         780,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -79,7 +81,15 @@
         "specifyBody": "json",
         "jsonBody": "={{ { statut: 'converti' } }}",
         "options": {
-          "timeout": 15000
+          "timeout": 15000,
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
         }
       },
       "id": "HTTP_UpdateLeadStatus",
@@ -89,13 +99,7 @@
       "position": [
         1260,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -105,7 +109,15 @@
         "specifyBody": "json",
         "jsonBody": "={{ { tenantId: $('Préparer données client').first().json.tenantId, type: $('Préparer données client').first().json.type, nom: $('Préparer données client').first().json.nom, prenom: $('Préparer données client').first().json.prenom, email: $('Préparer données client').first().json.email, telephone: $('Préparer données client').first().json.telephone } }}",
         "options": {
-          "timeout": 15000
+          "timeout": 15000,
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
         }
       },
       "id": "HTTP_CreateClient",
@@ -115,13 +127,7 @@
       "position": [
         1500,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {

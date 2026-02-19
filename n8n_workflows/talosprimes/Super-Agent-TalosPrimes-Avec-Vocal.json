@@ -82,7 +82,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/audio/transcriptions",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
@@ -102,7 +102,8 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "genericAuthType": "openAiApi"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -113,9 +114,9 @@
       "id": "n-whisper",
       "name": "Transcription Whisper",
       "credentials": {
-        "headerAuth": {
+        "openAiApi": {
           "id": "MmpYHYAt746xfTrB",
-          "name": "OpenAI API Key (Header)"
+          "name": "OpenAi account"
         }
       }
     },
@@ -310,7 +311,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/audio/speech",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -331,7 +332,8 @@
               "outputPropertyName": "data"
             }
           }
-        }
+        },
+        "genericAuthType": "openAiApi"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -342,9 +344,9 @@
       "id": "n-tts",
       "name": "Synthèse Vocale (TTS)",
       "credentials": {
-        "headerAuth": {
+        "openAiApi": {
           "id": "MmpYHYAt746xfTrB",
-          "name": "OpenAI API Key (Header)"
+          "name": "OpenAi account"
         }
       }
     },
@@ -559,9 +561,16 @@
       "parameters": {
         "toolDescription": "Liste tous les leads (prospects). Utilise cet outil pour afficher les leads, filtrer par statut ou source si besoin. Pas de paramètre requis pour une liste complète.",
         "url": "https://api.talosprimes.com/api/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -570,21 +579,22 @@
         80
       ],
       "id": "3918245a-4201-4c93-9ab4-28ed8d11da74",
-      "name": "lister_leads",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "lister_leads"
     },
     {
       "parameters": {
         "toolDescription": "Liste tous les clients. Utilise cet outil pour afficher les clients de l'application.",
         "url": "https://api.talosprimes.com/api/clients",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -593,13 +603,7 @@
         80
       ],
       "id": "51821c7c-5d9b-4d44-ade3-c48549634a77",
-      "name": "lister_clients",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "lister_clients"
     },
     {
       "parameters": {
@@ -613,9 +617,16 @@
             }
           ]
         },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -624,13 +635,7 @@
         200
       ],
       "id": "tool-get-lead",
-      "name": "obtenir_lead",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "obtenir_lead"
     },
     {
       "parameters": {
@@ -641,9 +646,16 @@
         "contentType": "json",
         "specifyBody": "json",
         "bodyParametersJson": "",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -652,13 +664,7 @@
         200
       ],
       "id": "tool-create-lead",
-      "name": "creer_lead",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "creer_lead"
     },
     {
       "parameters": {
@@ -677,9 +683,16 @@
         "contentType": "json",
         "specifyBody": "json",
         "bodyParametersJson": "",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -688,13 +701,7 @@
         200
       ],
       "id": "tool-update-lead-statut",
-      "name": "modifier_statut_lead",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "modifier_statut_lead"
     },
     {
       "parameters": {
@@ -709,9 +716,16 @@
             }
           ]
         },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -720,13 +734,7 @@
         200
       ],
       "id": "tool-delete-lead",
-      "name": "supprimer_lead",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "supprimer_lead"
     },
     {
       "parameters": {
@@ -740,9 +748,16 @@
             }
           ]
         },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -751,13 +766,7 @@
         320
       ],
       "id": "tool-get-client",
-      "name": "obtenir_client",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "obtenir_client"
     },
     {
       "parameters": {
@@ -768,9 +777,16 @@
         "contentType": "json",
         "specifyBody": "json",
         "bodyParametersJson": "",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -779,13 +795,7 @@
         320
       ],
       "id": "tool-create-client",
-      "name": "creer_client",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "creer_client"
     },
     {
       "parameters": {
@@ -804,9 +814,16 @@
         "contentType": "json",
         "specifyBody": "json",
         "bodyParametersJson": "",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -815,13 +832,7 @@
         320
       ],
       "id": "tool-update-client",
-      "name": "modifier_client",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "modifier_client"
     },
     {
       "parameters": {
@@ -836,9 +847,16 @@
             }
           ]
         },
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -847,13 +865,7 @@
         320
       ],
       "id": "tool-delete-client",
-      "name": "supprimer_client",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "supprimer_client"
     },
     {
       "parameters": {
@@ -864,9 +876,16 @@
         "contentType": "json",
         "specifyBody": "json",
         "bodyParametersJson": "",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -875,13 +894,7 @@
         440
       ],
       "id": "tool-envoyer-notification",
-      "name": "envoyer_notification",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "TalosPrimes API"
-        }
-      }
+      "name": "envoyer_notification"
     },
     {
       "parameters": {

@@ -38,7 +38,15 @@
         "specifyBody": "json",
         "jsonBody": "={{ { statut: $json.statut } }}",
         "options": {
-          "timeout": 15000
+          "timeout": 15000,
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
         }
       },
       "id": "HTTP_Update",
@@ -48,13 +56,7 @@
       "position": [
         780,
         300
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "AuJmz6W8aeutvysV",
-          "name": "TalosPrimes API Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {

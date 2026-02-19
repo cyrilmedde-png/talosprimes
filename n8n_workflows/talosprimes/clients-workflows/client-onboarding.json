@@ -80,7 +80,7 @@
       "parameters": {
         "url": "https://api.stripe.com/v1/customers",
         "method": "POST",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -112,7 +112,8 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "genericAuthType": "stripeApi"
       },
       "id": "stripe-create-customer",
       "name": "04. Stripe - Créer Customer",
@@ -123,7 +124,7 @@
         300
       ],
       "credentials": {
-        "headerAuth": {
+        "stripeApi": {
           "id": "hTgbVXtv3dG8wSJ4",
           "name": "Stripe API"
         }
@@ -133,7 +134,7 @@
       "parameters": {
         "url": "https://api.stripe.com/v1/products",
         "method": "POST",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -157,7 +158,8 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "genericAuthType": "stripeApi"
       },
       "id": "stripe-create-product",
       "name": "05. Stripe - Créer Produit",
@@ -168,7 +170,7 @@
         300
       ],
       "credentials": {
-        "headerAuth": {
+        "stripeApi": {
           "id": "hTgbVXtv3dG8wSJ4",
           "name": "Stripe API"
         }
@@ -178,7 +180,7 @@
       "parameters": {
         "url": "https://api.stripe.com/v1/prices",
         "method": "POST",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -214,7 +216,8 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "genericAuthType": "stripeApi"
       },
       "id": "stripe-create-price",
       "name": "06. Stripe - Créer Prix",
@@ -225,7 +228,7 @@
         300
       ],
       "credentials": {
-        "headerAuth": {
+        "stripeApi": {
           "id": "hTgbVXtv3dG8wSJ4",
           "name": "Stripe API"
         }
@@ -248,7 +251,7 @@
       "parameters": {
         "url": "https://api.stripe.com/v1/checkout/sessions",
         "method": "POST",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -312,7 +315,8 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "genericAuthType": "stripeApi"
       },
       "id": "stripe-create-checkout",
       "name": "07. Stripe - Créer Session Checkout",
@@ -323,7 +327,7 @@
         380
       ],
       "credentials": {
-        "headerAuth": {
+        "stripeApi": {
           "id": "hTgbVXtv3dG8wSJ4",
           "name": "Stripe API"
         }
@@ -458,7 +462,6 @@
     {
       "parameters": {
         "url": "={{ $env.N8N_WEBHOOK_BASE_URL || 'https://n8n.talosprimes.com' }}/webhook/client-space-create",
-        "authentication": "headerAuth",
         "method": "POST",
         "sendHeaders": true,
         "headerParameters": {
@@ -472,7 +475,16 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  tenantId: $json.tenantId,\n  clientFinalId: $json.clientFinalId,\n  raisonSociale: $json.raisonSociale || '',\n  nom: $json.nom || '',\n  prenom: $json.prenom || '',\n  modulesInclus: $json.modulesInclus || []\n}) }}",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "id": "create-client-space",
       "name": "10c. Créer espace client",
@@ -481,13 +493,7 @@
       "position": [
         2220,
         500
-      ],
-      "credentials": {
-        "headerAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes - Header Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -518,7 +524,6 @@
     {
       "parameters": {
         "url": "https://api.talosprimes.com/api/notifications",
-        "authentication": "headerAuth",
         "method": "POST",
         "sendHeaders": true,
         "headerParameters": {
@@ -532,7 +537,16 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {}
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
+              }
+            ]
+          }
+        }
       },
       "id": "create-notification",
       "name": "12. Créer notification",
@@ -541,13 +555,7 @@
       "position": [
         2660,
         650
-      ],
-      "credentials": {
-        "headerAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes - Header Auth"
-        }
-      }
+      ]
     },
     {
       "parameters": {
