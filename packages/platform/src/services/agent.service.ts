@@ -738,7 +738,7 @@ async function executeTool(
 
         // Récupérer le tenant pour identifier le client
         const clientTenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-        const tenantName = clientTenant?.nom || 'Client inconnu';
+        const tenantName = clientTenant?.nomEntreprise || 'Client inconnu';
 
         // Trouver le tenant parent (celui qui a créé l'espace client)
         const clientSpace = await prisma.clientSpace.findFirst({
@@ -757,17 +757,20 @@ async function executeTool(
               message: `Client "${tenantName}" : ${messageText}`,
               type: 'support',
               lu: false,
+              donnees: { priorite, clientTenantId: tenantId },
             },
           });
         }
 
-        // Aussi créer un log pour traçabilité
-        await prisma.log.create({
+        // Notification côté client pour traçabilité
+        await prisma.notification.create({
           data: {
             tenantId,
-            action: 'contact_support',
-            entite: 'support',
-            details: { sujet, message: messageText, priorite, parentTenantId },
+            titre: `Demande de support envoyée : ${sujet}`,
+            message: `Votre demande a été transmise au support TalosPrimes. Priorité : ${priorite}.`,
+            type: 'support',
+            lu: false,
+            donnees: { sujet, priorite },
           },
         });
 
