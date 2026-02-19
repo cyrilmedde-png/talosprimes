@@ -73,21 +73,28 @@ export default function AgentIAPage() {
       setLoading(true);
       setError(null);
 
-      // Charger les statistiques
-      const statsResponse = await apiClient.callLogs.stats();
-      if (statsResponse.success && statsResponse.data) {
-        const statsData = statsResponse.data.stats;
-        setStats(statsData);
-        // Set callsByDay from the stats response
-        if (statsData.callsByDay) {
-          setCallsPerDay(statsData.callsByDay as CallsPerDay[]);
+      // Charger les statistiques (non-bloquant)
+      try {
+        const statsResponse = await apiClient.callLogs.stats();
+        if (statsResponse.success && statsResponse.data) {
+          const statsData = statsResponse.data.stats || statsResponse.data;
+          setStats(prev => ({ ...prev, ...statsData }));
+          if (statsData.callsByDay && Array.isArray(statsData.callsByDay)) {
+            setCallsPerDay(statsData.callsByDay as CallsPerDay[]);
+          }
         }
+      } catch (statsErr) {
+        console.warn('[AgentIA] Stats indisponibles:', statsErr instanceof Error ? statsErr.message : statsErr);
       }
 
-      // Charger les appels récents
-      const callsResponse = await apiClient.callLogs.list();
-      if (callsResponse.success && callsResponse.data) {
-        setCalls((callsResponse.data.callLogs || []).slice(0, 10) as Call[]);
+      // Charger les appels récents (non-bloquant)
+      try {
+        const callsResponse = await apiClient.callLogs.list();
+        if (callsResponse.success && callsResponse.data) {
+          setCalls((callsResponse.data.callLogs || []).slice(0, 10) as Call[]);
+        }
+      } catch (callsErr) {
+        console.warn('[AgentIA] Appels indisponibles:', callsErr instanceof Error ? callsErr.message : callsErr);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement';

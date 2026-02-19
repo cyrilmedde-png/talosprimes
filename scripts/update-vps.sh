@@ -571,43 +571,14 @@ except Exception as e:
         fi
 
         # =================================================================
-        # STRATEGIE: PUT sans deactivate + partage credentials AVANT activate
-        # Ordre: PUT contenu → transfer projet → share credentials → activate
-        # Cela evite que n8n marque les credentials comme "has issues"
+        # STRATEGIE: share credentials → PUT contenu → transfer → activate
+        # ORDRE CRITIQUE: partager les credentials AVANT le PUT pour que
+        # n8n ne les marque pas comme "has issues" pendant la mise a jour
         # =================================================================
 
         rm -f "$tmp_current"
 
-        # 1. PUT le contenu complet (nodes, connections, credentials) — PAS de deactivate
-        local put_response
-        put_response=$(curl -s -w "\n%{http_code}" -X PUT \
-          -H "X-N8N-API-KEY: $N8N_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d "$payload" \
-          "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
-
-        local put_http_code=$(echo "$put_response" | tail -1)
-        local put_body=$(echo "$put_response" | sed '$d')
-
-        if [ "$put_http_code" != "200" ]; then
-          log_warn "    PUT echoue (HTTP $put_http_code) pour $(basename "$file")"
-          log_warn "    Response: $(echo "$put_body" | head -c 200)"
-        else
-          log_info "    PUT OK (contenu deploye)"
-        fi
-
-        sleep 0.3
-
-        # 2. Transferer dans le bon projet AVANT d'activer
-        if [ -n "$project_id" ]; then
-          curl -s -X PUT \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"destinationProjectId\": \"$project_id\"}" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
-        fi
-
-        # 3. Partager les credentials AVANT d'activer (evite "authentication has issues")
+        # 1. PARTAGER les credentials AVANT le PUT (evite "authentication has issues")
         local cred_ids
         cred_ids=$(echo "$payload" | python3 -c "
 import sys, json
@@ -633,9 +604,52 @@ for node in wf.get('nodes', []):
           done
         fi
 
-        sleep 0.3
+        sleep 0.2
 
-        # 4. Activate APRES que les credentials sont partagees
+        # 2. PUT le contenu (nodes, connections, credentials copiees depuis n8n)
+        local put_response
+        put_response=$(curl -s -w "\n%{http_code}" -X PUT \
+          -H "X-N8N-API-KEY: $N8N_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d "$payload" \
+          "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
+
+        local put_http_code=$(echo "$put_response" | tail -1)
+        local put_body=$(echo "$put_response" | sed '$d')
+
+        if [ "$put_http_code" != "200" ]; then
+          log_warn "    PUT echoue (HTTP $put_http_code) pour $(basename "$file")"
+          log_warn "    Response: $(echo "$put_body" | head -c 200)"
+        else
+          log_info "    PUT OK (contenu deploye)"
+        fi
+
+        sleep 0.2
+
+        # 3. Transferer dans le bon projet
+        if [ -n "$project_id" ]; then
+          curl -s -X PUT \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"destinationProjectId\": \"$project_id\"}" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
+        fi
+
+        # 4. Re-partager les credentials APRES le PUT (au cas ou le PUT les aurait reset)
+        if [ -n "$cred_ids" ] && [ -n "$project_id" ]; then
+          echo "$cred_ids" | while IFS= read -r cid; do
+            [ -z "$cid" ] && continue
+            curl -s -X PUT \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"shareWithIds\": [\"$project_id\"]}" \
+              "$N8N_API_URL/api/v1/credentials/$cid/share" > /dev/null 2>&1 || true
+          done
+        fi
+
+        sleep 0.2
+
+        # 5. Activate APRES que tout est en place
         curl -s -X PATCH \
           -H "X-N8N-API-KEY: $N8N_API_KEY" \
           -H "Content-Type: application/json" \

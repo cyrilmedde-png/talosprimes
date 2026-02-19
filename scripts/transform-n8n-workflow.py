@@ -203,30 +203,12 @@ def fix_postgres_node(node, parser_node_name):
 
 
 def transform_workflow(wf_path, current_n8n_path=None):
-    """Main transformation pipeline."""
+    """Main transformation pipeline.
 
-    # Load credential map from environment (global fallback)
-    global_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
-
-    # Extract real credential IDs from current n8n workflow (if provided)
-    local_map = {}
-    if current_n8n_path and os.path.exists(current_n8n_path):
-        try:
-            with open(current_n8n_path) as f:
-                current_wf = json.load(f)
-            for node in current_wf.get('nodes', []):
-                for cred_type, cred_info in node.get('credentials', {}).items():
-                    if isinstance(cred_info, dict):
-                        cname = cred_info.get('name', '')
-                        cid = str(cred_info.get('id', ''))
-                        if cname and cid and 'REPLACE' not in cid and cid not in ('', 'null', 'None'):
-                            local_map[cname] = cid
-                            print(f"      Extrait depuis n8n: {cname} -> {cid}", file=sys.stderr)
-        except Exception as e:
-            print(f"      ERREUR lors de l'extraction des credentials depuis n8n: {e}", file=sys.stderr)
-
-    # Merge: local_map has priority, then global_map as fallback
-    cred_map = {**global_map, **local_map}
+    CREDENTIAL STRATEGY: Never replace credentials from the backup JSON.
+    Instead, copy credentials directly from the current n8n workflow (node by node).
+    This ensures credentials are never lost or corrupted during deployment.
+    """
 
     # Load the workflow backup
     with open(wf_path) as f:
@@ -241,7 +223,33 @@ def transform_workflow(wf_path, current_n8n_path=None):
         wf.pop(k, None)
 
     # ==================================================================
-    # TRANSFORMATIONS
+    # EXTRACT CREDENTIALS FROM CURRENT N8N WORKFLOW
+    # Build a map: node_name -> credentials (from the live n8n workflow)
+    # Also build a map: cred_name -> {id, name} for fallback by credential name
+    # ==================================================================
+    current_node_creds = {}  # node_name -> credentials dict
+    current_cred_by_name = {}  # cred_name -> {id, name}
+    if current_n8n_path and os.path.exists(current_n8n_path):
+        try:
+            with open(current_n8n_path) as f:
+                current_wf = json.load(f)
+            for node in current_wf.get('nodes', []):
+                node_name = node.get('name', '')
+                creds = node.get('credentials', {})
+                if creds and node_name:
+                    current_node_creds[node_name] = creds
+                    for cred_type, cred_info in creds.items():
+                        if isinstance(cred_info, dict):
+                            cname = cred_info.get('name', '')
+                            cid = str(cred_info.get('id', ''))
+                            if cname and cid and cid not in ('', 'null', 'None'):
+                                current_cred_by_name[cname] = cred_info
+                                print(f"      Credential existante: {cname} -> {cid}", file=sys.stderr)
+        except Exception as e:
+            print(f"      ERREUR lecture workflow n8n actuel: {e}", file=sys.stderr)
+
+    # ==================================================================
+    # TRANSFORMATIONS (code fixes, query fixes)
     # ==================================================================
     nodes = wf.get('nodes', [])
     parser_node_name = find_parser_node(nodes)
@@ -259,30 +267,50 @@ def transform_workflow(wf_path, current_n8n_path=None):
         print(f'      {transform_count} nodes transformes', file=sys.stderr)
 
     # ==================================================================
-    # CREDENTIAL REPLACEMENT
+    # CREDENTIAL PRESERVATION (never replace — always copy from n8n)
+    # Strategy:
+    #   1. If the node exists in current n8n by name → copy its credentials entirely
+    #   2. Else, for each credential in the backup node, try to match by credential
+    #      name from any node in the current n8n workflow
+    #   3. Only as last resort, keep the backup's credential IDs + use global map
     # ==================================================================
-    replaced = 0
-    unresolved = []
+    global_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
+    preserved = 0
+    fallback = 0
     for node in nodes:
-        creds = node.get('credentials', {})
-        for cred_type, cred_info in creds.items():
+        node_name = node.get('name', '')
+        backup_creds = node.get('credentials', {})
+
+        if not backup_creds:
+            continue
+
+        # Strategy 1: exact node name match → copy ALL credentials from n8n
+        if node_name in current_node_creds:
+            node['credentials'] = current_node_creds[node_name]
+            preserved += 1
+            print(f"      [{node_name}] credentials copiees depuis n8n (match exact)", file=sys.stderr)
+            continue
+
+        # Strategy 2: match by credential name from any n8n node
+        for cred_type, cred_info in backup_creds.items():
             if isinstance(cred_info, dict):
                 cred_name = cred_info.get('name', '')
-                cred_id = str(cred_info.get('id', ''))
-                if cred_name and cred_name in cred_map:
-                    old_id = cred_info['id']
-                    cred_info['id'] = cred_map[cred_name]
-                    replaced += 1
-                    print(f"      Credential '{cred_name}': {old_id} -> {cred_map[cred_name]}", file=sys.stderr)
-                elif 'REPLACE' in cred_id:
-                    unresolved.append(cred_name)
-                    print(f"      ATTENTION: Credential '{cred_name}' n'a pas pu être resolu (maps disponibles: {list(cred_map.keys())})", file=sys.stderr)
+                if cred_name and cred_name in current_cred_by_name:
+                    live = current_cred_by_name[cred_name]
+                    cred_info['id'] = live.get('id', cred_info.get('id'))
+                    preserved += 1
+                    print(f"      [{node_name}] credential '{cred_name}' -> {live.get('id')} (match par nom)", file=sys.stderr)
+                elif cred_name and cred_name in global_map:
+                    cred_info['id'] = global_map[cred_name]
+                    fallback += 1
+                    print(f"      [{node_name}] credential '{cred_name}' -> {global_map[cred_name]} (fallback global)", file=sys.stderr)
+                else:
+                    print(f"      [{node_name}] ATTENTION: credential '{cred_name}' non trouvee dans n8n", file=sys.stderr)
 
-    if replaced > 0:
-        print(f'      {replaced} credentials resolues depuis n8n', file=sys.stderr)
-    if unresolved:
-        names = ', '.join(set(unresolved))
-        print(f'      ATTENTION: {len(unresolved)} credential(s) non resolu(e)s: {names}', file=sys.stderr)
+    if preserved > 0:
+        print(f'      {preserved} credentials preservees depuis n8n', file=sys.stderr)
+    if fallback > 0:
+        print(f'      {fallback} credentials via fallback global', file=sys.stderr)
 
     # Ensure required fields
     wf.setdefault('nodes', [])

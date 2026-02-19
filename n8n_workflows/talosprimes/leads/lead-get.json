@@ -43,6 +43,7 @@
         740,
         300
       ],
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "6Kosza77d9Ld32mw",
@@ -52,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la réponse: { lead: {...} }\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [{ json: { success: false, error: 'Lead non trouvé' } }];\n}\n\nconst lead = items[0].json;\n\nreturn [{ \n  json: { \n    success: true, \n    data: { \n      lead: {\n        id: lead.id,\n        nom: lead.nom,\n        prenom: lead.prenom,\n        email: lead.email,\n        telephone: lead.telephone,\n        statut: lead.statut,\n        source: lead.source,\n        notes: lead.notes ?? null,\n        dateContact: lead.date_contact ?? null,\n        createdAt: lead.created_at,\n        updatedAt: lead.updated_at\n      }\n    } \n  } \n}];\n"
+        "jsCode": "// Formater la réponse: { lead: {...} }\nconst items = $input.all();\n\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { success: false, error: 'Lead non trouvé' } }];\n}\n\nconst lead = items[0].json;\n\nreturn [{ \n  json: { \n    success: true, \n    data: { \n      lead: {\n        id: lead.id,\n        nom: lead.nom,\n        prenom: lead.prenom,\n        email: lead.email,\n        telephone: lead.telephone,\n        statut: lead.statut,\n        source: lead.source,\n        notes: lead.notes ?? null,\n        dateContact: lead.date_contact ?? null,\n        createdAt: lead.created_at,\n        updatedAt: lead.updated_at\n      }\n    } \n  } \n}];\n"
       },
       "id": "Code_Format",
       "name": "Formater réponse",

@@ -90,6 +90,7 @@
         1080,
         300
       ],
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
@@ -99,7 +100,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row=$input.first().json;\nvar articles=row.articles||[];\nif(typeof articles==='string')articles=JSON.parse(articles);\nreturn [{json:{articles}}];"
+        "jsCode": "const items = $input.all();\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{json:{articles:[]}}];\n}\nconst row=$input.first().json;\nvar articles=row.articles||[];\nif(typeof articles==='string')articles=JSON.parse(articles);\nreturn [{json:{articles}}];"
       },
       "id": "format",
       "name": "07. Formater reponse",

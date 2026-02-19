@@ -43,6 +43,7 @@
         740,
         300
       ],
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "6Kosza77d9Ld32mw",
@@ -52,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la réponse: { clients: [...] }\nconst items = $input.all();\n// Si aucun résultat, retourner un tableau vide\nif (!items || items.length === 0) {\n  return [{ json: { clients: [] } }];\n}\n\nconst clients = items.map(item => {\n  const client = item.json;\n  return {\n    id: client.id,\n    tenantId: client.tenant_id,\n    type: client.type,\n    raisonSociale: client.raison_sociale ?? null,\n    nom: client.nom ?? null,\n    prenom: client.prenom ?? null,\n    email: client.email,\n    telephone: client.telephone ?? null,\n    adresse: client.adresse ?? null,\n    tags: client.tags ?? [],\n    statut: client.statut,\n    createdAt: client.created_at,\n    updatedAt: client.updated_at\n  };\n});\n\n// Retourner directement { clients } pour que le backend puisse lire result.data?.clients\nreturn [{ json: { clients } }];"
+        "jsCode": "// Formater la réponse: { clients: [...] }\nconst items = $input.all();\n// Si aucun résultat ou item vide (alwaysOutputData), retourner un tableau vide\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { clients: [] } }];\n}\n\nconst clients = items.map(item => {\n  const client = item.json;\n  return {\n    id: client.id,\n    tenantId: client.tenant_id,\n    type: client.type,\n    raisonSociale: client.raison_sociale ?? null,\n    nom: client.nom ?? null,\n    prenom: client.prenom ?? null,\n    email: client.email,\n    telephone: client.telephone ?? null,\n    adresse: client.adresse ?? null,\n    tags: client.tags ?? [],\n    statut: client.statut,\n    createdAt: client.created_at,\n    updatedAt: client.updated_at\n  };\n});\n\n// Retourner directement { clients } pour que le backend puisse lire result.data?.clients\nreturn [{ json: { clients } }];"
       },
       "id": "Code_Format",
       "name": "Formater réponse",

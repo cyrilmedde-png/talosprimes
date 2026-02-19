@@ -74,6 +74,7 @@
       "name": "05. Count Query",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
@@ -94,6 +95,7 @@
       "name": "06. List Query",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
@@ -107,7 +109,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const logs = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit);\n\nreturn {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n};"
+        "jsCode": "const logItems = $('06. List Query').all();\nif (!logItems || logItems.length === 0 || !logItems[0].json?.id) {\n  return {\n    logs: [],\n    count: 0,\n    total: 0,\n    page: $('02. Parser').first().json.page,\n    limit: $('02. Parser').first().json.limit,\n    totalPages: 0\n  };\n}\nconst logs = logItems.map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit);\n\nreturn {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n};"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

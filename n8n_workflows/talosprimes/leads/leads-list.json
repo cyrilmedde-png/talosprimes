@@ -43,6 +43,7 @@
         740,
         300
       ],
+      "alwaysOutputData": true,
       "credentials": {
         "postgres": {
           "id": "6Kosza77d9Ld32mw",
@@ -52,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la réponse: { leads: [...] }\nconst items = $input.all();\n// Si aucun résultat, retourner un tableau vide\nif (!items || items.length === 0) {\n  return [{ json: { leads: [] } }];\n}\n\nconst leads = items.map(item => {\n  const lead = item.json;\n  return {\n    id: lead.id,\n    nom: lead.nom,\n    prenom: lead.prenom,\n    email: lead.email,\n    telephone: lead.telephone,\n    statut: lead.statut,\n    source: lead.source,\n    notes: lead.notes ?? null,\n    dateContact: lead.date_contact ?? null,\n    createdAt: lead.created_at,\n    updatedAt: lead.updated_at\n  };\n});\n\n// Retourner directement { leads } pour que le backend puisse lire result.data?.leads\nreturn [{ json: { leads } }];"
+        "jsCode": "// Formater la réponse: { leads: [...] }\nconst items = $input.all();\n// Si aucun résultat ou item vide (alwaysOutputData), retourner un tableau vide\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { leads: [] } }];\n}\n\nconst leads = items.map(item => {\n  const lead = item.json;\n  return {\n    id: lead.id,\n    nom: lead.nom,\n    prenom: lead.prenom,\n    email: lead.email,\n    telephone: lead.telephone,\n    statut: lead.statut,\n    source: lead.source,\n    notes: lead.notes ?? null,\n    dateContact: lead.date_contact ?? null,\n    createdAt: lead.created_at,\n    updatedAt: lead.updated_at\n  };\n});\n\n// Retourner directement { leads } pour que le backend puisse lire result.data?.leads\nreturn [{ json: { leads } }];"
       },
       "id": "Code_Format",
       "name": "Formater réponse",
