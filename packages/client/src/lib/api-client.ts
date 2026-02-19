@@ -841,6 +841,8 @@ export interface Invoice {
     prenom?: string | null;
     raisonSociale?: string | null;
   };
+  bonsCommande?: { id: string; numeroBdc: string; statut: string }[];
+  devis?: { id: string; numeroDevis: string; statut: string }[];
   createdAt?: string;
   updatedAt?: string;
 }

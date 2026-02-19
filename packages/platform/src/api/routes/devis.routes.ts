@@ -578,17 +578,18 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_convert_to_invoice',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Facture créée via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(201).send({
-          success: true,
-          message: 'Facture créée via n8n',
-          data: res.data,
-        });
+        // Fallback : n8n indisponible → création directe en BDD
+        fastify.log.warn(`n8n devis_convert_to_invoice échoué (${res.error}), fallback BDD`);
       }
 
-      // Appel depuis n8n (callback) : créer la facture et mettre à jour le devis
+      // Création directe en BDD (callback n8n ou fallback)
       const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;
@@ -689,17 +690,18 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_convert_to_bdc',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Bon de commande créé via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(201).send({
-          success: true,
-          message: 'Bon de commande créé via n8n',
-          data: res.data,
-        });
+        // Fallback : n8n indisponible → création directe en BDD
+        fastify.log.warn(`n8n devis_convert_to_bdc échoué (${res.error}), fallback BDD`);
       }
 
-      // Appel depuis n8n (callback) : créer le BdC et copier les lignes
+      // Création directe en BDD (callback n8n ou fallback)
       const bdcCount = await prisma.bonCommande.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroBdc = `BDC-${year}-${String(bdcCount + 1).padStart(6, '0')}`;

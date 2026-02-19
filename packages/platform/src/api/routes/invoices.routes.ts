@@ -219,6 +219,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
                 raisonSociale: true,
               },
             },
+            bonsCommande: {
+              select: { id: true, numeroBdc: true, statut: true },
+            },
+            devis: {
+              select: { id: true, numeroDevis: true, statut: true },
+            },
           },
           orderBy: {
             dateFacture: 'desc',

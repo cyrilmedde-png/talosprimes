@@ -517,24 +517,25 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
       if (bon.statut === 'annule') return reply.status(400).send({ success: false, error: 'Bon annulé' });
 
-      // Si appel depuis frontend, déléguer à n8n
+      // Si appel depuis frontend, tenter n8n puis fallback BDD
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ invoice: unknown; bon: unknown }>(
           tenantId,
           'bdc_convert_to_invoice',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        if (res.success) {
+          return reply.status(201).send({
+            success: true,
+            message: 'Facture créée via n8n',
+            data: res.data,
+          });
         }
-        return reply.status(201).send({
-          success: true,
-          message: 'Facture créée via n8n',
-          data: res.data,
-        });
+        // Fallback : n8n indisponible → création directe en BDD
+        fastify.log.warn(`n8n bdc_convert_to_invoice échoué (${res.error}), fallback BDD`);
       }
 
-      // Appel depuis n8n (callback) : créer la facture et mettre à jour le bon
+      // Création directe en BDD (callback n8n ou fallback)
       const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;

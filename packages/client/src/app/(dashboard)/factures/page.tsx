@@ -17,6 +17,8 @@ import {
   TrashIcon,
   EyeIcon,
   PencilSquareIcon,
+  ClipboardDocumentListIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -561,6 +563,28 @@ export default function FacturesPage() {
                           >
                             <ReceiptRefundIcon className="h-4 w-4" />
                             Avoir
+                          </button>
+                        )}
+                        {inv.bonsCommande && inv.bonsCommande.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => router.push('/bons-commande')}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-blue-300 hover:text-blue-200 hover:bg-gray-600"
+                            title={`Bon de commande : ${inv.bonsCommande[0].numeroBdc}`}
+                          >
+                            <ClipboardDocumentListIcon className="h-4 w-4" />
+                            {inv.bonsCommande[0].numeroBdc}
+                          </button>
+                        )}
+                        {inv.devis && inv.devis.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => router.push('/devis')}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-teal-300 hover:text-teal-200 hover:bg-gray-600"
+                            title={`Devis : ${inv.devis[0].numeroDevis}`}
+                          >
+                            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                            {inv.devis[0].numeroDevis}
                           </button>
                         )}
                       </div>
