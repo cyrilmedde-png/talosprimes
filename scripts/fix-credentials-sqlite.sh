@@ -145,9 +145,11 @@ echo "[3/5] Arrêt temporaire de n8n..."
 docker stop "${CONTAINER_NAME}" 2>/dev/null || true
 sleep 2
 
-# 4. Copier la DB corrigée dans le container
+# 4. Copier la DB corrigée dans le container + fix permissions
 echo "[4/5] Injection de la base corrigée..."
 docker cp "${LOCAL_DB}" "${CONTAINER_NAME}:${DB_PATH}"
+docker exec "${CONTAINER_NAME}" chown node:node "${DB_PATH}"
+docker exec "${CONTAINER_NAME}" chmod 644 "${DB_PATH}"
 
 # 5. Redémarrer n8n
 echo "[5/5] Redémarrage de n8n..."
