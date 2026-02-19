@@ -396,6 +396,40 @@ else
   else
     export N8N_API_KEY N8N_API_URL
 
+    # Charger les identifiants n8n pour l'API interne /rest/
+    if [ -z "$N8N_USERNAME" ] && [ -f "$PLATFORM_DIR/.env" ]; then
+      N8N_USERNAME=$(grep -E '^N8N_USERNAME=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    fi
+    if [ -z "$N8N_PASSWORD" ] && [ -f "$PLATFORM_DIR/.env" ]; then
+      N8N_PASSWORD=$(grep -E '^N8N_PASSWORD=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    fi
+
+    # Se connecter a n8n via /rest/login pour obtenir un cookie de session
+    # L'API interne /rest/ ne fait PAS de preventTampering() sur les credentials
+    # contrairement a /api/v1/ qui les supprime
+    N8N_COOKIE_FILE="/tmp/n8n_session_cookie.txt"
+    N8N_SESSION_OK=false
+    if [ -n "$N8N_USERNAME" ] && [ -n "$N8N_PASSWORD" ]; then
+      log_info "Connexion a n8n via /rest/login..."
+      local login_response
+      login_response=$(curl -s -w "\n%{http_code}" \
+        -c "$N8N_COOKIE_FILE" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        -d "{\"email\": \"$N8N_USERNAME\", \"password\": \"$N8N_PASSWORD\"}" \
+        "$N8N_API_URL/rest/login" 2>/dev/null)
+      local login_code=$(echo "$login_response" | tail -1)
+      if [ "$login_code" = "200" ]; then
+        N8N_SESSION_OK=true
+        log_ok "Session n8n ouverte (cookie auth — credentials preservees)"
+      else
+        log_warn "Login n8n echoue (HTTP $login_code) — fallback sur API key"
+      fi
+    else
+      log_warn "N8N_USERNAME/N8N_PASSWORD non definis — utilisation API key (credentials peuvent etre perdues)"
+      log_info "Ajoutez N8N_USERNAME et N8N_PASSWORD dans $PLATFORM_DIR/.env"
+    fi
+
     log_info "n8n URL: $N8N_API_URL"
 
     # ---------------------------------------------------------------
@@ -583,13 +617,24 @@ except Exception as e:
         # Le transfer dans un projet cause la perte des credentials non partagees.
         # Les workflows restent dans le projet "Personal" de l'API user.
 
-        # PUT le contenu (nodes, connections, credentials copiees depuis n8n)
+        # PUT le contenu via API interne /rest/ (preserve les credentials)
+        # L'API publique /api/v1/ fait preventTampering() qui supprime les credentials
         local put_response
-        put_response=$(curl -s -w "\n%{http_code}" -X PUT \
-          -H "X-N8N-API-KEY: $N8N_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d "$payload" \
-          "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
+        if [ "$N8N_SESSION_OK" = "true" ]; then
+          # API interne avec cookie session — PAS de preventTampering
+          put_response=$(curl -s -w "\n%{http_code}" -X PATCH \
+            -b "$N8N_COOKIE_FILE" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$N8N_API_URL/rest/workflows/$existing_id" 2>/dev/null)
+        else
+          # Fallback: API publique (credentials peuvent etre perdues)
+          put_response=$(curl -s -w "\n%{http_code}" -X PUT \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
+        fi
 
         local put_http_code=$(echo "$put_response" | tail -1)
         local put_body=$(echo "$put_response" | sed '$d')
@@ -597,20 +642,43 @@ except Exception as e:
         if [ "$put_http_code" != "200" ]; then
           log_warn "    PUT echoue (HTTP $put_http_code) pour $(basename "$file")"
           log_warn "    Response: $(echo "$put_body" | head -c 200)"
+          # Si /rest/ echoue, essayer /api/v1/ en fallback
+          if [ "$N8N_SESSION_OK" = "true" ]; then
+            log_info "    Retry via /api/v1/..."
+            put_response=$(curl -s -w "\n%{http_code}" -X PUT \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$payload" \
+              "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
+            put_http_code=$(echo "$put_response" | tail -1)
+            if [ "$put_http_code" = "200" ]; then
+              log_info "    PUT OK via /api/v1/ (fallback)"
+            fi
+          fi
         else
-          log_info "    PUT OK (contenu deploye)"
+          if [ "$N8N_SESSION_OK" = "true" ]; then
+            log_info "    PUT OK via /rest/ (credentials preservees)"
+          else
+            log_info "    PUT OK via /api/v1/"
+          fi
         fi
 
-        sleep 0.2
+        sleep 0.3
 
-        sleep 0.2
-
-        # Activate
-        curl -s -X PATCH \
-          -H "X-N8N-API-KEY: $N8N_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d '{"active": true}' \
-          "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
+        # Activate via /rest/ (supporte PATCH)
+        if [ "$N8N_SESSION_OK" = "true" ]; then
+          curl -s -X PATCH \
+            -b "$N8N_COOKIE_FILE" \
+            -H "Content-Type: application/json" \
+            -d '{"active": true}' \
+            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
+        else
+          curl -s -X PATCH \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"active": true}' \
+            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
+        fi
 
         return 0
 
@@ -1110,6 +1178,9 @@ if cred_ok > 0:
         fi
       fi
     fi
+
+    # Nettoyage du cookie de session n8n
+    rm -f "$N8N_COOKIE_FILE" 2>/dev/null || true
   fi
 fi
 
