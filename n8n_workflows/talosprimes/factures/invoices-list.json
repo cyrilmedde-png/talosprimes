@@ -54,7 +54,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) as total FROM invoices WHERE tenant_id = '{{ $json.tenantId }}' AND numero_facture IS NOT NULL AND date_facture IS NOT NULL{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.clientFinalId ? \" AND client_final_id = '\" + $json.clientFinalId + \"'\" : '' }}{{ $json.dateFrom ? \" AND date_facture >= '\" + $json.dateFrom + \"'\" : '' }}{{ $json.dateTo ? \" AND date_facture <= '\" + $json.dateTo + \"'\" : '' }}"
+        "query": "=SELECT COUNT(*) as total FROM invoices WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_facture IS NOT NULL AND date_facture IS NOT NULL{{ $('02. Parser').first().json.statut ? \" AND statut = '\" + $('02. Parser').first().json.statut + \"'\" : '' }}{{ $('02. Parser').first().json.clientFinalId ? \" AND client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : '' }}{{ $('02. Parser').first().json.dateFrom ? \" AND date_facture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : '' }}{{ $('02. Parser').first().json.dateTo ? \" AND date_facture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : '' }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -98,7 +98,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.hasIds ? \"SELECT id, invoice_id, numero_bdc, statut FROM bon_commandes WHERE invoice_id IN ('\" + $json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id, NULL as numero_bdc, NULL as statut WHERE false\" }}"
+        "query": "={{ $('07. Extract IDs').first().json.hasIds ? \"SELECT id, invoice_id, numero_bdc, statut FROM bons_commande WHERE invoice_id IN ('\" + $('07. Extract IDs').first().json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id, NULL as numero_bdc, NULL as statut WHERE false\" }}"
       },
       "id": "08. Get BdC Links",
       "name": "08. Get BdC Links",
