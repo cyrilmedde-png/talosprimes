@@ -269,7 +269,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           montantTtc: Number(bon.montantTtc),
           tvaTaux: bon.tvaTaux != null ? Number(bon.tvaTaux) : null,
           description: bon.description ?? undefined,
-          codeArticle: bon.codeArticle ?? undefined,
           modePaiement: bon.modePaiement ?? undefined,
           statut: bon.statut,
           lines: bon.lines.map((l: any) => ({
@@ -517,25 +516,24 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
       if (bon.statut === 'annule') return reply.status(400).send({ success: false, error: 'Bon annulé' });
 
-      // Si appel depuis frontend, tenter n8n puis fallback BDD
+      // Si appel depuis frontend, déléguer à n8n
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ invoice: unknown; bon: unknown }>(
           tenantId,
           'bdc_convert_to_invoice',
           { bdcId: params.id }
         );
-        if (res.success) {
-          return reply.status(201).send({
-            success: true,
-            message: 'Facture créée via n8n',
-            data: res.data,
-          });
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
-        // Fallback : n8n indisponible → création directe en BDD
-        fastify.log.warn(`n8n bdc_convert_to_invoice échoué (${res.error}), fallback BDD`);
+        return reply.status(201).send({
+          success: true,
+          message: 'Facture créée via n8n',
+          data: res.data,
+        });
       }
 
-      // Création directe en BDD (callback n8n ou fallback)
+      // Appel depuis n8n (callback) : création en BDD
       const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;

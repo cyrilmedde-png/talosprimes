@@ -269,7 +269,6 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           montantTtc: Number(avoir.montantTtc),
           tvaTaux: avoir.tvaTaux != null ? Number(avoir.tvaTaux) : null,
           description: avoir.description ?? undefined,
-          codeArticle: avoir.codeArticle ?? undefined,
           statut: avoir.statut,
           motif: avoir.motif ?? undefined,
           lines: avoir.lines.map((l: any) => ({

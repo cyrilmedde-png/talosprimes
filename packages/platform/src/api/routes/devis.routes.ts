@@ -268,7 +268,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
           montantTtc: Number(devis.montantTtc),
           tvaTaux: devis.tvaTaux != null ? Number(devis.tvaTaux) : null,
           description: devis.description ?? undefined,
-          codeArticle: devis.codeArticle ?? undefined,
           modePaiement: devis.modePaiement ?? undefined,
           statut: devis.statut,
           lines: devis.lines.map((l: any) => ({
@@ -578,18 +577,17 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_convert_to_invoice',
           { devisId: params.id }
         );
-        if (res.success) {
-          return reply.status(201).send({
-            success: true,
-            message: 'Facture créée via n8n',
-            data: res.data,
-          });
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
-        // Fallback : n8n indisponible → création directe en BDD
-        fastify.log.warn(`n8n devis_convert_to_invoice échoué (${res.error}), fallback BDD`);
+        return reply.status(201).send({
+          success: true,
+          message: 'Facture créée via n8n',
+          data: res.data,
+        });
       }
 
-      // Création directe en BDD (callback n8n ou fallback)
+      // Appel depuis n8n (callback) : création en BDD
       const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;
@@ -690,18 +688,17 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_convert_to_bdc',
           { devisId: params.id }
         );
-        if (res.success) {
-          return reply.status(201).send({
-            success: true,
-            message: 'Bon de commande créé via n8n',
-            data: res.data,
-          });
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
-        // Fallback : n8n indisponible → création directe en BDD
-        fastify.log.warn(`n8n devis_convert_to_bdc échoué (${res.error}), fallback BDD`);
+        return reply.status(201).send({
+          success: true,
+          message: 'Bon de commande créé via n8n',
+          data: res.data,
+        });
       }
 
-      // Création directe en BDD (callback n8n ou fallback)
+      // Appel depuis n8n (callback) : création en BDD
       const bdcCount = await prisma.bonCommande.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroBdc = `BDC-${year}-${String(bdcCount + 1).padStart(6, '0')}`;

@@ -270,7 +270,6 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           montantTtc: Number(proforma.montantTtc),
           tvaTaux: proforma.tvaTaux != null ? Number(proforma.tvaTaux) : null,
           description: proforma.description ?? undefined,
-          codeArticle: proforma.codeArticle ?? undefined,
           modePaiement: proforma.modePaiement ?? undefined,
           statut: proforma.statut,
           lines: proforma.lines.map((l: any) => ({
@@ -579,18 +578,17 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_convert_to_invoice',
           { proformaId: params.id }
         );
-        if (res.success) {
-          return reply.status(201).send({
-            success: true,
-            message: 'Facture créée via n8n',
-            data: res.data,
-          });
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
-        // Fallback : n8n indisponible → création directe en BDD
-        fastify.log.warn(`n8n proforma_convert_to_invoice échoué (${res.error}), fallback BDD`);
+        return reply.status(201).send({
+          success: true,
+          message: 'Facture créée via n8n',
+          data: res.data,
+        });
       }
 
-      // Création directe en BDD (callback n8n ou fallback)
+      // Appel depuis n8n (callback) : création en BDD
       const invoiceCount = await prisma.invoice.count({ where: { tenantId } });
       const year = new Date().getFullYear();
       const numeroFacture = `INV-${year}-${String(invoiceCount + 1).padStart(6, '0')}`;
