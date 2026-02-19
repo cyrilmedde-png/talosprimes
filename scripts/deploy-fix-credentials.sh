@@ -7,7 +7,7 @@
 # Usage: sudo bash scripts/deploy-fix-credentials.sh
 # =============================================================================
 
-set -euo pipefail
+set -u  # Pas de -e pour éviter que le script s'arrête à la première erreur d'import
 
 # Couleurs
 RED='\033[0;31m'
@@ -462,15 +462,28 @@ if [ ! -d "$N8N_WORKFLOW_DIR" ]; then
   log_err "Dossier workflows introuvable: $N8N_WORKFLOW_DIR"
 else
   # Déterminer quel container utiliser pour l'import
-  # On prend le premier container qui tourne
+  # On préfère celui qui a le port 5678 exposé (c'est le principal)
   IMPORT_CONTAINER=""
   for c in "${N8N_CONTAINERS[@]}"; do
     IS_RUNNING=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
-    if [ "$IS_RUNNING" = "true" ]; then
+    [ "$IS_RUNNING" != "true" ] && continue
+    # Vérifier si ce container a le port 5678 mappé
+    HAS_PORT=$(docker port "$c" 5678 2>/dev/null || true)
+    if [ -n "$HAS_PORT" ]; then
       IMPORT_CONTAINER="$c"
       break
     fi
   done
+  # Fallback: premier container qui tourne
+  if [ -z "$IMPORT_CONTAINER" ]; then
+    for c in "${N8N_CONTAINERS[@]}"; do
+      IS_RUNNING=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo "false")
+      if [ "$IS_RUNNING" = "true" ]; then
+        IMPORT_CONTAINER="$c"
+        break
+      fi
+    done
+  fi
 
   if [ -z "$IMPORT_CONTAINER" ]; then
     log_err "Aucun container n8n en cours d'exécution !"
@@ -498,32 +511,38 @@ else
       local tmp_file="/tmp/n8n_import_${RANDOM}.json"
 
       if [ -f "$SCRIPTS_DIR/transform-n8n-workflow.py" ]; then
-        python3 "$SCRIPTS_DIR/transform-n8n-workflow.py" "$file" > "$tmp_file" 2>/dev/null
-      else
-        # Fallback: nettoyage minimal
+        python3 "$SCRIPTS_DIR/transform-n8n-workflow.py" "$file" > "$tmp_file" 2>/dev/null || true
+      fi
+
+      # Fallback si transform a échoué ou n'existe pas
+      if [ ! -s "$tmp_file" ]; then
         python3 -c "
 import json, sys
-with open('$file') as f:
+with open(sys.argv[1]) as f:
     wf = json.load(f)
-# Garder l'id si présent (pour overwrite)
 wf.setdefault('settings', {})
 print(json.dumps(wf))
-" > "$tmp_file" 2>/dev/null || cp "$file" "$tmp_file"
+" "$file" > "$tmp_file" 2>/dev/null || cp "$file" "$tmp_file"
       fi
 
       if [ ! -s "$tmp_file" ]; then
         log_warn "  Skip $basename_file (transformation échouée)"
         IMPORT_ERR=$((IMPORT_ERR + 1))
         rm -f "$tmp_file"
-        return
+        return 0
       fi
 
       # Copier dans le container
-      docker cp "$tmp_file" "$container:/tmp/workflow_import.json" 2>/dev/null
+      if ! docker cp "$tmp_file" "$container:/tmp/workflow_import.json" 2>/dev/null; then
+        log_warn "  Skip $basename_file (docker cp échoué)"
+        IMPORT_ERR=$((IMPORT_ERR + 1))
+        rm -f "$tmp_file"
+        return 0
+      fi
 
       # Importer via CLI n8n (écrit directement en DB, bypass preventTampering)
       local result
-      result=$(docker exec -u node "$container" n8n import:workflow --input=/tmp/workflow_import.json 2>&1)
+      result=$(docker exec -u node "$container" n8n import:workflow --input=/tmp/workflow_import.json 2>&1) || true
       local exit_code=$?
 
       rm -f "$tmp_file"
@@ -531,9 +550,11 @@ print(json.dumps(wf))
       if [ $exit_code -eq 0 ]; then
         IMPORT_OK=$((IMPORT_OK + 1))
       else
-        log_warn "  Erreur import $basename_file: $(echo "$result" | head -c 100)"
+        log_warn "  Erreur import $basename_file: $(echo "$result" | head -c 150)"
         IMPORT_ERR=$((IMPORT_ERR + 1))
       fi
+
+      return 0
     }
 
     # Importer les workflows TalosPrimes
