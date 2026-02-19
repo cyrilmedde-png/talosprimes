@@ -1,0 +1,185 @@
+{
+  "name": "client-space-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "client-space-create",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nconst clientFinalId=g(payload,'clientFinalId','client_final_id')||g(data,'clientFinalId','client_final_id');\nconst raisonSociale=g(payload,'raisonSociale','raison_sociale')||g(data,'raisonSociale','raison_sociale')||'';\nconst nom=g(payload,'nom')||g(data,'nom')||'';\nconst prenom=g(payload,'prenom')||g(data,'prenom')||'';\nconst modulesInclus=payload.modulesInclus||data.modulesInclus||payload.modules_inclus||data.modules_inclus||[];\nif(!tenantId||!clientFinalId)return [{json:{_error:true,message:'tenantId et clientFinalId requis'}}];\n// Generate slug from raison sociale or nom/prenom\nconst rawName=raisonSociale||((nom+' '+prenom).trim())||'client';\nconst slug=rawName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').substring(0,50);\nconst tenantSlug=slug+'-'+clientFinalId.substring(0,8);\nreturn [{json:{tenantId,clientFinalId,raisonSociale,nom,prenom,modulesInclus,tenantSlug}}];"
+      },
+      "id": "parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ String($json._error || '') }}",
+              "operation": "notEqual",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "if-valid",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
+      },
+      "id": "respond-err",
+      "name": "04. Repondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [860, 500]
+    },
+    {
+      "parameters": {
+        "command": "={{ 'mkdir -p /var/www/talosprimes/clients/' + $('02. Parser').first().json.tenantSlug + '/{documents,exports,uploads,config} && chmod -R 750 /var/www/talosprimes/clients/' + $('02. Parser').first().json.tenantSlug }}"
+      },
+      "id": "ssh-mkdir",
+      "name": "05. SSH Creer dossiers",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [860, 300],
+      "credentials": {
+        "sshPassword": {
+          "name": "SSH VPS TalosPrimes",
+          "id": "SSH_VPS_ID"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nconst folderPath='/var/www/talosprimes/clients/'+p.tenantSlug;\nconst modules=Array.isArray(p.modulesInclus)?p.modulesInclus:[];\nconst modulesArr=modules.map(function(m){return \"'\"+esc(m)+\"'\"}).join(',');\nvar query=\"INSERT INTO client_spaces (id, tenant_id, client_final_id, tenant_slug, folder_path, status, modules_actives, created_at, updated_at) VALUES (gen_random_uuid(), '\"+esc(p.tenantId)+\"', '\"+esc(p.clientFinalId)+\"', '\"+esc(p.tenantSlug)+\"', '\"+esc(folderPath)+\"', 'en_attente_validation', ARRAY[\"+modulesArr+\"]::text[], NOW(), NOW()) RETURNING id, tenant_slug, status\";\nreturn [{json:{query,tenantId:p.tenantId,clientFinalId:p.clientFinalId,tenantSlug:p.tenantSlug,folderPath,modules}}];"
+      },
+      "id": "build-insert",
+      "name": "06. Construire INSERT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('06. Construire INSERT').first().json.query }}"
+      },
+      "id": "pg-insert",
+      "name": "07. INSERT client_spaces",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1300, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const p=$('06. Construire INSERT').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(p.tenantId)+\"', 'Nouvel espace client', 'L''espace client \"+esc(p.tenantSlug)+\" est prêt à valider. Modules: \"+esc((p.modules||[]).join(', '))+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
+      },
+      "id": "build-notif",
+      "name": "08. Construire notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('08. Construire notification').first().json.query }}"
+      },
+      "id": "pg-notif",
+      "name": "09. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inserted=$('07. INSERT client_spaces').first().json;\nconst p=$('06. Construire INSERT').first().json;\nreturn [{json:{success:true,data:{id:inserted.id||'created',tenantSlug:p.tenantSlug,status:'en_attente_validation',folderPath:p.folderPath,modules:p.modules}}}];"
+      },
+      "id": "format",
+      "name": "10. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond-ok",
+      "name": "11. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2180, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. SSH Creer dossiers", "type": "main", "index": 0}],
+        [{"node": "04. Repondre erreur", "type": "main", "index": 0}]
+      ]
+    },
+    "05. SSH Creer dossiers": {
+      "main": [[{"node": "06. Construire INSERT", "type": "main", "index": 0}]]
+    },
+    "06. Construire INSERT": {
+      "main": [[{"node": "07. INSERT client_spaces", "type": "main", "index": 0}]]
+    },
+    "07. INSERT client_spaces": {
+      "main": [[{"node": "08. Construire notification", "type": "main", "index": 0}]]
+    },
+    "08. Construire notification": {
+      "main": [[{"node": "09. INSERT notification", "type": "main", "index": 0}]]
+    },
+    "09. INSERT notification": {
+      "main": [[{"node": "10. Formater reponse", "type": "main", "index": 0}]]
+    },
+    "10. Formater reponse": {
+      "main": [[{"node": "11. Repondre", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

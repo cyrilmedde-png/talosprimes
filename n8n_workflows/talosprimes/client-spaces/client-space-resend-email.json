@@ -1,0 +1,202 @@
+{
+  "name": "client-space-resend-email",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "client-space-resend-email",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nconst clientSpaceId=g(payload,'clientSpaceId','client_space_id')||g(data,'clientSpaceId','client_space_id');\nif(!tenantId||!clientSpaceId)return [{json:{_error:true,message:'tenantId et clientSpaceId requis'}}];\nreturn [{json:{tenantId,clientSpaceId}}];"
+      },
+      "id": "parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ String($json._error || '') }}",
+              "operation": "notEqual",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "if-valid",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
+      },
+      "id": "respond-err",
+      "name": "04. Repondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [860, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"SELECT cs.id, cs.tenant_id, cs.status, cs.tenant_slug, cf.email, cf.nom, cf.prenom, cf.raison_sociale FROM client_spaces cs JOIN client_finals cf ON cf.id = cs.client_final_id WHERE cs.id = '\"+esc(p.clientSpaceId)+\"' AND cs.tenant_id = '\"+esc(p.tenantId)+\"' AND cs.status = 'actif'\";\nreturn [{json:{query}}];"
+      },
+      "id": "build-select",
+      "name": "05. Construire SELECT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('05. Construire SELECT').first().json.query }}"
+      },
+      "id": "pg-select",
+      "name": "06. SELECT client_space",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1080, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const space=$input.first().json;\nif(!space||!space.id)return [{json:{_error:true,message:'Espace client introuvable ou non actif'}}];\n// Generate new temp password\nconst chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';\nlet pwd='';\nfor(let i=0;i<12;i++)pwd+=chars.charAt(Math.floor(Math.random()*chars.length));\nreturn [{json:{...space,tempPassword:pwd}}];"
+      },
+      "id": "gen-pwd",
+      "name": "07. Generer nouveau mdp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ String($json._error || '') }}",
+              "operation": "notEqual",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "if-found",
+      "name": "08. Trouvé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1520, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
+      },
+      "id": "respond-err2",
+      "name": "09. Repondre erreur not found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1740, 500]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $('07. Generer nouveau mdp').first().json.email }}",
+        "subject": "Vos identifiants TalosPrimes (renvoi)",
+        "html": "={{ '<h2>Rappel de vos identifiants TalosPrimes</h2><p>Bonjour ' + ($('07. Generer nouveau mdp').first().json.prenom || '') + ' ' + ($('07. Generer nouveau mdp').first().json.nom || '') + ',</p><p>Voici vos identifiants de connexion :</p><ul><li><strong>URL :</strong> https://talosprimes.com/login</li><li><strong>Email :</strong> ' + $('07. Generer nouveau mdp').first().json.email + '</li><li><strong>Nouveau mot de passe :</strong> ' + $('07. Generer nouveau mdp').first().json.tempPassword + '</li></ul><p><em>Veuillez changer votre mot de passe lors de votre prochaine connexion.</em></p><p>Cordialement,<br/>L\\'équipe TalosPrimes</p>' }}"
+      },
+      "id": "send-email",
+      "name": "10. Renvoyer email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1740, 300],
+      "credentials": {
+        "smtp": {
+          "name": "SMTP TalosPrimes",
+          "id": "SMTP_ID"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{success:true,data:{emailSent:true,email:$('07. Generer nouveau mdp').first().json.email}}}];"
+      },
+      "id": "format",
+      "name": "11. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond-ok",
+      "name": "12. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2180, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+    },
+    "02. Parser": {
+      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{"node": "05. Construire SELECT", "type": "main", "index": 0}],
+        [{"node": "04. Repondre erreur", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Construire SELECT": {
+      "main": [[{"node": "06. SELECT client_space", "type": "main", "index": 0}]]
+    },
+    "06. SELECT client_space": {
+      "main": [[{"node": "07. Generer nouveau mdp", "type": "main", "index": 0}]]
+    },
+    "07. Generer nouveau mdp": {
+      "main": [[{"node": "08. Trouvé ?", "type": "main", "index": 0}]]
+    },
+    "08. Trouvé ?": {
+      "main": [
+        [{"node": "10. Renvoyer email", "type": "main", "index": 0}],
+        [{"node": "09. Repondre erreur not found", "type": "main", "index": 0}]
+      ]
+    },
+    "10. Renvoyer email": {
+      "main": [[{"node": "11. Formater reponse", "type": "main", "index": 0}]]
+    },
+    "11. Formater reponse": {
+      "main": [[{"node": "12. Repondre", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

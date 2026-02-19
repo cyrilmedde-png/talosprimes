@@ -135,6 +135,14 @@ enum QuestionnaireChannel {
   web
 }
 
+enum ClientSpaceStatus {
+  en_creation
+  en_attente_validation
+  actif
+  suspendu
+  supprime
+}
+
 // ============================================
 // ENUMS - COMPTABILITE
 // ============================================
@@ -263,6 +271,7 @@ model Tenant {
   declarationsTva       DeclarationTva[]
   immobilisations       Immobilisation[]
   comptaIaLogs          ComptaIaLog[]
+  clientSpaces          ClientSpace[]
 
   @@index([emailContact])
   @@index([statut])
@@ -321,11 +330,37 @@ model ClientFinal {
   devis          Devis[]
   avoirs         Avoir[]
   proformas      Proforma[]
+  clientSpaces   ClientSpace[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([email])
   @@map("client_finals")
+}
+
+// Espace Client (provisionné par n8n + SSH)
+model ClientSpace {
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  clientFinalId     String             @map("client_final_id") @db.Uuid
+  clientTenantId    String?            @map("client_tenant_id") @db.Uuid
+  tenantSlug        String             @map("tenant_slug")
+  folderPath        String?            @map("folder_path")
+  status            ClientSpaceStatus  @default(en_creation)
+  modulesActives    String[]           @default([]) @map("modules_actives")
+  validatedAt       DateTime?          @map("validated_at")
+  validatedByUserId String?            @map("validated_by_user_id") @db.Uuid
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal ClientFinal @relation(fields: [clientFinalId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clientFinalId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("client_spaces")
 }
 
 // Module Métier (catalogue de modules)

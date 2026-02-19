@@ -817,6 +817,31 @@ export const apiClient = {
         method: 'DELETE',
       }),
   },
+
+  // Espaces Clients
+  clientSpaces: {
+    list: (params?: { status?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.status) qp.append('status', params.status);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: { spaces: ClientSpace[] } }>(`/api/client-spaces${q ? `?${q}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { space: ClientSpace } }>(`/api/client-spaces/${id}`),
+    create: (data: { clientFinalId: string; raisonSociale?: string; nom?: string; prenom?: string; modulesInclus?: string[] }) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/client-spaces', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    validate: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/client-spaces/${id}/validate`, {
+        method: 'POST',
+      }),
+    resendEmail: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { emailSent: boolean; email: string } }>(`/api/client-spaces/${id}/resend-email`, {
+        method: 'POST',
+      }),
+  },
 };
 
 // Types pour les factures
@@ -1071,5 +1096,26 @@ export interface Subscription {
     prenom?: string;
     raisonSociale?: string;
   };
+}
+
+// Type pour les espaces clients
+export interface ClientSpace {
+  id: string;
+  tenantId: string;
+  clientFinalId: string;
+  clientTenantId?: string | null;
+  tenantSlug: string;
+  folderPath?: string | null;
+  status: 'en_creation' | 'en_attente_validation' | 'actif' | 'suspendu' | 'supprime';
+  modulesActives: string[];
+  validatedAt?: string | null;
+  validatedByUserId?: string | null;
+  clientNom?: string | null;
+  clientPrenom?: string | null;
+  raisonSociale?: string | null;
+  clientEmail?: string | null;
+  clientTelephone?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 

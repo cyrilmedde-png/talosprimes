@@ -5,7 +5,7 @@
 
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
-import { SUPER_AGENT_SYSTEM_PROMPT } from '../agent/super-agent-prompt.js';
+import { SUPER_AGENT_SYSTEM_PROMPT, CLIENT_FINAL_SYSTEM_PROMPT } from '../agent/super-agent-prompt.js';
 import { getAgentConfigForTenant } from './agent-config.service.js';
 import {
   listEmails as listEmailsService,
@@ -318,6 +318,72 @@ const AGENT_TOOLS: Array<{
           perPage: { type: 'string', description: 'Nombre max (défaut 50)' },
         },
         required: [],
+      },
+    },
+  },
+];
+
+/**
+ * Outils restreints pour les clients finaux (espace client).
+ * Pas de leads, pas de gestion clients, pas d'emails admin, pas de Qonto.
+ */
+const CLIENT_FINAL_AGENT_TOOLS: typeof AGENT_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_invoices',
+      description: 'Liste les factures du client. Peut filtrer par statut et dates.',
+      parameters: {
+        type: 'object',
+        properties: {
+          statut: { type: 'string', enum: ['brouillon', 'envoyee', 'payee', 'en_retard', 'annulee'], description: 'Filtrer par statut' },
+          limit: { type: 'string', description: 'Nombre max de factures (défaut 50, max 100)' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_subscriptions',
+      description: 'Liste les abonnements du client avec statut, plan et modules inclus.',
+      parameters: {
+        type: 'object',
+        properties: {
+          statut: { type: 'string', enum: ['actif', 'suspendu', 'annule'], description: 'Filtrer par statut' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_notifications',
+      description: 'Liste les dernières notifications.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'string', description: 'Nombre max de notifications' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'contact_support',
+      description: "Envoyer un message au support TalosPrimes (problème technique, demande de modification, réclamation, question).",
+      parameters: {
+        type: 'object',
+        properties: {
+          sujet: { type: 'string', description: 'Sujet de la demande (ex: Problème de facturation, Demande changement de plan)' },
+          message: { type: 'string', description: 'Détail de la demande ou du problème rencontré' },
+          priorite: { type: 'string', enum: ['basse', 'normale', 'haute'], description: 'Priorité de la demande (défaut: normale)' },
+        },
+        required: ['sujet', 'message'],
       },
     },
   },
@@ -664,6 +730,53 @@ async function executeTool(
         });
       }
 
+      case 'contact_support': {
+        const sujet = (args.sujet as string) || 'Demande de support';
+        const messageText = (args.message as string) || '';
+        const priorite = (args.priorite as string) || 'normale';
+        if (!messageText) return serializeForModel({ error: 'Le message est requis' });
+
+        // Récupérer le tenant pour identifier le client
+        const clientTenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+        const tenantName = clientTenant?.nom || 'Client inconnu';
+
+        // Trouver le tenant parent (celui qui a créé l'espace client)
+        const clientSpace = await prisma.clientSpace.findFirst({
+          where: { clientTenantId: tenantId, status: 'actif' },
+          select: { tenantId: true },
+        });
+
+        const parentTenantId = clientSpace?.tenantId;
+
+        // Créer une notification dans le tenant parent (admin TalosPrimes)
+        if (parentTenantId) {
+          await prisma.notification.create({
+            data: {
+              tenantId: parentTenantId,
+              titre: `[Support ${priorite.toUpperCase()}] ${sujet}`,
+              message: `Client "${tenantName}" : ${messageText}`,
+              type: 'support',
+              lu: false,
+            },
+          });
+        }
+
+        // Aussi créer un log pour traçabilité
+        await prisma.log.create({
+          data: {
+            tenantId,
+            action: 'contact_support',
+            entite: 'support',
+            details: { sujet, message: messageText, priorite, parentTenantId },
+          },
+        });
+
+        return serializeForModel({
+          success: true,
+          message: `Votre demande "${sujet}" a été transmise au support TalosPrimes. Priorité : ${priorite}. Vous recevrez une réponse dans les meilleurs délais.`,
+        });
+      }
+
       default:
         return serializeForModel({ error: `Outil inconnu: ${name}` });
     }
@@ -684,8 +797,22 @@ export async function chatAgent(options: AgentChatOptions): Promise<AgentChatRes
     };
   }
 
+  // Détecter si le tenant est un client final (espace client restreint)
+  let isClientFinal = false;
+  try {
+    const clientSpace = await prisma.clientSpace.findFirst({
+      where: { clientTenantId: tenantId, status: 'actif' },
+    });
+    isClientFinal = !!clientSpace;
+  } catch {
+    // Si la table n'existe pas encore, ignorer
+  }
+
+  const systemPrompt = isClientFinal ? CLIENT_FINAL_SYSTEM_PROMPT : SUPER_AGENT_SYSTEM_PROMPT;
+  const tools = isClientFinal ? CLIENT_FINAL_AGENT_TOOLS : AGENT_TOOLS;
+
   const messages: OpenAIMessage[] = [
-    { role: 'system', content: SUPER_AGENT_SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...history.map((h) =>
       h.role === 'user'
         ? { role: 'user' as const, content: h.content }
@@ -704,7 +831,7 @@ export async function chatAgent(options: AgentChatOptions): Promise<AgentChatRes
       messages,
       temperature: 0.3,
       max_tokens: 2000,
-      tools: AGENT_TOOLS,
+      tools,
       tool_choice: 'auto',
     };
 

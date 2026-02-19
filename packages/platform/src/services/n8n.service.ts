@@ -150,6 +150,12 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   compta_cloture: 'compta-cloture',
   compta_dashboard: 'compta-dashboard',
   compta_ia_agent: 'compta-ia-agent',
+  // Espaces clients
+  client_space_create: 'client-space-create',
+  client_space_validate: 'client-space-validate',
+  client_space_list: 'client-space-list',
+  client_space_get: 'client-space-get',
+  client_space_resend_email: 'client-space-resend-email',
 };
 
 /**
