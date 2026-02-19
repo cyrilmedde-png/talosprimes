@@ -733,13 +733,9 @@ process_workflow() {
         return 1
     fi
 
-    # Deactivate first to force webhook re-registration on activate
-    deactivate_workflow "$workflow_id" "$filename"
-
-    # Update workflow with merged JSON (credentials intact!)
+    # NO deactivate/activate cycle! Just PUT the merged JSON.
+    # The workflow stays active, webhooks stay registered, credentials stay intact.
     if update_workflow "$workflow_id" "$merged_json" "$filename"; then
-        # Activate (webhooks will be freshly registered)
-        activate_workflow "$workflow_id" "$filename"
         SUCCESSFUL_UPDATES=$((SUCCESSFUL_UPDATES + 1))
         return 0
     else
