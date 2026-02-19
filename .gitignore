@@ -38,3 +38,4 @@ packages/platform/prisma/migrations/
 # Misc
 .turbo/
 .vercel
+.pnpm-store/

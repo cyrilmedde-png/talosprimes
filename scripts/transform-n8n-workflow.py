@@ -267,15 +267,16 @@ def transform_workflow(wf_path, current_n8n_path=None):
         print(f'      {transform_count} nodes transformes', file=sys.stderr)
 
     # ==================================================================
-    # CREDENTIAL PRESERVATION
-    # PRIORITE: le fichier JSON backup est la source de verite.
-    # Les IDs sont codes en dur dans les JSON.
-    # On ne copie depuis n8n QUE si le backup n'a pas d'ID valide.
+    # CREDENTIAL PRESERVATION (never replace — always copy from n8n)
+    # Strategy:
+    #   1. If the node exists in current n8n by name → copy its credentials entirely
+    #   2. Else, for each credential in the backup node, try to match by credential
+    #      name from any node in the current n8n workflow
+    #   3. Only as last resort, keep the backup's credential IDs + use global map
     # ==================================================================
     global_map = json.loads(os.environ.get('CREDENTIAL_MAP', '{}'))
-    kept = 0
-    from_n8n = 0
-    from_map = 0
+    preserved = 0
+    fallback = 0
     for node in nodes:
         node_name = node.get('name', '')
         backup_creds = node.get('credentials', {})
@@ -283,50 +284,33 @@ def transform_workflow(wf_path, current_n8n_path=None):
         if not backup_creds:
             continue
 
-        # Pour chaque credential du node dans le backup JSON
+        # Strategy 1: exact node name match → copy ALL credentials from n8n
+        if node_name in current_node_creds:
+            node['credentials'] = current_node_creds[node_name]
+            preserved += 1
+            print(f"      [{node_name}] credentials copiees depuis n8n (match exact)", file=sys.stderr)
+            continue
+
+        # Strategy 2: match by credential name from any n8n node
         for cred_type, cred_info in backup_creds.items():
-            if not isinstance(cred_info, dict):
-                continue
-            cred_name = cred_info.get('name', '')
-            cred_id = str(cred_info.get('id', ''))
+            if isinstance(cred_info, dict):
+                cred_name = cred_info.get('name', '')
+                if cred_name and cred_name in current_cred_by_name:
+                    live = current_cred_by_name[cred_name]
+                    cred_info['id'] = live.get('id', cred_info.get('id'))
+                    preserved += 1
+                    print(f"      [{node_name}] credential '{cred_name}' -> {live.get('id')} (match par nom)", file=sys.stderr)
+                elif cred_name and cred_name in global_map:
+                    cred_info['id'] = global_map[cred_name]
+                    fallback += 1
+                    print(f"      [{node_name}] credential '{cred_name}' -> {global_map[cred_name]} (fallback global)", file=sys.stderr)
+                else:
+                    print(f"      [{node_name}] ATTENTION: credential '{cred_name}' non trouvee dans n8n", file=sys.stderr)
 
-            # Le backup a deja un vrai ID? → on le garde tel quel
-            if cred_id and cred_id not in ('', 'null', 'None') and 'REPLACE' not in cred_id and 'CREDENTIAL' not in cred_id:
-                kept += 1
-                print(f"      [{node_name}] '{cred_name}' id={cred_id} (garde du JSON)", file=sys.stderr)
-                continue
-
-            # Sinon, essayer de recuperer depuis n8n (node exact)
-            if node_name in current_node_creds:
-                n8n_creds = current_node_creds[node_name]
-                if cred_type in n8n_creds and isinstance(n8n_creds[cred_type], dict):
-                    live_id = str(n8n_creds[cred_type].get('id', ''))
-                    if live_id and live_id not in ('', 'null', 'None'):
-                        cred_info['id'] = live_id
-                        cred_info['name'] = n8n_creds[cred_type].get('name', cred_name)
-                        from_n8n += 1
-                        print(f"      [{node_name}] '{cred_name}' -> {live_id} (depuis n8n node)", file=sys.stderr)
-                        continue
-
-            # Sinon, essayer par nom de credential dans n8n
-            if cred_name and cred_name in current_cred_by_name:
-                live = current_cred_by_name[cred_name]
-                live_id = str(live.get('id', ''))
-                if live_id and live_id not in ('', 'null', 'None'):
-                    cred_info['id'] = live_id
-                    from_n8n += 1
-                    print(f"      [{node_name}] '{cred_name}' -> {live_id} (depuis n8n par nom)", file=sys.stderr)
-                    continue
-
-            # Dernier recours: CREDENTIAL_MAP global
-            if cred_name and cred_name in global_map:
-                cred_info['id'] = global_map[cred_name]
-                from_map += 1
-                print(f"      [{node_name}] '{cred_name}' -> {global_map[cred_name]} (fallback global)", file=sys.stderr)
-            else:
-                print(f"      [{node_name}] ATTENTION: credential '{cred_name}' sans ID valide!", file=sys.stderr)
-
-    print(f'      Credentials: {kept} du JSON, {from_n8n} de n8n, {from_map} du global map', file=sys.stderr)
+    if preserved > 0:
+        print(f'      {preserved} credentials preservees depuis n8n', file=sys.stderr)
+    if fallback > 0:
+        print(f'      {fallback} credentials via fallback global', file=sys.stderr)
 
     # Ensure required fields
     wf.setdefault('nodes', [])

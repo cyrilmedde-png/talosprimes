@@ -1,0 +1,218 @@
+================================================================================
+EXAMPLE OUTPUT FROM RUNNING reimport-n8n-workflows.sh
+================================================================================
+
+This document shows what you can expect to see when running the script.
+
+═══════════════════════════════════════════════════════════════════════════════
+SUCCESSFUL RUN
+═══════════════════════════════════════════════════════════════════════════════
+
+$ ./scripts/reimport-n8n-workflows.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+N8N Workflow Reimporter - TalosPrimes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[2024-02-17 16:45:30] [INFO] Starting workflow reimport process...
+[2024-02-17 16:45:30] [INFO] Log file: /sessions/beautiful-stoic-cori/mnt/talosprimes/reimport-workflows-20240217_164530.log
+[2024-02-17 16:45:30] [INFO] Backup directory: /sessions/beautiful-stoic-cori/mnt/talosprimes/n8n_workflows/talosprimes
+[2024-02-17 16:45:30] [INFO] n8n API URL: http://localhost:5678
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pre-flight Checks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[2024-02-17 16:45:30] [SUCCESS] All required tools are available
+[2024-02-17 16:45:30] [INFO] Using N8N_API_KEY from environment
+[2024-02-17 16:45:30] [INFO] Testing connection to n8n at http://localhost:5678...
+[2024-02-17 16:45:31] [SUCCESS] Connection successful (HTTP 200)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Fetching Existing Workflows
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[2024-02-17 16:45:32] [INFO] Fetching all workflows from n8n...
+[2024-02-17 16:45:32] [INFO] Retrieved workflow list from n8n
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Processing Workflows
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[2024-02-17 16:45:33] [INFO] Processing: devis/devis-list.json
+[2024-02-17 16:45:33] [INFO] Found existing workflow ID: 4GyVZq4P7kVzWLp9
+[2024-02-17 16:45:34] [INFO] Updating workflow: devis-list (ID: 4GyVZq4P7kVzWLp9)
+[2024-02-17 16:45:35] [SUCCESS] Workflow updated successfully: devis-list
+[2024-02-17 16:45:35] [INFO] Activating workflow: devis-list
+[2024-02-17 16:45:36] [SUCCESS] Workflow activated: devis-list
+
+[2024-02-17 16:45:37] [INFO] Processing: devis/devis-get.json
+[2024-02-17 16:45:37] [INFO] Found existing workflow ID: 6Nxk8mA2pJqRyTu3
+[2024-02-17 16:45:38] [INFO] Updating workflow: devis-get (ID: 6Nxk8mA2pJqRyTu3)
+[2024-02-17 16:45:39] [SUCCESS] Workflow updated successfully: devis-get
+[2024-02-17 16:45:39] [INFO] Activating workflow: devis-get
+[2024-02-17 16:45:40] [SUCCESS] Workflow activated: devis-get
+
+[2024-02-17 16:45:41] [INFO] Processing: devis/devis-created.json
+[2024-02-17 16:45:41] [INFO] Found existing workflow ID: 8Qpb5nC3hRsVwXy6
+[2024-02-17 16:45:42] [INFO] Updating workflow: devis-created (ID: 8Qpb5nC3hRsVwXy6)
+[2024-02-17 16:45:43] [SUCCESS] Workflow updated successfully: devis-created
+[2024-02-17 16:45:43] [INFO] Activating workflow: devis-created
+[2024-02-17 16:45:44] [SUCCESS] Workflow activated: devis-created
+
+[2024-02-17 16:45:45] [INFO] Processing: devis/devis-sent.json
+[2024-02-17 16:45:45] [INFO] Found existing workflow ID: 1Def9gH4iJuLmNoP
+[2024-02-17 16:45:46] [INFO] Updating workflow: devis-sent (ID: 1Def9gH4iJuLmNoP)
+[2024-02-17 16:45:47] [SUCCESS] Workflow updated successfully: devis-sent
+[2024-02-17 16:45:47] [INFO] Activating workflow: devis-sent
+[2024-02-17 16:45:48] [SUCCESS] Workflow activated: devis-sent
+
+[2024-02-17 16:45:49] [INFO] Processing: devis/devis-accepted.json
+[2024-02-17 16:45:49] [INFO] Found existing workflow ID: 2Ghi5jK7lMnOqRsT
+[2024-02-17 16:45:50] [INFO] Updating workflow: devis-accepted (ID: 2Ghi5jK7lMnOqRsT)
+[2024-02-17 16:45:51] [SUCCESS] Workflow updated successfully: devis-accepted
+[2024-02-17 16:45:51] [INFO] Activating workflow: devis-accepted
+[2024-02-17 16:45:52] [SUCCESS] Workflow activated: devis-accepted
+
+[2024-02-17 16:45:53] [INFO] Processing: devis/devis-deleted.json
+[2024-02-17 16:45:53] [INFO] Found existing workflow ID: 3Jkl8mNo9pQrStuV
+[2024-02-17 16:45:54] [INFO] Updating workflow: devis-deleted (ID: 3Jkl8mNo9pQrStuV)
+[2024-02-17 16:45:55] [SUCCESS] Workflow updated successfully: devis-deleted
+[2024-02-17 16:45:55] [INFO] Activating workflow: devis-deleted
+[2024-02-17 16:45:56] [SUCCESS] Workflow activated: devis-deleted
+
+[2024-02-17 16:45:57] [INFO] Processing: devis/devis-convert-to-invoice.json
+[2024-02-17 16:45:57] [INFO] Found existing workflow ID: 4Klm2pQr0sTuvWxY
+[2024-02-17 16:45:58] [INFO] Updating workflow: devis-convert-to-invoice (ID: 4Klm2pQr0sTuvWxY)
+[2024-02-17 16:45:59] [SUCCESS] Workflow updated successfully: devis-convert-to-invoice
+[2024-02-17 16:45:59] [INFO] Activating workflow: devis-convert-to-invoice
+[2024-02-17 16:46:00] [SUCCESS] Workflow activated: devis-convert-to-invoice
+
+[... PROCESSING CONTINUES FOR ALL 28 WORKFLOWS ...]
+[... BDC WORKFLOWS (6) ...]
+[... PROFORMA WORKFLOWS (7) ...]
+[... NOTIFICATIONS WORKFLOWS (4) ...]
+[... LOGS WORKFLOWS (2) ...]
+[... TWILIO WORKFLOWS (2) ...]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[2024-02-17 16:46:15] [INFO] Total workflows processed: 28
+[2024-02-17 16:46:15] [SUCCESS] Successful updates: 28
+[2024-02-17 16:46:15] [ERROR] Failed updates: 0
+[2024-02-17 16:46:15] [WARN] Skipped workflows: 0
+
+[2024-02-17 16:46:15] [SUCCESS] ✅ All workflows reimported successfully!
+
+═══════════════════════════════════════════════════════════════════════════════
+EXAMPLE WITH SOME WARNINGS
+═══════════════════════════════════════════════════════════════════════════════
+
+[2024-02-17 16:45:33] [INFO] Processing: devis/devis-list.json
+[2024-02-17 16:45:33] [WARN] No existing workflow found with webhook path: devis-list (skipping)
+
+[2024-02-17 16:45:34] [INFO] Processing: devis/devis-get.json
+[2024-02-17 16:45:34] [INFO] Found existing workflow ID: 6Nxk8mA2pJqRyTu3
+[2024-02-17 16:45:35] [INFO] Updating workflow: devis-get (ID: 6Nxk8mA2pJqRyTu3)
+[2024-02-17 16:45:36] [SUCCESS] Workflow updated successfully: devis-get
+[2024-02-17 16:45:36] [INFO] Activating workflow: devis-get
+[2024-02-17 16:46:37] [WARN] Failed to activate workflow: devis-get (HTTP 400) - Workflow already active
+
+═══════════════════════════════════════════════════════════════════════════════
+EXAMPLE WITH ERRORS
+═══════════════════════════════════════════════════════════════════════════════
+
+[2024-02-17 16:45:33] [ERROR] N8N_API_KEY not found. Please provide it via:
+[2024-02-17 16:45:33] [ERROR]   - Command argument: ./script.sh 'API_KEY'
+[2024-02-17 16:45:33] [ERROR]   - Environment variable: export N8N_API_KEY='...'
+[2024-02-17 16:45:33] [ERROR]   - Or add N8N_API_KEY to packages/platform/.env
+
+Solution: Set the API key first
+$ export N8N_API_KEY="your-api-key"
+$ ./scripts/reimport-n8n-workflows.sh
+
+═══════════════════════════════════════════════════════════════════════════════
+CONNECTION ERROR EXAMPLE
+═══════════════════════════════════════════════════════════════════════════════
+
+[2024-02-17 16:45:31] [INFO] Testing connection to n8n at http://localhost:5678...
+[2024-02-17 16:45:31] [ERROR] Failed to connect to n8n (HTTP 000)
+[2024-02-17 16:45:31] [ERROR] Response: Failed to connect to localhost port 5678: Connection refused
+
+Solution: Verify n8n is running
+$ curl http://localhost:5678
+$ docker ps | grep n8n
+
+═══════════════════════════════════════════════════════════════════════════════
+LOG FILE FORMAT
+═══════════════════════════════════════════════════════════════════════════════
+
+The script creates a timestamped log file in the scripts directory:
+  reimport-workflows-20240217_164530.log
+
+This file contains all the same colored output, useful for review:
+  $ cat scripts/reimport-workflows-*.log
+  $ tail -f scripts/reimport-workflows-*.log
+
+═══════════════════════════════════════════════════════════════════════════════
+CHECKING RESULTS IN N8N UI
+═══════════════════════════════════════════════════════════════════════════════
+
+After successful reimport, you should see:
+
+1. Open http://localhost:5678 in your browser
+2. Click "Workflows" in the left sidebar
+3. Verify these statuses:
+   - All 28 workflows should be active (green status)
+   - Click on a workflow like "devis-list"
+   - Verify nodes are populated (not empty)
+   - Check that Code nodes have content (not empty parameters)
+   - Verify credentials are assigned
+
+4. Test a workflow:
+   - Click on "devis-list"
+   - Click "Execute Workflow" button
+   - Or use the test webhook:
+     curl -X POST http://localhost:5678/webhook/devis-list \
+       -H "Content-Type: application/json" \
+       -d '{"tenantId":"test"}'
+
+═══════════════════════════════════════════════════════════════════════════════
+TYPICAL PROCESSING TIME
+═══════════════════════════════════════════════════════════════════════════════
+
+Pre-flight Checks:        2-3 seconds
+Fetch Workflows:          2-3 seconds
+Process 28 Workflows:     50-60 seconds (about 2 sec per workflow)
+───────────────────────────────────────
+Total Time:               54-66 seconds (approximately 1 minute)
+
+Breakdown by module (approximate):
+  - Devis (7 workflows):           14-20 seconds
+  - BDC (6 workflows):             12-18 seconds
+  - Proforma (7 workflows):        14-20 seconds
+  - Notifications (4 workflows):   8-12 seconds
+  - Logs (2 workflows):            4-6 seconds
+  - Twilio (2 workflows):          4-6 seconds
+
+═══════════════════════════════════════════════════════════════════════════════
+EXIT CODES
+═══════════════════════════════════════════════════════════════════════════════
+
+Script Exit Codes:
+  0 = Success (all workflows processed without errors)
+  1 = Failure (one or more errors occurred)
+
+To check exit code after running:
+  $ ./scripts/reimport-n8n-workflows.sh
+  $ echo $?
+  0  ← indicates success
+
+═══════════════════════════════════════════════════════════════════════════════
+
+For more information, see:
+  - REIMPORT_QUICK_START.md (quick reference)
+  - REIMPORT_WORKFLOWS_README.md (full documentation)
+  - REIMPORTER_IMPLEMENTATION_SUMMARY.md (technical details)

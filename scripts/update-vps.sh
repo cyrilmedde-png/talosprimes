@@ -578,35 +578,12 @@ except Exception as e:
 
         rm -f "$tmp_current"
 
-        # 1. PARTAGER les credentials AVANT le PUT (evite "authentication has issues")
-        local cred_ids
-        cred_ids=$(echo "$payload" | python3 -c "
-import sys, json
-wf = json.load(sys.stdin)
-seen = set()
-for node in wf.get('nodes', []):
-    for cred_type, cred_info in node.get('credentials', {}).items():
-        if isinstance(cred_info, dict):
-            cid = cred_info.get('id', '')
-            if cid and cid not in seen:
-                seen.add(cid)
-                print(cid)
-" 2>/dev/null || true)
+        # NOTE: credential sharing et project transfer DESACTIVES
+        # L'API /credentials/share retourne 405 sur cette version de n8n.
+        # Le transfer dans un projet cause la perte des credentials non partagees.
+        # Les workflows restent dans le projet "Personal" de l'API user.
 
-        if [ -n "$cred_ids" ] && [ -n "$project_id" ]; then
-          echo "$cred_ids" | while IFS= read -r cid; do
-            [ -z "$cid" ] && continue
-            curl -s -X PUT \
-              -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "{\"shareWithIds\": [\"$project_id\"]}" \
-              "$N8N_API_URL/api/v1/credentials/$cid/share" > /dev/null 2>&1 || true
-          done
-        fi
-
-        sleep 0.2
-
-        # 2. PUT le contenu (nodes, connections, credentials copiees depuis n8n)
+        # PUT le contenu (nodes, connections, credentials copiees depuis n8n)
         local put_response
         put_response=$(curl -s -w "\n%{http_code}" -X PUT \
           -H "X-N8N-API-KEY: $N8N_API_KEY" \
@@ -626,30 +603,9 @@ for node in wf.get('nodes', []):
 
         sleep 0.2
 
-        # 3. Transferer dans le bon projet
-        if [ -n "$project_id" ]; then
-          curl -s -X PUT \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"destinationProjectId\": \"$project_id\"}" \
-            "$N8N_API_URL/api/v1/workflows/$existing_id/transfer" > /dev/null 2>&1 || true
-        fi
-
-        # 4. Re-partager les credentials APRES le PUT (au cas ou le PUT les aurait reset)
-        if [ -n "$cred_ids" ] && [ -n "$project_id" ]; then
-          echo "$cred_ids" | while IFS= read -r cid; do
-            [ -z "$cid" ] && continue
-            curl -s -X PUT \
-              -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "{\"shareWithIds\": [\"$project_id\"]}" \
-              "$N8N_API_URL/api/v1/credentials/$cid/share" > /dev/null 2>&1 || true
-          done
-        fi
-
         sleep 0.2
 
-        # 5. Activate APRES que tout est en place
+        # Activate
         curl -s -X PATCH \
           -H "X-N8N-API-KEY: $N8N_API_KEY" \
           -H "Content-Type: application/json" \
@@ -972,79 +928,10 @@ for name, cid in mapping.items():
         log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_ERRORS erreurs"
       fi
 
-      # --- PARTAGE DES CREDENTIALS AVEC LE PROJET ---
-      # Apres le deploiement, les credentials doivent etre partagees avec le projet
-      # pour eviter le message "authentication has issues" dans l'editeur n8n.
-      log_info "Partage des credentials avec les projets..."
-      python3 -c "
-import json, urllib.request, os, sys
-
-api_url = os.environ.get('N8N_API_URL', '')
-api_key = os.environ.get('N8N_API_KEY', '')
-
-if not api_url or not api_key:
-    print('  API non configuree, skip', file=sys.stderr)
-    sys.exit(0)
-
-# 1. Recuperer tous les projets
-try:
-    req = urllib.request.Request(f'{api_url}/api/v1/projects', headers={'X-N8N-API-KEY': api_key})
-    resp = urllib.request.urlopen(req, timeout=10)
-    projects = json.loads(resp.read()).get('data', [])
-except Exception as e:
-    print(f'  Impossible de lister les projets: {e}', file=sys.stderr)
-    sys.exit(0)
-
-# Trouver le projet TalosPrimes (ou tous les projets non-personnels)
-project_ids = []
-for p in projects:
-    pname = p.get('name', '').lower()
-    pid = p.get('id', '')
-    ptype = p.get('type', '')
-    if pid and ptype != 'personal':
-        project_ids.append(pid)
-        print(f'  Projet: {p.get(\"name\",\"?\")} ({pid})', file=sys.stderr)
-
-if not project_ids:
-    print('  Aucun projet non-personnel trouve, skip', file=sys.stderr)
-    sys.exit(0)
-
-# 2. Recuperer toutes les credentials
-try:
-    req = urllib.request.Request(f'{api_url}/api/v1/credentials', headers={'X-N8N-API-KEY': api_key})
-    resp = urllib.request.urlopen(req, timeout=10)
-    credentials = json.loads(resp.read()).get('data', [])
-except Exception as e:
-    # API credentials peut ne pas etre disponible sur toutes les versions
-    print(f'  API credentials non disponible: {e}', file=sys.stderr)
-    sys.exit(0)
-
-# 3. Pour chaque credential, partager avec tous les projets
-shared = 0
-for cred in credentials:
-    cred_id = cred.get('id', '')
-    cred_name = cred.get('name', '')
-    if not cred_id:
-        continue
-    try:
-        share_url = f'{api_url}/api/v1/credentials/{cred_id}/share'
-        share_data = json.dumps({'shareWithIds': project_ids}).encode('utf-8')
-        req = urllib.request.Request(share_url, data=share_data, method='PUT',
-            headers={'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'})
-        urllib.request.urlopen(req, timeout=10)
-        shared += 1
-    except urllib.error.HTTPError as e:
-        # 404 = endpoint non disponible, 400 = deja partage ou format invalide
-        if e.code not in (404, 400, 403):
-            print(f'  Erreur partage {cred_name}: HTTP {e.code}', file=sys.stderr)
-    except Exception as e:
-        print(f'  Erreur partage {cred_name}: {e}', file=sys.stderr)
-
-if shared > 0:
-    print(f'  {shared} credentials partagees avec les projets', file=sys.stderr)
-else:
-    print(f'  Aucune credential partagee (API non supportee ou deja OK)', file=sys.stderr)
-" 2>&1 | while IFS= read -r line; do echo "    $line"; done
+      # --- PARTAGE DES CREDENTIALS ---
+      # DESACTIVE: L'API /credentials et /credentials/share retourne 405
+      # sur cette version de n8n. Les workflows restent dans Personal.
+      log_info "Partage credentials SKIP (API non supportee sur cette version n8n)"
 
       # --- VERIFICATION POST-SYNC: lister les workflows inactifs ---
       log_info "Verification de l'activation des workflows..."
