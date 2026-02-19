@@ -992,10 +992,16 @@ for name, cid in mapping.items():
         log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_ERRORS erreurs"
       fi
 
-      # --- PARTAGE DES CREDENTIALS ---
-      # DESACTIVE: L'API /credentials et /credentials/share retourne 405
-      # sur cette version de n8n. Les workflows restent dans Personal.
-      log_info "Partage credentials SKIP (API non supportee sur cette version n8n)"
+      # --- FIX CREDENTIALS POST-IMPORT ---
+      # Corrige directement dans la SQLite n8n les credential IDs/names
+      # qui auraient ete supprimes par preventTampering() pendant l'import
+      log_info "Fix credentials post-import (direct SQLite)..."
+      SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+      if [ -f "$SCRIPT_DIR/fix-credentials-sqlite.sh" ]; then
+        bash "$SCRIPT_DIR/fix-credentials-sqlite.sh" 2>&1 | while read -r line; do echo "  $line"; done
+      else
+        log_warn "Script fix-credentials-sqlite.sh introuvable"
+      fi
 
       # --- VERIFICATION POST-SYNC: lister les workflows inactifs ---
       log_info "Verification de l'activation des workflows..."
