@@ -42,20 +42,45 @@ PLATFORM_DIR="${PROJECT_DIR}/packages/platform"
 LOG_FILE="${SCRIPT_DIR}/../reimport-workflows-$(date +%Y%m%d_%H%M%S).log"
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 
-# Credential ID mappings (current n8n instance)
+# Credential ID mappings (current n8n instance) — extracted from live workflows
 declare -A CREDENTIAL_MAP=(
+    # Postgres / Supabase
     ["postgres"]="6Kosza77d9Ld32mw"
     ["Supabase Postgres"]="6Kosza77d9Ld32mw"
-    ["httpHeaderAuth:talosprimes"]="AuJmz6W8aeutvysV"
+    ["Postgres account"]="6Kosza77d9Ld32mw"
+    # TalosPrimes API (2 variantes)
     ["TalosPrimes API Auth"]="AuJmz6W8aeutvysV"
-    ["httpHeaderAuth:resend"]="ZoJkKnTqGisK2Idh"
+    ["httpHeaderAuth:talosprimes"]="AuJmz6W8aeutvysV"
+    ["API TalosPrimes - Header Auth"]="FLSZWCszgEFfXDoK"
+    ["API TalosPrimes"]="FLSZWCszgEFfXDoK"
+    ["TalosPrimes API"]="FLSZWCszgEFfXDoK"
+    ["talosprimes-api-credential"]="FLSZWCszgEFfXDoK"
+    # Resend (email)
     ["RESEND"]="ZoJkKnTqGisK2Idh"
+    ["Resend API"]="ZoJkKnTqGisK2Idh"
+    ["httpHeaderAuth:resend"]="ZoJkKnTqGisK2Idh"
+    ["resend-api-credential"]="ZoJkKnTqGisK2Idh"
+    # Stripe
+    ["Stripe API"]="hTgbVXtv3dG8wSJ4"
+    # Twilio
     ["twilio"]="9dKAFunSg4lJcj77"
     ["Twilio account"]="9dKAFunSg4lJcj77"
-    ["n8nApi"]="UOxVqcaXs0NeqsmD"
-    ["X-N8N-API-KEY"]="UOxVqcaXs0NeqsmD"
-    ["API TalosPrimes - Header Auth"]="FLSZWCszgEFfXDoK"
-    ["Stripe API"]="hTgbVXtv3dG8wSJ4"
+    # n8n API
+    ["n8nApi"]="soHoxOtlUU9xdHDu"
+    ["n8n API Key"]="soHoxOtlUU9xdHDu"
+    ["X-N8N-API-KEY"]="soHoxOtlUU9xdHDu"
+    # Telegram
+    ["Telegram account"]="JeSjY5sE3QcncJ4u"
+    ["TeleGram Perso"]="D6qAvZZV2lhH6rVh"
+    # OpenAI
+    ["OpenAi account"]="MmpYHYAt746xfTrB"
+    ["OpenAI API Key (Header)"]="openai-api-key-header"
+    # Anthropic
+    ["Anthropic account"]="SB3snedx3T9F5Tuz"
+    # Gmail
+    ["Gmail account"]="jzveDrdzJcs9iv7R"
+    # Google Calendar
+    ["Google Calendar account"]="1098OxGMJM5eG3PU"
 )
 
 # Color codes for output
@@ -294,10 +319,23 @@ cred_map = {
     "RESEND": "ZoJkKnTqGisK2Idh",
     "twilio": "9dKAFunSg4lJcj77",
     "Twilio account": "9dKAFunSg4lJcj77",
-    "n8nApi": "UOxVqcaXs0NeqsmD",
-    "X-N8N-API-KEY": "UOxVqcaXs0NeqsmD",
+    "n8nApi": "soHoxOtlUU9xdHDu",
+    "n8n API Key": "soHoxOtlUU9xdHDu",
+    "X-N8N-API-KEY": "soHoxOtlUU9xdHDu",
     "API TalosPrimes - Header Auth": "FLSZWCszgEFfXDoK",
-    "Stripe API": "hTgbVXtv3dG8wSJ4"
+    "API TalosPrimes": "FLSZWCszgEFfXDoK",
+    "TalosPrimes API": "FLSZWCszgEFfXDoK",
+    "talosprimes-api-credential": "FLSZWCszgEFfXDoK",
+    "Stripe API": "hTgbVXtv3dG8wSJ4",
+    "Resend API": "ZoJkKnTqGisK2Idh",
+    "resend-api-credential": "ZoJkKnTqGisK2Idh",
+    "Telegram account": "JeSjY5sE3QcncJ4u",
+    "TeleGram Perso": "D6qAvZZV2lhH6rVh",
+    "OpenAi account": "MmpYHYAt746xfTrB",
+    "OpenAI API Key (Header)": "openai-api-key-header",
+    "Anthropic account": "SB3snedx3T9F5Tuz",
+    "Gmail account": "jzveDrdzJcs9iv7R",
+    "Google Calendar account": "1098OxGMJM5eG3PU"
 }
 
 # ---- Step 1: Find Parser node name dynamically ----
