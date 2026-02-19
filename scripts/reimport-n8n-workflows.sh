@@ -459,6 +459,122 @@ print(json.dumps(workflow))
 PYEOF
 }
 
+# Fetch a single workflow's full detail from n8n API
+fetch_workflow_detail() {
+    local workflow_id="$1"
+    curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+        "$N8N_API_URL/api/v1/workflows/$workflow_id" 2>/dev/null
+}
+
+# MERGE backup into existing workflow: only update code/queries, preserve credentials
+merge_backup_into_existing() {
+    local backup_file="$1"
+    local existing_json="$2"
+
+    export BACKUP_FILE="$backup_file"
+    export EXISTING_JSON="$existing_json"
+    python3 << 'PYEOF'
+import json, os, sys
+
+backup_file = os.environ.get('BACKUP_FILE', '')
+existing_json_str = os.environ.get('EXISTING_JSON', '{}')
+
+with open(backup_file, 'r') as f:
+    backup = json.load(f)
+
+existing = json.loads(existing_json_str)
+
+# Build lookup: backup nodes by name
+backup_nodes_by_name = {}
+for node in backup.get('nodes', []):
+    backup_nodes_by_name[node.get('name', '')] = node
+
+# Track changes
+changes = []
+
+# Update existing nodes with backup code/queries ONLY
+for node in existing.get('nodes', []):
+    node_name = node.get('name', '')
+    node_type = node.get('type', '')
+    backup_node = backup_nodes_by_name.get(node_name)
+
+    if not backup_node:
+        continue
+
+    # For Code nodes: update jsCode only
+    if node_type == 'n8n-nodes-base.code':
+        backup_params = backup_node.get('parameters', {})
+        existing_params = node.get('parameters', {})
+        backup_code = backup_params.get('jsCode', backup_params.get('code', ''))
+        existing_code = existing_params.get('jsCode', existing_params.get('code', ''))
+        if backup_code and backup_code != existing_code:
+            existing_params['jsCode'] = backup_code
+            # Remove old 'code' key if present
+            existing_params.pop('code', None)
+            changes.append(f"Code updated: {node_name}")
+
+    # For Postgres nodes: update query only
+    elif node_type == 'n8n-nodes-base.postgres':
+        backup_params = backup_node.get('parameters', {})
+        existing_params = node.get('parameters', {})
+        backup_query = backup_params.get('query', '')
+        existing_query = existing_params.get('query', '')
+        if backup_query and backup_query != existing_query:
+            existing_params['query'] = backup_query
+            changes.append(f"Query updated: {node_name}")
+
+    # For Webhook nodes: update path/method if different
+    elif node_type == 'n8n-nodes-base.webhook':
+        backup_params = backup_node.get('parameters', {})
+        existing_params = node.get('parameters', {})
+        for key in ['path', 'httpMethod', 'responseMode']:
+            if key in backup_params:
+                existing_params[key] = backup_params[key]
+
+    # For IF nodes: update conditions
+    elif node_type == 'n8n-nodes-base.if':
+        backup_params = backup_node.get('parameters', {})
+        existing_params = node.get('parameters', {})
+        if 'conditions' in backup_params:
+            existing_params['conditions'] = backup_params['conditions']
+
+    # For Respond nodes: update response config
+    elif node_type == 'n8n-nodes-base.respondToWebhook':
+        backup_params = backup_node.get('parameters', {})
+        existing_params = node.get('parameters', {})
+        for key in ['respondWith', 'responseBody', 'responseCode']:
+            if key in backup_params:
+                existing_params[key] = backup_params[key]
+
+    # NEVER touch: credentials, position, id, typeVersion, etc.
+
+# Add new nodes from backup that don't exist in current workflow
+existing_names = {n.get('name', '') for n in existing.get('nodes', [])}
+for node_name, backup_node in backup_nodes_by_name.items():
+    if node_name not in existing_names:
+        existing['nodes'].append(backup_node)
+        changes.append(f"New node added: {node_name}")
+
+# Update connections from backup (needed if new nodes were added)
+if backup.get('connections'):
+    existing['connections'] = backup['connections']
+
+# Remove read-only fields for PUT request
+for field in ['active', 'id', 'createdAt', 'updatedAt', 'versionId',
+              'triggerCount', 'sharedWithProjects', 'homeProject', 'tags',
+              'meta', 'pinData', 'staticData']:
+    existing.pop(field, None)
+
+# Output changes to stderr for logging
+for c in changes:
+    print(f"  MERGE: {c}", file=sys.stderr)
+if not changes:
+    print("  MERGE: No changes detected", file=sys.stderr)
+
+print(json.dumps(existing))
+PYEOF
+}
+
 # Update workflow via n8n API
 update_workflow() {
     local workflow_id="$1"
@@ -467,13 +583,19 @@ update_workflow() {
 
     log "INFO" "Updating workflow: $workflow_name (ID: $workflow_id)"
 
-    # Send PUT request
+    # Write JSON to temp file to avoid argument length limits
+    local tmpfile="/tmp/n8n_update_$$.json"
+    echo "$workflow_json" > "$tmpfile"
+
+    # Send PUT request using file
     local response
     response=$(curl -s -w "\n%{http_code}" -X PUT \
         -H "X-N8N-API-KEY: $N8N_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "$workflow_json" \
+        -d @"$tmpfile" \
         "$N8N_API_URL/api/v1/workflows/$workflow_id" 2>&1)
+
+    rm -f "$tmpfile"
 
     local http_code
     http_code=$(echo "$response" | tail -1)
@@ -532,7 +654,10 @@ activate_workflow() {
     fi
 }
 
-# Process a single workflow
+# Process a single workflow using MERGE strategy
+# 1. GET existing workflow from n8n (with credentials intact)
+# 2. MERGE only code/queries from backup into existing
+# 3. PUT merged result (credentials untouched)
 process_workflow() {
     local backup_file="$1"
     local relative_path="${backup_file#$BACKUP_DIR/}"
@@ -542,7 +667,6 @@ process_workflow() {
     log "INFO" "Processing: $relative_path"
 
     # Extract webhook path from filename
-    # e.g., "devis/devis-list.json" -> "devis-list"
     local filename
     filename=$(basename "$backup_file" .json)
 
@@ -565,17 +689,24 @@ process_workflow() {
         return 1
     fi
 
-    # Get existing credentials from the live n8n workflow (preserves auth links)
-    local existing_creds
-    existing_creds=$(get_existing_credentials "$workflow_id")
-    log "INFO" "Fetched existing credentials for workflow $workflow_id"
+    # GET the full existing workflow from n8n (credentials, positions, everything)
+    local existing_workflow
+    existing_workflow=$(fetch_workflow_detail "$workflow_id")
 
-    # Replace credentials in the backup JSON, preferring existing ones
-    local updated_json
-    updated_json=$(replace_credentials_in_workflow "$backup_file" "$existing_creds")
+    if [ -z "$existing_workflow" ] || ! echo "$existing_workflow" | python3 -m json.tool > /dev/null 2>&1; then
+        log "ERROR" "Failed to fetch existing workflow $workflow_id from n8n"
+        FAILED_UPDATES=$((FAILED_UPDATES + 1))
+        return 1
+    fi
 
-    if [ -z "$updated_json" ]; then
-        log "ERROR" "Failed to process credentials for: $relative_path"
+    log "INFO" "Fetched existing workflow from n8n (credentials preserved)"
+
+    # MERGE: update ONLY code/queries from backup, keep everything else from n8n
+    local merged_json
+    merged_json=$(merge_backup_into_existing "$backup_file" "$existing_workflow" 2>> "$LOG_FILE")
+
+    if [ -z "$merged_json" ]; then
+        log "ERROR" "Failed to merge backup for: $relative_path"
         FAILED_UPDATES=$((FAILED_UPDATES + 1))
         return 1
     fi
@@ -583,8 +714,8 @@ process_workflow() {
     # Deactivate first to force webhook re-registration on activate
     deactivate_workflow "$workflow_id" "$filename"
 
-    # Update workflow
-    if update_workflow "$workflow_id" "$updated_json" "$filename"; then
+    # Update workflow with merged JSON (credentials intact!)
+    if update_workflow "$workflow_id" "$merged_json" "$filename"; then
         # Activate (webhooks will be freshly registered)
         activate_workflow "$workflow_id" "$filename"
         SUCCESSFUL_UPDATES=$((SUCCESSFUL_UPDATES + 1))
