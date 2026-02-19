@@ -325,23 +325,77 @@ export default function FacturesPage() {
           designation: l.designation.trim(),
           quantite: Math.max(1, Math.round(parseFloat(l.quantite.replace(',', '.')) || 1)),
           prixUnitaireHt: parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0,
-          codeArticle: l.codeArticle || null,
+          codeArticle: l.codeArticle || undefined,
         }));
 
       const dateEcheance = createForm.dateEcheance
         ? new Date(createForm.dateEcheance).toISOString()
         : new Date(new Date(createForm.dateFacture).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      await apiClient.invoices.create({
-        clientFinalId: createForm.clientFinalId,
-        type: createForm.type,
-        montantHt,
-        tvaTaux,
-        dateFacture: new Date(createForm.dateFacture).toISOString(),
-        dateEcheance,
-        description,
-        modePaiement,
-        ...(apiLines.length > 0 ? { lines: apiLines } : {}),
-      });
+
+      // Router vers la bonne API selon le type de document
+      switch (createForm.typeDocument) {
+        case 'devis':
+          await apiClient.devis.create({
+            clientFinalId: createForm.clientFinalId,
+            montantHt,
+            tvaTaux,
+            dateDevis: new Date(createForm.dateFacture).toISOString(),
+            dateValidite: dateEcheance,
+            description,
+            modePaiement,
+            ...(apiLines.length > 0 ? { lines: apiLines } : {}),
+          });
+          setShowCreateModal(false);
+          resetCreateForm();
+          router.push('/devis');
+          return;
+
+        case 'proforma':
+          await apiClient.proformas.create({
+            clientFinalId: createForm.clientFinalId,
+            montantHt,
+            tvaTaux,
+            dateProforma: new Date(createForm.dateFacture).toISOString(),
+            dateValidite: dateEcheance,
+            description,
+            modePaiement,
+            ...(apiLines.length > 0 ? { lines: apiLines } : {}),
+          });
+          setShowCreateModal(false);
+          resetCreateForm();
+          router.push('/proforma');
+          return;
+
+        case 'avoir':
+          await apiClient.avoirs.create({
+            clientFinalId: createForm.clientFinalId,
+            montantHt,
+            tvaTaux,
+            dateAvoir: new Date(createForm.dateFacture).toISOString(),
+            description,
+            ...(apiLines.length > 0 ? { lines: apiLines } : {}),
+          });
+          setShowCreateModal(false);
+          resetCreateForm();
+          router.push('/avoir');
+          return;
+
+        case 'facture':
+        default:
+          await apiClient.invoices.create({
+            clientFinalId: createForm.clientFinalId,
+            type: createForm.type,
+            montantHt,
+            tvaTaux,
+            dateFacture: new Date(createForm.dateFacture).toISOString(),
+            dateEcheance,
+            description,
+            modePaiement,
+            ...(apiLines.length > 0 ? { lines: apiLines } : {}),
+          });
+          break;
+      }
+
       setShowCreateModal(false);
       resetCreateForm();
       await loadInvoices();
@@ -691,7 +745,9 @@ export default function FacturesPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Date d&apos;émission *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    {createForm.typeDocument === 'avoir' ? "Date de l'avoir *" : createForm.typeDocument === 'devis' ? 'Date du devis *' : createForm.typeDocument === 'proforma' ? 'Date du proforma *' : "Date d'émission *"}
+                  </label>
                   <input
                     type="date"
                     required
@@ -701,7 +757,9 @@ export default function FacturesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Date d&apos;échéance</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    {createForm.typeDocument === 'devis' || createForm.typeDocument === 'proforma' ? 'Date de validité' : "Date d'échéance"}
+                  </label>
                   <input
                     type="date"
                     value={createForm.dateEcheance}
