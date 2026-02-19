@@ -617,68 +617,64 @@ except Exception as e:
         # Le transfer dans un projet cause la perte des credentials non partagees.
         # Les workflows restent dans le projet "Personal" de l'API user.
 
-        # PUT le contenu via API interne /rest/ (preserve les credentials)
-        # L'API publique /api/v1/ fait preventTampering() qui supprime les credentials
-        local put_response
-        if [ "$N8N_SESSION_OK" = "true" ]; then
-          # API interne avec cookie session — PAS de preventTampering
-          put_response=$(curl -s -w "\n%{http_code}" -X PATCH \
-            -b "$N8N_COOKIE_FILE" \
-            -H "Content-Type: application/json" \
-            -d "$payload" \
-            "$N8N_API_URL/rest/workflows/$existing_id" 2>/dev/null)
+        # IMPORT VIA CLI DOCKER — ecrit directement en base, bypass API
+        # L'API (publique et interne) applique preventTampering() qui supprime
+        # les credentials. Le CLI n8n import:workflow ecrit directement en DB.
+
+        # Ajouter l'ID existant dans le payload pour overwrite
+        local import_payload
+        import_payload=$(echo "$payload" | python3 -c "
+import sys, json
+wf = json.load(sys.stdin)
+wf['id'] = '$existing_id'
+print(json.dumps(wf))
+" 2>/dev/null || echo "$payload")
+
+        # Ecrire dans un fichier temp et copier dans le container
+        local tmp_import="/tmp/n8n_import_${existing_id}.json"
+        echo "$import_payload" > "$tmp_import"
+
+        # Copier dans le container n8n
+        docker cp "$tmp_import" n8n:/tmp/workflow_import.json 2>/dev/null
+
+        # Importer via CLI (ecrit directement en DB)
+        local import_result
+        import_result=$(docker exec -u node n8n n8n import:workflow --input=/tmp/workflow_import.json 2>&1)
+        local import_exit=$?
+
+        rm -f "$tmp_import"
+
+        if [ $import_exit -eq 0 ]; then
+          log_info "    IMPORT OK via CLI Docker (credentials preservees)"
         else
-          # Fallback: API publique (credentials peuvent etre perdues)
+          log_warn "    Import CLI echoue ($import_exit): $(echo "$import_result" | head -c 200)"
+          # Fallback: API publique
+          log_info "    Fallback PUT /api/v1/..."
+          local put_response
           put_response=$(curl -s -w "\n%{http_code}" -X PUT \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$payload" \
             "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
-        fi
-
-        local put_http_code=$(echo "$put_response" | tail -1)
-        local put_body=$(echo "$put_response" | sed '$d')
-
-        if [ "$put_http_code" != "200" ]; then
-          log_warn "    PUT echoue (HTTP $put_http_code) pour $(basename "$file")"
-          log_warn "    Response: $(echo "$put_body" | head -c 200)"
-          # Si /rest/ echoue, essayer /api/v1/ en fallback
-          if [ "$N8N_SESSION_OK" = "true" ]; then
-            log_info "    Retry via /api/v1/..."
-            put_response=$(curl -s -w "\n%{http_code}" -X PUT \
-              -H "X-N8N-API-KEY: $N8N_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "$payload" \
-              "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
-            put_http_code=$(echo "$put_response" | tail -1)
-            if [ "$put_http_code" = "200" ]; then
-              log_info "    PUT OK via /api/v1/ (fallback)"
-            fi
-          fi
-        else
-          if [ "$N8N_SESSION_OK" = "true" ]; then
-            log_info "    PUT OK via /rest/ (credentials preservees)"
+          local put_http_code=$(echo "$put_response" | tail -1)
+          if [ "$put_http_code" = "200" ]; then
+            log_info "    PUT OK via /api/v1/ (fallback)"
           else
-            log_info "    PUT OK via /api/v1/"
+            log_warn "    PUT aussi echoue (HTTP $put_http_code)"
           fi
         fi
 
         sleep 0.3
 
-        # Activate via /rest/ (supporte PATCH)
-        if [ "$N8N_SESSION_OK" = "true" ]; then
-          curl -s -X PATCH \
-            -b "$N8N_COOKIE_FILE" \
-            -H "Content-Type: application/json" \
-            -d '{"active": true}' \
-            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
-        else
-          curl -s -X PATCH \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{"active": true}' \
-            "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || true
-        fi
+        # Activate le workflow
+        curl -s -X PATCH \
+          -H "X-N8N-API-KEY: $N8N_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"active": true}' \
+          "$N8N_API_URL/rest/workflows/$existing_id" > /dev/null 2>&1 || \
+        curl -s -X POST \
+          -H "X-N8N-API-KEY: $N8N_API_KEY" \
+          "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
 
         return 0
 
