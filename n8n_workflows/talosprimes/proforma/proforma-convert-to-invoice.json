@@ -81,7 +81,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'FAC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenant_id }}' AND numero_facture LIKE 'FAC-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
+        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenant_id }}' AND numero_facture LIKE 'INV-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
       },
       "id": "07. Get Next Invoice Number",
       "name": "07. Get Next Invoice Number",
@@ -97,7 +97,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const proforma = $('06. Check Proforma').first().json;\nconst nextNum = $('07. Get Next Invoice Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroFacture = 'FAC-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: {\n  ...proforma,\n  numeroFacture,\n  dateFacture: new Date().toISOString()\n} }];"
+        "jsCode": "const proforma = $('06. Check Proforma').first().json;\nconst nextNum = $('07. Get Next Invoice Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroFacture = 'INV-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: {\n  ...proforma,\n  numeroFacture,\n  dateFacture: new Date().toISOString()\n} }];"
       },
       "id": "08. Prepare Invoice",
       "name": "08. Prepare Invoice",
@@ -108,7 +108,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (id, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', {{ $json.client_final_id ? \"'\" + $json.client_final_id + \"'\" : 'NULL' }}, '{{ $json.id }}', '{{ $json.numeroFacture }}', '{{ $json.dateFacture }}', {{ $json.montant_ht }}, {{ $json.montant_ttc }}, {{ $json.tva_taux || 20 }}, {{ $json.description ? \"'\" + $json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $json.mode_paiement ? \"'\" + $json.mode_paiement.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, statut, created_at, updated_at"
+        "query": "=INSERT INTO invoices (id, type, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), 'facture_client_final', '{{ $json.tenant_id }}', {{ $json.client_final_id ? \"'\" + $json.client_final_id + \"'\" : 'NULL' }}, '{{ $json.id }}', '{{ $json.numeroFacture }}', '{{ $json.dateFacture }}', {{ $json.montant_ht }}, {{ $json.montant_ttc }}, {{ $json.tva_taux || 20 }}, {{ $json.description ? \"'\" + $json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $json.mode_paiement ? \"'\" + $json.mode_paiement.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, statut, created_at, updated_at"
       },
       "id": "09. Create Invoice",
       "name": "09. Create Invoice",

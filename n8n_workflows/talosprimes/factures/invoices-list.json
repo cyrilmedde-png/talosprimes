@@ -87,24 +87,68 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\nconst invoices = items.map(i => ({\n  id: i.id,\n  tenantId: i.tenant_id,\n  clientFinalId: i.client_final_id,\n  type: i.type,\n  numeroFacture: i.numero_facture,\n  dateFacture: i.date_facture,\n  dateEcheance: i.date_echeance,\n  montantHt: i.montant_ht,\n  montantTtc: i.montant_ttc,\n  tvaTaux: i.tva_taux,\n  description: i.description,\n  modePaiement: i.mode_paiement,\n  statut: i.statut,\n  lienPdf: i.lien_pdf,\n  idExternePaiement: i.id_externe_paiement,\n  proformaId: i.proforma_id,\n  createdAt: i.created_at,\n  updatedAt: i.updated_at,\n  clientFinal: i.client_final_id ? {\n    id: i.client_final_id,\n    nom: i.client_nom || null,\n    prenom: i.client_prenom || null,\n    email: i.client_email || null,\n    telephone: i.client_telephone || null,\n    raisonSociale: i.client_raison_sociale || null\n  } : null\n}));\n\nreturn [{ json: {\n  invoices,\n  count: invoices.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
+        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst invoiceIds = items.map(i => i.id);\nreturn [{ json: { invoiceIds, hasIds: invoiceIds.length > 0 } }];"
       },
-      "id": "07. Format Response",
-      "name": "07. Format Response",
+      "id": "07. Extract IDs",
+      "name": "07. Extract IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1100, 300]
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.hasIds ? \"SELECT id, invoice_id, numero_bdc, statut FROM bon_commandes WHERE invoice_id IN ('\" + $json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id, NULL as numero_bdc, NULL as statut WHERE false\" }}"
+      },
+      "id": "08. Get BdC Links",
+      "name": "08. Get BdC Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('07. Extract IDs').first().json.hasIds ? \"SELECT id, invoice_id, numero_devis, statut FROM devis WHERE invoice_id IN ('\" + $('07. Extract IDs').first().json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id, NULL as numero_devis, NULL as statut WHERE false\" }}"
+      },
+      "id": "09. Get Devis Links",
+      "name": "09. Get Devis Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "6Kosza77d9Ld32mw"
+        }
+      },
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\n// Build BdC lookup by invoice_id\nconst bdcItems = $('08. Get BdC Links').all().map(item => item.json).filter(b => b.id);\nconst bdcByInvoice = {};\nfor (const b of bdcItems) {\n  if (!bdcByInvoice[b.invoice_id]) bdcByInvoice[b.invoice_id] = [];\n  bdcByInvoice[b.invoice_id].push({ id: b.id, numeroBdc: b.numero_bdc, statut: b.statut });\n}\n\n// Build Devis lookup by invoice_id\nconst devisItems = $('09. Get Devis Links').all().map(item => item.json).filter(d => d.id);\nconst devisByInvoice = {};\nfor (const d of devisItems) {\n  if (!devisByInvoice[d.invoice_id]) devisByInvoice[d.invoice_id] = [];\n  devisByInvoice[d.invoice_id].push({ id: d.id, numeroDevis: d.numero_devis, statut: d.statut });\n}\n\nconst invoices = items.map(i => ({\n  id: i.id,\n  tenantId: i.tenant_id,\n  clientFinalId: i.client_final_id,\n  type: i.type,\n  numeroFacture: i.numero_facture,\n  dateFacture: i.date_facture,\n  dateEcheance: i.date_echeance,\n  montantHt: i.montant_ht,\n  montantTtc: i.montant_ttc,\n  tvaTaux: i.tva_taux,\n  description: i.description,\n  modePaiement: i.mode_paiement,\n  statut: i.statut,\n  lienPdf: i.lien_pdf,\n  idExternePaiement: i.id_externe_paiement,\n  proformaId: i.proforma_id,\n  createdAt: i.created_at,\n  updatedAt: i.updated_at,\n  clientFinal: i.client_final_id ? {\n    id: i.client_final_id,\n    nom: i.client_nom || null,\n    prenom: i.client_prenom || null,\n    email: i.client_email || null,\n    telephone: i.client_telephone || null,\n    raisonSociale: i.client_raison_sociale || null\n  } : null,\n  bonsCommande: bdcByInvoice[i.id] || [],\n  devis: devisByInvoice[i.id] || []\n}));\n\nreturn [{ json: {\n  invoices,\n  count: invoices.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
+      },
+      "id": "10. Format Response",
+      "name": "10. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "08. Respond",
-      "name": "08. Respond",
+      "id": "11. Respond",
+      "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [1700, 300]
     }
   ],
   "connections": {
@@ -124,10 +168,24 @@
       "main": [[{ "node": "06. List Query", "type": "main", "index": 0 }]]
     },
     "06. List Query": {
-      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "07. Extract IDs", "type": "main", "index": 0 }]]
     },
-    "07. Format Response": {
-      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
+    "07. Extract IDs": {
+      "main": [
+        [
+          { "node": "08. Get BdC Links", "type": "main", "index": 0 },
+          { "node": "09. Get Devis Links", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "08. Get BdC Links": {
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+    },
+    "09. Get Devis Links": {
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+    },
+    "10. Format Response": {
+      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
     }
   }
 }
