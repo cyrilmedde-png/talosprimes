@@ -59,21 +59,30 @@ export default function SMSPage() {
       setLoading(true);
       setError(null);
 
-      // Load stats
-      const statsResponse = await apiClient.sms.stats();
-      if (statsResponse.success && statsResponse.data) {
-        setStats(statsResponse.data.stats as SMSStats);
+      // Load stats (non-blocking)
+      try {
+        const statsResponse = await apiClient.sms.stats();
+        if (statsResponse.success && statsResponse.data) {
+          const s = statsResponse.data.stats || statsResponse.data;
+          setStats(prev => ({ ...prev, ...(s as SMSStats) }));
+        }
+      } catch (statsErr) {
+        console.warn('[SMS] Stats indisponibles:', statsErr instanceof Error ? statsErr.message : statsErr);
       }
 
-      // Load SMS
-      const filters: Record<string, any> = {};
-      if (filterDirection) filters.direction = filterDirection;
-      if (filterDateFrom) filters.dateFrom = filterDateFrom;
-      if (filterDateTo) filters.dateTo = filterDateTo;
+      // Load SMS (non-blocking)
+      try {
+        const filters: Record<string, any> = {};
+        if (filterDirection) filters.direction = filterDirection;
+        if (filterDateFrom) filters.dateFrom = filterDateFrom;
+        if (filterDateTo) filters.dateTo = filterDateTo;
 
-      const response = await apiClient.sms.list(filters);
-      if (response.success && response.data) {
-        setSmsList((response.data.smsList || []) as SMS[]);
+        const response = await apiClient.sms.list(filters);
+        if (response.success && response.data) {
+          setSmsList((response.data.smsList || []) as SMS[]);
+        }
+      } catch (listErr) {
+        console.warn('[SMS] Liste indisponible:', listErr instanceof Error ? listErr.message : listErr);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement';
