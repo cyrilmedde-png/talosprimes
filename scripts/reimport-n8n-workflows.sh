@@ -798,38 +798,9 @@ process_workflow() {
         return 1
     fi
 
-    # DEBUG: Log credentials being sent in the PUT
-    log "INFO" "Credentials in PUT body for $filename:"
-    echo "$merged_json" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for node in data.get('nodes', []):
-    creds = node.get('credentials', {})
-    if creds:
-        for ctype, cval in creds.items():
-            print(f'  {node[\"name\"]} | {ctype} | id={cval.get(\"id\",\"NONE\")} | name={cval.get(\"name\",\"NONE\")}')
-    else:
-        ntype = node.get('type','')
-        if 'webhook' not in ntype and 'code' not in ntype and 'if' not in ntype and 'respond' not in ntype and 'noOp' not in ntype and 'set' not in ntype:
-            print(f'  ⚠️  {node[\"name\"]} ({ntype}) → NO CREDENTIALS')
-" 2>&1 | tee -a "$LOG_FILE"
-
     # NO deactivate/activate cycle! Just PUT the merged JSON.
     # The workflow stays active, webhooks stay registered, credentials stay intact.
     if update_workflow "$workflow_id" "$merged_json" "$filename"; then
-        # DEBUG: Verify credentials after PUT
-        log "INFO" "Verifying credentials AFTER PUT for $filename:"
-        local after_json
-        after_json=$(fetch_workflow_detail "$workflow_id")
-        echo "$after_json" | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for node in data.get('nodes', []):
-    creds = node.get('credentials', {})
-    if creds:
-        for ctype, cval in creds.items():
-            print(f'  ✅ {node[\"name\"]} | {ctype} | id={cval.get(\"id\",\"NONE\")}')
-" 2>&1 | tee -a "$LOG_FILE"
         SUCCESSFUL_UPDATES=$((SUCCESSFUL_UPDATES + 1))
         return 0
     else

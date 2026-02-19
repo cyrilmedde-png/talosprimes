@@ -677,40 +677,9 @@ print(json.dumps(wf))
               log_warn "    Activation echouee pour $(basename "$file") (HTTP $activate_code)"
             fi
 
-            # Transferer dans le bon projet
-            if [ -n "$project_id" ]; then
-              curl -s -X PUT \
-                -H "X-N8N-API-KEY: $N8N_API_KEY" \
-                -H "Content-Type: application/json" \
-                -d "{\"destinationProjectId\": \"$project_id\"}" \
-                "$N8N_API_URL/api/v1/workflows/$new_id/transfer" > /dev/null 2>&1 || true
-
-              # Partager les credentials avec le projet pour eviter "authentication has issues"
-              local cred_ids_create
-              cred_ids_create=$(echo "$payload" | python3 -c "
-import sys, json
-wf = json.load(sys.stdin)
-seen = set()
-for node in wf.get('nodes', []):
-    for cred_type, cred_info in node.get('credentials', {}).items():
-        if isinstance(cred_info, dict):
-            cid = cred_info.get('id', '')
-            if cid and cid not in seen:
-                seen.add(cid)
-                print(cid)
-" 2>/dev/null || true)
-
-              if [ -n "$cred_ids_create" ]; then
-                echo "$cred_ids_create" | while IFS= read -r cid; do
-                  [ -z "$cid" ] && continue
-                  curl -s -X PUT \
-                    -H "X-N8N-API-KEY: $N8N_API_KEY" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"shareWithIds\": [\"$project_id\"]}" \
-                    "$N8N_API_URL/api/v1/credentials/$cid/share" > /dev/null 2>&1 || true
-                done
-              fi
-            fi
+            # NOTE: project transfer et credential sharing DESACTIVES
+            # (meme raison que pour UPDATE — API /credentials/share retourne 405)
+            log_info "    Nouveau workflow cree (id=$new_id), pas de transfer projet"
           fi
           return 0
         fi
