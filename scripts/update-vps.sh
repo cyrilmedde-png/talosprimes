@@ -995,7 +995,8 @@ for name, cid in mapping.items():
       # --- FIX CREDENTIALS POST-IMPORT ---
       # Corrige directement dans la SQLite n8n les credential IDs/names
       # qui auraient ete supprimes par preventTampering() pendant l'import
-      log_info "Fix credentials post-import (direct SQLite)..."
+      # NOTE: Ce script fait stop/start de n8n, donc PAS besoin d'un restart apres
+      log_info "Fix credentials post-import (direct SQLite v2)..."
       SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
       if [ -f "$SCRIPT_DIR/fix-credentials-sqlite.sh" ]; then
         bash "$SCRIPT_DIR/fix-credentials-sqlite.sh" 2>&1 | while read -r line; do echo "  $line"; done
@@ -1003,9 +1004,32 @@ for name, cid in mapping.items():
         log_warn "Script fix-credentials-sqlite.sh introuvable"
       fi
 
-      # --- VERIFICATION POST-SYNC: lister les workflows inactifs ---
-      log_info "Verification de l'activation des workflows..."
-      INACTIVE_LIST=$(python3 -c "
+      # --- FIX PERMISSIONS n8n (eviter SQLITE_READONLY) ---
+      # Apres fix-credentials et tout import, s'assurer que les permissions sont OK
+      log_info "Verification permissions fichiers n8n..."
+      if [ -d /home/root/n8n-agent/n8n-data ]; then
+        chown -R 1000:1000 /home/root/n8n-agent/n8n-data/ 2>/dev/null || true
+        log_ok "Permissions n8n corrigees (1000:1000)"
+      fi
+
+      # --- ATTENDRE QUE n8n SOIT PRET ---
+      # fix-credentials-sqlite.sh fait deja un restart, on attend juste qu'il soit pret
+      log_info "Attente que n8n soit pret..."
+      n8n_ready=false
+      for i in $(seq 1 30); do
+        if curl -s -o /dev/null -w "%{http_code}" "$N8N_API_URL/healthz" 2>/dev/null | grep -q "200"; then
+          n8n_ready=true
+          break
+        fi
+        sleep 2
+      done
+
+      if [ "$n8n_ready" = true ]; then
+        log_ok "n8n est pret"
+
+        # --- VERIFICATION POST-SYNC: lister les workflows ---
+        log_info "Verification de l'activation des workflows..."
+        INACTIVE_LIST=$(python3 -c "
 import json, urllib.request, os
 
 api_url = os.environ.get('N8N_API_URL', '')
@@ -1034,22 +1058,24 @@ inactive = [w for w in all_workflows if not w.get('active')]
 
 print(f'ACTIFS: {len(active)} | INACTIFS: {len(inactive)}')
 if inactive:
-    for w in inactive:
-        print(f'  ✗ [{w.get(\"id\")}] {w.get(\"name\", \"?\")}')
+    for w in inactive[:20]:
+        print(f'  x [{w.get(\"id\")}] {w.get(\"name\", \"?\")}')
+    if len(inactive) > 20:
+        print(f'  ... et {len(inactive) - 20} autres')
 " 2>/dev/null || echo "Impossible de verifier")
 
-      echo "$INACTIVE_LIST" | while IFS= read -r line; do
-        if echo "$line" | grep -q "INACTIFS: 0"; then
-          log_ok "$line"
-        elif echo "$line" | grep -q "ACTIFS:"; then
-          log_warn "$line"
-        else
-          echo "$line"
-        fi
-      done
+        echo "$INACTIVE_LIST" | while IFS= read -r line; do
+          if echo "$line" | grep -q "INACTIFS: 0"; then
+            log_ok "$line"
+          elif echo "$line" | grep -q "ACTIFS:"; then
+            log_warn "$line"
+          else
+            echo "$line"
+          fi
+        done
 
-      # --- ACTIVATION FORCEE des workflows inactifs ---
-      INACTIVE_IDS=$(python3 -c "
+        # --- ACTIVATION des workflows inactifs ---
+        INACTIVE_IDS=$(python3 -c "
 import json, urllib.request, os
 
 api_url = os.environ.get('N8N_API_URL', '')
@@ -1078,68 +1104,59 @@ for w in inactive:
     print(w['id'])
 " 2>/dev/null || true)
 
-      if [ -n "$INACTIVE_IDS" ]; then
-        log_info "Tentative d'activation des workflows inactifs (sans deactivate)..."
+        if [ -n "$INACTIVE_IDS" ]; then
+          ACTIVATE_COUNT=0
+          ACTIVATE_FAIL=0
+          log_info "Activation des workflows inactifs..."
 
-        echo "$INACTIVE_IDS" | while IFS= read -r wf_id; do
-          [ -z "$wf_id" ] && continue
-          # IMPORTANT: PAS de deactivate avant activate pour ne pas casser les webhooks
-          act_resp=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$wf_id/activate" 2>/dev/null || true)
-          act_code=$(echo "$act_resp" | tail -1)
-          if [ "$act_code" = "200" ]; then
-            echo "    OK $wf_id active"
-          else
-            echo "    ECHEC $wf_id (HTTP $act_code)"
-          fi
-        done
-      fi
+          echo "$INACTIVE_IDS" | while IFS= read -r wf_id; do
+            [ -z "$wf_id" ] && continue
+            act_resp=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_API_URL/api/v1/workflows/$wf_id/activate" 2>/dev/null || true)
+            act_code=$(echo "$act_resp" | tail -1)
+            if [ "$act_code" != "200" ]; then
+              echo "    ECHEC $wf_id (HTTP $act_code)"
+            fi
+          done
+        fi
 
-      # --- RESTART n8n pour re-enregistrer les webhooks ---
-      # L'API POST /activate marque le workflow comme actif mais n'enregistre
-      # pas toujours les webhooks. Un restart de n8n force le re-enregistrement
-      # de tous les webhooks au demarrage.
-      if [ "$N8N_SUCCESS" -gt 0 ]; then
-        # Fix permissions AVANT restart (eviter SQLITE_READONLY)
+        # --- RESTART FINAL pour enregistrer les webhooks ---
+        # L'API POST /activate ne registre pas toujours les webhooks (bug #21614)
+        # Un restart force n8n a re-enregistrer TOUS les webhooks au boot
+        log_info "Restart final n8n pour enregistrement webhooks..."
         if [ -d /home/root/n8n-agent/n8n-data ]; then
           chown -R 1000:1000 /home/root/n8n-agent/n8n-data/ 2>/dev/null || true
         fi
 
-        # Appliquer le patch webhook (fix isFullPath priority) avant restart
+        # Appliquer le patch webhook si present
         if [ -f /home/root/n8n-agent/apply-webhook-patch.sh ]; then
-          log_info "Application du patch webhook n8n..."
-          /home/root/n8n-agent/apply-webhook-patch.sh > /dev/null 2>&1 || log_warn "Patch webhook echoue (non bloquant)"
-          log_ok "Patch webhook applique + n8n redemarre"
-        else
-          log_info "Redemarrage de n8n pour re-enregistrer les webhooks ($N8N_SUCCESS workflows mis a jour)..."
-          docker restart n8n > /dev/null 2>&1 || true
+          /home/root/n8n-agent/apply-webhook-patch.sh > /dev/null 2>&1 || true
         fi
 
-        # Attendre que n8n soit pret
-        n8n_ready=false
+        docker restart n8n > /dev/null 2>&1 || true
+
+        # Attendre que n8n soit pret apres restart final
+        n8n_final_ready=false
         for i in $(seq 1 30); do
           if curl -s -o /dev/null -w "%{http_code}" "$N8N_API_URL/healthz" 2>/dev/null | grep -q "200"; then
-            n8n_ready=true
+            n8n_final_ready=true
             break
           fi
           sleep 2
         done
 
-        if [ "$n8n_ready" = true ]; then
-          log_ok "n8n redemarre"
+        if [ "$n8n_final_ready" = true ]; then
+          log_ok "n8n pret apres restart final"
 
-          # --- FIX PERMISSIONS n8n (eviter SQLITE_READONLY) ---
-          log_info "Verification permissions fichiers n8n..."
+          # Fix permissions APRES restart (le restart peut recreer des fichiers en root)
           if [ -d /home/root/n8n-agent/n8n-data ]; then
             chown -R 1000:1000 /home/root/n8n-agent/n8n-data/ 2>/dev/null || true
-            log_ok "Permissions n8n corrigees (1000:1000)"
           fi
 
           # --- FIX WEBHOOKID (eviter webhook paths longs) ---
           # Sans webhookId, n8n enregistre les webhooks au format
           # {workflowId}/{nodeName}/{path} au lieu du path court.
-          # Ce fix ajoute un webhookId aux nodes webhook qui n'en ont pas.
           log_info "Verification webhookId sur les workflows..."
           python3 -c "
 import json, urllib.request, os, sys, uuid
@@ -1150,7 +1167,6 @@ api_key = os.environ.get('N8N_API_KEY', '')
 if not api_url or not api_key:
     sys.exit(0)
 
-# Recuperer tous les workflows
 all_workflows = []
 cursor = ''
 for _ in range(20):
@@ -1200,12 +1216,38 @@ for wf in all_workflows:
 
 if fixed > 0:
     print(f'{fixed} workflows corriges (webhookId ajoute)')
+    # Si on a fixe des webhookId, il faut un restart supplementaire
+    # pour que n8n enregistre les webhooks avec le bon path court
+    print('NEEDS_RESTART')
 else:
     print('Tous les webhookId sont OK')
-" 2>&1 | while IFS= read -r line; do echo "    $line"; done
+" 2>&1 | while IFS= read -r line; do
+            if echo "$line" | grep -q "NEEDS_RESTART"; then
+              # Restart necessaire car webhookId a change
+              log_info "Restart n8n apres fix webhookId..."
+              if [ -d /home/root/n8n-agent/n8n-data ]; then
+                chown -R 1000:1000 /home/root/n8n-agent/n8n-data/ 2>/dev/null || true
+              fi
+              docker restart n8n > /dev/null 2>&1 || true
+              sleep 10
+              for j in $(seq 1 20); do
+                if curl -s -o /dev/null -w "%{http_code}" "$N8N_API_URL/healthz" 2>/dev/null | grep -q "200"; then
+                  log_ok "n8n redemarre apres fix webhookId"
+                  break
+                fi
+                sleep 2
+              done
+              # Permissions une derniere fois
+              if [ -d /home/root/n8n-agent/n8n-data ]; then
+                chown -R 1000:1000 /home/root/n8n-agent/n8n-data/ 2>/dev/null || true
+              fi
+            else
+              echo "    $line"
+            fi
+          done
 
-          # --- VERIFICATION DES CREDENTIALS POST-RESTART ---
-          log_info "Verification des credentials apres restart..."
+          # --- VERIFICATION FINALE ---
+          log_info "Verification finale..."
           python3 -c "
 import json, urllib.request, os, sys
 
@@ -1215,44 +1257,49 @@ api_key = os.environ.get('N8N_API_KEY', '')
 if not api_url or not api_key:
     sys.exit(0)
 
-try:
-    req = urllib.request.Request(f'{api_url}/api/v1/workflows?limit=5',
-        headers={'X-N8N-API-KEY': api_key})
-    resp = urllib.request.urlopen(req, timeout=10)
-    workflows = json.loads(resp.read()).get('data', [])
-except:
-    sys.exit(0)
-
-cred_ids_seen = set()
-cred_ok = 0
-
-for wf in workflows[:5]:
-    wf_id = wf.get('id', '')
-    if not wf_id:
-        continue
+all_workflows = []
+cursor = ''
+for _ in range(20):
+    url = f'{api_url}/api/v1/workflows?limit=250'
+    if cursor:
+        url += f'&cursor={cursor}'
+    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
     try:
-        req = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf_id}',
-            headers={'X-N8N-API-KEY': api_key})
-        resp = urllib.request.urlopen(req, timeout=10)
-        full_wf = json.loads(resp.read())
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read())
+    except:
+        break
+    wfs = data.get('data', [])
+    all_workflows.extend(wfs)
+    cursor = data.get('nextCursor', '')
+    if not cursor or not wfs:
+        break
 
+active = len([w for w in all_workflows if w.get('active')])
+total = len(all_workflows)
+print(f'{active}/{total} workflows actifs')
+
+# Verifier quelques credentials
+cred_ok = 0
+for wf in all_workflows[:5]:
+    try:
+        req = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf[\"id\"]}',
+            headers={'X-N8N-API-KEY': api_key})
+        full_wf = json.loads(urllib.request.urlopen(req, timeout=10).read())
         for node in full_wf.get('nodes', []):
-            creds = node.get('credentials', {})
-            for cred_type, cred_info in creds.items():
-                if isinstance(cred_info, dict):
-                    cid = cred_info.get('id', '')
-                    if cid and cid not in cred_ids_seen:
-                        cred_ids_seen.add(cid)
-                        cred_ok += 1
+            for ct, ci in node.get('credentials', {}).items():
+                if isinstance(ci, dict) and ci.get('id'):
+                    cred_ok += 1
     except:
         continue
-
 if cred_ok > 0:
-    print(f'  {cred_ok} credentials uniques verifiees dans les workflows')
-" 2>&1 | while IFS= read -r line; do echo "    $line"; done
+    print(f'{cred_ok} credentials verifiees OK')
+" 2>&1 | while IFS= read -r line; do log_ok "$line"; done
         else
-          log_warn "n8n redemarre mais health check echoue — verifier manuellement"
+          log_warn "n8n ne repond pas apres restart final — verifier manuellement"
         fi
+      else
+        log_warn "n8n non accessible apres fix-credentials — verifier manuellement"
       fi
     fi
 
