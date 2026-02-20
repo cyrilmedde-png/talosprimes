@@ -115,7 +115,7 @@ FOLDERS = [
     'Bons de Commande', 'Clients', 'Comptabilite', 'Deploy',
     'Devis', 'Espace Client', 'Factures', 'Leads',
     'Logs', 'Notifications', 'Onboarding', 'Proforma',
-    'Questionnaires', 'SMS / Appels',
+    'Questionnaires', 'SMS - Appels',
 ]
 
 # Verifier dossiers existants
@@ -164,9 +164,9 @@ FOLDER_RULES = [
     ('Stripe',         'Abonnements'),
     ('compta',         'Comptabilite'),
     ('notification',   'Notifications'),
-    ('sms',            'SMS / Appels'),
-    ('twilio',         'SMS / Appels'),
-    ('call-log',       'SMS / Appels'),
+    ('sms',            'SMS - Appels'),
+    ('twilio',         'SMS - Appels'),
+    ('call-log',       'SMS - Appels'),
     ('Agent',          'Agent IA'),
     ('agent',          'Agent IA'),
     ('questionnaire',  'Questionnaires'),
