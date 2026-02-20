@@ -36,6 +36,7 @@ API_KEY = os.environ.get('N8N_API_KEY', '')
 AUTH_TOKEN = None
 
 def rest_post(path, body):
+    global AUTH_TOKEN
     data = json.dumps(body).encode()
     headers = {'Content-Type': 'application/json'}
     if AUTH_TOKEN:
@@ -43,7 +44,6 @@ def rest_post(path, body):
     req = urllib.request.Request(f'{N8N_URL}{path}', data=data, method='POST', headers=headers)
     resp = urllib.request.urlopen(req, timeout=30)
     # Capturer le cookie n8n-auth du Set-Cookie header
-    global AUTH_TOKEN
     for h in resp.headers.get_all('Set-Cookie') or []:
         if 'n8n-auth=' in h:
             AUTH_TOKEN = h.split('n8n-auth=')[1].split(';')[0]
