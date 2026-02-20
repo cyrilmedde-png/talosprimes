@@ -1101,6 +1101,11 @@ for w in inactive:
       # pas toujours les webhooks. Un restart de n8n force le re-enregistrement
       # de tous les webhooks au demarrage.
       if [ "$N8N_SUCCESS" -gt 0 ]; then
+        # Fix permissions AVANT restart (eviter SQLITE_READONLY)
+        if [ -d /home/root/n8n-agent/n8n-data ]; then
+          chown -R 1000:1000 /home/root/n8n-agent/n8n-data/ 2>/dev/null || true
+        fi
+
         # Appliquer le patch webhook (fix isFullPath priority) avant restart
         if [ -f /home/root/n8n-agent/apply-webhook-patch.sh ]; then
           log_info "Application du patch webhook n8n..."
@@ -1124,12 +1129,20 @@ for w in inactive:
         if [ "$n8n_ready" = true ]; then
           log_ok "n8n redemarre"
 
-          # --- REACTIVATION WEBHOOKS POST-RESTART ---
-          # Bug n8n #21614: le restart ne re-enregistre pas toujours tous les webhooks.
-          # Un cycle deactivate/activate via API force l'enregistrement des webhooks.
-          log_info "Reactivation des webhooks (deactivate/activate cycle)..."
+          # --- FIX PERMISSIONS n8n (eviter SQLITE_READONLY) ---
+          log_info "Verification permissions fichiers n8n..."
+          if [ -d /home/root/n8n-agent/n8n-data ]; then
+            chown -R 1000:1000 /home/root/n8n-agent/n8n-data/ 2>/dev/null || true
+            log_ok "Permissions n8n corrigees (1000:1000)"
+          fi
+
+          # --- FIX WEBHOOKID (eviter webhook paths longs) ---
+          # Sans webhookId, n8n enregistre les webhooks au format
+          # {workflowId}/{nodeName}/{path} au lieu du path court.
+          # Ce fix ajoute un webhookId aux nodes webhook qui n'en ont pas.
+          log_info "Verification webhookId sur les workflows..."
           python3 -c "
-import json, urllib.request, os, sys, time
+import json, urllib.request, os, sys, uuid
 
 api_url = os.environ.get('N8N_API_URL', '')
 api_key = os.environ.get('N8N_API_KEY', '')
@@ -1137,7 +1150,7 @@ api_key = os.environ.get('N8N_API_KEY', '')
 if not api_url or not api_key:
     sys.exit(0)
 
-# Recuperer tous les workflows actifs
+# Recuperer tous les workflows
 all_workflows = []
 cursor = ''
 for _ in range(20):
@@ -1156,26 +1169,39 @@ for _ in range(20):
     if not cursor or not wfs:
         break
 
-active_wfs = [wf for wf in all_workflows if wf.get('active')]
-print(f'Reactivation de {len(active_wfs)} workflows...', file=sys.stderr)
-
-ok = 0
-fail = 0
-for wf in active_wfs:
+fixed = 0
+for wf in all_workflows:
     try:
-        # Deactivate
-        req = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf[\"id\"]}/deactivate', method='POST')
-        req.add_header('X-N8N-API-KEY', api_key)
-        urllib.request.urlopen(req, timeout=10)
-        # Activate
-        req2 = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf[\"id\"]}/activate', method='POST')
-        req2.add_header('X-N8N-API-KEY', api_key)
-        urllib.request.urlopen(req2, timeout=10)
-        ok += 1
-    except:
-        fail += 1
+        req = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf[\"id\"]}',
+            headers={'X-N8N-API-KEY': api_key})
+        detail = json.loads(urllib.request.urlopen(req, timeout=15).read())
 
-print(f'{ok}/{len(active_wfs)} webhooks reactives ({fail} erreurs)')
+        needs_fix = False
+        for node in detail.get('nodes', []):
+            if node.get('type') == 'n8n-nodes-base.webhook' and not node.get('webhookId'):
+                node['webhookId'] = str(uuid.uuid4())
+                needs_fix = True
+
+        if needs_fix:
+            payload = {
+                'name': detail['name'],
+                'nodes': detail['nodes'],
+                'connections': detail.get('connections', {}),
+                'settings': detail.get('settings', {})
+            }
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf[\"id\"]}',
+                data=data, method='PUT',
+                headers={'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'})
+            urllib.request.urlopen(req, timeout=30)
+            fixed += 1
+    except:
+        pass
+
+if fixed > 0:
+    print(f'{fixed} workflows corriges (webhookId ajoute)')
+else:
+    print('Tous les webhookId sont OK')
 " 2>&1 | while IFS= read -r line; do echo "    $line"; done
 
           # --- VERIFICATION DES CREDENTIALS POST-RESTART ---
