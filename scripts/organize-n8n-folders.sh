@@ -24,7 +24,7 @@ echo "========================================="
 echo ""
 
 python3 << 'PYTHON_SCRIPT'
-import json, urllib.request, http.cookiejar, time, sys, os
+import json, urllib.request, time, sys, os
 
 # ---- Config ----
 N8N_URL = "http://localhost:5678"
@@ -32,33 +32,39 @@ N8N_EMAIL = "direction@talosprimes.com"
 N8N_PASSWORD = "21052024_Aa!"
 API_KEY = os.environ.get('N8N_API_KEY', '')
 
-# ---- Session avec cookies (pour API interne /rest/) ----
-cj = http.cookiejar.CookieJar()
-opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+# ---- Session avec token Bearer (cookie Secure ne passe pas en HTTP) ----
+AUTH_TOKEN = None
 
 def rest_post(path, body):
     data = json.dumps(body).encode()
-    req = urllib.request.Request(f'{N8N_URL}{path}', data=data, method='POST',
-        headers={'Content-Type': 'application/json'})
-    resp = opener.open(req, timeout=30)
+    headers = {'Content-Type': 'application/json'}
+    if AUTH_TOKEN:
+        headers['Cookie'] = f'n8n-auth={AUTH_TOKEN}'
+    req = urllib.request.Request(f'{N8N_URL}{path}', data=data, method='POST', headers=headers)
+    resp = urllib.request.urlopen(req, timeout=30)
+    # Capturer le cookie n8n-auth du Set-Cookie header
+    global AUTH_TOKEN
+    for h in resp.headers.get_all('Set-Cookie') or []:
+        if 'n8n-auth=' in h:
+            AUTH_TOKEN = h.split('n8n-auth=')[1].split(';')[0]
     return json.loads(resp.read())
 
 def rest_get(path):
-    req = urllib.request.Request(f'{N8N_URL}{path}')
-    resp = opener.open(req, timeout=30)
+    headers = {}
+    if AUTH_TOKEN:
+        headers['Cookie'] = f'n8n-auth={AUTH_TOKEN}'
+    req = urllib.request.Request(f'{N8N_URL}{path}', headers=headers)
+    resp = urllib.request.urlopen(req, timeout=30)
     return json.loads(resp.read())
 
 def rest_patch(path, body):
     data = json.dumps(body).encode()
-    req = urllib.request.Request(f'{N8N_URL}{path}', data=data, method='PATCH',
-        headers={'Content-Type': 'application/json'})
-    resp = opener.open(req, timeout=30)
+    headers = {'Content-Type': 'application/json'}
+    if AUTH_TOKEN:
+        headers['Cookie'] = f'n8n-auth={AUTH_TOKEN}'
+    req = urllib.request.Request(f'{N8N_URL}{path}', data=data, method='PATCH', headers=headers)
+    resp = urllib.request.urlopen(req, timeout=30)
     return json.loads(resp.read())
-
-def rest_delete(path):
-    req = urllib.request.Request(f'{N8N_URL}{path}', method='DELETE')
-    resp = opener.open(req, timeout=30)
-    return resp.status
 
 # ---- API publique (pour lister workflows) ----
 def api_get(path):
@@ -70,14 +76,19 @@ def api_get(path):
 # ==== ETAPE 0 : Login ====
 print("[0/3] Login n8n...")
 try:
-    login = rest_post('/rest/login', {
-        'emailOrLdapLoginId': N8N_EMAIL,
-        'password': N8N_PASSWORD
-    })
-    if 'data' not in login:
-        print(f"  [ERREUR] Login echoue: {login}")
+    # Login et capturer le token manuellement
+    login_data = json.dumps({'emailOrLdapLoginId': N8N_EMAIL, 'password': N8N_PASSWORD}).encode()
+    login_req = urllib.request.Request(f'{N8N_URL}/rest/login', data=login_data, method='POST',
+        headers={'Content-Type': 'application/json'})
+    login_resp = urllib.request.urlopen(login_req, timeout=30)
+    for h in login_resp.headers.get_all('Set-Cookie') or []:
+        if 'n8n-auth=' in h:
+            AUTH_TOKEN = h.split('n8n-auth=')[1].split(';')[0]
+    login = json.loads(login_resp.read())
+    if 'data' not in login or not AUTH_TOKEN:
+        print(f"  [ERREUR] Login echoue: token={AUTH_TOKEN is not None}")
         sys.exit(1)
-    print("  -> Login OK")
+    print(f"  -> Login OK (token={AUTH_TOKEN[:20]}...)")
 except Exception as e:
     print(f"  [ERREUR] Login echoue: {e}")
     sys.exit(1)
