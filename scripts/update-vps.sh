@@ -1122,10 +1122,63 @@ for w in inactive:
         done
 
         if [ "$n8n_ready" = true ]; then
-          log_ok "n8n redemarre — webhooks re-enregistres"
+          log_ok "n8n redemarre"
+
+          # --- REACTIVATION WEBHOOKS POST-RESTART ---
+          # Bug n8n #21614: le restart ne re-enregistre pas toujours tous les webhooks.
+          # Un cycle deactivate/activate via API force l'enregistrement des webhooks.
+          log_info "Reactivation des webhooks (deactivate/activate cycle)..."
+          python3 -c "
+import json, urllib.request, os, sys, time
+
+api_url = os.environ.get('N8N_API_URL', '')
+api_key = os.environ.get('N8N_API_KEY', '')
+
+if not api_url or not api_key:
+    sys.exit(0)
+
+# Recuperer tous les workflows actifs
+all_workflows = []
+cursor = ''
+for _ in range(20):
+    url = f'{api_url}/api/v1/workflows?limit=250'
+    if cursor:
+        url += f'&cursor={cursor}'
+    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
+    try:
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read())
+    except:
+        break
+    wfs = data.get('data', [])
+    all_workflows.extend(wfs)
+    cursor = data.get('nextCursor', '')
+    if not cursor or not wfs:
+        break
+
+active_wfs = [wf for wf in all_workflows if wf.get('active')]
+print(f'Reactivation de {len(active_wfs)} workflows...', file=sys.stderr)
+
+ok = 0
+fail = 0
+for wf in active_wfs:
+    try:
+        # Deactivate
+        req = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf[\"id\"]}/deactivate', method='POST')
+        req.add_header('X-N8N-API-KEY', api_key)
+        urllib.request.urlopen(req, timeout=10)
+        # Activate
+        req2 = urllib.request.Request(f'{api_url}/api/v1/workflows/{wf[\"id\"]}/activate', method='POST')
+        req2.add_header('X-N8N-API-KEY', api_key)
+        urllib.request.urlopen(req2, timeout=10)
+        ok += 1
+    except:
+        fail += 1
+
+print(f'{ok}/{len(active_wfs)} webhooks reactives ({fail} erreurs)')
+" 2>&1 | while IFS= read -r line; do echo "    $line"; done
 
           # --- VERIFICATION DES CREDENTIALS POST-RESTART ---
-          # Apres restart, verifier que les credentials sont accessibles
           log_info "Verification des credentials apres restart..."
           python3 -c "
 import json, urllib.request, os, sys
@@ -1136,7 +1189,6 @@ api_key = os.environ.get('N8N_API_KEY', '')
 if not api_url or not api_key:
     sys.exit(0)
 
-# Verifier quelques workflows pour voir si les credentials sont OK
 try:
     req = urllib.request.Request(f'{api_url}/api/v1/workflows?limit=5',
         headers={'X-N8N-API-KEY': api_key})
@@ -1147,7 +1199,6 @@ except:
 
 cred_ids_seen = set()
 cred_ok = 0
-cred_issues = 0
 
 for wf in workflows[:5]:
     wf_id = wf.get('id', '')
@@ -1164,10 +1215,8 @@ for wf in workflows[:5]:
             for cred_type, cred_info in creds.items():
                 if isinstance(cred_info, dict):
                     cid = cred_info.get('id', '')
-                    cname = cred_info.get('name', '')
                     if cid and cid not in cred_ids_seen:
                         cred_ids_seen.add(cid)
-                        # Si le credential a un ID valide, il est probablement OK
                         cred_ok += 1
     except:
         continue
