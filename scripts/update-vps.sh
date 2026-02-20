@@ -191,13 +191,31 @@ if [[ "$N8N_WORKFLOW_DIR" != /* ]]; then
 fi
 
 # Mode --only-n8n : sauter directement a l'etape n8n
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 if [ "$ONLY_N8N" = true ]; then
   SKIP_BUILD=true
   SKIP_RESTART=true
   SKIP_DEPS=true
   SKIP_PRISMA=true
   SKIP_N8N=false
+fi
+
+# =============================================================================
+# Etape 0: Backup n8n (avant toute modification)
+# =============================================================================
+
+log_step "0/$TOTAL_STEPS - Sauvegarde n8n pre-deploiement"
+
+SCRIPT_DIR_BACKUP="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR_BACKUP/backup-n8n.sh" ]; then
+  log_info "Lancement du backup n8n..."
+  if bash "$SCRIPT_DIR_BACKUP/backup-n8n.sh" 2>&1 | while read -r line; do echo "  $line"; done; then
+    log_ok "Backup n8n termine"
+  else
+    log_warn "Backup n8n echoue (non bloquant)"
+  fi
+else
+  log_warn "Script backup-n8n.sh introuvable — backup ignore"
 fi
 
 # =============================================================================
