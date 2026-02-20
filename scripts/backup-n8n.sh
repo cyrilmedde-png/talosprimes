@@ -21,15 +21,15 @@ CONTAINER_NAME="n8n"
 DB_PATH_HOST="/home/root/n8n-agent/n8n-data/database.sqlite"
 BACKUP_DIR="${1:-/home/root/n8n-agent/backups}"
 BACKUP_FILE="$BACKUP_DIR/n8n-backup-latest.tar.gz"
-TMP_DIR="/tmp/n8n-backup-$$"
+export TMP_DIR="/tmp/n8n-backup-$$"
 
 # Charger les variables n8n si disponibles
 if [ -f "/var/www/talosprimes/packages/platform/.env" ]; then
   source /var/www/talosprimes/packages/platform/.env 2>/dev/null
 fi
 
-N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
-N8N_API_KEY="${N8N_API_KEY:-}"
+export N8N_API_URL="${N8N_API_URL:-http://localhost:5678}"
+export N8N_API_KEY="${N8N_API_KEY:-}"
 
 echo "========================================="
 echo "  BACKUP n8n - Sauvegarde complete"
