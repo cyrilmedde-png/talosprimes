@@ -50,10 +50,27 @@ if [ -f "$DB_PATH_HOST" ]; then
   # Verifier l'integrite avant de copier
   INTEGRITY=$(sqlite3 "$DB_PATH_HOST" "PRAGMA integrity_check;" 2>&1 | head -1)
   if [ "$INTEGRITY" = "ok" ]; then
-    cp "$DB_PATH_HOST" "$TMP_DIR/database.sqlite"
-    DB_SIZE=$(du -h "$TMP_DIR/database.sqlite" | cut -f1)
-    DB_HASH=$(md5sum "$TMP_DIR/database.sqlite" | cut -d' ' -f1)
-    echo "  -> DB copiee ($DB_SIZE, integrite OK)"
+    # Copie atomique via sqlite3 .backup (safe meme si n8n tourne)
+    sqlite3 "$DB_PATH_HOST" ".backup '$TMP_DIR/database.sqlite'"
+    if [ $? -eq 0 ]; then
+      # Verifier integrite de la copie
+      COPY_INTEGRITY=$(sqlite3 "$TMP_DIR/database.sqlite" "PRAGMA integrity_check;" 2>&1 | head -1)
+      if [ "$COPY_INTEGRITY" = "ok" ]; then
+        DB_SIZE=$(du -h "$TMP_DIR/database.sqlite" | cut -f1)
+        DB_HASH=$(md5sum "$TMP_DIR/database.sqlite" | cut -d' ' -f1)
+        echo "  -> DB copiee via sqlite3 .backup ($DB_SIZE, integrite OK)"
+      else
+        echo "  [WARN] Copie corrompue malgre .backup — retry avec cp"
+        cp "$DB_PATH_HOST" "$TMP_DIR/database.sqlite"
+        DB_SIZE=$(du -h "$TMP_DIR/database.sqlite" | cut -f1)
+        DB_HASH="COPY_ISSUE"
+      fi
+    else
+      echo "  [WARN] sqlite3 .backup echoue — fallback cp"
+      cp "$DB_PATH_HOST" "$TMP_DIR/database.sqlite"
+      DB_SIZE=$(du -h "$TMP_DIR/database.sqlite" | cut -f1)
+      DB_HASH=$(md5sum "$TMP_DIR/database.sqlite" | cut -d' ' -f1)
+    fi
   else
     echo "  [WARN] DB corrompue ($INTEGRITY) — copie quand meme"
     cp "$DB_PATH_HOST" "$TMP_DIR/database.sqlite"
