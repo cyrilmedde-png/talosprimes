@@ -121,6 +121,7 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   twilio_config_update: 'twilio-config-update',
   twilio_test_call: 'twilio-test-call',
   twilio_outbound_call: 'twilio-outbound-call',
+  twilio_inbound_voice: 'twilio-inbound-voice',
   // SMS
   sms_list: 'sms-list',
   sms_stats: 'sms-stats',

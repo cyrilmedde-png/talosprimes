@@ -1,0 +1,450 @@
+{
+  "name": "twilio-inbound-voice",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "twilio-inbound-voice",
+        "responseMode": "responseNode",
+        "httpMethod": "POST",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "01. Webhook Twilio",
+      "name": "01. Webhook Twilio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Twilio webhook payload (form-urlencoded)\nconst data = $input.first().json;\nconst body = data.body || data;\n\nconst callSid = body.CallSid || '';\nconst from = body.From || '';\nconst to = body.To || '';\nconst callStatus = body.CallStatus || '';\nconst speechResult = body.SpeechResult || '';\nconst digits = body.Digits || '';\nconst isCallback = !!speechResult || !!digits;\n\nreturn [{json: {\n  callSid,\n  from,\n  to,\n  callStatus,\n  speechResult,\n  digits,\n  isCallback\n}}];"
+      },
+      "id": "02. Parser Twilio",
+      "name": "02. Parser Twilio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isCallback }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Is Callback?",
+      "name": "03. Is Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Premier appel : message d'accueil + Gather\nconst callSid = $('02. Parser Twilio').first().json.callSid;\nconst from = $('02. Parser Twilio').first().json.from;\n\nconst twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">TalosPrimes, bonjour ! Comment puis-je vous aider ?</Say>\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"auto\" timeout=\"8\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\">\n    <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Je vous écoute.</Say>\n  </Gather>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Je n'ai pas entendu de réponse. Au revoir !</Say>\n</Response>`;\n\nreturn { twiml, callSid, from };"
+      },
+      "id": "04. Welcome TwiML",
+      "name": "04. Welcome TwiML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.twiml }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "05. Respond Welcome",
+      "name": "05. Respond Welcome",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Callback avec SpeechResult\nconst prev = $('02. Parser Twilio').first().json;\nconst speechResult = prev.speechResult;\nconst callSid = prev.callSid;\nconst from = prev.from;\n\nif (!speechResult || speechResult.trim() === '') {\n  return [{json: { callSid, from, speechResult: '', hasText: false }}];\n}\n\nreturn [{json: { callSid, from, speechResult: speechResult.trim(), hasText: true }}];"
+      },
+      "id": "06. Extract Speech",
+      "name": "06. Extract Speech",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasText }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "07. Has Text?",
+      "name": "07. Has Text?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pas de texte détecté, on relance l'écoute\nconst twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Excusez-moi, je n'ai pas compris. Pouvez-vous répéter ?</Say>\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"auto\" timeout=\"8\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\">\n    <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Je vous écoute.</Say>\n  </Gather>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Au revoir.</Say>\n</Response>`;\n\nreturn { twiml };"
+      },
+      "id": "08. No Text TwiML",
+      "name": "08. No Text TwiML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.twiml }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "09. Respond No Text",
+      "name": "09. Respond No Text",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Détecter l'admin avec la phrase secrète + charger le contexte de conversation\nconst speechResult = $('06. Extract Speech').first().json.speechResult;\nconst callSid = $('06. Extract Speech').first().json.callSid;\nconst from = $('06. Extract Speech').first().json.from;\n\n// Détection admin : phrase secrète \"c'est giizmo\" (insensible à la casse)\nconst isAdminPhrase = speechResult.toLowerCase().includes('giizmo') ||\n                     speechResult.toLowerCase().includes('gizmo') ||\n                     speechResult.toLowerCase().includes('gismo') ||\n                     speechResult.toLowerCase().includes(\"c'est giizmo\");\n\nreturn {\n  callSid,\n  from,\n  speechResult,\n  isAdminPhrase,\n  mode: isAdminPhrase ? 'admin' : 'standard'\n};"
+      },
+      "id": "10. Detect Admin",
+      "name": "10. Detect Admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT cf.id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale, cf.tenant_id FROM client_finals cf WHERE cf.telephone LIKE '%' || RIGHT('{{ $json.from }}', 9) || '%' LIMIT 1",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "11. Get Session",
+      "name": "11. Get Session",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1300,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire le prompt système pour OpenAI (optimisé vocal)\nconst prev = $('10. Detect Admin').first().json;\nconst session = $('11. Get Session').first().json;\nconst isAdmin = prev.isAdminPhrase;\nconst speechResult = prev.speechResult;\nconst callSid = prev.callSid;\nconst from = prev.from;\nconst clientName = session.nom || '';\nconst clientInfo = clientName ? `L'appelant s'appelle ${clientName}.` : '';\n\nconst standardPrompt = `Tu es l'assistante vocale de TalosPrimes, une plateforme de gestion immobilière tout-en-un pour les professionnels.\nCONTEXTE: TalosPrimes aide les agences immobilières, administrateurs de biens et promoteurs à gérer leurs activités : gestion locative, syndic de copropriété, transactions, comptabilité, états des lieux numériques, signature électronique, et CRM intégré.\n${clientInfo}\nRÈGLES VOCALES:\n- Réponds en maximum deux phrases courtes\n- Parle naturellement, comme une vraie personne au téléphone\n- Pas de listes, pas de formatage, pas d'émojis\n- Si tu ne sais pas, dis simplement que tu vas transmettre au service concerné\n- Tutoie pas, vouvoie toujours\n- Sois chaleureuse et professionnelle`;\n\nconst adminPrompt = `Tu es l'assistante IA de Giizmo, administrateur de TalosPrimes. Tu as accès complet au système.\n${clientInfo}\nRÈGLES:\n- Réponds en maximum trois phrases\n- Sois directe et efficace\n- Tu peux donner des infos techniques détaillées`;\n\nreturn { systemPrompt: isAdmin ? adminPrompt : standardPrompt, speechResult, callSid, from, isAdmin };"
+      },
+      "id": "12. Build Prompt",
+      "name": "12. Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{role:'system',content:$json.systemPrompt},{role:'user',content:$json.speechResult}], max_tokens: 150, temperature: 0.5 }) }}"
+      },
+      "id": "13. OpenAI Chat",
+      "name": "13. OpenAI Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAi account",
+          "id": "nSSLzITn7UjPcRBc"
+        }
+      },
+      "position": [
+        1700,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire la réponse OpenAI (format HTTP Request) et construire le TwiML\nconst openaiResponse = $input.first().json;\nconst prev = $('12. Build Prompt').first().json;\n\nlet aiReply = openaiResponse.choices?.[0]?.message?.content || 'Excusez-moi, je n\\'ai pas pu traiter votre demande. Puis-je vous aider autrement ?';\n\n// Nettoyer la réponse pour le TTS\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#{1,6}\\s/g, '')\n  .replace(/[\\[\\]]/g, '')\n  .replace(/\\n/g, ' ')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .trim();\n\n// Détecter si l'utilisateur dit au revoir\nconst speech = prev.speechResult.toLowerCase();\nconst isGoodbye = speech.includes('au revoir') || speech.includes('merci au revoir') || \n                  speech.includes('bonne journée') || speech.includes('à bientôt') ||\n                  speech.includes(\"c'est tout\") || speech.includes('terminé');\n\nlet twiml = '';\nif (isGoodbye) {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply} Au revoir et bonne journée !</Say>\n  <Hangup/>\n</Response>`;\n} else {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"auto\" timeout=\"8\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\">\n    <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Avez-vous une autre question ?</Say>\n  </Gather>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Merci d'avoir appelé TalosPrimes. Bonne journée !</Say>\n</Response>`;\n}\n\nreturn {\n  twiml,\n  callSid: prev.callSid,\n  from: prev.from,\n  speechResult: prev.speechResult,\n  aiReply: aiReply.substring(0, 500),\n  isAdmin: prev.isAdmin,\n  isGoodbye\n};"
+      },
+      "id": "14. Build TwiML Response",
+      "name": "14. Build TwiML Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO call_logs (\n  tenant_id, caller_phone, direction, status, notes, \n  urgency_level, sentiment, action_taken, created_at, updated_at\n) VALUES (\n  COALESCE(\n    (SELECT id FROM tenants LIMIT 1),\n    '00000000-0000-0000-0000-000000000000'\n  ),\n  '{{ $json.from }}',\n  'entrant',\n  'completed',\n  'Appel entrant {{ $json.isAdmin ? \"(ADMIN)\" : \"\" }} - Q: {{ $json.speechResult.substring(0,200).replace(/'/g, \"''\") }} - R: {{ $json.aiReply.substring(0,200).replace(/'/g, \"''\") }}',\n  'STANDARD',\n  'NEUTRE',\n  'REPONDU',\n  NOW(),\n  NOW()\n) RETURNING id",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "15. Log Call",
+      "name": "15. Log Call",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        2100,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('14. Build TwiML Response').first().json.twiml }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "16. Respond TwiML",
+      "name": "16. Respond TwiML",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook Twilio": {
+      "main": [
+        [
+          {
+            "node": "02. Parser Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser Twilio": {
+      "main": [
+        [
+          {
+            "node": "03. Is Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Is Callback?": {
+      "main": [
+        [
+          {
+            "node": "06. Extract Speech",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Welcome TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Welcome TwiML": {
+      "main": [
+        [
+          {
+            "node": "05. Respond Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Extract Speech": {
+      "main": [
+        [
+          {
+            "node": "07. Has Text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Has Text?": {
+      "main": [
+        [
+          {
+            "node": "10. Detect Admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08. No Text TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. No Text TwiML": {
+      "main": [
+        [
+          {
+            "node": "09. Respond No Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Detect Admin": {
+      "main": [
+        [
+          {
+            "node": "11. Get Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Get Session": {
+      "main": [
+        [
+          {
+            "node": "12. Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "13. OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. OpenAI Chat": {
+      "main": [
+        [
+          {
+            "node": "14. Build TwiML Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Build TwiML Response": {
+      "main": [
+        [
+          {
+            "node": "15. Log Call",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "16. Respond TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
