@@ -14,7 +14,10 @@
       "name": "01. Webhook Twilio",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 300]
+      "position": [
+        100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -24,7 +27,10 @@
       "name": "02. Parser Twilio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +47,10 @@
       "name": "03. Is Callback?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 300]
+      "position": [
+        500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -51,7 +60,10 @@
       "name": "04. Welcome TwiML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 450]
+      "position": [
+        700,
+        450
+      ]
     },
     {
       "parameters": {
@@ -72,7 +84,10 @@
       "name": "05. Respond Welcome",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [900, 450]
+      "position": [
+        900,
+        450
+      ]
     },
     {
       "parameters": {
@@ -82,7 +97,10 @@
       "name": "06. Extract Speech",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 200]
+      "position": [
+        700,
+        200
+      ]
     },
     {
       "parameters": {
@@ -99,7 +117,10 @@
       "name": "07. Has Text?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [900, 200]
+      "position": [
+        900,
+        200
+      ]
     },
     {
       "parameters": {
@@ -109,7 +130,10 @@
       "name": "08. No Text TwiML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 100]
+      "position": [
+        1100,
+        100
+      ]
     },
     {
       "parameters": {
@@ -130,17 +154,23 @@
       "name": "09. Respond No Text",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 100]
+      "position": [
+        1300,
+        100
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Détecter l'admin avec la phrase secrète\nconst speechResult = $('06. Extract Speech').first().json.speechResult;\nconst callSid = $('06. Extract Speech').first().json.callSid;\nconst from = $('06. Extract Speech').first().json.from;\n\nconst isAdminPhrase = speechResult.toLowerCase().includes('giizmo') ||\n                     speechResult.toLowerCase().includes('gizmo') ||\n                     speechResult.toLowerCase().includes('gismo') ||\n                     speechResult.toLowerCase().includes(\"c'est giizmo\");\n\nreturn {\n  callSid,\n  from,\n  speechResult,\n  isAdminPhrase,\n  mode: isAdminPhrase ? 'admin' : 'standard'\n};"
+        "jsCode": "// Détecter l'admin avec la phrase secrète\nconst speechResult = $('06. Extract Speech').first().json.speechResult;\nconst callSid = $('06. Extract Speech').first().json.callSid;\nconst from = $('06. Extract Speech').first().json.from;\n\n// Normaliser : minuscule, sans accents, sans ponctuation\nconst normalized = speechResult.toLowerCase()\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/[^a-z0-9\\s]/g, '')\n  .replace(/\\s+/g, ' ').trim();\n\n// Variantes phonétiques que Twilio STT peut produire pour \"c'est giizmo\"\nconst adminPatterns = [\n  'giizmo', 'gizmo', 'gismo', 'guismo', 'guizmo', 'gisemo',\n  'giz mo', 'gis mo', 'guiz mo', 'geez mo', 'geezmo',\n  'cest giizmo', 'cest gizmo', 'cest gismo', 'cest guismo',\n  'ses gizmo', 'ses giizmo', 'say gizmo', 'sai gizmo',\n  'ces gizmo', 'ces giizmo', 'se gizmo', 'se giizmo'\n];\n\nconst isAdminPhrase = adminPatterns.some(p => normalized.includes(p));\n\nreturn {\n  callSid,\n  from,\n  speechResult,\n  isAdminPhrase,\n  mode: isAdminPhrase ? 'admin' : 'standard'\n};"
       },
       "id": "10. Detect Admin",
       "name": "10. Detect Admin",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 250]
+      "position": [
+        1100,
+        250
+      ]
     },
     {
       "parameters": {
@@ -160,17 +190,23 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1300, 250]
+      "position": [
+        1300,
+        250
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Construire le prompt avec FAQ + historique de conversation\nconst prev = $('10. Detect Admin').first().json;\nconst session = $('11. Get Session').first().json;\nconst historyRows = $('20. Load History').all();\nconst isAdmin = prev.isAdminPhrase;\nconst speechResult = prev.speechResult;\nconst callSid = prev.callSid;\nconst from = prev.from;\nconst clientName = session.nom || '';\nconst clientPrenom = session.prenom || '';\nconst clientEmail = session.email || '';\nconst clientInfo = clientName ? `Client identifié: ${clientPrenom} ${clientName}${clientEmail ? ' (' + clientEmail + ')' : ''}.` : 'Appelant non identifié dans notre base.';\n\n// Reconstruire l'historique de conversation\nlet conversationHistory = '';\nif (historyRows && historyRows.length > 0) {\n  const exchanges = [];\n  for (const row of historyRows) {\n    const notes = row.json.notes || '';\n    const qMatch = notes.match(/Q: (.+?) - R: /);\n    const rMatch = notes.match(/R: (.+)$/);\n    if (qMatch && rMatch) {\n      exchanges.push(`Appelant: ${qMatch[1]}\\nLéa: ${rMatch[1]}`);\n    }\n  }\n  if (exchanges.length > 0) {\n    conversationHistory = '\\nHISTORIQUE DE LA CONVERSATION:\\n' + exchanges.join('\\n') + '\\n';\n  }\n}\n\nconst faqContext = `PLATEFORME TALOSPRIMES - RÉSUMÉ:\nTalosPrimes est une plateforme de gestion immobilière tout-en-un pour les pros (agences, syndics, administrateurs de biens, promoteurs).\n\nMODULES PRINCIPAUX:\n- CRM & Leads: capture automatique de prospects, qualification par questionnaire, conversion lead vers client\n- Gestion Clients: fiches complètes B2B/B2C, espace client dédié, abonnements\n- Facturation: création/envoi/suivi factures, PDF auto, relances, paiement Stripe, statuts (brouillon/envoyée/payée/en retard)\n- Devis: création, envoi, acceptation client, conversion en facture ou bon de commande en 1 clic\n- Bons de Commande: gestion complète, conversion en facture\n- Avoirs & Proformas: notes de crédit, pré-facturation\n- Comptabilité: plan comptable français (PCG), journaux (ventes/achats/banque), écritures partie double, lettrage, rapprochement bancaire, TVA, bilan, compte de résultat, assistant IA comptable\n- Catalogue Articles: bibliothèque réutilisable avec prix et TVA\n- Téléphonie: numéro pro dédié, agent vocal IA, journal d'appels, appels sortants\n- SMS: envoi/réception, journal, relances\n- Email: lecture IMAP, envoi SMTP, agent IA email\n- Agenda: calendrier intégré, rendez-vous, rappels\n- Agent IA: 17 outils (leads, clients, factures, emails, agenda, banque Qonto), chat + vocal\n- Espace Client: portail dédié, factures, notifications, support\n- Qonto: consultation solde et transactions bancaires\n- Automatisation: 100+ workflows n8n automatisés\n- Sécurité: SSL, JWT, multi-tenant isolé\n\nTARIFS: sur devis, contacter l'équipe ou visiter talosprimes.com\nINSCRIPTION: app.talosprimes.com/inscription, mise en place immédiate`;\n\nconst standardPrompt = `Tu es Léa, l'assistante vocale de TalosPrimes.\n${clientInfo}\n${conversationHistory}\n${faqContext}\n\nCOMPORTEMENT:\n1. RÉPONDS aux questions sur la plateforme avec des infos PRÉCISES tirées du contexte ci-dessus\n2. Si l'appelant est un PROSPECT intéressé: recueille son nom et email/téléphone, dis que l'équipe le recontactera rapidement\n3. Si le problème est TECHNIQUE et COMPLEXE (bug, erreur système, données corrompues): dis que tu transfères au service technique et qu'il sera recontacté sous 24h\n4. Si c'est un CLIENT avec un souci simple (connexion, navigation, comment faire X): GUIDE-LE étape par étape\n5. JAMAIS dire \\\"contactez un administrateur via l'application\\\" - TU ES le point de contact\n6. Tu as accès à l'HISTORIQUE de la conversation - utilise-le pour ne pas répéter et pour personnaliser tes réponses\n7. NE RÉPÈTE JAMAIS la même question ou la même info. Lis bien l'historique pour éviter les redites.\n8. Si prospect et coordonnées PAS ENCORE demandées dans l'historique: propose de prendre les coordonnées. Ne redemande JAMAIS si déjà fait.\n\nRÈGLES VOCALES:\n- Maximum 3 phrases courtes et naturelles\n- Parle comme une vraie personne, chaleureuse et pro\n- Vouvoie toujours\n- Pas de listes, pas de formatage`;\n\nconst adminPrompt = `Tu es l'assistante IA de Giizmo, administrateur de TalosPrimes. Accès complet au système.\n${clientInfo}\n${conversationHistory}\nCAPACITÉS ADMIN:\n- Consulter leads, clients, factures, abonnements, emails, agenda, transactions Qonto, logs système\n- 17 outils disponibles: list_leads, get_lead, list_clients, get_client, list_invoices, list_subscriptions, get_tenant, list_notifications, list_emails, get_email, send_email, list_calendar_events, create_calendar_event, update_calendar_event, delete_calendar_event, qonto_transactions, list_logs\n- Statistiques: nombre de leads/clients/factures, CA, impayés\n- Système: logs d'erreurs n8n, statut workflows\n\nARCHITECTURE: Fastify+Prisma+PostgreSQL, Next.js, n8n (100+ workflows), Twilio, Stripe, Qonto, OpenAI\n\nRÈGLES:\n- Maximum 3 phrases, direct et efficace\n- Infos techniques précises\n- Si action requise, confirme avant d'exécuter`;\n\nreturn { systemPrompt: isAdmin ? adminPrompt : standardPrompt, speechResult, callSid, from, isAdmin, clientName, clientEmail };"
+        "jsCode": "// Construire le prompt avec FAQ + historique + tools (function calling)\nconst prev = $('10. Detect Admin').first().json;\nconst session = $('11. Get Session').first().json;\nconst historyRows = $('20. Load History').all();\nconst isAdmin = prev.isAdminPhrase;\nconst speechResult = prev.speechResult;\nconst callSid = prev.callSid;\nconst from = prev.from;\nconst clientName = session.nom || '';\nconst clientPrenom = session.prenom || '';\nconst clientEmail = session.email || '';\nconst clientId = session.id || '';\nconst tenantId = session.tenant_id || '';\nconst clientInfo = clientName ? `Client identifié: ${clientPrenom} ${clientName}${clientEmail ? ' (' + clientEmail + ')' : ''}. ID: ${clientId}` : 'Appelant non identifié dans notre base.';\n\n// Reconstruire l'historique de conversation\nlet conversationHistory = '';\nif (historyRows && historyRows.length > 0) {\n  const exchanges = [];\n  for (const row of historyRows) {\n    const notes = row.json.notes || '';\n    const qMatch = notes.match(/Q: (.+?) - R: /);\n    const rMatch = notes.match(/R: (.+)$/);\n    if (qMatch && rMatch) {\n      exchanges.push(`Appelant: ${qMatch[1]}\\nLéa: ${rMatch[1]}`);\n    }\n  }\n  if (exchanges.length > 0) {\n    conversationHistory = '\\nHISTORIQUE DE LA CONVERSATION:\\n' + exchanges.join('\\n') + '\\n';\n  }\n}\n\nconst faqContext = `PLATEFORME TALOSPRIMES - RÉSUMÉ:\nTalosPrimes est un LOGICIEL SaaS (Software as a Service) de gestion tout-en-un destiné aux professionnels de l'immobilier. TalosPrimes N'EST PAS une agence immobilière. C'est un éditeur de logiciel qui fournit des outils numériques aux agences, syndics, administrateurs de biens et promoteurs.\n\nMODULES: CRM/Leads, Gestion Clients B2B/B2C, Facturation (PDF auto, relances, Stripe), Devis, Bons de Commande, Avoirs, Comptabilité (PCG, journaux, TVA, bilan), Catalogue Articles, Téléphonie IA, SMS, Email IA, Agenda, Agent IA (17 outils), Espace Client, Qonto, 100+ workflows automatisés.\nTARIFS: sur devis. INSCRIPTION: app.talosprimes.com/inscription`;\n\nconst standardPrompt = `Tu es Léa, l'assistante vocale de TalosPrimes.\n${clientInfo}\n${conversationHistory}\n${faqContext}\n\nTU DISPOSES D'OUTILS pour créer des leads et rechercher des clients. Utilise-les quand c'est pertinent.\n\nCOMPORTEMENT:\n1. RÉPONDS aux questions sur la plateforme avec des infos PRÉCISES\n2. Si prospect intéressé: utilise l'outil create_lead pour enregistrer ses coordonnées\n3. Si problème TECHNIQUE COMPLEXE: dis que le service technique le recontactera sous 24h\n4. Si CLIENT avec souci simple: GUIDE-LE étape par étape\n5. JAMAIS dire \"contactez un administrateur via l'application\" - TU ES le point de contact\n6. Utilise l'HISTORIQUE pour ne pas répéter\n7. NE RÉPÈTE JAMAIS la même question. Ne redemande JAMAIS les coordonnées si déjà fait.\n\nRÈGLES VOCALES:\n- Maximum 3 phrases courtes et naturelles\n- Parle comme une vraie personne, chaleureuse et pro\n- Vouvoie toujours\n- Pas de listes, pas de formatage`;\n\nconst adminPrompt = `Tu es l'assistante IA de Giizmo, administrateur de TalosPrimes. Accès complet.\n${clientInfo}\n${conversationHistory}\n\nTU DISPOSES D'OUTILS pour créer et consulter leads, clients, factures, bons de commande. Utilise-les quand Giizmo te le demande.\n\nARCHITECTURE: Fastify+Prisma+PostgreSQL, Next.js, n8n, Twilio, Stripe, Qonto, OpenAI\n\nRÈGLES:\n- Maximum 3 phrases, direct et efficace\n- Confirme avant de créer quoi que ce soit\n- Infos techniques précises`;\n\n// Définir les tools disponibles\nconst standardTools = [\n  {\n    type: \"function\",\n    function: {\n      name: \"create_lead\",\n      description: \"Créer un nouveau prospect/lead dans le CRM. Utiliser quand un appelant donne ses coordonnées ou est intéressé par la plateforme.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          nom: { type: \"string\", description: \"Nom de famille du prospect\" },\n          prenom: { type: \"string\", description: \"Prénom du prospect\" },\n          email: { type: \"string\", description: \"Adresse email\" },\n          telephone: { type: \"string\", description: \"Numéro de téléphone\" },\n          notes: { type: \"string\", description: \"Notes sur la demande du prospect\" }\n        },\n        required: [\"nom\", \"telephone\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"search_client\",\n      description: \"Rechercher un client par nom ou téléphone dans la base de données.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          query: { type: \"string\", description: \"Nom, prénom ou numéro de téléphone à rechercher\" }\n        },\n        required: [\"query\"]\n      }\n    }\n  }\n];\n\nconst adminTools = [\n  ...standardTools,\n  {\n    type: \"function\",\n    function: {\n      name: \"create_client\",\n      description: \"Créer un nouveau client dans le système.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          nom: { type: \"string\", description: \"Nom de famille\" },\n          prenom: { type: \"string\", description: \"Prénom\" },\n          email: { type: \"string\", description: \"Email (obligatoire)\" },\n          telephone: { type: \"string\", description: \"Téléphone\" },\n          type: { type: \"string\", enum: [\"b2b\", \"b2c\"], description: \"Type: b2b ou b2c\" },\n          raison_sociale: { type: \"string\", description: \"Raison sociale (si B2B)\" }\n        },\n        required: [\"email\", \"type\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"create_invoice\",\n      description: \"Créer une facture brouillon pour un client.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          client_name_or_phone: { type: \"string\", description: \"Nom ou téléphone du client\" },\n          description: { type: \"string\", description: \"Description de la facture\" },\n          montant_ht: { type: \"number\", description: \"Montant HT en euros\" },\n          tva_taux: { type: \"number\", description: \"Taux de TVA (ex: 20 pour 20%)\", default: 20 }\n        },\n        required: [\"client_name_or_phone\", \"description\", \"montant_ht\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"create_bon_commande\",\n      description: \"Créer un bon de commande brouillon pour un client.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          client_name_or_phone: { type: \"string\", description: \"Nom ou téléphone du client\" },\n          description: { type: \"string\", description: \"Description du bon de commande\" },\n          montant_ht: { type: \"number\", description: \"Montant HT en euros\" },\n          tva_taux: { type: \"number\", description: \"Taux de TVA (ex: 20 pour 20%)\", default: 20 }\n        },\n        required: [\"client_name_or_phone\", \"description\", \"montant_ht\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"list_recent_leads\",\n      description: \"Lister les derniers leads/prospects.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          limit: { type: \"integer\", description: \"Nombre de leads à retourner\", default: 5 }\n        }\n      }\n    }\n  }\n];\n\nconst tools = isAdmin ? adminTools : standardTools;\n\nreturn {\n  systemPrompt: isAdmin ? adminPrompt : standardPrompt,\n  tools: JSON.stringify(tools),\n  speechResult,\n  callSid,\n  from,\n  isAdmin,\n  clientName,\n  clientEmail,\n  clientId,\n  tenantId\n};"
       },
       "id": "12. Build Prompt",
       "name": "12. Build Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 250]
+      "position": [
+        1500,
+        250
+      ]
     },
     {
       "parameters": {
@@ -180,7 +216,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{role:'system',content:$json.systemPrompt},{role:'user',content:$json.speechResult}], max_tokens: 150, temperature: 0.5 }) }}"
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{role:'system',content:$json.systemPrompt},{role:'user',content:$json.speechResult}], tools: JSON.parse($json.tools), max_tokens: 250, temperature: 0.5 }) }}"
       },
       "id": "13. OpenAI Chat",
       "name": "13. OpenAI Chat",
@@ -192,17 +228,23 @@
           "id": "nSSLzITn7UjPcRBc"
         }
       },
-      "position": [1700, 250]
+      "position": [
+        1700,
+        250
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Extraire réponse OpenAI + détecter intention lead/escalade\nconst openaiResponse = $input.first().json;\nconst prev = $('12. Build Prompt').first().json;\n\nlet aiReply = openaiResponse.choices?.[0]?.message?.content || \"Excusez-moi, je n'ai pas pu traiter votre demande. Puis-je vous aider autrement ?\";\n\n// Nettoyer pour TTS\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#{1,6}\\s/g, '')\n  .replace(/[\\[\\]]/g, '')\n  .replace(/\\n/g, ' ')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .trim();\n\n// Détecter intentions\nconst speech = prev.speechResult.toLowerCase();\nconst isGoodbye = speech.includes('au revoir') || speech.includes('merci au revoir') || \n                  speech.includes('bonne journée') || speech.includes('à bientôt') ||\n                  speech.includes(\"c'est tout\") || speech.includes('terminé');\n\n// Détecter si c'est un prospect (mots clés)\nconst isProspect = speech.includes('intéress') || speech.includes('tarif') || speech.includes('prix') ||\n                   speech.includes('abonnement') || speech.includes('essai') || speech.includes('demo') ||\n                   speech.includes('souscrire') || speech.includes('inscription') || speech.includes('devis');\n\n// Détecter si escalade nécessaire (problème technique grave)\nconst needsEscalation = speech.includes('bug') || speech.includes('erreur') || speech.includes('bloqué') ||\n                        speech.includes('marche pas') || speech.includes('fonctionne pas') || \n                        speech.includes('données perdues') || speech.includes('impossible') ||\n                        speech.includes('urgent') || speech.includes('grave');\n\nlet twiml = '';\nif (isGoodbye) {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Hangup/>\n</Response>`;\n} else {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"3\" timeout=\"15\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\"/>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Merci d'avoir appelé TalosPrimes. Bonne journée !</Say>\n</Response>`;\n}\n\nreturn {\n  twiml,\n  callSid: prev.callSid,\n  from: prev.from,\n  speechResult: prev.speechResult,\n  aiReply: aiReply.substring(0, 500),\n  isAdmin: prev.isAdmin,\n  isGoodbye,\n  isProspect,\n  needsEscalation,\n  clientName: prev.clientName || ''\n};"
+        "jsCode": "// Construire TwiML à partir de la réponse IA (directe ou après tool call)\nconst input = $input.first().json;\n\nlet aiReply = input.aiReply || \"Excusez-moi, je n'ai pas pu traiter votre demande.\";\n\n// Nettoyer pour TTS\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#{1,6}\\s/g, '')\n  .replace(/[\\[\\]]/g, '')\n  .replace(/\\n/g, ' ')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .trim();\n\n// Détecter intentions\nconst speech = (input.speechResult || '').toLowerCase();\nconst isGoodbye = speech.includes('au revoir') || speech.includes('merci au revoir') ||\n                  speech.includes('bonne journée') || speech.includes('à bientôt') ||\n                  speech.includes(\"c'est tout\") || speech.includes('terminé');\n\nconst isProspect = speech.includes('intéress') || speech.includes('tarif') || speech.includes('prix') ||\n                   speech.includes('abonnement') || speech.includes('essai') || speech.includes('demo') ||\n                   speech.includes('souscrire') || speech.includes('inscription') || speech.includes('devis') ||\n                   (input.toolUsed === 'create_lead');\n\nconst needsEscalation = speech.includes('bug') || speech.includes('erreur') || speech.includes('bloqué') ||\n                        speech.includes('marche pas') || speech.includes('fonctionne pas') ||\n                        speech.includes('données perdues') || speech.includes('impossible') ||\n                        speech.includes('urgent') || speech.includes('grave');\n\nlet twiml = '';\nif (isGoodbye) {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Hangup/>\n</Response>`;\n} else {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"3\" timeout=\"15\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\"/>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Merci d'avoir appelé TalosPrimes. Bonne journée !</Say>\n</Response>`;\n}\n\nreturn {\n  twiml,\n  callSid: input.callSid,\n  from: input.from,\n  speechResult: input.speechResult,\n  aiReply: aiReply.substring(0, 500),\n  isAdmin: input.isAdmin,\n  isGoodbye,\n  isProspect,\n  needsEscalation,\n  clientName: input.clientName || '',\n  toolUsed: input.toolUsed || ''\n};"
       },
       "id": "14. Build TwiML Response",
       "name": "14. Build TwiML Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 250]
+      "position": [
+        3100,
+        350
+      ]
     },
     {
       "parameters": {
@@ -222,7 +264,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [2100, 350]
+      "position": [
+        3300,
+        450
+      ]
     },
     {
       "parameters": {
@@ -243,7 +288,10 @@
       "name": "16. Respond TwiML",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2100, 200]
+      "position": [
+        3300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -263,7 +311,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [2300, 150]
+      "position": [
+        3500,
+        500
+      ]
     },
     {
       "parameters": {
@@ -283,7 +334,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [2300, 350]
+      "position": [
+        3500,
+        700
+      ]
     },
     {
       "parameters": {
@@ -300,7 +354,10 @@
       "name": "19. Need Action?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2100, 500]
+      "position": [
+        3300,
+        600
+      ]
     },
     {
       "parameters": {
@@ -320,116 +377,375 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1400, 400]
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse la réponse OpenAI - vérifie si tool_call\nconst openaiResponse = $input.first().json;\nconst prev = $('12. Build Prompt').first().json;\nconst message = openaiResponse.choices?.[0]?.message;\nconst finishReason = openaiResponse.choices?.[0]?.finish_reason;\n\nif (finishReason === 'tool_calls' && message?.tool_calls?.length > 0) {\n  const toolCall = message.tool_calls[0];\n  const toolName = toolCall.function.name;\n  const toolArgs = JSON.parse(toolCall.function.arguments || '{}');\n  const toolCallId = toolCall.id;\n  const tenantId = prev.tenantId || '';\n\n  // Construire la requête SQL selon le tool\n  let sqlQuery = '';\n\n  if (toolName === 'create_lead') {\n    const nom = (toolArgs.nom || '').replace(/'/g, \"''\");\n    const prenom = (toolArgs.prenom || '').replace(/'/g, \"''\");\n    const email = (toolArgs.email || '').replace(/'/g, \"''\");\n    const tel = (toolArgs.telephone || prev.from || '').replace(/'/g, \"''\");\n    const notes = (toolArgs.notes || '').replace(/'/g, \"''\");\n    sqlQuery = `INSERT INTO leads (tenant_id, nom, prenom, email, telephone, source, statut, notes, created_at, updated_at)\n      SELECT COALESCE('${tenantId}'::uuid, (SELECT id FROM tenants LIMIT 1)), '${nom}', '${prenom}', '${email}', '${tel}', 'telephone_ia', 'nouveau', '${notes}', NOW(), NOW()\n      WHERE NOT EXISTS (SELECT 1 FROM leads WHERE telephone LIKE '%' || RIGHT('${tel}', 9) || '%' AND statut != 'abandonne')\n      RETURNING id, nom, prenom, telephone`;\n  } else if (toolName === 'search_client') {\n    const q = (toolArgs.query || '').replace(/'/g, \"''\");\n    sqlQuery = `SELECT id, nom, prenom, email, telephone, raison_sociale, type, statut FROM client_finals WHERE nom ILIKE '%${q}%' OR prenom ILIKE '%${q}%' OR telephone LIKE '%${q}%' OR email ILIKE '%${q}%' LIMIT 5`;\n  } else if (toolName === 'create_client') {\n    const nom = (toolArgs.nom || '').replace(/'/g, \"''\");\n    const prenom = (toolArgs.prenom || '').replace(/'/g, \"''\");\n    const email = (toolArgs.email || '').replace(/'/g, \"''\");\n    const tel = (toolArgs.telephone || '').replace(/'/g, \"''\");\n    const type = toolArgs.type || 'b2c';\n    const rs = (toolArgs.raison_sociale || '').replace(/'/g, \"''\");\n    sqlQuery = `INSERT INTO client_finals (tenant_id, type, nom, prenom, email, telephone, raison_sociale, statut, created_at, updated_at)\n      VALUES ((SELECT id FROM tenants LIMIT 1), '${type}', '${nom}', '${prenom}', '${email}', '${tel}', '${rs}', 'actif', NOW(), NOW())\n      RETURNING id, nom, prenom, email`;\n  } else if (toolName === 'create_invoice') {\n    const desc = (toolArgs.description || '').replace(/'/g, \"''\");\n    const ht = toolArgs.montant_ht || 0;\n    const tva = toolArgs.tva_taux || 20;\n    const ttc = ht * (1 + tva / 100);\n    const clientQ = (toolArgs.client_name_or_phone || '').replace(/'/g, \"''\");\n    const numFacture = 'FA-' + Date.now();\n    sqlQuery = `INSERT INTO invoices (tenant_id, type, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, statut, created_at, updated_at)\n      SELECT (SELECT id FROM tenants LIMIT 1), 'facture_client_final',\n        (SELECT id FROM client_finals WHERE nom ILIKE '%${clientQ}%' OR telephone LIKE '%${clientQ}%' LIMIT 1),\n        '${numFacture}', NOW(), NOW() + INTERVAL '30 days', ${ht}, ${ttc.toFixed(2)}, ${tva}, '${desc}', 'brouillon', NOW(), NOW()\n      RETURNING id, numero_facture, montant_ht, montant_ttc, statut`;\n  } else if (toolName === 'create_bon_commande') {\n    const desc = (toolArgs.description || '').replace(/'/g, \"''\");\n    const ht = toolArgs.montant_ht || 0;\n    const tva = toolArgs.tva_taux || 20;\n    const ttc = ht * (1 + tva / 100);\n    const clientQ = (toolArgs.client_name_or_phone || '').replace(/'/g, \"''\");\n    const numBdc = 'BDC-' + Date.now();\n    sqlQuery = `INSERT INTO bons_commande (tenant_id, client_final_id, numero_bdc, date_bdc, montant_ht, montant_ttc, tva_taux, description, statut, created_at, updated_at)\n      SELECT (SELECT id FROM tenants LIMIT 1),\n        (SELECT id FROM client_finals WHERE nom ILIKE '%${clientQ}%' OR telephone LIKE '%${clientQ}%' LIMIT 1),\n        '${numBdc}', NOW(), ${ht}, ${ttc.toFixed(2)}, ${tva}, '${desc}', 'brouillon', NOW(), NOW()\n      RETURNING id, numero_bdc, montant_ht, montant_ttc, statut`;\n  } else if (toolName === 'list_recent_leads') {\n    const limit = toolArgs.limit || 5;\n    sqlQuery = `SELECT id, nom, prenom, telephone, email, statut, source, created_at FROM leads ORDER BY created_at DESC LIMIT ${limit}`;\n  }\n\n  return {\n    hasToolCall: true,\n    toolCallId,\n    toolName,\n    toolArgs: JSON.stringify(toolArgs),\n    sqlQuery,\n    // Passer les messages pour le 2e appel OpenAI\n    messages: JSON.stringify([\n      {role: 'system', content: prev.systemPrompt},\n      {role: 'user', content: prev.speechResult},\n      message // Le message avec tool_calls\n    ]),\n    tools: prev.tools,\n    callSid: prev.callSid,\n    from: prev.from,\n    speechResult: prev.speechResult,\n    isAdmin: prev.isAdmin,\n    clientName: prev.clientName || '',\n    clientEmail: prev.clientEmail || ''\n  };\n} else {\n  // Pas de tool call - réponse directe\n  let aiReply = message?.content || \"Excusez-moi, je n'ai pas pu traiter votre demande.\";\n\n  return {\n    hasToolCall: false,\n    aiReply,\n    callSid: prev.callSid,\n    from: prev.from,\n    speechResult: prev.speechResult,\n    isAdmin: prev.isAdmin,\n    clientName: prev.clientName || '',\n    clientEmail: prev.clientEmail || ''\n  };\n}"
+      },
+      "id": "21. Parse Response",
+      "name": "21. Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasToolCall }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "22. Has Tool Call?",
+      "name": "22. Has Tool Call?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "23. Execute Tool SQL",
+      "name": "23. Execute Tool SQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        2300,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire le body pour le 2e appel OpenAI avec le résultat du tool\nconst prev = $('21. Parse Response').first().json;\nconst toolResult = $input.first().json;\nconst messages = JSON.parse(prev.messages);\nconst tools = JSON.parse(prev.tools);\n\n// Ajouter le résultat du tool aux messages\nmessages.push({\n  role: 'tool',\n  tool_call_id: prev.toolCallId,\n  content: JSON.stringify(toolResult)\n});\n\nreturn {\n  jsonBody: JSON.stringify({\n    model: 'gpt-4o-mini',\n    messages,\n    max_tokens: 200,\n    temperature: 0.5\n  }),\n  callSid: prev.callSid,\n  from: prev.from,\n  speechResult: prev.speechResult,\n  isAdmin: prev.isAdmin,\n  clientName: prev.clientName || '',\n  clientEmail: prev.clientEmail || '',\n  toolUsed: prev.toolName\n};"
+      },
+      "id": "24. Build Tool Body",
+      "name": "24. Build Tool Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}"
+      },
+      "id": "25. OpenAI Tool Result",
+      "name": "25. OpenAI Tool Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAi account",
+          "id": "nSSLzITn7UjPcRBc"
+        }
+      },
+      "position": [
+        2700,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire la réponse finale après tool call\nconst openaiResponse = $input.first().json;\nconst prev = $('24. Build Tool Body').first().json;\n\nconst aiReply = openaiResponse.choices?.[0]?.message?.content || \"L'opération a été effectuée.\";\n\nreturn {\n  aiReply,\n  callSid: prev.callSid,\n  from: prev.from,\n  speechResult: prev.speechResult,\n  isAdmin: prev.isAdmin,\n  clientName: prev.clientName || '',\n  clientEmail: prev.clientEmail || '',\n  toolUsed: prev.toolUsed || ''\n};"
+      },
+      "id": "26. Extract Final Reply",
+      "name": "26. Extract Final Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2900,
+        150
+      ]
     }
   ],
   "connections": {
     "01. Webhook Twilio": {
       "main": [
         [
-          { "node": "02. Parser Twilio", "type": "main", "index": 0 }
+          {
+            "node": "02. Parser Twilio",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "02. Parser Twilio": {
       "main": [
         [
-          { "node": "03. Is Callback?", "type": "main", "index": 0 }
+          {
+            "node": "03. Is Callback?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "03. Is Callback?": {
       "main": [
         [
-          { "node": "06. Extract Speech", "type": "main", "index": 0 }
+          {
+            "node": "06. Extract Speech",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "04. Welcome TwiML", "type": "main", "index": 0 }
+          {
+            "node": "04. Welcome TwiML",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "04. Welcome TwiML": {
       "main": [
         [
-          { "node": "05. Respond Welcome", "type": "main", "index": 0 }
+          {
+            "node": "05. Respond Welcome",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "06. Extract Speech": {
       "main": [
         [
-          { "node": "07. Has Text?", "type": "main", "index": 0 }
+          {
+            "node": "07. Has Text?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "07. Has Text?": {
       "main": [
         [
-          { "node": "10. Detect Admin", "type": "main", "index": 0 }
+          {
+            "node": "10. Detect Admin",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "08. No Text TwiML", "type": "main", "index": 0 }
+          {
+            "node": "08. No Text TwiML",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "08. No Text TwiML": {
       "main": [
         [
-          { "node": "09. Respond No Text", "type": "main", "index": 0 }
+          {
+            "node": "09. Respond No Text",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "10. Detect Admin": {
       "main": [
         [
-          { "node": "11. Get Session", "type": "main", "index": 0 }
+          {
+            "node": "11. Get Session",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "11. Get Session": {
       "main": [
         [
-          { "node": "20. Load History", "type": "main", "index": 0 }
+          {
+            "node": "20. Load History",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "20. Load History": {
       "main": [
         [
-          { "node": "12. Build Prompt", "type": "main", "index": 0 }
+          {
+            "node": "12. Build Prompt",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "12. Build Prompt": {
       "main": [
         [
-          { "node": "13. OpenAI Chat", "type": "main", "index": 0 }
+          {
+            "node": "13. OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "13. OpenAI Chat": {
       "main": [
         [
-          { "node": "14. Build TwiML Response", "type": "main", "index": 0 }
+          {
+            "node": "21. Parse Response",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "14. Build TwiML Response": {
       "main": [
         [
-          { "node": "15. Log Call", "type": "main", "index": 0 },
-          { "node": "16. Respond TwiML", "type": "main", "index": 0 },
-          { "node": "19. Need Action?", "type": "main", "index": 0 }
+          {
+            "node": "15. Log Call",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "16. Respond TwiML",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "19. Need Action?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "19. Need Action?": {
       "main": [
         [
-          { "node": "17. Create Lead", "type": "main", "index": 0 },
-          { "node": "18. Notify Admin", "type": "main", "index": 0 }
+          {
+            "node": "17. Create Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "18. Notify Admin",
+            "type": "main",
+            "index": 0
+          }
         ],
         []
+      ]
+    },
+    "21. Parse Response": {
+      "main": [
+        [
+          {
+            "node": "22. Has Tool Call?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "22. Has Tool Call?": {
+      "main": [
+        [
+          {
+            "node": "23. Execute Tool SQL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "14. Build TwiML Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "23. Execute Tool SQL": {
+      "main": [
+        [
+          {
+            "node": "24. Build Tool Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24. Build Tool Body": {
+      "main": [
+        [
+          {
+            "node": "25. OpenAI Tool Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "25. OpenAI Tool Result": {
+      "main": [
+        [
+          {
+            "node": "26. Extract Final Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "26. Extract Final Reply": {
+      "main": [
+        [
+          {
+            "node": "14. Build TwiML Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   }
