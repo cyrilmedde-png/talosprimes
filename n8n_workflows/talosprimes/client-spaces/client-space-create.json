@@ -54,19 +54,13 @@
     },
     {
       "parameters": {
-        "command": "={{ 'mkdir -p /var/www/talosprimes/clients/' + $('02. Parser').first().json.tenantSlug + '/{documents,exports,uploads,config} && chmod -R 750 /var/www/talosprimes/clients/' + $('02. Parser').first().json.tenantSlug }}"
+        "jsCode": "// SSH placeholder - folder creation will be done when SSH credential is configured\nconst p=$('02. Parser').first().json;\nconst folderPath='/var/www/talosprimes/clients/'+p.tenantSlug;\n// TODO: Replace with SSH node when credential b7jMAjh1KJcIwqdo is configured\n// Command: mkdir -p {folderPath}/{documents,exports,uploads,config} && chmod -R 750 {folderPath}\nreturn [{json:{...p,folderPath,sshSkipped:true}}];"
       },
-      "id": "ssh-mkdir",
-      "name": "05. SSH Creer dossiers",
-      "type": "n8n-nodes-base.ssh",
-      "typeVersion": 1,
-      "position": [860, 300],
-      "credentials": {
-        "sshPassword": {
-          "name": "SSH VPS TalosPrimes",
-          "id": "b7jMAjh1KJcIwqdo"
-        }
-      }
+      "id": "ssh-placeholder",
+      "name": "05. SSH Creer dossiers (placeholder)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
     },
     {
       "parameters": {
@@ -91,8 +85,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
         }
       }
     },
@@ -119,8 +113,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
         }
       }
     },
@@ -155,11 +149,11 @@
     },
     "03. Valide ?": {
       "main": [
-        [{"node": "05. SSH Creer dossiers", "type": "main", "index": 0}],
+        [{"node": "05. SSH Creer dossiers (placeholder)", "type": "main", "index": 0}],
         [{"node": "04. Repondre erreur", "type": "main", "index": 0}]
       ]
     },
-    "05. SSH Creer dossiers": {
+    "05. SSH Creer dossiers (placeholder)": {
       "main": [[{"node": "06. Construire INSERT", "type": "main", "index": 0}]]
     },
     "06. Construire INSERT": {
@@ -178,8 +172,10 @@
       "main": [[{"node": "11. Repondre", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "_comment": "Updated 2026-02-21. SSH node replaced with Code placeholder (credential b7jMAjh1KJcIwqdo not configured). Postgres credential: OGqj65ZoFRileCck. Tested OK."
 }

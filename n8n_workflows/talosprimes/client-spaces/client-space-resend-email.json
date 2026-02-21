@@ -65,24 +65,27 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('05. Construire SELECT').first().json.query }}"
+        "query": "={{ $('05. Construire SELECT').first().json.query }}",
+        "options": {
+          "queryBatching": "independently"
+        }
       },
       "id": "pg-select",
       "name": "06. SELECT client_space",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [1080, 300],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const space=$input.first().json;\nif(!space||!space.id)return [{json:{_error:true,message:'Espace client introuvable ou non actif'}}];\n// Generate new temp password\nconst chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';\nlet pwd='';\nfor(let i=0;i<12;i++)pwd+=chars.charAt(Math.floor(Math.random()*chars.length));\nreturn [{json:{...space,tempPassword:pwd}}];"
+        "jsCode": "const space=$input.first().json;\nif(!space||!space.id)return [{json:{_error:true,message:'Espace client introuvable ou non actif'}}];\nconst chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';\nlet pwd='';\nfor(let i=0;i<12;i++)pwd+=chars.charAt(Math.floor(Math.random()*chars.length));\nreturn [{json:{...space,tempPassword:pwd}}];"
       },
       "id": "gen-pwd",
       "name": "07. Generer nouveau mdp",
@@ -103,7 +106,7 @@
         }
       },
       "id": "if-found",
-      "name": "08. Trouvé ?",
+      "name": "08. Trouve ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [1520, 300]
@@ -121,16 +124,27 @@
     },
     {
       "parameters": {
+        "jsCode": "const s=$('07. Generer nouveau mdp').first().json;\nconst html='<h2>Rappel de vos identifiants TalosPrimes</h2><p>Bonjour '+((s.prenom||'')+' '+(s.nom||'')).trim()+',</p><p>Voici vos identifiants de connexion :</p><ul><li><strong>URL :</strong> https://talosprimes.com/login</li><li><strong>Email :</strong> '+s.email+'</li><li><strong>Nouveau mot de passe :</strong> '+s.tempPassword+'</li></ul><p><em>Veuillez changer votre mot de passe lors de votre prochaine connexion.</em></p><p>Cordialement,<br/>L equipe TalosPrimes</p>';\nreturn [{json:{toEmail:s.email,htmlBody:html,space:s}}];"
+      },
+      "id": "prep-email",
+      "name": "10. Preparer email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 300]
+    },
+    {
+      "parameters": {
         "fromEmail": "noreply@talosprimes.com",
-        "toEmail": "={{ $('07. Generer nouveau mdp').first().json.email }}",
+        "toEmail": "={{ $json.toEmail }}",
         "subject": "Vos identifiants TalosPrimes (renvoi)",
-        "html": "={{ '<h2>Rappel de vos identifiants TalosPrimes</h2><p>Bonjour ' + ($('07. Generer nouveau mdp').first().json.prenom || '') + ' ' + ($('07. Generer nouveau mdp').first().json.nom || '') + ',</p><p>Voici vos identifiants de connexion :</p><ul><li><strong>URL :</strong> https://talosprimes.com/login</li><li><strong>Email :</strong> ' + $('07. Generer nouveau mdp').first().json.email + '</li><li><strong>Nouveau mot de passe :</strong> ' + $('07. Generer nouveau mdp').first().json.tempPassword + '</li></ul><p><em>Veuillez changer votre mot de passe lors de votre prochaine connexion.</em></p><p>Cordialement,<br/>L\\'équipe TalosPrimes</p>' }}"
+        "emailFormat": "html",
+        "html": "={{ $json.htmlBody }}"
       },
       "id": "send-email",
-      "name": "10. Renvoyer email",
+      "name": "11. Envoyer email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1740, 300],
+      "position": [1960, 300],
       "credentials": {
         "smtp": {
           "name": "SMTP TalosPrimes",
@@ -143,10 +157,10 @@
         "jsCode": "return [{json:{success:true,data:{emailSent:true,email:$('07. Generer nouveau mdp').first().json.email}}}];"
       },
       "id": "format",
-      "name": "11. Formater reponse",
+      "name": "12. Formater reponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1960, 300]
+      "position": [2180, 300]
     },
     {
       "parameters": {
@@ -154,10 +168,10 @@
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond-ok",
-      "name": "12. Repondre",
+      "name": "13. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [2180, 300]
+      "typeVersion": 1.1,
+      "position": [2400, 300]
     }
   ],
   "connections": {
@@ -180,23 +194,28 @@
       "main": [[{"node": "07. Generer nouveau mdp", "type": "main", "index": 0}]]
     },
     "07. Generer nouveau mdp": {
-      "main": [[{"node": "08. Trouvé ?", "type": "main", "index": 0}]]
+      "main": [[{"node": "08. Trouve ?", "type": "main", "index": 0}]]
     },
-    "08. Trouvé ?": {
+    "08. Trouve ?": {
       "main": [
-        [{"node": "10. Renvoyer email", "type": "main", "index": 0}],
+        [{"node": "10. Preparer email", "type": "main", "index": 0}],
         [{"node": "09. Repondre erreur not found", "type": "main", "index": 0}]
       ]
     },
-    "10. Renvoyer email": {
-      "main": [[{"node": "11. Formater reponse", "type": "main", "index": 0}]]
+    "10. Preparer email": {
+      "main": [[{"node": "11. Envoyer email", "type": "main", "index": 0}]]
     },
-    "11. Formater reponse": {
-      "main": [[{"node": "12. Repondre", "type": "main", "index": 0}]]
+    "11. Envoyer email": {
+      "main": [[{"node": "12. Formater reponse", "type": "main", "index": 0}]]
+    },
+    "12. Formater reponse": {
+      "main": [[{"node": "13. Repondre", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "_comment": "Updated 2026-02-21. Fix: emailSend v2 requires emailFormat=html + separate Code node for HTML body. Postgres credential: OGqj65ZoFRileCck. Tested OK."
 }

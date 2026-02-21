@@ -75,8 +75,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
         }
       }
     },
@@ -125,8 +125,10 @@
       "main": [[{"node": "08. Repondre", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "_comment": "Updated 2026-02-21. Postgres credential: OGqj65ZoFRileCck. Tested OK."
 }
