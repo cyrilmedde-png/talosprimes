@@ -124,37 +124,40 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/notifications",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {
-          "timeout": 10000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        },
-        "continueOnFail": true
+        "jsCode": "const d = $input.item.json;\nvar esc = function(s) { return (s || '').replace(/'/g, \"''\"); };\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', '\" + esc(d.titre || 'Notification') + \"', '\" + esc(d.message) + \"', '\" + esc(d.type || 'info') + \"', false, NOW())\";\nreturn [{json: {query}}];"
       },
-      "id": "HTTP_NotificationLead",
-      "name": "07. API - Créer Notification Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "07. API - Créer Notification Lead - Construire SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1560,
         300
-      ]
+      ],
+      "id": "HTTP_NotificationLead"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "name": "07. API - Créer Notification Lead - INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1780,
+        300
+      ],
+      "id": "HTTP_NotificationLead-pg",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -187,7 +190,7 @@
         "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
         "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
         "subject": "={{ $json.subject }}",
-        "emailType": "html",
+        "emailFormat": "html",
         "html": "={{ $json.html }}",
         "options": {
           "appendAttribution": false
@@ -256,37 +259,40 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/notifications",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {
-          "timeout": 10000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        },
-        "continueOnFail": true
+        "jsCode": "const d = $input.item.json;\nvar esc = function(s) { return (s || '').replace(/'/g, \"''\"); };\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', '\" + esc(d.titre || 'Notification') + \"', '\" + esc(d.message) + \"', '\" + esc(d.type || 'info') + \"', false, NOW())\";\nreturn [{json: {query}}];"
       },
-      "id": "HTTP_NotificationEmail",
-      "name": "13. API - Créer Notification Email",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "13. API - Créer Notification Email - Construire SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         2880,
         300
-      ]
+      ],
+      "id": "HTTP_NotificationEmail"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "name": "13. API - Créer Notification Email - INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3100,
+        300
+      ],
+      "id": "HTTP_NotificationEmail-pg",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -385,37 +391,40 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/notifications",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {
-          "timeout": 10000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        },
-        "continueOnFail": true
+        "jsCode": "const d = $input.item.json;\nvar esc = function(s) { return (s || '').replace(/'/g, \"''\"); };\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', '\" + esc(d.titre || 'Notification') + \"', '\" + esc(d.message) + \"', '\" + esc(d.type || 'info') + \"', false, NOW())\";\nreturn [{json: {query}}];"
       },
-      "id": "HTTP_NotificationSMS",
-      "name": "19. API - Créer Notification SMS",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "19. API - Créer Notification SMS - Construire SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         4200,
         300
-      ]
+      ],
+      "id": "HTTP_NotificationSMS"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "name": "19. API - Créer Notification SMS - INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4420,
+        300
+      ],
+      "id": "HTTP_NotificationSMS-pg",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -482,37 +491,40 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/notifications",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {
-          "timeout": 10000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        },
-        "continueOnFail": true
+        "jsCode": "const d = $input.item.json;\nvar esc = function(s) { return (s || '').replace(/'/g, \"''\"); };\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', '\" + esc(d.titre || 'Notification') + \"', '\" + esc(d.message) + \"', '\" + esc(d.type || 'info') + \"', false, NOW())\";\nreturn [{json: {query}}];"
       },
-      "id": "HTTP_NotificationError",
-      "name": "ERROR. API - Notification Erreur",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "name": "ERROR. API - Notification Erreur - Construire SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1340,
         700
-      ]
+      ],
+      "id": "HTTP_NotificationError"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "name": "ERROR. API - Notification Erreur - INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1560,
+        700
+      ],
+      "id": "HTTP_NotificationError-pg",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -633,7 +645,27 @@
         ]
       ]
     },
-    "07. API - Créer Notification Lead": {
+    "07. API - Créer Notification Lead - Construire SQL": {
+      "main": [
+        [
+          {
+            "node": "07. API - Créer Notification Lead - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "07. API - Créer Notification Lead - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. API - Créer Notification Lead - INSERT notification": {
       "main": [
         [
           {
@@ -735,14 +767,34 @@
       "main": [
         [
           {
-            "node": "13. API - Créer Notification Email",
+            "node": "13. API - Créer Notification Email - Construire SQL",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "13. API - Créer Notification Email": {
+    "13. API - Créer Notification Email - Construire SQL": {
+      "main": [
+        [
+          {
+            "node": "13. API - Créer Notification Email - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "13. API - Créer Notification Email - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. API - Créer Notification Email - INSERT notification": {
       "main": [
         [
           {
@@ -844,14 +896,34 @@
       "main": [
         [
           {
-            "node": "19. API - Créer Notification SMS",
+            "node": "19. API - Créer Notification SMS - Construire SQL",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "19. API - Créer Notification SMS": {
+    "19. API - Créer Notification SMS - Construire SQL": {
+      "main": [
+        [
+          {
+            "node": "19. API - Créer Notification SMS - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "19. API - Créer Notification SMS - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19. API - Créer Notification SMS - INSERT notification": {
       "main": [
         [
           {
@@ -886,7 +958,7 @@
       "main": [
         [
           {
-            "node": "ERROR. API - Notification Erreur",
+            "node": "ERROR. API - Notification Erreur - Construire SQL",
             "type": "main",
             "index": 0
           }
@@ -900,7 +972,27 @@
         ]
       ]
     },
-    "ERROR. API - Notification Erreur": {
+    "ERROR. API - Notification Erreur - Construire SQL": {
+      "main": [
+        [
+          {
+            "node": "ERROR. API - Notification Erreur - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "ERROR. API - Notification Erreur - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ERROR. API - Notification Erreur - INSERT notification": {
       "main": [
         [
           {

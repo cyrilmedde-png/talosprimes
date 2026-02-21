@@ -109,7 +109,7 @@
         "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
         "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
         "subject": "={{ $json.subject }}",
-        "emailType": "html",
+        "emailFormat": "html",
         "html": "={{ $json.html }}",
         "options": {
           "appendAttribution": false

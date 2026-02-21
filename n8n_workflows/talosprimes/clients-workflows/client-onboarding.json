@@ -401,7 +401,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       }
     },
@@ -523,39 +523,40 @@
     },
     {
       "parameters": {
-        "url": "https://api.talosprimes.com/api/notifications",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "jsCode": "const d = $input.item.json;\nvar esc = function(s) { return (s || '').replace(/'/g, \"''\"); };\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', '\" + esc(d.titre || 'Notification') + \"', '\" + esc(d.message) + \"', '\" + esc(d.type || 'info') + \"', false, NOW())\";\nreturn [{json: {query}}];"
       },
-      "id": "create-notification",
-      "name": "12. Créer notification",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "name": "12. Créer notification - Construire SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         2660,
         650
-      ]
+      ],
+      "id": "create-notification"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "name": "12. Créer notification - INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2880,
+        650
+      ],
+      "id": "create-notification-pg",
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -844,7 +845,18 @@
         ]
       ]
     },
-    "12. Créer notification": {
+    "12. Créer notification - Construire SQL": {
+      "main": [
+        [
+          {
+            "node": "12. Créer notification - INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Créer notification - INSERT notification": {
       "main": [
         [
           {

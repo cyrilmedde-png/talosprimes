@@ -46,7 +46,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "6Kosza77d9Ld32mw",
+          "id": "OGqj65ZoFRileCck",
           "name": "Supabase Postgres"
         }
       }
