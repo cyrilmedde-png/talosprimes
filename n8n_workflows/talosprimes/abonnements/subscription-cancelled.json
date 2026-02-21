@@ -34,20 +34,24 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid;"
+        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid;",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [
         680,
         400
       ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
         }
       }
     },
@@ -86,39 +90,40 @@
     },
     {
       "parameters": {
-        "url": "https://api.talosprimes.com/api/notifications",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "jsCode": "const d=$('05a. Préparer notification admin (erreur)').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement introuvable', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
       },
-      "id": "send-admin-notification-error",
-      "name": "05b. Envoyer notification admin",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "construct-admin-notif",
+      "name": "05b. Construire notif erreur",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1120,
         600
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('05b. Construire notif erreur').first().json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "insert-admin-notif",
+      "name": "05c. INSERT notification erreur",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1340,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -211,6 +216,19 @@
     },
     {
       "parameters": {
+        "jsCode": "const d=$('08c. Préparer notification erreur Stripe').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Erreur annulation Stripe', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
+      },
+      "id": "construct-stripe-notif",
+      "name": "08d. Construire notif Stripe err",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "jsCode": "// Préparer notification d'erreur Stripe\nconst stripeError = $input.item.json;\nconst prepareData = $node['06. Préparer annulation'].json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'stripe_cancellation_failed',\n    tenantId: prepareData.tenantId,\n    subscriptionId: prepareData.subscription.id,\n    stripeId: prepareData.idAbonnementStripe,\n    timestamp,\n    error: stripeError.message || 'Erreur inconnue Stripe',\n    reason: prepareData.reason,\n    cancelledBy: prepareData.cancelledBy,\n    cancelledByEmail: prepareData.cancelledByEmail,\n    message: `Échec de l'annulation Stripe: ${stripeError.message || 'Erreur inconnue'}`\n  }\n};"
       },
       "id": "prepare-stripe-error-notification",
@@ -224,39 +242,27 @@
     },
     {
       "parameters": {
-        "url": "https://api.talosprimes.com/api/notifications",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
+        "operation": "executeQuery",
+        "query": "={{ $('08d. Construire notif Stripe err').first().json.query }}",
+        "alwaysOutputData": true,
         "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
+          "queryBatching": "independently"
         }
       },
-      "id": "send-stripe-error-notification",
-      "name": "08d. Envoyer notification erreur Stripe",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "insert-stripe-notif",
+      "name": "08e-pg. INSERT notification Stripe err",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
-        2220,
+        2440,
         300
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -265,11 +271,11 @@
         "options": {}
       },
       "id": "respond-stripe-error",
-      "name": "08e. Répondre erreur Stripe",
+      "name": "08f. Répondre erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2440,
+        2660,
         300
       ]
     },
@@ -290,59 +296,60 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;"
+        "query": "=UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
       },
       "id": "update-subscription",
       "name": "10. Annuler abonnement",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [
         2440,
         100
       ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Préparer l'email de confirmation d'annulation\nconst data = $node['09. Merge - Stripe et sans Stripe'].json;\nconst subscriptionUpdated = $input.item.json[0];\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst planName = data.subscription.nom_plan;\nconst reason = data.reason;\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>Abonnement annulé</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Nous vous confirmons l'annulation de votre abonnement TalosPrimes.</p>\n      <div class=\"info-box\">\n        <h3>Détails de l'annulation :</h3>\n        <p><strong>Plan :</strong> ${planName}</p>\n        <p><strong>Date d'annulation :</strong> ${new Date().toLocaleDateString('fr-FR')}</p>\n        <p><strong>Raison :</strong> ${reason}</p>\n      </div>\n      <p>Nous sommes désolés de vous voir partir. Si vous changez d'avis, vous pouvez réactiver votre abonnement à tout moment.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: clientEmail,\n    subject: `Confirmation d'annulation de votre abonnement ${planName}`,\n    html: htmlTemplate\n  }\n};"
+        "jsCode": "// Préparer l'email de confirmation d'annulation\nconst data = $node['09. Merge - Stripe et sans Stripe'].json;\nconst subscriptionUpdated = $input.item.json[0];\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst planName = data.subscription.nom_plan;\nconst reason = data.reason;\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>Abonnement annulé</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Nous vous confirmons l'annulation de votre abonnement TalosPrimes.</p>\n      <div class=\"info-box\">\n        <h3>Détails de l'annulation :</h3>\n        <p><strong>Plan :</strong> ${planName}</p>\n        <p><strong>Date d'annulation :</strong> ${new Date().toLocaleDateString('fr-FR')}</p>\n        <p><strong>Raison :</strong> ${reason}</p>\n      </div>\n      <p>Nous sommes désolés de vous voir partir. Si vous changez d'avis, vous pouvez réactiver votre abonnement à tout moment.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    toEmail: clientEmail,\n    subject: `Confirmation d'annulation de votre abonnement ${planName}`,\n    htmlBody: htmlTemplate\n  }\n};"
       },
       "id": "prepare-email",
       "name": "11. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2660,
+        2880,
         100
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
-        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $json.toEmail }}",
         "subject": "={{ $json.subject }}",
-        "emailType": "html",
-        "html": "={{ $json.html }}",
-        "options": {
-          "appendAttribution": false
-        }
+        "emailFormat": "html",
+        "html": "={{ $json.htmlBody }}"
       },
       "id": "send-email",
       "name": "12. Envoyer email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2880,
+        3100,
         100
       ],
       "credentials": {
         "smtp": {
           "id": "hepAQJGA9ubd1NF4",
-          "name": "SMTP account"
+          "name": "SMTP TalosPrimes"
         }
       }
     },
@@ -355,45 +362,46 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3100,
+        3320,
         100
       ]
     },
     {
       "parameters": {
-        "url": "https://api.talosprimes.com/api/notifications",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "jsCode": "const d=$('13. Préparer notification TalosPrimes').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement annulé', '\"+esc(d.message)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
       },
-      "id": "send-notification",
-      "name": "14. Envoyer notification TalosPrimes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "construct-success-notif",
+      "name": "14. Construire notif succès",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        3320,
+        3540,
         100
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('14. Construire notif succès').first().json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "insert-success-notif",
+      "name": "14b. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3760,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
@@ -406,7 +414,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        3540,
+        3980,
         100
       ]
     },
@@ -421,7 +429,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1340,
+        1560,
         600
       ]
     }
@@ -482,14 +490,25 @@
       "main": [
         [
           {
-            "node": "05b. Envoyer notification admin",
+            "node": "05b. Construire notif erreur",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05b. Envoyer notification admin": {
+    "05b. Construire notif erreur": {
+      "main": [
+        [
+          {
+            "node": "05c. INSERT notification erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05c. INSERT notification erreur": {
       "main": [
         [
           {
@@ -573,18 +592,29 @@
       "main": [
         [
           {
-            "node": "08d. Envoyer notification erreur Stripe",
+            "node": "08d. Construire notif Stripe err",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "08d. Envoyer notification erreur Stripe": {
+    "08d. Construire notif Stripe err": {
       "main": [
         [
           {
-            "node": "08e. Répondre erreur Stripe",
+            "node": "08e-pg. INSERT notification Stripe err",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08e-pg. INSERT notification Stripe err": {
+      "main": [
+        [
+          {
+            "node": "08f. Répondre erreur Stripe",
             "type": "main",
             "index": 0
           }
@@ -639,14 +669,25 @@
       "main": [
         [
           {
-            "node": "14. Envoyer notification TalosPrimes",
+            "node": "14. Construire notif succès",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "14. Envoyer notification TalosPrimes": {
+    "14. Construire notif succès": {
+      "main": [
+        [
+          {
+            "node": "14b. INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14b. INSERT notification": {
       "main": [
         [
           {
@@ -658,13 +699,10 @@
       ]
     }
   },
-  "pinData": {},
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2026-02-07T12:00:00.000Z",
-  "versionId": "1"
+  "_comment": "Updated 2026-02-21. Converted: Postgres credential OGqj65ZoFRileCck, HTTP notifications→direct Postgres INSERT, emailFormat fix. Tested OK."
 }

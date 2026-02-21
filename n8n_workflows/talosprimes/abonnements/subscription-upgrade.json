@@ -34,20 +34,24 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid\n  AND cs.statut = 'actif';"
+        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid\n  AND cs.statut = 'actif';",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement actuel",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [
         680,
         400
       ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
         }
       }
     },
@@ -209,20 +213,24 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "=UPDATE client_subscriptions\nSET \n  nom_plan = $1,\n  montant_mensuel = $2,\n  modules_inclus = $3::text[],\n  updated_at = NOW()\nWHERE id = $4::uuid\nRETURNING *;",
-        "queryParameters": "={{ [$json.sqlParams.nomPlan, $json.sqlParams.montantMensuel, $json.sqlParams.modulesInclus, $json.sqlParams.subscriptionId] }}"
+        "queryParameters": "={{ [$json.sqlParams.nomPlan, $json.sqlParams.montantMensuel, $json.sqlParams.modulesInclus, $json.sqlParams.subscriptionId] }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
       },
       "id": "update-subscription",
       "name": "11. Mettre à jour abonnement",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [
         2440,
         300
       ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
         }
       }
     },
@@ -241,77 +249,74 @@
     },
     {
       "parameters": {
-        "url": "https://api.talosprimes.com/api/notifications",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "jsCode": "const d=$('12. Préparer notification TalosPrimes').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar changeLabel=d.isUpgrade?'Upgrade':'Downgrade';\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', '\"+esc(changeLabel)+\" abonnement', '\"+esc(changeLabel)+\" de \"+esc(d.oldPlan)+\" vers \"+esc(d.newPlan)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
       },
-      "id": "send-notification",
-      "name": "13. Envoyer notification TalosPrimes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "construct-notification",
+      "name": "13. Construire notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         2880,
-        250
-      ],
-      "onError": "continueErrorOutput"
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer l'email de confirmation\nconst subscriptionUpdated = $input.item.json[0];\nconst data = $node['10. Préparer paramètres SQL'].json;\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst ancienPlan = data.ancienPlan.nomPlan;\nconst nouveauPlan = data.nouveauPlan.nomPlan;\nconst isUpgrade = data.isUpgrade;\nconst prorata = data.prorata.amount.toFixed(2);\n\nconst changeType = isUpgrade ? 'Upgrade' : 'Downgrade';\nconst changeIcon = isUpgrade ? '⬆️' : '⬇️';\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .plan-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }\n    .prorata-box { background: #e7f3ff; padding: 15px; margin: 20px 0; border-radius: 8px; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>${changeIcon} ${changeType} de votre abonnement</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Votre abonnement TalosPrimes a été mis à jour avec succès.</p>\n      <div class=\"plan-box\">\n        <h3>Changement de plan :</h3>\n        <p><strong>Ancien plan :</strong> ${ancienPlan} (${data.ancienPlan.montantMensuel}€/mois)</p>\n        <p><strong>Nouveau plan :</strong> ${nouveauPlan} (${data.nouveauPlan.montantMensuel}€/mois)</p>\n      </div>\n      ${isUpgrade && prorata > 0 ? `<div class=\"prorata-box\">\n        <h3>Prorata calculé :</h3>\n        <p>Un montant de ${prorata}€ sera facturé pour les ${data.prorata.daysRemaining} jours restants jusqu'au prochain renouvellement.</p>\n      </div>` : ''}\n      <p>Les nouvelles fonctionnalités sont immédiatement disponibles dans votre espace.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    to: clientEmail,\n    subject: `${changeType} de votre abonnement TalosPrimes`,\n    html: htmlTemplate\n  }\n};"
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "alwaysOutputData": true,
+        "options": {
+          "queryBatching": "independently"
+        }
+      },
+      "id": "insert-notification",
+      "name": "13b. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3080,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Postgres account",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer l'email de confirmation\nconst subscriptionUpdated = $input.item.json[0];\nconst data = $node['10. Préparer paramètres SQL'].json;\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst ancienPlan = data.ancienPlan.nomPlan;\nconst nouveauPlan = data.nouveauPlan.nomPlan;\nconst isUpgrade = data.isUpgrade;\nconst prorata = data.prorata.amount.toFixed(2);\n\nconst changeType = isUpgrade ? 'Upgrade' : 'Downgrade';\nconst changeIcon = isUpgrade ? '⬆️' : '⬇️';\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .plan-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }\n    .prorata-box { background: #e7f3ff; padding: 15px; margin: 20px 0; border-radius: 8px; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>${changeIcon} ${changeType} de votre abonnement</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Votre abonnement TalosPrimes a été mis à jour avec succès.</p>\n      <div class=\"plan-box\">\n        <h3>Changement de plan :</h3>\n        <p><strong>Ancien plan :</strong> ${ancienPlan} (${data.ancienPlan.montantMensuel}€/mois)</p>\n        <p><strong>Nouveau plan :</strong> ${nouveauPlan} (${data.nouveauPlan.montantMensuel}€/mois)</p>\n      </div>\n      ${isUpgrade && prorata > 0 ? `<div class=\"prorata-box\">\n        <h3>Prorata calculé :</h3>\n        <p>Un montant de ${prorata}€ sera facturé pour les ${data.prorata.daysRemaining} jours restants jusqu'au prochain renouvellement.</p>\n      </div>` : ''}\n      <p>Les nouvelles fonctionnalités sont immédiatement disponibles dans votre espace.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    toEmail: clientEmail,\n    subject: `${changeType} de votre abonnement TalosPrimes`,\n    htmlBody: htmlTemplate\n  }\n};"
       },
       "id": "prepare-email",
       "name": "14. Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3100,
+        3280,
         300
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
-        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $json.toEmail }}",
         "subject": "={{ $json.subject }}",
-        "emailType": "html",
-        "html": "={{ $json.html }}",
-        "options": {
-          "appendAttribution": false
-        }
+        "emailFormat": "html",
+        "html": "={{ $json.htmlBody }}"
       },
       "id": "send-email",
       "name": "15. Envoyer email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        3320,
+        3500,
         300
       ],
       "credentials": {
         "smtp": {
           "id": "hepAQJGA9ubd1NF4",
-          "name": "SMTP account"
+          "name": "SMTP TalosPrimes"
         }
       }
     },
@@ -326,7 +331,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        3540,
+        3720,
         300
       ]
     },
@@ -495,14 +500,25 @@
       "main": [
         [
           {
-            "node": "13. Envoyer notification TalosPrimes",
+            "node": "13. Construire notification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "13. Envoyer notification TalosPrimes": {
+    "13. Construire notification": {
+      "main": [
+        [
+          {
+            "node": "13b. INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13b. INSERT notification": {
       "main": [
         [
           {
@@ -536,13 +552,10 @@
       ]
     }
   },
-  "pinData": {},
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2026-02-07T00:00:00.000Z",
-  "versionId": "2"
+  "_comment": "Updated 2026-02-21. Converted: Postgres credential OGqj65ZoFRileCck, HTTP notifications→direct Postgres INSERT, emailFormat fix. Tested OK."
 }

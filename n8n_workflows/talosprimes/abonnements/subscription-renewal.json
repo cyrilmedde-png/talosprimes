@@ -1,90 +1,91 @@
 {
-  "name": "Abonnements - Renouvellement automatique",
+  "name": "subscription-renewal",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
         "path": "subscription-renewal",
-        "responseMode": "responseNode",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson",
         "options": {}
       },
-      "id": "webhook-renewal",
-      "name": "01. Webhook - Renouvellement",
+      "id": "01-webhook",
+      "name": "Webhook POST /subscription-renewal",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        240,
-        400
-      ],
-      "webhookId": "subscription-renewal"
+        250,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    renewalDate: new Date().toISOString()\n  }\n};"
+        "functionCode": "const body = $input.first().json;\nreturn [{\n  json: {\n    subscriptionId: body.subscriptionId,\n    clientId: body.clientId,\n    renewalDate: body.renewalDate || new Date().toISOString()\n  }\n}];"
       },
-      "id": "parse-payload",
-      "name": "02. Parser payload",
+      "id": "02-parser",
+      "name": "Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        460,
-        400
+        450,
+        300
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale,\n  p.nom_plan,\n  p.duree_mois,\n  t.tva_taux\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nJOIN plans p ON cs.plan_id = p.id\nLEFT JOIN tenants t ON t.id = $1\nWHERE cs.id = $2::uuid\n  AND cs.statut = 'actif';",
-        "parameters": [
-          "={{ $node['02. Parser payload'].json.tenantId }}",
-          "={{ $node['02. Parser payload'].json.subscriptionId }}"
-        ]
+        "query": "SELECT * FROM subscriptions WHERE id = $1 AND client_id = $2",
+        "queryParams": "{{ $json.subscriptionId }},{{ $json.clientId }}",
+        "options": {
+          "queryBatching": "independently"
+        }
       },
-      "id": "get-subscription",
-      "name": "03. Récupérer abonnement",
+      "id": "03-fetch-subscription",
+      "name": "Récupérer abonnement",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [
-        680,
-        400
+        650,
+        300
       ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "number": [
             {
-              "value1": "={{ $json[0]?.id }}",
-              "operation": "isNotEmpty"
+              "comparator": ">",
+              "value1": "={{ $('03-fetch-subscription').first().json.length }}",
+              "value2": 0
             }
           ]
         }
       },
-      "id": "validate-subscription",
-      "name": "04. Validation",
+      "id": "04-validation",
+      "name": "Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        900,
-        400
+        850,
+        300
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour le renouvellement\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\n// Calculer la nouvelle date de renouvellement\nconst currentDate = new Date(subscriptionData.date_prochain_renouvellement);\n// Lire la durée depuis le plan, sinon par défaut à 1 mois\nconst dureeMois = subscriptionData.duree_mois || 1;\nconst newRenewalDate = new Date(currentDate);\nnewRenewalDate.setMonth(newRenewalDate.getMonth() + dureeMois);\n\n// Lire le taux TVA depuis la config tenant, sinon 20% par défaut\nconst tvaRate = (subscriptionData.tva_taux || 20) / 100;\n\n// Préparer les données pour la facture\nconst invoiceAmount = subscriptionData.montant_mensuel;\nconst invoiceAmountHT = invoiceAmount;\nconst invoiceAmountTTC = invoiceAmountHT * (1 + tvaRate);\n\nconst invoice = {\n  clientFinalId: subscriptionData.client_final_id,\n  subscriptionId: subscriptionData.id,\n  montantHT: invoiceAmountHT,\n  montantTTC: invoiceAmountTTC,\n  dateFacture: new Date().toISOString().split('T')[0],\n  dateEcheance: newRenewalDate.toISOString().split('T')[0],\n  statut: 'en_attente',\n  description: `Renouvellement abonnement ${subscriptionData.nom_plan}`,\n  tvaTaux: subscriptionData.tva_taux || 20\n};\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    newRenewalDate: newRenewalDate.toISOString(),\n    invoice,\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    planName: subscriptionData.nom_plan,\n    tvaRate\n  }\n};"
+        "functionCode": "const sub = $('03-fetch-subscription').first().json[0];\nreturn [{\n  json: {\n    subscriptionId: sub.id,\n    clientId: sub.client_id,\n    planName: sub.plan_name,\n    tenantId: sub.tenant_id,\n    clientEmail: sub.client_email,\n    amount: sub.amount,\n    currency: sub.currency,\n    billingCycle: sub.billing_cycle,\n    stripeCustomerId: sub.stripe_customer_id,\n    stripeSubscriptionId: sub.stripe_subscription_id,\n    renewalDate: new Date().toISOString()\n  }\n}];"
       },
-      "id": "prepare-renewal",
-      "name": "05. Préparer renouvellement",
+      "id": "05-prepare-renewal",
+      "name": "Préparer renouvellement",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1050,
         300
       ]
     },
@@ -93,435 +94,427 @@
         "conditions": {
           "string": [
             {
-              "value1": "={{ $node['05. Préparer renouvellement'].json.subscription.id_abonnement_stripe }}",
-              "operation": "isNotEmpty"
+              "comparator": "notEmpty",
+              "value1": "={{ $json.stripeSubscriptionId }}"
             }
           ]
         }
       },
-      "id": "if-stripe",
-      "name": "06. IF - Stripe configuré ?",
+      "id": "06-if-stripe-configured",
+      "name": "IF Stripe configuré",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        1340,
+        1250,
         300
       ]
     },
     {
       "parameters": {
-        "url": "=https://api.stripe.com/v1/subscriptions/{{ $node['05. Préparer renouvellement'].json.subscription.id_abonnement_stripe }}",
         "method": "GET",
-        "authentication": "predefinedCredentialType",
+        "url": "=https://api.stripe.com/v1/subscriptions/{{ $json.stripeSubscriptionId }}",
         "options": {},
-        "genericAuthType": "stripeApi"
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stripeApi"
       },
-      "id": "stripe-get-subscription",
-      "name": "07. Stripe - Vérifier abonnement",
+      "id": "07-stripe-check-subscription",
+      "name": "Stripe - Vérifier abonnement",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 4.1,
       "position": [
-        1560,
+        1450,
         200
       ],
       "credentials": {
         "stripeApi": {
           "id": "hTgbVXtv3dG8wSJ4",
-          "name": "Stripe API"
+          "name": "stripeApi"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Vérifier le statut de l'abonnement Stripe\nconst stripeSubscription = $input.item.json;\nconst prepareData = $node['05. Préparer renouvellement'].json;\n\nconst stripeStatus = stripeSubscription.status;\nconst isActive = stripeStatus === 'active' || stripeStatus === 'trialing';\n\nif (!isActive) {\n  throw new Error(`Abonnement Stripe inactif: ${stripeStatus}`);\n}\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeStatus,\n    stripeRenewed: true\n  }\n};"
+        "functionCode": "const stripe = $input.first().json;\nif (stripe.status === 'active' || stripe.status === 'past_due') {\n  return [{\n    json: {\n      stripeValid: true,\n      stripeStatus: stripe.status\n    }\n  }];\n} else {\n  return [{\n    json: {\n      stripeValid: false,\n      stripeStatus: stripe.status,\n      error: 'Stripe subscription is not active'\n    },\n    pairedItem: { item: 0 }\n  }];\n}"
       },
-      "id": "check-stripe-status",
-      "name": "08. Vérifier statut Stripe",
+      "id": "08-check-stripe-status",
+      "name": "Vérifier statut Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1780,
+        1650,
         200
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: 'Erreur Stripe: abonnement inactif ou non trouvé' }) }}",
         "options": {}
       },
-      "id": "respond-stripe-error",
-      "name": "09. Répondre erreur Stripe",
+      "id": "09-respond-stripe-error",
+      "name": "Répondre erreur Stripe",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1560,
-        400
+        1850,
+        100
       ]
     },
     {
       "parameters": {
-        "mode": "append",
-        "options": {}
+        "mode": "mergeByPosition",
+        "mergeByFields": []
       },
-      "id": "merge-stripe",
-      "name": "10. Merge - Stripe et sans Stripe",
+      "id": "10-merge",
+      "name": "Merge",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
       "position": [
-        2000,
+        1850,
         300
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE client_subscriptions\nSET \n  date_prochain_renouvellement = $1::timestamptz,\n  updated_at = NOW()\nWHERE id = $2::uuid\nRETURNING *;",
-        "parameters": [
-          "={{ $json.newRenewalDate }}",
-          "={{ $json.subscription.id }}"
-        ]
+        "query": "UPDATE subscriptions SET renewed_at = $1, renewal_count = renewal_count + 1 WHERE id = $2",
+        "queryParams": "{{ new Date().toISOString() }},{{ $json.subscriptionId }}",
+        "options": {
+          "queryBatching": "independently"
+        }
       },
-      "id": "update-subscription",
-      "name": "11. Mettre à jour abonnement",
+      "id": "11-update-subscription",
+      "name": "Mettre à jour abonnement",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [
-        2220,
+        2050,
         300
       ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO invoices (\n  id,\n  type,\n  tenant_id,\n  client_final_id,\n  numero_facture,\n  date_facture,\n  date_echeance,\n  montant_ht,\n  montant_ttc,\n  tva_taux,\n  statut,\n  description,\n  updated_at\n) VALUES (\n  gen_random_uuid(),\n  'standard',\n  $1::uuid,\n  $2::uuid,\n  'INV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0'),\n  $3::date,\n  $4::date,\n  $5::numeric,\n  $6::numeric,\n  $7::numeric,\n  'en_attente',\n  $8::text,\n  NOW()\n)\nRETURNING *;",
-        "parameters": [
-          "={{ $node['02. Parser payload'].json.tenantId }}",
-          "={{ $json.invoice.clientFinalId }}",
-          "={{ $json.invoice.dateFacture }}",
-          "={{ $json.invoice.dateEcheance }}",
-          "={{ $json.invoice.montantHT }}",
-          "={{ $json.invoice.montantTTC }}",
-          "={{ $json.invoice.tvaTaux }}",
-          "={{ $json.invoice.description }}"
-        ]
+        "query": "INSERT INTO invoices (id, subscription_id, client_id, tenant_id, amount, currency, invoice_date, due_date, status) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW() + interval '30 days', 'pending')",
+        "queryParams": "{{ $json.subscriptionId }},{{ $json.clientId }},{{ $json.tenantId }},{{ $json.amount }},{{ $json.currency }}",
+        "options": {
+          "queryBatching": "independently"
+        }
       },
-      "id": "create-invoice",
-      "name": "12. Créer facture",
+      "id": "12-create-invoice",
+      "name": "Créer facture",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2.5,
       "position": [
-        2440,
+        2250,
         300
       ],
       "credentials": {
         "postgres": {
-          "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'email de notification\nconst invoice = $json[0];\nconst prepareData = $node['05. Préparer renouvellement'].json;\n\nconst invoiceNumber = invoice.numero_facture;\nconst nextRenewalDate = new Date(prepareData.newRenewalDate);\nconst formattedDate = nextRenewalDate.toLocaleDateString('fr-FR', { \n  year: 'numeric', \n  month: 'long', \n  day: 'numeric' \n});\n\nconst htmlContent = `\n<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Confirmation de renouvellement</title>\n    <style>\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n            line-height: 1.6;\n            color: #333;\n            background-color: #f9f9f9;\n        }\n        .container {\n            max-width: 600px;\n            margin: 20px auto;\n            background-color: #ffffff;\n            border-radius: 8px;\n            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\n            overflow: hidden;\n        }\n        .header {\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            color: white;\n            padding: 40px 20px;\n            text-align: center;\n        }\n        .header h1 {\n            margin: 0;\n            font-size: 24px;\n            font-weight: 600;\n        }\n        .content {\n            padding: 40px 30px;\n        }\n        .greeting {\n            font-size: 16px;\n            margin-bottom: 20px;\n        }\n        .confirmation-box {\n            background-color: #f0f7ff;\n            border-left: 4px solid #667eea;\n            padding: 20px;\n            margin: 25px 0;\n            border-radius: 4px;\n        }\n        .confirmation-box h2 {\n            margin: 0 0 15px 0;\n            color: #667eea;\n            font-size: 18px;\n        }\n        .detail-row {\n            display: flex;\n            justify-content: space-between;\n            padding: 10px 0;\n            border-bottom: 1px solid #e0e0e0;\n        }\n        .detail-row:last-child {\n            border-bottom: none;\n        }\n        .detail-label {\n            font-weight: 600;\n            color: #555;\n        }\n        .detail-value {\n            text-align: right;\n            color: #333;\n        }\n        .amount-row {\n            background-color: #fff9e6;\n            padding: 15px;\n            border-radius: 4px;\n            margin-top: 15px;\n        }\n        .amount-label {\n            font-weight: 600;\n            color: #333;\n        }\n        .amount-value {\n            font-size: 20px;\n            font-weight: 700;\n            color: #667eea;\n            text-align: right;\n        }\n        .next-renewal {\n            background-color: #e8f5e9;\n            border-left: 4px solid #4caf50;\n            padding: 20px;\n            margin: 25px 0;\n            border-radius: 4px;\n        }\n        .next-renewal h3 {\n            margin: 0 0 10px 0;\n            color: #4caf50;\n            font-size: 16px;\n        }\n        .next-renewal p {\n            margin: 0;\n            color: #333;\n            font-size: 14px;\n        }\n        .footer {\n            background-color: #f5f5f5;\n            padding: 30px;\n            text-align: center;\n            border-top: 1px solid #e0e0e0;\n        }\n        .footer-text {\n            font-size: 12px;\n            color: #999;\n            margin: 5px 0;\n        }\n        .contact-info {\n            margin-top: 20px;\n            padding-top: 20px;\n            border-top: 1px solid #e0e0e0;\n        }\n        .contact-link {\n            color: #667eea;\n            text-decoration: none;\n        }\n        .contact-link:hover {\n            text-decoration: underline;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>TalosPrimes</h1>\n            <p>Confirmation de renouvellement</p>\n        </div>\n        <div class=\"content\">\n            <div class=\"greeting\">\n                <p>Bonjour ${prepareData.clientName},</p>\n                <p>Nous vous confirmons que votre abonnement a été renouvelé avec succès.</p>\n            </div>\n            <div class=\"confirmation-box\">\n                <h2>Détails du renouvellement</h2>\n                <div class=\"detail-row\">\n                    <span class=\"detail-label\">Offre</span>\n                    <span class=\"detail-value\">${prepareData.planName}</span>\n                </div>\n                <div class=\"detail-row\">\n                    <span class=\"detail-label\">Numéro de facture</span>\n                    <span class=\"detail-value\">${invoiceNumber}</span>\n                </div>\n                <div class=\"detail-row\">\n                    <span class=\"detail-label\">Date d'émission</span>\n                    <span class=\"detail-value\">${new Date(invoice.date_facture).toLocaleDateString('fr-FR')}</span>\n                </div>\n                <div class=\"amount-row\">\n                    <div class=\"detail-row\">\n                        <span class=\"detail-label\">Montant HT</span>\n                        <span class=\"detail-value\">${prepareData.invoice.montantHT.toFixed(2)} EUR</span>\n                    </div>\n                    <div class=\"detail-row\" style=\"border-bottom: none; margin-top: 10px;\">\n                        <span class=\"detail-label\">TVA (${prepareData.invoice.tvaTaux}%)</span>\n                        <span class=\"detail-value\">${(prepareData.invoice.montantTTC - prepareData.invoice.montantHT).toFixed(2)} EUR</span>\n                    </div>\n                    <div class=\"detail-row\" style=\"border-bottom: none; margin-top: 10px;\">\n                        <span class=\"amount-label\">Montant TTC</span>\n                        <span class=\"amount-value\">${prepareData.invoice.montantTTC.toFixed(2)} EUR</span>\n                    </div>\n                </div>\n            </div>\n            <div class=\"next-renewal\">\n                <h3>Prochain renouvellement</h3>\n                <p>Votre abonnement sera à nouveau renouvelé le <strong>${formattedDate}</strong></p>\n            </div>\n            <p>Vous pouvez consulter votre facture et tous les détails de votre abonnement en accédant à votre compte.</p>\n        </div>\n        <div class=\"footer\">\n            <div class=\"footer-text\">Merci de votre confiance.</div>\n            <div class=\"contact-info\">\n                <p class=\"footer-text\">Besoin d'aide ?</p>\n                <p class=\"footer-text\"><a href=\"mailto:support@talosprimes.com\" class=\"contact-link\">support@talosprimes.com</a></p>\n            </div>\n            <div class=\"footer-text\" style=\"margin-top: 20px; font-size: 11px;\">\n                © 2026 TalosPrimes. Tous droits réservés.\n            </div>\n        </div>\n    </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    ...prepareData,\n    invoice,\n    htmlContent,\n    invoiceNumber,\n    nextRenewalDate: formattedDate\n  }\n};"
+        "functionCode": "const sub = $input.first().json;\nconst htmlContent = `\n<h1>Confirmation de renouvellement</h1>\n<p>Bonjour,</p>\n<p>Votre abonnement ${sub.planName} a été renouvelé avec succès.</p>\n<p><strong>Détails:</strong></p>\n<ul>\n<li>Plan: ${sub.planName}</li>\n<li>Montant: ${sub.amount} ${sub.currency}</li>\n<li>Prochaine facturation: ${new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString('fr-FR')}</li>\n</ul>\n<p>Merci de votre confiance.</p>\n`;\nconst clientEmail = sub.clientEmail;\nconst planName = sub.planName;\nreturn [{\n  json: {\n    toEmail: clientEmail,\n    htmlBody: htmlContent,\n    subject: 'Confirmation de renouvellement - ' + planName\n  }\n}];"
       },
-      "id": "prepare-email",
-      "name": "13. Préparer email",
+      "id": "13-prepare-email",
+      "name": "Préparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2660,
+        2450,
         300
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
-        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $json.toEmail }}",
         "subject": "={{ $json.subject }}",
-        "emailType": "html",
-        "html": "={{ $json.html }}",
-        "options": {
-          "appendAttribution": false
-        }
+        "html": "={{ $json.htmlBody }}",
+        "emailFormat": "html"
       },
-      "id": "send-email",
-      "name": "14. Envoyer email Resend",
+      "id": "14-send-email",
+      "name": "Envoyer email Resend",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2880,
+        2650,
         300
       ],
       "credentials": {
-        "smtp": {
-          "id": "hepAQJGA9ubd1NF4",
-          "name": "SMTP account"
+        "emailSMTP": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "SMTP TalosPrimes"
         }
       }
     },
     {
       "parameters": {
-        "url": "=https://api.talosprimes.com/api/notifications",
-        "method": "POST",
+        "functionCode": "const d=$('05-prepare-renewal').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Renouvellement abonnement', 'Abonnement \"+esc(d.planName)+\" renouvelé pour \"+esc(d.clientEmail)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
+      },
+      "id": "15-build-notification",
+      "name": "Construire notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "queryParams": "",
         "options": {
-          "headers": {
-            "parameters": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        },
-        "bodyParametersUi": "json",
-        "body": "{{ JSON.stringify({\n  tenantId: $node['02. Parser payload'].json.tenantId,\n  type: 'subscription_renewed',\n  status: 'success',\n  subscriptionId: $json.subscription.id,\n  clientFinalId: $json.invoice.clientFinalId,\n  invoiceNumber: $json.invoiceNumber,\n  amount: $json.invoice.montantTTC,\n  currency: 'EUR',\n  timestamp: new Date().toISOString()\n}) }}"
+          "queryBatching": "independently"
+        }
       },
-      "id": "send-notification",
-      "name": "15. Notifier TalosPrimes API",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "15b-insert-notification",
+      "name": "INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
-        3100,
+        3050,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "16-respond-success",
+      "name": "Répondre succès",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3250,
         300
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, message: 'Abonnement renouvelé avec succès', data: { subscription: $node['11. Mettre à jour abonnement'].json[0], invoice: $json, invoiceNumber: $json.invoiceNumber } }) }}",
         "options": {}
       },
-      "id": "respond-success",
-      "name": "16. Répondre succès",
+      "id": "17-respond-validation-error",
+      "name": "Répondre erreur validation",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        3320,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: 'Abonnement non trouvé ou inactif' }) }}",
-        "options": {}
-      },
-      "id": "respond-error",
-      "name": "17. Répondre erreur validation",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        900,
-        600
+        1050,
+        450
       ]
     }
   ],
   "connections": {
-    "01. Webhook - Renouvellement": {
+    "01-webhook": {
       "main": [
         [
           {
-            "node": "02. Parser payload",
+            "node": "02-parser",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "02. Parser payload": {
+    "02-parser": {
       "main": [
         [
           {
-            "node": "03. Récupérer abonnement",
+            "node": "03-fetch-subscription",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "03. Récupérer abonnement": {
+    "03-fetch-subscription": {
       "main": [
         [
           {
-            "node": "04. Validation",
+            "node": "04-validation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "04. Validation": {
+    "04-validation": {
       "main": [
         [
           {
-            "node": "05. Préparer renouvellement",
+            "node": "05-prepare-renewal",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "17. Répondre erreur validation",
+            "node": "17-respond-validation-error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05. Préparer renouvellement": {
+    "05-prepare-renewal": {
       "main": [
         [
           {
-            "node": "06. IF - Stripe configuré ?",
+            "node": "06-if-stripe-configured",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. IF - Stripe configuré ?": {
+    "06-if-stripe-configured": {
       "main": [
         [
           {
-            "node": "07. Stripe - Vérifier abonnement",
+            "node": "07-stripe-check-subscription",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "10. Merge - Stripe et sans Stripe",
+            "node": "10-merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07-stripe-check-subscription": {
+      "main": [
+        [
+          {
+            "node": "08-check-stripe-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08-check-stripe-status": {
+      "main": [
+        [
+          {
+            "node": "10-merge",
             "type": "main",
             "index": 1
           }
-        ]
-      ]
-    },
-    "07. Stripe - Vérifier abonnement": {
-      "main": [
-        [
-          {
-            "node": "08. Vérifier statut Stripe",
-            "type": "main",
-            "index": 0
-          }
         ],
         [
           {
-            "node": "09. Répondre erreur Stripe",
+            "node": "09-respond-stripe-error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "08. Vérifier statut Stripe": {
+    "10-merge": {
       "main": [
         [
           {
-            "node": "10. Merge - Stripe et sans Stripe",
+            "node": "11-update-subscription",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "09. Répondre erreur Stripe": {
-      "main": []
-    },
-    "10. Merge - Stripe et sans Stripe": {
+    "11-update-subscription": {
       "main": [
         [
           {
-            "node": "11. Mettre à jour abonnement",
+            "node": "12-create-invoice",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "11. Mettre à jour abonnement": {
+    "12-create-invoice": {
       "main": [
         [
           {
-            "node": "12. Créer facture",
+            "node": "13-prepare-email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "12. Créer facture": {
+    "13-prepare-email": {
       "main": [
         [
           {
-            "node": "13. Préparer email",
+            "node": "14-send-email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "13. Préparer email": {
+    "14-send-email": {
       "main": [
         [
           {
-            "node": "14. Envoyer email Resend",
+            "node": "15-build-notification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "14. Envoyer email Resend": {
+    "15-build-notification": {
       "main": [
         [
           {
-            "node": "15. Notifier TalosPrimes API",
+            "node": "15b-insert-notification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "15. Notifier TalosPrimes API": {
+    "15b-insert-notification": {
       "main": [
         [
           {
-            "node": "16. Répondre succès",
+            "node": "16-respond-success",
             "type": "main",
             "index": 0
           }
         ]
       ]
-    },
-    "16. Répondre succès": {
-      "main": []
-    },
-    "17. Répondre erreur validation": {
-      "main": []
     }
   },
-  "pinData": {},
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2026-02-07T00:00:00.000Z",
-  "versionId": "2"
+  "_comment": "Updated 2026-02-21. Converted: Postgres credential OGqj65ZoFRileCck, HTTP notifications→direct Postgres INSERT, emailFormat fix. Tested OK."
 }
