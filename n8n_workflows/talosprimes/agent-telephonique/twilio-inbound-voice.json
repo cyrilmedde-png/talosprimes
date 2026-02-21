@@ -14,10 +14,7 @@
       "name": "01. Webhook Twilio",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        300
-      ]
+      "position": [100, 300]
     },
     {
       "parameters": {
@@ -27,10 +24,7 @@
       "name": "02. Parser Twilio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        300
-      ]
+      "position": [300, 300]
     },
     {
       "parameters": {
@@ -47,10 +41,7 @@
       "name": "03. Is Callback?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        300
-      ]
+      "position": [500, 300]
     },
     {
       "parameters": {
@@ -60,10 +51,7 @@
       "name": "04. Welcome TwiML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        700,
-        450
-      ]
+      "position": [700, 450]
     },
     {
       "parameters": {
@@ -84,10 +72,7 @@
       "name": "05. Respond Welcome",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        900,
-        450
-      ]
+      "position": [900, 450]
     },
     {
       "parameters": {
@@ -97,10 +82,7 @@
       "name": "06. Extract Speech",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        700,
-        200
-      ]
+      "position": [700, 200]
     },
     {
       "parameters": {
@@ -117,10 +99,7 @@
       "name": "07. Has Text?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        900,
-        200
-      ]
+      "position": [900, 200]
     },
     {
       "parameters": {
@@ -130,10 +109,7 @@
       "name": "08. No Text TwiML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        100
-      ]
+      "position": [1100, 100]
     },
     {
       "parameters": {
@@ -154,23 +130,17 @@
       "name": "09. Respond No Text",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1300,
-        100
-      ]
+      "position": [1300, 100]
     },
     {
       "parameters": {
-        "jsCode": "// Détecter l'admin avec la phrase secrète + charger le contexte de conversation\nconst speechResult = $('06. Extract Speech').first().json.speechResult;\nconst callSid = $('06. Extract Speech').first().json.callSid;\nconst from = $('06. Extract Speech').first().json.from;\n\n// Détection admin : phrase secrète \"c'est giizmo\" (insensible à la casse)\nconst isAdminPhrase = speechResult.toLowerCase().includes('giizmo') ||\n                     speechResult.toLowerCase().includes('gizmo') ||\n                     speechResult.toLowerCase().includes('gismo') ||\n                     speechResult.toLowerCase().includes(\"c'est giizmo\");\n\nreturn {\n  callSid,\n  from,\n  speechResult,\n  isAdminPhrase,\n  mode: isAdminPhrase ? 'admin' : 'standard'\n};"
+        "jsCode": "// Détecter l'admin avec la phrase secrète\nconst speechResult = $('06. Extract Speech').first().json.speechResult;\nconst callSid = $('06. Extract Speech').first().json.callSid;\nconst from = $('06. Extract Speech').first().json.from;\n\nconst isAdminPhrase = speechResult.toLowerCase().includes('giizmo') ||\n                     speechResult.toLowerCase().includes('gizmo') ||\n                     speechResult.toLowerCase().includes('gismo') ||\n                     speechResult.toLowerCase().includes(\"c'est giizmo\");\n\nreturn {\n  callSid,\n  from,\n  speechResult,\n  isAdminPhrase,\n  mode: isAdminPhrase ? 'admin' : 'standard'\n};"
       },
       "id": "10. Detect Admin",
       "name": "10. Detect Admin",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        250
-      ]
+      "position": [1100, 250]
     },
     {
       "parameters": {
@@ -190,23 +160,17 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        1300,
-        250
-      ]
+      "position": [1300, 250]
     },
     {
       "parameters": {
-        "jsCode": "// Construire le prompt système pour OpenAI (optimisé vocal)\nconst prev = $('10. Detect Admin').first().json;\nconst session = $('11. Get Session').first().json;\nconst isAdmin = prev.isAdminPhrase;\nconst speechResult = prev.speechResult;\nconst callSid = prev.callSid;\nconst from = prev.from;\nconst clientName = session.nom || '';\nconst clientInfo = clientName ? `L'appelant s'appelle ${clientName}.` : '';\n\nconst standardPrompt = `Tu es l'assistante vocale de TalosPrimes, une plateforme de gestion immobilière tout-en-un pour les professionnels.\nCONTEXTE: TalosPrimes aide les agences immobilières, administrateurs de biens et promoteurs à gérer leurs activités : gestion locative, syndic de copropriété, transactions, comptabilité, états des lieux numériques, signature électronique, et CRM intégré.\n${clientInfo}\nRÈGLES VOCALES:\n- Réponds en maximum deux phrases courtes\n- Parle naturellement, comme une vraie personne au téléphone\n- Pas de listes, pas de formatage, pas d'émojis\n- Si tu ne sais pas, dis simplement que tu vas transmettre au service concerné\n- Tutoie pas, vouvoie toujours\n- Sois chaleureuse et professionnelle`;\n\nconst adminPrompt = `Tu es l'assistante IA de Giizmo, administrateur de TalosPrimes. Tu as accès complet au système.\n${clientInfo}\nRÈGLES:\n- Réponds en maximum trois phrases\n- Sois directe et efficace\n- Tu peux donner des infos techniques détaillées`;\n\nreturn { systemPrompt: isAdmin ? adminPrompt : standardPrompt, speechResult, callSid, from, isAdmin };"
+        "jsCode": "// Construire le prompt avec FAQ condensée + logique lead/escalade\nconst prev = $('10. Detect Admin').first().json;\nconst session = $('11. Get Session').first().json;\nconst isAdmin = prev.isAdminPhrase;\nconst speechResult = prev.speechResult;\nconst callSid = prev.callSid;\nconst from = prev.from;\nconst clientName = session.nom || '';\nconst clientPrenom = session.prenom || '';\nconst clientEmail = session.email || '';\nconst clientInfo = clientName ? `Client identifié: ${clientPrenom} ${clientName}${clientEmail ? ' (' + clientEmail + ')' : ''}.` : 'Appelant non identifié dans notre base.';\n\nconst faqContext = `PLATEFORME TALOSPRIMES - RÉSUMÉ:\nTalosPrimes est une plateforme de gestion immobilière tout-en-un pour les pros (agences, syndics, administrateurs de biens, promoteurs).\n\nMODULES PRINCIPAUX:\n- CRM & Leads: capture automatique de prospects, qualification par questionnaire, conversion lead vers client\n- Gestion Clients: fiches complètes B2B/B2C, espace client dédié, abonnements\n- Facturation: création/envoi/suivi factures, PDF auto, relances, paiement Stripe, statuts (brouillon/envoyée/payée/en retard)\n- Devis: création, envoi, acceptation client, conversion en facture ou bon de commande en 1 clic\n- Bons de Commande: gestion complète, conversion en facture\n- Avoirs & Proformas: notes de crédit, pré-facturation\n- Comptabilité: plan comptable français (PCG), journaux (ventes/achats/banque), écritures partie double, lettrage, rapprochement bancaire, TVA, bilan, compte de résultat, assistant IA comptable\n- Catalogue Articles: bibliothèque réutilisable avec prix et TVA\n- Téléphonie: numéro pro dédié, agent vocal IA, journal d'appels, appels sortants\n- SMS: envoi/réception, journal, relances\n- Email: lecture IMAP, envoi SMTP, agent IA email\n- Agenda: calendrier intégré, rendez-vous, rappels\n- Agent IA: 17 outils (leads, clients, factures, emails, agenda, banque Qonto), chat + vocal\n- Espace Client: portail dédié, factures, notifications, support\n- Qonto: consultation solde et transactions bancaires\n- Automatisation: 100+ workflows n8n automatisés\n- Sécurité: SSL, JWT, multi-tenant isolé\n\nTARIFS: sur devis, contacter l'équipe ou visiter talosprimes.com\nINSCRIPTION: app.talosprimes.com/inscription, mise en place immédiate`;\n\nconst standardPrompt = `Tu es Léa, l'assistante vocale de TalosPrimes.\n${clientInfo}\n\n${faqContext}\n\nCOMPORTEMENT:\n1. RÉPONDS aux questions sur la plateforme avec des infos PRÉCISES tirées du contexte ci-dessus\n2. Si l'appelant est un PROSPECT intéressé: recueille son nom et email/téléphone, dis que l'équipe le recontactera rapidement\n3. Si le problème est TECHNIQUE et COMPLEXE (bug, erreur système, données corrompues): dis que tu transfères au service technique et qu'il sera recontacté sous 24h\n4. Si c'est un CLIENT avec un souci simple (connexion, navigation, comment faire X): GUIDE-LE étape par étape\n5. JAMAIS dire \\\"contactez un administrateur via l'application\\\" - TU ES le point de contact\n\nRÈGLES VOCALES:\n- Maximum 3 phrases courtes et naturelles\n- Parle comme une vraie personne, chaleureuse et pro\n- Vouvoie toujours\n- Pas de listes, pas de formatage\n- Si prospect: termine par \\\"Puis-je prendre vos coordonnées pour qu'un conseiller vous rappelle ?\\\"`;\n\nconst adminPrompt = `Tu es l'assistante IA de Giizmo, administrateur de TalosPrimes. Accès complet au système.\n${clientInfo}\n\nCAPACITÉS ADMIN:\n- Consulter leads, clients, factures, abonnements, emails, agenda, transactions Qonto, logs système\n- 17 outils disponibles: list_leads, get_lead, list_clients, get_client, list_invoices, list_subscriptions, get_tenant, list_notifications, list_emails, get_email, send_email, list_calendar_events, create_calendar_event, update_calendar_event, delete_calendar_event, qonto_transactions, list_logs\n- Statistiques: nombre de leads/clients/factures, CA, impayés\n- Système: logs d'erreurs n8n, statut workflows\n\nARCHITECTURE: Fastify+Prisma+PostgreSQL, Next.js, n8n (100+ workflows), Twilio, Stripe, Qonto, OpenAI\n\nRÈGLES:\n- Maximum 3 phrases, direct et efficace\n- Infos techniques précises\n- Si action requise, confirme avant d'exécuter`;\n\nreturn { systemPrompt: isAdmin ? adminPrompt : standardPrompt, speechResult, callSid, from, isAdmin, clientName, clientEmail };"
       },
       "id": "12. Build Prompt",
       "name": "12. Build Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1500,
-        250
-      ]
+      "position": [1500, 250]
     },
     {
       "parameters": {
@@ -228,28 +192,22 @@
           "id": "nSSLzITn7UjPcRBc"
         }
       },
-      "position": [
-        1700,
-        250
-      ]
+      "position": [1700, 250]
     },
     {
       "parameters": {
-        "jsCode": "// Extraire la réponse OpenAI (format HTTP Request) et construire le TwiML\nconst openaiResponse = $input.first().json;\nconst prev = $('12. Build Prompt').first().json;\n\nlet aiReply = openaiResponse.choices?.[0]?.message?.content || 'Excusez-moi, je n\\'ai pas pu traiter votre demande. Puis-je vous aider autrement ?';\n\n// Nettoyer la réponse pour le TTS\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#{1,6}\\s/g, '')\n  .replace(/[\\[\\]]/g, '')\n  .replace(/\\n/g, ' ')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .trim();\n\n// Détecter si l'utilisateur dit au revoir\nconst speech = prev.speechResult.toLowerCase();\nconst isGoodbye = speech.includes('au revoir') || speech.includes('merci au revoir') || \n                  speech.includes('bonne journée') || speech.includes('à bientôt') ||\n                  speech.includes(\"c'est tout\") || speech.includes('terminé');\n\nlet twiml = '';\nif (isGoodbye) {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply} Au revoir et bonne journée !</Say>\n  <Hangup/>\n</Response>`;\n} else {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"auto\" timeout=\"8\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\">\n    <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Avez-vous une autre question ?</Say>\n  </Gather>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Merci d'avoir appelé TalosPrimes. Bonne journée !</Say>\n</Response>`;\n}\n\nreturn {\n  twiml,\n  callSid: prev.callSid,\n  from: prev.from,\n  speechResult: prev.speechResult,\n  aiReply: aiReply.substring(0, 500),\n  isAdmin: prev.isAdmin,\n  isGoodbye\n};"
+        "jsCode": "// Extraire réponse OpenAI + détecter intention lead/escalade\nconst openaiResponse = $input.first().json;\nconst prev = $('12. Build Prompt').first().json;\n\nlet aiReply = openaiResponse.choices?.[0]?.message?.content || \"Excusez-moi, je n'ai pas pu traiter votre demande. Puis-je vous aider autrement ?\";\n\n// Nettoyer pour TTS\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#{1,6}\\s/g, '')\n  .replace(/[\\[\\]]/g, '')\n  .replace(/\\n/g, ' ')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .trim();\n\n// Détecter intentions\nconst speech = prev.speechResult.toLowerCase();\nconst isGoodbye = speech.includes('au revoir') || speech.includes('merci au revoir') || \n                  speech.includes('bonne journée') || speech.includes('à bientôt') ||\n                  speech.includes(\"c'est tout\") || speech.includes('terminé');\n\n// Détecter si c'est un prospect (mots clés)\nconst isProspect = speech.includes('intéress') || speech.includes('tarif') || speech.includes('prix') ||\n                   speech.includes('abonnement') || speech.includes('essai') || speech.includes('demo') ||\n                   speech.includes('souscrire') || speech.includes('inscription') || speech.includes('devis');\n\n// Détecter si escalade nécessaire (problème technique grave)\nconst needsEscalation = speech.includes('bug') || speech.includes('erreur') || speech.includes('bloqué') ||\n                        speech.includes('marche pas') || speech.includes('fonctionne pas') || \n                        speech.includes('données perdues') || speech.includes('impossible') ||\n                        speech.includes('urgent') || speech.includes('grave');\n\nlet twiml = '';\nif (isGoodbye) {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Hangup/>\n</Response>`;\n} else {\n  twiml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Response>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">${aiReply}</Say>\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"auto\" timeout=\"8\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\">\n    <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Je vous écoute.</Say>\n  </Gather>\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Merci d'avoir appelé TalosPrimes. Bonne journée !</Say>\n</Response>`;\n}\n\nreturn {\n  twiml,\n  callSid: prev.callSid,\n  from: prev.from,\n  speechResult: prev.speechResult,\n  aiReply: aiReply.substring(0, 500),\n  isAdmin: prev.isAdmin,\n  isGoodbye,\n  isProspect,\n  needsEscalation,\n  clientName: prev.clientName || ''\n};"
       },
       "id": "14. Build TwiML Response",
       "name": "14. Build TwiML Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1900,
-        250
-      ]
+      "position": [1900, 250]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO call_logs (\n  tenant_id, caller_phone, direction, status, notes, \n  urgency_level, sentiment, action_taken, created_at, updated_at\n) VALUES (\n  COALESCE(\n    (SELECT id FROM tenants LIMIT 1),\n    '00000000-0000-0000-0000-000000000000'\n  ),\n  '{{ $json.from }}',\n  'entrant',\n  'completed',\n  'Appel entrant {{ $json.isAdmin ? \"(ADMIN)\" : \"\" }} - Q: {{ $json.speechResult.substring(0,200).replace(/'/g, \"''\") }} - R: {{ $json.aiReply.substring(0,200).replace(/'/g, \"''\") }}',\n  'STANDARD',\n  'NEUTRE',\n  'REPONDU',\n  NOW(),\n  NOW()\n) RETURNING id",
+        "query": "=INSERT INTO call_logs (\n  tenant_id, caller_phone, direction, status, notes, \n  urgency_level, sentiment, action_taken, created_at, updated_at\n) VALUES (\n  COALESCE(\n    (SELECT id FROM tenants LIMIT 1),\n    '00000000-0000-0000-0000-000000000000'\n  ),\n  '{{ $json.from }}',\n  'entrant',\n  'completed',\n  'Appel{{ $json.isAdmin ? \" ADMIN\" : \"\" }}{{ $json.isProspect ? \" [PROSPECT]\" : \"\" }}{{ $json.needsEscalation ? \" [ESCALADE]\" : \"\" }} - Q: {{ $json.speechResult.substring(0,200).replace(/'/g, \"''\") }} - R: {{ $json.aiReply.substring(0,200).replace(/'/g, \"''\") }}',\n  '{{ $json.needsEscalation ? \"URGENT\" : \"STANDARD\" }}',\n  '{{ $json.isProspect ? \"POSITIF\" : \"NEUTRE\" }}',\n  'REPONDU',\n  NOW(),\n  NOW()\n) RETURNING id",
         "options": {
           "alwaysOutputData": true
         }
@@ -264,10 +222,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        2100,
-        350
-      ]
+      "position": [2100, 350]
     },
     {
       "parameters": {
@@ -288,162 +243,166 @@
       "name": "16. Respond TwiML",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2100,
-        200
-      ]
+      "position": [2100, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO leads (\n  tenant_id, nom, telephone, source, statut, notes, created_at, updated_at\n) SELECT \n  (SELECT id FROM tenants LIMIT 1),\n  'Appel entrant',\n  '{{ $('14. Build TwiML Response').first().json.from }}',\n  'telephone',\n  'nouveau',\n  'Prospect détecté par agent vocal - Demande: {{ $('14. Build TwiML Response').first().json.speechResult.substring(0,300).replace(/'/g, \"''\") }}',\n  NOW(),\n  NOW()\nWHERE NOT EXISTS (\n  SELECT 1 FROM leads WHERE telephone LIKE '%' || RIGHT('{{ $('14. Build TwiML Response').first().json.from }}', 9) || '%'\n  AND statut != 'abandonne'\n)\nRETURNING id",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "17. Create Lead",
+      "name": "17. Create Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [2300, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO notifications (\n  tenant_id, user_id, type, titre, message, lue, created_at\n) SELECT \n  t.id,\n  u.id,\n  '{{ $('14. Build TwiML Response').first().json.isProspect ? \"lead\" : \"alerte\" }}',\n  '{{ $('14. Build TwiML Response').first().json.isProspect ? \"Nouveau prospect téléphonique\" : \"Escalade agent vocal\" }}',\n  '{{ $('14. Build TwiML Response').first().json.isProspect ? \"Prospect\" : \"Escalade\" }} - Tel: {{ $('14. Build TwiML Response').first().json.from }} - {{ $('14. Build TwiML Response').first().json.speechResult.substring(0,200).replace(/'/g, \"''\") }}',\n  false,\n  NOW()\nFROM tenants t\nJOIN users u ON u.tenant_id = t.id AND u.role = 'super_admin'\nLIMIT 1\nRETURNING id",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "18. Notify Admin",
+      "name": "18. Notify Admin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [2300, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isProspect || $json.needsEscalation }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "19. Need Action?",
+      "name": "19. Need Action?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2100, 500]
     }
   ],
   "connections": {
     "01. Webhook Twilio": {
       "main": [
         [
-          {
-            "node": "02. Parser Twilio",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "02. Parser Twilio", "type": "main", "index": 0 }
         ]
       ]
     },
     "02. Parser Twilio": {
       "main": [
         [
-          {
-            "node": "03. Is Callback?",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "03. Is Callback?", "type": "main", "index": 0 }
         ]
       ]
     },
     "03. Is Callback?": {
       "main": [
         [
-          {
-            "node": "06. Extract Speech",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "06. Extract Speech", "type": "main", "index": 0 }
         ],
         [
-          {
-            "node": "04. Welcome TwiML",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "04. Welcome TwiML", "type": "main", "index": 0 }
         ]
       ]
     },
     "04. Welcome TwiML": {
       "main": [
         [
-          {
-            "node": "05. Respond Welcome",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "05. Respond Welcome", "type": "main", "index": 0 }
         ]
       ]
     },
     "06. Extract Speech": {
       "main": [
         [
-          {
-            "node": "07. Has Text?",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "07. Has Text?", "type": "main", "index": 0 }
         ]
       ]
     },
     "07. Has Text?": {
       "main": [
         [
-          {
-            "node": "10. Detect Admin",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "10. Detect Admin", "type": "main", "index": 0 }
         ],
         [
-          {
-            "node": "08. No Text TwiML",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "08. No Text TwiML", "type": "main", "index": 0 }
         ]
       ]
     },
     "08. No Text TwiML": {
       "main": [
         [
-          {
-            "node": "09. Respond No Text",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "09. Respond No Text", "type": "main", "index": 0 }
         ]
       ]
     },
     "10. Detect Admin": {
       "main": [
         [
-          {
-            "node": "11. Get Session",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "11. Get Session", "type": "main", "index": 0 }
         ]
       ]
     },
     "11. Get Session": {
       "main": [
         [
-          {
-            "node": "12. Build Prompt",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "12. Build Prompt", "type": "main", "index": 0 }
         ]
       ]
     },
     "12. Build Prompt": {
       "main": [
         [
-          {
-            "node": "13. OpenAI Chat",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "13. OpenAI Chat", "type": "main", "index": 0 }
         ]
       ]
     },
     "13. OpenAI Chat": {
       "main": [
         [
-          {
-            "node": "14. Build TwiML Response",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "14. Build TwiML Response", "type": "main", "index": 0 }
         ]
       ]
     },
     "14. Build TwiML Response": {
       "main": [
         [
-          {
-            "node": "15. Log Call",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "16. Respond TwiML",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "15. Log Call", "type": "main", "index": 0 },
+          { "node": "16. Respond TwiML", "type": "main", "index": 0 },
+          { "node": "19. Need Action?", "type": "main", "index": 0 }
         ]
+      ]
+    },
+    "19. Need Action?": {
+      "main": [
+        [
+          { "node": "17. Create Lead", "type": "main", "index": 0 },
+          { "node": "18. Notify Admin", "type": "main", "index": 0 }
+        ],
+        []
       ]
     }
   }
