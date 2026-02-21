@@ -27,7 +27,7 @@
         "query": "=SELECT a.*, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id WHERE a.id = '{{ $json.avoirId }}' AND a.tenant_id = '{{ $json.tenantId }}';"
       },
       "id": "05. Get Avoir", "name": "05. Get Avoir", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [700, 300]
     },
     {
@@ -36,7 +36,7 @@
         "query": "=SELECT id FROM exercices_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND cloture = false ORDER BY date_debut DESC LIMIT 1;"
       },
       "id": "06. Get Exercice", "name": "06. Get Exercice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [900, 300]
     },
     {
@@ -45,7 +45,7 @@
         "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';"
       },
       "id": "07. Next Number", "name": "07. Next Number", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1100, 300]
     },
     {
@@ -60,7 +60,7 @@
         "query": "=INSERT INTO ecritures_comptables (tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference, type_piece, entite_type, entite_id, montant_total, source, statut) VALUES ('{{ $json.tenantId }}', '{{ $json.exerciceId }}', 'VE', '{{ $json.numeroPiece }}', '{{ $json.dateEcriture }}', '{{ $json.libelle.replace(/'/g, \"''\") }}', '{{ $json.reference }}', 'avoir', 'avoir', '{{ $json.avoirId }}', {{ $json.montantTtc }}, 'automatique', 'validee') RETURNING id, numero_piece;"
       },
       "id": "09. Insert Ecriture", "name": "09. Insert Ecriture", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1500, 300]
     },
     {
@@ -69,7 +69,7 @@
         "query": "=INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES\n('{{ $('09. Insert Ecriture').first().json.id }}', '706000', 'Avoir HT - {{ $('08. Build Ecriture').first().json.reference }}', {{ $('08. Build Ecriture').first().json.montantHt }}, 0, 0),\n('{{ $('09. Insert Ecriture').first().json.id }}', '445710', 'TVA collectée (annulation) - {{ $('08. Build Ecriture').first().json.reference }}', {{ $('08. Build Ecriture').first().json.tva }}, 0, 1),\n('{{ $('09. Insert Ecriture').first().json.id }}', '411000', 'Client - avoir {{ $('08. Build Ecriture').first().json.reference }}', 0, {{ $('08. Build Ecriture').first().json.montantTtc }}, 2)\nRETURNING id, numero_compte, debit, credit;"
       },
       "id": "10. Insert Lines", "name": "10. Insert Lines", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1700, 300]
     },
     {

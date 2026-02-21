@@ -27,7 +27,7 @@
         "query": "=SELECT le.numero_compte, pc.libelle as compte_libelle, pc.classe, e.date_ecriture, e.numero_piece, e.journal_code, le.libelle, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $json.tenantId }}' AND e.statut != 'brouillon'{{ $json.dateFrom ? \" AND e.date_ecriture >= '\" + $json.dateFrom + \"'\" : '' }}{{ $json.dateTo ? \" AND e.date_ecriture <= '\" + $json.dateTo + \"'\" : '' }}{{ $json.compteFrom ? \" AND le.numero_compte >= '\" + $json.compteFrom + \"'\" : '' }}{{ $json.compteTo ? \" AND le.numero_compte <= '\" + $json.compteTo + \"'\" : '' }}{{ $json.classe ? \" AND pc.classe = \" + $json.classe : '' }} ORDER BY le.numero_compte ASC, e.date_ecriture ASC;"
       },
       "id": "05. Query Grand Livre", "name": "05. Query Grand Livre", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [700, 300]
     },
     {

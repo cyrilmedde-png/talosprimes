@@ -63,7 +63,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [700, 300]
@@ -90,7 +90,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [1100, 300]
@@ -117,7 +117,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [1500, 300]

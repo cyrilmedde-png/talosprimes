@@ -27,7 +27,7 @@
         "query": "=SELECT i.numero_facture, i.montant_ttc, cf.nom as client_nom, cf.raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '{{ $json.invoiceId }}' AND i.tenant_id = '{{ $json.tenantId }}';"
       },
       "id": "05. Get Invoice", "name": "05. Get Invoice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [700, 300]
     },
     {
@@ -36,7 +36,7 @@
         "query": "=SELECT id FROM exercices_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND cloture = false ORDER BY date_debut DESC LIMIT 1;"
       },
       "id": "06. Get Exercice", "name": "06. Get Exercice", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [900, 300]
     },
     {
@@ -45,7 +45,7 @@
         "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';"
       },
       "id": "07. Next Number", "name": "07. Next Number", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1100, 300]
     },
     {
@@ -60,7 +60,7 @@
         "query": "=INSERT INTO ecritures_comptables (tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference, type_piece, entite_type, entite_id, montant_total, source, statut) VALUES ('{{ $json.tenantId }}', '{{ $json.exerciceId }}', 'BQ', '{{ $json.numeroPiece }}', '{{ $json.dateEcriture }}', '{{ $json.libelle.replace(/'/g, \"''\") }}', '{{ $json.reference }}', 'paiement', 'invoice', '{{ $json.invoiceId }}', {{ $json.montantTtc }}, 'automatique', 'validee') RETURNING id, numero_piece;"
       },
       "id": "09. Insert Ecriture", "name": "09. Insert Ecriture", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1500, 300]
     },
     {
@@ -69,7 +69,7 @@
         "query": "=INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES\n('{{ $('09. Insert Ecriture').first().json.id }}', '{{ $('08. Build Ecriture').first().json.compteBanque }}', 'Encaissement {{ $('08. Build Ecriture').first().json.reference }}', {{ $('08. Build Ecriture').first().json.montantTtc }}, 0, 0),\n('{{ $('09. Insert Ecriture').first().json.id }}', '411000', 'Solde client {{ $('08. Build Ecriture').first().json.reference }}', 0, {{ $('08. Build Ecriture').first().json.montantTtc }}, 1)\nRETURNING id, numero_compte, debit, credit;"
       },
       "id": "10. Insert Lines", "name": "10. Insert Lines", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1700, 300]
     },
     {

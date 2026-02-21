@@ -27,7 +27,7 @@
         "query": "=SELECT e.*, j.libelle as journal_libelle, ex.code as exercice_code FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id LEFT JOIN exercices_comptables ex ON e.exercice_id = ex.id WHERE e.id = '{{ $json.ecritureId }}' AND e.tenant_id = '{{ $json.tenantId }}';"
       },
       "id": "05. Get Ecriture", "name": "05. Get Ecriture", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [700, 300]
     },
     {
@@ -36,7 +36,7 @@
         "query": "=SELECT le.*, pc.libelle as compte_libelle FROM lignes_ecritures le LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' WHERE le.ecriture_id = '{{ $('02. Parser').first().json.ecritureId }}' ORDER BY le.ordre ASC;"
       },
       "id": "06. Get Lignes", "name": "06. Get Lignes", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [900, 300]
     },
     {

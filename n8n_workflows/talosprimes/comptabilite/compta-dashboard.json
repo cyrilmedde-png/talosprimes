@@ -27,7 +27,7 @@
         "query": "=SELECT (SELECT COUNT(*) FROM ecritures_comptables WHERE tenant_id = '{{ $json.tenantId }}') as total_ecritures, (SELECT COUNT(*) FROM ecritures_comptables WHERE tenant_id = '{{ $json.tenantId }}' AND statut = 'brouillon') as ecritures_brouillon, (SELECT COUNT(*) FROM ecritures_comptables WHERE tenant_id = '{{ $json.tenantId }}' AND statut = 'validee') as ecritures_validees, (SELECT COUNT(*) FROM plan_comptable WHERE tenant_id = '{{ $json.tenantId }}' AND actif = true) as nb_comptes, (SELECT code FROM exercices_comptables WHERE tenant_id = '{{ $json.tenantId }}' AND cloture = false ORDER BY date_debut DESC LIMIT 1) as exercice_courant;"
       },
       "id": "05. Stats Generales", "name": "05. Stats Generales", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [700, 300]
     },
     {
@@ -36,7 +36,7 @@
         "query": "=SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END),0) as total_produits, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END),0) as total_charges, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '512%' OR le.numero_compte LIKE '530%' THEN le.debit - le.credit ELSE 0 END),0) as tresorerie, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '411%' THEN le.debit - le.credit ELSE 0 END),0) as creances_clients, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '401%' THEN le.credit - le.debit ELSE 0 END),0) as dettes_fournisseurs, COALESCE(SUM(CASE WHEN le.numero_compte = '445710' THEN le.credit - le.debit ELSE 0 END),0) as tva_collectee, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '44566%' OR le.numero_compte LIKE '44562%' THEN le.debit - le.credit ELSE 0 END),0) as tva_deductible FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut = 'validee';"
       },
       "id": "06. Stats Financieres", "name": "06. Stats Financieres", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [900, 300]
     },
     {
@@ -45,7 +45,7 @@
         "query": "=SELECT TO_CHAR(e.date_ecriture, 'YYYY-MM') as mois, COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END),0) as produits, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END),0) as charges FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut = 'validee' AND e.date_ecriture >= (CURRENT_DATE - INTERVAL '12 months') GROUP BY TO_CHAR(e.date_ecriture, 'YYYY-MM') ORDER BY mois;"
       },
       "id": "07. Evolution Mensuelle", "name": "07. Evolution Mensuelle", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1100, 300]
     },
     {

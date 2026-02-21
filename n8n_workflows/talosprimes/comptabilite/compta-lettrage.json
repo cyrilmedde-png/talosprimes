@@ -27,7 +27,7 @@
         "query": "=SELECT le.id, le.numero_compte, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = '{{ $json.tenantId }}' AND le.numero_compte = '{{ $json.numeroCompte }}' AND le.id IN ({{ $json.ligneIds.map(id => \"'\" + id + \"'\").join(',') }}) AND le.lettrage IS NULL;"
       },
       "id": "05. Get Lignes", "name": "05. Get Lignes", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [700, 300]
     },
     {
@@ -42,7 +42,7 @@
         "query": "=UPDATE lignes_ecritures SET lettrage = '{{ $json.codeLettrage }}', date_lettrage = CURRENT_DATE WHERE id IN ({{ $json.ligneIdsStr }}) RETURNING id, lettrage;"
       },
       "id": "07. Apply Lettrage", "name": "07. Apply Lettrage", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1100, 300]
     },
     {
@@ -51,7 +51,7 @@
         "query": "=INSERT INTO lettrages (tenant_id, code_lettrage, numero_compte, date_lettrage, montant, ecart) VALUES ('{{ $json.tenantId }}', '{{ $json.codeLettrage }}', '{{ $json.numeroCompte }}', CURRENT_DATE, (SELECT COALESCE(SUM(debit),0) FROM lignes_ecritures WHERE lettrage = '{{ $json.codeLettrage }}'), {{ $json.ecart }}) RETURNING id, code_lettrage;"
       },
       "id": "08. Insert Lettrage", "name": "08. Insert Lettrage", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "6Kosza77d9Ld32mw" } },
+      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
       "position": [1300, 300]
     },
     {

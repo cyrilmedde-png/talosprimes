@@ -63,7 +63,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [700, 300]
@@ -80,7 +80,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [900, 300]
@@ -107,7 +107,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [1300, 300]
@@ -124,7 +124,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [1500, 300]
@@ -151,7 +151,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [1900, 300]
@@ -168,7 +168,7 @@
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
-          "id": "6Kosza77d9Ld32mw"
+          "id": "OGqj65ZoFRileCck"
         }
       },
       "position": [2100, 300]
