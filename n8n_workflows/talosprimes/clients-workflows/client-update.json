@@ -1,5 +1,5 @@
 {
-  "name": "Clients - Update (client_update) → API TalosPrimes → Respond",
+  "name": "Clients - Update (client_update) → Postgres Direct → Respond",
   "nodes": [
     {
       "parameters": {
@@ -12,105 +12,66 @@
       "name": "Webhook - client_update",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [300, 300]
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\n\n// Extraire les champs optionnels\nconst updateData = {};\nif (data.raisonSociale !== undefined) updateData.raisonSociale = data.raisonSociale;\nif (data.nom !== undefined) updateData.nom = data.nom;\nif (data.prenom !== undefined) updateData.prenom = data.prenom;\nif (data.email !== undefined) updateData.email = data.email;\nif (data.telephone !== undefined) updateData.telephone = data.telephone;\nif (data.adresse !== undefined) updateData.adresse = data.adresse;\nif (data.tags !== undefined) updateData.tags = Array.isArray(data.tags) ? data.tags : [];\nif (data.statut !== undefined) updateData.statut = data.statut;\n\nreturn [{ json: { id, ...updateData } }];\n"
+        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\nconst id = data?.id ? String(data.id) : '';\nconst tenantId = data?.tenantId ? String(data.tenantId) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: {\n  id,\n  tenantId,\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  type: data.type || '',\n  raisonSociale: data.raisonSociale || data.raison_sociale || '',\n  adresse: data.adresse || '',\n  statut: data.statut || '',\n  tags: Array.isArray(data.tags) ? JSON.stringify(data.tags) : ''\n}}];\n"
       },
       "id": "Code_Parse",
       "name": "Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        560,
-        300
-      ]
+      "position": [560, 300]
     },
     {
       "parameters": {
-        "method": "PUT",
-        "url": "=https://api.talosprimes.com/api/clients/{{$json.id}}",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { raisonSociale: $json.raisonSociale, nom: $json.nom, prenom: $json.prenom, email: $json.email, telephone: $json.telephone, adresse: $json.adresse, tags: $json.tags, statut: $json.statut } }}",
+        "operation": "executeQuery",
+        "query": "UPDATE client_finals SET\n  nom = COALESCE(NULLIF('{{ $json.nom }}', ''), nom),\n  prenom = COALESCE(NULLIF('{{ $json.prenom }}', ''), prenom),\n  email = COALESCE(NULLIF('{{ $json.email }}', ''), email),\n  telephone = COALESCE(NULLIF('{{ $json.telephone }}', ''), telephone),\n  raison_sociale = COALESCE(NULLIF('{{ $json.raisonSociale }}', ''), raison_sociale),\n  adresse = COALESCE(NULLIF('{{ $json.adresse }}', ''), adresse),\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\nAND tenant_id = '{{ $json.tenantId }}'::uuid\nRETURNING id, tenant_id, nom, prenom, email, telephone, type, raison_sociale, adresse, statut, created_at, updated_at",
         "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
+          "queryBatching": "independently"
         }
       },
-      "id": "HTTP_Update",
-      "name": "API TalosPrimes - Update Client",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ]
+      "id": "PG_Update",
+      "name": "Postgres - Update Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [780, 300],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase TalosPrimes"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "responseBody": "={{ $json }}",
-        "responseCode": 200
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
       },
       "id": "Respond_ClientUpdate",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        1020,
-        300
-      ]
+      "typeVersion": 1.1,
+      "position": [1020, 300]
     }
   ],
   "connections": {
     "Webhook - client_update": {
-      "main": [
-        [
-          {
-            "node": "Parser payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Parser payload", "type": "main", "index": 0}]]
     },
     "Parser payload": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - Update Client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Postgres - Update Client", "type": "main", "index": 0}]]
     },
-    "API TalosPrimes - Update Client": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Postgres - Update Client": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "v1"
+  "_comment": "Converted from HTTP Request to Postgres Direct on 2026-02-21. type and statut removed from UPDATE SET to avoid enum COALESCE mismatch. Tested OK."
 }

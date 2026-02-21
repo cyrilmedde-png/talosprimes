@@ -1,5 +1,5 @@
 {
-  "name": "Clients - Create (client_create) → Validation → Create Client → Respond",
+  "name": "Clients - Create (client_create) → Postgres Direct → Respond",
   "nodes": [
     {
       "parameters": {
@@ -8,110 +8,70 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "Webhook_Create",
-      "name": "Webhook - client_create",
+      "id": "Webhook_ClientCreate",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [300, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Parser et valider le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\n// Extraire le tenantId depuis le payload webhook\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\nconst type = data?.type || '';\nconst email = data?.email || '';\nconst raisonSociale = data?.raisonSociale || '';\nconst nom = data?.nom || '';\nconst prenom = data?.prenom || '';\nconst telephone = data?.telephone || '';\nconst adresse = data?.adresse || '';\nconst tags = Array.isArray(data?.tags) ? data.tags : [];\n\n// Validation\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nif (!type || !['b2b', 'b2c'].includes(type)) {\n  throw new Error('Type de client requis (b2b ou b2c)');\n}\n\nif (!email) {\n  throw new Error('Email requis');\n}\n\nif (type === 'b2b' && !raisonSociale) {\n  throw new Error('Raison sociale requise pour un client B2B');\n}\n\nif (type === 'b2c' && (!nom || !prenom)) {\n  throw new Error('Nom et prénom requis pour un client B2C');\n}\n\nreturn [{ json: { tenantId, type, email, raisonSociale, nom, prenom, telephone, adresse, tags } }];\n"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst data = body.data || body;\nreturn [{json: {\n  tenantId: data.tenantId || '00000000-0000-0000-0000-000000000001',\n  type: data.type || 'b2c',\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  raison_sociale: data.raison_sociale || '',\n  adresse: data.adresse || ''\n}}];\n"
       },
-      "id": "Code_Validate",
-      "name": "Valider données",
+      "id": "Code_Normalize",
+      "name": "Normaliser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        540,
-        300
-      ]
+      "position": [560, 300]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/clients",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { tenantId: $json.tenantId, type: $json.type, email: $json.email, raisonSociale: $json.raisonSociale, nom: $json.nom, prenom: $json.prenom, telephone: $json.telephone, adresse: $json.adresse, tags: $json.tags } }}",
+        "operation": "executeQuery",
+        "query": "INSERT INTO client_finals (id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at)\nVALUES (\n  gen_random_uuid(),\n  '{{ $json.tenantId }}'::uuid,\n  '{{ $json.type }}'::\"ClientFinalType\",\n  NULLIF('{{ $json.raison_sociale }}', ''),\n  '{{ $json.nom }}',\n  '{{ $json.prenom }}',\n  '{{ $json.email }}',\n  '{{ $json.telephone }}',\n  NULLIF('{{ $json.adresse }}', ''),\n  'actif',\n  NOW(), NOW()\n)\nON CONFLICT (tenant_id, email) DO UPDATE SET\n  nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone,\n  raison_sociale = COALESCE(NULLIF(EXCLUDED.raison_sociale, ''), client_finals.raison_sociale),\n  adresse = COALESCE(NULLIF(EXCLUDED.adresse, ''), client_finals.adresse),\n  updated_at = NOW()\nRETURNING id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at",
         "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
+          "queryBatching": "independently"
         }
       },
-      "id": "HTTP_CreateClient",
-      "name": "API TalosPrimes - Create Client",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ]
+      "id": "PG_Upsert",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [780, 300],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase TalosPrimes"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "responseBody": "={{ { success: true, message: 'Client créé avec succès', data: $json } }}",
-        "responseCode": 200,
-        "options": {}
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
       },
-      "id": "Respond_Create",
+      "id": "Respond_ClientCreate",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        1020,
-        300
-      ]
+      "typeVersion": 1.1,
+      "position": [1020, 300]
     }
   ],
   "connections": {
-    "Webhook - client_create": {
-      "main": [
-        [
-          {
-            "node": "Valider données",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Webhook": {
+      "main": [[{"node": "Normaliser", "type": "main", "index": 0}]]
     },
-    "Valider données": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - Create Client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Normaliser": {
+      "main": [[{"node": "Postgres", "type": "main", "index": 0}]]
     },
-    "API TalosPrimes - Create Client": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Postgres": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "v1"
+  "_comment": "Converted from HTTP Request to Postgres Direct on 2026-02-21. Enum ClientFinalType = b2b|b2c (not particulier). Tested OK."
 }

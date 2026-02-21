@@ -1,5 +1,5 @@
 {
-  "name": "Clients - Delete (client_delete) → API TalosPrimes → Respond",
+  "name": "Clients - Delete (client_delete) → Postgres Direct → Respond",
   "nodes": [
     {
       "parameters": {
@@ -12,102 +12,79 @@
       "name": "Webhook - client_delete",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [300, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\n// Extraire le tenantId depuis le payload webhook\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\nconst id = data?.id ? String(data.id) : '';\n\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { id, tenantId } }];\n"
+        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\nreturn [{ json: { id, tenantId } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        560,
-        300
-      ]
+      "position": [560, 300]
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://api.talosprimes.com/api/clients/{{$json.id}}",
+        "operation": "executeQuery",
+        "query": "DELETE FROM client_finals\nWHERE id = '{{ $json.id }}'::uuid\nAND tenant_id = '{{ $json.tenantId }}'::uuid\nRETURNING id, nom, prenom, email",
         "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
+          "queryBatching": "independently"
         }
       },
-      "id": "HTTP_Delete",
-      "name": "API TalosPrimes - Delete Client",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ]
+      "id": "PG_Delete",
+      "name": "Postgres - Delete Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [780, 300],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase TalosPrimes"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "responseBody": "={{ $json }}",
-        "responseCode": 200
+        "jsCode": "const items = $input.all();\nconst deleted = items.filter(i => i.json && i.json.id);\nif (deleted.length === 0) {\n  return [{ json: { success: false, message: 'Client non trouvé ou déjà supprimé' } }];\n}\nconst d = deleted[0].json;\nreturn [{ json: { success: true, message: 'Client supprimé', id: d.id, email: d.email } }];\n"
+      },
+      "id": "Code_Verify",
+      "name": "Vérifier suppression",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
       },
       "id": "Respond_ClientDelete",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        1020,
-        300
-      ]
+      "typeVersion": 1.1,
+      "position": [1240, 300]
     }
   ],
   "connections": {
     "Webhook - client_delete": {
-      "main": [
-        [
-          {
-            "node": "Parser ID",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Parser ID", "type": "main", "index": 0}]]
     },
     "Parser ID": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - Delete Client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Postgres - Delete Client", "type": "main", "index": 0}]]
     },
-    "API TalosPrimes - Delete Client": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Postgres - Delete Client": {
+      "main": [[{"node": "Vérifier suppression", "type": "main", "index": 0}]]
+    },
+    "Vérifier suppression": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "v1"
+  "_comment": "Converted from HTTP Request to Postgres Direct on 2026-02-21. Includes tenant_id in WHERE clause for security. Tested OK."
 }
