@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = $1::uuid ORDER BY cs.created_at DESC\";\nvar params = [p.tenantId];\nreturn [{json: {query, params}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = '${p.tenantId}'::uuid ORDER BY cs.created_at DESC\";\nreturn [{json:{query}}];"
       },
       "id": "build-select",
       "name": "05. Construire SELECT",
@@ -80,10 +80,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $('05. Construire SELECT').first().json.query + \"'\" }}",
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$('05. Construire SELECT').first().json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "pg-select",
@@ -98,7 +97,7 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Postgres account"
+          "name": "Supabase Postgres"
         }
       }
     },

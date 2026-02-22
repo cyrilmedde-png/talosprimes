@@ -33,10 +33,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM client_finals\nWHERE id = $1::uuid\nAND tenant_id = $2::uuid\nRETURNING id, nom, prenom, email",
+        "query": "={{ \"DELETE FROM client_finals\nWHERE id = '\" + $json.id + \"'::uuid\nAND tenant_id = '\" + $json.tenantId + \"'::uuid\nRETURNING id, nom, prenom, email\" }}",
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "PG_Delete",

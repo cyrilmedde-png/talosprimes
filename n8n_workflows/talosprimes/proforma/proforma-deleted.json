@@ -66,10 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM proforma_lines WHERE proforma_id = $1",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.proformaId]) }}"
-        }
+        "query": "={{ \"DELETE FROM proforma_lines WHERE proforma_id = '\" + $json.proformaId + \"'\" }}"
       },
       "id": "05. Delete Lines",
       "name": "05. Delete Lines",
@@ -89,10 +86,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM proformas WHERE id = $1 AND tenant_id = $2 AND statut != 'facturee' RETURNING id, numero_proforma",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.proformaId, $('02. Parser').first().json.tenantId]) }}"
-        }
+        "query": "={{ \"DELETE FROM proformas WHERE id = '\" + $('02. Parser').first().json.proformaId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND statut != 'facturee' RETURNING id, numero_proforma\" }}"
       },
       "id": "06. Delete Proforma",
       "name": "06. Delete Proforma",

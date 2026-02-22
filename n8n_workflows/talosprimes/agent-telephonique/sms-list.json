@@ -62,10 +62,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM sms_logs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 50",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
-        }
+        "query": "={{ \"SELECT * FROM sms_logs WHERE tenant_id = '\" + $json.tenantId + \"' ORDER BY created_at DESC LIMIT 50\" }}"
       },
       "name": "Postgres Query",
       "type": "n8n-nodes-base.postgres",

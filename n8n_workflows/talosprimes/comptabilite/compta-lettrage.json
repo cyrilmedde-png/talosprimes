@@ -66,10 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT le.id, le.numero_compte, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = $1 AND le.numero_compte = $2 AND le.id = ANY($3::uuid[]) AND le.lettrage IS NULL;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.numeroCompte, $json.ligneIds || []]) }}"
-        }
+        "query": "={{ \"SELECT le.id, le.numero_compte, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND le.numero_compte = '\" + $json.numeroCompte + \"' AND le.id = ANY(' + \"'{\" + ($json.ligneIds || [] || []).join(\",\") + \"}'::uuid[]\" + ') AND le.lettrage IS NULL;\" }}"
       },
       "id": "05. Get Lignes",
       "name": "05. Get Lignes",
@@ -102,10 +99,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE lignes_ecritures SET lettrage = $1, date_lettrage = CURRENT_DATE WHERE id IN ($2) RETURNING id, lettrage;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.codeLettrage, $json.ligneIdsStr]) }}"
-        }
+        "query": "={{ \"UPDATE lignes_ecritures SET lettrage = '\" + $json.codeLettrage + \"', date_lettrage = CURRENT_DATE WHERE id IN ('\" + $json.ligneIdsStr + \"') RETURNING id, lettrage;\" }}"
       },
       "id": "07. Apply Lettrage",
       "name": "07. Apply Lettrage",
@@ -125,10 +119,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO lettrages (tenant_id, code_lettrage, numero_compte, date_lettrage, montant, ecart) VALUES ($1, $2, $3, CURRENT_DATE, (SELECT COALESCE(SUM(debit),0) FROM lignes_ecritures WHERE lettrage = $4), $5) RETURNING id, code_lettrage;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.codeLettrage, $json.numeroCompte, $json.codeLettrage, $json.ecart]) }}"
-        }
+        "query": "={{ \"INSERT INTO lettrages (tenant_id, code_lettrage, numero_compte, date_lettrage, montant, ecart) VALUES ('\" + $json.tenantId + \"', '\" + $json.codeLettrage + \"', '\" + $json.numeroCompte + \"', CURRENT_DATE, (SELECT COALESCE(SUM(debit),0) FROM lignes_ecritures WHERE lettrage = '\" + $json.codeLettrage + \"'), '\" + $json.ecart + \"') RETURNING id, code_lettrage;\" }}"
       },
       "id": "08. Insert Lettrage",
       "name": "08. Insert Lettrage",

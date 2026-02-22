@@ -66,10 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, tenant_id, client_final_id, numero_devis, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM devis WHERE id = $1 AND tenant_id = $2 AND statut = 'acceptee'",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.devisId, $json.tenantId]) }}"
-        }
+        "query": "={{ \"SELECT id, tenant_id, client_final_id, numero_devis, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM devis WHERE id = '\" + $json.devisId + \"' AND tenant_id = '\" + $json.tenantId + \"' AND statut = 'acceptee'\" }}"
       },
       "id": "05. Get Devis",
       "name": "05. Get Devis",
@@ -89,10 +86,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = $1 AND numero_facture LIKE 'INV-' || EXTRACT(YEAR FROM NOW())::text || '-%'",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId]) }}"
-        }
+        "query": "={{ \"SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND numero_facture LIKE 'INV-' || EXTRACT(YEAR FROM NOW())::text || '-%'\" }}"
       },
       "id": "06. Get Next Invoice Number",
       "name": "06. Get Next Invoice Number",
@@ -125,10 +119,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut) VALUES (gen_random_uuid(), 'facture_client_final', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'brouillon') RETURNING id, tenant_id, numero_facture, statut, created_at",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('07. Prepare Invoice Data').first().json.tenantId, $('07. Prepare Invoice Data').first().json.clientFinalId || null, $('07. Prepare Invoice Data').first().json.numeroFacture, $('07. Prepare Invoice Data').first().json.dateFacture, $('07. Prepare Invoice Data').first().json.dateEcheance, $('07. Prepare Invoice Data').first().json.montantHt, $('07. Prepare Invoice Data').first().json.montantTtc, $('07. Prepare Invoice Data').first().json.tvaTaux || 20, $('07. Prepare Invoice Data').first().json.description || null, $('07. Prepare Invoice Data').first().json.modePaiement || null]) }}"
-        }
+        "query": "={{ \"INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut) VALUES (gen_random_uuid(), 'facture_client_final', '\" + $('07. Prepare Invoice Data').first().json.tenantId + \"', '\" + $('07. Prepare Invoice Data').first().json.clientFinalId + \"', '\" + $('07. Prepare Invoice Data').first().json.numeroFacture + \"', '\" + $('07. Prepare Invoice Data').first().json.dateFacture + \"', '\" + $('07. Prepare Invoice Data').first().json.dateEcheance + \"', '\" + $('07. Prepare Invoice Data').first().json.montantHt + \"', '\" + $('07. Prepare Invoice Data').first().json.montantTtc + \"', '\" + $('07. Prepare Invoice Data').first().json.tvaTaux || 20 + \"', '\" + $('07. Prepare Invoice Data').first().json.description + \"', '\" + $('07. Prepare Invoice Data').first().json.tenantId + \"'0, 'brouillon') RETURNING id, tenant_id, numero_facture, statut, created_at\" }}"
       },
       "id": "08. Create Invoice",
       "name": "08. Create Invoice",
@@ -148,10 +139,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = $1 ORDER BY ordre ASC",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('07. Prepare Invoice Data').first().json.devisId]) }}"
-        }
+        "query": "={{ \"SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = '\" + $('07. Prepare Invoice Data').first().json.devisId + \"' ORDER BY ordre ASC\" }}"
       },
       "id": "09. Get Devis Lines",
       "name": "09. Get Devis Lines",
@@ -184,10 +172,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": {
-          "queryParameters": "={{ $json.params }}"
-        }
+        "query": "={{ $json.query }}"
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",
@@ -207,10 +192,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE devis SET statut = 'facturee', invoice_id = $1, updated_at = NOW() WHERE id = $2 RETURNING id, numero_devis, statut, invoice_id",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('10. Prepare Lines').first().json.invoiceId, $('07. Prepare Invoice Data').first().json.devisId]) }}"
-        }
+        "query": "={{ \"UPDATE devis SET statut = 'facturee', invoice_id = '\" + $('10. Prepare Lines').first().json.invoiceId + \"', updated_at = NOW() WHERE id = '\" + $('07. Prepare Invoice Data').first().json.devisId + \"' RETURNING id, numero_devis, statut, invoice_id\" }}"
       },
       "id": "12. Update Devis",
       "name": "12. Update Devis",

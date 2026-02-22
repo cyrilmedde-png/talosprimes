@@ -66,10 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO call_logs (id, tenant_id, lead_id, agent_id, phone, direction, started_at, ended_at, duration, status, transcript, summary, action_taken, urgency, sentiment, notes, recording_url, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId, $json.leadId || null, $json.agentId || null, $json.phone, $json.direction, $json.startedAt, $json.endedAt || null, $json.duration, $json.status, $json.transcript, $json.summary, $json.actionTaken || null, $json.urgency, $json.sentiment || null, $json.notes, $json.recordingUrl || null]) }}"
-        }
+        "query": "={{ \"INSERT INTO call_logs (id, tenant_id, lead_id, agent_id, phone, direction, started_at, ended_at, duration, status, transcript, summary, action_taken, urgency, sentiment, notes, recording_url, created_at, updated_at) VALUES ('\" + $json.id + \"', '\" + $json.tenantId + \"', '\" + $json.leadId + \"', '\" + $json.agentId + \"', '\" + $json.phone + \"', '\" + $json.direction + \"', '\" + $json.startedAt + \"', '\" + $json.endedAt + \"', '\" + $json.duration + \"', '\" + $json.id + \"'0, '\" + $json.id + \"'1, '\" + $json.id + \"'2, '\" + $json.id + \"'3, '\" + $json.id + \"'4, '\" + $json.id + \"'5, '\" + $json.id + \"'6, '\" + $json.id + \"'7, NOW(), NOW())\" }}"
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

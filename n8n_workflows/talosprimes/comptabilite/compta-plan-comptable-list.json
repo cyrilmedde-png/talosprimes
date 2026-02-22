@@ -66,10 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, numero_compte, libelle, classe, type, nature, compte_parent, actif, solde_debit, solde_credit FROM plan_comptable WHERE tenant_id = $1 AND actif = true AND ($2 IS NULL OR classe = $2) AND ($3 IS NULL OR nature = $3) AND ($4 IS NULL OR (numero_compte ILIKE '%' || $4 || '%' OR libelle ILIKE '%' || $4 || '%')) ORDER BY numero_compte ASC;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.classe || null, $json.nature || null, $json.search || null]) }}"
-        }
+        "query": "={{ \"SELECT id, numero_compte, libelle, classe, type, nature, compte_parent, actif, solde_debit, solde_credit FROM plan_comptable WHERE tenant_id = '\" + $json.tenantId + \"' AND actif = true AND \" + ($json.classe ? \"classe = '\" + $json.classe + \"'\" : \"1=1\") + \" AND \" + ($json.nature ? \"nature = '\" + $json.nature + \"'\" : \"1=1\") + \" AND ('\" + $json.search + \"' IS NULL OR (numero_compte ILIKE '%' || '\" + $json.search + \"' || '%' OR libelle ILIKE '%' || '\" + $json.search + \"' || '%')) ORDER BY numero_compte ASC;\" }}"
       },
       "id": "05. Query",
       "name": "05. Query",

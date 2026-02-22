@@ -66,10 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT i.*, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = $1 AND i.tenant_id = $2;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.invoiceId, $json.tenantId]) }}"
-        }
+        "query": "={{ \"SELECT i.*, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '\" + $json.invoiceId + \"' AND i.tenant_id = '\" + $json.tenantId + \"';\" }}"
       },
       "id": "05. Get Invoice",
       "name": "05. Get Invoice",
@@ -89,10 +86,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY ordre ASC;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
-        }
+        "query": "={{ \"SELECT * FROM invoice_lines WHERE invoice_id = '\" + $('02. Parser').first().json.invoiceId + \"' ORDER BY ordre ASC;\" }}"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
@@ -112,10 +106,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id FROM exercices_comptables WHERE tenant_id = $1 AND cloture = false ORDER BY date_debut DESC LIMIT 1;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId]) }}"
-        }
+        "query": "={{ \"SELECT id FROM exercices_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND cloture = false ORDER BY date_debut DESC LIMIT 1;\" }}"
       },
       "id": "07. Get Exercice",
       "name": "07. Get Exercice",
@@ -135,10 +126,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = $1 AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId]) }}"
-        }
+        "query": "={{ \"SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';\" }}"
       },
       "id": "08. Next Number",
       "name": "08. Next Number",
@@ -171,10 +159,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ecritures_comptables (id, tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference_doc, source_auto, source_id, statut) VALUES (gen_random_uuid(), $1, $2, 'VE', $3, $4, $5, $6, 'facture', $7, 'validee') RETURNING id, numero_piece;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.exerciceId, $json.numeroPiece, $json.dateEcriture, $json.libelle.replace(/'/g, \"''\"), $json.referenceDoc, $json.invoiceId]) }}"
-        }
+        "query": "={{ \"INSERT INTO ecritures_comptables (id, tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference_doc, source_auto, source_id, statut) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.exerciceId + \"', 'VE', '\" + $json.numeroPiece + \"', '\" + $json.dateEcriture + \"', '\" + $json.libelle.replace(/'/g, \"''\") + \"', '\" + $json.referenceDoc + \"', 'facture', '\" + $json.invoiceId + \"', 'validee') RETURNING id, numero_piece;\" }}"
       },
       "id": "10. Insert Ecriture",
       "name": "10. Insert Ecriture",
@@ -194,10 +179,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\n(gen_random_uuid(), $1, '411000', 'Client - ' || $2, $3, 0, 0),\n(gen_random_uuid(), $4, $5, 'Produit HT - ' || $6, 0, $7, 1),\n(gen_random_uuid(), $8, '445710', 'TVA collectée - ' || $9, 0, $10, 2)\nRETURNING id, numero_compte, debit, credit;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('10. Insert Ecriture').first().json.id, $('09. Build Ecriture').first().json.referenceDoc, $('09. Build Ecriture').first().json.montantTtc, $('10. Insert Ecriture').first().json.id, $('09. Build Ecriture').first().json.compteProduit, $('09. Build Ecriture').first().json.referenceDoc, $('09. Build Ecriture').first().json.montantHt, $('10. Insert Ecriture').first().json.id, $('09. Build Ecriture').first().json.referenceDoc, $('09. Build Ecriture').first().json.tva]) }}"
-        }
+        "query": "={{ \"INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\n(gen_random_uuid(), '\" + $('10. Insert Ecriture').first().json.id + \"', '411000', 'Client - ' || '\" + $('09. Build Ecriture').first().json.referenceDoc + \"', '\" + $('09. Build Ecriture').first().json.montantTtc + \"', 0, 0),\n(gen_random_uuid(), '\" + $('10. Insert Ecriture').first().json.id + \"', '\" + $('09. Build Ecriture').first().json.compteProduit + \"', 'Produit HT - ' || '\" + $('09. Build Ecriture').first().json.referenceDoc + \"', 0, '\" + $('09. Build Ecriture').first().json.montantHt + \"', 1),\n(gen_random_uuid(), '\" + $('10. Insert Ecriture').first().json.id + \"', '445710', 'TVA collectée - ' || '\" + $('09. Build Ecriture').first().json.referenceDoc + \"', 0, '\" + $('10. Insert Ecriture').first().json.id + \"'0, 2)\nRETURNING id, numero_compte, debit, credit;\" }}"
       },
       "id": "11. Insert Lines",
       "name": "11. Insert Lines",

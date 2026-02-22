@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())\";\nreturn [{json:{query}}];"
       },
       "name": "06. API - Notification Planifié - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -102,11 +102,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $json.query + \"'\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "name": "06. API - Notification Planifié - INSERT notification",
@@ -119,7 +118,7 @@
       "id": "HTTP_NotificationPlanifie-pg",
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }
@@ -191,7 +190,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())\";\nreturn [{json:{query}}];"
       },
       "name": "11. API - Notification Email - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -205,11 +204,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $json.query + \"'\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "name": "11. API - Notification Email - INSERT notification",
@@ -222,7 +220,7 @@
       "id": "HTTP_NotificationEmail-pg",
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }
@@ -259,7 +257,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())\";\nreturn [{json:{query}}];"
       },
       "name": "ERROR. API - Notification Erreur - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -273,11 +271,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $json.query + \"'\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "name": "ERROR. API - Notification Erreur - INSERT notification",
@@ -290,7 +287,7 @@
       "id": "HTTP_NotificationError-pg",
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }

@@ -361,7 +361,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les modules inclus pour la requête SQL paramétrisée\nconst inputItems = $input.all();\n\n// Trouver les données principales\nconst mainData = inputItems.find(item => item.json.plan || item.json.clientId) || inputItems[0] || {};\nconst passwordData = inputItems.find(item => item.json.plainPassword) || {};\n\nconst data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nconst modules = data.plan?.modulesInclus || data.modulesInclus || [];\n// Pour PG: passer comme array literal {mod1,mod2}\nconst modulesLiteral = '{' + modules.map(m => String(m)).join(',') + '}';\n\nconst query = `INSERT INTO client_subscriptions (\n  id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement,\n  montant_mensuel, modules_inclus, statut, id_client_stripe,\n  id_abonnement_stripe, temporary_password, updated_at\n) VALUES (\n  gen_random_uuid(), $1::uuid, $2, $3::timestamptz, $4::timestamptz,\n  $5, $6::text[], 'actif', $7, $8, $9, NOW()\n) RETURNING *;`;\n\nconst params = [\n  data.clientId,\n  String(data.plan.nomPlan),\n  data.dateDebut,\n  data.dateProchainRenouvellement,\n  data.plan.montantMensuel,\n  modulesLiteral,\n  data.idClientStripe || null,\n  data.idAbonnementStripe || null,\n  data.plainPassword || null\n];\n\nreturn {\n  json: {\n    query,\n    params,\n    allData: data\n  }\n};"
+        "jsCode": "// Préparer les modules inclus pour la requête SQL paramétrisée\nconst inputItems = $input.all();\n\n// Trouver les données principales\nconst mainData = inputItems.find(item => item.json.plan || item.json.clientId) || inputItems[0] || {};\nconst passwordData = inputItems.find(item => item.json.plainPassword) || {};\n\nconst data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nconst modules = data.plan?.modulesInclus || data.modulesInclus || [];\n// Pour PG: passer comme array literal {mod1,mod2}\nconst modulesLiteral = '{' + modules.map(m => String(m)).join(',') + '}';\n\nconst query = `INSERT INTO client_subscriptions (\n  id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement,\n  montant_mensuel, modules_inclus, statut, id_client_stripe,\n  id_abonnement_stripe, temporary_password, updated_at\n) VALUES (\n  gen_random_uuid(), '${data.clientId}'::uuid, '${String(data.plan.nomPlan)}', '${data.dateDebut}'::timestamptz, '${data.dateProchainRenouvellement}'::timestamptz,\n  '${data.plan.montantMensuel}', '${modulesLiteral}'::text[], 'actif', '${data.idClientStripe || null}', '${data.idAbonnementStripe || null}', '${data.plainPassword || null}', NOW()\n) RETURNING *;`;\n\nreturn {\n  json: {\n    query,\n    params,\n    allData: data\n  }\n};"
       },
       "id": "prepare-sql",
       "name": "09. Préparer requête SQL",
@@ -388,10 +388,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.sqlQuery]) }}"
-        }
+        "query": "={{ \"'\" + $json.sqlQuery + \"'\" }}"
       },
       "id": "create-subscription",
       "name": "10. Créer abonnement client",
@@ -526,7 +523,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [s, d.titre || 'Notification', d.message];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${s}', '${d.titre || 'Notification'}', '${d.message}', $4, false, NOW())\";\nreturn [{json:{query}}];"
       },
       "name": "12. Créer notification - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -540,11 +537,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $json.query + \"'\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "name": "12. Créer notification - INSERT notification",
@@ -557,7 +553,7 @@
       "id": "create-notification-pg",
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }

@@ -62,10 +62,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, tenant_id, account_sid, auth_token, phone_number, is_active, created_at, updated_at FROM twilio_configs WHERE tenant_id = $1",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
-        }
+        "query": "={{ \"SELECT id, tenant_id, account_sid, auth_token, phone_number, is_active, created_at, updated_at FROM twilio_configs WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "name": "Postgres Query",
       "type": "n8n-nodes-base.postgres",

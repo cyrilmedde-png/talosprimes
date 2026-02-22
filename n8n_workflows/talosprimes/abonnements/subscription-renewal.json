@@ -33,8 +33,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM subscriptions WHERE id = $1 AND client_id = $2",
-        "queryParams": "{{ $json.subscriptionId }},{{ $json.clientId }}",
+        "query": "={{ \"SELECT * FROM subscriptions WHERE id = '\" + $json.subscriptionId + \"' AND client_id = '\" + $json.clientId + \"'\" }}",
         "options": {
           "queryBatching": "independently"
         }
@@ -50,7 +49,7 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Postgres account"
+          "name": "Supabase Postgres"
         }
       },
       "alwaysOutputData": true
@@ -175,8 +174,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE subscriptions SET renewed_at = $1, renewal_count = renewal_count + 1 WHERE id = $2",
-        "queryParams": "{{ new Date().toISOString() }},{{ $json.subscriptionId }}",
+        "query": "={{ \"UPDATE subscriptions SET renewed_at = '\" + $json.renewalDate + \"', renewal_count = renewal_count + 1 WHERE id = '\" + $json.subscriptionId + \"'\" }}",
         "options": {
           "queryBatching": "independently"
         }
@@ -192,7 +190,7 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Postgres account"
+          "name": "Supabase Postgres"
         }
       },
       "alwaysOutputData": true
@@ -200,8 +198,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO invoices (id, subscription_id, client_id, tenant_id, amount, currency, invoice_date, due_date, status) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW() + interval '30 days', 'pending')",
-        "queryParams": "{{ $json.subscriptionId }},{{ $json.clientId }},{{ $json.tenantId }},{{ $json.amount }},{{ $json.currency }}",
+        "query": "={{ \"INSERT INTO invoices (id, subscription_id, client_id, tenant_id, amount, currency, invoice_date, due_date, status) VALUES (gen_random_uuid(), '\" + $json.subscriptionId + \"', '\" + $json.clientId + \"', '\" + $json.tenantId + \"', \" + $json.amount + \", '\" + $json.currency + \"', NOW(), NOW() + interval '30 days', 'pending')\" }}",
         "options": {
           "queryBatching": "independently"
         }
@@ -217,7 +214,7 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Postgres account"
+          "name": "Supabase Postgres"
         }
       },
       "alwaysOutputData": true
@@ -260,7 +257,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.planName, d.clientEmail];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.planName}', '${d.clientEmail}', 'info', false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "15-build-notification",
       "name": "Construire notification",
@@ -274,11 +271,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
-        "queryParams": "",
+        "query": "={{ $json.query }}",
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "15b-insert-notification",
@@ -292,7 +287,7 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Postgres account"
+          "name": "Supabase Postgres"
         }
       },
       "alwaysOutputData": true

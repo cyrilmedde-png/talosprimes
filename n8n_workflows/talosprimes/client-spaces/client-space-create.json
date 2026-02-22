@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"INSERT INTO client_spaces (id, tenant_id, client_final_id, email, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), $1::uuid, $2::uuid, $3, $4, $5, $6, NOW()) RETURNING *\";\nvar params = [p.tenantId, p.clientFinalId, p.email, p.token, p.statut || 'en_attente', p.dateExpiration || new Date(Date.now() + 30*24*60*60*1000).toISOString()];\nreturn [{json: {query, params}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"INSERT INTO client_spaces (id, tenant_id, client_final_id, email, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), '${p.tenantId}'::uuid, '${p.clientFinalId}'::uuid, '${p.email}', '${p.token}', '${p.statut || 'en_attente'}', '${p.dateExpiration || new Date(Date.now() + 30*24*60*60*1000).toISOString()}', NOW()) RETURNING *\";\nreturn [{json:{query}}];"
       },
       "id": "build-insert",
       "name": "06. Construire INSERT",
@@ -93,10 +93,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('06. Construire INSERT').first().json.query]) }}"
-        }
+        "query": "={{ \"'\" + $('06. Construire INSERT').first().json.query + \"'\" }}"
       },
       "id": "pg-insert",
       "name": "07. INSERT client_spaces",
@@ -110,13 +107,13 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Postgres account"
+          "name": "Supabase Postgres"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const p = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [p.tenantId, p.tenantSlug, (p.modules||[]];\nreturn [{json: {query, params}}];"
+        "jsCode": "const p = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.tenantSlug}', '${(p.modules||[]}', $4, false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "build-notif",
       "name": "08. Construire notification",
@@ -130,10 +127,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('08. Construire notification').first().json.query]) }}"
-        }
+        "query": "={{ \"'\" + $('08. Construire notification').first().json.query + \"'\" }}"
       },
       "id": "pg-notif",
       "name": "09. INSERT notification",
@@ -147,7 +141,7 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Postgres account"
+          "name": "Supabase Postgres"
         }
       }
     },

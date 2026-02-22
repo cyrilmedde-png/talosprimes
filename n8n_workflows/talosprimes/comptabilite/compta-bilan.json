@@ -66,10 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT le.numero_compte, pc.libelle, pc.classe, pc.nature, COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) as solde FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND e.date_ecriture <= $2 AND pc.classe IN (1,2,3,4,5) GROUP BY le.numero_compte, pc.libelle, pc.classe, pc.nature HAVING COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) != 0 ORDER BY le.numero_compte;",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.dateFin]) }}"
-        }
+        "query": "={{ \"SELECT le.numero_compte, pc.libelle, pc.classe, pc.nature, COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) as solde FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND e.statut != 'brouillon' AND e.date_ecriture <= '\" + $json.dateFin + \"' AND pc.classe IN (1,2,3,4,5) GROUP BY le.numero_compte, pc.libelle, pc.classe, pc.nature HAVING COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) != 0 ORDER BY le.numero_compte;\" }}"
       },
       "id": "05. Query Bilan Comptes",
       "name": "05. Query Bilan Comptes",
@@ -89,10 +86,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as resultat_net FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND e.date_ecriture <= $2 AND pc.classe IN (6,7);",
-        "options": {
-          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.dateFin]) }}"
-        }
+        "query": "={{ \"SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as resultat_net FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND e.statut != 'brouillon' AND e.date_ecriture <= '\" + $('02. Parser').first().json.dateFin + \"' AND pc.classe IN (6,7);\" }}"
       },
       "id": "06. Query Resultat",
       "name": "06. Query Resultat",

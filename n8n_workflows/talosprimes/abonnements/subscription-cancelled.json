@@ -34,11 +34,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = $1::uuid;",
+        "query": "={{ \"SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '\" + $json.subscriptionId + \"'::uuid;\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.subscriptionId]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "get-subscription",
@@ -51,7 +50,7 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }
@@ -91,7 +90,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.message];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.message}', $3, $4, false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "construct-admin-notif",
       "name": "05b. Construire notif erreur",
@@ -105,11 +104,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $('05b. Construire notif erreur').first().json.query + \"'\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$('05b. Construire notif erreur').first().json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "insert-admin-notif",
@@ -122,7 +120,7 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }
@@ -218,7 +216,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.message];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.message}', $3, $4, false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "construct-stripe-notif",
       "name": "08d. Construire notif Stripe err",
@@ -245,11 +243,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $('08d. Construire notif Stripe err').first().json.query + \"'\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$('08d. Construire notif Stripe err').first().json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "insert-stripe-notif",
@@ -262,7 +259,7 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }
@@ -299,11 +296,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING *;",
+        "query": "={{ \"UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = '\" + $json.subscription.id + \"'::uuid\nRETURNING *;\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$json.subscription.id]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "update-subscription",
@@ -316,7 +312,7 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }
@@ -372,7 +368,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.message];\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.message}', $3, $4, false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "construct-success-notif",
       "name": "14. Construire notif succès",
@@ -386,11 +382,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ \"'\" + $('14. Construire notif succès').first().json.query + \"'\" }}",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently",
-          "queryParameters": "={{ JSON.stringify([$('14. Construire notif succès').first().json.query]) }}"
+          "queryBatching": "independently"
         }
       },
       "id": "insert-success-notif",
@@ -403,7 +398,7 @@
       ],
       "credentials": {
         "postgres": {
-          "name": "Postgres account",
+          "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
       }
