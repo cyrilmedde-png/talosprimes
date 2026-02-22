@@ -81,7 +81,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "$1",
-        "queryParameters": "={{ JSON.stringify([$('05. Construire requete').first().json.query]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('05. Construire requete').first().json.query]) }}"
+        }
       },
       "id": "pg-get",
       "name": "06. SELECT client_space",

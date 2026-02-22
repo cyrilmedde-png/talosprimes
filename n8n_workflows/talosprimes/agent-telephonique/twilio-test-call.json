@@ -69,7 +69,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, tenant_id, phone_number, agent_name, company_name, niche, active FROM twilio_configs WHERE tenant_id = $1",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
+        }
       },
       "id": "05. Get Twilio Config",
       "name": "05. Get Twilio Config",

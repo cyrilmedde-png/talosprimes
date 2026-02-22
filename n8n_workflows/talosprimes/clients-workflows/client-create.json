@@ -35,9 +35,9 @@
         "operation": "executeQuery",
         "query": "INSERT INTO client_finals (id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at)\nVALUES (\n  gen_random_uuid(),\n  $1::uuid,\n  $2::\"ClientFinalType\",\n  NULLIF($3, ''),\n  $4,\n  $5,\n  $6,\n  $7,\n  NULLIF($8, ''),\n  'actif',\n  NOW(), NOW()\n)\nON CONFLICT (tenant_id, email) DO UPDATE SET\n  nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone,\n  raison_sociale = COALESCE(NULLIF(EXCLUDED.raison_sociale, ''), client_finals.raison_sociale),\n  adresse = COALESCE(NULLIF(EXCLUDED.adresse, ''), client_finals.adresse),\n  updated_at = NOW()\nRETURNING id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at",
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.type, $json.raison_sociale, $json.nom, $json.prenom, $json.email, $json.telephone, $json.adresse]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.type, $json.raison_sociale, $json.nom, $json.prenom, $json.email, $json.telephone, $json.adresse]) }}"
+        }
       },
       "id": "PG_Upsert",
       "name": "Postgres",

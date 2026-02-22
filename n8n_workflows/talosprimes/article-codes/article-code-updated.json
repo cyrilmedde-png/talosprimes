@@ -68,7 +68,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT (SELECT id FROM article_codes WHERE id = $1 AND tenant_id = $2) AS existing_id",
-        "queryParameters": "={{ JSON.stringify([$json.articleCodeId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.articleCodeId, $json.tenantId]) }}"
+        }
       },
       "id": "pg-check",
       "name": "05. Verifier existence",
@@ -136,7 +138,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "$1",
-        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+        }
       },
       "id": "pg-update",
       "name": "09. Executer UPDATE",
@@ -157,7 +161,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT (SELECT row_to_json(sub) FROM (SELECT id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at FROM article_codes WHERE id = $1 AND tenant_id = $2) sub) AS article",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.articleCodeId, $('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.articleCodeId, $('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "pg-fetch",
       "name": "10. Recuperer article",

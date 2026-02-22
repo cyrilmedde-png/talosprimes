@@ -37,9 +37,9 @@
         "query": "SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = $1::uuid;",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.subscriptionId]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.subscriptionId]) }}"
+        }
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement",
@@ -108,9 +108,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$('05b. Construire notif erreur').first().json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$('05b. Construire notif erreur').first().json.query]) }}"
+        }
       },
       "id": "insert-admin-notif",
       "name": "05c. INSERT notification erreur",
@@ -248,9 +248,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$('08d. Construire notif Stripe err').first().json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$('08d. Construire notif Stripe err').first().json.query]) }}"
+        }
       },
       "id": "insert-stripe-notif",
       "name": "08e-pg. INSERT notification Stripe err",
@@ -302,9 +302,9 @@
         "query": "UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING *;",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.subscription.id]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.subscription.id]) }}"
+        }
       },
       "id": "update-subscription",
       "name": "10. Annuler abonnement",
@@ -389,9 +389,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$('14. Construire notif succès').first().json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$('14. Construire notif succès').first().json.query]) }}"
+        }
       },
       "id": "insert-success-notif",
       "name": "14b. INSERT notification",

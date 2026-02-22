@@ -34,7 +34,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT \n  id, \n  tenant_id, \n  type, \n  raison_sociale, \n  nom, \n  prenom, \n  email, \n  telephone, \n  adresse, \n  tags, \n  statut, \n  created_at, \n  updated_at\nFROM client_finals\nWHERE id = $1 AND tenant_id = $2;",
-        "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
+        }
       },
       "id": "Postgres_Select",
       "name": "Postgres - SELECT client",

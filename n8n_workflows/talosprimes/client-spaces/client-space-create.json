@@ -94,7 +94,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "$1",
-        "queryParameters": "={{ JSON.stringify([$('06. Construire INSERT').first().json.query]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('06. Construire INSERT').first().json.query]) }}"
+        }
       },
       "id": "pg-insert",
       "name": "07. INSERT client_spaces",
@@ -129,7 +131,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "$1",
-        "queryParameters": "={{ JSON.stringify([$('08. Construire notification').first().json.query]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('08. Construire notification').first().json.query]) }}"
+        }
       },
       "id": "pg-notif",
       "name": "09. INSERT notification",

@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE avoirs SET statut = 'validee', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND statut = 'brouillon' RETURNING id, tenant_id, numero_avoir, statut, updated_at",
-        "queryParameters": "={{ JSON.stringify([$json.avoirId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.avoirId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Update Avoir",
       "name": "05. Update Avoir",

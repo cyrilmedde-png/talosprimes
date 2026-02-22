@@ -35,9 +35,9 @@
         "operation": "executeQuery",
         "query": "DELETE FROM client_finals\nWHERE id = $1::uuid\nAND tenant_id = $2::uuid\nRETURNING id, nom, prenom, email",
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
+        }
       },
       "id": "PG_Delete",
       "name": "Postgres - Delete Client",

@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT le.numero_compte, pc.libelle as compte_libelle, pc.classe, e.date_ecriture, e.numero_piece, e.journal_code, le.libelle, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND ($2 IS NULL OR e.date_ecriture >= $2) AND ($3 IS NULL OR e.date_ecriture <= $3) AND ($4 IS NULL OR le.numero_compte >= $4) AND ($5 IS NULL OR le.numero_compte <= $5) AND ($6 IS NULL OR pc.classe = $6) ORDER BY le.numero_compte ASC, e.date_ecriture ASC;",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.dateFrom || null, $json.dateTo || null, $json.compteFrom || null, $json.compteTo || null, $json.classe || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.dateFrom || null, $json.dateTo || null, $json.compteFrom || null, $json.compteTo || null, $json.classe || null]) }}"
+        }
       },
       "id": "05. Query Grand Livre",
       "name": "05. Query Grand Livre",

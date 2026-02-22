@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT le.numero_compte, pc.libelle, COALESCE(SUM(le.credit), 0) as total_credit, COALESCE(SUM(le.debit), 0) as total_debit FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND e.date_ecriture >= $2 AND e.date_ecriture <= $3 AND le.numero_compte LIKE '4457%' OR le.numero_compte LIKE '4456%' GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte;",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.dateFrom, $json.dateTo]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.dateFrom, $json.dateTo]) }}"
+        }
       },
       "id": "05. Query TVA Comptes",
       "name": "05. Query TVA Comptes",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) as base_ht_ventes, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as base_ht_achats FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND e.date_ecriture >= $2 AND e.date_ecriture <= $3 AND pc.classe IN (6,7);",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.dateFrom, $('02. Parser').first().json.dateTo]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.dateFrom, $('02. Parser').first().json.dateTo]) }}"
+        }
       },
       "id": "06. Query Bases HT",
       "name": "06. Query Bases HT",

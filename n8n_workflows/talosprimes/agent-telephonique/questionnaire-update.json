@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "queryParameters": "={{ $json.params }}"
+        "options": {
+          "queryParameters": "={{ $json.params }}"
+        }
       },
       "name": "Postgres Update",
       "type": "n8n-nodes-base.postgres",

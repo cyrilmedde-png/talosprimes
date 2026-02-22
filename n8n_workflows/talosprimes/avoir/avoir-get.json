@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT a.id, a.tenant_id, a.client_final_id, a.invoice_id, a.numero_avoir, a.date_avoir, a.montant_ht, a.montant_ttc, a.tva_taux, a.motif, a.description, a.statut, a.lien_pdf, a.created_at, a.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, inv.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices inv ON a.invoice_id = inv.id WHERE a.id = $1 AND a.tenant_id = $2",
-        "queryParameters": "={{ JSON.stringify([$json.avoirId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.avoirId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get Avoir",
       "name": "05. Get Avoir",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM avoir_lines WHERE avoir_id = $1 ORDER BY ordre ASC",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.avoirId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.avoirId]) }}"
+        }
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",

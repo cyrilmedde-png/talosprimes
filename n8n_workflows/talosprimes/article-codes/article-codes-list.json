@@ -81,7 +81,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "queryParameters": "={{ JSON.stringify($json.params) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify($json.params) }}"
+        }
       },
       "id": "pg-list",
       "name": "06. SELECT article_codes",

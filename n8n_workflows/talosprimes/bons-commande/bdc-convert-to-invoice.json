@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, tenant_id, client_final_id, numero_bdc, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM bon_commandes WHERE id = $1 AND tenant_id = $2 AND statut IN ('brouillon', 'valide')",
-        "queryParameters": "={{ JSON.stringify([$json.bdcId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.bdcId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get BdC",
       "name": "05. Get BdC",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = $1 AND numero_facture LIKE 'INV-' || EXTRACT(YEAR FROM NOW())::text || '-%'",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "06. Get Next Invoice Number",
       "name": "06. Get Next Invoice Number",
@@ -122,7 +126,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO invoices (id, type, tenant_id, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut) VALUES (gen_random_uuid(), 'facture_client_final', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'brouillon') RETURNING id, tenant_id, numero_facture, statut, created_at",
-        "queryParameters": "={{ JSON.stringify([$('07. Prepare Invoice Data').first().json.tenantId, $('07. Prepare Invoice Data').first().json.clientFinalId || null, $('07. Prepare Invoice Data').first().json.numeroFacture, $('07. Prepare Invoice Data').first().json.dateFacture, $('07. Prepare Invoice Data').first().json.dateEcheance, $('07. Prepare Invoice Data').first().json.montantHt, $('07. Prepare Invoice Data').first().json.montantTtc, $('07. Prepare Invoice Data').first().json.tvaTaux || 20, $('07. Prepare Invoice Data').first().json.description || null, $('07. Prepare Invoice Data').first().json.modePaiement || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('07. Prepare Invoice Data').first().json.tenantId, $('07. Prepare Invoice Data').first().json.clientFinalId || null, $('07. Prepare Invoice Data').first().json.numeroFacture, $('07. Prepare Invoice Data').first().json.dateFacture, $('07. Prepare Invoice Data').first().json.dateEcheance, $('07. Prepare Invoice Data').first().json.montantHt, $('07. Prepare Invoice Data').first().json.montantTtc, $('07. Prepare Invoice Data').first().json.tvaTaux || 20, $('07. Prepare Invoice Data').first().json.description || null, $('07. Prepare Invoice Data').first().json.modePaiement || null]) }}"
+        }
       },
       "id": "08. Create Invoice",
       "name": "08. Create Invoice",
@@ -143,7 +149,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id = $1 ORDER BY ordre ASC",
-        "queryParameters": "={{ JSON.stringify([$('07. Prepare Invoice Data').first().json.bdcId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('07. Prepare Invoice Data').first().json.bdcId]) }}"
+        }
       },
       "id": "09. Get BdC Lines",
       "name": "09. Get BdC Lines",
@@ -177,7 +185,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "queryParameters": "={{ $json.params }}"
+        "options": {
+          "queryParameters": "={{ $json.params }}"
+        }
       },
       "id": "11. Create Invoice Lines",
       "name": "11. Create Invoice Lines",
@@ -198,7 +208,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE bon_commandes SET statut = 'facture', invoice_id = $1, updated_at = NOW() WHERE id = $2 RETURNING id, numero_bdc, statut, invoice_id",
-        "queryParameters": "={{ JSON.stringify([$('10. Prepare Lines').first().json.invoiceId, $('07. Prepare Invoice Data').first().json.bdcId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('10. Prepare Lines').first().json.invoiceId, $('07. Prepare Invoice Data').first().json.bdcId]) }}"
+        }
       },
       "id": "12. Update BdC",
       "name": "12. Update BdC",

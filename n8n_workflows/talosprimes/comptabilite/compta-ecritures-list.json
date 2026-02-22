@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as total FROM ecritures_comptables WHERE tenant_id = $1 AND ($2 IS NULL OR journal_code = $2) AND ($3 IS NULL OR statut = $3) AND ($4 IS NULL OR type_piece = $4) AND ($5 IS NULL OR date_ecriture >= $5) AND ($6 IS NULL OR date_ecriture <= $6) AND ($7 IS NULL OR (numero_piece ILIKE '%' || $7 || '%' OR libelle ILIKE '%' || $7 || '%' OR reference ILIKE '%' || $7 || '%'))",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.journalCode || null, $json.statut || null, $json.typePiece || null, $json.dateFrom || null, $json.dateTo || null, $json.search || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.journalCode || null, $json.statut || null, $json.typePiece || null, $json.dateFrom || null, $json.dateTo || null, $json.search || null]) }}"
+        }
       },
       "id": "05. Count",
       "name": "05. Count",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT e.id, e.journal_code, e.numero_piece, e.date_ecriture, e.date_echeance, e.libelle, e.reference, e.type_piece, e.entite_type, e.entite_id, e.montant_total, e.statut, e.source, e.created_at, j.libelle as journal_libelle FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id WHERE e.tenant_id = $1 AND ($2 IS NULL OR e.journal_code = $2) AND ($3 IS NULL OR e.statut = $3) AND ($4 IS NULL OR e.type_piece = $4) AND ($5 IS NULL OR e.date_ecriture >= $5) AND ($6 IS NULL OR e.date_ecriture <= $6) AND ($7 IS NULL OR (e.numero_piece ILIKE '%' || $7 || '%' OR e.libelle ILIKE '%' || $7 || '%')) ORDER BY e.date_ecriture DESC, e.numero_piece DESC LIMIT $8 OFFSET $9",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.journalCode || null, $('02. Parser').first().json.statut || null, $('02. Parser').first().json.typePiece || null, $('02. Parser').first().json.dateFrom || null, $('02. Parser').first().json.dateTo || null, $('02. Parser').first().json.search || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.journalCode || null, $('02. Parser').first().json.statut || null, $('02. Parser').first().json.typePiece || null, $('02. Parser').first().json.dateFrom || null, $('02. Parser').first().json.dateTo || null, $('02. Parser').first().json.search || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset]) }}"
+        }
       },
       "id": "06. List",
       "name": "06. List",

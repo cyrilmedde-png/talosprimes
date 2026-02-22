@@ -82,9 +82,9 @@
         "operation": "executeQuery",
         "query": "$1",
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$('05. Construire SELECT').first().json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$('05. Construire SELECT').first().json.query]) }}"
+        }
       },
       "id": "pg-select",
       "name": "06. SELECT client_space",
@@ -168,9 +168,9 @@
         "operation": "executeQuery",
         "query": "$1",
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$('10. Construire UPDATE').first().json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$('10. Construire UPDATE').first().json.query]) }}"
+        }
       },
       "id": "pg-update",
       "name": "11. UPDATE client_spaces",
@@ -206,9 +206,9 @@
         "operation": "executeQuery",
         "query": "$1",
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$('12. Construire notification').first().json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$('12. Construire notification').first().json.query]) }}"
+        }
       },
       "id": "pg-notif",
       "name": "13. INSERT notification",

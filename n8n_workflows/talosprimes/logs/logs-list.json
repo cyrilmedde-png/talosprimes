@@ -69,7 +69,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = $1 AND ($2 IS NULL OR workflow = $2) AND ($3 IS NULL OR type_evenement = $3) AND ($4 IS NULL OR statut_execution = $4)",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.workflow || null, $json.typeEvenement || null, $json.statutExecution || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.workflow || null, $json.typeEvenement || null, $json.statutExecution || null]) }}"
+        }
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -91,7 +93,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, tenant_id, workflow, type_evenement, statut_execution, message, metadata, created_at, updated_at FROM event_logs WHERE tenant_id = $1 AND ($2 IS NULL OR workflow = $2) AND ($3 IS NULL OR type_evenement = $3) AND ($4 IS NULL OR statut_execution = $4) ORDER BY created_at DESC LIMIT $5 OFFSET $6",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.workflow || null, $('02. Parser').first().json.typeEvenement || null, $('02. Parser').first().json.statutExecution || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.workflow || null, $('02. Parser').first().json.typeEvenement || null, $('02. Parser').first().json.statutExecution || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset]) }}"
+        }
       },
       "id": "06. List Query",
       "name": "06. List Query",

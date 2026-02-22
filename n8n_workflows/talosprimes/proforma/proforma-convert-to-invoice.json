@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, tenant_id, client_final_id, numero_proforma, date_proforma, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM proformas WHERE id = $1 AND tenant_id = $2 AND statut = 'acceptee'",
-        "queryParameters": "={{ JSON.stringify([$json.proformaId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.proformaId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get Proforma",
       "name": "05. Get Proforma",
@@ -101,7 +103,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = $1 AND numero_facture LIKE 'INV-' || EXTRACT(YEAR FROM NOW())::text || '-%'",
-        "queryParameters": "={{ JSON.stringify([$json.tenant_id]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenant_id]) }}"
+        }
       },
       "id": "07. Get Next Invoice Number",
       "name": "07. Get Next Invoice Number",
@@ -135,7 +139,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO invoices (id, type, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), 'facture_client_final', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, proforma_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, statut, created_at, updated_at",
-        "queryParameters": "={{ JSON.stringify([$json.tenant_id, $json.client_final_id || null, $json.id, $json.numeroFacture, $json.dateFacture, $json.montant_ht, $json.montant_ttc, $json.tva_taux || 20, $json.description || null, $json.mode_paiement || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenant_id, $json.client_final_id || null, $json.id, $json.numeroFacture, $json.dateFacture, $json.montant_ht, $json.montant_ttc, $json.tva_taux || 20, $json.description || null, $json.mode_paiement || null]) }}"
+        }
       },
       "id": "09. Create Invoice",
       "name": "09. Create Invoice",
@@ -156,7 +162,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = $1 ORDER BY ordre ASC",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.proformaId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.proformaId]) }}"
+        }
       },
       "id": "10. Get Proforma Lines",
       "name": "10. Get Proforma Lines",
@@ -190,7 +198,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "queryParameters": "={{ $json.params }}"
+        "options": {
+          "queryParameters": "={{ $json.params }}"
+        }
       },
       "id": "12. Insert Invoice Lines",
       "name": "12. Insert Invoice Lines",
@@ -211,7 +221,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE proformas SET statut = 'facturee', invoice_id = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3",
-        "queryParameters": "={{ JSON.stringify([$('09. Create Invoice').first().json.id, $('02. Parser').first().json.proformaId, $('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('09. Create Invoice').first().json.id, $('02. Parser').first().json.proformaId, $('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "13. Update Proforma Status",
       "name": "13. Update Proforma Status",

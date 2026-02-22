@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = $1 AND i.tenant_id = $2",
-        "queryParameters": "={{ JSON.stringify([$json.invoiceId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.invoiceId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get Invoice",
       "name": "05. Get Invoice",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM invoice_lines WHERE invoice_id = $1 ORDER BY ordre ASC",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        }
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
@@ -109,7 +113,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, invoice_id, numero_devis, date_devis, montant_ht, montant_ttc, statut FROM devis WHERE invoice_id = $1",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        }
       },
       "id": "07. Get Devis",
       "name": "07. Get Devis",
@@ -130,7 +136,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, invoice_id, numero_proforma, date_proforma, montant_ht, montant_ttc, statut FROM proformas WHERE invoice_id = $1",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        }
       },
       "id": "08. Get Proformas",
       "name": "08. Get Proformas",
@@ -151,7 +159,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, invoice_id, numero_bdc, date_bdc, montant_ht, montant_ttc, statut FROM bon_commandes WHERE invoice_id = $1",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        }
       },
       "id": "09. Get BdC",
       "name": "09. Get BdC",

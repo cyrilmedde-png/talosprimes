@@ -69,7 +69,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM notifications WHERE id = $1 AND tenant_id = $2 RETURNING id",
-        "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
+        }
       },
       "id": "05. Delete Notification",
       "name": "05. Delete Notification",

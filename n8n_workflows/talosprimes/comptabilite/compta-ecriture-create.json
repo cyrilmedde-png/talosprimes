@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id FROM exercices_comptables WHERE tenant_id = $1 AND date_debut <= $2 AND date_fin >= $3 AND cloture = false LIMIT 1;",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.dateEcriture, $json.dateEcriture]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.dateEcriture, $json.dateEcriture]) }}"
+        }
       },
       "id": "05. Find Exercice",
       "name": "05. Find Exercice",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = $1 AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "06. Next Number",
       "name": "06. Next Number",
@@ -122,7 +126,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO ecritures_comptables (tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, date_echeance, libelle, reference, type_piece, entite_type, entite_id, montant_total, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, numero_piece, date_ecriture, libelle, montant_total, statut;",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.exerciceId, $json.journalCode, $json.numeroPiece, $json.dateEcriture, $json.dateEcheance || null, $json.libelle, $json.reference || null, $json.typePiece, $json.entiteType || null, $json.entiteId || null, $json.montantTotal, $json.source]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.exerciceId, $json.journalCode, $json.numeroPiece, $json.dateEcriture, $json.dateEcheance || null, $json.libelle, $json.reference || null, $json.typePiece, $json.entiteType || null, $json.entiteId || null, $json.montantTotal, $json.source]) }}"
+        }
       },
       "id": "08. Insert Ecriture",
       "name": "08. Insert Ecriture",
@@ -156,7 +162,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "$1",
-        "queryParameters": "={{ JSON.stringify([$json.insertQuery]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.insertQuery]) }}"
+        }
       },
       "id": "10. Insert Lines",
       "name": "10. Insert Lines",

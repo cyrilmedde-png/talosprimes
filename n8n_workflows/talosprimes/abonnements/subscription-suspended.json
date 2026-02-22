@@ -37,9 +37,9 @@
         "query": "SELECT\n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale,\n  cf.id as client_id\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = $1::uuid;",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.subscriptionId]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.subscriptionId]) }}"
+        }
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement",
@@ -157,9 +157,9 @@
         "query": "UPDATEclient_subscriptions\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING *;",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.subscription.id]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.subscription.id]) }}"
+        }
       },
       "id": "suspend-subscription",
       "name": "08. Suspendre abonnement",
@@ -182,9 +182,9 @@
         "query": "SELECTCOUNT(*) as active_count\nFROM client_subscriptions\nWHERE client_final_id = $1::uuid\nAND statut != 'suspendu'\nAND statut != 'annule';",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.clientId]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.clientId]) }}"
+        }
       },
       "id": "check-active-subscriptions",
       "name": "09. Vérifier autres abonnements actifs",
@@ -228,9 +228,9 @@
         "query": "UPDATEclient_finals\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING *;",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.clientId]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.clientId]) }}"
+        }
       },
       "id": "suspend-client",
       "name": "11. Suspendre le client",
@@ -302,9 +302,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$('14. Construire notification').first().json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$('14. Construire notification').first().json.query]) }}"
+        }
       },
       "id": "insert-notification",
       "name": "14b. INSERT notification",

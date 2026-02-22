@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE invoices SET statut = 'envoyee', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND statut = 'brouillon' RETURNING id, tenant_id, numero_facture, statut, updated_at",
-        "queryParameters": "={{ JSON.stringify([$json.invoiceId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.invoiceId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Update Invoice",
       "name": "05. Update Invoice",

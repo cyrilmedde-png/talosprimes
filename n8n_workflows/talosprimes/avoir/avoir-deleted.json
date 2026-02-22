@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM avoir_lines WHERE avoir_id = $1",
-        "queryParameters": "={{ JSON.stringify([$json.avoirId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.avoirId]) }}"
+        }
       },
       "id": "05. Delete Lines",
       "name": "05. Delete Lines",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM avoirs WHERE id = $1 AND tenant_id = $2 AND statut != 'validee' RETURNING id, numero_avoir",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.avoirId, $('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.avoirId, $('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "06. Delete Avoir",
       "name": "06. Delete Avoir",

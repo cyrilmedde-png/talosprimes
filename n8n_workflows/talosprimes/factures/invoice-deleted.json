@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM invoice_lines WHERE invoice_id = $1",
-        "queryParameters": "={{ JSON.stringify([$json.invoiceId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.invoiceId]) }}"
+        }
       },
       "id": "05. Delete Lines",
       "name": "05. Delete Lines",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM invoices WHERE id = $1 AND tenant_id = $2 AND statut = 'brouillon' RETURNING id, numero_facture",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId, $('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId, $('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "06. Delete Invoice",
       "name": "06. Delete Invoice",

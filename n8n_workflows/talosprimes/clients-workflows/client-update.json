@@ -35,9 +35,9 @@
         "operation": "executeQuery",
         "query": "UPDATE client_finals SET\n  nom = COALESCE(NULLIF($1, ''), nom),\n  prenom = COALESCE(NULLIF($2, ''), prenom),\n  email = COALESCE(NULLIF($3, ''), email),\n  telephone = COALESCE(NULLIF($4, ''), telephone),\n  raison_sociale = COALESCE(NULLIF($5, ''), raison_sociale),\n  adresse = COALESCE(NULLIF($6, ''), adresse),\n  updated_at = NOW()\nWHERE id = $7::uuid\nAND tenant_id = $8::uuid\nRETURNING id, tenant_id, nom, prenom, email, telephone, type, raison_sociale, adresse, statut, created_at, updated_at",
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.nom, $json.prenom, $json.email, $json.telephone, $json.raisonSociale, $json.adresse, $json.id, $json.tenantId]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.nom, $json.prenom, $json.email, $json.telephone, $json.raisonSociale, $json.adresse, $json.id, $json.tenantId]) }}"
+        }
       },
       "id": "PG_Update",
       "name": "Postgres - Update Client",

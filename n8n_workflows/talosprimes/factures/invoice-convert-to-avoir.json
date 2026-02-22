@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM invoices WHERE id = $1 AND tenant_id = $2 AND statut NOT IN ('brouillon', 'annulee')",
-        "queryParameters": "={{ JSON.stringify([$json.invoiceId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.invoiceId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get Invoice",
       "name": "05. Get Invoice",
@@ -101,7 +103,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_avoir FROM 'AVO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM avoirs WHERE tenant_id = $1 AND numero_avoir LIKE 'AVO-' || EXTRACT(YEAR FROM NOW())::text || '-%'",
-        "queryParameters": "={{ JSON.stringify([$json.tenant_id]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenant_id]) }}"
+        }
       },
       "id": "07. Get Next Avoir Number",
       "name": "07. Get Next Avoir Number",
@@ -135,7 +139,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW(), $5, $6, $7, 'Avoir sur facture ' || $8, $9, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, statut, created_at",
-        "queryParameters": "={{ JSON.stringify([$json.tenant_id, $json.client_final_id || null, $json.id, $json.numeroAvoir, $json.montant_ht, $json.montant_ttc, $json.tva_taux || 20, $json.numero_facture, $json.description || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenant_id, $json.client_final_id || null, $json.id, $json.numeroAvoir, $json.montant_ht, $json.montant_ttc, $json.tva_taux || 20, $json.numero_facture, $json.description || null]) }}"
+        }
       },
       "id": "09. Create Avoir",
       "name": "09. Create Avoir",
@@ -156,7 +162,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM invoice_lines WHERE invoice_id = $1 ORDER BY ordre ASC",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId]) }}"
+        }
       },
       "id": "10. Get Invoice Lines",
       "name": "10. Get Invoice Lines",
@@ -190,7 +198,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "queryParameters": "={{ $json.params }}"
+        "options": {
+          "queryParameters": "={{ $json.params }}"
+        }
       },
       "id": "12. Insert Avoir Lines",
       "name": "12. Insert Avoir Lines",
@@ -211,7 +221,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE invoices SET statut = 'annulee', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 RETURNING id, statut",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId, $('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.invoiceId, $('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "13. Update Invoice Annulee",
       "name": "13. Update Invoice Annulee",

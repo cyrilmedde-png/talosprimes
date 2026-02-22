@@ -277,9 +277,9 @@
         "query": "$1",
         "queryParams": "",
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+        }
       },
       "id": "15b-insert-notification",
       "name": "INSERT notification",

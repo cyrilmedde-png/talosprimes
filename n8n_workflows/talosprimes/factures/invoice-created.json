@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_facture FROM 'FAC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = $1 AND numero_facture LIKE 'FAC-' || EXTRACT(YEAR FROM NOW())::text || '-%'",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
+        }
       },
       "id": "05. Get Next Number",
       "name": "05. Get Next Number",
@@ -101,7 +103,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO invoices (id, tenant_id, client_final_id, type, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, lien_pdf, statut, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, type, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, lien_pdf, created_at, updated_at",
-        "queryParameters": "={{ JSON.stringify([$('06. Generate Number').first().json.tenantId, $('06. Generate Number').first().json.clientFinalId || null, $('06. Generate Number').first().json.type, $('06. Generate Number').first().json.numeroFacture, $('06. Generate Number').first().json.dateFacture, $('06. Generate Number').first().json.dateEcheance, $('06. Generate Number').first().json.montantHt, $('06. Generate Number').first().json.montantTtc, $('06. Generate Number').first().json.tvaTaux, $('06. Generate Number').first().json.description || null, $('06. Generate Number').first().json.modePaiement || null, $('06. Generate Number').first().json.lienPdf || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('06. Generate Number').first().json.tenantId, $('06. Generate Number').first().json.clientFinalId || null, $('06. Generate Number').first().json.type, $('06. Generate Number').first().json.numeroFacture, $('06. Generate Number').first().json.dateFacture, $('06. Generate Number').first().json.dateEcheance, $('06. Generate Number').first().json.montantHt, $('06. Generate Number').first().json.montantTtc, $('06. Generate Number').first().json.tvaTaux, $('06. Generate Number').first().json.description || null, $('06. Generate Number').first().json.modePaiement || null, $('06. Generate Number').first().json.lienPdf || null]) }}"
+        }
       },
       "id": "07. Insert Invoice",
       "name": "07. Insert Invoice",
@@ -135,7 +139,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "queryParameters": "={{ $json.params }}"
+        "options": {
+          "queryParameters": "={{ $json.params }}"
+        }
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",

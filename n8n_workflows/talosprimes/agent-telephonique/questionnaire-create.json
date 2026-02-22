@@ -63,7 +63,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO questionnaires (id, tenant_id, lead_id, call_log_id, title, description, content, status, completed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb::jsonb, $8, $9, NOW(), NOW())",
-        "queryParameters": "={{ [$json.id, $json.tenantId, $json.leadId || null, $json.callLogId || null, $json.title, $json.description, JSON.stringify($json.content), $json.status, $json.completedAt || null] }}"
+        "options": {
+          "queryParameters": "={{ [$json.id, $json.tenantId, $json.leadId || null, $json.callLogId || null, $json.title, $json.description, JSON.stringify($json.content), $json.status, $json.completedAt || null] }}"
+        }
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

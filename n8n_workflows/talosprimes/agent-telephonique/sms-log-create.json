@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO sms_logs (id, tenant_id, lead_id, phone_number, message, status, direction, template_id, campaign_id, sent_at, delivered_at, failure_reason, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())",
-        "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId, $json.leadId || null, $json.phoneNumber, $json.message, $json.status, $json.direction, $json.templateId || null, $json.campaignId || null, $json.sentAt, $json.deliveredAt || null, $json.failureReason || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId, $json.leadId || null, $json.phoneNumber, $json.message, $json.status, $json.direction, $json.templateId || null, $json.campaignId || null, $json.sentAt, $json.deliveredAt || null, $json.failureReason || null]) }}"
+        }
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

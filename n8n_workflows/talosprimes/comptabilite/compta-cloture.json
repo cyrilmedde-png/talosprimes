@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT * FROM exercices_comptables WHERE id = $1 AND tenant_id = $2 AND cloture = false;",
-        "queryParameters": "={{ JSON.stringify([$json.exerciceId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.exerciceId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get Exercice",
       "name": "05. Get Exercice",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as nb_brouillon FROM ecritures_comptables WHERE exercice_id = $1 AND tenant_id = $2 AND statut = 'brouillon';",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.exerciceId, $('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.exerciceId, $('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "06. Check Brouillons",
       "name": "06. Check Brouillons",
@@ -109,7 +113,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(SUM(le.debit),0) as total_debit, COALESCE(SUM(le.credit),0) as total_credit, COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END),0) as total_produits, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END),0) as total_charges FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.exercice_id = $1 AND e.tenant_id = $2 AND e.statut = 'validee';",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.exerciceId, $('02. Parser').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.exerciceId, $('02. Parser').first().json.tenantId]) }}"
+        }
       },
       "id": "07. Calc Resultat",
       "name": "07. Calc Resultat",
@@ -163,7 +169,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE exercices_comptables SET cloture = true, date_cloture = NOW(), resultat_net = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3 RETURNING id, code, resultat_net;",
-        "queryParameters": "={{ JSON.stringify([$('08. Pre-Cloture Check').first().json.resultatNet, $('08. Pre-Cloture Check').first().json.exerciceId, $('08. Pre-Cloture Check').first().json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('08. Pre-Cloture Check').first().json.resultatNet, $('08. Pre-Cloture Check').first().json.exerciceId, $('08. Pre-Cloture Check').first().json.tenantId]) }}"
+        }
       },
       "id": "10. Cloturer",
       "name": "10. Cloturer",

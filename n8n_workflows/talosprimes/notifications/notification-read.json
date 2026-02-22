@@ -69,7 +69,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE notifications SET lu = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3 RETURNING id",
-        "queryParameters": "={{ JSON.stringify([$json.lu, $json.id, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.lu, $json.id, $json.tenantId]) }}"
+        }
       },
       "id": "05. Update Notification",
       "name": "05. Update Notification",

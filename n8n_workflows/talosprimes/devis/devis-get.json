@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.id = $1 AND d.tenant_id = $2",
-        "queryParameters": "={{ JSON.stringify([$json.devisId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.devisId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get Devis",
       "name": "05. Get Devis",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = $1 ORDER BY ordre ASC",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.devisId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.devisId]) }}"
+        }
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",

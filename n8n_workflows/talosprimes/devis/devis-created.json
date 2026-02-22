@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_devis FROM 'DEV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM devis WHERE tenant_id = $1 AND numero_devis LIKE 'DEV-' || EXTRACT(YEAR FROM NOW())::text || '-%'",
-        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
+        }
       },
       "id": "05. Get Next Number",
       "name": "05. Get Next Number",
@@ -101,7 +103,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO devis (id, tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at",
-        "queryParameters": "={{ JSON.stringify([$('06. Generate Number').first().json.tenantId, $('06. Generate Number').first().json.clientFinalId, $('06. Generate Number').first().json.numeroDevis, $('06. Generate Number').first().json.dateDevis, $('06. Generate Number').first().json.dateValidite || null, $('06. Generate Number').first().json.montantHt, $('06. Generate Number').first().json.montantTtc, $('06. Generate Number').first().json.tvaTaux, $('06. Generate Number').first().json.description || null, $('06. Generate Number').first().json.modePaiement || null]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('06. Generate Number').first().json.tenantId, $('06. Generate Number').first().json.clientFinalId, $('06. Generate Number').first().json.numeroDevis, $('06. Generate Number').first().json.dateDevis, $('06. Generate Number').first().json.dateValidite || null, $('06. Generate Number').first().json.montantHt, $('06. Generate Number').first().json.montantTtc, $('06. Generate Number').first().json.tvaTaux, $('06. Generate Number').first().json.description || null, $('06. Generate Number').first().json.modePaiement || null]) }}"
+        }
       },
       "id": "07. Insert Devis",
       "name": "07. Insert Devis",
@@ -135,7 +139,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "queryParameters": "={{ $json.params }}"
+        "options": {
+          "queryParameters": "={{ $json.params }}"
+        }
       },
       "id": "09. Insert Lines",
       "name": "09. Insert Lines",

@@ -389,7 +389,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "$1",
-        "queryParameters": "={{ JSON.stringify([$json.sqlQuery]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.sqlQuery]) }}"
+        }
       },
       "id": "create-subscription",
       "name": "10. Créer abonnement client",
@@ -541,9 +543,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+        }
       },
       "name": "12. Créer notification - INSERT notification",
       "type": "n8n-nodes-base.postgres",

@@ -133,9 +133,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+        }
       },
       "name": "07. API - Notification Converti - INSERT notification",
       "type": "n8n-nodes-base.postgres",
@@ -236,9 +236,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+        }
       },
       "name": "12. API - Notification Email - INSERT notification",
       "type": "n8n-nodes-base.postgres",
@@ -304,9 +304,9 @@
         "query": "$1",
         "alwaysOutputData": true,
         "options": {
-          "queryBatching": "independently"
-        },
-        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+          "queryBatching": "independently",
+          "queryParameters": "={{ JSON.stringify([$json.query]) }}"
+        }
       },
       "name": "ERROR. API - Notification Erreur - INSERT notification",
       "type": "n8n-nodes-base.postgres",

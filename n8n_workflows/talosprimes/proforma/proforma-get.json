@@ -67,7 +67,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT p.id, p.tenant_id, p.client_final_id, p.invoice_id, p.numero_proforma, p.date_proforma, p.date_validite, p.montant_ht, p.montant_ttc, p.tva_taux, p.description, p.mode_paiement, p.statut, p.lien_pdf, p.created_at, p.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM proformas p LEFT JOIN client_finals cf ON p.client_final_id = cf.id WHERE p.id = $1 AND p.tenant_id = $2",
-        "queryParameters": "={{ JSON.stringify([$json.proformaId, $json.tenantId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$json.proformaId, $json.tenantId]) }}"
+        }
       },
       "id": "05. Get Proforma",
       "name": "05. Get Proforma",
@@ -88,7 +90,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM proforma_lines WHERE proforma_id = $1 ORDER BY ordre ASC",
-        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.proformaId]) }}"
+        "options": {
+          "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.proformaId]) }}"
+        }
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
