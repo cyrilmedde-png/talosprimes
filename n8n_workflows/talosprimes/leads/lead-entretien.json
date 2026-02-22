@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\nreturn [{json: {query, params}}];"
       },
       "name": "06. API - Notification Planifié - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -107,7 +107,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
       },
       "name": "06. API - Notification Planifié - INSERT notification",
       "type": "n8n-nodes-base.postgres",
@@ -191,7 +191,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\nreturn [{json: {query, params}}];"
       },
       "name": "11. API - Notification Email - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -210,7 +210,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
       },
       "name": "11. API - Notification Email - INSERT notification",
       "type": "n8n-nodes-base.postgres",
@@ -259,7 +259,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.titre || 'Notification', d.message, d.type || 'info'];\nreturn [{json: {query, params}}];"
       },
       "name": "ERROR. API - Notification Erreur - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -278,7 +278,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
       },
       "name": "ERROR. API - Notification Erreur - INSERT notification",
       "type": "n8n-nodes-base.postgres",

@@ -67,7 +67,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as total FROM devis WHERE tenant_id = $1 AND numero_devis IS NOT NULL AND date_devis IS NOT NULL AND ($2 IS NULL OR statut = $2) AND ($3 IS NULL OR client_final_id = $3)",
-        "queryParameters": "={{ [$json.tenantId, $json.statut || null, $json.clientFinalId || null] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.statut || null, $json.clientFinalId || null]) }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -88,7 +88,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.tenant_id = $1 AND d.numero_devis IS NOT NULL AND d.date_devis IS NOT NULL AND ($2 IS NULL OR d.statut = $2) AND ($3 IS NULL OR d.client_final_id = $3) ORDER BY d.date_devis DESC LIMIT $4 OFFSET $5",
-        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.statut || null, $('02. Parser').first().json.clientFinalId || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset] }}"
+        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.statut || null, $('02. Parser').first().json.clientFinalId || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset]) }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",

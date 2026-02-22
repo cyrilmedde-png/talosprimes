@@ -63,7 +63,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as total_calls FROM call_logs WHERE tenant_id = $1",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres Total Calls",
       "type": "n8n-nodes-base.postgres",
@@ -83,7 +83,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as today_calls FROM call_logs WHERE tenant_id = $1 AND DATE(created_at) = CURRENT_DATE",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres Today Calls",
       "type": "n8n-nodes-base.postgres",
@@ -103,7 +103,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT ROUND(AVG(EXTRACT(EPOCH FROM (ended_at - started_at)))) as avg_duration_seconds FROM call_logs WHERE tenant_id = $1 AND ended_at IS NOT NULL",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres Avg Duration",
       "type": "n8n-nodes-base.postgres",
@@ -123,7 +123,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT urgency, COUNT(*) as count FROM call_logs WHERE tenant_id = $1 GROUP BY urgency ORDER BY count DESC",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres By Urgency",
       "type": "n8n-nodes-base.postgres",
@@ -143,7 +143,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT action_taken, COUNT(*) as count FROM call_logs WHERE tenant_id = $1 AND action_taken IS NOT NULL GROUP BY action_taken ORDER BY count DESC",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres By Action",
       "type": "n8n-nodes-base.postgres",
@@ -163,7 +163,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT sentiment, COUNT(*) as count FROM call_logs WHERE tenant_id = $1 AND sentiment IS NOT NULL GROUP BY sentiment ORDER BY count DESC",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres By Sentiment",
       "type": "n8n-nodes-base.postgres",
@@ -183,7 +183,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT DATE(created_at) as call_date, COUNT(*) as count FROM call_logs WHERE tenant_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '7 days' GROUP BY DATE(created_at) ORDER BY call_date DESC",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres Last 7 Days",
       "type": "n8n-nodes-base.postgres",

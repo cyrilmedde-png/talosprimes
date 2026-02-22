@@ -67,7 +67,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE proformas SET statut = 'acceptee', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND statut = 'envoyee' RETURNING id, tenant_id, numero_proforma, statut, updated_at",
-        "queryParameters": "={{ [$json.proformaId, $json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.proformaId, $json.tenantId]) }}"
       },
       "id": "05. Update Proforma",
       "name": "05. Update Proforma",

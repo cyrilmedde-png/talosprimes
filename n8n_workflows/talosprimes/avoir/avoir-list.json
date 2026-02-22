@@ -67,7 +67,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as total FROM avoirs WHERE tenant_id = $1 AND numero_avoir IS NOT NULL AND date_avoir IS NOT NULL AND ($2 IS NULL OR statut = $2) AND ($3 IS NULL OR invoice_id = $3)",
-        "queryParameters": "={{ [$json.tenantId, $json.statut || null, $json.invoiceId || null] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.statut || null, $json.invoiceId || null]) }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -88,7 +88,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT a.id, a.tenant_id, a.client_final_id, a.invoice_id, a.numero_avoir, a.date_avoir, a.montant_ht, a.montant_ttc, a.tva_taux, a.motif, a.description, a.statut, a.lien_pdf, a.created_at, a.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale, inv.numero_facture as invoice_numero FROM avoirs a LEFT JOIN client_finals cf ON a.client_final_id = cf.id LEFT JOIN invoices inv ON a.invoice_id = inv.id WHERE a.tenant_id = $1 AND a.numero_avoir IS NOT NULL AND a.date_avoir IS NOT NULL AND ($2 IS NULL OR a.statut = $2) AND ($3 IS NULL OR a.invoice_id = $3) ORDER BY a.date_avoir DESC LIMIT $4 OFFSET $5",
-        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.statut || null, $('02. Parser').first().json.invoiceId || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset] }}"
+        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.statut || null, $('02. Parser').first().json.invoiceId || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset]) }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",

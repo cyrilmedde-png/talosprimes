@@ -37,7 +37,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.id, $json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
       },
       "id": "PG_Delete",
       "name": "Postgres - Delete Client",

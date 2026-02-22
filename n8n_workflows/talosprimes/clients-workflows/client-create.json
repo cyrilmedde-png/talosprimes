@@ -37,7 +37,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.tenantId, $json.type, $json.raison_sociale, $json.nom, $json.prenom, $json.email, $json.telephone, $json.adresse] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.type, $json.raison_sociale, $json.nom, $json.prenom, $json.email, $json.telephone, $json.adresse]) }}"
       },
       "id": "PG_Upsert",
       "name": "Postgres",

@@ -39,7 +39,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.subscriptionId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.subscriptionId]) }}"
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement",
@@ -159,7 +159,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.subscription.id] }}"
+        "queryParameters": "={{ JSON.stringify([$json.subscription.id]) }}"
       },
       "id": "suspend-subscription",
       "name": "08. Suspendre abonnement",
@@ -184,7 +184,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.clientId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.clientId]) }}"
       },
       "id": "check-active-subscriptions",
       "name": "09. Vérifier autres abonnements actifs",
@@ -230,7 +230,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.clientId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.clientId]) }}"
       },
       "id": "suspend-client",
       "name": "11. Suspendre le client",
@@ -285,7 +285,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.clientName, d.reason];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, d.clientName, d.reason];\nreturn [{json: {query, params}}];"
       },
       "id": "build-notification",
       "name": "14. Construire notification",
@@ -304,7 +304,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$('14. Construire notification').first().json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$('14. Construire notification').first().json.query]) }}"
       },
       "id": "insert-notification",
       "name": "14b. INSERT notification",

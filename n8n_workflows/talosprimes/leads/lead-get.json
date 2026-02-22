@@ -34,7 +34,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT \n  id, \n  nom, \n  prenom, \n  email, \n  telephone, \n  statut, \n  source, \n  notes, \n  date_contact, \n  created_at, \n  updated_at\nFROM leads\nWHERE id = $1;",
-        "queryParameters": "={{ [$json.id] }}"
+        "queryParameters": "={{ JSON.stringify([$json.id]) }}"
       },
       "id": "Postgres_Select",
       "name": "Postgres - SELECT lead",

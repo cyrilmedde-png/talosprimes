@@ -63,7 +63,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT q.*, l.nom, l.prenom, l.email FROM questionnaires q LEFT JOIN leads l ON q.lead_id = l.id WHERE q.tenant_id = $1 ORDER BY q.created_at DESC LIMIT 100",
-        "queryParameters": "={{ [$json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId]) }}"
       },
       "name": "Postgres Query",
       "type": "n8n-nodes-base.postgres",

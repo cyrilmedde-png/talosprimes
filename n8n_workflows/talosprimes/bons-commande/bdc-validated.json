@@ -67,7 +67,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE bon_commandes SET statut = 'valide', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND statut = 'brouillon' RETURNING id, tenant_id, numero_bdc, statut, updated_at",
-        "queryParameters": "={{ [$json.bdcId, $json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.bdcId, $json.tenantId]) }}"
       },
       "id": "05. Update BdC",
       "name": "05. Update BdC",

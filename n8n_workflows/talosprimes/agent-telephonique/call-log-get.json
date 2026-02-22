@@ -67,7 +67,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT * FROM call_logs WHERE id = $1 AND tenant_id = $2",
-        "queryParameters": "={{ [$json.id, $json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.id, $json.tenantId]) }}"
       },
       "name": "Postgres Query",
       "type": "n8n-nodes-base.postgres",

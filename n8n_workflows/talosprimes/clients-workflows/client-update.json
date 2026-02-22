@@ -37,7 +37,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.nom, $json.prenom, $json.email, $json.telephone, $json.raisonSociale, $json.adresse, $json.id, $json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.nom, $json.prenom, $json.email, $json.telephone, $json.raisonSociale, $json.adresse, $json.id, $json.tenantId]) }}"
       },
       "id": "PG_Update",
       "name": "Postgres - Update Client",

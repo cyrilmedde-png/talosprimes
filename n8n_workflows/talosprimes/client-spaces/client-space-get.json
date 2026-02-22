@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = $1::uuid ORDER BY cs.created_at DESC\";\\nvar params = [p.tenantId];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = $1::uuid ORDER BY cs.created_at DESC\";\nvar params = [p.tenantId];\nreturn [{json: {query, params}}];"
       },
       "id": "build-query",
       "name": "05. Construire requete",
@@ -81,7 +81,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "$1",
-        "queryParameters": "={{ [$('05. Construire requete').first().json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$('05. Construire requete').first().json.query]) }}"
       },
       "id": "pg-get",
       "name": "06. SELECT client_space",

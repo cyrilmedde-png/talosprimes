@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = $1::uuid ORDER BY cs.created_at DESC\";\\nvar params = [p.tenantId];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = $1::uuid ORDER BY cs.created_at DESC\";\nvar params = [p.tenantId];\nreturn [{json: {query, params}}];"
       },
       "id": "build-select",
       "name": "05. Construire SELECT",
@@ -84,7 +84,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$('05. Construire SELECT').first().json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$('05. Construire SELECT').first().json.query]) }}"
       },
       "id": "pg-select",
       "name": "06. SELECT client_space",
@@ -152,7 +152,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const s = $('07. Verifier statut + generer mdp').first().json;\\nvar query = \"UPDATE client_spaces SET statut = $1, validated_at = NOW(), updated_at = NOW() WHERE id = $2::uuid AND tenant_id = $3::uuid RETURNING *\";\\nvar params = ['actif', s.clientSpaceId || s.id, s.tenantId];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const s = $('07. Verifier statut + generer mdp').first().json;\nvar query = \"UPDATE client_spaces SET statut = $1, validated_at = NOW(), updated_at = NOW() WHERE id = $2::uuid AND tenant_id = $3::uuid RETURNING *\";\nvar params = ['actif', s.clientSpaceId || s.id, s.tenantId];\nreturn [{json: {query, params}}];"
       },
       "id": "build-update",
       "name": "10. Construire UPDATE",
@@ -170,7 +170,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$('10. Construire UPDATE').first().json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$('10. Construire UPDATE').first().json.query]) }}"
       },
       "id": "pg-update",
       "name": "11. UPDATE client_spaces",
@@ -190,7 +190,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const s = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [s.tenant_id, s.raison_sociale||s.nom||'client'];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const s = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [s.tenant_id, s.raison_sociale||s.nom||'client'];\nreturn [{json: {query, params}}];"
       },
       "id": "build-notif",
       "name": "12. Construire notification",
@@ -208,7 +208,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$('12. Construire notification').first().json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$('12. Construire notification').first().json.query]) }}"
       },
       "id": "pg-notif",
       "name": "13. INSERT notification",

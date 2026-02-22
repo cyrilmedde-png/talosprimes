@@ -67,7 +67,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM devis_lines WHERE devis_id = $1",
-        "queryParameters": "={{ [$json.devisId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.devisId]) }}"
       },
       "id": "05. Delete Lines",
       "name": "05. Delete Lines",
@@ -88,7 +88,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "DELETE FROM devis WHERE id = $1 AND tenant_id = $2 AND statut != 'facturee' RETURNING id, numero_devis",
-        "queryParameters": "={{ [$('02. Parser').first().json.devisId, $('02. Parser').first().json.tenantId] }}"
+        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.devisId, $('02. Parser').first().json.tenantId]) }}"
       },
       "id": "06. Delete Devis",
       "name": "06. Delete Devis",

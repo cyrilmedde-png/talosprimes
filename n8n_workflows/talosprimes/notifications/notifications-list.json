@@ -69,7 +69,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as total FROM notifications WHERE tenant_id = $1 AND ($2 IS NULL OR lu = $2::boolean)",
-        "queryParameters": "={{ [$json.tenantId, $json.lu !== null && $json.lu !== undefined ? $json.lu : null] }}"
+        "queryParameters": "={{ JSON.stringify([$json.tenantId, $json.lu !== null && $json.lu !== undefined ? $json.lu : null]) }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -90,7 +90,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, tenant_id, type, titre, message, donnees, lu, created_at, updated_at FROM notifications WHERE tenant_id = $1 AND ($2 IS NULL OR lu = $2::boolean) ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.lu !== null && $('02. Parser').first().json.lu !== undefined ? $('02. Parser').first().json.lu : null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset] }}"
+        "queryParameters": "={{ JSON.stringify([$('02. Parser').first().json.tenantId, $('02. Parser').first().json.lu !== null && $('02. Parser').first().json.lu !== undefined ? $('02. Parser').first().json.lu : null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset]) }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",

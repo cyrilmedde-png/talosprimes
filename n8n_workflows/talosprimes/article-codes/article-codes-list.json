@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\\nvar query = \"SELECT COALESCE(json_agg(row_to_json(sub)), '[]'::json) AS articles FROM (SELECT id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at FROM article_codes WHERE tenant_id = $1::uuid AND actif = true ORDER BY code ASC) sub\";\\nvar params = [p.tenantId];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"SELECT COALESCE(json_agg(row_to_json(sub)), '[]'::json) AS articles FROM (SELECT id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at FROM article_codes WHERE tenant_id = $1::uuid AND actif = true ORDER BY code ASC) sub\";\nvar params = [p.tenantId];\nreturn [{json: {query, params}}];"
       },
       "id": "build-query",
       "name": "05. Construire requete",

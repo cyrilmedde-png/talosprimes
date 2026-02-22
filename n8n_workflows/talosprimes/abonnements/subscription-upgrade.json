@@ -39,7 +39,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.subscriptionId] }}"
+        "queryParameters": "={{ JSON.stringify([$json.subscriptionId]) }}"
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement actuel",
@@ -214,7 +214,7 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATEclient_subscriptions\nSET \n  nom_plan = $1,\n  montant_mensuel = $2,\n  modules_inclus = $3::text[],\n  updated_at = NOW()\nWHERE id = $4::uuid\nRETURNING *;",
-        "queryParameters": "={{ [$json.sqlParams.nomPlan, $json.sqlParams.montantMensuel, $json.sqlParams.modulesInclus, $json.sqlParams.subscriptionId] }}",
+        "queryParameters": "={{ JSON.stringify([$json.sqlParams.nomPlan, $json.sqlParams.montantMensuel, $json.sqlParams.modulesInclus, $json.sqlParams.subscriptionId]) }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -250,7 +250,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, changeLabel, changeLabel, d.oldPlan, d.newPlan];\\nreturn [{json: {query, params}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\nvar params = [d.tenantId, changeLabel, changeLabel, d.oldPlan, d.newPlan];\nreturn [{json: {query, params}}];"
       },
       "id": "construct-notification",
       "name": "13. Construire notification",
@@ -269,7 +269,7 @@
         "options": {
           "queryBatching": "independently"
         },
-        "queryParameters": "={{ [$json.query] }}"
+        "queryParameters": "={{ JSON.stringify([$json.query]) }}"
       },
       "id": "insert-notification",
       "name": "13b. INSERT notification",
