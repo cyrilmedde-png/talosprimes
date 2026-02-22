@@ -80,8 +80,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
-        "queryParameters": "={{ [$('05. Construire requete').first().json.query] }}"
+        "query": "={{ $json.query }}",
+        "queryParameters": "={{ JSON.stringify($json.params) }}"
       },
       "id": "pg-list",
       "name": "06. SELECT article_codes",

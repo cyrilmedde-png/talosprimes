@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "clients_list",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "Webhook_ClientsList",
@@ -68,7 +68,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "Respond_ClientsList",
       "name": "Respond",
