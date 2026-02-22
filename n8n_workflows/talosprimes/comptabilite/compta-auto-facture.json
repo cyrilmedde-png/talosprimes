@@ -184,7 +184,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\n(gen_random_uuid(), $1, '411000', 'Client - $2', $3, 0, 0),\n(gen_random_uuid(), $4, $5, 'Produit HT - $6', 0, $7, 1),\n(gen_random_uuid(), $8, '445710', 'TVA collectée - $9', 0, $10, 2)\nRETURNING id, numero_compte, debit, credit;",
+        "query": "INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\n(gen_random_uuid(), $1, '411000', 'Client - ' || $2, $3, 0, 0),\n(gen_random_uuid(), $4, $5, 'Produit HT - ' || $6, 0, $7, 1),\n(gen_random_uuid(), $8, '445710', 'TVA collectée - ' || $9, 0, $10, 2)\nRETURNING id, numero_compte, debit, credit;",
         "queryParameters": "={{ [$('10. Insert Ecriture').first().json.id, $('09. Build Ecriture').first().json.referenceDoc, $('09. Build Ecriture').first().json.montantTtc, $('10. Insert Ecriture').first().json.id, $('09. Build Ecriture').first().json.compteProduit, $('09. Build Ecriture').first().json.referenceDoc, $('09. Build Ecriture').first().json.montantHt, $('10. Insert Ecriture').first().json.id, $('09. Build Ecriture').first().json.referenceDoc, $('09. Build Ecriture').first().json.tva] }}"
       },
       "id": "11. Insert Lines",

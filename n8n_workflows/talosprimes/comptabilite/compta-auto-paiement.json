@@ -163,7 +163,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\n(gen_random_uuid(), $1, $2, 'Encaissement $3', $4, 0, 0),\n(gen_random_uuid(), $5, '411000', 'Solde client $6', 0, $7, 1)\nRETURNING id, numero_compte, debit, credit;",
+        "query": "INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\n(gen_random_uuid(), $1, $2, 'Encaissement ' || $3, $4, 0, 0),\n(gen_random_uuid(), $5, '411000', 'Solde client ' || $6, 0, $7, 1)\nRETURNING id, numero_compte, debit, credit;",
         "queryParameters": "={{ [$('09. Insert Ecriture').first().json.id, $('08. Build Ecriture').first().json.compteBanque, $('08. Build Ecriture').first().json.referenceDoc, $('08. Build Ecriture').first().json.montantTtc, $('09. Insert Ecriture').first().json.id, $('08. Build Ecriture').first().json.referenceDoc, $('08. Build Ecriture').first().json.montantTtc] }}"
       },
       "id": "10. Insert Lines",

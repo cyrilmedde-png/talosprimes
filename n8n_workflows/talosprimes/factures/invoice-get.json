@@ -150,7 +150,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, invoice_id, numero_bdc, date_bdc, montant_ht, montant_ttc, statut FROM bons_commande WHERE invoice_id = $1",
+        "query": "SELECT id, invoice_id, numero_bdc, date_bdc, montant_ht, montant_ttc, statut FROM bon_commandes WHERE invoice_id = $1",
         "queryParameters": "={{ [$('02. Parser').first().json.invoiceId] }}"
       },
       "id": "09. Get BdC",
