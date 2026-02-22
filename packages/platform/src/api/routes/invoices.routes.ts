@@ -935,57 +935,41 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           return reply.status(403).send({ success: false, error: 'Accès refusé' });
         }
 
-        // Vérifier que la facture existe et appartient au tenant
-        const invoice = await prisma.invoice.findFirst({
-          where: {
-            id: params.id,
-            tenantId,
-          },
-        });
-
-        if (!invoice) {
-          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+        // Passage obligatoire par n8n (marque payée + crée écriture comptable)
+        if (!env.USE_N8N_COMMANDS) {
+          return reply.status(503).send({
+            success: false,
+            error: 'Marquage de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-paid.',
+          });
         }
 
-        if (invoice.statut === 'payee') {
-          return reply.status(400).send({ success: false, error: 'La facture est déjà payée' });
-        }
-
-        // Mettre à jour le statut et la référence de paiement
-        const updated = await prisma.invoice.update({
-          where: { id: params.id },
-          data: {
-            statut: 'payee',
-            idExternePaiement: body.referencePayment,
-          },
-          include: {
-            clientFinal: {
-              select: {
-                id: true,
-                email: true,
-                nom: true,
-                prenom: true,
-                raisonSociale: true,
-              },
-            },
-          },
-        });
-
-        // Émettre événement (underscore notation)
-        await eventService.emit(tenantId, 'invoice_paid', 'Invoice', updated.id, {
-          invoiceId: updated.id,
-          clientId: updated.clientFinalId,
+        const res = await n8nService.callWorkflowReturn<{ success: boolean; invoice: unknown; comptabilisation: unknown }>(
           tenantId,
-          numeroFacture: updated.numeroFacture,
-          montantTtc: updated.montantTtc,
+          'invoice_paid',
+          {
+            tenantId,
+            invoiceId: params.id,
+            referencePayment: body.referencePayment || null,
+            datePaiement: body.datePaiement || new Date().toISOString().split('T')[0],
+          },
+        );
+
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
+
+        // Émettre événement
+        await eventService.emit(tenantId, 'invoice_paid', 'Invoice', params.id, {
+          invoiceId: params.id,
+          tenantId,
           referencePayment: body.referencePayment,
           datePaiement: body.datePaiement,
         });
 
         return reply.status(200).send({
           success: true,
-          message: 'Facture marquée comme payée',
-          data: { invoice: updated },
+          message: 'Facture marquée comme payée et comptabilisée',
+          data: res.data || res,
         });
       } catch (error) {
         if (error instanceof z.ZodError) {

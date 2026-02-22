@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  invoiceId: body.invoiceId,\n  referencePayment: body.referencePayment || null,\n  datePaiement: body.datePaiement || new Date().toISOString()\n} }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  invoiceId: body.invoiceId,\n  referencePayment: body.referencePayment || null,\n  datePaiement: body.datePaiement || new Date().toISOString().split('T')[0],\n  modePaiement: body.modePaiement || null\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE invoices SET statut = 'payee', id_externe_paiement = {{ $json.referencePayment ? \"'\" + $json.referencePayment.replace(/'/g, \"''\") + \"'\" : 'id_externe_paiement' }}, updated_at = NOW() WHERE id = '{{ $json.invoiceId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut != 'payee' RETURNING id, tenant_id, numero_facture, statut, id_externe_paiement, updated_at"
+        "query": "=UPDATE invoices SET statut = 'payee', id_externe_paiement = {{ $json.referencePayment ? \"'\" + $json.referencePayment.replace(/'/g, \"''\") + \"'\" : 'id_externe_paiement' }}, updated_at = NOW() WHERE id = '{{ $json.invoiceId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut != 'payee' RETURNING id, tenant_id, numero_facture, statut, id_externe_paiement, mode_paiement, montant_ttc, updated_at"
       },
       "id": "05. Update Invoice",
       "name": "05. Update Invoice",
@@ -81,14 +81,15 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const result = $('05. Update Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e ou d\u00e9j\u00e0 pay\u00e9e' } }];\n}\n\nreturn [{ json: { id: result.id, tenantId: result.tenant_id, numeroFacture: result.numero_facture, statut: result.statut, idExternePaiement: result.id_externe_paiement, updatedAt: result.updated_at } }];"
+        "jsCode": "const results = $('05. Update Invoice').all().map(i => i.json).filter(i => i.id);\n\nif (results.length === 0) {\n  return [{ json: { updated: false, error: 'Facture non trouvée ou déjà payée' } }];\n}\n\nconst result = results[0];\nconst parser = $('02. Parser').first().json;\n\nreturn [{ json: {\n  updated: true,\n  id: result.id,\n  tenantId: result.tenant_id,\n  numeroFacture: result.numero_facture,\n  statut: result.statut,\n  idExternePaiement: result.id_externe_paiement,\n  modePaiement: parser.modePaiement || result.mode_paiement || 'virement',\n  montantTtc: result.montant_ttc,\n  datePaiement: parser.datePaiement,\n  updatedAt: result.updated_at\n} }];"
       },
-      "id": "06. Format Response",
-      "name": "06. Format Response",
+      "id": "06. Check Result",
+      "name": "06. Check Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -98,16 +99,84 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.updated }}",
+              "value2": true
+            }
+          ]
+        }
       },
-      "id": "07. Respond",
-      "name": "07. Respond",
-      "type": "n8n-nodes-base.respondToWebhook",
+      "id": "07. Updated ?",
+      "name": "07. Updated ?",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
         1100,
         300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Facture non trouvée ou déjà payée' }) }}"
+      },
+      "id": "08. Respond Not Found",
+      "name": "08. Respond Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:5678/webhook/compta-auto-paiement",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, invoiceId: $json.id, modePaiement: $json.modePaiement, datePaiement: $json.datePaiement }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "09. Call Compta",
+      "name": "09. Call Compta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1300,
+        400
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('06. Check Result').first().json;\nlet comptaResult = null;\n\ntry {\n  const compta = $('09. Call Compta').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta échoué: ' + e.message };\n}\n\nreturn [{ json: {\n  success: true,\n  invoice: {\n    id: invoice.id,\n    tenantId: invoice.tenantId,\n    numeroFacture: invoice.numeroFacture,\n    statut: invoice.statut,\n    idExternePaiement: invoice.idExternePaiement,\n    updatedAt: invoice.updatedAt\n  },\n  comptabilisation: comptaResult\n} }];"
+      },
+      "id": "10. Format Response",
+      "name": "10. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "11. Respond",
+      "name": "11. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        400
       ]
     }
   ],
@@ -156,18 +225,58 @@
       "main": [
         [
           {
-            "node": "06. Format Response",
+            "node": "06. Check Result",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. Format Response": {
+    "06. Check Result": {
       "main": [
         [
           {
-            "node": "07. Respond",
+            "node": "07. Updated ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Updated ?": {
+      "main": [
+        [
+          {
+            "node": "09. Call Compta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08. Respond Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Call Compta": {
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Format Response": {
+      "main": [
+        [
+          {
+            "node": "11. Respond",
             "type": "main",
             "index": 0
           }
