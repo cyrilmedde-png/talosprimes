@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  callLogId: $json.id,\n  success: true,\n  message: 'Call log deleted successfully'\n};"
+        "jsCode": "return [{ json: {\n  callLogId: $json.id,\n  success: true,\n  message: 'Call log deleted successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = $input.all();\nif (results.length === 0) {\n  return { twilio_config: null, success: true, message: 'No Twilio config found' };\n}\nreturn {\n  twilio_config: results[0].json,\n  success: true,\n  message: 'Twilio config retrieved successfully'\n};"
+        "jsCode": "const results = $input.all();\nif (results.length === 0) {\n  return [{ json: { twilio_config: null, success: true, message: 'No Twilio config found' } }];\n}\nreturn [{ json: {\n  twilio_config: results[0].json,\n  success: true,\n  message: 'Twilio config retrieved successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  status: body.status || 'sent',\n  direction: body.direction || 'outbound',\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sentAt: body.sentAt || new Date().toISOString(),\n  deliveredAt: body.deliveredAt || null,\n  failureReason: body.failureReason || null\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  status: body.status || 'sent',\n  direction: body.direction || 'outbound',\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sentAt: body.sentAt || new Date().toISOString(),\n  deliveredAt: body.deliveredAt || null,\n  failureReason: body.failureReason || null\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  smsLogId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  status: $json.status,\n  sentAt: $json.sentAt,\n  success: true,\n  message: 'SMS log created successfully'\n};"
+        "jsCode": "return [{ json: {\n  smsLogId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  status: $json.status,\n  sentAt: $json.sentAt,\n  success: true,\n  message: 'SMS log created successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

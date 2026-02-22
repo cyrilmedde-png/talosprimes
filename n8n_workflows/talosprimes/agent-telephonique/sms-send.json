@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sendAt: body.sendAt || new Date().toISOString()\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sendAt: body.sendAt || new Date().toISOString()\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -69,7 +69,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  smsId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  message: $json.message,\n  status: 'queued',\n  sendAt: $json.sendAt,\n  success: true,\n  message: 'SMS queued for sending successfully'\n};"
+        "jsCode": "return [{ json: {\n  smsId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  message: $json.message,\n  status: 'queued',\n  sendAt: $json.sendAt,\n  success: true,\n  message: 'SMS queued for sending successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

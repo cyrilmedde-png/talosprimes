@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst lu = payload.lu !== undefined ? payload.lu : null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  lu\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 10;\nconst offset = (page - 1) * limit;\nconst lu = body.lu !== undefined ? body.lu : null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  page,\n  limit,\n  offset,\n  lu\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -109,7 +109,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const notifications = $('06. List Query').all().map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit);\n\nreturn {\n  notifications: notifications,\n  count: notifications.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n};"
+        "jsCode": "const notifications = $('06. List Query').all().map(item => item.json).filter(n => n.id);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\nreturn [{ json: {\n  notifications: notifications,\n  count: notifications.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n} }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

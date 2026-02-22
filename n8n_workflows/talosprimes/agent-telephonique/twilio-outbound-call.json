@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nif (!payload.to) {\n  throw new Error('to (phone number) is required');\n}\n\nif (!payload.reason) {\n  throw new Error('reason is required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  to: payload.to,\n  reason: payload.reason\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nif (!body.to) {\n  throw new Error('to (phone number) is required');\n}\n\nif (!body.reason) {\n  throw new Error('reason is required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  to: body.to,\n  reason: body.reason\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = $input.all();\nconst config = results.length > 0 ? results[0].json : null;\nconst to = $('02. Parser').first().json.to;\nconst reason = $('02. Parser').first().json.reason;\nconst tenantId = $('02. Parser').first().json.tenantId;\n\nif (!config) {\n  return {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant',\n    canProceed: false\n  };\n}\n\nif (!config.active) {\n  return {\n    success: false,\n    error: 'La configuration Twilio est désactivée',\n    canProceed: false\n  };\n}\n\nreturn {\n  tenantId: tenantId,\n  to: to,\n  reason: reason,\n  fromNumber: config.phone_number,\n  agentName: config.agent_name,\n  companyName: config.company_name,\n  canProceed: true\n};"
+        "jsCode": "const results = $input.all();\nconst config = results.length > 0 ? results[0].json : null;\nconst to = $('02. Parser').first().json.to;\nconst reason = $('02. Parser').first().json.reason;\nconst tenantId = $('02. Parser').first().json.tenantId;\n\nif (!config) {\n  return [{ json: {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant',\n    canProceed: false\n  } }];\n}\n\nif (!config.active) {\n  return [{ json: {\n    success: false,\n    error: 'La configuration Twilio est désactivée',\n    canProceed: false\n  } }];\n}\n\nreturn [{ json: {\n  tenantId: tenantId,\n  to: to,\n  reason: reason,\n  fromNumber: config.phone_number,\n  agentName: config.agent_name,\n  companyName: config.company_name,\n  canProceed: true\n} }];"
       },
       "id": "06. Check Config",
       "name": "06. Check Config",
@@ -142,7 +142,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const callLog = $input.all();\nconst params = $('06. Check Config').first().json;\n\nif (callLog.length === 0) {\n  return {\n    success: false,\n    error: 'Erreur lors de la création du log d appel'\n  };\n}\n\nreturn {\n  success: true,\n  message: 'Outbound call initiated successfully',\n  data: {\n    callLogId: callLog[0].json.id,\n    to: params.to,\n    from: params.fromNumber,\n    reason: params.reason,\n    agentName: params.agentName,\n    companyName: params.companyName,\n    status: 'initiated'\n  }\n};"
+        "jsCode": "const callLog = $input.all();\nconst params = $('06. Check Config').first().json;\n\nif (callLog.length === 0) {\n  return [{ json: {\n    success: false,\n    error: 'Erreur lors de la création du log d appel'\n  } }];\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Outbound call initiated successfully',\n  data: {\n    callLogId: callLog[0].json.id,\n    to: params.to,\n    from: params.fromNumber,\n    reason: params.reason,\n    agentName: params.agentName,\n    companyName: params.companyName,\n    status: 'initiated'\n  }\n} }];"
       },
       "id": "09. Format Response",
       "name": "09. Format Response",

@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -161,7 +161,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const totalSMS = $input[0].json.total_sms || 0;\nconst todaySMS = $input[1].json.today_sms || 0;\nconst byStatus = $input[2].all().map(item => item.json);\nconst byDirection = $input[3].all().map(item => item.json);\nconst last7Days = $input[4].all().map(item => item.json);\n\nreturn {\n  stats: {\n    total_sms: totalSMS,\n    today_sms: todaySMS,\n    by_status: byStatus,\n    by_direction: byDirection,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'SMS statistics retrieved successfully'\n};"
+        "jsCode": "const totalSMS = $input[0].json.total_sms || 0;\nconst todaySMS = $input[1].json.today_sms || 0;\nconst byStatus = $input[2].all().map(item => item.json);\nconst byDirection = $input[3].all().map(item => item.json);\nconst last7Days = $input[4].all().map(item => item.json);\n\nreturn [{ json: {\n  stats: {\n    total_sms: totalSMS,\n    today_sms: todaySMS,\n    by_status: byStatus,\n    by_direction: byDirection,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'SMS statistics retrieved successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

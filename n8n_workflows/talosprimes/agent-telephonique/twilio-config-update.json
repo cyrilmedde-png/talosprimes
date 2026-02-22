@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  accountSid: body.accountSid,\n  authToken: body.authToken,\n  phoneNumber: body.phoneNumber,\n  isActive: body.isActive !== undefined ? body.isActive : true\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  accountSid: body.accountSid,\n  authToken: body.authToken,\n  phoneNumber: body.phoneNumber,\n  isActive: body.isActive !== undefined ? body.isActive : true\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  configId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  isActive: $json.isActive,\n  success: true,\n  message: 'Twilio config updated successfully'\n};"
+        "jsCode": "return [{ json: {\n  configId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  isActive: $json.isActive,\n  success: true,\n  message: 'Twilio config updated successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

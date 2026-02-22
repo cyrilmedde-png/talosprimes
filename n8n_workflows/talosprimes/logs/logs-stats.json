@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst workflow = payload.workflow || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  workflow: workflow\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst workflow = body.workflow || null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  workflow: workflow\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -172,7 +172,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const totalResult = $('05. Count Total').first().json;\nconst succeededResult = $('06. Count Succeeded').first().json;\nconst errorsResult = $('07. Count Errors').first().json;\nconst pendingResult = $('08. Count Pending').first().json;\nconst byWorkflowData = $('09. Count By Workflow').all().map(item => item.json);\n\nconst byWorkflow = {};\nbyWorkflowData.forEach(item => {\n  byWorkflow[item.workflow] = item.count;\n});\n\nreturn {\n  total: totalResult.total,\n  succeeded: succeededResult.succeeded,\n  errors: errorsResult.errors,\n  enAttente: pendingResult.en_attente,\n  byWorkflow: byWorkflow\n};"
+        "jsCode": "const totalResult = $('05. Count Total').first().json;\nconst succeededResult = $('06. Count Succeeded').first().json;\nconst errorsResult = $('07. Count Errors').first().json;\nconst pendingResult = $('08. Count Pending').first().json;\nconst byWorkflowData = $('09. Count By Workflow').all().map(item => item.json).filter(i => i.workflow);\n\nconst byWorkflow = {};\nbyWorkflowData.forEach(item => {\n  byWorkflow[item.workflow] = item.count;\n});\n\nreturn [{ json: {\n  total: parseInt(totalResult.total) || 0,\n  succeeded: parseInt(succeededResult.succeeded) || 0,\n  errors: parseInt(errorsResult.errors) || 0,\n  enAttente: parseInt(pendingResult.en_attente) || 0,\n  byWorkflow: byWorkflow\n} }];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",

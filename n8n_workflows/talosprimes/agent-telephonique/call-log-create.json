@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  agentId: body.agentId || null,\n  phone: body.phone || '',\n  direction: body.direction || 'inbound',\n  startedAt: body.startedAt || new Date().toISOString(),\n  endedAt: body.endedAt || null,\n  duration: body.duration || 0,\n  status: body.status || 'completed',\n  transcript: body.transcript || '',\n  summary: body.summary || '',\n  actionTaken: body.actionTaken || null,\n  urgency: body.urgency || 'normal',\n  sentiment: body.sentiment || null,\n  notes: body.notes || '',\n  recordingUrl: body.recordingUrl || null,\n  tags: body.tags || []\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  agentId: body.agentId || null,\n  phone: body.phone || '',\n  direction: body.direction || 'inbound',\n  startedAt: body.startedAt || new Date().toISOString(),\n  endedAt: body.endedAt || null,\n  duration: body.duration || 0,\n  status: body.status || 'completed',\n  transcript: body.transcript || '',\n  summary: body.summary || '',\n  actionTaken: body.actionTaken || null,\n  urgency: body.urgency || 'normal',\n  sentiment: body.sentiment || null,\n  notes: body.notes || '',\n  recordingUrl: body.recordingUrl || null,\n  tags: body.tags || []\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  callLogId: $json.id,\n  phone: $json.phone,\n  direction: $json.direction,\n  status: $json.status,\n  startedAt: $json.startedAt,\n  duration: $json.duration,\n  success: true,\n  message: 'Call log created successfully'\n};"
+        "jsCode": "return [{ json: {\n  callLogId: $json.id,\n  phone: $json.phone,\n  direction: $json.direction,\n  status: $json.status,\n  startedAt: $json.startedAt,\n  duration: $json.duration,\n  success: true,\n  message: 'Call log created successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

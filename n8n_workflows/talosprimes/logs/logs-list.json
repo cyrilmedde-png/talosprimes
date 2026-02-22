@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(payload.page) || 1;\nconst limit = parseInt(payload.limit) || 10;\nconst offset = (page - 1) * limit;\nconst workflow = payload.workflow || null;\nconst typeEvenement = payload.typeEvenement || null;\nconst statutExecution = payload.statutExecution || null;\n\nreturn {\n  tenantId: payload.tenantId,\n  page,\n  limit,\n  offset,\n  workflow,\n  typeEvenement,\n  statutExecution\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 10;\nconst offset = (page - 1) * limit;\nconst workflow = body.workflow || null;\nconst typeEvenement = body.typeEvenement || null;\nconst statutExecution = body.statutExecution || null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  page,\n  limit,\n  offset,\n  workflow,\n  typeEvenement,\n  statutExecution\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -111,7 +111,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const logItems = $('06. List Query').all();\nif (!logItems || logItems.length === 0 || !logItems[0].json?.id) {\n  return {\n    logs: [],\n    count: 0,\n    total: 0,\n    page: $('02. Parser').first().json.page,\n    limit: $('02. Parser').first().json.limit,\n    totalPages: 0\n  };\n}\nconst logs = logItems.map(item => item.json);\nconst countResult = $('05. Count Query').first().json;\nconst total = countResult.total;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit);\n\nreturn {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n};"
+        "jsCode": "const logItems = $('06. List Query').all();\nconst logs = logItems.map(item => item.json).filter(l => l.id);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\nreturn [{ json: {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n} }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

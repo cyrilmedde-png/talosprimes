@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.id) {\n  throw new Error('tenantId and id are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  id: payload.id\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.id) {\n  throw new Error('tenantId and id are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  id: body.id\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const deleted = $('05. Delete Notification').all().map(item => item.json);\n\nif (deleted.length === 0) {\n  throw new Error('Notification not found');\n}\n\nreturn {\n  success: true,\n  message: 'Notification deleted successfully',\n  notificationId: $json.id\n};"
+        "jsCode": "const deleted = $('05. Delete Notification').all().map(item => item.json).filter(d => d.id);\n\nif (deleted.length === 0) {\n  throw new Error('Notification not found');\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Notification deleted successfully',\n  notificationId: deleted[0].id\n} }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

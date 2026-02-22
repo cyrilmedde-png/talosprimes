@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  agentId: body.agentId,\n  endedAt: body.endedAt,\n  duration: body.duration,\n  status: body.status,\n  transcript: body.transcript,\n  summary: body.summary,\n  actionTaken: body.actionTaken,\n  urgency: body.urgency,\n  sentiment: body.sentiment,\n  notes: body.notes,\n  recordingUrl: body.recordingUrl\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  agentId: body.agentId,\n  endedAt: body.endedAt,\n  duration: body.duration,\n  status: body.status,\n  transcript: body.transcript,\n  summary: body.summary,\n  actionTaken: body.actionTaken,\n  urgency: body.urgency,\n  sentiment: body.sentiment,\n  notes: body.notes,\n  recordingUrl: body.recordingUrl\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  callLogId: $json.id,\n  success: true,\n  message: 'Call log updated successfully'\n};"
+        "jsCode": "return [{ json: {\n  callLogId: $json.id,\n  success: true,\n  message: 'Call log updated successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

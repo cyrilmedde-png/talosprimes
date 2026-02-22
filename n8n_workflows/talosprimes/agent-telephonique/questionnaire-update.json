@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  callLogId: body.callLogId,\n  title: body.title,\n  description: body.description,\n  content: body.content,\n  status: body.status,\n  completedAt: body.completedAt\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  callLogId: body.callLogId,\n  title: body.title,\n  description: body.description,\n  content: body.content,\n  status: body.status,\n  completedAt: body.completedAt\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  questionnaireId: $json.id,\n  success: true,\n  message: 'Questionnaire updated successfully'\n};"
+        "jsCode": "return [{ json: {\n  questionnaireId: $json.id,\n  success: true,\n  message: 'Questionnaire updated successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

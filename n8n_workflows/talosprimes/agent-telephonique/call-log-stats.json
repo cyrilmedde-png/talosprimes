@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.body;\nreturn {\n  tenantId: body.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -201,7 +201,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const totalCalls = $input[0].json.total_calls || 0;\nconst todayCalls = $input[1].json.today_calls || 0;\nconst avgDuration = $input[2].json.avg_duration_seconds || 0;\nconst byUrgency = $input[3].all().map(item => item.json);\nconst byAction = $input[4].all().map(item => item.json);\nconst bySentiment = $input[5].all().map(item => item.json);\nconst last7Days = $input[6].all().map(item => item.json);\n\nreturn {\n  stats: {\n    total_calls: totalCalls,\n    today_calls: todayCalls,\n    avg_duration_seconds: avgDuration,\n    avg_duration_minutes: Math.round(avgDuration / 60),\n    by_urgency: byUrgency,\n    by_action: byAction,\n    by_sentiment: bySentiment,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'Call statistics retrieved successfully'\n};"
+        "jsCode": "const totalCalls = $input[0].json.total_calls || 0;\nconst todayCalls = $input[1].json.today_calls || 0;\nconst avgDuration = $input[2].json.avg_duration_seconds || 0;\nconst byUrgency = $input[3].all().map(item => item.json);\nconst byAction = $input[4].all().map(item => item.json);\nconst bySentiment = $input[5].all().map(item => item.json);\nconst last7Days = $input[6].all().map(item => item.json);\n\nreturn [{ json: {\n  stats: {\n    total_calls: totalCalls,\n    today_calls: todayCalls,\n    avg_duration_seconds: avgDuration,\n    avg_duration_minutes: Math.round(avgDuration / 60),\n    by_urgency: byUrgency,\n    by_action: byAction,\n    by_sentiment: bySentiment,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'Call statistics retrieved successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",

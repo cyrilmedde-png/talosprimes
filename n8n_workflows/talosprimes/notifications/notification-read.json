@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.body;\n\nif (!payload.tenantId || !payload.id || payload.lu === undefined) {\n  throw new Error('tenantId, id, and lu (boolean) are required');\n}\n\nreturn {\n  tenantId: payload.tenantId,\n  id: payload.id,\n  lu: payload.lu === true || payload.lu === 'true'\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.id || body.lu === undefined) {\n  throw new Error('tenantId, id, and lu (boolean) are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  id: body.id,\n  lu: body.lu === true || body.lu === 'true'\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const updated = $('05. Update Notification').all().map(item => item.json);\n\nif (updated.length === 0) {\n  throw new Error('Notification not found');\n}\n\nreturn {\n  success: true,\n  message: 'Notification read status updated successfully',\n  notificationId: $json.id\n};"
+        "jsCode": "const updated = $('05. Update Notification').all().map(item => item.json).filter(u => u.id);\n\nif (updated.length === 0) {\n  throw new Error('Notification not found');\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Notification read status updated successfully',\n  notificationId: updated[0].id\n} }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
