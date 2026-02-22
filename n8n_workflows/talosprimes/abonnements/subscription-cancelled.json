@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\nconst reason = data?.reason || 'Non spécifié';\nconst cancelAtPeriodEnd = data?.cancelAtPeriodEnd || false; // Annuler immédiatement ou à la fin de la période\nconst cancelledBy = data?.cancelledBy || 'system'; // Qui a annulé\nconst cancelledByEmail = data?.cancelledByEmail || null; // Email de qui a annulé\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    reason,\n    cancelAtPeriodEnd,\n    cancelDate: new Date().toISOString(),\n    cancelledBy,\n    cancelledByEmail\n  }\n};"
+        "functionCode": "// Parser le payload du webhook\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\nconst data = payload?.data || payload;\n\n// Extraire subscriptionId\nconst subscriptionId = data?.subscriptionId || data?.id || '';\nconst tenantId = payload?.tenantId || data?.tenantId || '';\nconst reason = data?.reason || 'Non spécifié';\nconst cancelAtPeriodEnd = data?.cancelAtPeriodEnd || false; // Annuler immédiatement ou à la fin de la période\nconst cancelledBy = data?.cancelledBy || 'system'; // Qui a annulé\nconst cancelledByEmail = data?.cancelledByEmail || null; // Email de qui a annulé\n\nif (!subscriptionId) {\n  throw new Error('ID de l\\'abonnement requis');\n}\n\nif (!tenantId) {\n  throw new Error('Tenant ID requis');\n}\n\nreturn {\n  json: {\n    subscriptionId,\n    tenantId,\n    reason,\n    cancelAtPeriodEnd,\n    cancelDate: new Date().toISOString(),\n    cancelledBy,\n    cancelledByEmail\n  }\n};"
       },
       "id": "parse-payload",
       "name": "02. Parser payload",
@@ -34,7 +34,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid;",
+        "query": "SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid;",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -77,7 +77,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer notification admin pour abonnement non trouvé\nconst parseData = $node['02. Parser payload'].json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'subscription_not_found',\n    tenantId: parseData.tenantId,\n    subscriptionId: parseData.subscriptionId,\n    timestamp,\n    reason: parseData.reason,\n    cancelledBy: parseData.cancelledBy,\n    cancelledByEmail: parseData.cancelledByEmail,\n    message: `Tentative d'annulation d'un abonnement inexistant: ${parseData.subscriptionId}`\n  }\n};"
+        "functionCode": "// Préparer notification admin pour abonnement non trouvé\nconst parseData = $node['02. Parser payload'].json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'subscription_not_found',\n    tenantId: parseData.tenantId,\n    subscriptionId: parseData.subscriptionId,\n    timestamp,\n    reason: parseData.reason,\n    cancelledBy: parseData.cancelledBy,\n    cancelledByEmail: parseData.cancelledByEmail,\n    message: `Tentative d'annulation d'un abonnement inexistant: ${parseData.subscriptionId}`\n  }\n};"
       },
       "id": "prepare-admin-notification-error",
       "name": "05a. Préparer notification admin (erreur)",
@@ -90,7 +90,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('05a. Préparer notification admin (erreur)').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement introuvable', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
+        "functionCode": "const d=$('05a. Préparer notification admin (erreur)').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement introuvable', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "construct-admin-notif",
       "name": "05b. Construire notif erreur",
@@ -127,7 +127,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'annulation\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    reason: parseData.reason,\n    cancelAtPeriodEnd: parseData.cancelAtPeriodEnd,\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    idAbonnementStripe: subscriptionData.id_abonnement_stripe,\n    cancelledBy: parseData.cancelledBy,\n    cancelledByEmail: parseData.cancelledByEmail,\n    cancelDate: parseData.cancelDate\n  }\n};"
+        "functionCode": "// Préparer les données pour l'annulation\nconst subscriptionData = $input.item.json[0];\nconst parseData = $node['02. Parser payload'].json;\n\nreturn {\n  json: {\n    subscription: subscriptionData,\n    tenantId: parseData.tenantId,\n    reason: parseData.reason,\n    cancelAtPeriodEnd: parseData.cancelAtPeriodEnd,\n    clientEmail: subscriptionData.email,\n    clientName: subscriptionData.nom || subscriptionData.prenom || subscriptionData.raison_sociale || 'Client',\n    idAbonnementStripe: subscriptionData.id_abonnement_stripe,\n    cancelledBy: parseData.cancelledBy,\n    cancelledByEmail: parseData.cancelledByEmail,\n    cancelDate: parseData.cancelDate\n  }\n};"
       },
       "id": "prepare-cancel",
       "name": "06. Préparer annulation",
@@ -203,7 +203,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Confirmer l'annulation Stripe\nconst stripeResponse = $input.item.json;\nconst prepareData = $node['06. Préparer annulation'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeCancelled: true,\n    stripeStatus: stripeResponse.status\n  }\n};"
+        "functionCode": "// Confirmer l'annulation Stripe\nconst stripeResponse = $input.item.json;\nconst prepareData = $node['06. Préparer annulation'].json;\n\nreturn {\n  json: {\n    ...prepareData,\n    stripeCancelled: true,\n    stripeStatus: stripeResponse.status\n  }\n};"
       },
       "id": "confirm-stripe",
       "name": "08b. Confirmer Stripe",
@@ -216,7 +216,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('08c. Préparer notification erreur Stripe').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Erreur annulation Stripe', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
+        "functionCode": "const d=$('08c. Préparer notification erreur Stripe').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Erreur annulation Stripe', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "construct-stripe-notif",
       "name": "08d. Construire notif Stripe err",
@@ -229,7 +229,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer notification d'erreur Stripe\nconst stripeError = $input.item.json;\nconst prepareData = $node['06. Préparer annulation'].json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'stripe_cancellation_failed',\n    tenantId: prepareData.tenantId,\n    subscriptionId: prepareData.subscription.id,\n    stripeId: prepareData.idAbonnementStripe,\n    timestamp,\n    error: stripeError.message || 'Erreur inconnue Stripe',\n    reason: prepareData.reason,\n    cancelledBy: prepareData.cancelledBy,\n    cancelledByEmail: prepareData.cancelledByEmail,\n    message: `Échec de l'annulation Stripe: ${stripeError.message || 'Erreur inconnue'}`\n  }\n};"
+        "functionCode": "// Préparer notification d'erreur Stripe\nconst stripeError = $input.item.json;\nconst prepareData = $node['06. Préparer annulation'].json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'stripe_cancellation_failed',\n    tenantId: prepareData.tenantId,\n    subscriptionId: prepareData.subscription.id,\n    stripeId: prepareData.idAbonnementStripe,\n    timestamp,\n    error: stripeError.message || 'Erreur inconnue Stripe',\n    reason: prepareData.reason,\n    cancelledBy: prepareData.cancelledBy,\n    cancelledByEmail: prepareData.cancelledByEmail,\n    message: `Échec de l'annulation Stripe: ${stripeError.message || 'Erreur inconnue'}`\n  }\n};"
       },
       "id": "prepare-stripe-error-notification",
       "name": "08c. Préparer notification erreur Stripe",
@@ -296,7 +296,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;",
+        "query": "UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -319,7 +319,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer l'email de confirmation d'annulation\nconst data = $node['09. Merge - Stripe et sans Stripe'].json;\nconst subscriptionUpdated = $input.item.json[0];\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst planName = data.subscription.nom_plan;\nconst reason = data.reason;\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>Abonnement annulé</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Nous vous confirmons l'annulation de votre abonnement TalosPrimes.</p>\n      <div class=\"info-box\">\n        <h3>Détails de l'annulation :</h3>\n        <p><strong>Plan :</strong> ${planName}</p>\n        <p><strong>Date d'annulation :</strong> ${new Date().toLocaleDateString('fr-FR')}</p>\n        <p><strong>Raison :</strong> ${reason}</p>\n      </div>\n      <p>Nous sommes désolés de vous voir partir. Si vous changez d'avis, vous pouvez réactiver votre abonnement à tout moment.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    toEmail: clientEmail,\n    subject: `Confirmation d'annulation de votre abonnement ${planName}`,\n    htmlBody: htmlTemplate\n  }\n};"
+        "functionCode": "// Préparer l'email de confirmation d'annulation\nconst data = $node['09. Merge - Stripe et sans Stripe'].json;\nconst subscriptionUpdated = $input.item.json[0];\n\nconst clientName = data.clientName || 'Client';\nconst clientEmail = data.clientEmail;\nconst planName = data.subscription.nom_plan;\nconst reason = data.reason;\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background: #dc3545; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n    .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #dc3545; }\n    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>Abonnement annulé</h1>\n    </div>\n    <div class=\"content\">\n      <p>Bonjour ${clientName},</p>\n      <p>Nous vous confirmons l'annulation de votre abonnement TalosPrimes.</p>\n      <div class=\"info-box\">\n        <h3>Détails de l'annulation :</h3>\n        <p><strong>Plan :</strong> ${planName}</p>\n        <p><strong>Date d'annulation :</strong> ${new Date().toLocaleDateString('fr-FR')}</p>\n        <p><strong>Raison :</strong> ${reason}</p>\n      </div>\n      <p>Nous sommes désolés de vous voir partir. Si vous changez d'avis, vous pouvez réactiver votre abonnement à tout moment.</p>\n      <p>Cordialement,<br>L'équipe TalosPrimes</p>\n    </div>\n    <div class=\"footer\">\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    toEmail: clientEmail,\n    subject: `Confirmation d'annulation de votre abonnement ${planName}`,\n    htmlBody: htmlTemplate\n  }\n};"
       },
       "id": "prepare-email",
       "name": "11. Préparer email",
@@ -355,7 +355,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer notification TalosPrimes API après succès email\nconst mergeData = $node['09. Merge - Stripe et sans Stripe'].json;\nconst emailResponse = $input.item.json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'subscription_cancelled',\n    tenantId: mergeData.tenantId,\n    subscriptionId: mergeData.subscription.id,\n    clientId: mergeData.subscription.client_final_id,\n    clientEmail: mergeData.clientEmail,\n    planName: mergeData.subscription.nom_plan,\n    timestamp,\n    reason: mergeData.reason,\n    cancelAtPeriodEnd: mergeData.cancelAtPeriodEnd,\n    stripeCancelled: mergeData.stripeCancelled || false,\n    stripeStatus: mergeData.stripeStatus || null,\n    auditTrail: {\n      cancelledBy: mergeData.cancelledBy,\n      cancelledByEmail: mergeData.cancelledByEmail,\n      cancelDate: mergeData.cancelDate,\n      emailSent: true,\n      emailId: emailResponse.id || null\n    },\n    message: `Abonnement ${mergeData.subscription.nom_plan} annulé pour ${mergeData.clientEmail}`\n  }\n};"
+        "functionCode": "// Préparer notification TalosPrimes API après succès email\nconst mergeData = $node['09. Merge - Stripe et sans Stripe'].json;\nconst emailResponse = $input.item.json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  json: {\n    type: 'subscription_cancelled',\n    tenantId: mergeData.tenantId,\n    subscriptionId: mergeData.subscription.id,\n    clientId: mergeData.subscription.client_final_id,\n    clientEmail: mergeData.clientEmail,\n    planName: mergeData.subscription.nom_plan,\n    timestamp,\n    reason: mergeData.reason,\n    cancelAtPeriodEnd: mergeData.cancelAtPeriodEnd,\n    stripeCancelled: mergeData.stripeCancelled || false,\n    stripeStatus: mergeData.stripeStatus || null,\n    auditTrail: {\n      cancelledBy: mergeData.cancelledBy,\n      cancelledByEmail: mergeData.cancelledByEmail,\n      cancelDate: mergeData.cancelDate,\n      emailSent: true,\n      emailId: emailResponse.id || null\n    },\n    message: `Abonnement ${mergeData.subscription.nom_plan} annulé pour ${mergeData.clientEmail}`\n  }\n};"
       },
       "id": "prepare-notification",
       "name": "13. Préparer notification TalosPrimes",
@@ -368,7 +368,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('13. Préparer notification TalosPrimes').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement annulé', '\"+esc(d.message)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
+        "functionCode": "const d=$('13. Préparer notification TalosPrimes').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement annulé', '\"+esc(d.message)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
       },
       "id": "construct-success-notif",
       "name": "14. Construire notif succès",
