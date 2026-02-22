@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"UPDATE article_codes SET code = '${p.code}', designation = '${p.designation || ''}', prix_unitaire_ht = '${p.prixUnitaireHt || 0}', tva_taux = '${p.tvaTaux || 20}', unite = '${p.unite || 'unite'}', actif = '${p.actif !== false}', updated_at = NOW() WHERE id = '${p.articleCodeId}'::uuid AND tenant_id = '${p.tenantId}'::uuid RETURNING *\";\nreturn [{json:{query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = `UPDATE article_codes SET code = '${p.code}', designation = '${p.designation || ''}', prix_unitaire_ht = '${p.prixUnitaireHt || 0}', tva_taux = '${p.tvaTaux || 20}', unite = '${p.unite || 'unite'}', actif = '${p.actif !== false}', updated_at = NOW() WHERE id = '${p.articleCodeId}'::uuid AND tenant_id = '${p.tenantId}'::uuid RETURNING *`;\nreturn [{json:{query}}];"
       },
       "id": "build-update",
       "name": "08. Construire UPDATE",

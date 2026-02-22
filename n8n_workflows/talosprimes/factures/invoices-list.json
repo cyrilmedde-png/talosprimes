@@ -119,7 +119,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, invoice_id, numero_bdc, statut FROM bon_commandes WHERE invoice_id = ANY(' + \"'{\" + ($('07. Extract IDs').first().json.invoiceIds || [] || []).join(\",\") + \"}'::uuid[]\" + ')\" }}"
+        "query": "={{ \"SELECT id, invoice_id, numero_bdc, statut FROM bon_commandes WHERE invoice_id = ANY('{\" + ($('07. Extract IDs').first().json.invoiceIds || []).join(\",\") + \"}'::uuid[]) }}"
       },
       "id": "08. Get BdC Links",
       "name": "08. Get BdC Links",
@@ -140,7 +140,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, invoice_id, numero_devis, statut FROM devis WHERE invoice_id = ANY(' + \"'{\" + ($('07. Extract IDs').first().json.invoiceIds || [] || []).join(\",\") + \"}'::uuid[]\" + ')\" }}"
+        "query": "={{ \"SELECT id, invoice_id, numero_devis, statut FROM devis WHERE invoice_id = ANY('{\" + ($('07. Extract IDs').first().json.invoiceIds || []).join(\",\") + \"}'::uuid[]) }}"
       },
       "id": "09. Get Devis Links",
       "name": "09. Get Devis Links",
@@ -161,7 +161,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, invoice_id, numero_proforma, statut FROM proformas WHERE invoice_id = ANY(' + \"'{\" + ($('07. Extract IDs').first().json.invoiceIds || [] || []).join(\",\") + \"}'::uuid[]\" + ')\" }}"
+        "query": "={{ \"SELECT id, invoice_id, numero_proforma, statut FROM proformas WHERE invoice_id = ANY('{\" + ($('07. Extract IDs').first().json.invoiceIds || []).join(\",\") + \"}'::uuid[]) }}"
       },
       "id": "10. Get Proforma Links",
       "name": "10. Get Proforma Links",

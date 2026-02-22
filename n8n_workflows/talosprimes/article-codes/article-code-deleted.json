@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"DELETE FROM article_codes WHERE id = '${p.articleCodeId}'::uuid AND tenant_id = '${p.tenantId}'::uuid\";\nreturn [{json:{query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = `DELETE FROM article_codes WHERE id = '${p.articleCodeId}'::uuid AND tenant_id = '${p.tenantId}'::uuid`;\nreturn [{json:{query}}];"
       },
       "id": "build-delete",
       "name": "08. Construire DELETE",

@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"INSERT INTO client_spaces (id, tenant_id, client_final_id, email, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), '${p.tenantId}'::uuid, '${p.clientFinalId}'::uuid, '${p.email}', '${p.token}', '${p.statut || 'en_attente'}', '${p.dateExpiration || new Date(Date.now() + 30*24*60*60*1000).toISOString()}', NOW()) RETURNING *\";\nreturn [{json:{query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = `INSERT INTO client_spaces (id, tenant_id, client_final_id, email, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), '${p.tenantId}'::uuid, '${p.clientFinalId}'::uuid, '${p.email}', '${p.token}', '${p.statut || 'en_attente'}', '${p.dateExpiration || new Date(Date.now() + 30*24*60*60*1000).toISOString()}', NOW()) RETURNING *`;\nreturn [{json:{query}}];"
       },
       "id": "build-insert",
       "name": "06. Construire INSERT",
@@ -113,7 +113,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.tenantSlug}', '${(p.modules||[]}', $4, false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const p = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.tenantSlug}', '${(p.modules||[]}', $4, false, NOW())`;\nreturn [{json:{query}}];"
       },
       "id": "build-notif",
       "name": "08. Construire notification",

@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = \"INSERT INTO article_codes (id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.code}', '${p.designation || ''}', '${p.prixUnitaireHt || 0}', '${p.tvaTaux || 20}', '${p.unite || 'unite'}', true, NOW(), NOW()) RETURNING *\";\nreturn [{json:{query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nvar query = `INSERT INTO article_codes (id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.code}', '${p.designation || ''}', '${p.prixUnitaireHt || 0}', '${p.tvaTaux || 20}', '${p.unite || 'unite'}', true, NOW(), NOW()) RETURNING *`;\nreturn [{json:{query}}];"
       },
       "id": "build-insert",
       "name": "08. Construire INSERT",

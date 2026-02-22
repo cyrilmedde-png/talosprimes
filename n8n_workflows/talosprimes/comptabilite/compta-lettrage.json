@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT le.id, le.numero_compte, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND le.numero_compte = '\" + $json.numeroCompte + \"' AND le.id = ANY(' + \"'{\" + ($json.ligneIds || [] || []).join(\",\") + \"}'::uuid[]\" + ') AND le.lettrage IS NULL;\" }}"
+        "query": "={{ \"SELECT le.id, le.numero_compte, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND le.numero_compte = '\" + $json.numeroCompte + \"' AND le.id = ANY('{\" + ($json.ligneIds || []  || []).join(\",\") + \"}'::uuid[]) AND le.lettrage IS NULL;\" }}"
       },
       "id": "05. Get Lignes",
       "name": "05. Get Lignes",

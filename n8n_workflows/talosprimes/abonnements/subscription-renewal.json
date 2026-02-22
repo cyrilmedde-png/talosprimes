@@ -257,7 +257,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.planName}', '${d.clientEmail}', 'info', false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.planName}', '${d.clientEmail}', 'info', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "id": "15-build-notification",
       "name": "Construire notification",
