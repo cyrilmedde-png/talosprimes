@@ -1070,10 +1070,16 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Marquer la facture comme annulée
+        await prisma.invoice.update({
+          where: { id: params.id },
+          data: { statut: 'annulee' },
+        });
+
         return reply.status(201).send({
           success: true,
-          message: 'Avoir créé depuis la facture',
-          data: { avoir, invoiceId: invoice.id, numeroFacture: invoice.numeroFacture },
+          message: 'Avoir créé depuis la facture, facture marquée comme annulée',
+          data: { avoir, invoiceId: invoice.id, numeroFacture: invoice.numeroFacture, invoiceStatut: 'annulee' },
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
