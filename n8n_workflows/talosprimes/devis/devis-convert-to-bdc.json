@@ -191,14 +191,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const bdc = $('08. Create BdC').first().json;\nconst prepData = $('07. Prepare BdC Data').first().json;\n\nreturn [{ json: {\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  devis_id: prepData.devisId,\n  numero_devis: prepData.numeroDevis\n} }];"
+        "jsCode": "const bdc = $('08. Create BdC').first().json;\nconst devis = $('12. Update Devis').first().json;\n\nreturn [{ json: {\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  devis_id: devis.id,\n  numero_devis: devis.numero_devis,\n  devis_statut: devis.statut\n} }];"
       },
-      "id": "12. Format Response",
-      "name": "12. Format Response",
+      "id": "13. Format Response",
+      "name": "13. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2100,
+        2300,
         300
       ]
     },
@@ -207,12 +207,32 @@
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "13. Respond",
-      "name": "13. Respond",
+      "id": "14. Respond",
+      "name": "14. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2300,
+        2500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE devis SET statut = 'commandee', updated_at = NOW() WHERE id = '\" + $('07. Prepare BdC Data').first().json.devisId + \"' RETURNING id, numero_devis, statut\" }}"
+      },
+      "id": "12. Update Devis",
+      "name": "12. Update Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        2100,
         300
       ]
     }
@@ -328,18 +348,29 @@
       "main": [
         [
           {
-            "node": "12. Format Response",
+            "node": "12. Update Devis",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "12. Format Response": {
+    "13. Format Response": {
       "main": [
         [
           {
-            "node": "13. Respond",
+            "node": "14. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Update Devis": {
+      "main": [
+        [
+          {
+            "node": "13. Format Response",
             "type": "main",
             "index": 0
           }
