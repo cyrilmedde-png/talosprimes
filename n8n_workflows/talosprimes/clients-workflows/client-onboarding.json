@@ -388,7 +388,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.sqlQuery + \"'\" }}"
+        "query": "={{ $json.query }}"
       },
       "id": "create-subscription",
       "name": "10. Créer abonnement client",
@@ -537,7 +537,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.query + \"'\" }}",
+        "query": "={{ $json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"

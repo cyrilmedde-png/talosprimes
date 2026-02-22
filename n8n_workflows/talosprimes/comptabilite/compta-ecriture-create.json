@@ -152,7 +152,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.insertQuery + \"'\" }}"
+        "query": "={{ $json.query }}"
       },
       "id": "10. Insert Lines",
       "name": "10. Insert Lines",

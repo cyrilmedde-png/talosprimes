@@ -132,7 +132,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES (gen_random_uuid(), '\" + $json.tenant_id + \"', '\" + $json.client_final_id + \"', '\" + $json.id + \"', '\" + $json.numeroAvoir + \"', NOW(), '\" + $json.montant_ht + \"', '\" + $json.montant_ttc + \"', '\" + $json.tva_taux || 20 + \"', 'Avoir sur facture ' || '\" + $json.numero_facture + \"', '\" + $json.description + \"', 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, statut, created_at\" }}"
+        "query": "={{ \"INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES (gen_random_uuid(), '\" + $json.tenant_id + \"', \" + ($json.client_final_id ? \"'\" + $json.client_final_id + \"'\" : \"NULL\") + \", '\" + $json.id + \"', '\" + $json.numeroAvoir + \"', NOW(), \" + $json.montant_ht + \", \" + $json.montant_ttc + \", \" + ($json.tva_taux || 20) + \", 'Avoir sur facture \" + $json.numero_facture + \"', \" + ($json.description ? \"'\" + $json.description + \"'\" : \"NULL\") + \", 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, statut, created_at\" }}"
       },
       "id": "09. Create Avoir",
       "name": "09. Create Avoir",

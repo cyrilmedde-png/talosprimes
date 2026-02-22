@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = `UPDATE article_codes SET code = '${p.code}', designation = '${p.designation || ''}', prix_unitaire_ht = '${p.prixUnitaireHt || 0}', tva_taux = '${p.tvaTaux || 20}', unite = '${p.unite || 'unite'}', actif = '${p.actif !== false}', updated_at = NOW() WHERE id = '${p.articleCodeId}'::uuid AND tenant_id = '${p.tenantId}'::uuid RETURNING *`;\nreturn [{json:{query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nconst designation = (p.designation || '').replace(/'/g, \"''\");\nconst code = (p.code || '').replace(/'/g, \"''\");\nvar query = `UPDATE article_codes SET code = '${code}', designation = '${designation}', prix_unitaire_ht = ${p.prixUnitaireHt || 0}, tva_taux = ${p.tvaTaux || 20}, unite = '${p.unite || 'unite'}', actif = ${p.actif !== false}, updated_at = NOW() WHERE id = '${p.articleCodeId}'::uuid AND tenant_id = '${p.tenantId}'::uuid RETURNING *`;\nreturn [{json:{query}}];"
       },
       "id": "build-update",
       "name": "08. Construire UPDATE",
@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.query + \"'\" }}"
+        "query": "={{ $json.query }}"
       },
       "id": "pg-update",
       "name": "09. Executer UPDATE",

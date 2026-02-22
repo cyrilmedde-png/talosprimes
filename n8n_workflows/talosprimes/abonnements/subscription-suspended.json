@@ -153,7 +153,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"UPDATEclient_subscriptions\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '\" + $json.subscription.id + \"'::uuid\nRETURNING *;\" }}",
+        "query": "={{ \"UPDATE client_subscriptions\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '\" + $json.subscription.id + \"'::uuid\nRETURNING *;\" }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -222,7 +222,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"UPDATEclient_finals\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '\" + $json.clientId + \"'::uuid\nRETURNING *;\" }}",
+        "query": "={{ \"UPDATE client_finals\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '\" + $json.clientId + \"'::uuid\nRETURNING *;\" }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -295,7 +295,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $('14. Construire notification').first().json.query + \"'\" }}",
+        "query": "={{ $('14. Construire notification').first().json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"

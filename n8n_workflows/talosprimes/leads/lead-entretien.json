@@ -102,7 +102,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.query + \"'\" }}",
+        "query": "={{ $json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -204,7 +204,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.query + \"'\" }}",
+        "query": "={{ $json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -271,7 +271,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.query + \"'\" }}",
+        "query": "={{ $json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"

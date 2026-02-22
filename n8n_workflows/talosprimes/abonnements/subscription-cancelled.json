@@ -104,7 +104,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $('05b. Construire notif erreur').first().json.query + \"'\" }}",
+        "query": "={{ $('05b. Construire notif erreur').first().json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -243,7 +243,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $('08d. Construire notif Stripe err').first().json.query + \"'\" }}",
+        "query": "={{ $('08d. Construire notif Stripe err').first().json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -382,7 +382,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $('14. Construire notif succès').first().json.query + \"'\" }}",
+        "query": "={{ $('14. Construire notif succès').first().json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"

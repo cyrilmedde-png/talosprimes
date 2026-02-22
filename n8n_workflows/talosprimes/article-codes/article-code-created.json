@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = `INSERT INTO article_codes (id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.code}', '${p.designation || ''}', '${p.prixUnitaireHt || 0}', '${p.tvaTaux || 20}', '${p.unite || 'unite'}', true, NOW(), NOW()) RETURNING *`;\nreturn [{json:{query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\nconst designation = (p.designation || '').replace(/'/g, \"''\");\nconst code = (p.code || '').replace(/'/g, \"''\");\nvar query = `INSERT INTO article_codes (id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${code}', '${designation}', ${p.prixUnitaireHt || 0}, ${p.tvaTaux || 20}, '${p.unite || 'unite'}', true, NOW(), NOW()) RETURNING *`;\nreturn [{json:{query}}];"
       },
       "id": "build-insert",
       "name": "08. Construire INSERT",
@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.insertQuery + \"'\" }}"
+        "query": "={{ $json.query }}"
       },
       "id": "pg-insert",
       "name": "09. Executer INSERT",

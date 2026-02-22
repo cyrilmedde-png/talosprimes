@@ -80,7 +80,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $('05. Construire requete').first().json.query + \"'\" }}"
+        "query": "={{ $('05. Construire requete').first().json.query }}"
       },
       "id": "pg-get",
       "name": "06. SELECT client_space",

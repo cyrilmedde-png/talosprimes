@@ -159,7 +159,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\n(gen_random_uuid(), '\" + $('09. Insert Ecriture').first().json.id + \"', '\" + $('08. Build Ecriture').first().json.compteBanque + \"', 'Encaissement ' || '\" + $('08. Build Ecriture').first().json.referenceDoc + \"', '\" + $('08. Build Ecriture').first().json.montantTtc + \"', 0, 0),\n(gen_random_uuid(), '\" + $('09. Insert Ecriture').first().json.id + \"', '411000', 'Solde client ' || '\" + $('08. Build Ecriture').first().json.referenceDoc + \"', 0, '\" + $('08. Build Ecriture').first().json.montantTtc + \"', 1)\nRETURNING id, numero_compte, debit, credit;\" }}"
+        "query": "={{ \"INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\\n(gen_random_uuid(), '\" + $('09. Insert Ecriture').first().json.id + \"', '\" + $('08. Build Ecriture').first().json.compteBanque + \"', 'Encaissement ' || '\" + $('08. Build Ecriture').first().json.referenceDoc + \"', \" + $('08. Build Ecriture').first().json.montantTtc + \", 0, 0),\\n(gen_random_uuid(), '\" + $('09. Insert Ecriture').first().json.id + \"', '411000', 'Solde client ' || '\" + $('08. Build Ecriture').first().json.referenceDoc + \"', 0, \" + $('08. Build Ecriture').first().json.montantTtc + \", 1)\\nRETURNING id, numero_compte, debit, credit;\" }}"
       },
       "id": "10. Insert Lines",
       "name": "10. Insert Lines",

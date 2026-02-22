@@ -80,7 +80,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $('05. Construire SELECT').first().json.query + \"'\" }}",
+        "query": "={{ $('05. Construire SELECT').first().json.query }}",
         "options": {
           "queryBatching": "independently"
         }

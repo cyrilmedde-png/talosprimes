@@ -49,7 +49,7 @@
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
-          "name": "Supabase TalosPrimes"
+          "name": "Supabase Postgres"
         }
       },
       "alwaysOutputData": true

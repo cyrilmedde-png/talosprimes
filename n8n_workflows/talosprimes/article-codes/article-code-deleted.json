@@ -134,7 +134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.query + \"'\" }}"
+        "query": "={{ $json.query }}"
       },
       "id": "pg-delete",
       "name": "09. Executer DELETE",

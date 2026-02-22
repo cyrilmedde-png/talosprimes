@@ -212,7 +212,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"UPDATEclient_subscriptions\nSET \n  nom_plan = '\" + $json.sqlParams.nomPlan + \"',\n  montant_mensuel = '\" + $json.sqlParams.montantMensuel + \"',\n  modules_inclus = '\" + $json.sqlParams.modulesInclus + \"'::text[],\n  updated_at = NOW()\nWHERE id = '\" + $json.sqlParams.subscriptionId + \"'::uuid\nRETURNING *;\" }}",
+        "query": "={{ \"UPDATE client_subscriptions\nSET \n  nom_plan = '\" + $json.sqlParams.nomPlan + \"',\n  montant_mensuel = '\" + $json.sqlParams.montantMensuel + \"',\n  modules_inclus = '\" + $json.sqlParams.modulesInclus + \"'::text[],\n  updated_at = NOW()\nWHERE id = '\" + $json.sqlParams.subscriptionId + \"'::uuid\nRETURNING *;\" }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
@@ -262,7 +262,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"'\" + $json.query + \"'\" }}",
+        "query": "={{ $json.query }}",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
