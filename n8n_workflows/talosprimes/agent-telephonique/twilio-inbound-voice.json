@@ -250,11 +250,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO call_logs (\n  tenant_id, caller_phone, direction, status, notes, \n  urgency_level, sentiment, action_taken, created_at, updated_at\n) VALUES (\n  COALESCE(\n    (SELECT id FROM tenants LIMIT 1),\n    '00000000-0000-0000-0000-000000000000'\n  ),\n  $1,\n  'entrant',\n  'completed',\n  'CallSid:$2$3$4$5 - Q: $6 - R: $7',\n  $8,\n  $9,\n  'REPONDU',\n  NOW(),\n  NOW()\n) RETURNING id",
+        "query": "INSERT INTO call_logs (\n  tenant_id, caller_phone, direction, status, notes, \n  urgency_level, sentiment, action_taken, created_at, updated_at\n) VALUES (\n  COALESCE(\n    (SELECT id FROM tenants LIMIT 1),\n    '00000000-0000-0000-0000-000000000000'\n  ),\n  $1,\n  'entrant',\n  'completed',\n  $2,\n  $3,\n  $4,\n  'REPONDU',\n  NOW(),\n  NOW()\n) RETURNING id",
         "options": {
           "alwaysOutputData": true
         },
-        "queryParameters": "={{ [$json.from, $json.callSid, $json.isAdmin ? ' ADMIN' : '', $json.isProspect ? ' [PROSPECT]' : '', $json.needsEscalation ? ' [ESCALADE]' : '', $json.speechResult, $json.aiReply, $json.needsEscalation ? 'URGENT' : 'STANDARD', $json.isProspect ? 'POSITIF' : 'NEUTRE'] }}"
+        "queryParameters": "={{ [\n  $json.from,\n  'CallSid:' + $json.callSid + ($json.isAdmin ? ' ADMIN' : '') + ($json.isProspect ? ' [PROSPECT]' : '') + ($json.needsEscalation ? ' [ESCALADE]' : '') + ' - Q: ' + ($json.speechResult || '').substring(0, 500) + ' - R: ' + ($json.aiReply || '').substring(0, 500),\n  $json.needsEscalation ? 'URGENT' : 'STANDARD',\n  $json.isProspect ? 'POSITIF' : 'NEUTRE'\n] }}"
       },
       "id": "15. Log Call",
       "name": "15. Log Call",
@@ -298,11 +298,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO leads (\n  tenant_id, nom, telephone, source, statut, notes, created_at, updated_at\n) SELECT \n  (SELECT id FROM tenants LIMIT 1),\n  'Appel entrant',\n  $1,\n  'telephone',\n  'nouveau',\n  'Prospect détecté par agent vocal - Demande: $2',\n  NOW(),\n  NOW()\nWHERE NOT EXISTS (\n  SELECT 1 FROM leads WHERE telephone LIKE '%' || RIGHT($3, 9) || '%'\n  AND statut != 'abandonne'\n)\nRETURNING id",
+        "query": "INSERT INTO leads (\n  tenant_id, nom, telephone, source, statut, notes, created_at, updated_at\n) SELECT \n  (SELECT id FROM tenants LIMIT 1),\n  'Appel entrant',\n  $1,\n  'telephone',\n  'nouveau',\n  $2,\n  NOW(),\n  NOW()\nWHERE NOT EXISTS (\n  SELECT 1 FROM leads WHERE telephone LIKE '%' || RIGHT($3, 9) || '%'\n  AND statut != 'abandonne'\n)\nRETURNING id",
         "options": {
           "alwaysOutputData": true
         },
-        "queryParameters": "={{ [$('14. Build TwiML Response').first().json.from, $('14. Build TwiML Response').first().json.speechResult.substring(0,300).replace(/'/g, \"''\"), $('14. Build TwiML Response').first().json.from] }}"
+        "queryParameters": "={{ [\n  $('14. Build TwiML Response').first().json.from,\n  'Prospect détecté par agent vocal - Demande: ' + ($('14. Build TwiML Response').first().json.speechResult || '').substring(0, 300),\n  $('14. Build TwiML Response').first().json.from\n] }}"
       },
       "id": "17. Create Lead",
       "name": "17. Create Lead",
@@ -322,11 +322,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO notifications (\n  tenant_id, user_id, type, titre, message, lue, created_at\n) SELECT \n  t.id,\n  u.id,\n  $1,\n  $2,\n  '$3 - Tel: $4 - $5',\n  false,\n  NOW()\nFROM tenants t\nJOIN users u ON u.tenant_id = t.id AND u.role = 'super_admin'\nLIMIT 1\nRETURNING id",
+        "query": "INSERT INTO notifications (\n  tenant_id, user_id, type, titre, message, lue, created_at\n) SELECT \n  t.id,\n  u.id,\n  $1,\n  $2,\n  $3,\n  false,\n  NOW()\nFROM tenants t\nJOIN users u ON u.tenant_id = t.id AND u.role = 'super_admin'\nLIMIT 1\nRETURNING id",
         "options": {
           "alwaysOutputData": true
         },
-        "queryParameters": "={{ [$('14. Build TwiML Response').first().json.isProspect ? 'lead' : 'alerte', $('14. Build TwiML Response').first().json.isProspect ? 'Nouveau prospect téléphonique' : 'Escalade agent vocal', $('14. Build TwiML Response').first().json.isProspect ? 'Prospect' : 'Escalade', $('14. Build TwiML Response').first().json.from, $('14. Build TwiML Response').first().json.speechResult] }}"
+        "queryParameters": "={{ [\n  $('14. Build TwiML Response').first().json.isProspect ? 'lead' : 'alerte',\n  $('14. Build TwiML Response').first().json.isProspect ? 'Nouveau prospect téléphonique' : 'Escalade agent vocal',\n  ($('14. Build TwiML Response').first().json.isProspect ? 'Prospect' : 'Escalade') + ' - Tel: ' + $('14. Build TwiML Response').first().json.from + ' - ' + ($('14. Build TwiML Response').first().json.speechResult || '').substring(0, 300)\n] }}"
       },
       "id": "18. Notify Admin",
       "name": "18. Notify Admin",
@@ -366,7 +366,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT notes FROM call_logs WHERE notes LIKE '%CallSid:$1%' ORDER BY created_at ASC LIMIT 10",
+        "query": "SELECT notes FROM call_logs WHERE notes LIKE '%CallSid:' || $1 || '%' ORDER BY created_at ASC LIMIT 10",
         "options": {
           "alwaysOutputData": true
         },
@@ -423,11 +423,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "$1",
+        "query": "={{ $json.sqlQuery }}",
         "options": {
           "alwaysOutputData": true
         },
-        "queryParameters": "={{ [$json.sqlQuery] }}"
+        "queryParameters": "={{ $json.sqlParams }}"
       },
       "id": "23. Execute Tool SQL",
       "name": "23. Execute Tool SQL",

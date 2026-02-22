@@ -122,7 +122,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO call_logs (tenant_id, caller_phone, direction, status, notes, urgency_level, sentiment, action_taken, created_at, updated_at) VALUES ($1, $2, 'sortant', 'initiated', 'Appel sortant: $3', 'STANDARD', 'NEUTRE', 'APPEL', NOW(), NOW()) RETURNING id, tenant_id, caller_phone, direction, status, notes, created_at",
+        "query": "INSERT INTO call_logs (tenant_id, caller_phone, direction, status, notes, urgency_level, sentiment, action_taken, created_at, updated_at) VALUES ($1, $2, 'sortant', 'initiated', 'Appel sortant: ' || $3, 'STANDARD', 'NEUTRE', 'APPEL', NOW(), NOW()) RETURNING id, tenant_id, caller_phone, direction, status, notes, created_at",
         "queryParameters": "={{ [$json.tenantId, $json.to, $json.reason] }}"
       },
       "id": "08. Create Call Log",
