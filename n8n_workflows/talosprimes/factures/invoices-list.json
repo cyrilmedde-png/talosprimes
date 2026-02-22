@@ -11,17 +11,23 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 20;\nconst offset = (page - 1) * limit;\nconst statut = body.statut || null;\nconst clientFinalId = body.clientFinalId || null;\nconst dateFrom = body.dateFrom || null;\nconst dateTo = body.dateTo || null;\n\nreturn [{ json: { tenantId: body.tenantId, page, limit, offset, statut, clientFinalId, dateFrom, dateTo } }];"
+        "functionCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 20;\nconst offset = (page - 1) * limit;\nconst statut = body.statut || null;\nconst clientFinalId = body.clientFinalId || null;\nconst dateFrom = body.dateFrom || null;\nconst dateTo = body.dateTo || null;\n\nreturn [{ json: { tenantId: body.tenantId, page, limit, offset, statut, clientFinalId, dateFrom, dateTo } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,7 +58,10 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
@@ -66,12 +78,15 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.proforma_id, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND i.numero_facture IS NOT NULL AND i.date_facture IS NOT NULL{{ $('02. Parser').first().json.statut ? \" AND i.statut = '\" + $('02. Parser').first().json.statut + \"'\" : '' }}{{ $('02. Parser').first().json.clientFinalId ? \" AND i.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : '' }}{{ $('02. Parser').first().json.dateFrom ? \" AND i.date_facture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : '' }}{{ $('02. Parser').first().json.dateTo ? \" AND i.date_facture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : '' }} ORDER BY i.date_facture DESC LIMIT {{ $('02. Parser').first().json.limit }} OFFSET {{ $('02. Parser').first().json.offset }}"
+        "query": "=SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND i.numero_facture IS NOT NULL AND i.date_facture IS NOT NULL{{ $('02. Parser').first().json.statut ? \" AND i.statut = '\" + $('02. Parser').first().json.statut + \"'\" : '' }}{{ $('02. Parser').first().json.clientFinalId ? \" AND i.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : '' }}{{ $('02. Parser').first().json.dateFrom ? \" AND i.date_facture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : '' }}{{ $('02. Parser').first().json.dateTo ? \" AND i.date_facture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : '' }} ORDER BY i.date_facture DESC LIMIT {{ $('02. Parser').first().json.limit }} OFFSET {{ $('02. Parser').first().json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",
@@ -83,17 +98,23 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst invoiceIds = items.map(i => i.id);\nreturn [{ json: { invoiceIds, hasIds: invoiceIds.length > 0 } }];"
+        "functionCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst invoiceIds = items.map(i => i.id);\nreturn [{ json: { invoiceIds, hasIds: invoiceIds.length > 0 } }];"
       },
       "id": "07. Extract IDs",
       "name": "07. Extract IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -110,7 +131,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1300, 200]
+      "position": [
+        1300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -127,17 +151,23 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1300, 400]
+      "position": [
+        1300,
+        400
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\n// Build BdC lookup by invoice_id\nconst bdcItems = $('08. Get BdC Links').all().map(item => item.json).filter(b => b.id);\nconst bdcByInvoice = {};\nfor (const b of bdcItems) {\n  if (!bdcByInvoice[b.invoice_id]) bdcByInvoice[b.invoice_id] = [];\n  bdcByInvoice[b.invoice_id].push({ id: b.id, numeroBdc: b.numero_bdc, statut: b.statut });\n}\n\n// Build Devis lookup by invoice_id\nconst devisItems = $('09. Get Devis Links').all().map(item => item.json).filter(d => d.id);\nconst devisByInvoice = {};\nfor (const d of devisItems) {\n  if (!devisByInvoice[d.invoice_id]) devisByInvoice[d.invoice_id] = [];\n  devisByInvoice[d.invoice_id].push({ id: d.id, numeroDevis: d.numero_devis, statut: d.statut });\n}\n\nconst invoices = items.map(i => ({\n  id: i.id,\n  tenantId: i.tenant_id,\n  clientFinalId: i.client_final_id,\n  type: i.type,\n  numeroFacture: i.numero_facture,\n  dateFacture: i.date_facture,\n  dateEcheance: i.date_echeance,\n  montantHt: i.montant_ht,\n  montantTtc: i.montant_ttc,\n  tvaTaux: i.tva_taux,\n  description: i.description,\n  modePaiement: i.mode_paiement,\n  statut: i.statut,\n  lienPdf: i.lien_pdf,\n  idExternePaiement: i.id_externe_paiement,\n  proformaId: i.proforma_id,\n  createdAt: i.created_at,\n  updatedAt: i.updated_at,\n  clientFinal: i.client_final_id ? {\n    id: i.client_final_id,\n    nom: i.client_nom || null,\n    prenom: i.client_prenom || null,\n    email: i.client_email || null,\n    telephone: i.client_telephone || null,\n    raisonSociale: i.client_raison_sociale || null\n  } : null,\n  bonsCommande: bdcByInvoice[i.id] || [],\n  devis: devisByInvoice[i.id] || []\n}));\n\nreturn [{ json: {\n  invoices,\n  count: invoices.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
+        "functionCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\n// Build BdC lookup by invoice_id\nconst bdcItems = $('08. Get BdC Links').all().map(item => item.json).filter(b => b.id);\nconst bdcByInvoice = {};\nfor (const b of bdcItems) {\n  if (!bdcByInvoice[b.invoice_id]) bdcByInvoice[b.invoice_id] = [];\n  bdcByInvoice[b.invoice_id].push({ id: b.id, numeroBdc: b.numero_bdc, statut: b.statut });\n}\n\n// Build Devis lookup by invoice_id\nconst devisItems = $('09. Get Devis Links').all().map(item => item.json).filter(d => d.id);\nconst devisByInvoice = {};\nfor (const d of devisItems) {\n  if (!devisByInvoice[d.invoice_id]) devisByInvoice[d.invoice_id] = [];\n  devisByInvoice[d.invoice_id].push({ id: d.id, numeroDevis: d.numero_devis, statut: d.statut });\n}\n\nconst invoices = items.map(i => ({\n  id: i.id,\n  tenantId: i.tenant_id,\n  clientFinalId: i.client_final_id,\n  type: i.type,\n  numeroFacture: i.numero_facture,\n  dateFacture: i.date_facture,\n  dateEcheance: i.date_echeance,\n  montantHt: i.montant_ht,\n  montantTtc: i.montant_ttc,\n  tvaTaux: i.tva_taux,\n  description: i.description,\n  modePaiement: i.mode_paiement,\n  statut: i.statut,\n  lienPdf: i.lien_pdf,\n  idExternePaiement: i.id_externe_paiement,\n  createdAt: i.created_at,\n  updatedAt: i.updated_at,\n  clientFinal: i.client_final_id ? {\n    id: i.client_final_id,\n    nom: i.client_nom || null,\n    prenom: i.client_prenom || null,\n    email: i.client_email || null,\n    telephone: i.client_telephone || null,\n    raisonSociale: i.client_raison_sociale || null\n  } : null,\n  bonsCommande: bdcByInvoice[i.id] || [],\n  devis: devisByInvoice[i.id] || []\n}));\n\nreturn [{ json: {\n  invoices,\n  count: invoices.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 300]
+      "position": [
+        1500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -148,44 +178,123 @@
       "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1700, 300]
+      "position": [
+        1700,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Count Query", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Count Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Count Query": {
-      "main": [[{ "node": "06. List Query", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. List Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. List Query": {
-      "main": [[{ "node": "07. Extract IDs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Extract IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Extract IDs": {
       "main": [
         [
-          { "node": "08. Get BdC Links", "type": "main", "index": 0 },
-          { "node": "09. Get Devis Links", "type": "main", "index": 0 }
+          {
+            "node": "08. Get BdC Links",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "09. Get Devis Links",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "08. Get BdC Links": {
-      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Get Devis Links": {
-      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Format Response": {
-      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "11. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

@@ -11,17 +11,23 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+        "functionCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,12 +58,15 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.proforma_id, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '{{ $json.invoiceId }}' AND i.tenant_id = '{{ $json.tenantId }}'"
+        "query": "=SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '{{ $json.invoiceId }}' AND i.tenant_id = '{{ $json.tenantId }}'"
       },
       "id": "05. Get Invoice",
       "name": "05. Get Invoice",
@@ -66,7 +78,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -83,17 +98,23 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const inv = $('05. Get Invoice').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json).filter(l => l.id);\n\nif (!inv || !inv.id) {\n  return [{ json: { error: 'Facture non trouvée' } }];\n}\n\nconst invoice = {\n  id: inv.id,\n  tenantId: inv.tenant_id,\n  clientFinalId: inv.client_final_id,\n  type: inv.type,\n  numeroFacture: inv.numero_facture,\n  dateFacture: inv.date_facture,\n  dateEcheance: inv.date_echeance,\n  montantHt: inv.montant_ht,\n  montantTtc: inv.montant_ttc,\n  tvaTaux: inv.tva_taux,\n  description: inv.description,\n  modePaiement: inv.mode_paiement,\n  statut: inv.statut,\n  lienPdf: inv.lien_pdf,\n  idExternePaiement: inv.id_externe_paiement,\n  proformaId: inv.proforma_id,\n  createdAt: inv.created_at,\n  updatedAt: inv.updated_at,\n  clientFinal: inv.client_final_id ? {\n    id: inv.client_final_id,\n    nom: inv.client_nom || null,\n    prenom: inv.client_prenom || null,\n    email: inv.client_email || null,\n    telephone: inv.client_telephone || null,\n    raisonSociale: inv.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: invoice }];"
+        "functionCode": "const inv = $('05. Get Invoice').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json).filter(l => l.id);\n\nif (!inv || !inv.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e' } }];\n}\n\nconst invoice = {\n  id: inv.id,\n  tenantId: inv.tenant_id,\n  clientFinalId: inv.client_final_id,\n  type: inv.type,\n  numeroFacture: inv.numero_facture,\n  dateFacture: inv.date_facture,\n  dateEcheance: inv.date_echeance,\n  montantHt: inv.montant_ht,\n  montantTtc: inv.montant_ttc,\n  tvaTaux: inv.tva_taux,\n  description: inv.description,\n  modePaiement: inv.mode_paiement,\n  statut: inv.statut,\n  lienPdf: inv.lien_pdf,\n  idExternePaiement: inv.id_externe_paiement,\n  createdAt: inv.created_at,\n  updatedAt: inv.updated_at,\n  clientFinal: inv.client_final_id ? {\n    id: inv.client_final_id,\n    nom: inv.client_nom || null,\n    prenom: inv.client_prenom || null,\n    email: inv.client_email || null,\n    telephone: inv.client_telephone || null,\n    raisonSociale: inv.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: invoice }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -104,30 +125,85 @@
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Get Invoice", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Get Invoice": {
-      "main": [[{ "node": "06. Get Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Get Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Get Lines": {
-      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Format Response": {
-      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

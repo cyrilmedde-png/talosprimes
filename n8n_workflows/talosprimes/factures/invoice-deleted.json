@@ -11,17 +11,23 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+        "functionCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,7 +58,10 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
@@ -66,7 +78,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -83,17 +98,23 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const result = $('06. Delete Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { success: false, error: 'Facture non trouvée ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { success: true, deletedId: result.id, numeroFacture: result.numero_facture } }];"
+        "functionCode": "const result = $('06. Delete Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { success: false, error: 'Facture non trouv\u00e9e ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { success: true, deletedId: result.id, numeroFacture: result.numero_facture } }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -104,30 +125,85 @@
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Delete Lines", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Delete Lines",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Delete Lines": {
-      "main": [[{ "node": "06. Delete Invoice", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Delete Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Delete Invoice": {
-      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Format Response": {
-      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }
