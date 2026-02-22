@@ -168,8 +168,7 @@ start_n8n() {
   if [ -d "$N8N_DATA_DIR" ]; then
     chown -R 1000:1000 "$N8N_DATA_DIR/" 2>/dev/null || true
   fi
-  # Supprimer WAL/SHM residuels (empechent une lecture saine)
-  rm -f "$N8N_DB-wal" "$N8N_DB-shm" 2>/dev/null || true
+  # NE PAS supprimer WAL/SHM — SQLite en a besoin pour la coherence
 
   # Appliquer le patch webhook si present
   if [ -f "$N8N_COMPOSE_DIR/apply-webhook-patch.sh" ]; then
@@ -756,19 +755,21 @@ else
 fi
 
 # =============================================================================
-# Etape 5: Synchronisation des workflows n8n
+# Etape 5: Synchronisation des workflows n8n (INCREMENTAL)
 # =============================================================================
-# STRATEGIE SAFE:
-#   1. Tout passe par l'API REST (PAS de docker exec / import:workflow)
-#   2. n8n reste allume pendant la sync API
-#   3. Un seul restart a la fin pour enregistrer les webhooks
-#   4. fix-credentials-sqlite.sh est appele APRES arret de n8n
+# STRATEGIE:
+#   1. Git diff pour detecter UNIQUEMENT les fichiers n8n modifies
+#   2. Pour chaque fichier modifie: GET le workflow existant (credentials + versionId)
+#   3. Merger credentials dans le nouveau JSON, PUT via API
+#   4. Pour les nouveaux fichiers: POST via API
+#   5. PAS de manipulation SQLite, PAS de fix-credentials-sqlite.sh
+#   6. Restart n8n uniquement si des workflows ont ete modifies
 # =============================================================================
 
 # Desactiver set -e pour la section n8n (les erreurs API ne doivent pas tuer le script)
 set +e
 
-log_step "5/$TOTAL_STEPS - Synchronisation des workflows n8n"
+log_step "5/$TOTAL_STEPS - Synchronisation des workflows n8n (incremental)"
 
 if [ "$SKIP_N8N" = true ] || [ "$ONLY_CLIENT" = true ]; then
   log_info "Ignore (--skip-n8n ou --only-client)"
@@ -794,45 +795,38 @@ else
     log_warn "N8N_API_URL non defini — workflows non synchronises"
   else
     export N8N_API_KEY N8N_API_URL
-
-    # Charger les identifiants n8n pour l'API interne /rest/
-    if [ -z "$N8N_USERNAME" ] && [ -f "$PLATFORM_DIR/.env" ]; then
-      N8N_USERNAME=$(grep -E '^N8N_USERNAME=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-    fi
-    if [ -z "$N8N_PASSWORD" ] && [ -f "$PLATFORM_DIR/.env" ]; then
-      N8N_PASSWORD=$(grep -E '^N8N_PASSWORD=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-    fi
-
-    # Se connecter a n8n via /rest/login pour obtenir un cookie de session
-    N8N_COOKIE_FILE="/tmp/n8n_session_cookie.txt"
-    N8N_SESSION_OK=false
-    if [ -n "$N8N_USERNAME" ] && [ -n "$N8N_PASSWORD" ]; then
-      log_info "Connexion a n8n via /rest/login..."
-      login_response=$(curl -s -w "\n%{http_code}" \
-        -c "$N8N_COOKIE_FILE" \
-        -X POST \
-        -H "Content-Type: application/json" \
-        -d "{\"email\": \"$N8N_USERNAME\", \"password\": \"$N8N_PASSWORD\"}" \
-        "$N8N_API_URL/rest/login" 2>/dev/null)
-      login_code=$(echo "$login_response" | tail -1)
-      if [ "$login_code" = "200" ]; then
-        N8N_SESSION_OK=true
-        log_ok "Session n8n ouverte (cookie auth)"
-      else
-        log_warn "Login n8n echoue (HTTP $login_code) — fallback sur API key"
-      fi
-    else
-      log_warn "N8N_USERNAME/N8N_PASSWORD non definis — utilisation API key uniquement"
-    fi
-
     log_info "n8n URL: $N8N_API_URL"
 
     # ---------------------------------------------------------------
-    # Recuperer les donnees n8n existantes
+    # Detecter les fichiers n8n modifies via git diff
     # ---------------------------------------------------------------
-    log_info "Recuperation des workflows et projets existants..."
+    CHANGED_N8N_FILES=""
+    if [ "$PREVIOUS_COMMIT" != "unknown" ] && [ "$PREVIOUS_COMMIT" != "$NEW_COMMIT" ]; then
+      CHANGED_N8N_FILES=$(git diff --name-only "$PREVIOUS_COMMIT" "$NEW_COMMIT" -- "n8n_workflows/" 2>/dev/null | grep '\.json$' || true)
+    fi
 
-    EXISTING_WORKFLOWS=$(python3 -c "
+    # Si --only-n8n est utilise sans changement git, sync tout
+    if [ "$ONLY_N8N" = true ] && [ -z "$CHANGED_N8N_FILES" ]; then
+      log_info "Mode --only-n8n : sync de tous les workflows"
+      CHANGED_N8N_FILES=$(find "$N8N_WORKFLOW_DIR" -name '*.json' -type f 2>/dev/null | sed "s|^$PROJECT_DIR/||" || true)
+    fi
+
+    if [ -z "$CHANGED_N8N_FILES" ]; then
+      log_ok "Aucun workflow n8n modifie — rien a synchroniser"
+    else
+      CHANGED_COUNT=$(echo "$CHANGED_N8N_FILES" | wc -l | tr -d ' ')
+      log_info "$CHANGED_COUNT fichier(s) n8n modifie(s) detecte(s):"
+      echo "$CHANGED_N8N_FILES" | while IFS= read -r f; do
+        log_info "  -> $f"
+      done
+
+      # ---------------------------------------------------------------
+      # Recuperer la liste des workflows existants dans n8n (noms + IDs)
+      # On ne recupere QUE la liste, PAS le detail de chaque workflow
+      # ---------------------------------------------------------------
+      log_info "Recuperation de la liste des workflows n8n..."
+
+      EXISTING_WORKFLOWS=$(python3 -c "
 import json, urllib.request, os
 
 api_url = os.environ.get('N8N_API_URL', '')
@@ -859,321 +853,213 @@ for _ in range(20):
 print(json.dumps({'data': all_workflows}))
 " 2>/dev/null || echo "")
 
-    EXISTING_PROJECTS=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_API_URL/api/v1/projects" 2>/dev/null || echo "{}")
+      if [ -z "$EXISTING_WORKFLOWS" ] || ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+        log_warn "n8n API inaccessible — workflows non synchronises"
+      else
+        WF_COUNT=$(echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('data',[])))" 2>/dev/null || echo "?")
+        log_info "$WF_COUNT workflows existants dans n8n"
 
-    # ---------------------------------------------------------------
-    # Extraire les credentials depuis les workflows existants
-    # ---------------------------------------------------------------
-    log_info "Extraction des credentials depuis les workflows existants..."
-    CREDENTIAL_MAP=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
-import sys, json, urllib.request, os
+        N8N_TOTAL=0
+        N8N_SUCCESS=0
+        N8N_ERRORS=0
 
-api_url = os.environ.get('N8N_API_URL', '')
-api_key = os.environ.get('N8N_API_KEY', '')
-
-data = json.load(sys.stdin)
-workflows = data.get('data', [])
-mapping = {}
-
-fetched = 0
-for wf in workflows:
-    wf_id = wf.get('id', '')
-    if not wf_id:
-        continue
-    try:
-        url = f'{api_url}/api/v1/workflows/{wf_id}'
-        req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
-        resp = urllib.request.urlopen(req, timeout=10)
-        full_wf = json.loads(resp.read())
-        fetched += 1
-
-        for node in full_wf.get('nodes', []):
-            creds = node.get('credentials', {})
-            for cred_type, cred_info in creds.items():
-                if isinstance(cred_info, dict):
-                    name = cred_info.get('name', '')
-                    cid = str(cred_info.get('id', ''))
-                    if name and cid and 'REPLACE' not in cid and cid not in ('', 'null', 'None'):
-                        mapping[name] = cid
-    except:
-        continue
-
-print(f'{fetched} workflows inspectes', file=sys.stderr)
-print(json.dumps(mapping))
-" 2>/dev/null || echo "{}")
-
-    export CREDENTIAL_MAP
-    CRED_COUNT=$(echo "$CREDENTIAL_MAP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
-    log_info "$CRED_COUNT credentials trouvees dans les workflows n8n"
-
-    if [ "$CRED_COUNT" != "0" ]; then
-      echo "$CREDENTIAL_MAP" | python3 -c "
-import sys, json
-mapping = json.load(sys.stdin)
-for name, cid in mapping.items():
-    print(f'    -> {name} = {cid}')
-" 2>/dev/null || true
-    else
-      log_warn "Aucune credential extraite — n8n resoudra par nom de credential"
-    fi
-
-    # Verifier que les reponses sont du JSON valide
-    if [ -z "$EXISTING_WORKFLOWS" ] || ! echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
-      log_warn "n8n API inaccessible — workflows non synchronises"
-      EXISTING_WORKFLOWS=""
-    else
-      WF_COUNT=$(echo "$EXISTING_WORKFLOWS" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('data',[])))" 2>/dev/null || echo "?")
-      log_info "$WF_COUNT workflows existants trouves dans n8n"
-    fi
-    if ! echo "$EXISTING_PROJECTS" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
-      log_warn "API projets n8n non disponible — les workflows iront dans Personal"
-      EXISTING_PROJECTS="{}"
-    fi
-
-    if [ -n "$EXISTING_WORKFLOWS" ]; then
-      N8N_TOTAL=0
-      N8N_SUCCESS=0
-      N8N_ERRORS=0
-
-      # --- TALOSPRIMES ---
-      TALOSPRIMES_DIR="$N8N_WORKFLOW_DIR/talosprimes"
-      if [ -d "$TALOSPRIMES_DIR" ]; then
-        log_info "Sync TalosPrimes..."
-
-        TP_PROJECT_ID=$(n8n_find_or_create_project "TalosPrimes" "$EXISTING_PROJECTS" || echo "")
-
-        if [ -z "$TP_PROJECT_ID" ]; then
-          log_warn "Projets n8n non supportes ou erreur API — les workflows iront dans Personal"
-        fi
-
-        # Fichiers JSON a la racine
-        for file in "$TALOSPRIMES_DIR"/*.json; do
+        # ---------------------------------------------------------------
+        # Synchroniser UNIQUEMENT les fichiers modifies
+        # ---------------------------------------------------------------
+        while IFS= read -r rel_path; do
+          [ -z "$rel_path" ] && continue
+          file="$PROJECT_DIR/$rel_path"
           [ -f "$file" ] || continue
+
           N8N_TOTAL=$((N8N_TOTAL + 1))
-          if n8n_sync_workflow "$file" "$TP_PROJECT_ID"; then
-            N8N_SUCCESS=$((N8N_SUCCESS + 1))
-          else
-            N8N_ERRORS=$((N8N_ERRORS + 1))
-            log_warn "  Erreur: $(basename "$file")"
-          fi
-        done
 
-        # Sous-dossiers
-        for subdir in "$TALOSPRIMES_DIR"/*/; do
-          [ -d "$subdir" ] || continue
-          local_group=$(basename "$subdir")
+          # Lire le nom du workflow depuis le JSON
+          wf_name=$(python3 -c "
+import json
+with open('$file') as f:
+    print(json.load(f).get('name', ''))
+" 2>/dev/null || true)
+          [ -z "$wf_name" ] && wf_name=$(basename "$file" .json)
 
-          for file in "$subdir"*.json; do
-            [ -f "$file" ] || continue
-            N8N_TOTAL=$((N8N_TOTAL + 1))
-            if n8n_sync_workflow "$file" "$TP_PROJECT_ID"; then
-              N8N_SUCCESS=$((N8N_SUCCESS + 1))
-            else
-              N8N_ERRORS=$((N8N_ERRORS + 1))
-              log_warn "  Erreur: $local_group/$(basename "$file")"
-            fi
-          done
-        done
-
-        log_info "  TalosPrimes: $N8N_SUCCESS/$N8N_TOTAL synchronises"
-      fi
-
-      # --- CLIENTS ---
-      CLIENTS_DIR="$N8N_WORKFLOW_DIR/clients"
-      if [ -d "$CLIENTS_DIR" ]; then
-        for client_dir in "$CLIENTS_DIR"/*/; do
-          [ -d "$client_dir" ] || continue
-          client_name=$(basename "$client_dir")
-          [ "$client_name" = ".gitkeep" ] && continue
-
-          log_info "Sync client: $client_name..."
-
-          CLIENT_PROJECT_ID=$(n8n_find_or_create_project "Client - $client_name" "$EXISTING_PROJECTS" || echo "")
-
-          if [ -z "$CLIENT_PROJECT_ID" ]; then
-            log_warn "  Impossible de creer le projet pour $client_name — workflows dans Personal"
-          fi
-
-          CLIENT_COUNT=0
-          CLIENT_OK=0
-
-          for file in "$client_dir"*.json; do
-            [ -f "$file" ] || continue
-            N8N_TOTAL=$((N8N_TOTAL + 1))
-            CLIENT_COUNT=$((CLIENT_COUNT + 1))
-            if n8n_sync_workflow "$file" "$CLIENT_PROJECT_ID"; then
-              N8N_SUCCESS=$((N8N_SUCCESS + 1))
-              CLIENT_OK=$((CLIENT_OK + 1))
-            else
-              N8N_ERRORS=$((N8N_ERRORS + 1))
-              log_warn "    Erreur: $(basename "$file")"
-            fi
-          done
-
-          for client_subdir in "$client_dir"*/; do
-            [ -d "$client_subdir" ] || continue
-
-            for file in "$client_subdir"*.json; do
-              [ -f "$file" ] || continue
-              N8N_TOTAL=$((N8N_TOTAL + 1))
-              CLIENT_COUNT=$((CLIENT_COUNT + 1))
-              if n8n_sync_workflow "$file" "$CLIENT_PROJECT_ID"; then
-                N8N_SUCCESS=$((N8N_SUCCESS + 1))
-                CLIENT_OK=$((CLIENT_OK + 1))
-              else
-                N8N_ERRORS=$((N8N_ERRORS + 1))
-                log_warn "    Erreur: $(basename "$client_subdir")/$(basename "$file")"
-              fi
-            done
-          done
-
-          log_info "  $client_name: $CLIENT_OK/$CLIENT_COUNT synchronises"
-        done
-      fi
-
-      # --- RESUME ---
-      echo ""
-      if [ "$N8N_ERRORS" -eq 0 ]; then
-        log_ok "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL synchronises"
-      else
-        log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_ERRORS erreurs"
-      fi
-
-      # --- FIX CREDENTIALS POST-IMPORT ---
-      # IMPORTANT: On arrete n8n AVANT de toucher a la SQLite
-      # puis on redemarre UNE SEULE FOIS apres toutes les modifications
-      SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-      if [ -f "$SCRIPT_DIR/fix-credentials-sqlite.sh" ]; then
-        log_info "Fix credentials post-import (direct SQLite)..."
-        log_info "Arret de n8n pour manipulation SQLite safe..."
-        stop_n8n
-
-        # Supprimer WAL/SHM AVANT la correction
-        rm -f "$N8N_DB-wal" "$N8N_DB-shm" 2>/dev/null || true
-
-        bash "$SCRIPT_DIR/fix-credentials-sqlite.sh" --no-restart 2>&1 | while read -r line; do echo "  $line"; done
-
-        # Permissions
-        if [ -d "$N8N_DATA_DIR" ]; then
-          chown -R 1000:1000 "$N8N_DATA_DIR/" 2>/dev/null || true
-          log_ok "Permissions n8n corrigees (1000:1000)"
-        fi
-
-        # Redemarrer n8n UNE SEULE FOIS
-        start_n8n
-        wait_for_n8n 60
-      else
-        log_info "Script fix-credentials-sqlite.sh introuvable — skip"
-        # Restart pour enregistrer les webhooks
-        log_info "Restart n8n pour enregistrer les webhooks..."
-        docker restart n8n > /dev/null 2>&1 || true
-        wait_for_n8n 60
-      fi
-
-      # --- VERIFICATION POST-SYNC ---
-      log_info "Verification de l'activation des workflows..."
-      python3 -c "
-import json, urllib.request, os
-
-api_url = os.environ.get('N8N_API_URL', '')
-api_key = os.environ.get('N8N_API_KEY', '')
-all_workflows = []
-cursor = ''
-
-for _ in range(20):
-    url = f'{api_url}/api/v1/workflows?limit=250'
-    if cursor:
-        url += f'&cursor={cursor}'
-    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
-    try:
-        resp = urllib.request.urlopen(req, timeout=15)
-        data = json.loads(resp.read())
-    except:
+          # Chercher si le workflow existe deja dans n8n (par nom)
+          existing_id=$(echo "$EXISTING_WORKFLOWS" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for w in data.get('data', []):
+    if w.get('name') == '$wf_name':
+        print(w['id'])
         break
-    wfs = data.get('data', [])
-    all_workflows.extend(wfs)
-    cursor = data.get('nextCursor', '')
-    if not cursor or not wfs:
-        break
-
-active = [w for w in all_workflows if w.get('active')]
-inactive = [w for w in all_workflows if not w.get('active')]
-
-print(f'ACTIFS: {len(active)} | INACTIFS: {len(inactive)}')
-if inactive:
-    for w in inactive[:20]:
-        print(f'  x [{w.get(\"id\")}] {w.get(\"name\", \"?\")}')
-    if len(inactive) > 20:
-        print(f'  ... et {len(inactive) - 20} autres')
-" 2>/dev/null | while IFS= read -r line; do
-        if echo "$line" | grep -q "INACTIFS: 0"; then
-          log_ok "$line"
-        elif echo "$line" | grep -q "ACTIFS:"; then
-          log_warn "$line"
-        else
-          echo "$line"
-        fi
-      done
-
-      # --- ACTIVATION des workflows inactifs ---
-      INACTIVE_IDS=$(python3 -c "
-import json, urllib.request, os
-
-api_url = os.environ.get('N8N_API_URL', '')
-api_key = os.environ.get('N8N_API_KEY', '')
-all_workflows = []
-cursor = ''
-
-for _ in range(20):
-    url = f'{api_url}/api/v1/workflows?limit=250'
-    if cursor:
-        url += f'&cursor={cursor}'
-    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
-    try:
-        resp = urllib.request.urlopen(req, timeout=15)
-        data = json.loads(resp.read())
-    except:
-        break
-    wfs = data.get('data', [])
-    all_workflows.extend(wfs)
-    cursor = data.get('nextCursor', '')
-    if not cursor or not wfs:
-        break
-
-inactive = [w for w in all_workflows if not w.get('active')]
-for w in inactive:
-    print(w['id'])
 " 2>/dev/null || true)
 
-      if [ -n "$INACTIVE_IDS" ]; then
-        log_info "Activation des workflows inactifs..."
-        ACTIVATE_OK=0
-        ACTIVATE_FAIL=0
+          if [ -n "$existing_id" ]; then
+            # --- UPDATE: recuperer le workflow actuel (credentials + versionId) ---
+            tmp_current="/tmp/n8n_current_$existing_id.json"
+            curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_API_URL/api/v1/workflows/$existing_id" > "$tmp_current" 2>/dev/null || echo "{}" > "$tmp_current"
 
-        while IFS= read -r wf_id; do
-          [ -z "$wf_id" ] && continue
-          act_resp=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_API_URL/api/v1/workflows/$wf_id/activate" 2>/dev/null || true)
-          act_code=$(echo "$act_resp" | tail -1)
-          if [ "$act_code" = "200" ]; then
-            ACTIVATE_OK=$((ACTIVATE_OK + 1))
+            # Transformer: merger credentials du workflow actuel dans le nouveau
+            transform_script="$PROJECT_DIR/scripts/transform-n8n-workflow.py"
+            tmp_pyerr="/tmp/n8n_pyerr_$existing_id.txt"
+
+            if [ -f "$transform_script" ]; then
+              payload=$(python3 "$transform_script" "$file" "$tmp_current" 2>"$tmp_pyerr")
+            else
+              # Fallback: transformation minimale (credentials seulement)
+              payload=$(python3 -c "
+import sys, json
+try:
+    with open('$tmp_current') as f:
+        current_wf = json.load(f)
+
+    # Extraire credentials du workflow actuel
+    cred_map = {}
+    for node in current_wf.get('nodes', []):
+        for cred_type, cred_info in node.get('credentials', {}).items():
+            if isinstance(cred_info, dict):
+                cname = cred_info.get('name', '')
+                cid = str(cred_info.get('id', ''))
+                if cname and cid and cid not in ('', 'null', 'None'):
+                    cred_map[cname] = cid
+
+    current_version_id = current_wf.get('versionId')
+
+    with open('$file') as f:
+        wf = json.load(f)
+
+    # Nettoyer les champs non necessaires pour le PUT
+    for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','_comment']:
+        wf.pop(k, None)
+
+    wf.setdefault('settings', {})
+
+    # Injecter le versionId du workflow actuel
+    if current_version_id:
+        wf['versionId'] = current_version_id
+
+    # Appliquer les credentials
+    for node in wf.get('nodes', []):
+        for cred_type, cred_info in node.get('credentials', {}).items():
+            if isinstance(cred_info, dict):
+                cred_name = cred_info.get('name', '')
+                if cred_name and cred_name in cred_map:
+                    cred_info['id'] = cred_map[cred_name]
+
+    print(json.dumps(wf))
+except Exception as e:
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+" 2>"$tmp_pyerr")
+            fi
+            py_exit=$?
+
+            if [ $py_exit -ne 0 ] || [ -z "$payload" ]; then
+              if [ -f "$tmp_pyerr" ] && [ -s "$tmp_pyerr" ]; then
+                log_warn "  Python erreur pour $(basename "$file"):"
+                head -5 "$tmp_pyerr" >&2
+              fi
+              N8N_ERRORS=$((N8N_ERRORS + 1))
+              log_warn "  ERREUR transform: $wf_name"
+              rm -f "$tmp_pyerr" "$tmp_current"
+              continue
+            fi
+            rm -f "$tmp_pyerr" "$tmp_current"
+
+            # Ecrire le payload dans un fichier temp (eviter corruption bash)
+            tmp_payload="/tmp/n8n_payload_$existing_id.json"
+            printf '%s' "$payload" > "$tmp_payload"
+
+            # PUT via API REST
+            put_response=$(curl -s -w "\n%{http_code}" -X PUT \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d @"$tmp_payload" \
+              "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
+            put_http_code=$(echo "$put_response" | tail -1)
+
+            if [ "$put_http_code" = "200" ]; then
+              log_ok "  UPDATE: $wf_name (id=$existing_id)"
+              N8N_SUCCESS=$((N8N_SUCCESS + 1))
+            else
+              err_body=$(echo "$put_response" | sed '$d' | head -1)
+              log_warn "  UPDATE echoue: $wf_name (HTTP $put_http_code)"
+              [ -n "$err_body" ] && log_warn "    -> $err_body"
+              N8N_ERRORS=$((N8N_ERRORS + 1))
+            fi
+            rm -f "$tmp_payload"
+
+            # Activer le workflow
+            curl -s -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_API_URL/api/v1/workflows/$existing_id/activate" > /dev/null 2>&1 || true
+
+            sleep 0.3
           else
-            ACTIVATE_FAIL=$((ACTIVATE_FAIL + 1))
-            log_warn "    ECHEC activation $wf_id (HTTP $act_code)"
+            # --- CREATE: nouveau workflow ---
+            payload=$(python3 -c "
+import json
+with open('$file') as f:
+    wf = json.load(f)
+allowed = {'name','nodes','connections','settings','staticData'}
+wf = {k: v for k, v in wf.items() if k in allowed}
+wf.setdefault('settings', {})
+print(json.dumps(wf))
+" 2>/dev/null || true)
+
+            if [ -z "$payload" ]; then
+              N8N_ERRORS=$((N8N_ERRORS + 1))
+              log_warn "  ERREUR parse: $wf_name"
+              continue
+            fi
+
+            tmp_payload_create="/tmp/n8n_payload_create_$$.json"
+            printf '%s' "$payload" > "$tmp_payload_create"
+
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d @"$tmp_payload_create" \
+              "$N8N_API_URL/api/v1/workflows" 2>/dev/null || true)
+            rm -f "$tmp_payload_create"
+            http_code=$(echo "$response" | tail -1)
+            body=$(echo "$response" | sed '$d')
+
+            if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
+              new_id=$(echo "$body" | python3 -c "import sys, json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
+              if [ -n "$new_id" ]; then
+                curl -s -X POST \
+                  -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                  "$N8N_API_URL/api/v1/workflows/$new_id/activate" > /dev/null 2>&1 || true
+                log_ok "  CREATE: $wf_name (id=$new_id)"
+              fi
+              N8N_SUCCESS=$((N8N_SUCCESS + 1))
+            else
+              N8N_ERRORS=$((N8N_ERRORS + 1))
+              log_warn "  CREATE echoue: $wf_name (HTTP $http_code)"
+            fi
           fi
-        done <<< "$INACTIVE_IDS"
+        done <<< "$CHANGED_N8N_FILES"
 
-        if [ "$ACTIVATE_FAIL" -eq 0 ]; then
-          log_ok "$ACTIVATE_OK workflows actives"
+        # --- RESUME ---
+        echo ""
+        if [ "$N8N_ERRORS" -eq 0 ]; then
+          log_ok "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL synchronises (0 erreur)"
         else
-          log_warn "$ACTIVATE_OK actives, $ACTIVATE_FAIL echecs"
+          log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_ERRORS erreurs"
         fi
-      fi
 
-      # --- VERIFICATION FINALE ---
-      log_info "Verification finale..."
-      python3 -c "
+        # --- RESTART n8n si des workflows ont ete modifies ---
+        if [ "$N8N_SUCCESS" -gt 0 ]; then
+          log_info "Restart n8n pour enregistrer les webhooks..."
+          docker restart n8n > /dev/null 2>&1 || true
+          wait_for_n8n 60
+        else
+          log_info "Aucun workflow synchronise — pas de restart n8n"
+        fi
+
+        # --- VERIFICATION FINALE ---
+        log_info "Verification finale..."
+        python3 -c "
 import json, urllib.request, os, sys
 
 api_url = os.environ.get('N8N_API_URL', '')
@@ -1204,11 +1090,8 @@ active = len([w for w in all_workflows if w.get('active')])
 total = len(all_workflows)
 print(f'{active}/{total} workflows actifs')
 " 2>&1 | while IFS= read -r line; do log_ok "$line"; done
-
+      fi
     fi
-
-    # Nettoyage du cookie de session n8n
-    rm -f "$N8N_COOKIE_FILE" 2>/dev/null || true
   fi
 fi
 
