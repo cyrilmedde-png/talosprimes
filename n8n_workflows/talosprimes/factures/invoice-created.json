@@ -11,10 +11,7 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
@@ -24,10 +21,7 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,10 +38,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -58,10 +49,7 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
@@ -78,23 +66,17 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroFacture = 'FAC-' + year + '-' + String(nextNum).padStart(6, '0');\n\n// Calculer date d'\u00e9ch\u00e9ance si pas fournie (J+30)\nlet dateEcheance = parser.dateEcheance;\nif (!dateEcheance) {\n  const d = new Date(parser.dateFacture);\n  d.setDate(d.getDate() + 30);\n  dateEcheance = d.toISOString();\n}\n\nreturn [{ json: { ...parser, numeroFacture, dateEcheance } }];"
+        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroFacture = 'FAC-' + year + '-' + String(nextNum).padStart(6, '0');\n\nlet dateEcheance = parser.dateEcheance;\nif (!dateEcheance) {\n  const d = new Date(parser.dateFacture);\n  d.setDate(d.getDate() + 30);\n  dateEcheance = d.toISOString();\n}\n\nreturn [{ json: { ...parser, numeroFacture, dateEcheance } }];"
       },
       "id": "06. Generate Number",
       "name": "06. Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
@@ -111,10 +93,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
@@ -124,10 +103,7 @@
       "name": "08. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
@@ -144,145 +120,81 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        1500,
-        300
-      ]
+      "position": [1500, 300]
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $('07. Insert Invoice').first().json;\n\nreturn [{ json: {\n  id: invoice.id,\n  tenantId: invoice.tenant_id,\n  clientFinalId: invoice.client_final_id,\n  type: invoice.type,\n  numeroFacture: invoice.numero_facture,\n  dateFacture: invoice.date_facture,\n  dateEcheance: invoice.date_echeance,\n  montantHt: invoice.montant_ht,\n  montantTtc: invoice.montant_ttc,\n  tvaTaux: invoice.tva_taux,\n  description: invoice.description,\n  modePaiement: invoice.mode_paiement,\n  statut: invoice.statut,\n  lienPdf: invoice.lien_pdf,\n  createdAt: invoice.created_at,\n  updatedAt: invoice.updated_at\n} }];"
+        "method": "POST",
+        "url": "=http://localhost:5678/webhook/compta-auto-facture",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $('07. Insert Invoice').first().json.tenant_id, invoiceId: $('07. Insert Invoice').first().json.id }) }}",
+        "options": {
+          "timeout": 15000
+        }
       },
-      "id": "10. Format Response",
-      "name": "10. Format Response",
+      "id": "10. Call Compta",
+      "name": "10. Call Compta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1700, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const invoice = $('07. Insert Invoice').first().json;\n\nlet comptaResult = null;\ntry {\n  const compta = $('10. Call Compta').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta échoué: ' + e.message };\n}\n\nreturn [{ json: {\n  id: invoice.id,\n  tenantId: invoice.tenant_id,\n  clientFinalId: invoice.client_final_id,\n  type: invoice.type,\n  numeroFacture: invoice.numero_facture,\n  dateFacture: invoice.date_facture,\n  dateEcheance: invoice.date_echeance,\n  montantHt: invoice.montant_ht,\n  montantTtc: invoice.montant_ttc,\n  tvaTaux: invoice.tva_taux,\n  description: invoice.description,\n  modePaiement: invoice.mode_paiement,\n  statut: invoice.statut,\n  lienPdf: invoice.lien_pdf,\n  createdAt: invoice.created_at,\n  updatedAt: invoice.updated_at,\n  comptabilisation: comptaResult\n} }];"
+      },
+      "id": "11. Format Response",
+      "name": "11. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1700,
-        300
-      ]
+      "position": [1900, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "11. Respond",
-      "name": "11. Respond",
+      "id": "12. Respond",
+      "name": "12. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1900,
-        300
-      ]
+      "position": [2100, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Next Number",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Next Number", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Get Next Number": {
-      "main": [
-        [
-          {
-            "node": "06. Generate Number",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. Generate Number", "type": "main", "index": 0 }]]
     },
     "06. Generate Number": {
-      "main": [
-        [
-          {
-            "node": "07. Insert Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Insert Invoice", "type": "main", "index": 0 }]]
     },
     "07. Insert Invoice": {
-      "main": [
-        [
-          {
-            "node": "08. Prepare Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Prepare Lines", "type": "main", "index": 0 }]]
     },
     "08. Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "09. Insert Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "09. Insert Lines", "type": "main", "index": 0 }]]
     },
     "09. Insert Lines": {
-      "main": [
-        [
-          {
-            "node": "10. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "10. Call Compta", "type": "main", "index": 0 }]]
     },
-    "10. Format Response": {
-      "main": [
-        [
-          {
-            "node": "11. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Call Compta": {
+      "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]]
+    },
+    "11. Format Response": {
+      "main": [[{ "node": "12. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

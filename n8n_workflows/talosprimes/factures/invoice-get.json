@@ -11,10 +11,7 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
@@ -24,10 +21,7 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,10 +38,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -58,10 +49,7 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 50]
     },
     {
       "parameters": {
@@ -78,10 +66,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
@@ -98,112 +83,116 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 200]
     },
     {
       "parameters": {
-        "jsCode": "const inv = $('05. Get Invoice').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json).filter(l => l.id);\n\nif (!inv || !inv.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e' } }];\n}\n\nconst invoice = {\n  id: inv.id,\n  tenantId: inv.tenant_id,\n  clientFinalId: inv.client_final_id,\n  type: inv.type,\n  numeroFacture: inv.numero_facture,\n  dateFacture: inv.date_facture,\n  dateEcheance: inv.date_echeance,\n  montantHt: inv.montant_ht,\n  montantTtc: inv.montant_ttc,\n  tvaTaux: inv.tva_taux,\n  description: inv.description,\n  modePaiement: inv.mode_paiement,\n  statut: inv.statut,\n  lienPdf: inv.lien_pdf,\n  idExternePaiement: inv.id_externe_paiement,\n  createdAt: inv.created_at,\n  updatedAt: inv.updated_at,\n  clientFinal: inv.client_final_id ? {\n    id: inv.client_final_id,\n    nom: inv.client_nom || null,\n    prenom: inv.client_prenom || null,\n    email: inv.client_email || null,\n    telephone: inv.client_telephone || null,\n    raisonSociale: inv.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: invoice }];"
+        "operation": "executeQuery",
+        "query": "=SELECT id, invoice_id, numero_devis, date_devis, montant_ht, montant_ttc, statut FROM devis WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}'"
       },
-      "id": "07. Format Response",
-      "name": "07. Format Response",
+      "id": "07. Get Devis",
+      "name": "07. Get Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [900, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, invoice_id, numero_proforma, date_proforma, montant_ht, montant_ttc, statut FROM proformas WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}'"
+      },
+      "id": "08. Get Proformas",
+      "name": "08. Get Proformas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, invoice_id, numero_bdc, date_bdc, montant_ht, montant_ttc, statut FROM bons_commande WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}'"
+      },
+      "id": "09. Get BdC",
+      "name": "09. Get BdC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [900, 650]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inv = $('05. Get Invoice').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json).filter(l => l.id);\nconst devisItems = $('07. Get Devis').all().map(item => item.json).filter(d => d.id);\nconst proformaItems = $('08. Get Proformas').all().map(item => item.json).filter(p => p.id);\nconst bdcItems = $('09. Get BdC').all().map(item => item.json).filter(b => b.id);\n\nif (!inv || !inv.id) {\n  return [{ json: { error: 'Facture non trouvée' } }];\n}\n\nconst invoice = {\n  id: inv.id,\n  tenantId: inv.tenant_id,\n  clientFinalId: inv.client_final_id,\n  type: inv.type,\n  numeroFacture: inv.numero_facture,\n  dateFacture: inv.date_facture,\n  dateEcheance: inv.date_echeance,\n  montantHt: inv.montant_ht,\n  montantTtc: inv.montant_ttc,\n  tvaTaux: inv.tva_taux,\n  description: inv.description,\n  modePaiement: inv.mode_paiement,\n  statut: inv.statut,\n  lienPdf: inv.lien_pdf,\n  idExternePaiement: inv.id_externe_paiement,\n  createdAt: inv.created_at,\n  updatedAt: inv.updated_at,\n  clientFinal: inv.client_final_id ? {\n    id: inv.client_final_id,\n    nom: inv.client_nom || null,\n    prenom: inv.client_prenom || null,\n    email: inv.client_email || null,\n    telephone: inv.client_telephone || null,\n    raisonSociale: inv.client_raison_sociale || null\n  } : null,\n  lines: lines,\n  devis: devisItems.map(d => ({ id: d.id, numeroDevis: d.numero_devis, dateDevis: d.date_devis, montantHt: d.montant_ht, montantTtc: d.montant_ttc, statut: d.statut })),\n  proformas: proformaItems.map(p => ({ id: p.id, numeroProforma: p.numero_proforma, dateProforma: p.date_proforma, montantHt: p.montant_ht, montantTtc: p.montant_ttc, statut: p.statut })),\n  bonsCommande: bdcItems.map(b => ({ id: b.id, numeroBdc: b.numero_bdc, dateBdc: b.date_bdc, montantHt: b.montant_ht, montantTtc: b.montant_ttc, statut: b.statut }))\n};\n\nreturn [{ json: invoice }];"
+      },
+      "id": "10. Format Response",
+      "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 400]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "08. Respond",
-      "name": "08. Respond",
+      "id": "11. Respond",
+      "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1300, 400]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Invoice", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Get Invoice": {
-      "main": [
-        [
-          {
-            "node": "06. Get Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[
+        { "node": "06. Get Lines", "type": "main", "index": 0 },
+        { "node": "07. Get Devis", "type": "main", "index": 0 },
+        { "node": "08. Get Proformas", "type": "main", "index": 0 },
+        { "node": "09. Get BdC", "type": "main", "index": 0 }
+      ]]
     },
     "06. Get Lines": {
-      "main": [
-        [
-          {
-            "node": "07. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
     },
-    "07. Format Response": {
-      "main": [
-        [
-          {
-            "node": "08. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Get Devis": {
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+    },
+    "08. Get Proformas": {
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+    },
+    "09. Get BdC": {
+      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+    },
+    "10. Format Response": {
+      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
     }
   }
 }

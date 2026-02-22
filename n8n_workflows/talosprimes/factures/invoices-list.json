@@ -11,10 +11,7 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
@@ -24,10 +21,7 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,10 +38,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -58,10 +49,7 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
@@ -78,10 +66,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
@@ -98,10 +83,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 300]
     },
     {
       "parameters": {
@@ -111,10 +93,7 @@
       "name": "07. Extract IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
@@ -131,10 +110,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        1300,
-        200
-      ]
+      "position": [1300, 150]
     },
     {
       "parameters": {
@@ -151,150 +127,84 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        1300,
-        400
-      ]
+      "position": [1300, 350]
     },
     {
       "parameters": {
-        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\n// Build BdC lookup by invoice_id\nconst bdcItems = $('08. Get BdC Links').all().map(item => item.json).filter(b => b.id);\nconst bdcByInvoice = {};\nfor (const b of bdcItems) {\n  if (!bdcByInvoice[b.invoice_id]) bdcByInvoice[b.invoice_id] = [];\n  bdcByInvoice[b.invoice_id].push({ id: b.id, numeroBdc: b.numero_bdc, statut: b.statut });\n}\n\n// Build Devis lookup by invoice_id\nconst devisItems = $('09. Get Devis Links').all().map(item => item.json).filter(d => d.id);\nconst devisByInvoice = {};\nfor (const d of devisItems) {\n  if (!devisByInvoice[d.invoice_id]) devisByInvoice[d.invoice_id] = [];\n  devisByInvoice[d.invoice_id].push({ id: d.id, numeroDevis: d.numero_devis, statut: d.statut });\n}\n\nconst invoices = items.map(i => ({\n  id: i.id,\n  tenantId: i.tenant_id,\n  clientFinalId: i.client_final_id,\n  type: i.type,\n  numeroFacture: i.numero_facture,\n  dateFacture: i.date_facture,\n  dateEcheance: i.date_echeance,\n  montantHt: i.montant_ht,\n  montantTtc: i.montant_ttc,\n  tvaTaux: i.tva_taux,\n  description: i.description,\n  modePaiement: i.mode_paiement,\n  statut: i.statut,\n  lienPdf: i.lien_pdf,\n  idExternePaiement: i.id_externe_paiement,\n  createdAt: i.created_at,\n  updatedAt: i.updated_at,\n  clientFinal: i.client_final_id ? {\n    id: i.client_final_id,\n    nom: i.client_nom || null,\n    prenom: i.client_prenom || null,\n    email: i.client_email || null,\n    telephone: i.client_telephone || null,\n    raisonSociale: i.client_raison_sociale || null\n  } : null,\n  bonsCommande: bdcByInvoice[i.id] || [],\n  devis: devisByInvoice[i.id] || []\n}));\n\nreturn [{ json: {\n  invoices,\n  count: invoices.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
+        "operation": "executeQuery",
+        "query": "={{ $('07. Extract IDs').first().json.hasIds ? \"SELECT id, invoice_id, numero_proforma, statut FROM proformas WHERE invoice_id IN ('\" + $('07. Extract IDs').first().json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id, NULL as numero_proforma, NULL as statut WHERE false\" }}"
       },
-      "id": "10. Format Response",
-      "name": "10. Format Response",
+      "id": "10. Get Proforma Links",
+      "name": "10. Get Proforma Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [1300, 550]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\nconst bdcItems = $('08. Get BdC Links').all().map(item => item.json).filter(b => b.id);\nconst bdcByInvoice = {};\nfor (const b of bdcItems) {\n  if (!bdcByInvoice[b.invoice_id]) bdcByInvoice[b.invoice_id] = [];\n  bdcByInvoice[b.invoice_id].push({ id: b.id, numeroBdc: b.numero_bdc, statut: b.statut });\n}\n\nconst devisItems = $('09. Get Devis Links').all().map(item => item.json).filter(d => d.id);\nconst devisByInvoice = {};\nfor (const d of devisItems) {\n  if (!devisByInvoice[d.invoice_id]) devisByInvoice[d.invoice_id] = [];\n  devisByInvoice[d.invoice_id].push({ id: d.id, numeroDevis: d.numero_devis, statut: d.statut });\n}\n\nconst proformaItems = $('10. Get Proforma Links').all().map(item => item.json).filter(p => p.id);\nconst proformasByInvoice = {};\nfor (const p of proformaItems) {\n  if (!proformasByInvoice[p.invoice_id]) proformasByInvoice[p.invoice_id] = [];\n  proformasByInvoice[p.invoice_id].push({ id: p.id, numeroProforma: p.numero_proforma, statut: p.statut });\n}\n\nconst invoices = items.map(i => ({\n  id: i.id,\n  tenantId: i.tenant_id,\n  clientFinalId: i.client_final_id,\n  type: i.type,\n  numeroFacture: i.numero_facture,\n  dateFacture: i.date_facture,\n  dateEcheance: i.date_echeance,\n  montantHt: i.montant_ht,\n  montantTtc: i.montant_ttc,\n  tvaTaux: i.tva_taux,\n  description: i.description,\n  modePaiement: i.mode_paiement,\n  statut: i.statut,\n  lienPdf: i.lien_pdf,\n  idExternePaiement: i.id_externe_paiement,\n  createdAt: i.created_at,\n  updatedAt: i.updated_at,\n  clientFinal: i.client_final_id ? {\n    id: i.client_final_id,\n    nom: i.client_nom || null,\n    prenom: i.client_prenom || null,\n    email: i.client_email || null,\n    telephone: i.client_telephone || null,\n    raisonSociale: i.client_raison_sociale || null\n  } : null,\n  bonsCommande: bdcByInvoice[i.id] || [],\n  devis: devisByInvoice[i.id] || [],\n  proformas: proformasByInvoice[i.id] || []\n}));\n\nreturn [{ json: {\n  invoices,\n  count: invoices.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
+      },
+      "id": "11. Format Response",
+      "name": "11. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1500,
-        300
-      ]
+      "position": [1500, 350]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "11. Respond",
-      "name": "11. Respond",
+      "id": "12. Respond",
+      "name": "12. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1700,
-        300
-      ]
+      "position": [1700, 350]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Count Query",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Count Query", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Count Query": {
-      "main": [
-        [
-          {
-            "node": "06. List Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. List Query", "type": "main", "index": 0 }]]
     },
     "06. List Query": {
-      "main": [
-        [
-          {
-            "node": "07. Extract IDs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Extract IDs", "type": "main", "index": 0 }]]
     },
     "07. Extract IDs": {
-      "main": [
-        [
-          {
-            "node": "08. Get BdC Links",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "09. Get Devis Links",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[
+        { "node": "08. Get BdC Links", "type": "main", "index": 0 },
+        { "node": "09. Get Devis Links", "type": "main", "index": 0 },
+        { "node": "10. Get Proforma Links", "type": "main", "index": 0 }
+      ]]
     },
     "08. Get BdC Links": {
-      "main": [
-        [
-          {
-            "node": "10. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]]
     },
     "09. Get Devis Links": {
-      "main": [
-        [
-          {
-            "node": "10. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]]
     },
-    "10. Format Response": {
-      "main": [
-        [
-          {
-            "node": "11. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Get Proforma Links": {
+      "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]]
+    },
+    "11. Format Response": {
+      "main": [[{ "node": "12. Respond", "type": "main", "index": 0 }]]
     }
   }
 }
