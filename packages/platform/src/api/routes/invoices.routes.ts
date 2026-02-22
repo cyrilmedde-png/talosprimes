@@ -225,6 +225,9 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             devis: {
               select: { id: true, numeroDevis: true, statut: true },
             },
+            proformas: {
+              select: { id: true, numeroProforma: true, statut: true },
+            },
           },
           orderBy: {
             dateFacture: 'desc',
@@ -308,6 +311,16 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
                 telephone: true,
                 adresse: true,
               },
+            },
+            lines: { orderBy: { ordre: 'asc' } },
+            bonsCommande: {
+              select: { id: true, numeroBdc: true, statut: true },
+            },
+            devis: {
+              select: { id: true, numeroDevis: true, statut: true },
+            },
+            proformas: {
+              select: { id: true, numeroProforma: true, statut: true },
             },
           },
         });

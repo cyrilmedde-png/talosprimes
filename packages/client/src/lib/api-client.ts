@@ -868,6 +868,8 @@ export interface Invoice {
   };
   bonsCommande?: { id: string; numeroBdc: string; statut: string }[];
   devis?: { id: string; numeroDevis: string; statut: string }[];
+  proformas?: { id: string; numeroProforma: string; statut: string }[];
+  comptabilisation?: { id?: string; numeroPiece?: string; error?: string } | null;
   createdAt?: string;
   updatedAt?: string;
 }

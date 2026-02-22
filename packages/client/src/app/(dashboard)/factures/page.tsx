@@ -641,6 +641,17 @@ export default function FacturesPage() {
                             {inv.devis[0].numeroDevis}
                           </button>
                         )}
+                        {inv.proformas && inv.proformas.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => router.push('/proforma')}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-purple-300 hover:text-purple-200 hover:bg-gray-600"
+                            title={`Proforma : ${inv.proformas[0].numeroProforma}`}
+                          >
+                            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                            {inv.proformas[0].numeroProforma}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
