@@ -32,31 +32,24 @@
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://api.talosprimes.com/api/leads/{{$json.id}}/statut",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { statut: $json.statut } }}",
-        "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE leads SET statut = '\" + $json.statut + \"', updated_at = NOW() WHERE id = '\" + $json.id + \"' RETURNING id, nom, prenom, email, statut\" }}"
+      },
+      "id": "PG_Update",
+      "name": "Postgres - UPDATE statut",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
       },
-      "id": "HTTP_Update",
-      "name": "API TalosPrimes - Update Status",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ]
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -89,14 +82,14 @@
       "main": [
         [
           {
-            "node": "API TalosPrimes - Update Status",
+            "node": "Postgres - UPDATE statut",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "API TalosPrimes - Update Status": {
+    "Postgres - UPDATE statut": {
       "main": [
         [
           {

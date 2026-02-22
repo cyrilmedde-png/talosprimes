@@ -572,6 +572,7 @@ enum DevisStatus {
   refusee
   expiree
   facturee
+  commandee
 }
 
 model Devis {
@@ -596,6 +597,7 @@ model Devis {
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  bonsCommande BonCommande[] @relation("DevisToBdc")
   lines       DevisLine[]
 
   @@unique([tenantId, numeroDevis])
@@ -682,6 +684,7 @@ enum ProformaStatus {
   refusee
   expiree
   facturee
+  commandee
 }
 
 model Proforma {

@@ -32,33 +32,24 @@
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.talosprimes.com/api/leads/{{$json.leadId}}",
-        "options": {
-          "timeout": 15000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, nom, prenom, email, telephone, statut, source, notes, date_contact, created_at, updated_at FROM leads WHERE id = '\" + $json.leadId + \"'\" }}"
       },
       "id": "HTTP_GetLead",
       "name": "03. API - Get Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
         680,
         400
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -75,31 +66,24 @@
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://api.talosprimes.com/api/leads/{{$json.leadId}}/statut",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { statut: 'contacte' } }}",
-        "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE leads SET statut = 'contacte', updated_at = NOW() WHERE id = '\" + $('02. Parser Payload').first().json.leadId + \"' RETURNING id, nom, prenom, statut\" }}"
       },
       "id": "HTTP_UpdateStatus",
       "name": "05. API - Update Status",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
         1120,
         400
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -359,15 +343,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "03. API - Get Lead": {
@@ -379,15 +354,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "04. Préparer Données": {
@@ -395,15 +361,6 @@
         [
           {
             "node": "05. API - Update Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -424,28 +381,18 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "06. Notification - Statut": {
       "main": [
         [
           {
-            "node": "07. API - Notification Statut",
+            "node": "07. API - Notification Statut - Construire SQL",
             "type": "main",
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "07. API - Notification Statut - Construire SQL": {
       "main": [
@@ -456,8 +403,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "07. API - Notification Statut - INSERT notification": {
       "main": [
@@ -468,23 +414,13 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "08. Continuer": {
       "main": [
         [
           {
             "node": "09. Formatage Email Client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -500,15 +436,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "10. SMTP - Email Client": {
@@ -516,15 +443,6 @@
         [
           {
             "node": "11. Notification - Email Envoyé",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -540,8 +458,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "12. API - Notification Email - Construire SQL": {
       "main": [
@@ -552,8 +469,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "12. API - Notification Email - INSERT notification": {
       "main": [
@@ -564,8 +480,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "ERROR. Notification Erreur": {
       "main": [

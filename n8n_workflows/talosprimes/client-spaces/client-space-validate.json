@@ -188,7 +188,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const s = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${s.tenant_id}', '${s.raison_sociale||s.nom||'client'}', $3, $4, false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "const s = $input.item.json;\nconst titre = 'Espace client validé';\nconst message = `Espace client pour ${s.raison_sociale||s.nom||'client'} validé avec succès`;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${s.tenant_id}', '${titre}', '${message}', 'info', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "id": "build-notif",
       "name": "12. Construire notification",

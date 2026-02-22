@@ -32,33 +32,24 @@
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "=https://api.talosprimes.com/api/leads/{{$json.leadId}}",
-        "options": {
-          "timeout": 15000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, nom, prenom, email, telephone, statut, source, notes, date_contact, created_at, updated_at FROM leads WHERE id = '\" + $json.leadId + \"'\" }}"
       },
       "id": "HTTP_GetLead",
       "name": "03. API - Get Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
         680,
         400
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -331,15 +322,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "03. API - Get Lead": {
@@ -347,15 +329,6 @@
         [
           {
             "node": "04. Préparer Données",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -376,28 +349,18 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "05. Notification - Planifié": {
       "main": [
         [
           {
-            "node": "06. API - Notification Planifié",
+            "node": "06. API - Notification Planifié - Construire SQL",
             "type": "main",
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "06. API - Notification Planifié - Construire SQL": {
       "main": [
@@ -408,8 +371,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "06. API - Notification Planifié - INSERT notification": {
       "main": [
@@ -420,23 +382,13 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "07. Continuer": {
       "main": [
         [
           {
             "node": "08. Formatage Email Client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -452,15 +404,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "09. SMTP - Email Client": {
@@ -468,15 +411,6 @@
         [
           {
             "node": "10. Notification - Email Envoyé",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -492,8 +426,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "11. API - Notification Email - Construire SQL": {
       "main": [
@@ -504,8 +437,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "11. API - Notification Email - INSERT notification": {
       "main": [
@@ -516,8 +448,7 @@
             "index": 0
           }
         ]
-      ],
-      "error": []
+      ]
     },
     "ERROR. Notification Erreur": {
       "main": [

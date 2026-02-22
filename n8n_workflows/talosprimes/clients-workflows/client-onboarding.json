@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'onboarding\n// Le webhook reçoit les données dans body ou directement\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\n\n// Le backend envoie : { event, tenantId, timestamp, data: { client: {...}, plan: {...}, avecStripe } }\nconst tenantId = payload.tenantId || payload.data?.tenantId;\nconst clientData = payload.data?.client || payload.client || payload.data || {};\nconst clientId = clientData.id || clientData.clientId;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nconst planFromPayload = payload.data?.plan || payload.plan || {};\nconst plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi`],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nconst avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\n// Validation\nif (!tenantId || !clientId) {\n  throw new Error(`Données manquantes : tenantId=${tenantId ? 'OK' : 'MANQUANT'}, clientId=${clientId ? 'OK' : 'MANQUANT'}`);\n}\n\n// Calculer les dates\nconst dateDebut = new Date();\nconst dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn {\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: `actif\"\n  }\n};"
+        "jsCode": "// Préparer les données pour l'onboarding\n// Le webhook reçoit les données dans body ou directement\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\n\n// Le backend envoie : { event, tenantId, timestamp, data: { client: {...}, plan: {...}, avecStripe } }\nconst tenantId = payload.tenantId || payload.data?.tenantId;\nconst clientData = payload.data?.client || payload.client || payload.data || {};\nconst clientId = clientData.id || clientData.clientId;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nconst planFromPayload = payload.data?.plan || payload.plan || {};\nconst plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nconst avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\n// Validation\nif (!tenantId || !clientId) {\n  throw new Error(`Données manquantes : tenantId=${tenantId ? 'OK' : 'MANQUANT'}, clientId=${clientId ? 'OK' : 'MANQUANT'}`);\n}\n\n// Calculer les dates\nconst dateDebut = new Date();\nconst dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn {\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n};"
       },
       "id": "prepare-data",
       "name": "01. Préparer données onboarding",
@@ -361,7 +361,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les modules inclus pour la requête SQL paramétrisée\nconst inputItems = $input.all();\n\n// Trouver les données principales\nconst mainData = inputItems.find(item => item.json.plan || item.json.clientId) || inputItems[0] || {};\nconst passwordData = inputItems.find(item => item.json.plainPassword) || {};\n\nconst data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nconst modules = data.plan?.modulesInclus || data.modulesInclus || [];\n// Pour PG: passer comme array literal {mod1,mod2}\nconst modulesLiteral = '{' + modules.map(m => String(m)).join(',') + '}';\n\nconst query = `INSERT INTO client_subscriptions (\n  id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement,\n  montant_mensuel, modules_inclus, statut, id_client_stripe,\n  id_abonnement_stripe, temporary_password, updated_at\n) VALUES (\n  gen_random_uuid(), '${data.clientId}'::uuid, '${String(data.plan.nomPlan)}', '${data.dateDebut}'::timestamptz, '${data.dateProchainRenouvellement}'::timestamptz,\n  '${data.plan.montantMensuel}', '${modulesLiteral}'::text[], 'actif', '${data.idClientStripe || null}', '${data.idAbonnementStripe || null}', '${data.plainPassword || null}', NOW()\n) RETURNING *;`;\n\nreturn {\n  json: {\n    query,\n    params,\n    allData: data\n  }\n};"
+        "jsCode": "// Préparer les modules inclus pour la requête SQL paramétrisée\nconst inputItems = $input.all();\n\n// Trouver les données principales\nconst mainData = inputItems.find(item => item.json.plan || item.json.clientId) || inputItems[0] || {};\nconst passwordData = inputItems.find(item => item.json.plainPassword) || {};\n\nconst data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nconst modules = data.plan?.modulesInclus || data.modulesInclus || [];\n// Pour PG: passer comme array literal {mod1,mod2}\nconst modulesLiteral = '{' + modules.map(m => String(m)).join(',') + '}';\n\nconst query = `INSERT INTO client_subscriptions (\n  id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement,\n  montant_mensuel, modules_inclus, statut, id_client_stripe,\n  id_abonnement_stripe, temporary_password, updated_at\n) VALUES (\n  gen_random_uuid(), '${data.clientId}'::uuid, '${String(data.plan.nomPlan)}', '${data.dateDebut}'::timestamptz, '${data.dateProchainRenouvellement}'::timestamptz,\n  ${data.plan.montantMensuel}, '${modulesLiteral}'::text[], 'actif', ${data.idClientStripe ? \"'\" + data.idClientStripe + \"'\" : 'NULL'}, ${data.idAbonnementStripe ? \"'\" + data.idAbonnementStripe + \"'\" : 'NULL'}, ${data.plainPassword ? \"'\" + data.plainPassword.replace(/'/g, \"''\") + \"'\" : 'NULL'}, NOW()\n) RETURNING *;`;\n\nreturn {\n  json: {\n    query,\n    allData: data\n  }\n};"
       },
       "id": "prepare-sql",
       "name": "09. Préparer requête SQL",
@@ -523,7 +523,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${s}', '${d.titre || 'Notification'}', '${d.message}', $4, false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), ${d.donnees?.tenantId || d.tenantId || '00000000-0000-0000-0000-000000000001'}, '${d.titre || 'Notification'}', '${d.message}', '${d.type || \"info\"}', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "name": "12. Créer notification - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -532,7 +532,7 @@
         2660,
         650
       ],
-      "id": "create-notification"
+      "id": "12. Créer notification - Construire SQL"
     },
     {
       "parameters": {
@@ -838,7 +838,7 @@
       "main": [
         [
           {
-            "node": "12. Créer notification",
+            "node": "12. Créer notification - Construire SQL",
             "type": "main",
             "index": 0
           }
@@ -849,7 +849,7 @@
       "main": [
         [
           {
-            "node": "12. Créer notification - INSERT notification",
+            "node": "12. Créer notification - Construire SQL",
             "type": "main",
             "index": 0
           }

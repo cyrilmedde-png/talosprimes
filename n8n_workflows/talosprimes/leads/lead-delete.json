@@ -32,28 +32,24 @@
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://api.talosprimes.com/api/leads/{{$json.id}}",
-        "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
+        "operation": "executeQuery",
+        "query": "={{ \"DELETE FROM leads WHERE id = '\" + $json.id + \"' RETURNING id, nom, prenom, email\" }}"
+      },
+      "id": "PG_Delete",
+      "name": "Postgres - DELETE lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
       },
-      "id": "HTTP_Delete",
-      "name": "API TalosPrimes - Delete Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        780,
-        300
-      ]
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -86,14 +82,14 @@
       "main": [
         [
           {
-            "node": "API TalosPrimes - Delete Lead",
+            "node": "Postgres - DELETE lead",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "API TalosPrimes - Delete Lead": {
+    "Postgres - DELETE lead": {
       "main": [
         [
           {

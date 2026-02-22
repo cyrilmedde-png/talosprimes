@@ -32,36 +32,24 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/leads",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {
-          "timeout": 15000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, notes, statut, date_contact, created_at, updated_at) VALUES (gen_random_uuid(), '\" + ($json.tenantId || '00000000-0000-0000-0000-000000000001') + \"', '\" + ($json.nom || '').replace(/'/g, \"''\") + \"', '\" + ($json.prenom || '').replace(/'/g, \"''\") + \"', '\" + ($json.email || '') + \"', '\" + ($json.telephone || '') + \"', '\" + ($json.source || 'site_web') + \"', \" + ($json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", 'nouveau', NOW(), NOW(), NOW()) RETURNING *\" }}"
       },
       "id": "HTTP_SaveLead",
       "name": "03. API - Sauvegarder Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
       "position": [
         680,
         400
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -565,15 +553,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "03. API - Sauvegarder Lead": {
@@ -585,15 +564,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "04. Préparer Données": {
@@ -601,15 +571,6 @@
         [
           {
             "node": "05. IF - Créer Notification Lead ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -638,7 +599,7 @@
       "main": [
         [
           {
-            "node": "07. API - Créer Notification Lead",
+            "node": "07. API - Créer Notification Lead - Construire SQL",
             "type": "main",
             "index": 0
           }
@@ -649,16 +610,7 @@
       "main": [
         [
           {
-            "node": "07. API - Créer Notification Lead - INSERT notification",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "07. API - Créer Notification Lead - INSERT notification",
+            "node": "07. API - Créer Notification Lead - Construire SQL",
             "type": "main",
             "index": 0
           }
@@ -667,15 +619,6 @@
     },
     "07. API - Créer Notification Lead - INSERT notification": {
       "main": [
-        [
-          {
-            "node": "08. Continuer",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
         [
           {
             "node": "08. Continuer",
@@ -694,15 +637,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "09. Formatage Email Client": {
@@ -714,15 +648,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "10. Envoyer Email Client": {
@@ -730,15 +655,6 @@
         [
           {
             "node": "11. IF - Créer Notification Email ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -783,28 +699,10 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "13. API - Créer Notification Email - INSERT notification",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "13. API - Créer Notification Email - INSERT notification": {
       "main": [
-        [
-          {
-            "node": "14. Continuer pour SMS",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
         [
           {
             "node": "14. Continuer pour SMS",
@@ -823,15 +721,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "15. Formatage SMS": {
@@ -843,15 +732,6 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "16. Envoyer SMS": {
@@ -859,15 +739,6 @@
         [
           {
             "node": "17. IF - Créer Notification SMS ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
@@ -912,28 +783,10 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "19. API - Créer Notification SMS - INSERT notification",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "19. API - Créer Notification SMS - INSERT notification": {
       "main": [
-        [
-          {
-            "node": "20. Réponse Succès",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
         [
           {
             "node": "20. Réponse Succès",
@@ -981,28 +834,10 @@
             "index": 0
           }
         ]
-      ],
-      "error": [
-        [
-          {
-            "node": "ERROR. API - Notification Erreur - INSERT notification",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "ERROR. API - Notification Erreur - INSERT notification": {
       "main": [
-        [
-          {
-            "node": "ERROR. Réponse Erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
         [
           {
             "node": "ERROR. Réponse Erreur",

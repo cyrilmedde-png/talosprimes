@@ -32,36 +32,37 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/leads",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "options": {
-          "timeout": 15000,
-          "response": {
-            "response": {
-              "fullResponse": false
-            }
-          },
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "jsCode": "const d = $json;\n// Escape single quotes\nconst esc = (v) => v ? String(v).replace(/'/g, \"''\") : '';\nconst query = `INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, notes, statut, date_contact, created_at, updated_at)\nVALUES (\n  gen_random_uuid(),\n  '${esc(d.tenantId)}',\n  '${esc(d.nom)}',\n  '${esc(d.prenom)}',\n  '${esc(d.email)}',\n  '${esc(d.telephone)}',\n  '${esc(d.source || 'admin')}',\n  ${d.notes ? \"'\" + esc(d.notes) + \"'\" : 'NULL'},\n  'nouveau',\n  NOW(),\n  NOW(), NOW()\n) RETURNING *`;\nreturn [{json: {query}}];"
       },
-      "id": "HTTP_SaveLead",
-      "name": "API TalosPrimes - Save Lead",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "id": "Code_BuildSQL",
+      "name": "Construire INSERT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        780,
+        700,
         300
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "PG_Insert",
+      "name": "Postgres - INSERT lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        920,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -95,14 +96,25 @@
       "main": [
         [
           {
-            "node": "API TalosPrimes - Save Lead",
+            "node": "Construire INSERT",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "API TalosPrimes - Save Lead": {
+    "Construire INSERT": {
+      "main": [
+        [
+          {
+            "node": "Postgres - INSERT lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres - INSERT lead": {
       "main": [
         [
           {
