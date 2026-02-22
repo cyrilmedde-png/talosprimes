@@ -523,7 +523,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), ${d.donnees?.tenantId || d.tenantId || '00000000-0000-0000-0000-000000000001'}, '${d.titre || 'Notification'}', '${d.message}', '${d.type || \"info\"}', false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.donnees?.tenantId || d.tenantId || '00000000-0000-0000-0000-000000000001'}', '${(d.titre || 'Notification').replace(/'/g, \"''\")}', '${(d.message || '').replace(/'/g, \"''\")}', '${d.type || \"info\"}', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "name": "12. Créer notification - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -849,7 +849,7 @@
       "main": [
         [
           {
-            "node": "12. Créer notification - Construire SQL",
+            "node": "12. Créer notification - INSERT notification",
             "type": "main",
             "index": 0
           }

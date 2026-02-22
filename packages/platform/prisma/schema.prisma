@@ -532,6 +532,7 @@ model BonCommande {
   modePaiement    String?           @map("mode_paiement")
   statut          BonCommandeStatus @default(brouillon)
   invoiceId       String?           @map("invoice_id") @db.Uuid
+  devisId         String?           @map("devis_id") @db.Uuid
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
   deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
@@ -539,11 +540,13 @@ model BonCommande {
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  devisSource Devis?       @relation("DevisToBdc", fields: [devisId], references: [id], onDelete: SetNull)
   lines       BonCommandeLine[]
 
   @@unique([tenantId, numeroBdc])
   @@index([tenantId])
   @@index([clientFinalId])
+  @@index([devisId])
   @@index([statut])
   @@map("bons_commande")
 }

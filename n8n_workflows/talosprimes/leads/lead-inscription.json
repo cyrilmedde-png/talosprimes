@@ -610,7 +610,7 @@
       "main": [
         [
           {
-            "node": "07. API - Créer Notification Lead - Construire SQL",
+            "node": "07. API - Créer Notification Lead - INSERT notification",
             "type": "main",
             "index": 0
           }
