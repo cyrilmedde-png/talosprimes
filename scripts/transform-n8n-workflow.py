@@ -216,11 +216,13 @@ def transform_workflow(wf_path, current_n8n_path=None):
 
     wf.setdefault('settings', {})
 
-    # Remove read-only fields
-    for k in ['active', 'id', 'createdAt', 'updatedAt', 'versionId',
+    # Remove read-only fields (but preserve versionId — needed for PUT API)
+    for k in ['active', 'id', 'createdAt', 'updatedAt',
               'triggerCount', 'sharedWithProjects', 'homeProject',
               'tags', 'meta', 'pinData', 'staticData', '_comment']:
         wf.pop(k, None)
+    # versionId will be injected from the current n8n workflow below
+    wf.pop('versionId', None)
 
     # ==================================================================
     # EXTRACT CREDENTIALS FROM CURRENT N8N WORKFLOW
@@ -233,6 +235,13 @@ def transform_workflow(wf_path, current_n8n_path=None):
         try:
             with open(current_n8n_path) as f:
                 current_wf = json.load(f)
+
+            # Inject versionId from current n8n workflow (required for PUT API)
+            current_version_id = current_wf.get('versionId')
+            if current_version_id:
+                wf['versionId'] = current_version_id
+                print(f"      versionId injecte: {current_version_id}", file=sys.stderr)
+
             for node in current_wf.get('nodes', []):
                 node_name = node.get('name', '')
                 creds = node.get('credentials', {})

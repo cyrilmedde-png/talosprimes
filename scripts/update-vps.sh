@@ -317,11 +317,14 @@ try:
     except:
         pass
     cred_map = {**global_map, **local_map}
+    current_version_id = current_wf.get('versionId') if 'current_wf' in dir() else None
     with open('$file') as f:
         wf = json.load(f)
     wf.setdefault('settings', {})
     for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData','_comment']:
         wf.pop(k, None)
+    if current_version_id:
+        wf['versionId'] = current_version_id
     for node in wf.get('nodes', []):
         for cred_type, cred_info in node.get('credentials', {}).items():
             if isinstance(cred_info, dict):
@@ -346,12 +349,17 @@ except Exception as e:
     fi
     rm -f "$tmp_pyerr" "$tmp_current"
 
+    # Ecrire le payload dans un fichier pour eviter la corruption par bash
+    # ($() dans le JSON est interprete comme substitution de commande avec -d "$payload")
+    local tmp_payload="/tmp/n8n_payload_$existing_id.json"
+    printf '%s' "$payload" > "$tmp_payload"
+
     # PUT via API REST (safe — pas d'ecriture directe en SQLite)
     local put_response put_http_code
     put_response=$(curl -s -w "\n%{http_code}" -X PUT \
       -H "X-N8N-API-KEY: $N8N_API_KEY" \
       -H "Content-Type: application/json" \
-      -d "$payload" \
+      -d @"$tmp_payload" \
       "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
     put_http_code=$(echo "$put_response" | tail -1)
 
@@ -359,25 +367,32 @@ except Exception as e:
       log_info "    UPDATE OK: $name (id=$existing_id)"
     else
       log_warn "    UPDATE echoue pour $name (HTTP $put_http_code)"
+      # Log du body d'erreur pour debug
+      local err_body
+      err_body=$(echo "$put_response" | sed '$d' | head -1)
+      [ -n "$err_body" ] && log_warn "    Erreur n8n: $err_body"
       # Fallback: essayer via /rest/ avec le cookie de session
       if [ "$N8N_SESSION_OK" = true ] && [ -f "$N8N_COOKIE_FILE" ]; then
         local rest_response rest_code
         rest_response=$(curl -s -w "\n%{http_code}" -X PATCH \
           -b "$N8N_COOKIE_FILE" \
           -H "Content-Type: application/json" \
-          -d "$payload" \
+          -d @"$tmp_payload" \
           "$N8N_API_URL/rest/workflows/$existing_id" 2>/dev/null)
         rest_code=$(echo "$rest_response" | tail -1)
         if [ "$rest_code" = "200" ]; then
           log_info "    UPDATE OK via /rest/ (fallback session)"
         else
           log_warn "    Fallback /rest/ aussi echoue (HTTP $rest_code)"
+          rm -f "$tmp_payload"
           return 1
         fi
       else
+        rm -f "$tmp_payload"
         return 1
       fi
     fi
+    rm -f "$tmp_payload"
 
     sleep 0.3
 
@@ -426,12 +441,17 @@ print(json.dumps(wf))
       return 1
     fi
 
+    # Ecrire dans un fichier temporaire pour eviter corruption bash
+    local tmp_payload_create="/tmp/n8n_payload_create_$$.json"
+    printf '%s' "$payload" > "$tmp_payload_create"
+
     local response http_code body
     response=$(curl -s -w "\n%{http_code}" -X POST \
       -H "X-N8N-API-KEY: $N8N_API_KEY" \
       -H "Content-Type: application/json" \
-      -d "$payload" \
+      -d @"$tmp_payload_create" \
       "$N8N_API_URL/api/v1/workflows" 2>/dev/null || true)
+    rm -f "$tmp_payload_create"
     http_code=$(echo "$response" | tail -1)
     body=$(echo "$response" | sed '$d')
 
