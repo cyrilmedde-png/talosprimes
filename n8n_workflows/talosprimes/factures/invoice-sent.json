@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const result = $('05. Update Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { id: result.id, tenantId: result.tenant_id, numeroFacture: result.numero_facture, statut: result.statut, updatedAt: result.updated_at } }];"
+        "jsCode": "const result = $('05. Update Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { id: result.id, tenantId: result.tenant_id, numeroFacture: result.numero_facture, statut: result.statut, updatedAt: result.updated_at } }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

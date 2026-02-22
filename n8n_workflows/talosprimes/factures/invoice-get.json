@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -105,7 +105,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const inv = $('05. Get Invoice').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json).filter(l => l.id);\n\nif (!inv || !inv.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e' } }];\n}\n\nconst invoice = {\n  id: inv.id,\n  tenantId: inv.tenant_id,\n  clientFinalId: inv.client_final_id,\n  type: inv.type,\n  numeroFacture: inv.numero_facture,\n  dateFacture: inv.date_facture,\n  dateEcheance: inv.date_echeance,\n  montantHt: inv.montant_ht,\n  montantTtc: inv.montant_ttc,\n  tvaTaux: inv.tva_taux,\n  description: inv.description,\n  modePaiement: inv.mode_paiement,\n  statut: inv.statut,\n  lienPdf: inv.lien_pdf,\n  idExternePaiement: inv.id_externe_paiement,\n  createdAt: inv.created_at,\n  updatedAt: inv.updated_at,\n  clientFinal: inv.client_final_id ? {\n    id: inv.client_final_id,\n    nom: inv.client_nom || null,\n    prenom: inv.client_prenom || null,\n    email: inv.client_email || null,\n    telephone: inv.client_telephone || null,\n    raisonSociale: inv.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: invoice }];"
+        "jsCode": "const inv = $('05. Get Invoice').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json).filter(l => l.id);\n\nif (!inv || !inv.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e' } }];\n}\n\nconst invoice = {\n  id: inv.id,\n  tenantId: inv.tenant_id,\n  clientFinalId: inv.client_final_id,\n  type: inv.type,\n  numeroFacture: inv.numero_facture,\n  dateFacture: inv.date_facture,\n  dateEcheance: inv.date_echeance,\n  montantHt: inv.montant_ht,\n  montantTtc: inv.montant_ttc,\n  tvaTaux: inv.tva_taux,\n  description: inv.description,\n  modePaiement: inv.mode_paiement,\n  statut: inv.statut,\n  lienPdf: inv.lien_pdf,\n  idExternePaiement: inv.id_externe_paiement,\n  createdAt: inv.created_at,\n  updatedAt: inv.updated_at,\n  clientFinal: inv.client_final_id ? {\n    id: inv.client_final_id,\n    nom: inv.client_nom || null,\n    prenom: inv.client_prenom || null,\n    email: inv.client_email || null,\n    telephone: inv.client_telephone || null,\n    raisonSociale: inv.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: invoice }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const inv = $('05. Get Invoice').first().json;\n\nif (!inv || !inv.id) {\n  throw new Error('Facture non trouv\u00e9e ou statut incompatible (brouillon/annul\u00e9e)');\n}\n\nreturn [{ json: inv }];"
+        "jsCode": "const inv = $('05. Get Invoice').first().json;\n\nif (!inv || !inv.id) {\n  throw new Error('Facture non trouv\u00e9e ou statut incompatible (brouillon/annul\u00e9e)');\n}\n\nreturn [{ json: inv }];"
       },
       "id": "06. Check Invoice",
       "name": "06. Check Invoice",
@@ -118,7 +118,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const inv = $('06. Check Invoice').first().json;\nconst nextNum = $('07. Get Next Avoir Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroAvoir = 'AVO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...inv, numeroAvoir } }];"
+        "jsCode": "const inv = $('06. Check Invoice').first().json;\nconst nextNum = $('07. Get Next Avoir Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroAvoir = 'AVO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...inv, numeroAvoir } }];"
       },
       "id": "08. Prepare Avoir",
       "name": "08. Prepare Avoir",
@@ -171,7 +171,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const avoir = $('09. Create Avoir').first().json;\nconst lines = $('10. Get Invoice Lines').all().map(item => item.json).filter(l => l.id);\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, hasLines: false } }];\n}\n\nconst lineInserts = lines.map(line => ({\n  avoirId: avoir.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}));\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];"
+        "jsCode": "const avoir = $('09. Create Avoir').first().json;\nconst lines = $('10. Get Invoice Lines').all().map(item => item.json).filter(l => l.id);\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, hasLines: false } }];\n}\n\nconst lineInserts = lines.map(line => ({\n  avoirId: avoir.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}));\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];"
       },
       "id": "11. Prepare Avoir Lines",
       "name": "11. Prepare Avoir Lines",
@@ -204,7 +204,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const avoir = $('09. Create Avoir').first().json;\n\nreturn [{ json: {\n  success: true,\n  avoir: {\n    id: avoir.id,\n    tenantId: avoir.tenant_id,\n    clientFinalId: avoir.client_final_id,\n    invoiceId: avoir.invoice_id,\n    numeroAvoir: avoir.numero_avoir,\n    dateAvoir: avoir.date_avoir,\n    montantHt: avoir.montant_ht,\n    montantTtc: avoir.montant_ttc,\n    tvaTaux: avoir.tva_taux,\n    motif: avoir.motif,\n    statut: avoir.statut,\n    createdAt: avoir.created_at\n  }\n} }];"
+        "jsCode": "const avoir = $('09. Create Avoir').first().json;\n\nreturn [{ json: {\n  success: true,\n  avoir: {\n    id: avoir.id,\n    tenantId: avoir.tenant_id,\n    clientFinalId: avoir.client_final_id,\n    invoiceId: avoir.invoice_id,\n    numeroAvoir: avoir.numero_avoir,\n    dateAvoir: avoir.date_avoir,\n    montantHt: avoir.montant_ht,\n    montantTtc: avoir.montant_ttc,\n    tvaTaux: avoir.tva_taux,\n    motif: avoir.motif,\n    statut: avoir.statut,\n    createdAt: avoir.created_at\n  }\n} }];"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",

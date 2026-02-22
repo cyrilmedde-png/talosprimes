@@ -15,7 +15,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nconst clientSpaceId=g(payload,'clientSpaceId','client_space_id')||g(data,'clientSpaceId','client_space_id')||g(payload,'id')||g(data,'id');\nif(!tenantId||!clientSpaceId)return [{json:{_error:true,message:'tenantId et clientSpaceId requis'}}];\nreturn [{json:{tenantId,clientSpaceId}}];"
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nconst clientSpaceId=g(payload,'clientSpaceId','client_space_id')||g(data,'clientSpaceId','client_space_id')||g(payload,'id')||g(data,'id');\nif(!tenantId||!clientSpaceId)return [{json:{_error:true,message:'tenantId et clientSpaceId requis'}}];\nreturn [{json:{tenantId,clientSpaceId}}];"
       },
       "id": "parser",
       "name": "02. Parser",
@@ -54,7 +54,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"SELECT cs.id, cs.tenant_id, cs.client_final_id, cs.client_tenant_id, cs.tenant_slug, cs.folder_path, cs.status, cs.modules_actives, cs.validated_at, cs.validated_by_user_id, cs.created_at, cs.updated_at, cf.nom AS client_nom, cf.prenom AS client_prenom, cf.raison_sociale, cf.email AS client_email, cf.telephone AS client_telephone FROM client_spaces cs JOIN client_finals cf ON cf.id = cs.client_final_id WHERE cs.id = '\"+esc(p.clientSpaceId)+\"' AND cs.tenant_id = '\"+esc(p.tenantId)+\"'\";\nreturn [{json:{query}}];"
+        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"SELECT cs.id, cs.tenant_id, cs.client_final_id, cs.client_tenant_id, cs.tenant_slug, cs.folder_path, cs.status, cs.modules_actives, cs.validated_at, cs.validated_by_user_id, cs.created_at, cs.updated_at, cf.nom AS client_nom, cf.prenom AS client_prenom, cf.raison_sociale, cf.email AS client_email, cf.telephone AS client_telephone FROM client_spaces cs JOIN client_finals cf ON cf.id = cs.client_final_id WHERE cs.id = '\"+esc(p.clientSpaceId)+\"' AND cs.tenant_id = '\"+esc(p.tenantId)+\"'\";\nreturn [{json:{query}}];"
       },
       "id": "build-query",
       "name": "05. Construire requete",
@@ -82,7 +82,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const items=$input.all();\nif(!items||items.length===0||!items[0].json?.id){\n  return [{json:{space:null}}];\n}\nreturn [{json:{space:items[0].json}}];"
+        "jsCode": "const items=$input.all();\nif(!items||items.length===0||!items[0].json?.id){\n  return [{json:{space:null}}];\n}\nreturn [{json:{space:items[0].json}}];"
       },
       "id": "format",
       "name": "07. Formater reponse",

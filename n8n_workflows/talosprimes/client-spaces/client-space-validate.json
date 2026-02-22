@@ -15,7 +15,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nconst clientSpaceId=g(payload,'clientSpaceId','client_space_id')||g(data,'clientSpaceId','client_space_id');\nconst validatedByUserId=g(payload,'validatedByUserId','validated_by_user_id')||g(data,'validatedByUserId','validated_by_user_id');\nif(!tenantId||!clientSpaceId)return [{json:{_error:true,message:'tenantId et clientSpaceId requis'}}];\nreturn [{json:{tenantId,clientSpaceId,validatedByUserId}}];"
+        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nconst clientSpaceId=g(payload,'clientSpaceId','client_space_id')||g(data,'clientSpaceId','client_space_id');\nconst validatedByUserId=g(payload,'validatedByUserId','validated_by_user_id')||g(data,'validatedByUserId','validated_by_user_id');\nif(!tenantId||!clientSpaceId)return [{json:{_error:true,message:'tenantId et clientSpaceId requis'}}];\nreturn [{json:{tenantId,clientSpaceId,validatedByUserId}}];"
       },
       "id": "parser",
       "name": "02. Parser",
@@ -54,7 +54,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"SELECT cs.id, cs.tenant_id, cs.client_final_id, cs.tenant_slug, cs.folder_path, cs.status, cs.modules_actives, cf.email, cf.nom, cf.prenom, cf.raison_sociale, cf.telephone FROM client_spaces cs JOIN client_finals cf ON cf.id = cs.client_final_id WHERE cs.id = '\"+esc(p.clientSpaceId)+\"' AND cs.tenant_id = '\"+esc(p.tenantId)+\"'\";\nreturn [{json:{query,tenantId:p.tenantId,clientSpaceId:p.clientSpaceId,validatedByUserId:p.validatedByUserId}}];"
+        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"SELECT cs.id, cs.tenant_id, cs.client_final_id, cs.tenant_slug, cs.folder_path, cs.status, cs.modules_actives, cf.email, cf.nom, cf.prenom, cf.raison_sociale, cf.telephone FROM client_spaces cs JOIN client_finals cf ON cf.id = cs.client_final_id WHERE cs.id = '\"+esc(p.clientSpaceId)+\"' AND cs.tenant_id = '\"+esc(p.tenantId)+\"'\";\nreturn [{json:{query,tenantId:p.tenantId,clientSpaceId:p.clientSpaceId,validatedByUserId:p.validatedByUserId}}];"
       },
       "id": "build-select",
       "name": "05. Construire SELECT",
@@ -85,7 +85,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const space=$input.first().json;\nif(!space||!space.id)return [{json:{_error:true,message:'Espace client introuvable'}}];\nif(space.status!=='en_attente_validation')return [{json:{_error:true,message:'Espace déjà validé ou pas en attente (status: '+space.status+')'}}];\nconst chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';\nlet pwd='';\nfor(let i=0;i<12;i++)pwd+=chars.charAt(Math.floor(Math.random()*chars.length));\nconst p=$('05. Construire SELECT').first().json;\nreturn [{json:{...space,tempPassword:pwd,validatedByUserId:p.validatedByUserId}}];"
+        "jsCode": "const space=$input.first().json;\nif(!space||!space.id)return [{json:{_error:true,message:'Espace client introuvable'}}];\nif(space.status!=='en_attente_validation')return [{json:{_error:true,message:'Espace déjà validé ou pas en attente (status: '+space.status+')'}}];\nconst chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';\nlet pwd='';\nfor(let i=0;i<12;i++)pwd+=chars.charAt(Math.floor(Math.random()*chars.length));\nconst p=$('05. Construire SELECT').first().json;\nreturn [{json:{...space,tempPassword:pwd,validatedByUserId:p.validatedByUserId}}];"
       },
       "id": "check-status",
       "name": "07. Verifier statut + generer mdp",
@@ -124,7 +124,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const s=$('07. Verifier statut + generer mdp').first().json;\nvar esc=function(v){return (v||'').replace(/'/g,\"''\");};\nconst validBy=s.validatedByUserId?\"'\"+esc(s.validatedByUserId)+\"'\":'NULL';\nvar query=\"UPDATE client_spaces SET status = 'actif', validated_at = NOW(), validated_by_user_id = \"+validBy+\", updated_at = NOW() WHERE id = '\"+esc(s.id)+\"' AND tenant_id = '\"+esc(s.tenant_id)+\"'\";\nreturn [{json:{query,space:s}}];"
+        "jsCode": "const s=$('07. Verifier statut + generer mdp').first().json;\nvar esc=function(v){return (v||'').replace(/'/g,\"''\");};\nconst validBy=s.validatedByUserId?\"'\"+esc(s.validatedByUserId)+\"'\":'NULL';\nvar query=\"UPDATE client_spaces SET status = 'actif', validated_at = NOW(), validated_by_user_id = \"+validBy+\", updated_at = NOW() WHERE id = '\"+esc(s.id)+\"' AND tenant_id = '\"+esc(s.tenant_id)+\"'\";\nreturn [{json:{query,space:s}}];"
       },
       "id": "build-update",
       "name": "10. Construire UPDATE",
@@ -155,7 +155,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const s=$('10. Construire UPDATE').first().json.space;\nvar esc=function(v){return (v||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(s.tenant_id)+\"', 'Espace client activé', 'L''espace de \"+esc(s.raison_sociale||s.nom||'client')+\" a été validé et les identifiants envoyés par email.', 'succes', false, NOW())\";\nreturn [{json:{query,space:s}}];"
+        "jsCode": "const s=$('10. Construire UPDATE').first().json.space;\nvar esc=function(v){return (v||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(s.tenant_id)+\"', 'Espace client activé', 'L''espace de \"+esc(s.raison_sociale||s.nom||'client')+\" a été validé et les identifiants envoyés par email.', 'succes', false, NOW())\";\nreturn [{json:{query,space:s}}];"
       },
       "id": "build-notif",
       "name": "12. Construire notification",
@@ -186,7 +186,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const s=$('10. Construire UPDATE').first().json.space;\nconst html='<h2>Bienvenue sur TalosPrimes !</h2><p>Bonjour '+((s.prenom||'')+' '+(s.nom||'')).trim()+',</p><p>Votre espace client a été validé et est maintenant actif.</p><h3>Vos identifiants de connexion :</h3><ul><li><strong>URL :</strong> https://talosprimes.com/login</li><li><strong>Email :</strong> '+s.email+'</li><li><strong>Mot de passe temporaire :</strong> '+s.tempPassword+'</li></ul><p><em>Veuillez changer votre mot de passe lors de votre première connexion.</em></p><p>Cordialement,<br/>L equipe TalosPrimes</p>';\nreturn [{json:{toEmail:s.email,htmlBody:html,space:s}}];"
+        "jsCode": "const s=$('10. Construire UPDATE').first().json.space;\nconst html='<h2>Bienvenue sur TalosPrimes !</h2><p>Bonjour '+((s.prenom||'')+' '+(s.nom||'')).trim()+',</p><p>Votre espace client a été validé et est maintenant actif.</p><h3>Vos identifiants de connexion :</h3><ul><li><strong>URL :</strong> https://talosprimes.com/login</li><li><strong>Email :</strong> '+s.email+'</li><li><strong>Mot de passe temporaire :</strong> '+s.tempPassword+'</li></ul><p><em>Veuillez changer votre mot de passe lors de votre première connexion.</em></p><p>Cordialement,<br/>L equipe TalosPrimes</p>';\nreturn [{json:{toEmail:s.email,htmlBody:html,space:s}}];"
       },
       "id": "prep-email",
       "name": "14. Preparer email",
@@ -216,7 +216,7 @@
     },
     {
       "parameters": {
-        "functionCode": "const s=$('14. Preparer email').first().json.space;\nreturn [{json:{success:true,data:{id:s.id,status:'actif',email:s.email,nom:s.nom,prenom:s.prenom,raisonSociale:s.raison_sociale,emailSent:true}}}];"
+        "jsCode": "const s=$('14. Preparer email').first().json.space;\nreturn [{json:{success:true,data:{id:s.id,status:'actif',email:s.email,nom:s.nom,prenom:s.prenom,raisonSociale:s.raison_sociale,emailSent:true}}}];"
       },
       "id": "format",
       "name": "16. Formater reponse",

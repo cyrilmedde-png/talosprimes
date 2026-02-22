@@ -219,7 +219,7 @@ def transform_workflow(wf_path, current_n8n_path=None):
     # Remove read-only fields
     for k in ['active', 'id', 'createdAt', 'updatedAt', 'versionId',
               'triggerCount', 'sharedWithProjects', 'homeProject',
-              'tags', 'meta', 'pinData', 'staticData']:
+              'tags', 'meta', 'pinData', 'staticData', '_comment']:
         wf.pop(k, None)
 
     # ==================================================================
