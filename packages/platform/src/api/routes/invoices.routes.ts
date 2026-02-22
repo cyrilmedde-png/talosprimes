@@ -6,6 +6,7 @@ import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { generateInvoicePdf } from '../../services/pdf.service.js';
+import { sendEmail, isEmailSendConfigured } from '../../services/email-agent.service.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -641,7 +642,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           : new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
 
         // Transaction atomique : numérotation + création = pas de doublons
-        const invoice = await prisma.$transaction(async (tx) => {
+        const invoice = await prisma.$transaction(async (tx: any) => {
           let numeroFacture = bodyWithoutTenantId.numeroFacture;
           if (!numeroFacture) {
             const year = new Date().getFullYear();
@@ -923,9 +924,83 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           emailClient: updated.clientFinal?.email,
         });
 
+        // Envoyer l'email au client de manière asynchrone (non-bloquant)
+        const clientEmail = updated.clientFinal?.email;
+        if (clientEmail && isEmailSendConfigured()) {
+          setImmediate(async () => {
+            try {
+              // Récupérer les infos du tenant pour le nom de l'entreprise
+              const tenant = await prisma.tenant.findUnique({
+                where: { id: tenantId },
+                select: { nom: true, raisonSociale: true },
+              });
+              const entreprise = tenant?.raisonSociale || tenant?.nom || 'Notre entreprise';
+              const clientName = updated.clientFinal?.raisonSociale
+                || `${updated.clientFinal?.prenom || ''} ${updated.clientFinal?.nom || ''}`.trim()
+                || 'Client';
+              const numero = updated.numeroFacture || updated.id;
+              const montantTTC = updated.montantTtc
+                ? `${Number(updated.montantTtc).toFixed(2)} €`
+                : '';
+
+              const result = await sendEmail({
+                to: clientEmail,
+                subject: `Facture ${numero} - ${entreprise}`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #333; border-bottom: 2px solid #4F46E5; padding-bottom: 10px;">
+                      Facture ${numero}
+                    </h2>
+                    <p>Bonjour ${clientName},</p>
+                    <p>Veuillez trouver ci-dessous les détails de votre facture :</p>
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                      <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Numéro de facture</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${numero}</td>
+                      </tr>
+                      ${montantTTC ? `
+                      <tr>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Montant TTC</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${montantTTC}</td>
+                      </tr>
+                      ` : ''}
+                      <tr style="background-color: #f8f9fa;">
+                        <td style="padding: 10px; border: 1px solid #dee2e6; font-weight: bold;">Date d'émission</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${new Date().toLocaleDateString('fr-FR')}</td>
+                      </tr>
+                    </table>
+                    <p>Si vous avez des questions concernant cette facture, n'hésitez pas à nous contacter.</p>
+                    <p style="margin-top: 30px; color: #666;">
+                      Cordialement,<br/>
+                      <strong>${entreprise}</strong>
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin-top: 30px;" />
+                    <p style="font-size: 12px; color: #999;">
+                      Cet email a été envoyé automatiquement. Merci de ne pas y répondre directement.
+                    </p>
+                  </div>
+                `,
+                text: `Bonjour ${clientName},\n\nVeuillez trouver ci-joint votre facture ${numero}${montantTTC ? ` d'un montant de ${montantTTC}` : ''}.\n\nCordialement,\n${entreprise}`,
+              });
+
+              if (result.error) {
+                fastify.log.error(`Erreur envoi email facture ${numero} à ${clientEmail}: ${result.error}`);
+              } else {
+                fastify.log.info(`Email facture ${numero} envoyé à ${clientEmail}`);
+              }
+            } catch (emailError) {
+              fastify.log.error(emailError, `Erreur envoi email facture ${updated.id}`);
+            }
+          });
+        }
+
         return reply.status(200).send({
           success: true,
-          message: 'Facture envoyée avec succès',
+          message: clientEmail && isEmailSendConfigured()
+            ? 'Facture envoyée et email transmis au client'
+            : clientEmail
+              ? 'Facture envoyée (email non configuré - SMTP manquant)'
+              : 'Facture envoyée (pas d\'email client renseigné)',
           data: { invoice: updated },
         });
       } catch (error) {
