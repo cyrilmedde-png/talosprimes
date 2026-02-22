@@ -61,11 +61,6 @@
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as total_sms FROM sms_logs WHERE tenant_id = $1",
         "queryParameters": "={{ [$json.tenantId] }}"
@@ -76,15 +71,16 @@
       "position": [
         850,
         250
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "SELECT COUNT(*) as today_sms FROM sms_logs WHERE tenant_id = $1 AND DATE(created_at) = CURRENT_DATE",
         "queryParameters": "={{ [$json.tenantId] }}"
@@ -95,15 +91,16 @@
       "position": [
         850,
         350
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "SELECT status, COUNT(*) as count FROM sms_logs WHERE tenant_id = $1 GROUP BY status ORDER BY count DESC",
         "queryParameters": "={{ [$json.tenantId] }}"
@@ -114,15 +111,16 @@
       "position": [
         850,
         450
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "SELECT direction, COUNT(*) as count FROM sms_logs WHERE tenant_id = $1 GROUP BY direction ORDER BY count DESC",
         "queryParameters": "={{ [$json.tenantId] }}"
@@ -133,15 +131,16 @@
       "position": [
         1050,
         250
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "SELECT DATE(created_at) as sms_date, COUNT(*) as count FROM sms_logs WHERE tenant_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '7 days' GROUP BY DATE(created_at) ORDER BY sms_date DESC",
         "queryParameters": "={{ [$json.tenantId] }}"
@@ -152,7 +151,13 @@
       "position": [
         1050,
         350
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {

@@ -61,11 +61,6 @@
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "SELECT q.*, l.nom, l.prenom, l.email FROM questionnaires q LEFT JOIN leads l ON q.lead_id = l.id WHERE q.tenant_id = $1 ORDER BY q.created_at DESC LIMIT 100",
         "queryParameters": "={{ [$json.tenantId] }}"
@@ -76,7 +71,13 @@
       "position": [
         850,
         250
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {

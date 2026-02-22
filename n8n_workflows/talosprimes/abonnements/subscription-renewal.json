@@ -325,186 +325,186 @@
     }
   ],
   "connections": {
-    "01-webhook": {
+    "Webhook POST /subscription-renewal": {
       "main": [
         [
           {
-            "node": "02-parser",
+            "node": "Parser payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "02-parser": {
+    "Parser payload": {
       "main": [
         [
           {
-            "node": "03-fetch-subscription",
+            "node": "Récupérer abonnement",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "03-fetch-subscription": {
+    "Récupérer abonnement": {
       "main": [
         [
           {
-            "node": "04-validation",
+            "node": "Validation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "04-validation": {
+    "Validation": {
       "main": [
         [
           {
-            "node": "05-prepare-renewal",
+            "node": "Préparer renouvellement",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "17-respond-validation-error",
+            "node": "Répondre erreur validation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05-prepare-renewal": {
+    "Préparer renouvellement": {
       "main": [
         [
           {
-            "node": "06-if-stripe-configured",
+            "node": "IF Stripe configuré",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06-if-stripe-configured": {
+    "IF Stripe configuré": {
       "main": [
         [
           {
-            "node": "07-stripe-check-subscription",
+            "node": "Stripe - Vérifier abonnement",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "10-merge",
+            "node": "Merge",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "07-stripe-check-subscription": {
+    "Stripe - Vérifier abonnement": {
       "main": [
         [
           {
-            "node": "08-check-stripe-status",
+            "node": "Vérifier statut Stripe",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "08-check-stripe-status": {
+    "Vérifier statut Stripe": {
       "main": [
         [
           {
-            "node": "10-merge",
+            "node": "Merge",
             "type": "main",
             "index": 1
           }
         ],
         [
           {
-            "node": "09-respond-stripe-error",
+            "node": "Répondre erreur Stripe",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "10-merge": {
+    "Merge": {
       "main": [
         [
           {
-            "node": "11-update-subscription",
+            "node": "Mettre à jour abonnement",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "11-update-subscription": {
+    "Mettre à jour abonnement": {
       "main": [
         [
           {
-            "node": "12-create-invoice",
+            "node": "Créer facture",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "12-create-invoice": {
+    "Créer facture": {
       "main": [
         [
           {
-            "node": "13-prepare-email",
+            "node": "Préparer email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "13-prepare-email": {
+    "Préparer email": {
       "main": [
         [
           {
-            "node": "14-send-email",
+            "node": "Envoyer email Resend",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "14-send-email": {
+    "Envoyer email Resend": {
       "main": [
         [
           {
-            "node": "15-build-notification",
+            "node": "Construire notification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "15-build-notification": {
+    "Construire notification": {
       "main": [
         [
           {
-            "node": "15b-insert-notification",
+            "node": "INSERT notification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "15b-insert-notification": {
+    "INSERT notification": {
       "main": [
         [
           {
-            "node": "16-respond-success",
+            "node": "Répondre succès",
             "type": "main",
             "index": 0
           }

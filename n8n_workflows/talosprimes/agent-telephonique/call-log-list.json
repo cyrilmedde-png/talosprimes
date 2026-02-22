@@ -61,11 +61,6 @@
     },
     {
       "parameters": {
-        "host": "{{ $env.DB_HOST }}",
-        "database": "{{ $env.DB_NAME }}",
-        "user": "{{ $env.DB_USER }}",
-        "password": "{{ $env.DB_PASSWORD }}",
-        "port": 5432,
         "operation": "executeQuery",
         "query": "SELECT * FROM call_logs WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 50",
         "queryParameters": "={{ [$json.tenantId] }}"
@@ -76,7 +71,13 @@
       "position": [
         850,
         250
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
     },
     {
       "parameters": {
