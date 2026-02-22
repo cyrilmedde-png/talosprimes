@@ -452,6 +452,7 @@ model Invoice {
   idExternePaiement String?       @map("id_externe_paiement")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
+  deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz(6)
 
   // Relations
   tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -462,6 +463,7 @@ model Invoice {
   avoirs       Avoir[]
   proformas    Proforma[]
 
+  @@unique([tenantId, numeroFacture])
   @@index([tenantId])
   @@index([clientFinalId])
   @@index([statut])
@@ -532,12 +534,14 @@ model BonCommande {
   invoiceId       String?           @map("invoice_id") @db.Uuid
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   lines       BonCommandeLine[]
 
+  @@unique([tenantId, numeroBdc])
   @@index([tenantId])
   @@index([clientFinalId])
   @@index([statut])
@@ -587,12 +591,14 @@ model Devis {
   lienPdf         String?      @map("lien_pdf")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
+  deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(6)
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   lines       DevisLine[]
 
+  @@unique([tenantId, numeroDevis])
   @@index([tenantId])
   @@index([clientFinalId])
   @@index([statut])
@@ -638,12 +644,14 @@ model Avoir {
   lienPdf         String?      @map("lien_pdf")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
+  deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(6)
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   lines       AvoirLine[]
 
+  @@unique([tenantId, numeroAvoir])
   @@index([tenantId])
   @@index([clientFinalId])
   @@index([statut])
@@ -693,12 +701,14 @@ model Proforma {
   lienPdf         String?         @map("lien_pdf")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(6)
 
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   lines       ProformaLine[]
 
+  @@unique([tenantId, numeroProforma])
   @@index([tenantId])
   @@index([clientFinalId])
   @@index([statut])

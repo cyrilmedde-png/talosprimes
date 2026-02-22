@@ -115,7 +115,7 @@ export async function avoirRoutes(fastify: FastifyInstance) {
 
       // Appel depuis n8n (callback) → lecture BDD directe
       const skip = (page - 1) * limit;
-      const where: Record<string, unknown> = { tenantId };
+      const where: Record<string, unknown> = { tenantId, deletedAt: null };
       if (query.statut) where.statut = query.statut as 'brouillon' | 'validee' | 'annulee';
       if (query.clientFinalId) where.clientFinalId = query.clientFinalId;
 
@@ -512,7 +512,8 @@ export async function avoirRoutes(fastify: FastifyInstance) {
         });
       }
 
-      await prisma.avoir.delete({ where: { id: params.id } });
+      // Soft delete : archivage au lieu de suppression définitive
+      await prisma.avoir.update({ where: { id: params.id }, data: { deletedAt: new Date() } });
 
       // Log the event
       await logEvent(tenantId, 'avoir_delete', 'Avoir', params.id, { numeroAvoir: avoir.numeroAvoir }, 'succes');

@@ -113,7 +113,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
       // Appel depuis n8n (callback) → lecture BDD directe
       const skip = (page - 1) * limit;
-      const where: Record<string, unknown> = { tenantId };
+      const where: Record<string, unknown> = { tenantId, deletedAt: null };
       if (query.statut) where.statut = query.statut as 'brouillon' | 'envoyee' | 'acceptee' | 'refusee' | 'expiree' | 'facturee';
       if (query.clientFinalId) where.clientFinalId = query.clientFinalId;
 
@@ -795,7 +795,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
         });
       }
 
-      await prisma.devis.delete({ where: { id: params.id } });
+      // Soft delete : archivage au lieu de suppression définitive
+      await prisma.devis.update({ where: { id: params.id }, data: { deletedAt: new Date() } });
 
       // Log the event
       await logEvent(tenantId, 'devis_delete', 'Devis', params.id, { numeroDevis: devis.numeroDevis }, 'succes');

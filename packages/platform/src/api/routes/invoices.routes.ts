@@ -182,7 +182,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         const limit = queryParams.limit ? parseInt(queryParams.limit, 10) : 20;
         const skip = (page - 1) * limit;
 
-        const where: Record<string, unknown> = {};
+        const where: Record<string, unknown> = { deletedAt: null };
         if (tenantId) {
           where.tenantId = tenantId;
         }
@@ -507,14 +507,20 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               error: 'Création de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-created.',
             });
           }
-          // Idempotence : facture identique déjà créée récemment → retourner sans appeler n8n
-          const recentCutoff = new Date(Date.now() - 30 * 1000);
+          // Idempotence : header X-Idempotency-Key ou check par montant/client (60s au lieu de 30s)
+          const idempotencyKey = request.headers['x-idempotency-key'] as string | undefined;
+          const recentCutoff = new Date(Date.now() - 60 * 1000);
           const existing = await prisma.invoice.findFirst({
             where: {
               tenantId,
-              clientFinalId: body.clientFinalId,
-              montantHt: body.montantHt,
-              createdAt: { gte: recentCutoff },
+              deletedAt: null,
+              ...(idempotencyKey
+                ? { idExternePaiement: idempotencyKey }
+                : {
+                    clientFinalId: body.clientFinalId,
+                    montantHt: body.montantHt,
+                    createdAt: { gte: recentCutoff },
+                  }),
             },
             orderBy: { createdAt: 'desc' },
           });
@@ -627,15 +633,6 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        let numeroFacture = bodyWithoutTenantId.numeroFacture;
-        if (!numeroFacture) {
-          const count = await prisma.invoice.count({
-            where: { tenantId },
-          });
-          const year = new Date().getFullYear();
-          numeroFacture = `INV-${year}-${String(count + 1).padStart(6, '0')}`;
-        }
-
         const tvaTaux = body.tvaTaux ?? 20;
         const montantTtc = Number((body.montantHt * (1 + tvaTaux / 100)).toFixed(2));
         const dateFacture = body.dateFacture ? new Date(body.dateFacture) : new Date();
@@ -643,46 +640,67 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           ? new Date(body.dateEcheance)
           : new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-        const invoice = await prisma.invoice.create({
-          data: {
-            tenantId,
-            type: body.type,
-            clientFinalId: body.clientFinalId,
-            montantHt: body.montantHt,
-            montantTtc: montantTtc,
-            tvaTaux: tvaTaux,
-            dateFacture,
-            dateEcheance,
-            numeroFacture,
-            description: body.description,
-            modePaiement: body.modePaiement,
-            lienPdf: body.lienPdf,
-            statut: 'brouillon',
-            ...(body.lines && body.lines.length > 0 ? {
-              lines: {
-                create: body.lines.map((l, i) => ({
-                  codeArticle: l.codeArticle ?? null,
-                  designation: l.designation,
-                  quantite: l.quantite ?? 1,
-                  prixUnitaireHt: l.prixUnitaireHt,
-                  totalHt: (l.quantite ?? 1) * l.prixUnitaireHt,
-                  ordre: i,
-                })),
-              },
-            } : {}),
-          },
-          include: {
-            clientFinal: {
-              select: {
-                id: true,
-                email: true,
-                nom: true,
-                prenom: true,
-                raisonSociale: true,
-              },
+        // Transaction atomique : numérotation + création = pas de doublons
+        const invoice = await prisma.$transaction(async (tx) => {
+          let numeroFacture = bodyWithoutTenantId.numeroFacture;
+          if (!numeroFacture) {
+            const year = new Date().getFullYear();
+            const prefix = `INV-${year}-`;
+            const result = await tx.$queryRaw<[{ next_num: bigint }]>`
+              SELECT COALESCE(
+                MAX(CAST(SUBSTRING(numero_facture FROM ${prefix.length + 1}) AS INTEGER)),
+                0
+              ) + 1 AS next_num
+              FROM invoices
+              WHERE tenant_id = ${tenantId}::uuid
+                AND numero_facture LIKE ${prefix + '%'}
+              FOR UPDATE
+            `;
+            const nextNum = Number(result[0]?.next_num ?? 1);
+            numeroFacture = `${prefix}${String(nextNum).padStart(6, '0')}`;
+          }
+
+          return tx.invoice.create({
+            data: {
+              tenantId,
+              type: body.type,
+              clientFinalId: body.clientFinalId,
+              montantHt: body.montantHt,
+              montantTtc: montantTtc,
+              tvaTaux: tvaTaux,
+              dateFacture,
+              dateEcheance,
+              numeroFacture,
+              description: body.description,
+              modePaiement: body.modePaiement,
+              lienPdf: body.lienPdf,
+              statut: 'brouillon',
+              ...(body.lines && body.lines.length > 0 ? {
+                lines: {
+                  create: body.lines.map((l, i) => ({
+                    codeArticle: l.codeArticle ?? null,
+                    designation: l.designation,
+                    quantite: l.quantite ?? 1,
+                    prixUnitaireHt: l.prixUnitaireHt,
+                    totalHt: (l.quantite ?? 1) * l.prixUnitaireHt,
+                    ordre: i,
+                  })),
+                },
+              } : {}),
             },
-            lines: true,
-          },
+            include: {
+              clientFinal: {
+                select: {
+                  id: true,
+                  email: true,
+                  nom: true,
+                  prenom: true,
+                  raisonSociale: true,
+                },
+              },
+              lines: true,
+            },
+          });
         });
 
         // Génération automatique du lien PDF (async, non-bloquant)
@@ -1117,8 +1135,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             error: 'Seules les factures au statut Brouillon peuvent être supprimées.',
           });
         }
-        await prisma.invoice.delete({ where: { id: params.id } });
-        return reply.status(200).send({ success: true, message: 'Facture supprimée' });
+        // Soft delete : on ne supprime jamais une facture, on la marque comme supprimée
+        await prisma.invoice.update({
+          where: { id: params.id },
+          data: { deletedAt: new Date() },
+        });
+        return reply.status(200).send({ success: true, message: 'Facture supprimée (archivée)' });
       } catch (error) {
         if (error instanceof z.ZodError) {
           return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });

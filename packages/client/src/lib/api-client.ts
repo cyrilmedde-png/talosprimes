@@ -392,7 +392,7 @@ export const apiClient = {
       }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string }>(`/api/invoices/${id}`, { method: 'DELETE' }),
-    /** Télécharge le PDF avec authentification et l'ouvre dans un nouvel onglet */
+    /** Télécharge le PDF avec authentification */
     downloadPdf: async (id: string): Promise<void> => {
       const token = getAccessToken();
       if (!token) throw new Error('Non authentifié');
@@ -405,9 +405,14 @@ export const apiClient = {
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      // Libérer l'URL blob après un délai (le navigateur a besoin de temps pour l'ouvrir)
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      // Téléchargement réel via un lien invisible au lieu de window.open
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `facture-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     },
   },
 
