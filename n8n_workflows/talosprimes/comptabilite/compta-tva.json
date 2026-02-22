@@ -2,60 +2,210 @@
   "name": "compta-tva",
   "nodes": [
     {
-      "parameters": { "path": "compta-tva", "responseMode": "responseNode", "httpMethod": "POST" },
-      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+      "parameters": {
+        "path": "compta-tva",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.dateFrom || !body.dateTo) throw new Error('dateFrom et dateTo requis');\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom, dateTo: body.dateTo, typeDeclaration: body.typeDeclaration || 'mensuelle' } }];"
       },
-      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
-      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }" },
-      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT le.numero_compte, pc.libelle, COALESCE(SUM(le.credit), 0) as total_credit, COALESCE(SUM(le.debit), 0) as total_debit FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $json.tenantId }}' AND e.statut != 'brouillon' AND e.date_ecriture >= '{{ $json.dateFrom }}' AND e.date_ecriture <= '{{ $json.dateTo }}' AND le.numero_compte LIKE '4457%' OR le.numero_compte LIKE '4456%' GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte;"
+        "query": "SELECT le.numero_compte, pc.libelle, COALESCE(SUM(le.credit), 0) as total_credit, COALESCE(SUM(le.debit), 0) as total_debit FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND e.date_ecriture >= $2 AND e.date_ecriture <= $3 AND le.numero_compte LIKE '4457%' OR le.numero_compte LIKE '4456%' GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte;",
+        "queryParameters": "={{ [$json.tenantId, $json.dateFrom, $json.dateTo] }}"
       },
-      "id": "05. Query TVA Comptes", "name": "05. Query TVA Comptes", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [700, 300]
+      "id": "05. Query TVA Comptes",
+      "name": "05. Query TVA Comptes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) as base_ht_ventes, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as base_ht_achats FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut != 'brouillon' AND e.date_ecriture >= '{{ $('02. Parser').first().json.dateFrom }}' AND e.date_ecriture <= '{{ $('02. Parser').first().json.dateTo }}' AND pc.classe IN (6,7);"
+        "query": "SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) as base_ht_ventes, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as base_ht_achats FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND e.date_ecriture >= $2 AND e.date_ecriture <= $3 AND pc.classe IN (6,7);",
+        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.dateFrom, $('02. Parser').first().json.dateTo] }}"
       },
-      "id": "06. Query Bases HT", "name": "06. Query Bases HT", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [900, 300]
+      "id": "06. Query Bases HT",
+      "name": "06. Query Bases HT",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
         "jsCode": "const tvaComptes = $('05. Query TVA Comptes').all().map(i => i.json).filter(c => c.numero_compte);\nconst basesHt = $('06. Query Bases HT').first().json;\nconst p = $('02. Parser').first().json;\n\nlet tvaCollectee = 0;\nlet tvaDeductible = 0;\nconst detail = [];\n\nfor (const c of tvaComptes) {\n  const credit = parseFloat(c.total_credit) || 0;\n  const debit = parseFloat(c.total_debit) || 0;\n  \n  if (c.numero_compte.startsWith('44571')) {\n    // TVA collectée = solde créditeur\n    const montant = credit - debit;\n    tvaCollectee += montant;\n    detail.push({ compte: c.numero_compte, libelle: c.libelle || 'TVA collectée', type: 'collectee', montant: Math.round(montant * 100) / 100 });\n  } else if (c.numero_compte.startsWith('44566') || c.numero_compte.startsWith('44562')) {\n    // TVA déductible = solde débiteur\n    const montant = debit - credit;\n    tvaDeductible += montant;\n    detail.push({ compte: c.numero_compte, libelle: c.libelle || 'TVA déductible', type: 'deductible', montant: Math.round(montant * 100) / 100 });\n  }\n}\n\ntvaCollectee = Math.round(tvaCollectee * 100) / 100;\ntvaDeductible = Math.round(tvaDeductible * 100) / 100;\nconst tvaDue = Math.round((tvaCollectee - tvaDeductible) * 100) / 100;\nconst creditTva = tvaDue < 0 ? Math.abs(tvaDue) : 0;\n\nreturn [{ json: {\n  success: true,\n  declarationTva: {\n    periode: `${p.dateFrom} / ${p.dateTo}`,\n    typeDeclaration: p.typeDeclaration,\n    baseHtVentes: Math.round((parseFloat(basesHt.base_ht_ventes) || 0) * 100) / 100,\n    baseHtAchats: Math.round((parseFloat(basesHt.base_ht_achats) || 0) * 100) / 100,\n    tvaCollectee,\n    tvaDeductible,\n    tvaDue: tvaDue > 0 ? tvaDue : 0,\n    creditTva,\n    detail,\n    aDecaisser: tvaDue > 0\n  }\n} }];"
       },
-      "id": "07. Format TVA", "name": "07. Format TVA", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1100, 300]
+      "id": "07. Format TVA",
+      "name": "07. Format TVA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
-      "id": "08. Respond", "name": "08. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1300, 300]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
-    "03. Valide ?": { "main": [[{ "node": "05. Query TVA Comptes", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
-    "05. Query TVA Comptes": { "main": [[{ "node": "06. Query Bases HT", "type": "main", "index": 0 }]] },
-    "06. Query Bases HT": { "main": [[{ "node": "07. Format TVA", "type": "main", "index": 0 }]] },
-    "07. Format TVA": { "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Query TVA Comptes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Query TVA Comptes": {
+      "main": [
+        [
+          {
+            "node": "06. Query Bases HT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Query Bases HT": {
+      "main": [
+        [
+          {
+            "node": "07. Format TVA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Format TVA": {
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }

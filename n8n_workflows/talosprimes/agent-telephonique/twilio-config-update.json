@@ -71,7 +71,8 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "=UPDATE twilio_configs SET {{ $json.accountSid !== undefined ? \"account_sid = '\" + $json.accountSid + \"',\" : \"\" }} {{ $json.authToken !== undefined ? \"auth_token = '\" + $json.authToken + \"',\" : \"\" }} {{ $json.phoneNumber !== undefined ? \"phone_number = '\" + $json.phoneNumber + \"',\" : \"\" }} {{ $json.isActive !== undefined ? \"is_active = \" + ($json.isActive ? \"true\" : \"false\") + \",\" : \"\" }} updated_at = NOW() WHERE id = '{{ $json.id }}' AND tenant_id = '{{ $json.tenantId }}'"
+        "query": "={{ $json.query }}",
+        "queryParameters": "={{ $json.params }}"
       },
       "name": "Postgres Update",
       "type": "n8n-nodes-base.postgres",
@@ -102,6 +103,19 @@
       "typeVersion": 1,
       "position": [
         1250,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst setClauses = [];\nconst params = [];\nlet idx = 1;\n\nif (data.accountSid !== undefined) {\n  setClauses.push('account_sid = $' + idx);\n  params.push(data.accountSid);\n  idx++;\n}\n\nif (data.authToken !== undefined) {\n  setClauses.push('auth_token = $' + idx);\n  params.push(data.authToken);\n  idx++;\n}\n\nif (data.phoneNumber !== undefined) {\n  setClauses.push('phone_number = $' + idx);\n  params.push(data.phoneNumber);\n  idx++;\n}\n\nif (data.isActive !== undefined) {\n  setClauses.push('is_active = $' + idx);\n  params.push(!!data.isActive);\n  idx++;\n}\n\nsetClauses.push('updated_at = NOW()');\n\nconst whereParts = [];\nwhereParts.push('id = $' + idx);\nparams.push(data.id);\nidx++;\nwhereParts.push('tenant_id = $' + idx);\nparams.push(data.tenantId);\nidx++;\n\nconst query = 'UPDATE twilio_configs SET ' + setClauses.join(', ') + ' WHERE ' + whereParts.join(' AND ');\n\nreturn [{ json: { ...data, query, params } }];"
+      },
+      "id": "Build Update Query",
+      "name": "Build Update Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        650,
         250
       ]
     }
@@ -135,7 +149,7 @@
       "main": [
         [
           {
-            "node": "Postgres Update",
+            "node": "Build Update Query",
             "branch": 0,
             "index": 0,
             "type": "main"
@@ -171,6 +185,17 @@
             "branch": 0,
             "index": 0,
             "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Update Query": {
+      "main": [
+        [
+          {
+            "node": "Postgres Update",
+            "type": "main",
+            "index": 0
           }
         ]
       ]

@@ -34,11 +34,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale,\n  cf.id as client_id\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid;",
+        "query": "SELECT\n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale,\n  cf.id as client_id\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = $1::uuid;",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.subscriptionId] }}"
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement",
@@ -153,11 +154,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATEclient_subscriptions\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;",
+        "query": "UPDATEclient_subscriptions\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING *;",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.subscription.id] }}"
       },
       "id": "suspend-subscription",
       "name": "08. Suspendre abonnement",
@@ -177,11 +179,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECTCOUNT(*) as active_count\nFROM client_subscriptions\nWHERE client_final_id = '{{ $json.clientId }}'::uuid\nAND statut != 'suspendu'\nAND statut != 'annule';",
+        "query": "SELECTCOUNT(*) as active_count\nFROM client_subscriptions\nWHERE client_final_id = $1::uuid\nAND statut != 'suspendu'\nAND statut != 'annule';",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.clientId] }}"
       },
       "id": "check-active-subscriptions",
       "name": "09. Vérifier autres abonnements actifs",
@@ -222,11 +225,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATEclient_finals\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = '{{ $json.clientId }}'::uuid\nRETURNING *;",
+        "query": "UPDATEclient_finals\nSET \n  statut = 'suspendu',\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING *;",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.clientId] }}"
       },
       "id": "suspend-client",
       "name": "11. Suspendre le client",
@@ -281,7 +285,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('05. Préparer suspension').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement suspendu', 'L''abonnement de \"+esc(d.clientName)+\" a été suspendu pour : \"+esc(d.reason)+\"', 'avertissement', false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.clientName, d.reason];\\nreturn [{json: {query, params}}];"
       },
       "id": "build-notification",
       "name": "14. Construire notification",
@@ -295,11 +299,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('14. Construire notification').first().json.query }}",
+        "query": "$1",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$('14. Construire notification').first().json.query] }}"
       },
       "id": "insert-notification",
       "name": "14b. INSERT notification",

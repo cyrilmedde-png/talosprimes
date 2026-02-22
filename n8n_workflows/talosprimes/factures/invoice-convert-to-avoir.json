@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,12 +58,16 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM invoices WHERE id = '{{ $json.invoiceId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut NOT IN ('brouillon', 'annulee')"
+        "query": "SELECT id, tenant_id, client_final_id, numero_facture, date_facture, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut FROM invoices WHERE id = $1 AND tenant_id = $2 AND statut NOT IN ('brouillon', 'annulee')",
+        "queryParameters": "={{ [$json.invoiceId, $json.tenantId] }}"
       },
       "id": "05. Get Invoice",
       "name": "05. Get Invoice",
@@ -66,7 +79,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -76,12 +92,16 @@
       "name": "06. Check Invoice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COALESCE(MAX(CAST(SUBSTRING(numero_avoir FROM 'AVO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM avoirs WHERE tenant_id = '{{ $json.tenant_id }}' AND numero_avoir LIKE 'AVO-' || EXTRACT(YEAR FROM NOW())::text || '-%'"
+        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_avoir FROM 'AVO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM avoirs WHERE tenant_id = $1 AND numero_avoir LIKE 'AVO-' || EXTRACT(YEAR FROM NOW())::text || '-%'",
+        "queryParameters": "={{ [$json.tenant_id] }}"
       },
       "id": "07. Get Next Avoir Number",
       "name": "07. Get Next Avoir Number",
@@ -93,7 +113,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -103,12 +126,16 @@
       "name": "08. Prepare Avoir",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', {{ $json.client_final_id ? \"'\" + $json.client_final_id + \"'\" : 'NULL' }}, '{{ $json.id }}', '{{ $json.numeroAvoir }}', NOW(), {{ $json.montant_ht }}, {{ $json.montant_ttc }}, {{ $json.tva_taux || 20 }}, 'Avoir sur facture {{ $json.numero_facture }}', {{ $json.description ? \"'\" + $json.description.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, statut, created_at"
+        "query": "INSERT INTO avoirs (id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, description, statut, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW(), $5, $6, $7, 'Avoir sur facture $8', $9, 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, invoice_id, numero_avoir, date_avoir, montant_ht, montant_ttc, tva_taux, motif, statut, created_at",
+        "queryParameters": "={{ [$json.tenant_id, $json.client_final_id || null, $json.id, $json.numeroAvoir, $json.montant_ht, $json.montant_ttc, $json.tva_taux || 20, $json.numero_facture, $json.description || null] }}"
       },
       "id": "09. Create Avoir",
       "name": "09. Create Avoir",
@@ -120,12 +147,16 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1500, 300]
+      "position": [
+        1500,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM invoice_lines WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}' ORDER BY ordre ASC"
+        "query": "SELECT id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM invoice_lines WHERE invoice_id = $1 ORDER BY ordre ASC",
+        "queryParameters": "={{ [$('02. Parser').first().json.invoiceId] }}"
       },
       "id": "10. Get Invoice Lines",
       "name": "10. Get Invoice Lines",
@@ -137,22 +168,29 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1700, 300]
+      "position": [
+        1700,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const avoir = $('09. Create Avoir').first().json;\nconst lines = $('10. Get Invoice Lines').all().map(item => item.json).filter(l => l.id);\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, hasLines: false } }];\n}\n\nconst lineInserts = lines.map(line => ({\n  avoirId: avoir.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}));\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];"
+        "jsCode": "// Original prepare logic\nconst _origFn = function() {\nconst avoir = $('09. Create Avoir').first().json;\nconst lines = $('10. Get Invoice Lines').all().map(item => item.json).filter(l => l.id);\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, hasLines: false } }];\n}\n\nconst lineInserts = lines.map(line => ({\n  avoirId: avoir.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}));\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];\n};\nconst _origResult = _origFn();\nconst prev = _origResult[0].json;\n\nconst items = prev.lineInserts || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nconst params = [];\nlet idx = 1;\n\nconst values = items.map((item, i) => {\n  const parentId = item.avoirId;\n  const codeArticle = item.codeArticle || null;\n  const designation = String(item.designation || '').substring(0, 500);\n  const quantite = parseFloat(item.quantite) || 0;\n  const prixUnitaireHt = parseFloat(item.prixUnitaireHt) || 0;\n  const totalHt = parseFloat(item.totalHt) || 0;\n  const ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  const p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}).join(',\\n');\n\nconst query = `INSERT INTO avoir_lines (id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
       },
       "id": "11. Prepare Avoir Lines",
       "name": "11. Prepare Avoir Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 300]
+      "position": [
+        1900,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.hasLines && $json.lineInserts.length > 0 ? $json.lineInserts.map(item => \"INSERT INTO avoir_lines (id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES (gen_random_uuid(), '\" + item.avoirId + \"', \" + (item.codeArticle ? \"'\" + item.codeArticle + \"'\" : \"null\") + \", '\" + (item.designation || '').replace(/'/g, \"''\") + \"', \" + (item.quantite || 0) + \", \" + (item.prixUnitaireHt || 0) + \", \" + (item.totalHt || 0) + \", \" + (item.ordre || 0) + \")\").join(\"; \") + \"; SELECT 1\" : \"SELECT 1\" }}"
+        "query": "={{ $json.query }}",
+        "queryParameters": "={{ $json.params }}"
       },
       "id": "12. Insert Avoir Lines",
       "name": "12. Insert Avoir Lines",
@@ -164,12 +202,16 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [2100, 300]
+      "position": [
+        2100,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE invoices SET statut = 'annulee', updated_at = NOW() WHERE id = '{{ $('02. Parser').first().json.invoiceId }}' AND tenant_id = '{{ $('02. Parser').first().json.tenantId }}' RETURNING id, statut"
+        "query": "UPDATE invoices SET statut = 'annulee', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 RETURNING id, statut",
+        "queryParameters": "={{ [$('02. Parser').first().json.invoiceId, $('02. Parser').first().json.tenantId] }}"
       },
       "id": "13. Update Invoice Annulee",
       "name": "13. Update Invoice Annulee",
@@ -181,7 +223,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [2300, 300]
+      "position": [
+        2300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -198,7 +243,10 @@
       "name": "14. Call Compta Avoir",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [2500, 300],
+      "position": [
+        2500,
+        300
+      ],
       "continueOnFail": true
     },
     {
@@ -209,7 +257,10 @@
       "name": "15. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2700, 300]
+      "position": [
+        2700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -220,54 +271,173 @@
       "name": "16. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2900, 300]
+      "position": [
+        2900,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Get Invoice", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Get Invoice": {
-      "main": [[{ "node": "06. Check Invoice", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Check Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Check Invoice": {
-      "main": [[{ "node": "07. Get Next Avoir Number", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Get Next Avoir Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Get Next Avoir Number": {
-      "main": [[{ "node": "08. Prepare Avoir", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Prepare Avoir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Prepare Avoir": {
-      "main": [[{ "node": "09. Create Avoir", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "09. Create Avoir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Create Avoir": {
-      "main": [[{ "node": "10. Get Invoice Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Get Invoice Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Get Invoice Lines": {
-      "main": [[{ "node": "11. Prepare Avoir Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "11. Prepare Avoir Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "11. Prepare Avoir Lines": {
-      "main": [[{ "node": "12. Insert Avoir Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "12. Insert Avoir Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "12. Insert Avoir Lines": {
-      "main": [[{ "node": "13. Update Invoice Annulee", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "13. Update Invoice Annulee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "13. Update Invoice Annulee": {
-      "main": [[{ "node": "14. Call Compta Avoir", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "14. Call Compta Avoir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "14. Call Compta Avoir": {
-      "main": [[{ "node": "15. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "15. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "15. Format Response": {
-      "main": [[{ "node": "16. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "16. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

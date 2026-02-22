@@ -2,50 +2,178 @@
   "name": "compta-compte-resultat",
   "nodes": [
     {
-      "parameters": { "path": "compta-compte-resultat", "responseMode": "responseNode", "httpMethod": "POST" },
-      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+      "parameters": {
+        "path": "compta-compte-resultat",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom || null, dateTo: body.dateTo || null } }];"
       },
-      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
-      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }" },
-      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT le.numero_compte, pc.libelle, pc.classe, CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0) WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END as montant FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $json.tenantId }}' AND e.statut != 'brouillon' AND pc.classe IN (6,7){{ $json.dateFrom ? \" AND e.date_ecriture >= '\" + $json.dateFrom + \"'\" : '' }}{{ $json.dateTo ? \" AND e.date_ecriture <= '\" + $json.dateTo + \"'\" : '' }} GROUP BY le.numero_compte, pc.libelle, pc.classe HAVING CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0) WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END != 0 ORDER BY le.numero_compte;"
+        "query": "SELECT le.numero_compte, pc.libelle, pc.classe, CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0) WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END as montant FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND pc.classe IN (6,7) AND ($2 IS NULL OR e.date_ecriture >= $2) AND ($3 IS NULL OR e.date_ecriture <= $3) GROUP BY le.numero_compte, pc.libelle, pc.classe HAVING CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0) WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END != 0 ORDER BY le.numero_compte;",
+        "queryParameters": "={{ [$json.tenantId, $json.dateFrom || null, $json.dateTo || null] }}"
       },
-      "id": "05. Query CR", "name": "05. Query CR", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [700, 300]
+      "id": "05. Query CR",
+      "name": "05. Query CR",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "jsCode": "const items = $('05. Query CR').all().map(i => i.json).filter(c => c.numero_compte);\n\nconst charges = { exploitation: [], financieres: [], exceptionnelles: [], total: 0 };\nconst produits = { exploitation: [], financiers: [], exceptionnels: [], total: 0 };\n\nfor (const c of items) {\n  const montant = Math.round((parseFloat(c.montant) || 0) * 100) / 100;\n  const entry = { numeroCompte: c.numero_compte, libelle: c.libelle, montant };\n  const prefix = c.numero_compte.substring(0, 2);\n\n  if (c.classe === 6) {\n    if (['66'].includes(prefix)) { charges.financieres.push(entry); }\n    else if (['67'].includes(prefix)) { charges.exceptionnelles.push(entry); }\n    else { charges.exploitation.push(entry); }\n    charges.total += montant;\n  } else if (c.classe === 7) {\n    if (['76'].includes(prefix)) { produits.financiers.push(entry); }\n    else if (['77'].includes(prefix)) { produits.exceptionnels.push(entry); }\n    else { produits.exploitation.push(entry); }\n    produits.total += montant;\n  }\n}\n\ncharges.total = Math.round(charges.total * 100) / 100;\nproduits.total = Math.round(produits.total * 100) / 100;\n\n// SIG - Soldes Intermédiaires de Gestion\nconst chargesExpl = charges.exploitation.reduce((s, c) => s + c.montant, 0);\nconst produitsExpl = produits.exploitation.reduce((s, p) => s + p.montant, 0);\nconst chargesFin = charges.financieres.reduce((s, c) => s + c.montant, 0);\nconst produitsFin = produits.financiers.reduce((s, p) => s + p.montant, 0);\nconst chargesExc = charges.exceptionnelles.reduce((s, c) => s + c.montant, 0);\nconst produitsExc = produits.exceptionnels.reduce((s, p) => s + p.montant, 0);\n\nconst resultatExploitation = Math.round((produitsExpl - chargesExpl) * 100) / 100;\nconst resultatFinancier = Math.round((produitsFin - chargesFin) * 100) / 100;\nconst resultatCourant = Math.round((resultatExploitation + resultatFinancier) * 100) / 100;\nconst resultatExceptionnel = Math.round((produitsExc - chargesExc) * 100) / 100;\nconst resultatNet = Math.round((produits.total - charges.total) * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  compteResultat: {\n    charges,\n    produits,\n    sig: {\n      resultatExploitation,\n      resultatFinancier,\n      resultatCourant,\n      resultatExceptionnel,\n      resultatNet\n    },\n    benefice: resultatNet >= 0\n  }\n} }];"
       },
-      "id": "06. Format CR", "name": "06. Format CR", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300]
+      "id": "06. Format CR",
+      "name": "06. Format CR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
-      "id": "07. Respond", "name": "07. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1100, 300]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
-    "03. Valide ?": { "main": [[{ "node": "05. Query CR", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
-    "05. Query CR": { "main": [[{ "node": "06. Format CR", "type": "main", "index": 0 }]] },
-    "06. Format CR": { "main": [[{ "node": "07. Respond", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Query CR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Query CR": {
+      "main": [
+        [
+          {
+            "node": "06. Format CR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Format CR": {
+      "main": [
+        [
+          {
+            "node": "07. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }

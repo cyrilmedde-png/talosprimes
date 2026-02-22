@@ -34,11 +34,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid\n  AND cs.statut = 'actif';",
+        "query": "SELECT\n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = $1::uuid\n  AND cs.statut = 'actif';",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.subscriptionId] }}"
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement actuel",
@@ -249,7 +250,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('12. Préparer notification TalosPrimes').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar changeLabel=d.isUpgrade?'Upgrade':'Downgrade';\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', '\"+esc(changeLabel)+\" abonnement', '\"+esc(changeLabel)+\" de \"+esc(d.oldPlan)+\" vers \"+esc(d.newPlan)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, changeLabel, changeLabel, d.oldPlan, d.newPlan];\\nreturn [{json: {query, params}}];"
       },
       "id": "construct-notification",
       "name": "13. Construire notification",
@@ -263,11 +264,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}",
+        "query": "$1",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.query] }}"
       },
       "id": "insert-notification",
       "name": "13b. INSERT notification",

@@ -2,50 +2,178 @@
   "name": "compta-plan-comptable-list",
   "nodes": [
     {
-      "parameters": { "path": "compta-plan-comptable-list", "responseMode": "responseNode", "httpMethod": "POST" },
-      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+      "parameters": {
+        "path": "compta-plan-comptable-list",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nconst classe = body.classe ? parseInt(body.classe) : null;\nconst search = body.search || null;\nconst nature = body.nature || null;\nreturn [{ json: { tenantId: body.tenantId, classe, search, nature } }];"
       },
-      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
-      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }" },
-      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, numero_compte, libelle, classe, type, nature, compte_parent, actif, solde_debit, solde_credit FROM plan_comptable WHERE tenant_id = '{{ $json.tenantId }}' AND actif = true{{ $json.classe ? ' AND classe = ' + $json.classe : '' }}{{ $json.nature ? \" AND nature = '\" + $json.nature + \"'\" : '' }}{{ $json.search ? \" AND (numero_compte LIKE '%\" + $json.search + \"%' OR libelle ILIKE '%\" + $json.search + \"%')\" : '' }} ORDER BY numero_compte ASC;"
+        "query": "SELECT id, numero_compte, libelle, classe, type, nature, compte_parent, actif, solde_debit, solde_credit FROM plan_comptable WHERE tenant_id = $1 AND actif = true AND ($2 IS NULL OR classe = $2) AND ($3 IS NULL OR nature = $3) AND ($4 IS NULL OR (numero_compte ILIKE '%' || $4 || '%' OR libelle ILIKE '%' || $4 || '%')) ORDER BY numero_compte ASC;",
+        "queryParameters": "={{ [$json.tenantId, $json.classe || null, $json.nature || null, $json.search || null] }}"
       },
-      "id": "05. Query", "name": "05. Query", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [700, 300]
+      "id": "05. Query",
+      "name": "05. Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "jsCode": "const items = $('05. Query').all().map(item => item.json).filter(c => c.id);\nconst comptes = items.map(c => ({\n  id: c.id,\n  numeroCompte: c.numero_compte,\n  libelle: c.libelle,\n  classe: c.classe,\n  type: c.type,\n  nature: c.nature,\n  compteParent: c.compte_parent,\n  soldeDebit: parseFloat(c.solde_debit) || 0,\n  soldeCredit: parseFloat(c.solde_credit) || 0,\n  solde: (parseFloat(c.solde_debit) || 0) - (parseFloat(c.solde_credit) || 0)\n}));\nreturn [{ json: { success: true, comptes, count: comptes.length } }];"
       },
-      "id": "06. Format Response", "name": "06. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300]
+      "id": "06. Format Response",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
-      "id": "07. Respond", "name": "07. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1100, 300]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
-    "03. Valide ?": { "main": [[{ "node": "05. Query", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
-    "05. Query": { "main": [[{ "node": "06. Format Response", "type": "main", "index": 0 }]] },
-    "06. Format Response": { "main": [[{ "node": "07. Respond", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Query": {
+      "main": [
+        [
+          {
+            "node": "06. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Format Response": {
+      "main": [
+        [
+          {
+            "node": "07. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }

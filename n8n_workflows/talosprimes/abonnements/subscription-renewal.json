@@ -260,7 +260,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('05-prepare-renewal').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Renouvellement abonnement', 'Abonnement \"+esc(d.planName)+\" renouvelé pour \"+esc(d.clientEmail)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.planName, d.clientEmail];\\nreturn [{json: {query, params}}];"
       },
       "id": "15-build-notification",
       "name": "Construire notification",
@@ -274,11 +274,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}",
+        "query": "$1",
         "queryParams": "",
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.query] }}"
       },
       "id": "15b-insert-notification",
       "name": "INSERT notification",

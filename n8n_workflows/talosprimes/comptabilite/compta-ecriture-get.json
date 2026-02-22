@@ -2,60 +2,210 @@
   "name": "compta-ecriture-get",
   "nodes": [
     {
-      "parameters": { "path": "compta-ecriture-get", "responseMode": "responseNode", "httpMethod": "POST" },
-      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+      "parameters": {
+        "path": "compta-ecriture-get",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.ecritureId) throw new Error('ecritureId is required');\nreturn [{ json: { tenantId: body.tenantId, ecritureId: body.ecritureId } }];"
       },
-      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
-      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }" },
-      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT e.*, j.libelle as journal_libelle, ex.code as exercice_code FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id LEFT JOIN exercices_comptables ex ON e.exercice_id = ex.id WHERE e.id = '{{ $json.ecritureId }}' AND e.tenant_id = '{{ $json.tenantId }}';"
+        "query": "SELECT e.*, j.libelle as journal_libelle, ex.code as exercice_code FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id LEFT JOIN exercices_comptables ex ON e.exercice_id = ex.id WHERE e.id = $1 AND e.tenant_id = $2;",
+        "queryParameters": "={{ [$json.ecritureId, $json.tenantId] }}"
       },
-      "id": "05. Get Ecriture", "name": "05. Get Ecriture", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [700, 300]
+      "id": "05. Get Ecriture",
+      "name": "05. Get Ecriture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT le.*, pc.libelle as compte_libelle FROM lignes_ecritures le LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' WHERE le.ecriture_id = '{{ $('02. Parser').first().json.ecritureId }}' ORDER BY le.ordre ASC;"
+        "query": "SELECT le.*, pc.libelle as compte_libelle FROM lignes_ecritures le LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = $1 WHERE le.ecriture_id = $2 ORDER BY le.ordre ASC;",
+        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.ecritureId] }}"
       },
-      "id": "06. Get Lignes", "name": "06. Get Lignes", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [900, 300]
+      "id": "06. Get Lignes",
+      "name": "06. Get Lignes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
         "jsCode": "const ecritureArr = $('05. Get Ecriture').all().map(i => i.json).filter(e => e.id);\nif (ecritureArr.length === 0) return [{ json: { success: false, error: 'Écriture non trouvée' } }];\n\nconst e = ecritureArr[0];\nconst lignes = $('06. Get Lignes').all().map(i => i.json).filter(l => l.id);\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: e.id,\n    exerciceCode: e.exercice_code,\n    journalCode: e.journal_code,\n    journalLibelle: e.journal_libelle,\n    numeroPiece: e.numero_piece,\n    dateEcriture: e.date_ecriture,\n    dateEcheance: e.date_echeance,\n    libelle: e.libelle,\n    reference: e.reference,\n    typePiece: e.type_piece,\n    entiteType: e.entite_type,\n    entiteId: e.entite_id,\n    montantTotal: parseFloat(e.montant_total) || 0,\n    statut: e.statut,\n    source: e.source,\n    iaClassification: e.ia_classification,\n    createdAt: e.created_at,\n    lignes: lignes.map(l => ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      compteLibelle: l.compte_libelle,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0,\n      lettrage: l.lettrage\n    }))\n  }\n} }];"
       },
-      "id": "07. Format Response", "name": "07. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1100, 300]
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
-      "id": "08. Respond", "name": "08. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1300, 300]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
-    "03. Valide ?": { "main": [[{ "node": "05. Get Ecriture", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
-    "05. Get Ecriture": { "main": [[{ "node": "06. Get Lignes", "type": "main", "index": 0 }]] },
-    "06. Get Lignes": { "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]] },
-    "07. Format Response": { "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Ecriture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Ecriture": {
+      "main": [
+        [
+          {
+            "node": "06. Get Lignes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Get Lignes": {
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Format Response": {
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }

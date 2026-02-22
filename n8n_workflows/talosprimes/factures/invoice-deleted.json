@@ -66,7 +66,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=DELETE FROM invoice_lines WHERE invoice_id = '{{ $json.invoiceId }}'"
+        "query": "DELETE FROM invoice_lines WHERE invoice_id = $1",
+        "queryParameters": "={{ [$json.invoiceId] }}"
       },
       "id": "05. Delete Lines",
       "name": "05. Delete Lines",
@@ -86,7 +87,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=DELETE FROM invoices WHERE id = '{{ $('02. Parser').first().json.invoiceId }}' AND tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND statut = 'brouillon' RETURNING id, numero_facture"
+        "query": "DELETE FROM invoices WHERE id = $1 AND tenant_id = $2 AND statut = 'brouillon' RETURNING id, numero_facture",
+        "queryParameters": "={{ [$('02. Parser').first().json.invoiceId, $('02. Parser').first().json.tenantId] }}"
       },
       "id": "06. Delete Invoice",
       "name": "06. Delete Invoice",
@@ -105,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const result = $('06. Delete Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { success: false, error: 'Facture non trouv\u00e9e ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { success: true, deletedId: result.id, numeroFacture: result.numero_facture } }];"
+        "jsCode": "const result = $('06. Delete Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { success: false, error: 'Facture non trouvée ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { success: true, deletedId: result.id, numeroFacture: result.numero_facture } }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

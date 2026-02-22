@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -39,7 +45,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -50,31 +59,41 @@
       "name": "04. Repondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [860, 500]
+      "position": [
+        860,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"SELECT cs.id, cs.tenant_id, cs.client_final_id, cs.tenant_slug, cs.folder_path, cs.status, cs.modules_actives, cf.email, cf.nom, cf.prenom, cf.raison_sociale, cf.telephone FROM client_spaces cs JOIN client_finals cf ON cf.id = cs.client_final_id WHERE cs.id = '\"+esc(p.clientSpaceId)+\"' AND cs.tenant_id = '\"+esc(p.tenantId)+\"'\";\nreturn [{json:{query,tenantId:p.tenantId,clientSpaceId:p.clientSpaceId,validatedByUserId:p.validatedByUserId}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = $1::uuid ORDER BY cs.created_at DESC\";\\nvar params = [p.tenantId];\\nreturn [{json: {query, params}}];"
       },
       "id": "build-select",
       "name": "05. Construire SELECT",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [860, 300]
+      "position": [
+        860,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('05. Construire SELECT').first().json.query }}",
+        "query": "$1",
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$('05. Construire SELECT').first().json.query] }}"
       },
       "id": "pg-select",
       "name": "06. SELECT client_space",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1080, 300],
+      "position": [
+        1080,
+        300
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -91,7 +110,10 @@
       "name": "07. Verifier statut + generer mdp",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -109,7 +131,10 @@
       "name": "08. Status OK ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1520, 300]
+      "position": [
+        1520,
+        300
+      ]
     },
     {
       "parameters": {
@@ -120,31 +145,41 @@
       "name": "09. Repondre erreur status",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1740, 500]
+      "position": [
+        1740,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const s=$('07. Verifier statut + generer mdp').first().json;\nvar esc=function(v){return (v||'').replace(/'/g,\"''\");};\nconst validBy=s.validatedByUserId?\"'\"+esc(s.validatedByUserId)+\"'\":'NULL';\nvar query=\"UPDATE client_spaces SET status = 'actif', validated_at = NOW(), validated_by_user_id = \"+validBy+\", updated_at = NOW() WHERE id = '\"+esc(s.id)+\"' AND tenant_id = '\"+esc(s.tenant_id)+\"'\";\nreturn [{json:{query,space:s}}];"
+        "jsCode": "const s = $('07. Verifier statut + generer mdp').first().json;\\nvar query = \"UPDATE client_spaces SET statut = $1, validated_at = NOW(), updated_at = NOW() WHERE id = $2::uuid AND tenant_id = $3::uuid RETURNING *\";\\nvar params = ['actif', s.clientSpaceId || s.id, s.tenantId];\\nreturn [{json: {query, params}}];"
       },
       "id": "build-update",
       "name": "10. Construire UPDATE",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1740, 300]
+      "position": [
+        1740,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('10. Construire UPDATE').first().json.query }}",
+        "query": "$1",
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$('10. Construire UPDATE').first().json.query] }}"
       },
       "id": "pg-update",
       "name": "11. UPDATE client_spaces",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1960, 300],
+      "position": [
+        1960,
+        300
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -155,27 +190,34 @@
     },
     {
       "parameters": {
-        "jsCode": "const s=$('10. Construire UPDATE').first().json.space;\nvar esc=function(v){return (v||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(s.tenant_id)+\"', 'Espace client activé', 'L''espace de \"+esc(s.raison_sociale||s.nom||'client')+\" a été validé et les identifiants envoyés par email.', 'succes', false, NOW())\";\nreturn [{json:{query,space:s}}];"
+        "jsCode": "const s = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [s.tenant_id, s.raison_sociale||s.nom||'client'];\\nreturn [{json: {query, params}}];"
       },
       "id": "build-notif",
       "name": "12. Construire notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2180, 300]
+      "position": [
+        2180,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('12. Construire notification').first().json.query }}",
+        "query": "$1",
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$('12. Construire notification').first().json.query] }}"
       },
       "id": "pg-notif",
       "name": "13. INSERT notification",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2400, 300],
+      "position": [
+        2400,
+        300
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -192,7 +234,10 @@
       "name": "14. Preparer email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2620, 300]
+      "position": [
+        2620,
+        300
+      ]
     },
     {
       "parameters": {
@@ -206,7 +251,10 @@
       "name": "15. Envoyer email credentials",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [2840, 300],
+      "position": [
+        2840,
+        300
+      ],
       "credentials": {
         "smtp": {
           "name": "SMTP TalosPrimes",
@@ -222,7 +270,10 @@
       "name": "16. Formater reponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3060, 300]
+      "position": [
+        3060,
+        300
+      ]
     },
     {
       "parameters": {
@@ -233,57 +284,180 @@
       "name": "17. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [3280, 300]
+      "position": [
+        3280,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{"node": "05. Construire SELECT", "type": "main", "index": 0}],
-        [{"node": "04. Repondre erreur", "type": "main", "index": 0}]
+        [
+          {
+            "node": "05. Construire SELECT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Construire SELECT": {
-      "main": [[{"node": "06. SELECT client_space", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "06. SELECT client_space",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. SELECT client_space": {
-      "main": [[{"node": "07. Verifier statut + generer mdp", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "07. Verifier statut + generer mdp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Verifier statut + generer mdp": {
-      "main": [[{"node": "08. Status OK ?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "08. Status OK ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Status OK ?": {
       "main": [
-        [{"node": "10. Construire UPDATE", "type": "main", "index": 0}],
-        [{"node": "09. Repondre erreur status", "type": "main", "index": 0}]
+        [
+          {
+            "node": "10. Construire UPDATE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09. Repondre erreur status",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "10. Construire UPDATE": {
-      "main": [[{"node": "11. UPDATE client_spaces", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "11. UPDATE client_spaces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "11. UPDATE client_spaces": {
-      "main": [[{"node": "12. Construire notification", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "12. Construire notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "12. Construire notification": {
-      "main": [[{"node": "13. INSERT notification", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "13. INSERT notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "13. INSERT notification": {
-      "main": [[{"node": "14. Preparer email", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "14. Preparer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "14. Preparer email": {
-      "main": [[{"node": "15. Envoyer email credentials", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "15. Envoyer email credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "15. Envoyer email credentials": {
-      "main": [[{"node": "16. Formater reponse", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "16. Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "16. Formater reponse": {
-      "main": [[{"node": "17. Repondre", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "17. Repondre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

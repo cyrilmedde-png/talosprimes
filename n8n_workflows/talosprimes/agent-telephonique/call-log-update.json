@@ -71,7 +71,8 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "=UPDATE call_logs SET {{ $json.leadId !== undefined ? \"lead_id = \" + ($json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.agentId !== undefined ? \"agent_id = \" + ($json.agentId ? \"'\" + $json.agentId + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.endedAt !== undefined ? \"ended_at = \" + ($json.endedAt ? \"'\" + $json.endedAt + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.duration !== undefined ? \"duration = \" + $json.duration + \",\" : \"\" }} {{ $json.status !== undefined ? \"status = '\" + $json.status + \"',\" : \"\" }} {{ $json.transcript !== undefined ? \"transcript = '\" + $json.transcript + \"',\" : \"\" }} {{ $json.summary !== undefined ? \"summary = '\" + $json.summary + \"',\" : \"\" }} {{ $json.actionTaken !== undefined ? \"action_taken = \" + ($json.actionTaken ? \"'\" + $json.actionTaken + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.urgency !== undefined ? \"urgency = '\" + $json.urgency + \"',\" : \"\" }} {{ $json.sentiment !== undefined ? \"sentiment = \" + ($json.sentiment ? \"'\" + $json.sentiment + \"'\" : 'NULL') + \",\" : \"\" }} {{ $json.notes !== undefined ? \"notes = '\" + $json.notes + \"',\" : \"\" }} {{ $json.recordingUrl !== undefined ? \"recording_url = \" + ($json.recordingUrl ? \"'\" + $json.recordingUrl + \"'\" : 'NULL') + \",\" : \"\" }} updated_at = NOW() WHERE id = '{{ $json.id }}' AND tenant_id = '{{ $json.tenantId }}'"
+        "query": "={{ $json.query }}",
+        "queryParameters": "={{ $json.params }}"
       },
       "name": "Postgres Update",
       "type": "n8n-nodes-base.postgres",
@@ -102,6 +103,19 @@
       "typeVersion": 1,
       "position": [
         1250,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst setClauses = [];\nconst params = [];\nlet idx = 1;\n\nif (data.leadId !== undefined) {\n  setClauses.push('lead_id = $' + idx);\n  params.push(data.leadId || null);\n  idx++;\n}\n\nif (data.agentId !== undefined) {\n  setClauses.push('agent_id = $' + idx);\n  params.push(data.agentId || null);\n  idx++;\n}\n\nif (data.endedAt !== undefined) {\n  setClauses.push('ended_at = $' + idx);\n  params.push(data.endedAt || null);\n  idx++;\n}\n\nif (data.duration !== undefined) {\n  setClauses.push('duration = $' + idx);\n  params.push(parseFloat(data.duration) || 0);\n  idx++;\n}\n\nif (data.status !== undefined) {\n  setClauses.push('status = $' + idx);\n  params.push(data.status);\n  idx++;\n}\n\nif (data.transcript !== undefined) {\n  setClauses.push('transcript = $' + idx);\n  params.push(data.transcript);\n  idx++;\n}\n\nif (data.summary !== undefined) {\n  setClauses.push('summary = $' + idx);\n  params.push(data.summary);\n  idx++;\n}\n\nif (data.actionTaken !== undefined) {\n  setClauses.push('action_taken = $' + idx);\n  params.push(data.actionTaken || null);\n  idx++;\n}\n\nif (data.urgency !== undefined) {\n  setClauses.push('urgency = $' + idx);\n  params.push(data.urgency);\n  idx++;\n}\n\nif (data.sentiment !== undefined) {\n  setClauses.push('sentiment = $' + idx);\n  params.push(data.sentiment || null);\n  idx++;\n}\n\nif (data.notes !== undefined) {\n  setClauses.push('notes = $' + idx);\n  params.push(data.notes);\n  idx++;\n}\n\nif (data.recordingUrl !== undefined) {\n  setClauses.push('recording_url = $' + idx);\n  params.push(data.recordingUrl || null);\n  idx++;\n}\n\nsetClauses.push('updated_at = NOW()');\n\nconst whereParts = [];\nwhereParts.push('id = $' + idx);\nparams.push(data.id);\nidx++;\nwhereParts.push('tenant_id = $' + idx);\nparams.push(data.tenantId);\nidx++;\n\nconst query = 'UPDATE call_logs SET ' + setClauses.join(', ') + ' WHERE ' + whereParts.join(' AND ');\n\nreturn [{ json: { ...data, query, params } }];"
+      },
+      "id": "Build Update Query",
+      "name": "Build Update Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        650,
         250
       ]
     }
@@ -135,7 +149,7 @@
       "main": [
         [
           {
-            "node": "Postgres Update",
+            "node": "Build Update Query",
             "branch": 0,
             "index": 0,
             "type": "main"
@@ -171,6 +185,17 @@
             "branch": 0,
             "index": 0,
             "type": "main"
+          }
+        ]
+      ]
+    },
+    "Build Update Query": {
+      "main": [
+        [
+          {
+            "node": "Postgres Update",
+            "type": "main",
+            "index": 0
           }
         ]
       ]

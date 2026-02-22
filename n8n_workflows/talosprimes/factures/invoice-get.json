@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,12 +58,16 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 50]
+      "position": [
+        700,
+        50
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '{{ $json.invoiceId }}' AND i.tenant_id = '{{ $json.tenantId }}'"
+        "query": "SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = $1 AND i.tenant_id = $2",
+        "queryParameters": "={{ [$json.invoiceId, $json.tenantId] }}"
       },
       "id": "05. Get Invoice",
       "name": "05. Get Invoice",
@@ -66,12 +79,16 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM invoice_lines WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}' ORDER BY ordre ASC"
+        "query": "SELECT id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM invoice_lines WHERE invoice_id = $1 ORDER BY ordre ASC",
+        "queryParameters": "={{ [$('02. Parser').first().json.invoiceId] }}"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
@@ -83,12 +100,16 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 200]
+      "position": [
+        900,
+        200
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, invoice_id, numero_devis, date_devis, montant_ht, montant_ttc, statut FROM devis WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}'"
+        "query": "SELECT id, invoice_id, numero_devis, date_devis, montant_ht, montant_ttc, statut FROM devis WHERE invoice_id = $1",
+        "queryParameters": "={{ [$('02. Parser').first().json.invoiceId] }}"
       },
       "id": "07. Get Devis",
       "name": "07. Get Devis",
@@ -100,12 +121,16 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 350]
+      "position": [
+        900,
+        350
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, invoice_id, numero_proforma, date_proforma, montant_ht, montant_ttc, statut FROM proformas WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}'"
+        "query": "SELECT id, invoice_id, numero_proforma, date_proforma, montant_ht, montant_ttc, statut FROM proformas WHERE invoice_id = $1",
+        "queryParameters": "={{ [$('02. Parser').first().json.invoiceId] }}"
       },
       "id": "08. Get Proformas",
       "name": "08. Get Proformas",
@@ -117,12 +142,16 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 500]
+      "position": [
+        900,
+        500
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, invoice_id, numero_bdc, date_bdc, montant_ht, montant_ttc, statut FROM bons_commande WHERE invoice_id = '{{ $('02. Parser').first().json.invoiceId }}'"
+        "query": "SELECT id, invoice_id, numero_bdc, date_bdc, montant_ht, montant_ttc, statut FROM bons_commande WHERE invoice_id = $1",
+        "queryParameters": "={{ [$('02. Parser').first().json.invoiceId] }}"
       },
       "id": "09. Get BdC",
       "name": "09. Get BdC",
@@ -134,7 +163,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 650]
+      "position": [
+        900,
+        650
+      ]
     },
     {
       "parameters": {
@@ -144,7 +176,10 @@
       "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 400]
+      "position": [
+        1100,
+        400
+      ]
     },
     {
       "parameters": {
@@ -155,44 +190,133 @@
       "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 400]
+      "position": [
+        1300,
+        400
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Get Invoice", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Get Invoice": {
-      "main": [[
-        { "node": "06. Get Lines", "type": "main", "index": 0 },
-        { "node": "07. Get Devis", "type": "main", "index": 0 },
-        { "node": "08. Get Proformas", "type": "main", "index": 0 },
-        { "node": "09. Get BdC", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "06. Get Lines",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "07. Get Devis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "08. Get Proformas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "09. Get BdC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Get Lines": {
-      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Get Devis": {
-      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Get Proformas": {
-      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Get BdC": {
-      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Format Response": {
-      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "11. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

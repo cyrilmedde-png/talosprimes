@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -39,7 +45,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [640, 300]
+      "position": [
+        640,
+        300
+      ]
     },
     {
       "parameters": {
@@ -50,28 +59,38 @@
       "name": "04. Repondre erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [860, 500]
+      "position": [
+        860,
+        500
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"SELECT cs.id, cs.tenant_id, cs.client_final_id, cs.client_tenant_id, cs.tenant_slug, cs.folder_path, cs.status, cs.modules_actives, cs.validated_at, cs.validated_by_user_id, cs.created_at, cs.updated_at, cf.nom AS client_nom, cf.prenom AS client_prenom, cf.raison_sociale, cf.email AS client_email, cf.telephone AS client_telephone FROM client_spaces cs JOIN client_finals cf ON cf.id = cs.client_final_id WHERE cs.id = '\"+esc(p.clientSpaceId)+\"' AND cs.tenant_id = '\"+esc(p.tenantId)+\"'\";\nreturn [{json:{query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\\nvar query = \"SELECT cs.*, cf.nom, cf.prenom, cf.email as client_email, cf.raison_sociale FROM client_spaces cs LEFT JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cs.tenant_id = $1::uuid ORDER BY cs.created_at DESC\";\\nvar params = [p.tenantId];\\nreturn [{json: {query, params}}];"
       },
       "id": "build-query",
       "name": "05. Construire requete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [860, 300]
+      "position": [
+        860,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('05. Construire requete').first().json.query }}"
+        "query": "$1",
+        "queryParameters": "={{ [$('05. Construire requete').first().json.query] }}"
       },
       "id": "pg-get",
       "name": "06. SELECT client_space",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1080, 300],
+      "position": [
+        1080,
+        300
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -88,7 +107,10 @@
       "name": "07. Formater reponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -99,30 +121,85 @@
       "name": "08. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1520, 300]
+      "position": [
+        1520,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{"node": "02. Parser", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{"node": "05. Construire requete", "type": "main", "index": 0}],
-        [{"node": "04. Repondre erreur", "type": "main", "index": 0}]
+        [
+          {
+            "node": "05. Construire requete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Construire requete": {
-      "main": [[{"node": "06. SELECT client_space", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "06. SELECT client_space",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. SELECT client_space": {
-      "main": [[{"node": "07. Formater reponse", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "07. Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Formater reponse": {
-      "main": [[{"node": "08. Repondre", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "08. Repondre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

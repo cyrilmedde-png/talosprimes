@@ -66,7 +66,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE invoices SET statut = 'envoyee', updated_at = NOW() WHERE id = '{{ $json.invoiceId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'brouillon' RETURNING id, tenant_id, numero_facture, statut, updated_at"
+        "query": "UPDATE invoices SET statut = 'envoyee', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND statut = 'brouillon' RETURNING id, tenant_id, numero_facture, statut, updated_at",
+        "queryParameters": "={{ [$json.invoiceId, $json.tenantId] }}"
       },
       "id": "05. Update Invoice",
       "name": "05. Update Invoice",
@@ -85,7 +86,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const result = $('05. Update Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { error: 'Facture non trouv\u00e9e ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { id: result.id, tenantId: result.tenant_id, numeroFacture: result.numero_facture, statut: result.statut, updatedAt: result.updated_at } }];"
+        "jsCode": "const result = $('05. Update Invoice').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { error: 'Facture non trouvée ou pas au statut brouillon' } }];\n}\n\nreturn [{ json: { id: result.id, tenantId: result.tenant_id, numeroFacture: result.numero_facture, statut: result.statut, updatedAt: result.updated_at } }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

@@ -12,7 +12,10 @@
       "name": "Webhook - client_delete",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -22,21 +25,28 @@
       "name": "Parser ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [560, 300]
+      "position": [
+        560,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM client_finals\nWHERE id = '{{ $json.id }}'::uuid\nAND tenant_id = '{{ $json.tenantId }}'::uuid\nRETURNING id, nom, prenom, email",
+        "query": "DELETE FROM client_finals\nWHERE id = $1::uuid\nAND tenant_id = $2::uuid\nRETURNING id, nom, prenom, email",
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.id, $json.tenantId] }}"
       },
       "id": "PG_Delete",
       "name": "Postgres - Delete Client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [780, 300],
+      "position": [
+        780,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
@@ -53,7 +63,10 @@
       "name": "Vérifier suppression",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 300]
+      "position": [
+        1000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -64,21 +77,56 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1240, 300]
+      "position": [
+        1240,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook - client_delete": {
-      "main": [[{"node": "Parser ID", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Parser ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parser ID": {
-      "main": [[{"node": "Postgres - Delete Client", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Postgres - Delete Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres - Delete Client": {
-      "main": [[{"node": "Vérifier suppression", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Vérifier suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Vérifier suppression": {
-      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

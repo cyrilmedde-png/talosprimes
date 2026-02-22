@@ -33,7 +33,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  id, \n  tenant_id, \n  type, \n  raison_sociale, \n  nom, \n  prenom, \n  email, \n  telephone, \n  adresse, \n  tags, \n  statut, \n  created_at, \n  updated_at\nFROM client_finals\nWHERE {{ $json.whereClause }}\nORDER BY created_at DESC\nLIMIT {{ $json.limit }};"
+        "query": "SELECT \n  id, \n  tenant_id, \n  type, \n  raison_sociale, \n  nom, \n  prenom, \n  email, \n  telephone, \n  adresse, \n  tags, \n  statut, \n  created_at, \n  updated_at\nFROM client_finals\nWHERE $1\nORDER BY created_at DESC\nLIMIT $2;",
+        "queryParameters": "={{ [$json.whereClause, $json.limit] }}"
       },
       "id": "Postgres_Select",
       "name": "Postgres - SELECT clients",

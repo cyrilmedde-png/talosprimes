@@ -71,7 +71,8 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "=SELECT q.*, l.nom, l.prenom, l.email FROM questionnaires q LEFT JOIN leads l ON q.lead_id = l.id WHERE q.id = '{{ $json.id }}' AND q.tenant_id = '{{ $json.tenantId }}'"
+        "query": "SELECT q.*, l.nom, l.prenom, l.email FROM questionnaires q LEFT JOIN leads l ON q.lead_id = l.id WHERE q.id = $1 AND q.tenant_id = $2",
+        "queryParameters": "={{ [$json.id, $json.tenantId] }}"
       },
       "name": "Postgres Query",
       "type": "n8n-nodes-base.postgres",

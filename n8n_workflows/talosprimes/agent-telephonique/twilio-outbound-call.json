@@ -68,7 +68,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, tenant_id, phone_number, agent_name, company_name, niche, active FROM twilio_configs WHERE tenant_id = '{{ $json.tenantId }}'"
+        "query": "SELECT id, tenant_id, phone_number, agent_name, company_name, niche, active FROM twilio_configs WHERE tenant_id = $1",
+        "queryParameters": "={{ [$json.tenantId] }}"
       },
       "id": "05. Get Twilio Config",
       "name": "05. Get Twilio Config",
@@ -121,7 +122,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO call_logs (tenant_id, caller_phone, direction, status, notes, urgency_level, sentiment, action_taken, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.to }}', 'sortant', 'initiated', 'Appel sortant: {{ $json.reason }}', 'STANDARD', 'NEUTRE', 'APPEL', NOW(), NOW()) RETURNING id, tenant_id, caller_phone, direction, status, notes, created_at"
+        "query": "INSERT INTO call_logs (tenant_id, caller_phone, direction, status, notes, urgency_level, sentiment, action_taken, created_at, updated_at) VALUES ($1, $2, 'sortant', 'initiated', 'Appel sortant: $3', 'STANDARD', 'NEUTRE', 'APPEL', NOW(), NOW()) RETURNING id, tenant_id, caller_phone, direction, status, notes, created_at",
+        "queryParameters": "={{ [$json.tenantId, $json.to, $json.reason] }}"
       },
       "id": "08. Create Call Log",
       "name": "08. Create Call Log",

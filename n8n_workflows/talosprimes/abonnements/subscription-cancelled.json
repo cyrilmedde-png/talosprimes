@@ -34,11 +34,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = '{{ $json.subscriptionId }}'::uuid;",
+        "query": "SELECT \n  cs.*,\n  cf.email,\n  cf.nom,\n  cf.prenom,\n  cf.raison_sociale\nFROM client_subscriptions cs\nJOIN client_finals cf ON cs.client_final_id = cf.id\nWHERE cs.id = $1::uuid;",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.subscriptionId] }}"
       },
       "id": "get-subscription",
       "name": "03. Récupérer abonnement",
@@ -90,7 +91,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('05a. Préparer notification admin (erreur)').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement introuvable', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.message];\\nreturn [{json: {query, params}}];"
       },
       "id": "construct-admin-notif",
       "name": "05b. Construire notif erreur",
@@ -104,11 +105,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('05b. Construire notif erreur').first().json.query }}",
+        "query": "$1",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$('05b. Construire notif erreur').first().json.query] }}"
       },
       "id": "insert-admin-notif",
       "name": "05c. INSERT notification erreur",
@@ -216,7 +218,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('08c. Préparer notification erreur Stripe').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Erreur annulation Stripe', '\"+esc(d.message)+\"', 'erreur', false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.message];\\nreturn [{json: {query, params}}];"
       },
       "id": "construct-stripe-notif",
       "name": "08d. Construire notif Stripe err",
@@ -243,11 +245,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('08d. Construire notif Stripe err').first().json.query }}",
+        "query": "$1",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$('08d. Construire notif Stripe err').first().json.query] }}"
       },
       "id": "insert-stripe-notif",
       "name": "08e-pg. INSERT notification Stripe err",
@@ -296,11 +299,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = '{{ $json.subscription.id }}'::uuid\nRETURNING *;",
+        "query": "UPDATE client_subscriptions\nSET \n  statut = 'annule',\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING *;",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.subscription.id] }}"
       },
       "id": "update-subscription",
       "name": "10. Annuler abonnement",
@@ -368,7 +372,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d=$('13. Préparer notification TalosPrimes').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar query=\"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\"+esc(d.tenantId)+\"', 'Abonnement annulé', '\"+esc(d.message)+\"', 'info', false, NOW())\";\nreturn [{json:{query}}];"
+        "jsCode": "const d = $input.item.json;\\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, false, NOW())\";\\nvar params = [d.tenantId, d.message];\\nreturn [{json: {query, params}}];"
       },
       "id": "construct-success-notif",
       "name": "14. Construire notif succès",
@@ -382,11 +386,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('14. Construire notif succès').first().json.query }}",
+        "query": "$1",
         "alwaysOutputData": true,
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$('14. Construire notif succès').first().json.query] }}"
       },
       "id": "insert-success-notif",
       "name": "14b. INSERT notification",

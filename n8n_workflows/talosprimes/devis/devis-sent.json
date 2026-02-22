@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,12 +58,16 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE devis SET statut = 'envoyee', updated_at = NOW() WHERE id = '{{ $json.devisId }}' AND tenant_id = '{{ $json.tenantId }}' AND statut = 'brouillon' RETURNING id, tenant_id, numero_devis, statut, updated_at"
+        "query": "UPDATE devis SET statut = 'envoyee', updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND statut = 'brouillon' RETURNING id, tenant_id, numero_devis, statut, updated_at",
+        "queryParameters": "={{ [$json.devisId, $json.tenantId] }}"
       },
       "id": "05. Update Devis",
       "name": "05. Update Devis",
@@ -66,7 +79,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -76,7 +92,10 @@
       "name": "06. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -87,27 +106,74 @@
       "name": "07. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Update Devis", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Update Devis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Update Devis": {
-      "main": [[{ "node": "06. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Format Response": {
-      "main": [[{ "node": "07. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

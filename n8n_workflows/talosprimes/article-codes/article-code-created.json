@@ -67,7 +67,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT (SELECT id FROM article_codes WHERE tenant_id = '\" + ($json.tenantId || '').replace(/'/g, \"''\") + \"' AND code = '\" + ($json.code || '').replace(/'/g, \"''\") + \"') AS existing_id\" }}"
+        "query": "SELECT (SELECT id FROM article_codes WHERE tenant_id = $1 AND code = $2) AS existing_id",
+        "queryParameters": "={{ [$json.tenantId, $json.code] }}"
       },
       "id": "pg-check",
       "name": "05. Dedup check",
@@ -120,7 +121,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p=$('02. Parser').first().json;\nvar esc=function(s){return (s||'').replace(/'/g,\"''\");};\nvar insertCols=[\"id\",\"tenant_id\",\"code\",\"designation\",\"actif\",\"created_at\",\"updated_at\"];\nvar insertVals=[\"gen_random_uuid()\",\"'\"+esc(p.tenantId)+\"'\",\"'\"+esc(p.code)+\"'\",\"'\"+esc(p.designation)+\"'\",\"true\",\"NOW()\",\"NOW()\"];\nif(p.prixUnitaireHt!=null){insertCols.push(\"prix_unitaire_ht\");insertVals.push(p.prixUnitaireHt)}\nif(p.tvaTaux!=null){insertCols.push(\"tva_taux\");insertVals.push(p.tvaTaux)}\nif(p.unite){insertCols.push(\"unite\");insertVals.push(\"'\"+esc(p.unite)+\"'\")}\nvar query=\"INSERT INTO article_codes (\"+insertCols.join(\", \")+\") VALUES (\"+insertVals.join(\", \")+\") RETURNING id\";\nreturn [{json:{insertQuery:query}}];"
+        "jsCode": "const p = $('02. Parser').first().json;\\nvar query = \"INSERT INTO article_codes (id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, true, NOW(), NOW()) RETURNING *\";\\nvar params = [p.tenantId, p.code, p.designation || '', p.prixUnitaireHt || 0, p.tvaTaux || 20, p.unite || 'unite'];\\nreturn [{json: {query, params}}];"
       },
       "id": "build-insert",
       "name": "08. Construire INSERT",
@@ -134,7 +135,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.insertQuery }}"
+        "query": "$1",
+        "queryParameters": "={{ [$json.insertQuery] }}"
       },
       "id": "pg-insert",
       "name": "09. Executer INSERT",
@@ -154,7 +156,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT (SELECT row_to_json(sub) FROM (SELECT id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at FROM article_codes WHERE id = '\" + ($input.first().json.id || '').replace(/'/g, \"''\") + \"' AND tenant_id = '\" + ($('02. Parser').first().json.tenantId || '').replace(/'/g, \"''\") + \"') sub) AS article\" }}"
+        "query": "SELECT (SELECT row_to_json(sub) FROM (SELECT id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at FROM article_codes WHERE id = $1 AND tenant_id = $2) sub) AS article",
+        "queryParameters": "={{ [$input.first().json.id, $('02. Parser').first().json.tenantId] }}"
       },
       "id": "pg-fetch",
       "name": "10. Recuperer article",

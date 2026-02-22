@@ -67,7 +67,8 @@
         "password": "{{ $env.DB_PASSWORD }}",
         "port": 5432,
         "operation": "executeQuery",
-        "query": "=INSERT INTO questionnaires (id, tenant_id, lead_id, call_log_id, title, description, content, status, completed_at, created_at, updated_at) VALUES ('{{ $json.id }}', '{{ $json.tenantId }}', {{ $json.leadId ? \"'\" + $json.leadId + \"'\" : 'NULL' }}, {{ $json.callLogId ? \"'\" + $json.callLogId + \"'\" : 'NULL' }}, '{{ $json.title }}', '{{ $json.description }}', '{{ JSON.stringify($json.content).replace(/'/g, \"''\")}}'::jsonb, '{{ $json.status }}', {{ $json.completedAt ? \"'\" + $json.completedAt + \"'\" : 'NULL' }}, NOW(), NOW())"
+        "query": "INSERT INTO questionnaires (id, tenant_id, lead_id, call_log_id, title, description, content, status, completed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb::jsonb, $8, $9, NOW(), NOW())",
+        "queryParameters": "={{ [$json.id, $json.tenantId, $json.leadId || null, $json.callLogId || null, $json.title, $json.description, JSON.stringify($json.content), $json.status, $json.completedAt || null] }}"
       },
       "name": "Postgres Insert",
       "type": "n8n-nodes-base.postgres",

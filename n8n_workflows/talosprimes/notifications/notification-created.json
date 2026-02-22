@@ -68,7 +68,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at, updated_at) VALUES ('{{ $json.tenantId }}', '{{ $json.type }}', '{{ $json.titre }}', '{{ $json.message }}', {{ $json.donnees ? \"'\" + $json.donnees + \"'\" : \"NULL\" }}, false, NOW(), NOW()) RETURNING id, tenant_id, type, titre, message, donnees, lu, created_at, updated_at"
+        "query": "INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, false, NOW(), NOW()) RETURNING id, tenant_id, type, titre, message, donnees, lu, created_at, updated_at",
+        "queryParameters": "={{ [$json.tenantId, $json.type, $json.titre, $json.message, $json.donnees || null] }}"
       },
       "id": "05. Insert Notification",
       "name": "05. Insert Notification",

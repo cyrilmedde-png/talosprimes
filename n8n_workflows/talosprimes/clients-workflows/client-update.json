@@ -12,7 +12,10 @@
       "name": "Webhook - client_update",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -22,21 +25,28 @@
       "name": "Parser payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [560, 300]
+      "position": [
+        560,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE client_finals SET\n  nom = COALESCE(NULLIF('{{ $json.nom }}', ''), nom),\n  prenom = COALESCE(NULLIF('{{ $json.prenom }}', ''), prenom),\n  email = COALESCE(NULLIF('{{ $json.email }}', ''), email),\n  telephone = COALESCE(NULLIF('{{ $json.telephone }}', ''), telephone),\n  raison_sociale = COALESCE(NULLIF('{{ $json.raisonSociale }}', ''), raison_sociale),\n  adresse = COALESCE(NULLIF('{{ $json.adresse }}', ''), adresse),\n  updated_at = NOW()\nWHERE id = '{{ $json.id }}'::uuid\nAND tenant_id = '{{ $json.tenantId }}'::uuid\nRETURNING id, tenant_id, nom, prenom, email, telephone, type, raison_sociale, adresse, statut, created_at, updated_at",
+        "query": "UPDATE client_finals SET\n  nom = COALESCE(NULLIF($1, ''), nom),\n  prenom = COALESCE(NULLIF($2, ''), prenom),\n  email = COALESCE(NULLIF($3, ''), email),\n  telephone = COALESCE(NULLIF($4, ''), telephone),\n  raison_sociale = COALESCE(NULLIF($5, ''), raison_sociale),\n  adresse = COALESCE(NULLIF($6, ''), adresse),\n  updated_at = NOW()\nWHERE id = $7::uuid\nAND tenant_id = $8::uuid\nRETURNING id, tenant_id, nom, prenom, email, telephone, type, raison_sociale, adresse, statut, created_at, updated_at",
         "options": {
           "queryBatching": "independently"
-        }
+        },
+        "queryParameters": "={{ [$json.nom, $json.prenom, $json.email, $json.telephone, $json.raisonSociale, $json.adresse, $json.id, $json.tenantId] }}"
       },
       "id": "PG_Update",
       "name": "Postgres - Update Client",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [780, 300],
+      "position": [
+        780,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "OGqj65ZoFRileCck",
@@ -54,18 +64,45 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1020, 300]
+      "position": [
+        1020,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook - client_update": {
-      "main": [[{"node": "Parser payload", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Parser payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parser payload": {
-      "main": [[{"node": "Postgres - Update Client", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Postgres - Update Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres - Update Client": {
-      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

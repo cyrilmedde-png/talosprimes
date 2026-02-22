@@ -66,7 +66,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT numero_compte, libelle, classe, nature FROM plan_comptable WHERE tenant_id = '{{ $json.tenantId }}' AND actif = true ORDER BY numero_compte LIMIT 200;"
+        "query": "SELECT numero_compte, libelle, classe, nature FROM plan_comptable WHERE tenant_id = $1 AND actif = true ORDER BY numero_compte LIMIT 200;",
+        "queryParameters": "={{ [$json.tenantId] }}"
       },
       "id": "05. Get Plan Comptable",
       "name": "05. Get Plan Comptable",
@@ -86,7 +87,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT le.numero_compte, pc.libelle as compte_libelle, COALESCE(SUM(le.debit),0) as total_debit, COALESCE(SUM(le.credit),0) as total_credit, COALESCE(SUM(le.debit),0) - COALESCE(SUM(le.credit),0) as solde, COUNT(*) as nb_ecritures FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}' AND e.statut != 'brouillon'{{ $('02. Parser').first().json.dateFrom ? \" AND e.date_ecriture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : '' }}{{ $('02. Parser').first().json.dateTo ? \" AND e.date_ecriture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : '' }} GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte LIMIT 100;"
+        "query": "SELECT le.numero_compte, pc.libelle as compte_libelle, COALESCE(SUM(le.debit),0) as total_debit, COALESCE(SUM(le.credit),0) as total_credit, COALESCE(SUM(le.debit),0) - COALESCE(SUM(le.credit),0) as solde, COUNT(*) as nb_ecritures FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = $1 AND e.statut != 'brouillon' AND ($2 IS NULL OR e.date_ecriture >= $2) AND ($3 IS NULL OR e.date_ecriture <= $3) GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte LIMIT 100;",
+        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.dateFrom || null, $('02. Parser').first().json.dateTo || null] }}"
       },
       "id": "06. Get Balance Rapide",
       "name": "06. Get Balance Rapide",
@@ -168,7 +170,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO compta_ia_logs (tenant_id, action, prompt, reponse, modele) VALUES ('{{ $('02. Parser').first().json.tenantId }}', '{{ $('02. Parser').first().json.action }}', '{{ $('07. Build AI Prompt').first().json.userPrompt.substring(0, 2000).replace(/'/g, \"''\") }}', '{{ JSON.stringify($json.resultat).substring(0, 5000).replace(/'/g, \"''\") }}', 'gpt-4o');"
+        "query": "INSERT INTO compta_ia_logs (tenant_id, action, prompt, reponse, modele) VALUES ($1, $2, $3, $4, 'gpt-4o');",
+        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.action, $('07. Build AI Prompt').first().json.userPrompt.substring(0, 2000).replace(/'/g, \"''\"), JSON.stringify($json.resultat).substring(0, 5000).replace(/'/g, \"''\")] }}"
       },
       "id": "10. Log IA",
       "name": "10. Log IA",

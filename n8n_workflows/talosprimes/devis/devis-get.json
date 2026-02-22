@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,12 +58,16 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.id = '{{ $json.devisId }}' AND d.tenant_id = '{{ $json.tenantId }}'"
+        "query": "SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.id = $1 AND d.tenant_id = $2",
+        "queryParameters": "={{ [$json.devisId, $json.tenantId] }}"
       },
       "id": "05. Get Devis",
       "name": "05. Get Devis",
@@ -66,12 +79,16 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = '{{ $('02. Parser').first().json.devisId }}' ORDER BY ordre ASC"
+        "query": "SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id = $1 ORDER BY ordre ASC",
+        "queryParameters": "={{ [$('02. Parser').first().json.devisId] }}"
       },
       "id": "06. Get Lines",
       "name": "06. Get Lines",
@@ -83,7 +100,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -93,7 +113,10 @@
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -104,30 +127,85 @@
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Get Devis", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Get Devis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Get Devis": {
-      "main": [[{ "node": "06. Get Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Get Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Get Lines": {
-      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Format Response": {
-      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

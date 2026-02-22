@@ -2,60 +2,210 @@
   "name": "compta-ecritures-list",
   "nodes": [
     {
-      "parameters": { "path": "compta-ecritures-list", "responseMode": "responseNode", "httpMethod": "POST" },
-      "id": "01. Webhook", "name": "01. Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [100, 200]
+      "parameters": {
+        "path": "compta-ecritures-list",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
         "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 20;\nconst offset = (page - 1) * limit;\nreturn [{ json: {\n  tenantId: body.tenantId, page, limit, offset,\n  journalCode: body.journalCode || null,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  statut: body.statut || null,\n  typePiece: body.typePiece || null,\n  search: body.search || null\n} }];"
       },
-      "id": "02. Parser", "name": "02. Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [300, 200]
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
-        "conditions": { "string": [{ "value1": "={{ $json.tenantId }}", "operation": "isNotEmpty" }] }
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
       },
-      "id": "03. Valide ?", "name": "03. Valide ?", "type": "n8n-nodes-base.if", "typeVersion": 1, "position": [500, 200]
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }" },
-      "id": "04. Respond Error", "name": "04. Respond Error", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [700, 100]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) as total FROM ecritures_comptables WHERE tenant_id = '{{ $json.tenantId }}'{{ $json.journalCode ? \" AND journal_code = '\" + $json.journalCode + \"'\" : '' }}{{ $json.statut ? \" AND statut = '\" + $json.statut + \"'\" : '' }}{{ $json.typePiece ? \" AND type_piece = '\" + $json.typePiece + \"'\" : '' }}{{ $json.dateFrom ? \" AND date_ecriture >= '\" + $json.dateFrom + \"'\" : '' }}{{ $json.dateTo ? \" AND date_ecriture <= '\" + $json.dateTo + \"'\" : '' }}{{ $json.search ? \" AND (numero_piece ILIKE '%\" + $json.search + \"%' OR libelle ILIKE '%\" + $json.search + \"%' OR reference ILIKE '%\" + $json.search + \"%')\" : '' }}"
+        "query": "SELECT COUNT(*) as total FROM ecritures_comptables WHERE tenant_id = $1 AND ($2 IS NULL OR journal_code = $2) AND ($3 IS NULL OR statut = $3) AND ($4 IS NULL OR type_piece = $4) AND ($5 IS NULL OR date_ecriture >= $5) AND ($6 IS NULL OR date_ecriture <= $6) AND ($7 IS NULL OR (numero_piece ILIKE '%' || $7 || '%' OR libelle ILIKE '%' || $7 || '%' OR reference ILIKE '%' || $7 || '%'))",
+        "queryParameters": "={{ [$json.tenantId, $json.journalCode || null, $json.statut || null, $json.typePiece || null, $json.dateFrom || null, $json.dateTo || null, $json.search || null] }}"
       },
-      "id": "05. Count", "name": "05. Count", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [700, 300]
+      "id": "05. Count",
+      "name": "05. Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT e.id, e.journal_code, e.numero_piece, e.date_ecriture, e.date_echeance, e.libelle, e.reference, e.type_piece, e.entite_type, e.entite_id, e.montant_total, e.statut, e.source, e.created_at, j.libelle as journal_libelle FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id WHERE e.tenant_id = '{{ $('02. Parser').first().json.tenantId }}'{{ $('02. Parser').first().json.journalCode ? \" AND e.journal_code = '\" + $('02. Parser').first().json.journalCode + \"'\" : '' }}{{ $('02. Parser').first().json.statut ? \" AND e.statut = '\" + $('02. Parser').first().json.statut + \"'\" : '' }}{{ $('02. Parser').first().json.typePiece ? \" AND e.type_piece = '\" + $('02. Parser').first().json.typePiece + \"'\" : '' }}{{ $('02. Parser').first().json.dateFrom ? \" AND e.date_ecriture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : '' }}{{ $('02. Parser').first().json.dateTo ? \" AND e.date_ecriture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : '' }}{{ $('02. Parser').first().json.search ? \" AND (e.numero_piece ILIKE '%\" + $('02. Parser').first().json.search + \"%' OR e.libelle ILIKE '%\" + $('02. Parser').first().json.search + \"%')\" : '' }} ORDER BY e.date_ecriture DESC, e.numero_piece DESC LIMIT {{ $('02. Parser').first().json.limit }} OFFSET {{ $('02. Parser').first().json.offset }}"
+        "query": "SELECT e.id, e.journal_code, e.numero_piece, e.date_ecriture, e.date_echeance, e.libelle, e.reference, e.type_piece, e.entite_type, e.entite_id, e.montant_total, e.statut, e.source, e.created_at, j.libelle as journal_libelle FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id WHERE e.tenant_id = $1 AND ($2 IS NULL OR e.journal_code = $2) AND ($3 IS NULL OR e.statut = $3) AND ($4 IS NULL OR e.type_piece = $4) AND ($5 IS NULL OR e.date_ecriture >= $5) AND ($6 IS NULL OR e.date_ecriture <= $6) AND ($7 IS NULL OR (e.numero_piece ILIKE '%' || $7 || '%' OR e.libelle ILIKE '%' || $7 || '%')) ORDER BY e.date_ecriture DESC, e.numero_piece DESC LIMIT $8 OFFSET $9",
+        "queryParameters": "={{ [$('02. Parser').first().json.tenantId, $('02. Parser').first().json.journalCode || null, $('02. Parser').first().json.statut || null, $('02. Parser').first().json.typePiece || null, $('02. Parser').first().json.dateFrom || null, $('02. Parser').first().json.dateTo || null, $('02. Parser').first().json.search || null, $('02. Parser').first().json.limit, $('02. Parser').first().json.offset] }}"
       },
-      "id": "06. List", "name": "06. List", "type": "n8n-nodes-base.postgres", "typeVersion": 2,
-      "credentials": { "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" } },
-      "position": [900, 300]
+      "id": "06. List",
+      "name": "06. List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
         "jsCode": "const items = $('06. List').all().map(item => item.json).filter(e => e.id);\nconst total = parseInt($('05. Count').first().json.total) || 0;\nconst p = $('02. Parser').first().json;\nconst totalPages = Math.ceil(total / p.limit) || 1;\n\nconst ecritures = items.map(e => ({\n  id: e.id,\n  journalCode: e.journal_code,\n  journalLibelle: e.journal_libelle,\n  numeroPiece: e.numero_piece,\n  dateEcriture: e.date_ecriture,\n  dateEcheance: e.date_echeance,\n  libelle: e.libelle,\n  reference: e.reference,\n  typePiece: e.type_piece,\n  entiteType: e.entite_type,\n  entiteId: e.entite_id,\n  montantTotal: parseFloat(e.montant_total) || 0,\n  statut: e.statut,\n  source: e.source,\n  createdAt: e.created_at\n}));\n\nreturn [{ json: { success: true, ecritures, count: ecritures.length, total, page: p.page, limit: p.limit, totalPages } }];"
       },
-      "id": "07. Format Response", "name": "07. Format Response", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1100, 300]
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
-      "id": "08. Respond", "name": "08. Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1300, 300]
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
-    "03. Valide ?": { "main": [[{ "node": "05. Count", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
-    "05. Count": { "main": [[{ "node": "06. List", "type": "main", "index": 0 }]] },
-    "06. List": { "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]] },
-    "07. Format Response": { "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Count",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Count": {
+      "main": [
+        [
+          {
+            "node": "06. List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. List": {
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Format Response": {
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }

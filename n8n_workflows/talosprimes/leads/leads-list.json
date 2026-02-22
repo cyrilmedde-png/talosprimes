@@ -33,7 +33,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  id, \n  nom, \n  prenom, \n  email, \n  telephone, \n  statut, \n  source, \n  notes, \n  date_contact, \n  created_at, \n  updated_at\nFROM leads\nWHERE {{ $json.whereClause }}\nORDER BY created_at DESC\nLIMIT {{ $json.limit }};"
+        "query": "SELECT \n  id, \n  nom, \n  prenom, \n  email, \n  telephone, \n  statut, \n  source, \n  notes, \n  date_contact, \n  created_at, \n  updated_at\nFROM leads\nWHERE $1\nORDER BY created_at DESC\nLIMIT $2;",
+        "queryParameters": "={{ [$json.whereClause, $json.limit] }}"
       },
       "id": "Postgres_Select",
       "name": "Postgres - SELECT leads",
