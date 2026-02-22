@@ -969,7 +969,7 @@ except Exception as e:
             tmp_payload="/tmp/n8n_payload_$existing_id.json"
             printf '%s' "$payload" > "$tmp_payload"
 
-            # PUT via API REST
+            # PUT via API REST v1
             put_response=$(curl -s -w "\n%{http_code}" -X PUT \
               -H "X-N8N-API-KEY: $N8N_API_KEY" \
               -H "Content-Type: application/json" \
@@ -981,10 +981,52 @@ except Exception as e:
               log_ok "  UPDATE: $wf_name (id=$existing_id)"
               N8N_SUCCESS=$((N8N_SUCCESS + 1))
             else
-              err_body=$(echo "$put_response" | sed '$d' | head -1)
-              log_warn "  UPDATE echoue: $wf_name (HTTP $put_http_code)"
-              [ -n "$err_body" ] && log_warn "    -> $err_body"
-              N8N_ERRORS=$((N8N_ERRORS + 1))
+              # Retry sans versionId (certaines versions n8n le rejettent)
+              python3 -c "
+import json
+with open('$tmp_payload') as f:
+    wf = json.load(f)
+wf.pop('versionId', None)
+wf.pop('staticData', None)
+with open('$tmp_payload', 'w') as f:
+    json.dump(wf, f)
+" 2>/dev/null
+              put_response2=$(curl -s -w "\n%{http_code}" -X PUT \
+                -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                -H "Content-Type: application/json" \
+                -d @"$tmp_payload" \
+                "$N8N_API_URL/api/v1/workflows/$existing_id" 2>/dev/null)
+              put_http_code2=$(echo "$put_response2" | tail -1)
+
+              if [ "$put_http_code2" = "200" ]; then
+                log_ok "  UPDATE: $wf_name (id=$existing_id) [sans versionId]"
+                N8N_SUCCESS=$((N8N_SUCCESS + 1))
+              else
+                # Dernier fallback: n8n CLI import via docker
+                local n8n_container
+                n8n_container=$(docker ps --format '{{.Names}}' | grep -i n8n | head -1)
+                if [ -n "$n8n_container" ]; then
+                  # Copy payload to container and import
+                  docker cp "$tmp_payload" "$n8n_container:/tmp/wf_import.json" 2>/dev/null
+                  local import_out
+                  import_out=$(docker exec "$n8n_container" n8n import:workflow --input=/tmp/wf_import.json 2>&1) || true
+                  if echo "$import_out" | grep -qi "success\|imported"; then
+                    log_ok "  UPDATE: $wf_name (id=$existing_id) [via n8n CLI import]"
+                    N8N_SUCCESS=$((N8N_SUCCESS + 1))
+                  else
+                    err_body=$(echo "$put_response2" | sed '$d' | head -1)
+                    log_warn "  UPDATE echoue: $wf_name (HTTP $put_http_code, retry=$put_http_code2)"
+                    [ -n "$err_body" ] && log_warn "    -> $err_body"
+                    N8N_ERRORS=$((N8N_ERRORS + 1))
+                  fi
+                  docker exec "$n8n_container" rm -f /tmp/wf_import.json 2>/dev/null || true
+                else
+                  err_body=$(echo "$put_response2" | sed '$d' | head -1)
+                  log_warn "  UPDATE echoue: $wf_name (HTTP $put_http_code, retry=$put_http_code2)"
+                  [ -n "$err_body" ] && log_warn "    -> $err_body"
+                  N8N_ERRORS=$((N8N_ERRORS + 1))
+                fi
+              fi
             fi
             rm -f "$tmp_payload"
 

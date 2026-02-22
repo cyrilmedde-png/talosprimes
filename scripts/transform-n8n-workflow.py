@@ -326,6 +326,15 @@ def transform_workflow(wf_path, current_n8n_path=None):
     wf.setdefault('connections', {})
     wf.setdefault('settings', {})
 
+    # STRICT WHITELIST: only output properties accepted by n8n v1 PUT API
+    # This prevents "request/body must NOT have additional properties" errors
+    # when the n8n API has additionalProperties: false in its schema
+    allowed_keys = {'name', 'nodes', 'connections', 'settings', 'staticData', 'versionId'}
+    extra_keys = set(wf.keys()) - allowed_keys
+    for k in extra_keys:
+        wf.pop(k, None)
+        print(f"      Removed extra top-level key: {k}", file=sys.stderr)
+
     # Output transformed JSON
     print(json.dumps(wf))
 
