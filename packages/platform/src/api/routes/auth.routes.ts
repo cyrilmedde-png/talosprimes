@@ -18,9 +18,17 @@ const refreshTokenSchema = z.object({
  * Routes d'authentification
  */
 export async function authRoutes(fastify: FastifyInstance) {
-  // POST /api/auth/login
+  // POST /api/auth/login (rate limit strict : anti brute-force)
   fastify.post(
     '/login',
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 minute',
+        },
+      },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         // Valider les données
@@ -61,9 +69,17 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /api/auth/refresh
+  // POST /api/auth/refresh (rate limit modéré)
   fastify.post(
     '/refresh',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         // Valider les données

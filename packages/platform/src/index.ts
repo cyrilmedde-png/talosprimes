@@ -66,7 +66,7 @@ await fastify.register(cors, {
     : true, // En dev, autoriser tout
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-TalosPrimes-N8N-Secret'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-TalosPrimes-N8N-Secret', 'X-Idempotency-Key'],
 });
 
 // Rate limiting
@@ -76,15 +76,36 @@ await fastify.register(rateLimit, {
 });
 
 // Route de santé (health check)
-fastify.get('/health', async () => {
-  // Vérifier la connexion DB
+fastify.get('/health', async (_request, reply) => {
+  const start = Date.now();
+  let dbStatus = 'connected';
+  let dbLatency = 0;
+
   try {
+    const dbStart = Date.now();
     await prisma.$queryRaw`SELECT 1`;
-    return { status: 'ok', database: 'connected' };
+    dbLatency = Date.now() - dbStart;
   } catch (error) {
+    dbStatus = 'disconnected';
     fastify.log.error(error, 'Database connection failed');
-    return { status: 'error', database: 'disconnected' };
   }
+
+  const health = {
+    status: dbStatus === 'connected' ? 'ok' : 'degraded',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    database: {
+      status: dbStatus,
+      latencyMs: dbLatency,
+    },
+    memory: {
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    },
+    responseMs: Date.now() - start,
+  };
+
+  return reply.status(dbStatus === 'connected' ? 200 : 503).send(health);
 });
 
 // Décorer Fastify avec les middlewares d'authentification

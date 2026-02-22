@@ -231,9 +231,17 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
   // ===== CONTACT MESSAGES =====
 
-  // POST /api/landing/contact - Envoyer un message de contact (PUBLIC)
+  // POST /api/landing/contact - Envoyer un message de contact (PUBLIC, rate limit strict anti-spam)
   fastify.post<{ Body: ContactMessageBody }>(
     '/api/landing/contact',
+    {
+      config: {
+        rateLimit: {
+          max: 3,
+          timeWindow: '1 minute',
+        },
+      },
+    },
     async (request, reply) => {
       const { nom, prenom, email, telephone, entreprise, message } = request.body;
 
