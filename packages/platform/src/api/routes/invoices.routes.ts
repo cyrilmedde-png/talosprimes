@@ -932,9 +932,9 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               // Récupérer les infos du tenant pour le nom de l'entreprise
               const tenant = await prisma.tenant.findUnique({
                 where: { id: tenantId },
-                select: { nom: true, raisonSociale: true },
+                select: { nomEntreprise: true },
               });
-              const entreprise = tenant?.raisonSociale || tenant?.nom || 'Notre entreprise';
+              const entreprise = tenant?.nomEntreprise || 'Notre entreprise';
               const clientName = updated.clientFinal?.raisonSociale
                 || `${updated.clientFinal?.prenom || ''} ${updated.clientFinal?.nom || ''}`.trim()
                 || 'Client';
