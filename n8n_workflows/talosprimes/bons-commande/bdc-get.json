@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bon_commandes b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.id = '\" + $json.bdcId + \"' AND b.tenant_id = '\" + $json.tenantId + \"'\" }}"
+        "query": "={{ \"SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bons_commande b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.id = '\" + $json.bdcId + \"' AND b.tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "id": "05. Get BdC",
       "name": "05. Get BdC",

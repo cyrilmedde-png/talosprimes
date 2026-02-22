@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"UPDATE bon_commandes SET statut = 'valide', updated_at = NOW() WHERE id = '\" + $json.bdcId + \"' AND tenant_id = '\" + $json.tenantId + \"' AND statut = 'brouillon' RETURNING id, tenant_id, numero_bdc, statut, updated_at\" }}"
+        "query": "={{ \"UPDATE bons_commande SET statut = 'valide', updated_at = NOW() WHERE id = '\" + $json.bdcId + \"' AND tenant_id = '\" + $json.tenantId + \"' AND statut = 'brouillon' RETURNING id, tenant_id, numero_bdc, statut, updated_at\" }}"
       },
       "id": "05. Update BdC",
       "name": "05. Update BdC",

@@ -86,7 +86,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"DELETE FROM bon_commandes WHERE id = '\" + $('02. Parser').first().json.bdcId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND statut != 'facture' RETURNING id, numero_bdc\" }}"
+        "query": "={{ \"DELETE FROM bons_commande WHERE id = '\" + $('02. Parser').first().json.bdcId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND statut != 'facture' RETURNING id, numero_bdc\" }}"
       },
       "id": "06. Delete BdC",
       "name": "06. Delete BdC",

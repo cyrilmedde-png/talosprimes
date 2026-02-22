@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM bon_commandes WHERE tenant_id = '\" + $json.tenantId + \"' AND numero_bdc IS NOT NULL AND date_bdc IS NOT NULL AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"1=1\") + \" AND \" + ($json.clientFinalId ? \"client_final_id = '\" + $json.clientFinalId + \"'\" : \"1=1\") }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM bons_commande WHERE tenant_id = '\" + $json.tenantId + \"' AND numero_bdc IS NOT NULL AND date_bdc IS NOT NULL AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"1=1\") + \" AND \" + ($json.clientFinalId ? \"client_final_id = '\" + $json.clientFinalId + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -86,7 +86,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bon_commandes b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND b.numero_bdc IS NOT NULL AND b.date_bdc IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"b.statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"b.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") + \" ORDER BY b.date_bdc DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
+        "query": "={{ \"SELECT b.id, b.tenant_id, b.client_final_id, b.numero_bdc, b.date_bdc, b.date_validite, b.montant_ht, b.montant_ttc, b.tva_taux, b.description, b.mode_paiement, b.statut, b.invoice_id, b.created_at, b.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM bons_commande b LEFT JOIN client_finals cf ON b.client_final_id = cf.id WHERE b.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND b.numero_bdc IS NOT NULL AND b.date_bdc IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"b.statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"b.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") + \" ORDER BY b.date_bdc DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",
