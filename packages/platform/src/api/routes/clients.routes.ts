@@ -4,7 +4,7 @@ import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
-import { authMiddleware, n8nOrAuthMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
+import { authMiddleware, n8nOrAuthMiddleware, n8nOnlyMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({
@@ -703,19 +703,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/create-credentials',
     {
-      preHandler: [
-        async (request: FastifyRequest, reply: FastifyReply) => {
-          // Vérifier si c'est une requête interne n8n
-          const secret = env.N8N_WEBHOOK_SECRET;
-          const provided = request.headers['x-talosprimes-n8n-secret'];
-          if (!secret || !provided || provided !== secret) {
-            return reply.status(401).send({
-              success: false,
-              error: 'Non autorisé',
-            });
-          }
-        },
-      ],
+      preHandler: [n8nOnlyMiddleware],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
@@ -818,7 +806,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
               id: subscription.id,
             },
             data: {
-              temporaryPassword: body.password, // Stocker temporairement en clair
+              temporaryPassword: body.password, // Stocké en clair temporairement (effacé après lecture par get-credentials)
             },
           });
         }
@@ -847,19 +835,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/get-credentials',
     {
-      preHandler: [
-        async (request: FastifyRequest, reply: FastifyReply) => {
-          // Vérifier si c'est une requête interne n8n
-          const secret = env.N8N_WEBHOOK_SECRET;
-          const provided = request.headers['x-talosprimes-n8n-secret'];
-          if (!secret || !provided || provided !== secret) {
-            return reply.status(401).send({
-              success: false,
-              error: 'Non autorisé',
-            });
-          }
-        },
-      ],
+      preHandler: [n8nOnlyMiddleware],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
@@ -916,13 +892,24 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           });
         }
 
+        const tempPassword = subscription.temporaryPassword;
+
+        // Sécurité : effacer le mot de passe temporaire après lecture (usage unique)
+        // Cela limite la fenêtre d'exposition du mot de passe en clair
+        if (tempPassword) {
+          await prisma.clientSubscription.update({
+            where: { id: subscription.id },
+            data: { temporaryPassword: null },
+          });
+        }
+
         return reply.status(200).send({
           success: true,
           data: {
             tenantId: tenant.id,
             userId: user.id,
             email: user.email,
-            password: subscription.temporaryPassword, // Mot de passe temporaire en clair
+            password: tempPassword, // Mot de passe temporaire (effacé après cette lecture)
           },
         });
       } catch (error) {

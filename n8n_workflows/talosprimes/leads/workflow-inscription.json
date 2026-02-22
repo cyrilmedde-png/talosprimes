@@ -45,6 +45,10 @@
               {
                 "name": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "name": "x-talosprimes-n8n-secret",
+                "value": "={{ $env.N8N_WEBHOOK_SECRET }}"
               }
             ]
           },

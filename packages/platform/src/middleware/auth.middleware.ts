@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { verifyAccessToken, type JWTPayload } from '../services/auth.service.js';
 import { env } from '../config/env.js';
 
@@ -83,12 +83,18 @@ export async function authMiddleware(
 // ─────────────────────────────────────────────────────────────────
 
 /**
+ * Regex UUID v4 pour valider le format du tenantId.
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
  * Middleware d'authentification dual : accepte soit un JWT Bearer,
  * soit le header X-TalosPrimes-N8N-Secret pour les appels internes n8n.
  *
  * Quand c'est un appel n8n :
  *  - request.isN8nRequest = true
  *  - request.tenantId est récupéré depuis le query param ?tenantId= ou le body.tenantId
+ *  - Le tenantId DOIT être un UUID v4 valide (protection contre injection)
  *  - request.user reste undefined (pas de JWT)
  *
  * Quand c'est un appel JWT classique :
@@ -107,10 +113,21 @@ export async function n8nOrAuthMiddleware(
     const query = request.query as Record<string, string | undefined>;
     const body = request.body as Record<string, unknown> | null | undefined;
 
-    request.tenantId =
+    const rawTenantId =
       query?.tenantId ||
       (body && typeof body === 'object' ? (body as Record<string, string>).tenantId : undefined) ||
       undefined;
+
+    // Valider que le tenantId est un UUID v4 valide (prévient injection & erreurs)
+    if (rawTenantId && !UUID_REGEX.test(rawTenantId)) {
+      reply.code(400).send({
+        error: 'Requête invalide',
+        message: 'tenantId fourni par n8n n\'est pas un UUID valide',
+      });
+      return;
+    }
+
+    request.tenantId = rawTenantId;
 
     return; // Authentifié via n8n secret
   }
@@ -140,6 +157,162 @@ export async function n8nOnlyMiddleware(
     return;
   }
   request.isN8nRequest = true;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Middleware de vérification HMAC pour webhooks externes
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Middleware de vérification de signature Stripe (HMAC-SHA256).
+ * Vérifie le header `Stripe-Signature` avec le secret STRIPE_WEBHOOK_SECRET.
+ * Requiert que rawBody soit disponible sur la requête (configurer Fastify rawBody).
+ *
+ * Usage : fastify.post('/stripe-webhook', { preHandler: [stripeWebhookMiddleware] }, handler)
+ */
+export async function stripeWebhookMiddleware(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  const secret = env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    reply.code(500).send({
+      error: 'Configuration manquante',
+      message: 'STRIPE_WEBHOOK_SECRET non configuré',
+    });
+    return;
+  }
+
+  const sigHeader = request.headers['stripe-signature'];
+  if (!sigHeader || typeof sigHeader !== 'string') {
+    reply.code(401).send({
+      error: 'Signature manquante',
+      message: 'Header Stripe-Signature requis',
+    });
+    return;
+  }
+
+  // Extraire timestamp et signature du header Stripe
+  const elements = sigHeader.split(',');
+  const timestampEl = elements.find((e: string) => e.startsWith('t='));
+  const signatureEl = elements.find((e: string) => e.startsWith('v1='));
+
+  if (!timestampEl || !signatureEl) {
+    reply.code(401).send({
+      error: 'Signature invalide',
+      message: 'Format Stripe-Signature invalide',
+    });
+    return;
+  }
+
+  const timestamp = timestampEl.substring(2);
+  const expectedSignature = signatureEl.substring(3);
+
+  // Vérifier que le timestamp n'est pas trop ancien (5 min max)
+  const tolerance = 300; // 5 minutes en secondes
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp, 10)) > tolerance) {
+    reply.code(401).send({
+      error: 'Signature expirée',
+      message: 'Le timestamp de la signature est trop ancien',
+    });
+    return;
+  }
+
+  // Calculer la signature attendue : HMAC-SHA256(secret, timestamp.rawBody)
+  const rawBody = (request as FastifyRequest & { rawBody?: Buffer }).rawBody;
+  if (!rawBody) {
+    reply.code(400).send({
+      error: 'Corps manquant',
+      message: 'rawBody requis pour la vérification Stripe',
+    });
+    return;
+  }
+
+  const signedPayload = `${timestamp}.${rawBody.toString('utf8')}`;
+  const computedSignature = createHmac('sha256', secret)
+    .update(signedPayload, 'utf8')
+    .digest('hex');
+
+  // Comparaison à temps constant
+  const expected = Buffer.from(expectedSignature, 'utf8');
+  const computed = Buffer.from(computedSignature, 'utf8');
+
+  if (expected.length !== computed.length || !timingSafeEqual(expected, computed)) {
+    reply.code(401).send({
+      error: 'Signature invalide',
+      message: 'La signature Stripe ne correspond pas',
+    });
+    return;
+  }
+}
+
+/**
+ * Middleware de vérification de signature Twilio (HMAC-SHA1).
+ * Vérifie le header `X-Twilio-Signature` pour les webhooks entrants.
+ *
+ * Usage : fastify.post('/twilio-webhook', { preHandler: [twilioWebhookMiddleware] }, handler)
+ *
+ * Note: Nécessite TWILIO_AUTH_TOKEN dans les env vars.
+ */
+export async function twilioWebhookMiddleware(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    // En dev, on peut laisser passer sans vérification avec un warning
+    if (env.NODE_ENV === 'development') {
+      request.log.warn('TWILIO_AUTH_TOKEN non configuré - vérification Twilio désactivée en dev');
+      return;
+    }
+    reply.code(500).send({
+      error: 'Configuration manquante',
+      message: 'TWILIO_AUTH_TOKEN non configuré',
+    });
+    return;
+  }
+
+  const twilioSignature = request.headers['x-twilio-signature'];
+  if (!twilioSignature || typeof twilioSignature !== 'string') {
+    reply.code(401).send({
+      error: 'Signature manquante',
+      message: 'Header X-Twilio-Signature requis',
+    });
+    return;
+  }
+
+  // Construire l'URL complète de la requête
+  const protocol = request.headers['x-forwarded-proto'] || 'https';
+  const host = request.headers.host || '';
+  const url = `${protocol}://${host}${request.url}`;
+
+  // Construire la chaîne à signer : URL + paramètres POST triés
+  let dataToSign = url;
+  if (request.body && typeof request.body === 'object') {
+    const params = request.body as Record<string, string>;
+    const sortedKeys = Object.keys(params).sort();
+    for (const key of sortedKeys) {
+      dataToSign += key + params[key];
+    }
+  }
+
+  // Calculer HMAC-SHA1
+  const computedSignature = createHmac('sha1', authToken)
+    .update(dataToSign, 'utf8')
+    .digest('base64');
+
+  // Comparaison à temps constant
+  const expected = Buffer.from(twilioSignature, 'utf8');
+  const computed = Buffer.from(computedSignature, 'utf8');
+
+  if (expected.length !== computed.length || !timingSafeEqual(expected, computed)) {
+    reply.code(401).send({
+      error: 'Signature invalide',
+      message: 'La signature Twilio ne correspond pas',
+    });
+    return;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────

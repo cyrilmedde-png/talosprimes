@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { event, tenantId, timestamp, data: { type?, statut?, limit? } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\n// Le backend envoie { event, tenantId, timestamp, data: { type, statut, limit } }\nconst tenantId = String(payload?.tenantId || '').trim();\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst type = data?.type ? String(data.type).trim() : null;\nconst statut = data?.statut ? String(data.statut).trim() : null;\nconst limit = data?.limit ? parseInt(String(data.limit), 10) : 100;\n\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { type, statut, limit, tenantId } }];"
+        "jsCode": "// Parser le payload avec validation whitelist (anti-injection SQL)\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst tenantId = String(payload?.tenantId || '').trim();\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\n// Validation UUID du tenantId\nconst UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nif (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis et doit être un UUID valide');\n\n// Whitelist des valeurs autorisées\nconst VALID_TYPES = ['particulier', 'professionnel', 'association'];\nconst VALID_STATUTS = ['actif', 'inactif', 'suspendu', 'archive'];\n\nconst rawType = data?.type ? String(data.type).trim().toLowerCase() : null;\nconst rawStatut = data?.statut ? String(data.statut).trim().toLowerCase() : null;\nconst rawLimit = data?.limit ? parseInt(String(data.limit), 10) : 100;\n\nconst type = rawType && VALID_TYPES.includes(rawType) ? rawType : null;\nconst statut = rawStatut && VALID_STATUTS.includes(rawStatut) ? rawStatut : null;\nconst limit = (Number.isFinite(rawLimit) && rawLimit > 0 && rawLimit <= 500) ? rawLimit : 100;\n\n// Construire les clauses WHERE de manière sécurisée\nconst conditions = [`tenant_id = '${tenantId}'`];\nif (type) conditions.push(`type = '${type}'`);\nif (statut) conditions.push(`statut = '${statut}'`);\nconst whereClause = conditions.join(' AND ');\n\nreturn [{ json: { type, statut, limit, tenantId, whereClause } }];"
       },
       "id": "Code_Parse",
       "name": "Parser filtres",
@@ -33,7 +33,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  id, \n  tenant_id, \n  type, \n  raison_sociale, \n  nom, \n  prenom, \n  email, \n  telephone, \n  adresse, \n  tags, \n  statut, \n  created_at, \n  updated_at\nFROM client_finals\nWHERE \n  tenant_id = '{{ $json.tenantId }}'\n  AND ({{ $json.type ? `type = '${$json.type}'` : '1=1' }})\n  AND ({{ $json.statut ? `statut = '${$json.statut}'` : '1=1' }})\nORDER BY created_at DESC\nLIMIT {{ $json.limit || 100 }};"
+        "query": "=SELECT \n  id, \n  tenant_id, \n  type, \n  raison_sociale, \n  nom, \n  prenom, \n  email, \n  telephone, \n  adresse, \n  tags, \n  statut, \n  created_at, \n  updated_at\nFROM client_finals\nWHERE {{ $json.whereClause }}\nORDER BY created_at DESC\nLIMIT {{ $json.limit }};"
       },
       "id": "Postgres_Select",
       "name": "Postgres - SELECT clients",

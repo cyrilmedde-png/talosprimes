@@ -523,7 +523,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar esc = function(s) { return (s || '').replace(/'/g, \"''\"); };\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', '\" + esc(d.titre || 'Notification') + \"', '\" + esc(d.message) + \"', '\" + esc(d.type || 'info') + \"', false, NOW())\";\nreturn [{json: {query}}];"
+        "jsCode": "const d = $input.item.json;\n\n// Validation stricte anti-injection SQL\nconst UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst VALID_TYPES = ['info', 'warning', 'error', 'success', 'lead', 'alerte', 'client', 'facture'];\n\nif (!d.tenantId || !UUID_RE.test(d.tenantId)) throw new Error('tenantId invalide');\n\nconst type = VALID_TYPES.includes(d.type) ? d.type : 'info';\n\n// Échappement robuste : quotes + backslash + troncature\nfunction esc(s) {\n  return String(s || '').replace(/\\\\/g, '\\\\\\\\').replace(/'/g, \"''\").substring(0, 500);\n}\n\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + d.tenantId + \"', '\" + esc(d.titre || 'Notification') + \"', '\" + esc(d.message) + \"', '\" + type + \"', false, NOW())\";\nreturn [{json: {query}}];"
       },
       "name": "12. Créer notification - Construire SQL",
       "type": "n8n-nodes-base.code",
