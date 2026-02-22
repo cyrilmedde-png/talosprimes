@@ -320,7 +320,7 @@ try:
     with open('$file') as f:
         wf = json.load(f)
     wf.setdefault('settings', {})
-    for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData']:
+    for k in ['active','id','createdAt','updatedAt','versionId','triggerCount','sharedWithProjects','homeProject','tags','meta','pinData','staticData','_comment']:
         wf.pop(k, None)
     for node in wf.get('nodes', []):
         for cred_type, cred_info in node.get('credentials', {}).items():
