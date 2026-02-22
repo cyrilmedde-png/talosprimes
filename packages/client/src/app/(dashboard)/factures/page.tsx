@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { apiClient, type Invoice, type ArticleCode } from '@/lib/api-client';
+import { apiClient, type Invoice, type ArticleCode, type BonCommande } from '@/lib/api-client';
 import type { ClientFinal } from '@talosprimes/shared';
 import {
   BanknotesIcon,
@@ -93,6 +93,8 @@ export default function FacturesPage() {
   });
   const [lignes, setLignes] = useState<LigneArticle[]>([]);
   const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
+  const [bdcValides, setBdcValides] = useState<BonCommande[]>([]);
+  const [selectedBdcId, setSelectedBdcId] = useState('');
   const createSubmittingRef = useRef(false);
 
   // Message "bientôt" removed - Proforma and Avoir are now available
@@ -123,6 +125,7 @@ export default function FacturesPage() {
       notes: '',
     });
     setLignes([getDefaultLigne()]);
+    setSelectedBdcId('');
   };
 
   // Modal Modifier (statut)
@@ -157,6 +160,48 @@ export default function FacturesPage() {
       }).catch(() => {});
     }
   }, [showCreateModal, articleCodes.length]);
+
+  useEffect(() => {
+    if (showCreateModal && bdcValides.length === 0) {
+      apiClient.bonsCommande.list({ statut: 'valide', limit: 100 }).then((r) => {
+        const valid = (r.data.bons || []).filter((b: BonCommande) => b.numeroBdc && b.dateBdc);
+        setBdcValides(valid);
+      }).catch(() => {});
+    }
+  }, [showCreateModal, bdcValides.length]);
+
+  const handleBdcSelect = async (bdcId: string) => {
+    setSelectedBdcId(bdcId);
+    if (!bdcId) return;
+    try {
+      const res = await apiClient.bonsCommande.get(bdcId);
+      const bdc = res.data.bon || res.data;
+      if (bdc) {
+        setCreateForm((f) => ({
+          ...f,
+          clientFinalId: bdc.clientFinalId || '',
+          description: `Depuis BdC ${bdc.numeroBdc}${bdc.description ? ' - ' + bdc.description : ''}`,
+          tvaTaux: bdc.tvaTaux != null ? String(bdc.tvaTaux) : '20',
+          reference: bdc.numeroBdc || '',
+        }));
+        // Pre-fill lines from BdC
+        const bdcLines = bdc.lines || [];
+        if (bdcLines.length > 0) {
+          setLignes(bdcLines.map((bl) => ({
+            id: `ligne-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            codeArticle: bl.codeArticle || '',
+            designation: bl.designation || '',
+            quantite: String(bl.quantite || 1),
+            unite: '',
+            prixUnitaireHT: String(bl.prixUnitaireHt || 0),
+            tauxTVA: bdc.tvaTaux != null ? String(bdc.tvaTaux) : '20',
+          })));
+        }
+      }
+    } catch {
+      // silently ignore
+    }
+  };
 
   const loadInvoices = async () => {
     try {
@@ -702,6 +747,27 @@ export default function FacturesPage() {
               </button>
             </div>
             <form onSubmit={handleCreateInvoice} className="p-6 space-y-5 overflow-y-auto shrink min-h-0 flex-1">
+              {bdcValides.length > 0 && (
+                <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/30 p-3">
+                  <label className="block text-sm font-medium text-indigo-300 mb-1 flex items-center gap-1.5">
+                    <ClipboardDocumentListIcon className="h-4 w-4" />
+                    Pré-remplir depuis un bon de commande validé
+                  </label>
+                  <select
+                    value={selectedBdcId}
+                    onChange={(e) => handleBdcSelect(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">— Aucun (saisie manuelle) —</option>
+                    {bdcValides.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.numeroBdc} — {b.clientFinal?.raisonSociale || [b.clientFinal?.prenom, b.clientFinal?.nom].filter(Boolean).join(' ') || '?'} — {(Number(b.montantTtc) || 0).toFixed(2)} €
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Type de document *</label>
