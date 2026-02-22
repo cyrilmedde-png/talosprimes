@@ -622,7 +622,7 @@ export default function FacturesPage() {
                         {inv.bonsCommande && inv.bonsCommande.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => router.push('/bons-commande')}
+                            onClick={() => router.push(`/bons-commande?highlight=${inv.bonsCommande![0].id}`)}
                             className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-blue-300 hover:text-blue-200 hover:bg-gray-600"
                             title={`Bon de commande : ${inv.bonsCommande[0].numeroBdc}`}
                           >
@@ -633,7 +633,7 @@ export default function FacturesPage() {
                         {inv.devis && inv.devis.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => router.push('/devis')}
+                            onClick={() => router.push(`/devis?highlight=${inv.devis![0].id}`)}
                             className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-teal-300 hover:text-teal-200 hover:bg-gray-600"
                             title={`Devis : ${inv.devis[0].numeroDevis}`}
                           >
@@ -644,7 +644,7 @@ export default function FacturesPage() {
                         {inv.proformas && inv.proformas.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => router.push('/proforma')}
+                            onClick={() => router.push(`/proforma?highlight=${inv.proformas![0].id}`)}
                             className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-purple-300 hover:text-purple-200 hover:bg-gray-600"
                             title={`Proforma : ${inv.proformas[0].numeroProforma}`}
                           >
