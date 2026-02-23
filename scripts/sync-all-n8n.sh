@@ -26,10 +26,13 @@ echo "  Dir: $WF_DIR"
 echo ""
 echo "[INFO] Récupération des workflows existants..."
 EXISTING=$(curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_URL/api/v1/workflows?limit=200" 2>/dev/null || echo '{"data":[]}')
-echo "[INFO] $(echo "$EXISTING" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('data',[])))" 2>/dev/null || echo '?') workflows dans n8n"
+EXISTING_COUNT=$(echo "$EXISTING" | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('data',[])))" 2>/dev/null || echo '?')
+echo "[INFO] $EXISTING_COUNT workflows dans n8n"
 
 SUCCESS=0
 FAIL=0
+CREATED=0
+ACTIVATED=0
 SKIP=0
 TOTAL=0
 FIRST_ERR_SHOWN=0
@@ -55,12 +58,6 @@ for w in data:
         break
 " 2>/dev/null)
 
-  if [ -z "$WF_ID" ]; then
-    echo "[SKIP] $WF_NAME - pas trouvé dans n8n"
-    SKIP=$((SKIP + 1))
-    continue
-  fi
-
   # Transformer: ne garder que les clés autorisées + nettoyer les nodes
   PAYLOAD=$(python3 << PYEOF
 import json, sys
@@ -83,34 +80,78 @@ json.dump(out, sys.stdout, ensure_ascii=False)
 PYEOF
 )
 
-  # PUT sans versionId - capturer body + code
-  HTTP_CODE=$(curl -s -w "\n%{http_code}" \
-    -X PUT \
-    -H "X-N8N-API-KEY: $N8N_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "$PAYLOAD" \
-    "$N8N_URL/api/v1/workflows/$WF_ID" 2>/dev/null | tee "$TMPFILE" | tail -1)
+  # Lire si le workflow doit être actif
+  SHOULD_ACTIVE=$(python3 -c "import json; print('true' if json.load(open('$WF_FILE')).get('active', False) else 'false')" 2>/dev/null)
 
-  # Extraire le body (tout sauf la dernière ligne = code HTTP)
-  BODY=$(head -n -1 "$TMPFILE")
+  if [ -z "$WF_ID" ]; then
+    # ====== CRÉER le workflow ======
+    HTTP_CODE=$(curl -s -w "\n%{http_code}" \
+      -X POST \
+      -H "X-N8N-API-KEY: $N8N_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$PAYLOAD" \
+      "$N8N_URL/api/v1/workflows" 2>/dev/null | tee "$TMPFILE" | tail -1)
 
-  if [ "$HTTP_CODE" = "200" ]; then
-    SUCCESS=$((SUCCESS + 1))
-    if [ $((SUCCESS % 10)) -eq 0 ]; then
-      echo "[OK] $SUCCESS workflows synchés..."
+    BODY=$(head -n -1 "$TMPFILE")
+
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+      # Extraire l'ID du workflow créé
+      WF_ID=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo '')
+      CREATED=$((CREATED + 1))
+      SUCCESS=$((SUCCESS + 1))
+      echo "[CRÉÉ] $WF_NAME (id=$WF_ID)"
+    else
+      FAIL=$((FAIL + 1))
+      if [ "$FIRST_ERR_SHOWN" -lt 3 ]; then
+        echo "[ERREUR CREATE] $WF_NAME -> HTTP $HTTP_CODE"
+        echo "         Body: $(echo "$BODY" | head -c 500)"
+        FIRST_ERR_SHOWN=$((FIRST_ERR_SHOWN + 1))
+      else
+        echo "[ERREUR CREATE] $WF_NAME -> HTTP $HTTP_CODE"
+      fi
+      continue
     fi
   else
-    FAIL=$((FAIL + 1))
-    # Afficher le détail de l'erreur pour les 3 premiers + résumé après
-    if [ "$FIRST_ERR_SHOWN" -lt 3 ]; then
-      echo "[ERREUR] $WF_NAME (id=$WF_ID) -> HTTP $HTTP_CODE"
-      echo "         Body: $(echo "$BODY" | head -c 500)"
-      FIRST_ERR_SHOWN=$((FIRST_ERR_SHOWN + 1))
-      if [ "$FIRST_ERR_SHOWN" -eq 3 ]; then
-        echo "[INFO] (erreurs suivantes affichées en mode condensé)"
+    # ====== METTRE À JOUR le workflow ======
+    HTTP_CODE=$(curl -s -w "\n%{http_code}" \
+      -X PUT \
+      -H "X-N8N-API-KEY: $N8N_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$PAYLOAD" \
+      "$N8N_URL/api/v1/workflows/$WF_ID" 2>/dev/null | tee "$TMPFILE" | tail -1)
+
+    BODY=$(head -n -1 "$TMPFILE")
+
+    if [ "$HTTP_CODE" = "200" ]; then
+      SUCCESS=$((SUCCESS + 1))
+      if [ $((SUCCESS % 10)) -eq 0 ]; then
+        echo "[OK] $SUCCESS workflows synchés..."
       fi
     else
-      echo "[ERREUR] $WF_NAME -> HTTP $HTTP_CODE"
+      FAIL=$((FAIL + 1))
+      if [ "$FIRST_ERR_SHOWN" -lt 3 ]; then
+        echo "[ERREUR] $WF_NAME (id=$WF_ID) -> HTTP $HTTP_CODE"
+        echo "         Body: $(echo "$BODY" | head -c 500)"
+        FIRST_ERR_SHOWN=$((FIRST_ERR_SHOWN + 1))
+        if [ "$FIRST_ERR_SHOWN" -eq 3 ]; then
+          echo "[INFO] (erreurs suivantes affichées en mode condensé)"
+        fi
+      else
+        echo "[ERREUR] $WF_NAME -> HTTP $HTTP_CODE"
+      fi
+      continue
+    fi
+  fi
+
+  # ====== ACTIVER le workflow si nécessaire ======
+  if [ "$SHOULD_ACTIVE" = "true" ] && [ -n "$WF_ID" ]; then
+    ACT_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X POST \
+      -H "X-N8N-API-KEY: $N8N_API_KEY" \
+      "$N8N_URL/api/v1/workflows/$WF_ID/activate" 2>/dev/null || echo '0')
+
+    if [ "$ACT_CODE" = "200" ]; then
+      ACTIVATED=$((ACTIVATED + 1))
     fi
   fi
 done
@@ -119,10 +160,12 @@ echo ""
 echo "=========================================="
 echo "  RÉSULTAT"
 echo "=========================================="
-echo "  Total:   $TOTAL"
-echo "  OK:      $SUCCESS"
-echo "  Skip:    $SKIP"
-echo "  Erreurs: $FAIL"
+echo "  Total:    $TOTAL"
+echo "  OK:       $SUCCESS"
+echo "  Créés:    $CREATED"
+echo "  Activés:  $ACTIVATED"
+echo "  Skip:     $SKIP"
+echo "  Erreurs:  $FAIL"
 echo "=========================================="
 
 # Restart n8n pour enregistrer les webhooks
@@ -130,6 +173,7 @@ if [ $SUCCESS -gt 0 ]; then
   echo ""
   echo "[INFO] Restart n8n pour enregistrer les webhooks..."
   docker restart n8n >/dev/null 2>&1 || true
+  sleep 3
   echo "[OK] n8n redémarré"
 fi
 
