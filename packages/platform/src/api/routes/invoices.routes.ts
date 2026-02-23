@@ -745,6 +745,28 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Assurer qu'un exercice comptable ouvert existe avant la comptabilisation
+        try {
+          const exercice = await prisma.exerciceComptable.findFirst({
+            where: { tenantId, cloture: false },
+          });
+          if (!exercice) {
+            const year = new Date().getFullYear();
+            await prisma.exerciceComptable.create({
+              data: {
+                tenantId,
+                code: String(year),
+                dateDebut: new Date(`${year}-01-01`),
+                dateFin: new Date(`${year}-12-31`),
+                cloture: false,
+              },
+            });
+            fastify.log.info('Exercice comptable %d créé automatiquement pour tenant %s', year, tenantId);
+          }
+        } catch (exErr) {
+          fastify.log.warn(exErr, 'Impossible de vérifier/créer l\'exercice comptable');
+        }
+
         // Comptabilisation automatique (async, non-bloquant)
         n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
           invoiceId: invoice.id,

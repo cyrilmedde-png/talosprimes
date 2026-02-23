@@ -11,10 +11,7 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
@@ -24,10 +21,7 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,10 +38,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -58,306 +49,230 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT i.*, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = '\" + $json.invoiceId + \"' AND i.tenant_id = '\" + $json.tenantId + \"';\" }}"
+        "query": "={{ $json.getInvoiceQuery }}"
       },
       "id": "05. Get Invoice",
       "name": "05. Get Invoice",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        700,
-        300
-      ],
+      "position": [900, 300],
       "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT * FROM invoice_lines WHERE invoice_id = '\" + $('02. Parser').first().json.invoiceId + \"' ORDER BY ordre ASC;\" }}"
+        "query": "={{ $json.getExerciceQuery }}"
       },
-      "id": "06. Get Lines",
-      "name": "06. Get Lines",
+      "id": "06. Get Exercice",
+      "name": "06. Get Exercice",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        900,
-        200
-      ],
+      "position": [900, 500],
       "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id FROM exercices_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND cloture = false ORDER BY date_debut DESC LIMIT 1;\" }}"
+        "query": "={{ $json.getNextNumQuery }}"
       },
-      "id": "07. Get Exercice",
-      "name": "07. Get Exercice",
+      "id": "07. Get Next Num",
+      "name": "07. Get Next Num",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        900,
-        400
-      ],
+      "position": [900, 700],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%';\" }}"
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nvar tenantId = $('02. Parser').first().json.tenantId;\nvar invoiceId = $('02. Parser').first().json.invoiceId;\n\nvar getInvoiceQuery = 'SELECT i.*, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = ' + esc(invoiceId) + '::uuid AND i.tenant_id = ' + esc(tenantId) + '::uuid';\n\nvar getExerciceQuery = 'SELECT id FROM exercices_comptables WHERE tenant_id = ' + esc(tenantId) + '::uuid AND cloture = false ORDER BY date_debut DESC LIMIT 1';\n\nvar getNextNumQuery = \"SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = \" + esc(tenantId) + \"::uuid AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'\";\n\nreturn [{ json: { tenantId: tenantId, invoiceId: invoiceId, getInvoiceQuery: getInvoiceQuery, getExerciceQuery: getExerciceQuery, getNextNumQuery: getNextNumQuery } }];"
       },
-      "id": "08. Next Number",
-      "name": "08. Next Number",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        1100,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "var inv = $('05. Get Invoice').all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\nif (inv.length === 0) throw new Error('Facture non trouvée');\nvar invoice = inv[0];\n\nvar exerciceArr = $('07. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\n\nvar exerciceId = exerciceArr[0].id;\nvar nextNum = parseInt($('08. Next Number').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nvar montantHt = parseFloat(invoice.montant_ht) || 0;\nvar montantTtc = parseFloat(invoice.montant_ttc) || 0;\nvar tva = Math.round((montantTtc - montantHt) * 100) / 100;\nvar clientName = invoice.client_raison_sociale || invoice.client_nom || 'Client';\nvar dateEcriture = invoice.date_facture || new Date().toISOString().split('T')[0];\n\nvar compteProduit = invoice.type === 'facture_entreprise' ? '706000' : '707000';\n\nreturn [{ json: {\n  tenantId: invoice.tenant_id,\n  exerciceId,\n  numeroPiece,\n  dateEcriture,\n  libelle: `Facture ${invoice.numero_facture} - ${clientName}`,\n  referenceDoc: invoice.numero_facture,\n  invoiceId: invoice.id,\n  montantHt,\n  montantTtc,\n  tva,\n  compteProduit\n} }];"
-      },
-      "id": "09. Build Ecriture",
-      "name": "09. Build Ecriture",
+      "id": "04b. Build Queries",
+      "name": "04b. Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nvar invRows = $('05. Get Invoice').all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\nif (invRows.length === 0) throw new Error('Facture non trouvée pour id=' + $('02. Parser').first().json.invoiceId);\nvar invoice = invRows[0];\n\nvar exerciceArr = $('06. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Aucun exercice comptable ouvert pour tenant=' + invoice.tenant_id + '. Lancez le seed ou créez un exercice.');\nvar exerciceId = exerciceArr[0].id;\n\nvar nextNum = parseInt($('07. Get Next Num').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = 'EC-' + year + '-' + String(nextNum).padStart(6, '0');\n\nvar montantHt = parseFloat(invoice.montant_ht) || 0;\nvar montantTtc = parseFloat(invoice.montant_ttc) || 0;\nvar tva = Math.round((montantTtc - montantHt) * 100) / 100;\nvar clientName = invoice.client_raison_sociale || invoice.client_nom || 'Client';\nvar dateEcriture = invoice.date_facture ? String(invoice.date_facture).split('T')[0] : new Date().toISOString().split('T')[0];\nvar compteProduit = invoice.type === 'facture_entreprise' ? '706000' : '707000';\nvar libelle = 'Facture ' + (invoice.numero_facture || '') + ' - ' + clientName;\nvar referenceDoc = invoice.numero_facture || '';\n\n// Vérifier si déjà comptabilisé\nvar checkQuery = 'SELECT id FROM ecritures_comptables WHERE source_auto = ' + esc('facture') + ' AND source_id = ' + esc(invoice.id) + '::uuid AND tenant_id = ' + esc(invoice.tenant_id) + '::uuid LIMIT 1';\n\nvar insertEcritureQuery = 'INSERT INTO ecritures_comptables (id, tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference_doc, source_auto, source_id, statut) VALUES (gen_random_uuid(), ' + esc(invoice.tenant_id) + '::uuid, ' + esc(exerciceId) + '::uuid, ' + esc('VE') + ', ' + esc(numeroPiece) + ', ' + esc(dateEcriture) + '::date, ' + esc(libelle) + ', ' + esc(referenceDoc) + ', ' + esc('facture') + ', ' + esc(invoice.id) + '::uuid, ' + esc('validee') + ') RETURNING id, numero_piece';\n\nreturn [{ json: { tenantId: invoice.tenant_id, exerciceId: exerciceId, numeroPiece: numeroPiece, montantHt: montantHt, montantTtc: montantTtc, tva: tva, compteProduit: compteProduit, referenceDoc: referenceDoc, invoiceId: invoice.id, checkQuery: checkQuery, insertEcritureQuery: insertEcritureQuery } }];"
+      },
+      "id": "08. Build Ecriture",
+      "name": "08. Build Ecriture",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 400]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO ecritures_comptables (id, tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference_doc, source_auto, source_id, statut) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.exerciceId + \"', 'VE', '\" + $json.numeroPiece + \"', '\" + $json.dateEcriture + \"', '\" + $json.libelle.replace(/'/g, \"''\") + \"', '\" + $json.referenceDoc + \"', 'facture', '\" + $json.invoiceId + \"', 'validee') RETURNING id, numero_piece;\" }}"
+        "query": "={{ $json.checkQuery }}"
+      },
+      "id": "09. Check Existing",
+      "name": "09. Check Existing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [1300, 400],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.id }}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "09b. Already Exists?",
+      "name": "09b. Already Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Écriture comptable déjà existante pour cette facture', alreadyExists: true }) }}"
+      },
+      "id": "09c. Respond Already Exists",
+      "name": "09c. Respond Already Exists",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('08. Build Ecriture').first().json.insertEcritureQuery }}"
       },
       "id": "10. Insert Ecriture",
       "name": "10. Insert Ecriture",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        1500,
-        300
-      ],
+      "position": [1700, 500],
       "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nvar ecritureId = $('10. Insert Ecriture').first().json.id;\nvar b = $('08. Build Ecriture').first().json;\n\nif (!ecritureId) throw new Error('Échec INSERT écriture comptable - pas d\\'id retourné');\n\nvar insertLignesQuery = 'INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES ' +\n  '(gen_random_uuid(), ' + esc(ecritureId) + '::uuid, ' + esc('411000') + ', ' + esc('Client - ' + b.referenceDoc) + ', ' + num(b.montantTtc) + ', 0, 0), ' +\n  '(gen_random_uuid(), ' + esc(ecritureId) + '::uuid, ' + esc(b.compteProduit) + ', ' + esc('Produit HT - ' + b.referenceDoc) + ', 0, ' + num(b.montantHt) + ', 1), ' +\n  '(gen_random_uuid(), ' + esc(ecritureId) + '::uuid, ' + esc('445710') + ', ' + esc('TVA collectée - ' + b.referenceDoc) + ', 0, ' + num(b.tva) + ', 2) ' +\n  'RETURNING id, numero_compte, debit, credit';\n\nreturn [{ json: { ecritureId: ecritureId, numeroPiece: b.numeroPiece, insertLignesQuery: insertLignesQuery, montantTtc: b.montantTtc, montantHt: b.montantHt, tva: b.tva } }];"
+      },
+      "id": "11. Build Lines Query",
+      "name": "11. Build Lines Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 500]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\\n(gen_random_uuid(), '\" + $('10. Insert Ecriture').first().json.id + \"', '411000', 'Client - ' || '\" + $('09. Build Ecriture').first().json.referenceDoc + \"', \" + $('09. Build Ecriture').first().json.montantTtc + \", 0, 0),\\n(gen_random_uuid(), '\" + $('10. Insert Ecriture').first().json.id + \"', '\" + $('09. Build Ecriture').first().json.compteProduit + \"', 'Produit HT - ' || '\" + $('09. Build Ecriture').first().json.referenceDoc + \"', 0, \" + $('09. Build Ecriture').first().json.montantHt + \", 1),\\n(gen_random_uuid(), '\" + $('10. Insert Ecriture').first().json.id + \"', '445710', 'TVA collectée - ' || '\" + $('09. Build Ecriture').first().json.referenceDoc + \"', 0, \" + $('09. Build Ecriture').first().json.tva + \", 2)\\nRETURNING id, numero_compte, debit, credit;\" }}"
+        "query": "={{ $json.insertLignesQuery }}"
       },
-      "id": "11. Insert Lines",
-      "name": "11. Insert Lines",
+      "id": "12. Insert Lines",
+      "name": "12. Insert Lines",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        1700,
-        300
-      ],
+      "position": [2100, 500],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "var ecriture = $('10. Insert Ecriture').first().json;\nvar lignes = $('11. Insert Lines').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\nvar b = $('09. Build Ecriture').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: `Écriture comptable ${ecriture.numero_piece} créée automatiquement`,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    journal: 'VE',\n    montantTtc: b.montantTtc,\n    montantHt: b.montantHt,\n    tva: b.tva,\n    lignes: lignes.map(function(l) { return { numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }; })\n  }\n} }];"
+        "jsCode": "var b = $('11. Build Lines Query').first().json;\nvar lignes = $('12. Insert Lines').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\n\nreturn [{ json: {\n  success: true,\n  message: 'Écriture comptable ' + b.numeroPiece + ' créée automatiquement',\n  ecriture: {\n    id: b.ecritureId,\n    numeroPiece: b.numeroPiece,\n    journal: 'VE',\n    montantTtc: b.montantTtc,\n    montantHt: b.montantHt,\n    tva: b.tva,\n    lignes: lignes.map(function(l) { return { numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }; })\n  }\n} }];"
       },
-      "id": "12. Format Response",
-      "name": "12. Format Response",
+      "id": "13. Format Response",
+      "name": "13. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1900,
-        300
-      ]
+      "position": [2300, 500]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "13. Respond",
-      "name": "13. Respond",
+      "id": "14. Respond",
+      "name": "14. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2100,
-        300
-      ]
+      "position": [2500, 500]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "04b. Build Queries", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
+    },
+    "04b. Build Queries": {
+      "main": [[
+        { "node": "05. Get Invoice", "type": "main", "index": 0 },
+        { "node": "06. Get Exercice", "type": "main", "index": 0 },
+        { "node": "07. Get Next Num", "type": "main", "index": 0 }
+      ]]
     },
     "05. Get Invoice": {
-      "main": [
-        [
-          {
-            "node": "06. Get Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "08. Build Ecriture", "type": "main", "index": 0 }]]
     },
-    "06. Get Lines": {
-      "main": [
-        [
-          {
-            "node": "07. Get Exercice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Get Exercice": {
+      "main": [[{ "node": "08. Build Ecriture", "type": "main", "index": 0 }]]
     },
-    "07. Get Exercice": {
-      "main": [
-        [
-          {
-            "node": "08. Next Number",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Get Next Num": {
+      "main": [[{ "node": "08. Build Ecriture", "type": "main", "index": 0 }]]
     },
-    "08. Next Number": {
-      "main": [
-        [
-          {
-            "node": "09. Build Ecriture",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. Build Ecriture": {
+      "main": [[{ "node": "09. Check Existing", "type": "main", "index": 0 }]]
     },
-    "09. Build Ecriture": {
+    "09. Check Existing": {
+      "main": [[{ "node": "09b. Already Exists?", "type": "main", "index": 0 }]]
+    },
+    "09b. Already Exists?": {
       "main": [
-        [
-          {
-            "node": "10. Insert Ecriture",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "10. Insert Ecriture", "type": "main", "index": 0 }],
+        [{ "node": "09c. Respond Already Exists", "type": "main", "index": 0 }]
       ]
     },
     "10. Insert Ecriture": {
-      "main": [
-        [
-          {
-            "node": "11. Insert Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "11. Build Lines Query", "type": "main", "index": 0 }]]
     },
-    "11. Insert Lines": {
-      "main": [
-        [
-          {
-            "node": "12. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "11. Build Lines Query": {
+      "main": [[{ "node": "12. Insert Lines", "type": "main", "index": 0 }]]
     },
-    "12. Format Response": {
-      "main": [
-        [
-          {
-            "node": "13. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "12. Insert Lines": {
+      "main": [[{ "node": "13. Format Response", "type": "main", "index": 0 }]]
+    },
+    "13. Format Response": {
+      "main": [[{ "node": "14. Respond", "type": "main", "index": 0 }]]
     }
   },
   "settings": {

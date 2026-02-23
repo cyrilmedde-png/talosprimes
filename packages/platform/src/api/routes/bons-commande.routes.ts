@@ -553,6 +553,18 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
 
+        // Assurer qu'un exercice comptable ouvert existe
+        try {
+          const exercice = await prisma.exerciceComptable.findFirst({ where: { tenantId, cloture: false } });
+          if (!exercice) {
+            const year = new Date().getFullYear();
+            await prisma.exerciceComptable.create({
+              data: { tenantId, code: String(year), dateDebut: new Date(`${year}-01-01`), dateFin: new Date(`${year}-12-31`), cloture: false },
+            });
+            fastify.log.info('Exercice comptable %d créé automatiquement pour tenant %s', year, tenantId);
+          }
+        } catch (_) { /* non-bloquant */ }
+
         // Comptabilisation automatique après conversion BdC → facture
         try {
           const resData = res.data as Record<string, unknown> | undefined;
@@ -623,6 +635,18 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       // Log the event
       await logEvent(tenantId, 'bdc_convert_to_invoice', 'BonCommande', bon.id, { numeroBdc: bon.numeroBdc, numeroFacture }, 'succes');
+
+      // Assurer qu'un exercice comptable ouvert existe
+      try {
+        const exercice = await prisma.exerciceComptable.findFirst({ where: { tenantId, cloture: false } });
+        if (!exercice) {
+          const year = new Date().getFullYear();
+          await prisma.exerciceComptable.create({
+            data: { tenantId, code: String(year), dateDebut: new Date(`${year}-01-01`), dateFin: new Date(`${year}-12-31`), cloture: false },
+          });
+          fastify.log.info('Exercice comptable %d créé automatiquement pour tenant %s', year, tenantId);
+        }
+      } catch (_) { /* non-bloquant */ }
 
       // Comptabilisation automatique (async, non-bloquant)
       n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
