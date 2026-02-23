@@ -98,8 +98,21 @@
     },
     {
       "parameters": {
+        "jsCode": "var d = $json;\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nvar query = 'INSERT INTO devis (id, tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), ' + esc(d.tenantId) + '::uuid, ' + esc(d.clientFinalId) + '::uuid, ' + esc(d.numeroDevis) + ', ' + esc(d.dateDevis) + ', ' + esc(d.dateValidite) + ', ' + num(d.montantHt) + ', ' + num(d.montantTtc) + ', ' + num(d.tvaTaux || 20) + ', ' + esc(d.description) + ', ' + esc(d.modePaiement) + ', ' + esc('brouillon') + ', NOW(), NOW()) RETURNING *';\n\nreturn [{ json: { query: query, lines: d.lines || [] } }];"
+      },
+      "id": "06b. Build Insert SQL",
+      "name": "06b. Build Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO devis (id, tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), '\" + $('06. Generate Number').first().json.tenantId + \"', \" + ($('06. Generate Number').first().json.clientFinalId ? \"'\" + $('06. Generate Number').first().json.clientFinalId + \"'\" : \"NULL\") + \", '\" + $('06. Generate Number').first().json.numeroDevis + \"', '\" + $('06. Generate Number').first().json.dateDevis + \"', \" + ($('06. Generate Number').first().json.dateValidite ? \"'\" + $('06. Generate Number').first().json.dateValidite + \"'\" : \"NULL\") + \", \" + $('06. Generate Number').first().json.montantHt + \", \" + $('06. Generate Number').first().json.montantTtc + \", \" + ($('06. Generate Number').first().json.tvaTaux || 20) + \", \" + ($('06. Generate Number').first().json.description ? \"'\" + $('06. Generate Number').first().json.description + \"'\" : \"NULL\") + \", \" + ($('06. Generate Number').first().json.modePaiement ? \"'\" + $('06. Generate Number').first().json.modePaiement + \"'\" : \"NULL\") + \", 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at\" }}"
+        "query": "={{ $json.query }}"
       },
       "id": "07. Insert Devis",
       "name": "07. Insert Devis",
@@ -118,7 +131,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Original prepare logic\nconst _origFn = function() {\nconst devis = $('07. Insert Devis').first().json;\nconst parser = $('02. Parser').first().json;\nconst lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { devisId: devis.id, lineInserts: [], hasLines: false } }];\n}\n\nconst lineInserts = lines.map((line, idx) => ({\n  devisId: devis.id,\n  codeArticle: line.codeArticle || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || line.prixUnitaireHT || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || line.prixUnitaireHT || 0),\n  ordre: idx\n}));\n\nreturn [{ json: { devisId: devis.id, lineInserts, hasLines: true } }];\n};\nconst _origResult = _origFn();\nconst prev = _origResult[0].json;\n\nconst items = prev.lineInserts || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nconst params = [];\nlet idx = 1;\n\nconst values = items.map((item, i) => {\n  const parentId = item.devisId;\n  const codeArticle = item.codeArticle || null;\n  const designation = String(item.designation || '').substring(0, 500);\n  const quantite = parseFloat(item.quantite) || 0;\n  const prixUnitaireHt = parseFloat(item.prixUnitaireHt) || 0;\n  const totalHt = parseFloat(item.totalHt) || 0;\n  const ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  const p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}).join(',\n');\n\nconst query = `INSERT INTO devis_lines (id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
+        "jsCode": "var devis = $('07. Insert Devis').first().json;\nvar parser = $('02. Parser').first().json;\nvar lines = parser.lines || [];\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nif (lines.length === 0) {\n  return [{ json: { devisId: devis.id, hasLines: false, query: 'SELECT 1' } }];\n}\n\nvar values = lines.map(function(line, idx) {\n  var q = num(line.quantite || 1);\n  var p = num(line.prixUnitaireHt || line.prixUnitaireHT || 0);\n  var t = num(parseFloat(q) * parseFloat(p));\n  return '(gen_random_uuid(), ' + esc(devis.id) + '::uuid, ' + esc(line.codeArticle || null) + ', ' + esc(line.designation || '') + ', ' + q + ', ' + p + ', ' + t + ', ' + idx + ')';\n}).join(', ');\n\nvar query = 'INSERT INTO devis_lines (id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ' + values + ' RETURNING id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre';\n\nreturn [{ json: { devisId: devis.id, hasLines: true, query: query } }];"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
@@ -165,7 +178,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "11. Respond",
       "name": "11. Respond",
@@ -233,6 +246,17 @@
       "main": [
         [
           {
+            "node": "06b. Build Insert SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06b. Build Insert SQL": {
+      "main": [
+        [
+          {
             "node": "07. Insert Devis",
             "type": "main",
             "index": 0
@@ -285,5 +309,8 @@
       ]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

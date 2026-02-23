@@ -11,6 +11,7 @@
 #   --skip-deps       Ignorer l'installation des dependances
 #   --skip-prisma     Ignorer les migrations Prisma
 #   --skip-n8n        Ignorer la sync des workflows n8n
+#   --force-n8n       Forcer la sync de TOUS les workflows n8n (pas juste les modifies)
 #   --only-api        Deployer uniquement le backend (platform)
 #   --only-client     Deployer uniquement le frontend (client)
 #   --only-n8n        Synchroniser uniquement les workflows n8n
@@ -52,6 +53,7 @@ SKIP_RESTART=false
 SKIP_DEPS=false
 SKIP_PRISMA=false
 SKIP_N8N=false
+FORCE_N8N=false
 N8N_WORKFLOW_DIR=""
 ONLY_API=false
 ONLY_CLIENT=false
@@ -482,6 +484,7 @@ while [[ $# -gt 0 ]]; do
     --skip-deps)     SKIP_DEPS=true; shift ;;
     --skip-prisma)   SKIP_PRISMA=true; shift ;;
     --skip-n8n)      SKIP_N8N=true; shift ;;
+    --force-n8n)     FORCE_N8N=true; shift ;;
     --n8n-dir)       N8N_WORKFLOW_DIR="$2"; shift 2 ;;
     --only-api)      ONLY_API=true; shift ;;
     --only-client)   ONLY_CLIENT=true; shift ;;
@@ -508,13 +511,14 @@ echo -e "  ${BLUE}Date:${NC} $(date '+%d/%m/%Y %H:%M:%S')"
 echo -e "  ${BLUE}Serveur:${NC} $(hostname)"
 
 # Afficher les options actives
-if [ "$SKIP_BUILD" = true ] || [ "$SKIP_RESTART" = true ] || [ "$SKIP_DEPS" = true ] || [ "$SKIP_PRISMA" = true ] || [ "$SKIP_N8N" = true ] || [ "$ONLY_API" = true ] || [ "$ONLY_CLIENT" = true ] || [ "$ONLY_N8N" = true ]; then
+if [ "$SKIP_BUILD" = true ] || [ "$SKIP_RESTART" = true ] || [ "$SKIP_DEPS" = true ] || [ "$SKIP_PRISMA" = true ] || [ "$SKIP_N8N" = true ] || [ "$FORCE_N8N" = true ] || [ "$ONLY_API" = true ] || [ "$ONLY_CLIENT" = true ] || [ "$ONLY_N8N" = true ]; then
   echo -e "  ${YELLOW}Options:${NC}"
   [ "$SKIP_BUILD" = true ]   && echo -e "    - Build ignore"
   [ "$SKIP_RESTART" = true ] && echo -e "    - Restart ignore"
   [ "$SKIP_DEPS" = true ]    && echo -e "    - Deps ignorees"
   [ "$SKIP_PRISMA" = true ]  && echo -e "    - Prisma ignore"
   [ "$SKIP_N8N" = true ]     && echo -e "    - n8n ignore"
+  [ "$FORCE_N8N" = true ]    && echo -e "    - n8n FORCE sync (tous les workflows)"
   [ "$ONLY_API" = true ]     && echo -e "    - Backend uniquement"
   [ "$ONLY_CLIENT" = true ]  && echo -e "    - Frontend uniquement"
   [ "$ONLY_N8N" = true ]     && echo -e "    - n8n uniquement"
@@ -798,17 +802,25 @@ else
     log_info "n8n URL: $N8N_API_URL"
 
     # ---------------------------------------------------------------
-    # Detecter les fichiers n8n modifies via git diff
+    # Detecter les fichiers n8n a synchroniser
     # ---------------------------------------------------------------
     CHANGED_N8N_FILES=""
-    if [ "$PREVIOUS_COMMIT" != "unknown" ] && [ "$PREVIOUS_COMMIT" != "$NEW_COMMIT" ]; then
-      CHANGED_N8N_FILES=$(git diff --name-only "$PREVIOUS_COMMIT" "$NEW_COMMIT" -- "n8n_workflows/" 2>/dev/null | grep '\.json$' || true)
-    fi
 
-    # Si --only-n8n est utilise sans changement git, sync tout
-    if [ "$ONLY_N8N" = true ] && [ -z "$CHANGED_N8N_FILES" ]; then
-      log_info "Mode --only-n8n : sync de tous les workflows"
+    if [ "$FORCE_N8N" = true ]; then
+      # --force-n8n : sync TOUS les workflows (remplace sync-all-n8n.sh)
+      log_info "Mode FORCE : sync de tous les workflows"
       CHANGED_N8N_FILES=$(find "$N8N_WORKFLOW_DIR" -name '*.json' -type f 2>/dev/null | sed "s|^$PROJECT_DIR/||" || true)
+    else
+      # Mode incremental : uniquement les fichiers modifies via git diff
+      if [ "$PREVIOUS_COMMIT" != "unknown" ] && [ "$PREVIOUS_COMMIT" != "$NEW_COMMIT" ]; then
+        CHANGED_N8N_FILES=$(git diff --name-only "$PREVIOUS_COMMIT" "$NEW_COMMIT" -- "n8n_workflows/" 2>/dev/null | grep '\.json$' || true)
+      fi
+
+      # Si --only-n8n est utilise sans changement git, sync tout
+      if [ "$ONLY_N8N" = true ] && [ -z "$CHANGED_N8N_FILES" ]; then
+        log_info "Mode --only-n8n : sync de tous les workflows"
+        CHANGED_N8N_FILES=$(find "$N8N_WORKFLOW_DIR" -name '*.json' -type f 2>/dev/null | sed "s|^$PROJECT_DIR/||" || true)
+      fi
     fi
 
     if [ -z "$CHANGED_N8N_FILES" ]; then
