@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -38,6 +38,8 @@ type NavGroup = {
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   items: NavItem[];
+  /** Codes de modules requis pour afficher ce groupe (au moins un doit être actif) */
+  requiredModules: string[];
 };
 
 const standaloneItems: NavItem[] = [
@@ -45,10 +47,11 @@ const standaloneItems: NavItem[] = [
   { name: 'Assistant IA', href: '/assistant', icon: SparklesIcon },
 ];
 
-const navGroups: NavGroup[] = [
+const allNavGroups: NavGroup[] = [
   {
     label: 'Facturation',
     icon: BanknotesIcon,
+    requiredModules: ['facturation', 'devis', 'bons_commande', 'avoirs', 'proformas'],
     items: [
       { name: 'Factures', href: '/factures', icon: BanknotesIcon },
       { name: 'Devis', href: '/devis', icon: DocumentTextIcon },
@@ -60,6 +63,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Comptabilité',
     icon: CalculatorIcon,
+    requiredModules: ['comptabilite'],
     items: [
       { name: 'Tableau de bord', href: '/comptabilite', icon: CalculatorIcon },
       { name: 'Écritures', href: '/comptabilite/ecritures', icon: DocumentTextIcon },
@@ -74,6 +78,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Clientèle',
     icon: UsersIcon,
+    requiredModules: ['clients', 'leads'],
     items: [
       { name: 'Clients', href: '/clients', icon: UsersIcon },
       { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
@@ -82,6 +87,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Administration',
     icon: WrenchScrewdriverIcon,
+    requiredModules: [], // Toujours visible
     items: [
       { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
@@ -92,6 +98,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Agent IA',
     icon: PhoneIcon,
+    requiredModules: ['agent_telephonique'],
     items: [
       { name: 'Dashboard', href: '/agent-ia', icon: SparklesIcon },
       { name: 'Appels', href: '/agent-ia/appels', icon: PhoneIcon },
@@ -105,9 +112,19 @@ const navGroups: NavGroup[] = [
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clearAuth } = useAuthStore();
+  const { clearAuth, modulesActifs, isDemo } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Filtrer les groupes de navigation selon les modules actifs du tenant
+  const navGroups = useMemo(() => {
+    return allNavGroups.filter((group) => {
+      // Les groupes sans requiredModules (Administration) sont toujours visibles
+      if (group.requiredModules.length === 0) return true;
+      // Au moins un des modules requis doit être actif
+      return group.requiredModules.some((mod) => modulesActifs.includes(mod));
+    });
+  }, [modulesActifs]);
 
   const handleLogout = () => {
     clearTokens();
@@ -160,6 +177,13 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
             </button>
           </div>
 
+          {/* Badge démo */}
+          {isDemo && !isCollapsed && (
+            <div className="mx-4 mb-3 px-2 py-1 bg-amber-500/20 border border-amber-500/40 rounded text-amber-400 text-xs text-center font-medium">
+              MODE DÉMO
+            </div>
+          )}
+
           <nav className="flex-1 px-2 space-y-1">
             {/* Items standalone (Dashboard, Assistant IA) */}
             {standaloneItems.map((item) => {
@@ -187,7 +211,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
             {!isCollapsed && <div className="border-t border-gray-700 my-2" />}
             {isCollapsed && <div className="my-2" />}
 
-            {/* Groupes avec menus déroulants */}
+            {/* Groupes avec menus déroulants (filtrés par modules actifs) */}
             {navGroups.map((group) => {
               const groupActive = isGroupActive(group);
               const isOpen = openGroups[group.label] || false;

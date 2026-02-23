@@ -24,6 +24,7 @@ export interface LoginResponse {
   data: {
     user: User;
     tokens: AuthTokens;
+    modulesActifs?: string[];
   };
 }
 
@@ -155,6 +156,32 @@ export async function refreshAccessToken(): Promise<string> {
   }
 
   return newAccessToken;
+}
+
+/**
+ * Demo Login - Connexion automatique au compte démo (sans mot de passe)
+ */
+export async function demoLogin(): Promise<LoginResponse & { data: { isDemo?: boolean } }> {
+  const response = await fetch(`${API_URL}/api/auth/demo-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Erreur de connexion démo' }));
+    throw new Error(error.message || 'Erreur de connexion démo');
+  }
+
+  const data = await response.json();
+
+  // Stocker les tokens
+  if (data.success && data.data.tokens) {
+    storeTokens(data.data.tokens);
+  }
+
+  return data;
 }
 
 /**

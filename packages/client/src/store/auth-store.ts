@@ -1,19 +1,35 @@
-// Store Zustand pour l'état d'authentification
+// Store Zustand pour l'état d'authentification et les modules actifs
 
 import { create } from 'zustand';
 import type { User } from '@/lib/auth';
 
+// Tous les modules disponibles par défaut
+const ALL_MODULES = [
+  'clients', 'leads', 'facturation', 'devis', 'bons_commande',
+  'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
+  'articles', 'logs', 'notifications',
+];
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  modulesActifs: string[];
+  isDemo: boolean;
   setUser: (user: User | null) => void;
+  setModulesActifs: (modules: string[]) => void;
+  setDemo: (isDemo: boolean) => void;
   clearAuth: () => void;
+  hasModule: (moduleCode: string) => boolean;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
+  modulesActifs: ALL_MODULES,
+  isDemo: false,
   setUser: (user) => set({ user, isAuthenticated: !!user }),
-  clearAuth: () => set({ user: null, isAuthenticated: false }),
+  setModulesActifs: (modules) => set({ modulesActifs: modules.length > 0 ? modules : ALL_MODULES }),
+  setDemo: (isDemo) => set({ isDemo }),
+  clearAuth: () => set({ user: null, isAuthenticated: false, modulesActifs: ALL_MODULES, isDemo: false }),
+  hasModule: (moduleCode) => get().modulesActifs.includes(moduleCode),
 }));
-
