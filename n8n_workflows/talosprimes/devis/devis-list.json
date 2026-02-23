@@ -66,7 +66,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM devis WHERE tenant_id = '\" + $json.tenantId + \"' AND numero_devis IS NOT NULL AND date_devis IS NOT NULL AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"1=1\") + \" AND \" + ($json.clientFinalId ? \"client_final_id = '\" + $json.clientFinalId + \"'\" : \"1=1\") }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM devis WHERE tenant_id = '\" + $json.tenantId + \"' AND numero_devis IS NOT NULL AND date_devis IS NOT NULL AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"statut NOT IN ('commandee')\") + \" AND \" + ($json.clientFinalId ? \"client_final_id = '\" + $json.clientFinalId + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -86,7 +86,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND d.numero_devis IS NOT NULL AND d.date_devis IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"d.statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"d.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") + \" ORDER BY d.date_devis DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
+        "query": "={{ \"SELECT d.id, d.tenant_id, d.client_final_id, d.numero_devis, d.date_devis, d.date_validite, d.montant_ht, d.montant_ttc, d.tva_taux, d.description, d.mode_paiement, d.statut, d.invoice_id, d.lien_pdf, d.created_at, d.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM devis d LEFT JOIN client_finals cf ON d.client_final_id = cf.id WHERE d.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND d.numero_devis IS NOT NULL AND d.date_devis IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"d.statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"d.statut NOT IN ('commandee')\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"d.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") + \" ORDER BY d.date_devis DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",
@@ -119,7 +119,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
@@ -206,5 +206,8 @@
       ]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

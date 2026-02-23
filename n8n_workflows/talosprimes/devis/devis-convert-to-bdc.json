@@ -158,7 +158,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Original prepare logic\nconst _origFn = function() {\nconst bdc = $('08. Create BdC').first().json;\nconst lines = $('09. Get Devis Lines').all().map(item => item.json);\n\nreturn [{ json: {\n  bdcId: bdc.id,\n  lines,\n  hasLines: lines.length > 0\n} }];\n};\nconst _origResult = _origFn();\nconst prev = _origResult[0].json;\n\nconst items = prev.lines || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nconst params = [];\nlet idx = 1;\n\nconst parentId = prev.bdcId;\nconst values = items.map((item, i) => {\n  const codeArticle = item.code_article || null;\n  const designation = String(item.designation || '').substring(0, 500);\n  const quantite = parseFloat(item.quantite) || 0;\n  const prixUnitaireHt = parseFloat(item.prix_unitaire_ht) || 0;\n  const totalHt = parseFloat(item.total_ht) || 0;\n  const ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  const p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}).join(',\n');\n\nconst query = `INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
+        "jsCode": "var bdc = $('08. Create BdC').first().json;\nvar rawLines = [];\ntry { rawLines = $('09. Get Devis Lines').all().map(function(item) { return item.json; }); } catch(e) { rawLines = []; }\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nif (rawLines.length === 0) {\n  return [{ json: { bdcId: bdc.id, hasLines: false, query: 'SELECT 1' } }];\n}\n\nvar values = rawLines.map(function(item, i) {\n  var q = num(item.quantite || 0);\n  var p = num(item.prix_unitaire_ht || 0);\n  var t = num(item.total_ht || (parseFloat(q) * parseFloat(p)));\n  return '(gen_random_uuid(), ' + esc(bdc.id) + '::uuid, ' + esc(item.code_article || null) + ', ' + esc(item.designation || '') + ', ' + q + ', ' + p + ', ' + t + ', ' + i + ')';\n}).join(', ');\n\nvar query = 'INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ' + values + ' RETURNING id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre';\n\nreturn [{ json: { bdcId: bdc.id, hasLines: true, query: query } }];"
       },
       "id": "10. Prepare Lines",
       "name": "10. Prepare Lines",
@@ -205,7 +205,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "14. Respond",
       "name": "14. Respond",
@@ -378,5 +378,8 @@
       ]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
