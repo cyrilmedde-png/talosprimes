@@ -66,7 +66,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"DELETE FROM bon_commande_lines WHERE bon_commande_id = '\" + $json.bdcId + \"'\" }}"
+        "query": "={{ \"DELETE FROM bon_commande_lines WHERE bon_commande_id = '\" + $json.bdcId + \"'\" }}",
+        "alwaysOutputData": true
       },
       "id": "05. Delete Lines",
       "name": "05. Delete Lines",
@@ -86,7 +87,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"DELETE FROM bons_commande WHERE id = '\" + $('02. Parser').first().json.bdcId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND statut != 'facture' RETURNING id, numero_bdc\" }}"
+        "query": "={{ \"DELETE FROM bons_commande WHERE id = '\" + $('02. Parser').first().json.bdcId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND statut != 'facture' RETURNING id, numero_bdc\" }}",
+        "alwaysOutputData": true
       },
       "id": "06. Delete BdC",
       "name": "06. Delete BdC",
@@ -119,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
@@ -206,5 +208,6 @@
       ]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": { "executionOrder": "v1" }
 }

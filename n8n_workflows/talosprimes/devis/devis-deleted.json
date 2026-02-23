@@ -66,7 +66,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"DELETE FROM devis_lines WHERE devis_id = '\" + $json.devisId + \"'\" }}"
+        "query": "={{ \"DELETE FROM devis_lines WHERE devis_id = '\" + $json.devisId + \"'\" }}",
+        "alwaysOutputData": true
       },
       "id": "05. Delete Lines",
       "name": "05. Delete Lines",
@@ -86,7 +87,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"DELETE FROM devis WHERE id = '\" + $('02. Parser').first().json.devisId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND statut != 'facturee' RETURNING id, numero_devis\" }}"
+        "query": "={{ \"DELETE FROM devis WHERE id = '\" + $('02. Parser').first().json.devisId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND statut != 'facturee' RETURNING id, numero_devis\" }}",
+        "alwaysOutputData": true
       },
       "id": "06. Delete Devis",
       "name": "06. Delete Devis",
@@ -119,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
@@ -206,5 +208,6 @@
       ]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": { "executionOrder": "v1" }
 }
