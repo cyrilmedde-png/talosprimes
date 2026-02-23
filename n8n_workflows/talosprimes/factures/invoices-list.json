@@ -11,23 +11,17 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 20;\nconst offset = (page - 1) * limit;\nconst statut = body.statut || null;\nconst clientFinalId = body.clientFinalId || null;\nconst dateFrom = body.dateFrom || null;\nconst dateTo = body.dateTo || null;\n\nreturn [{ json: { tenantId: body.tenantId, page, limit, offset, statut, clientFinalId, dateFrom, dateTo } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar page = parseInt(body.page) || 1;\nvar limit = parseInt(body.limit) || 20;\nvar offset = (page - 1) * limit;\nreturn [{ json: { tenantId: String(body.tenantId), page: page, limit: limit, offset: offset, statut: body.statut || null, clientFinalId: body.clientFinalId || null, dateFrom: body.dateFrom || null, dateTo: body.dateTo || null } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,10 +38,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -58,282 +49,161 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM invoices WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND numero_facture IS NOT NULL AND date_facture IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.dateFrom ? \"date_facture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.dateTo ? \"date_facture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : \"1=1\") }}"
+        "jsCode": "var p = $('02. Parser').first().json;\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar where = \"i.tenant_id = \" + esc(p.tenantId) + \"::uuid AND i.numero_facture IS NOT NULL AND i.date_facture IS NOT NULL\";\nif (p.statut) where += \" AND i.statut = \" + esc(p.statut);\nif (p.clientFinalId) where += \" AND i.client_final_id = \" + esc(p.clientFinalId) + \"::uuid\";\nif (p.dateFrom) where += \" AND i.date_facture >= \" + esc(p.dateFrom);\nif (p.dateTo) where += \" AND i.date_facture <= \" + esc(p.dateTo);\nvar countQuery = \"SELECT COUNT(*) as total FROM invoices i WHERE \" + where;\nvar listQuery = \"SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE \" + where + \" ORDER BY i.date_facture DESC LIMIT \" + p.limit + \" OFFSET \" + p.offset;\nreturn [{ json: { countQuery: countQuery, listQuery: listQuery } }];"
       },
-      "id": "05. Count Query",
-      "name": "05. Count Query",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        700,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT i.id, i.tenant_id, i.client_final_id, i.type, i.numero_facture, i.date_facture, i.date_echeance, i.montant_ht, i.montant_ttc, i.tva_taux, i.description, i.mode_paiement, i.statut, i.lien_pdf, i.id_externe_paiement, i.created_at, i.updated_at, cf.nom as client_nom, cf.prenom as client_prenom, cf.email as client_email, cf.telephone as client_telephone, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND i.numero_facture IS NOT NULL AND i.date_facture IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"i.statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"i.client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.dateFrom ? \"i.date_facture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.dateTo ? \"i.date_facture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : \"1=1\") + \" ORDER BY i.date_facture DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
-      },
-      "id": "06. List Query",
-      "name": "06. List Query",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        900,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst invoiceIds = items.map(i => i.id);\nreturn [{ json: { invoiceIds, hasIds: invoiceIds.length > 0 } }];"
-      },
-      "id": "07. Extract IDs",
-      "name": "07. Extract IDs",
+      "id": "05. Build SQL",
+      "name": "05. Build SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('07. Extract IDs').first().json.hasIds ? \"SELECT id, invoice_id, numero_bdc, statut FROM bons_commande WHERE invoice_id IN ('\" + $('07. Extract IDs').first().json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id WHERE false\" }}"
+        "query": "={{ $json.countQuery }}"
       },
-      "id": "08. Get BdC Links",
-      "name": "08. Get BdC Links",
+      "id": "06. Count Query",
+      "name": "06. Count Query",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "alwaysOutputData": true,
-      "position": [
-        1300,
-        150
-      ]
+      "position": [900, 300],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('07. Extract IDs').first().json.hasIds ? \"SELECT id, invoice_id, numero_devis, statut FROM devis WHERE invoice_id IN ('\" + $('07. Extract IDs').first().json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id WHERE false\" }}"
+        "query": "={{ $('05. Build SQL').first().json.listQuery }}"
       },
-      "id": "09. Get Devis Links",
-      "name": "09. Get Devis Links",
+      "id": "07. List Query",
+      "name": "07. List Query",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "alwaysOutputData": true,
-      "position": [
-        1300,
-        350
-      ]
+      "position": [1100, 300],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $('07. Extract IDs').first().json.hasIds ? \"SELECT id, invoice_id, numero_proforma, statut FROM proformas WHERE invoice_id IN ('\" + $('07. Extract IDs').first().json.invoiceIds.join(\"','\") + \"')\" : \"SELECT NULL as id, NULL as invoice_id WHERE false\" }}"
+        "jsCode": "var items = $('07. List Query').all().map(function(item) { return item.json; }).filter(function(i) { return i && i.id; });\nvar ids = items.map(function(i) { return i.id; });\nif (ids.length === 0) return [{ json: { invoiceIds: [], hasIds: false, idsList: '' } }];\nvar idsList = ids.map(function(id) { return \"'\" + String(id).replace(/'/g, \"''\") + \"'\"; }).join(',');\nreturn [{ json: { invoiceIds: ids, hasIds: true, idsList: idsList } }];"
       },
-      "id": "10. Get Proforma Links",
-      "name": "10. Get Proforma Links",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "alwaysOutputData": true,
-      "position": [
-        1300,
-        550
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const items = $('06. List Query').all().map(item => item.json).filter(i => i.id);\nconst countResult = $('05. Count Query').first().json;\nconst parser = $('02. Parser').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / parser.limit) || 1;\n\nconst bdcItems = $('08. Get BdC Links').all().map(item => item.json).filter(b => b.id);\nconst bdcByInvoice = {};\nfor (const b of bdcItems) {\n  if (!bdcByInvoice[b.invoice_id]) bdcByInvoice[b.invoice_id] = [];\n  bdcByInvoice[b.invoice_id].push({ id: b.id, numeroBdc: b.numero_bdc, statut: b.statut });\n}\n\nconst devisItems = $('09. Get Devis Links').all().map(item => item.json).filter(d => d.id);\nconst devisByInvoice = {};\nfor (const d of devisItems) {\n  if (!devisByInvoice[d.invoice_id]) devisByInvoice[d.invoice_id] = [];\n  devisByInvoice[d.invoice_id].push({ id: d.id, numeroDevis: d.numero_devis, statut: d.statut });\n}\n\nconst proformaItems = $('10. Get Proforma Links').all().map(item => item.json).filter(p => p.id);\nconst proformasByInvoice = {};\nfor (const p of proformaItems) {\n  if (!proformasByInvoice[p.invoice_id]) proformasByInvoice[p.invoice_id] = [];\n  proformasByInvoice[p.invoice_id].push({ id: p.id, numeroProforma: p.numero_proforma, statut: p.statut });\n}\n\nconst invoices = items.map(i => ({\n  id: i.id,\n  tenantId: i.tenant_id,\n  clientFinalId: i.client_final_id,\n  type: i.type,\n  numeroFacture: i.numero_facture,\n  dateFacture: i.date_facture,\n  dateEcheance: i.date_echeance,\n  montantHt: i.montant_ht,\n  montantTtc: i.montant_ttc,\n  tvaTaux: i.tva_taux,\n  description: i.description,\n  modePaiement: i.mode_paiement,\n  statut: i.statut,\n  lienPdf: i.lien_pdf,\n  idExternePaiement: i.id_externe_paiement,\n  createdAt: i.created_at,\n  updatedAt: i.updated_at,\n  clientFinal: i.client_final_id ? {\n    id: i.client_final_id,\n    nom: i.client_nom || null,\n    prenom: i.client_prenom || null,\n    email: i.client_email || null,\n    telephone: i.client_telephone || null,\n    raisonSociale: i.client_raison_sociale || null\n  } : null,\n  bonsCommande: bdcByInvoice[i.id] || [],\n  devis: devisByInvoice[i.id] || [],\n  proformas: proformasByInvoice[i.id] || []\n}));\n\nreturn [{ json: {\n  invoices,\n  count: invoices.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
-      },
-      "id": "11. Format Response",
-      "name": "11. Format Response",
+      "id": "08. Extract IDs",
+      "name": "08. Extract IDs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1500,
-        350
-      ]
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.hasIds ? 'SELECT id, invoice_id, numero_bdc, statut FROM bons_commande WHERE invoice_id IN (' + $json.idsList + ')' : 'SELECT null as id WHERE false' }}"
+      },
+      "id": "09. Get BdC Links",
+      "name": "09. Get BdC Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [1500, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('08. Extract IDs').first().json.hasIds ? 'SELECT id, invoice_id, numero_devis, statut FROM devis WHERE invoice_id IN (' + $('08. Extract IDs').first().json.idsList + ')' : 'SELECT null as id WHERE false' }}"
+      },
+      "id": "10. Get Devis Links",
+      "name": "10. Get Devis Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [1700, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('08. Extract IDs').first().json.hasIds ? 'SELECT id, invoice_id, numero_proforma, statut FROM proformas WHERE invoice_id IN (' + $('08. Extract IDs').first().json.idsList + ')' : 'SELECT null as id WHERE false' }}"
+      },
+      "id": "11. Get Proforma Links",
+      "name": "11. Get Proforma Links",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [1900, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('07. List Query').all().map(function(item) { return item.json; }).filter(function(i) { return i && i.id; });\nvar countResult = $('06. Count Query').first().json;\nvar parser = $('02. Parser').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / parser.limit) || 1;\n\nvar bdcByInvoice = {};\ntry {\n  var bdcItems = $('09. Get BdC Links').all().map(function(item) { return item.json; }).filter(function(b) { return b && b.id; });\n  for (var bi = 0; bi < bdcItems.length; bi++) {\n    var b = bdcItems[bi];\n    if (!bdcByInvoice[b.invoice_id]) bdcByInvoice[b.invoice_id] = [];\n    bdcByInvoice[b.invoice_id].push({ id: b.id, numeroBdc: b.numero_bdc, statut: b.statut });\n  }\n} catch(e) { /* no bdc links */ }\n\nvar devisByInvoice = {};\ntry {\n  var devisItems = $('10. Get Devis Links').all().map(function(item) { return item.json; }).filter(function(d) { return d && d.id; });\n  for (var di = 0; di < devisItems.length; di++) {\n    var d = devisItems[di];\n    if (!devisByInvoice[d.invoice_id]) devisByInvoice[d.invoice_id] = [];\n    devisByInvoice[d.invoice_id].push({ id: d.id, numeroDevis: d.numero_devis, statut: d.statut });\n  }\n} catch(e) { /* no devis links */ }\n\nvar proformasByInvoice = {};\ntry {\n  var proItems = $('11. Get Proforma Links').all().map(function(item) { return item.json; }).filter(function(p) { return p && p.id; });\n  for (var pi = 0; pi < proItems.length; pi++) {\n    var pr = proItems[pi];\n    if (!proformasByInvoice[pr.invoice_id]) proformasByInvoice[pr.invoice_id] = [];\n    proformasByInvoice[pr.invoice_id].push({ id: pr.id, numeroProforma: pr.numero_proforma, statut: pr.statut });\n  }\n} catch(e) { /* no proforma links */ }\n\nvar invoices = items.map(function(i) {\n  return {\n    id: i.id,\n    tenantId: i.tenant_id,\n    clientFinalId: i.client_final_id,\n    type: i.type,\n    numeroFacture: i.numero_facture,\n    dateFacture: i.date_facture,\n    dateEcheance: i.date_echeance,\n    montantHt: i.montant_ht,\n    montantTtc: i.montant_ttc,\n    tvaTaux: i.tva_taux,\n    description: i.description,\n    modePaiement: i.mode_paiement,\n    statut: i.statut,\n    lienPdf: i.lien_pdf,\n    idExternePaiement: i.id_externe_paiement,\n    createdAt: i.created_at,\n    updatedAt: i.updated_at,\n    clientFinal: i.client_final_id ? { id: i.client_final_id, nom: i.client_nom || null, prenom: i.client_prenom || null, email: i.client_email || null, telephone: i.client_telephone || null, raisonSociale: i.client_raison_sociale || null } : null,\n    bonsCommande: bdcByInvoice[i.id] || [],\n    devis: devisByInvoice[i.id] || [],\n    proformas: proformasByInvoice[i.id] || []\n  };\n});\n\nreturn [{ json: { invoices: invoices, count: invoices.length, total: total, page: parser.page, limit: parser.limit, totalPages: totalPages } }];"
+      },
+      "id": "12. Format Response",
+      "name": "12. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
-      "id": "12. Respond",
-      "name": "12. Respond",
+      "id": "13. Respond",
+      "name": "13. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1700,
-        350
-      ]
+      "position": [2300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Count Query",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Build SQL", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "05. Count Query": {
-      "main": [
-        [
-          {
-            "node": "06. List Query",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Build SQL": {
+      "main": [[{ "node": "06. Count Query", "type": "main", "index": 0 }]]
     },
-    "06. List Query": {
-      "main": [
-        [
-          {
-            "node": "07. Extract IDs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Count Query": {
+      "main": [[{ "node": "07. List Query", "type": "main", "index": 0 }]]
     },
-    "07. Extract IDs": {
-      "main": [
-        [
-          {
-            "node": "08. Get BdC Links",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "09. Get Devis Links",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "10. Get Proforma Links",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. List Query": {
+      "main": [[{ "node": "08. Extract IDs", "type": "main", "index": 0 }]]
     },
-    "08. Get BdC Links": {
-      "main": [
-        [
-          {
-            "node": "11. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. Extract IDs": {
+      "main": [[{ "node": "09. Get BdC Links", "type": "main", "index": 0 }]]
     },
-    "09. Get Devis Links": {
-      "main": [
-        [
-          {
-            "node": "11. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "09. Get BdC Links": {
+      "main": [[{ "node": "10. Get Devis Links", "type": "main", "index": 0 }]]
     },
-    "10. Get Proforma Links": {
-      "main": [
-        [
-          {
-            "node": "11. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. Get Devis Links": {
+      "main": [[{ "node": "11. Get Proforma Links", "type": "main", "index": 0 }]]
     },
-    "11. Format Response": {
-      "main": [
-        [
-          {
-            "node": "12. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "11. Get Proforma Links": {
+      "main": [[{ "node": "12. Format Response", "type": "main", "index": 0 }]]
+    },
+    "12. Format Response": {
+      "main": [[{ "node": "13. Respond", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
