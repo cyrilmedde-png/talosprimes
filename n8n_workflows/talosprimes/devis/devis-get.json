@@ -101,11 +101,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const devisItem = $('05. Get Devis').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\n\nif (!devisItem || !devisItem.id) {\n  return [{ json: { error: 'Devis not found' } }];\n}\n\nconst d = devisItem;\n\nconst devis = {\n  id: d.id,\n  tenant_id: d.tenant_id,\n  client_final_id: d.client_final_id,\n  numero_devis: d.numero_devis,\n  date_devis: d.date_devis,\n  date_validite: d.date_validite,\n  montant_ht: d.montant_ht,\n  montant_ttc: d.montant_ttc,\n  tva_taux: d.tva_taux,\n  description: d.description,\n  mode_paiement: d.mode_paiement,\n  statut: d.statut,\n  invoice_id: d.invoice_id,\n  lien_pdf: d.lien_pdf,\n  created_at: d.created_at,\n  updated_at: d.updated_at,\n  clientFinal: d.client_final_id ? {\n    id: d.client_final_id,\n    nom: d.client_nom || null,\n    prenom: d.client_prenom || null,\n    email: d.client_email || null,\n    telephone: d.client_telephone || null,\n    raison_sociale: d.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: devis }];"
+        "jsCode": "var devisItem = $('05. Get Devis').first().json;\nvar rawLines = [];\ntry { rawLines = $('06. Get Lines').all().map(function(item) { return item.json; }); } catch(e) { rawLines = []; }\n\nif (!devisItem || !devisItem.id) {\n  return [{ json: { error: 'Devis not found' } }];\n}\n\nvar d = devisItem;\n\nvar lines = rawLines.map(function(l) {\n  return {\n    id: l.id,\n    devisId: l.devis_id,\n    codeArticle: l.code_article || null,\n    designation: l.designation || null,\n    quantite: l.quantite,\n    prixUnitaireHt: l.prix_unitaire_ht,\n    prixUnitaireHT: l.prix_unitaire_ht,\n    totalHt: l.total_ht,\n    totalHT: l.total_ht,\n    ordre: l.ordre\n  };\n});\n\nvar devis = {\n  id: d.id,\n  tenantId: d.tenant_id,\n  tenant_id: d.tenant_id,\n  clientFinalId: d.client_final_id,\n  client_final_id: d.client_final_id,\n  numeroDevis: d.numero_devis,\n  numero_devis: d.numero_devis,\n  dateDevis: d.date_devis,\n  date_devis: d.date_devis,\n  dateValidite: d.date_validite,\n  date_validite: d.date_validite,\n  montantHt: d.montant_ht,\n  montant_ht: d.montant_ht,\n  montantTtc: d.montant_ttc,\n  montant_ttc: d.montant_ttc,\n  tvaTaux: d.tva_taux,\n  tva_taux: d.tva_taux,\n  description: d.description,\n  modePaiement: d.mode_paiement,\n  mode_paiement: d.mode_paiement,\n  statut: d.statut,\n  invoiceId: d.invoice_id,\n  invoice_id: d.invoice_id,\n  lienPdf: d.lien_pdf,\n  lien_pdf: d.lien_pdf,\n  createdAt: d.created_at,\n  created_at: d.created_at,\n  updatedAt: d.updated_at,\n  updated_at: d.updated_at,\n  clientFinal: d.client_final_id ? {\n    id: d.client_final_id,\n    nom: d.client_nom || null,\n    prenom: d.client_prenom || null,\n    email: d.client_email || null,\n    telephone: d.client_telephone || null,\n    raisonSociale: d.client_raison_sociale || null,\n    raison_sociale: d.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: devis }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -119,7 +120,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
@@ -206,5 +207,9 @@
       ]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
 }

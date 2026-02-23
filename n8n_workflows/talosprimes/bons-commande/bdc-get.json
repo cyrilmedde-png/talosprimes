@@ -101,11 +101,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const bdcItem = $('05. Get BdC').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\n\nif (!bdcItem || !bdcItem.id) {\n  return [{ json: { error: 'Bon de commande not found' } }];\n}\n\nconst b = bdcItem;\n\nconst bon = {\n  id: b.id,\n  tenant_id: b.tenant_id,\n  client_final_id: b.client_final_id,\n  numero_bdc: b.numero_bdc,\n  numeroBdc: b.numero_bdc,\n  date_bdc: b.date_bdc,\n  dateBdc: b.date_bdc,\n  date_validite: b.date_validite,\n  dateValidite: b.date_validite,\n  montant_ht: b.montant_ht,\n  montantHt: b.montant_ht,\n  montant_ttc: b.montant_ttc,\n  montantTtc: b.montant_ttc,\n  tva_taux: b.tva_taux,\n  tvaTaux: b.tva_taux,\n  description: b.description,\n  mode_paiement: b.mode_paiement,\n  modePaiement: b.mode_paiement,\n  statut: b.statut,\n  invoice_id: b.invoice_id,\n  invoiceId: b.invoice_id,\n  created_at: b.created_at,\n  createdAt: b.created_at,\n  updated_at: b.updated_at,\n  updatedAt: b.updated_at,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: bon }];"
+        "jsCode": "var bdcItem = $('05. Get BdC').first().json;\nvar rawLines = [];\ntry { rawLines = $('06. Get Lines').all().map(function(item) { return item.json; }); } catch(e) { rawLines = []; }\n\nif (!bdcItem || !bdcItem.id) {\n  return [{ json: { error: 'Bon de commande not found' } }];\n}\n\nvar b = bdcItem;\n\nvar lines = rawLines.map(function(l) {\n  return {\n    id: l.id,\n    bonCommandeId: l.bon_commande_id,\n    codeArticle: l.code_article || null,\n    designation: l.designation || null,\n    quantite: l.quantite,\n    prixUnitaireHt: l.prix_unitaire_ht,\n    prixUnitaireHT: l.prix_unitaire_ht,\n    totalHt: l.total_ht,\n    totalHT: l.total_ht,\n    ordre: l.ordre\n  };\n});\n\nvar bon = {\n  id: b.id,\n  tenant_id: b.tenant_id,\n  tenantId: b.tenant_id,\n  client_final_id: b.client_final_id,\n  clientFinalId: b.client_final_id,\n  numero_bdc: b.numero_bdc,\n  numeroBdc: b.numero_bdc,\n  date_bdc: b.date_bdc,\n  dateBdc: b.date_bdc,\n  date_validite: b.date_validite,\n  dateValidite: b.date_validite,\n  montant_ht: b.montant_ht,\n  montantHt: b.montant_ht,\n  montant_ttc: b.montant_ttc,\n  montantTtc: b.montant_ttc,\n  tva_taux: b.tva_taux,\n  tvaTaux: b.tva_taux,\n  description: b.description,\n  mode_paiement: b.mode_paiement,\n  modePaiement: b.mode_paiement,\n  statut: b.statut,\n  invoice_id: b.invoice_id,\n  invoiceId: b.invoice_id,\n  devis_id: b.devis_id,\n  devisId: b.devis_id,\n  created_at: b.created_at,\n  createdAt: b.created_at,\n  updated_at: b.updated_at,\n  updatedAt: b.updated_at,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null,\n    raison_sociale: b.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: bon }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -119,7 +120,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",
@@ -206,5 +207,9 @@
       ]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
 }
