@@ -143,8 +143,15 @@ PYEOF
     fi
   fi
 
-  # ====== ACTIVER le workflow si nécessaire ======
+  # ====== DÉSACTIVER puis RÉACTIVER pour forcer l'enregistrement des webhooks ======
   if [ "$SHOULD_ACTIVE" = "true" ] && [ -n "$WF_ID" ]; then
+    # D'abord désactiver (ignore les erreurs si déjà inactif)
+    curl -s -o /dev/null -w "" \
+      -X POST \
+      -H "X-N8N-API-KEY: $N8N_API_KEY" \
+      "$N8N_URL/api/v1/workflows/$WF_ID/deactivate" 2>/dev/null || true
+
+    # Puis réactiver → force n8n à enregistrer le webhook
     ACT_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
       -X POST \
       -H "X-N8N-API-KEY: $N8N_API_KEY" \
