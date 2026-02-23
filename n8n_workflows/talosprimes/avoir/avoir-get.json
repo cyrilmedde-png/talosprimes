@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.avoirId) {\n  throw new Error('tenantId and avoirId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.avoirId) {\n  throw new Error('tenantId and avoirId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const avoirItem = $('05. Get Avoir').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\n\nif (!avoirItem || !avoirItem.id) {\n  return [{ json: { error: 'Avoir not found' } }];\n}\n\nconst a = avoirItem;\n\nconst avoir = {\n  id: a.id,\n  tenant_id: a.tenant_id,\n  client_final_id: a.client_final_id,\n  invoice_id: a.invoice_id,\n  invoiceId: a.invoice_id,\n  numero_avoir: a.numero_avoir,\n  numeroAvoir: a.numero_avoir,\n  date_avoir: a.date_avoir,\n  dateAvoir: a.date_avoir,\n  montant_ht: a.montant_ht,\n  montantHt: a.montant_ht,\n  montant_ttc: a.montant_ttc,\n  montantTtc: a.montant_ttc,\n  tva_taux: a.tva_taux,\n  tvaTaux: a.tva_taux,\n  motif: a.motif,\n  description: a.description,\n  statut: a.statut,\n  lien_pdf: a.lien_pdf,\n  lienPdf: a.lien_pdf,\n  created_at: a.created_at,\n  createdAt: a.created_at,\n  updated_at: a.updated_at,\n  updatedAt: a.updated_at,\n  clientFinal: a.client_final_id ? {\n    id: a.client_final_id,\n    nom: a.client_nom || null,\n    prenom: a.client_prenom || null,\n    email: a.client_email || null,\n    telephone: a.client_telephone || null,\n    raisonSociale: a.client_raison_sociale || null\n  } : null,\n  invoiceNumero: a.invoice_numero || null,\n  lines: lines\n};\n\nreturn [{ json: avoir }];"
+        "jsCode": "var avoirItem = $('05. Get Avoir').first().json;\nvar lines = $('06. Get Lines').all().map(function(item) { return item.json; });\n\nif (!avoirItem || !avoirItem.id) {\n  return [{ json: { error: 'Avoir not found' } }];\n}\n\nvar a = avoirItem;\n\nvar avoir = {\n  id: a.id,\n  tenant_id: a.tenant_id,\n  client_final_id: a.client_final_id,\n  invoice_id: a.invoice_id,\n  invoiceId: a.invoice_id,\n  numero_avoir: a.numero_avoir,\n  numeroAvoir: a.numero_avoir,\n  date_avoir: a.date_avoir,\n  dateAvoir: a.date_avoir,\n  montant_ht: a.montant_ht,\n  montantHt: a.montant_ht,\n  montant_ttc: a.montant_ttc,\n  montantTtc: a.montant_ttc,\n  tva_taux: a.tva_taux,\n  tvaTaux: a.tva_taux,\n  motif: a.motif,\n  description: a.description,\n  statut: a.statut,\n  lien_pdf: a.lien_pdf,\n  lienPdf: a.lien_pdf,\n  created_at: a.created_at,\n  createdAt: a.created_at,\n  updated_at: a.updated_at,\n  updatedAt: a.updated_at,\n  clientFinal: a.client_final_id ? {\n    id: a.client_final_id,\n    nom: a.client_nom || null,\n    prenom: a.client_prenom || null,\n    email: a.client_email || null,\n    telephone: a.client_telephone || null,\n    raisonSociale: a.client_raison_sociale || null\n  } : null,\n  invoiceNumero: a.invoice_numero || null,\n  lines: lines\n};\n\nreturn [{ json: avoir }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -119,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",

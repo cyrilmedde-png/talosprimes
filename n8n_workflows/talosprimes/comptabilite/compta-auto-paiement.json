@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.invoiceId) throw new Error('invoiceId is required');\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId, modePaiement: body.modePaiement || 'virement', datePaiement: body.datePaiement || new Date().toISOString().split('T')[0] } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.invoiceId) throw new Error('invoiceId is required');\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId, modePaiement: body.modePaiement || 'virement', datePaiement: body.datePaiement || new Date().toISOString().split('T')[0] } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,7 +102,8 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -121,11 +123,12 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const inv = $('05. Get Invoice').all().map(i => i.json).filter(i => i.numero_facture);\nif (inv.length === 0) throw new Error('Facture non trouvée');\nconst invoice = inv[0];\nconst exerciceArr = $('06. Get Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\nconst exerciceId = exerciceArr[0].id;\nconst nextNum = parseInt($('07. Next Number').first().json.next_num) || 1;\nconst year = new Date().getFullYear();\nconst numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\nconst montantTtc = parseFloat(invoice.montant_ttc) || 0;\nconst p = $('02. Parser').first().json;\nconst clientName = invoice.raison_sociale || invoice.client_nom || 'Client';\nconst compteBanque = p.modePaiement === 'especes' ? '530000' : '512000';\n\nreturn [{ json: {\n  tenantId: p.tenantId, exerciceId, numeroPiece,\n  dateEcriture: p.datePaiement,\n  libelle: `Paiement ${invoice.numero_facture} - ${clientName}`,\n  referenceDoc: invoice.numero_facture,\n  invoiceId: p.invoiceId,\n  montantTtc, compteBanque\n} }];"
+        "jsCode": "var inv = $('05. Get Invoice').all().map(function(i) { return i.json; }).filter(function(i) { return i.numero_facture; });\nif (inv.length === 0) throw new Error('Facture non trouvée');\nvar invoice = inv[0];\nvar exerciceArr = $('06. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\nvar exerciceId = exerciceArr[0].id;\nvar nextNum = parseInt($('07. Next Number').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\nvar montantTtc = parseFloat(invoice.montant_ttc) || 0;\nvar p = $('02. Parser').first().json;\nvar clientName = invoice.raison_sociale || invoice.client_nom || 'Client';\nvar compteBanque = p.modePaiement === 'especes' ? '530000' : '512000';\n\nreturn [{ json: {\n  tenantId: p.tenantId, exerciceId, numeroPiece,\n  dateEcriture: p.datePaiement,\n  libelle: `Paiement ${invoice.numero_facture} - ${clientName}`,\n  referenceDoc: invoice.numero_facture,\n  invoiceId: p.invoiceId,\n  montantTtc, compteBanque\n} }];"
       },
       "id": "08. Build Ecriture",
       "name": "08. Build Ecriture",
@@ -154,7 +157,8 @@
       "position": [
         1500,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -174,11 +178,12 @@
       "position": [
         1700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const ecriture = $('09. Insert Ecriture').first().json;\nconst b = $('08. Build Ecriture').first().json;\nreturn [{ json: { success: true, message: `Paiement comptabilisé: ${ecriture.numero_piece}`, ecriture: { id: ecriture.id, numeroPiece: ecriture.numero_piece, journal: 'BQ', montant: b.montantTtc } } }];"
+        "jsCode": "var ecriture = $('09. Insert Ecriture').first().json;\nvar b = $('08. Build Ecriture').first().json;\nreturn [{ json: { success: true, message: `Paiement comptabilisé: ${ecriture.numero_piece}`, ecriture: { id: ecriture.id, numeroPiece: ecriture.numero_piece, journal: 'BQ', montant: b.montantTtc } } }];"
       },
       "id": "11. Format Response",
       "name": "11. Format Response",
@@ -192,7 +197,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "12. Respond",
       "name": "12. Respond",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst montantHt = parseFloat(body.montantHt) || 0;\nconst tvaTaux = parseFloat(body.tvaTaux) || 20;\nconst montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId || null,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateProforma: body.dateProforma || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nvar montantHt = parseFloat(body.montantHt) || 0;\nvar tvaTaux = parseFloat(body.tvaTaux) || 20;\nvar montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId || null,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateProforma: body.dateProforma || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroProforma = 'PRO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroProforma } }];"
+        "jsCode": "var parser = $('02. Parser').first().json;\nvar nextNum = $('05. Get Next Number').first().json.next_num || 1;\nvar year = new Date().getFullYear();\nvar numeroProforma = 'PRO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroProforma } }];"
       },
       "id": "06. Generate Number",
       "name": "06. Generate Number",
@@ -114,11 +115,12 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "// Original prepare logic\nconst _origFn = function() {\nconst proforma = $('07. Insert Proforma').first().json;\nconst parser = $('02. Parser').first().json;\nconst lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { proformaId: proforma.id, lineInserts: [], hasLines: false } }];\n}\n\nconst lineInserts = lines.map((line, idx) => ({\n  proformaId: proforma.id,\n  codeArticle: line.codeArticle || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || line.prixUnitaireHT || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || line.prixUnitaireHT || 0),\n  ordre: idx\n}));\n\nreturn [{ json: { proformaId: proforma.id, lineInserts, hasLines: true } }];\n};\nconst _origResult = _origFn();\nconst prev = _origResult[0].json;\n\nconst items = prev.lineInserts || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nconst params = [];\nlet idx = 1;\n\nconst values = items.map((item, i) => {\n  const parentId = item.proformaId;\n  const codeArticle = item.codeArticle || null;\n  const designation = String(item.designation || '').substring(0, 500);\n  const quantite = parseFloat(item.quantite) || 0;\n  const prixUnitaireHt = parseFloat(item.prixUnitaireHt) || 0;\n  const totalHt = parseFloat(item.totalHt) || 0;\n  const ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  const p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}).join(',\n');\n\nconst query = `INSERT INTO proforma_lines (id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
+        "jsCode": "// Original prepare logic\nvar _origFn = function() {\nvar proforma = $('07. Insert Proforma').first().json;\nvar parser = $('02. Parser').first().json;\nvar lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { proformaId: proforma.id, lineInserts: [], hasLines: false } }];\n}\n\nvar lineInserts = lines.map(function(line, idx) { return ({\n  proformaId: proforma.id,\n  codeArticle: line.codeArticle || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prixUnitaireHt || line.prixUnitaireHT || 0,\n  totalHt: (line.quantite || 1) * (line.prixUnitaireHt || line.prixUnitaireHT || 0),\n  ordre: idx\n}); });\n\nreturn [{ json: { proformaId: proforma.id, lineInserts, hasLines: true } }];\n};\nvar _origResult = _origFn();\nvar prev = _origResult[0].json;\n\nvar items = prev.lineInserts || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nvar params = [];\nvar idx = 1;\n\nvar values = items.map(function(item, i) { return {\n  var parentId = item.proformaId;\n  var codeArticle = item.codeArticle || null;\n  var designation = String(item.designation || '').substring(0, 500);\n  var quantite = parseFloat(item.quantite) || 0;\n  var prixUnitaireHt = parseFloat(item.prixUnitaireHt) || 0;\n  var totalHt = parseFloat(item.totalHt) || 0;\n  var ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  var p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}; }).join(',\n');\n\nvar query = `INSERT INTO proforma_lines (id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, proforma_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
@@ -147,11 +149,12 @@
       "position": [
         1500,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const proforma = $('07. Insert Proforma').first().json;\n\nreturn [{ json: {\n  id: proforma.id,\n  tenant_id: proforma.tenant_id,\n  client_final_id: proforma.client_final_id,\n  numero_proforma: proforma.numero_proforma,\n  date_proforma: proforma.date_proforma,\n  date_validite: proforma.date_validite,\n  montant_ht: proforma.montant_ht,\n  montant_ttc: proforma.montant_ttc,\n  tva_taux: proforma.tva_taux,\n  description: proforma.description,\n  mode_paiement: proforma.mode_paiement,\n  statut: proforma.statut,\n  created_at: proforma.created_at,\n  updated_at: proforma.updated_at\n} }];"
+        "jsCode": "var proforma = $('07. Insert Proforma').first().json;\n\nreturn [{ json: {\n  id: proforma.id,\n  tenant_id: proforma.tenant_id,\n  client_final_id: proforma.client_final_id,\n  numero_proforma: proforma.numero_proforma,\n  date_proforma: proforma.date_proforma,\n  date_validite: proforma.date_validite,\n  montant_ht: proforma.montant_ht,\n  montant_ttc: proforma.montant_ttc,\n  tva_taux: proforma.tva_taux,\n  description: proforma.description,\n  mode_paiement: proforma.mode_paiement,\n  statut: proforma.statut,\n  created_at: proforma.created_at,\n  updated_at: proforma.updated_at\n} }];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",
@@ -165,7 +168,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "11. Respond",
       "name": "11. Respond",

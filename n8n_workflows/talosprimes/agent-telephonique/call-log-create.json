@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  agentId: body.agentId || null,\n  phone: body.phone || '',\n  direction: body.direction || 'inbound',\n  startedAt: body.startedAt || new Date().toISOString(),\n  endedAt: body.endedAt || null,\n  duration: body.duration || 0,\n  status: body.status || 'completed',\n  transcript: body.transcript || '',\n  summary: body.summary || '',\n  actionTaken: body.actionTaken || null,\n  urgency: body.urgency || 'normal',\n  sentiment: body.sentiment || null,\n  notes: body.notes || '',\n  recordingUrl: body.recordingUrl || null,\n  tags: body.tags || []\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  agentId: body.agentId || null,\n  phone: body.phone || '',\n  direction: body.direction || 'inbound',\n  startedAt: body.startedAt || new Date().toISOString(),\n  endedAt: body.endedAt || null,\n  duration: body.duration || 0,\n  status: body.status || 'completed',\n  transcript: body.transcript || '',\n  summary: body.summary || '',\n  actionTaken: body.actionTaken || null,\n  urgency: body.urgency || 'normal',\n  sentiment: body.sentiment || null,\n  notes: body.notes || '',\n  recordingUrl: body.recordingUrl || null,\n  tags: body.tags || []\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: tenantId, phone'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required fields: tenantId, phone' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -80,7 +80,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -96,7 +97,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

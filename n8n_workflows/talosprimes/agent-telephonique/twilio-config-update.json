@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  accountSid: body.accountSid,\n  authToken: body.authToken,\n  phoneNumber: body.phoneNumber,\n  isActive: body.isActive !== undefined ? body.isActive : true\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  accountSid: body.accountSid,\n  authToken: body.authToken,\n  phoneNumber: body.phoneNumber,\n  isActive: body.isActive !== undefined ? body.isActive : true\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: id, tenantId'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required fields: id, tenantId' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -80,7 +80,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -96,7 +97,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -108,7 +109,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst setClauses = [];\nconst params = [];\nlet idx = 1;\n\nif (data.accountSid !== undefined) {\n  setClauses.push('account_sid = $' + idx);\n  params.push(data.accountSid);\n  idx++;\n}\n\nif (data.authToken !== undefined) {\n  setClauses.push('auth_token = $' + idx);\n  params.push(data.authToken);\n  idx++;\n}\n\nif (data.phoneNumber !== undefined) {\n  setClauses.push('phone_number = $' + idx);\n  params.push(data.phoneNumber);\n  idx++;\n}\n\nif (data.isActive !== undefined) {\n  setClauses.push('is_active = $' + idx);\n  params.push(!!data.isActive);\n  idx++;\n}\n\nsetClauses.push('updated_at = NOW()');\n\nconst whereParts = [];\nwhereParts.push('id = $' + idx);\nparams.push(data.id);\nidx++;\nwhereParts.push('tenant_id = $' + idx);\nparams.push(data.tenantId);\nidx++;\n\nconst query = 'UPDATE twilio_configs SET ' + setClauses.join(', ') + ' WHERE ' + whereParts.join(' AND ');\n\nreturn [{ json: { ...data, query, params } }];"
+        "jsCode": "var data = $input.first().json;\nvar setClauses = [];\nvar params = [];\nvar idx = 1;\n\nif (data.accountSid !== undefined) {\n  setClauses.push('account_sid = $' + idx);\n  params.push(data.accountSid);\n  idx++;\n}\n\nif (data.authToken !== undefined) {\n  setClauses.push('auth_token = $' + idx);\n  params.push(data.authToken);\n  idx++;\n}\n\nif (data.phoneNumber !== undefined) {\n  setClauses.push('phone_number = $' + idx);\n  params.push(data.phoneNumber);\n  idx++;\n}\n\nif (data.isActive !== undefined) {\n  setClauses.push('is_active = $' + idx);\n  params.push(!!data.isActive);\n  idx++;\n}\n\nsetClauses.push('updated_at = NOW()');\n\nvar whereParts = [];\nwhereParts.push('id = $' + idx);\nparams.push(data.id);\nidx++;\nwhereParts.push('tenant_id = $' + idx);\nparams.push(data.tenantId);\nidx++;\n\nvar query = 'UPDATE twilio_configs SET ' + setClauses.join(', ') + ' WHERE ' + whereParts.join(' AND ');\n\nreturn [{ json: { ...data, query, params } }];"
       },
       "id": "Build Update Query",
       "name": "Build Update Query",

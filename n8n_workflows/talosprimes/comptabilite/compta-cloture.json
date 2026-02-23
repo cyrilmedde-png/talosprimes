@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.exerciceId) throw new Error('exerciceId is required');\nreturn [{ json: { tenantId: body.tenantId, exerciceId: body.exerciceId, confirme: body.confirme === true } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.exerciceId) throw new Error('exerciceId is required');\nreturn [{ json: { tenantId: body.tenantId, exerciceId: body.exerciceId, confirme: body.confirme === true } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,7 +102,8 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -121,11 +123,12 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const exerciceArr = $('05. Get Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceArr.length === 0) throw new Error('Exercice non trouvé ou déjà clôturé');\nconst exercice = exerciceArr[0];\n\nconst nbBrouillon = parseInt($('06. Check Brouillons').first().json.nb_brouillon) || 0;\nconst calc = $('07. Calc Resultat').first().json;\nconst p = $('02. Parser').first().json;\n\nconst totalDebit = parseFloat(calc.total_debit) || 0;\nconst totalCredit = parseFloat(calc.total_credit) || 0;\nconst totalProduits = parseFloat(calc.total_produits) || 0;\nconst totalCharges = parseFloat(calc.total_charges) || 0;\nconst resultatNet = Math.round((totalProduits - totalCharges) * 100) / 100;\nconst equilibre = Math.abs(totalDebit - totalCredit) < 0.01;\n\nconst avertissements = [];\nif (nbBrouillon > 0) avertissements.push(`${nbBrouillon} écriture(s) en brouillon non validée(s)`);\nif (!equilibre) avertissements.push(`Balance déséquilibrée: débit ${totalDebit} ≠ crédit ${totalCredit}`);\n\nreturn [{ json: {\n  tenantId: p.tenantId,\n  exerciceId: p.exerciceId,\n  confirme: p.confirme,\n  exercice: { code: exercice.code, dateDebut: exercice.date_debut, dateFin: exercice.date_fin },\n  resultatNet,\n  benefice: resultatNet >= 0,\n  totalProduits,\n  totalCharges,\n  equilibre,\n  nbBrouillon,\n  avertissements,\n  peutCloturer: equilibre && nbBrouillon === 0\n} }];"
+        "jsCode": "var exerciceArr = $('05. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Exercice non trouvé ou déjà clôturé');\nvar exercice = exerciceArr[0];\n\nvar nbBrouillon = parseInt($('06. Check Brouillons').first().json.nb_brouillon) || 0;\nvar calc = $('07. Calc Resultat').first().json;\nvar p = $('02. Parser').first().json;\n\nvar totalDebit = parseFloat(calc.total_debit) || 0;\nvar totalCredit = parseFloat(calc.total_credit) || 0;\nvar totalProduits = parseFloat(calc.total_produits) || 0;\nvar totalCharges = parseFloat(calc.total_charges) || 0;\nvar resultatNet = Math.round((totalProduits - totalCharges) * 100) / 100;\nvar equilibre = Math.abs(totalDebit - totalCredit) < 0.01;\n\nvar avertissements = [];\nif (nbBrouillon > 0) avertissements.push(`${nbBrouillon} écriture(s) en brouillon non validée(s)`);\nif (!equilibre) avertissements.push(`Balance déséquilibrée: débit ${totalDebit} ≠ crédit ${totalCredit}`);\n\nreturn [{ json: {\n  tenantId: p.tenantId,\n  exerciceId: p.exerciceId,\n  confirme: p.confirme,\n  exercice: { code: exercice.code, dateDebut: exercice.date_debut, dateFin: exercice.date_fin },\n  resultatNet,\n  benefice: resultatNet >= 0,\n  totalProduits,\n  totalCharges,\n  equilibre,\n  nbBrouillon,\n  avertissements,\n  peutCloturer: equilibre && nbBrouillon === 0\n} }];"
       },
       "id": "08. Pre-Cloture Check",
       "name": "08. Pre-Cloture Check",
@@ -174,11 +177,12 @@
       "position": [
         1700,
         200
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const check = $('08. Pre-Cloture Check').first().json;\nif (check.confirme && check.peutCloturer) {\n  const clot = $('10. Cloturer').first().json;\n  return [{ json: { success: true, message: `Exercice ${clot.code} clôturé. Résultat net: ${clot.resultat_net}€`, resultatNet: parseFloat(clot.resultat_net), cloture: true } }];\n} else {\n  return [{ json: {\n    success: true,\n    cloture: false,\n    message: check.peutCloturer ? 'Prêt à clôturer. Renvoyez avec confirme=true pour valider.' : 'Impossible de clôturer.',\n    verification: {\n      resultatNet: check.resultatNet,\n      benefice: check.benefice,\n      equilibre: check.equilibre,\n      nbBrouillon: check.nbBrouillon,\n      avertissements: check.avertissements,\n      peutCloturer: check.peutCloturer\n    }\n  } }];\n}"
+        "jsCode": "var check = $('08. Pre-Cloture Check').first().json;\nif (check.confirme && check.peutCloturer) {\n  var clot = $('10. Cloturer').first().json;\n  return [{ json: { success: true, message: `Exercice ${clot.code} clôturé. Résultat net: ${clot.resultat_net}€`, resultatNet: parseFloat(clot.resultat_net), cloture: true } }];\n} else {\n  return [{ json: {\n    success: true,\n    cloture: false,\n    message: check.peutCloturer ? 'Prêt à clôturer. Renvoyez avec confirme=true pour valider.' : 'Impossible de clôturer.',\n    verification: {\n      resultatNet: check.resultatNet,\n      benefice: check.benefice,\n      equilibre: check.equilibre,\n      nbBrouillon: check.nbBrouillon,\n      avertissements: check.avertissements,\n      peutCloturer: check.peutCloturer\n    }\n  } }];\n}"
       },
       "id": "11. Format Response",
       "name": "11. Format Response",
@@ -192,7 +196,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "12. Respond",
       "name": "12. Respond",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.invoiceId) throw new Error('invoiceId is required');\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.invoiceId) throw new Error('invoiceId is required');\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,7 +102,8 @@
       "position": [
         900,
         200
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -121,7 +123,8 @@
       "position": [
         900,
         400
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -141,11 +144,12 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const inv = $('05. Get Invoice').all().map(i => i.json).filter(i => i.id);\nif (inv.length === 0) throw new Error('Facture non trouvée');\nconst invoice = inv[0];\n\nconst exerciceArr = $('07. Get Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\n\nconst exerciceId = exerciceArr[0].id;\nconst nextNum = parseInt($('08. Next Number').first().json.next_num) || 1;\nconst year = new Date().getFullYear();\nconst numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nconst montantHt = parseFloat(invoice.montant_ht) || 0;\nconst montantTtc = parseFloat(invoice.montant_ttc) || 0;\nconst tva = Math.round((montantTtc - montantHt) * 100) / 100;\nconst clientName = invoice.client_raison_sociale || invoice.client_nom || 'Client';\nconst dateEcriture = invoice.date_facture || new Date().toISOString().split('T')[0];\n\nconst compteProduit = invoice.type === 'facture_entreprise' ? '706000' : '707000';\n\nreturn [{ json: {\n  tenantId: invoice.tenant_id,\n  exerciceId,\n  numeroPiece,\n  dateEcriture,\n  libelle: `Facture ${invoice.numero_facture} - ${clientName}`,\n  referenceDoc: invoice.numero_facture,\n  invoiceId: invoice.id,\n  montantHt,\n  montantTtc,\n  tva,\n  compteProduit\n} }];"
+        "jsCode": "var inv = $('05. Get Invoice').all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\nif (inv.length === 0) throw new Error('Facture non trouvée');\nvar invoice = inv[0];\n\nvar exerciceArr = $('07. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\n\nvar exerciceId = exerciceArr[0].id;\nvar nextNum = parseInt($('08. Next Number').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nvar montantHt = parseFloat(invoice.montant_ht) || 0;\nvar montantTtc = parseFloat(invoice.montant_ttc) || 0;\nvar tva = Math.round((montantTtc - montantHt) * 100) / 100;\nvar clientName = invoice.client_raison_sociale || invoice.client_nom || 'Client';\nvar dateEcriture = invoice.date_facture || new Date().toISOString().split('T')[0];\n\nvar compteProduit = invoice.type === 'facture_entreprise' ? '706000' : '707000';\n\nreturn [{ json: {\n  tenantId: invoice.tenant_id,\n  exerciceId,\n  numeroPiece,\n  dateEcriture,\n  libelle: `Facture ${invoice.numero_facture} - ${clientName}`,\n  referenceDoc: invoice.numero_facture,\n  invoiceId: invoice.id,\n  montantHt,\n  montantTtc,\n  tva,\n  compteProduit\n} }];"
       },
       "id": "09. Build Ecriture",
       "name": "09. Build Ecriture",
@@ -174,7 +178,8 @@
       "position": [
         1500,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -194,11 +199,12 @@
       "position": [
         1700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const ecriture = $('10. Insert Ecriture').first().json;\nconst lignes = $('11. Insert Lines').all().map(i => i.json).filter(l => l.id);\nconst b = $('09. Build Ecriture').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: `Écriture comptable ${ecriture.numero_piece} créée automatiquement`,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    journal: 'VE',\n    montantTtc: b.montantTtc,\n    montantHt: b.montantHt,\n    tva: b.tva,\n    lignes: lignes.map(l => ({ numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }))\n  }\n} }];"
+        "jsCode": "var ecriture = $('10. Insert Ecriture').first().json;\nvar lignes = $('11. Insert Lines').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\nvar b = $('09. Build Ecriture').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: `Écriture comptable ${ecriture.numero_piece} créée automatiquement`,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    journal: 'VE',\n    montantTtc: b.montantTtc,\n    montantHt: b.montantHt,\n    tva: b.tva,\n    lignes: lignes.map(function(l) { return { numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }; })\n  }\n} }];"
       },
       "id": "12. Format Response",
       "name": "12. Format Response",
@@ -212,7 +218,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "13. Respond",
       "name": "13. Respond",
@@ -272,11 +278,6 @@
             "node": "06. Get Lines",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "07. Get Exercice",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -285,7 +286,7 @@
       "main": [
         [
           {
-            "node": "08. Next Number",
+            "node": "07. Get Exercice",
             "type": "main",
             "index": 0
           }

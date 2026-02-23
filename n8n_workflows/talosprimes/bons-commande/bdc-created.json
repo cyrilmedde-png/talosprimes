@@ -11,17 +11,23 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\nif (!body.clientFinalId) {\n  throw new Error('clientFinalId is required');\n}\n\nconst montantHt = parseFloat(body.montantHt) || 0;\nconst tvaTaux = parseFloat(body.tvaTaux) || 20;\nconst montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateBdc: body.dateBdc || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\nif (!body.clientFinalId) {\n  throw new Error('clientFinalId is required');\n}\n\nvar montantHt = parseFloat(body.montantHt) || 0;\nvar tvaTaux = parseFloat(body.tvaTaux) || 20;\nvar montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateBdc: body.dateBdc || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,7 +58,10 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
@@ -66,27 +78,37 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroBdc } }];"
+        "jsCode": "var parser = $('02. Parser').first().json;\nvar nextNum = $('05. Get Next Number').first().json.next_num || 1;\nvar year = new Date().getFullYear();\nvar numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroBdc } }];"
       },
       "id": "06. Generate Number",
       "name": "06. Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const d = $json;\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nconst clientPart = d.clientFinalId ? esc(d.clientFinalId) : 'NULL';\nconst descPart = d.description ? esc(d.description) : 'NULL';\nconst modePart = d.modePaiement ? esc(d.modePaiement) : 'NULL';\nconst validitePart = d.dateValidite ? esc(d.dateValidite) : 'NULL';\n\nconst query = 'INSERT INTO bons_commande (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), ' + esc(d.tenantId) + '::uuid, ' + clientPart + ', ' + esc(d.numeroBdc) + ', ' + esc(d.dateBdc) + ', ' + validitePart + ', ' + d.montantHt + ', ' + d.montantTtc + ', ' + (d.tvaTaux || 20) + ', ' + descPart + ', ' + modePart + ', ' + \"'brouillon'\" + ', NOW(), NOW()) RETURNING *';\n\nreturn [{ json: { query, lines: d.lines || [] } }];"
+        "jsCode": "var d = $json;\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar clientPart = d.clientFinalId ? esc(d.clientFinalId) : 'NULL';\nvar descPart = d.description ? esc(d.description) : 'NULL';\nvar modePart = d.modePaiement ? esc(d.modePaiement) : 'NULL';\nvar validitePart = d.dateValidite ? esc(d.dateValidite) : 'NULL';\n\nvar query = 'INSERT INTO bons_commande (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, created_at, updated_at) VALUES (gen_random_uuid(), ' + esc(d.tenantId) + '::uuid, ' + clientPart + ', ' + esc(d.numeroBdc) + ', ' + esc(d.dateBdc) + ', ' + validitePart + ', ' + d.montantHt + ', ' + d.montantTtc + ', ' + (d.tvaTaux || 20) + ', ' + descPart + ', ' + modePart + ', ' + \"'brouillon'\" + ', NOW(), NOW()) RETURNING *';\n\nreturn [{ json: { query, lines: d.lines || [] } }];"
       },
       "id": "07. Build Insert SQL",
       "name": "07. Build Insert SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -103,17 +125,24 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const bdc = $json;\nconst lines = $('07. Build Insert SQL').first().json.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { bdcId: bdc.id, hasLines: false, query: 'SELECT 1' } }];\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nconst values = lines.map(function(line, i) {\n  var parentId = esc(bdc.id);\n  var codeArticle = line.codeArticle ? esc(line.codeArticle) : 'NULL';\n  var designation = esc(String(line.designation || '').substring(0, 500));\n  var quantite = parseFloat(line.quantite) || 1;\n  var prixUnitaireHt = parseFloat(line.prixUnitaireHt || line.prixUnitaireHT) || 0;\n  var totalHt = Math.round(quantite * prixUnitaireHt * 100) / 100;\n  var ordre = i;\n  return '(gen_random_uuid(), ' + parentId + ', ' + codeArticle + ', ' + designation + ', ' + quantite + ', ' + prixUnitaireHt + ', ' + totalHt + ', ' + ordre + ')';\n}).join(', ');\n\nvar query = 'INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ' + values + ' RETURNING id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre';\n\nreturn [{ json: { bdcId: bdc.id, hasLines: true, query: query } }];"
+        "jsCode": "var bdc = $json;\nvar lines = $('07. Build Insert SQL').first().json.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { bdcId: bdc.id, hasLines: false, query: 'SELECT 1' } }];\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar values = lines.map(function(line, i) {\n  var parentId = esc(bdc.id);\n  var codeArticle = line.codeArticle ? esc(line.codeArticle) : 'NULL';\n  var designation = esc(String(line.designation || '').substring(0, 500));\n  var quantite = parseFloat(line.quantite) || 1;\n  var prixUnitaireHt = parseFloat(line.prixUnitaireHt || line.prixUnitaireHT) || 0;\n  var totalHt = Math.round(quantite * prixUnitaireHt * 100) / 100;\n  var ordre = i;\n  return '(gen_random_uuid(), ' + parentId + ', ' + codeArticle + ', ' + designation + ', ' + quantite + ', ' + prixUnitaireHt + ', ' + totalHt + ', ' + ordre + ')';\n}).join(', ');\n\nvar query = 'INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ' + values + ' RETURNING id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre';\n\nreturn [{ json: { bdcId: bdc.id, hasLines: true, query: query } }];"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 300]
+      "position": [
+        1500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -130,17 +159,24 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1700, 300]
+      "position": [
+        1700,
+        300
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const bdc = $('07b. Insert BdC').first().json;\n\nreturn [{ json: {\n  id: bdc.id,\n  tenantId: bdc.tenant_id,\n  clientFinalId: bdc.client_final_id,\n  numeroBdc: bdc.numero_bdc,\n  dateBdc: bdc.date_bdc,\n  dateValidite: bdc.date_validite,\n  montantHt: bdc.montant_ht,\n  montantTtc: bdc.montant_ttc,\n  tvaTaux: bdc.tva_taux,\n  description: bdc.description,\n  modePaiement: bdc.mode_paiement,\n  statut: bdc.statut,\n  createdAt: bdc.created_at,\n  updatedAt: bdc.updated_at\n} }];"
+        "jsCode": "var bdc = $('07b. Insert BdC').first().json;\n\nreturn [{ json: {\n  id: bdc.id,\n  tenantId: bdc.tenant_id,\n  clientFinalId: bdc.client_final_id,\n  numeroBdc: bdc.numero_bdc,\n  dateBdc: bdc.date_bdc,\n  dateValidite: bdc.date_validite,\n  montantHt: bdc.montant_ht,\n  montantTtc: bdc.montant_ttc,\n  tvaTaux: bdc.tva_taux,\n  description: bdc.description,\n  modePaiement: bdc.mode_paiement,\n  statut: bdc.statut,\n  createdAt: bdc.created_at,\n  updatedAt: bdc.updated_at\n} }];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 300]
+      "position": [
+        1900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -151,42 +187,129 @@
       "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2100, 300]
+      "position": [
+        2100,
+        300
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Valide ?": {
       "main": [
-        [{ "node": "05. Get Next Number", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "05. Get Next Number",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "05. Get Next Number": {
-      "main": [[{ "node": "06. Generate Number", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Generate Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Generate Number": {
-      "main": [[{ "node": "07. Build Insert SQL", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Build Insert SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Build Insert SQL": {
-      "main": [[{ "node": "07b. Insert BdC", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07b. Insert BdC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07b. Insert BdC": {
-      "main": [[{ "node": "08. Prepare Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Prepare Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Prepare Lines": {
-      "main": [[{ "node": "09. Insert Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "09. Insert Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Insert Lines": {
-      "main": [[{ "node": "10. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "10. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "10. Format Response": {
-      "main": [[{ "node": "11. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "11. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

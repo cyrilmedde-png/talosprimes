@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// === VALIDATION STRICTE (anti-injection SQL) ===\nconst UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst DATE_RE = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst SAFE_TEXT = /^[\\w\\s\\-àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ.,;:!?()\\/#&€@+'\"°%*]+$/;\nconst VALID_JOURNAL_CODES = ['VE', 'AC', 'BQ', 'CA', 'OD', 'AN', 'EXT'];\nconst VALID_TYPES_PIECE = ['facture', 'avoir', 'reglement', 'manuelle', 'ouverture'];\nconst VALID_SOURCES = ['facture', 'avoir', 'reglement', 'manuelle', 'import'];\nconst VALID_ENTITE_TYPES = ['facture', 'avoir', 'devis', 'bon_commande', 'proforma', null];\n\n// Escaping removed - values are validated by SAFE_TEXT regex and passed as params downstream\n\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID valide)');\nif (!body.journalCode || !VALID_JOURNAL_CODES.includes(body.journalCode)) throw new Error('journalCode invalide: ' + VALID_JOURNAL_CODES.join(', '));\nif (!body.libelle || !SAFE_TEXT.test(body.libelle)) throw new Error('libelle requis (caractères spéciaux non autorisés)');\nif (!body.lignes || !Array.isArray(body.lignes) || body.lignes.length < 2) throw new Error('Au moins 2 lignes requises');\n\nconst dateEcriture = body.dateEcriture || new Date().toISOString().split('T')[0];\nif (!DATE_RE.test(dateEcriture)) throw new Error('dateEcriture format invalide (YYYY-MM-DD)');\nif (body.dateEcheance && !DATE_RE.test(body.dateEcheance)) throw new Error('dateEcheance format invalide');\n\nconst typePiece = body.typePiece || 'manuelle';\nif (!VALID_TYPES_PIECE.includes(typePiece)) throw new Error('typePiece invalide');\nconst source = body.source || 'manuelle';\nif (!VALID_SOURCES.includes(source)) throw new Error('source invalide');\nif (body.entiteType && !VALID_ENTITE_TYPES.includes(body.entiteType)) throw new Error('entiteType invalide');\nif (body.entiteId && !UUID_RE.test(body.entiteId)) throw new Error('entiteId doit être un UUID valide');\n\nconst lignes = body.lignes;\nconst totalDebit = lignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);\nconst totalCredit = lignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);\nif (Math.abs(totalDebit - totalCredit) > 0.01) {\n  throw new Error(`Écriture déséquilibrée: débit ${totalDebit.toFixed(2)} ≠ crédit ${totalCredit.toFixed(2)}`);\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  journalCode: body.journalCode,\n  dateEcriture,\n  dateEcheance: body.dateEcheance || null,\n  libelle: body.libelle,\n  reference: body.reference || null,\n  typePiece,\n  entiteType: body.entiteType || null,\n  entiteId: body.entiteId || null,\n  montantTotal: totalDebit,\n  source,\n  lignes: JSON.stringify(lignes)\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\n// === VALIDATION STRICTE (anti-injection SQL) ===\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nvar DATE_RE = /^\\d{4}-\\d{2}-\\d{2}$/;\nvar SAFE_TEXT = /^[\\w\\s\\-àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ.,;:!?()\\/#&€@+'\"°%*]+$/;\nvar VALID_JOURNAL_CODES = ['VE', 'AC', 'BQ', 'CA', 'OD', 'AN', 'EXT'];\nvar VALID_TYPES_PIECE = ['facture', 'avoir', 'reglement', 'manuelle', 'ouverture'];\nvar VALID_SOURCES = ['facture', 'avoir', 'reglement', 'manuelle', 'import'];\nvar VALID_ENTITE_TYPES = ['facture', 'avoir', 'devis', 'bon_commande', 'proforma', null];\n\n// Escaping removed - values are validated by SAFE_TEXT regex and passed as params downstream\n\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID valide)');\nif (!body.journalCode || !VALID_JOURNAL_CODES.includes(body.journalCode)) throw new Error('journalCode invalide: ' + VALID_JOURNAL_CODES.join(', '));\nif (!body.libelle || !SAFE_TEXT.test(body.libelle)) throw new Error('libelle requis (caractères spéciaux non autorisés)');\nif (!body.lignes || !Array.isArray(body.lignes) || body.lignes.length < 2) throw new Error('Au moins 2 lignes requises');\n\nvar dateEcriture = body.dateEcriture || new Date().toISOString().split('T')[0];\nif (!DATE_RE.test(dateEcriture)) throw new Error('dateEcriture format invalide (YYYY-MM-DD)');\nif (body.dateEcheance && !DATE_RE.test(body.dateEcheance)) throw new Error('dateEcheance format invalide');\n\nvar typePiece = body.typePiece || 'manuelle';\nif (!VALID_TYPES_PIECE.includes(typePiece)) throw new Error('typePiece invalide');\nvar source = body.source || 'manuelle';\nif (!VALID_SOURCES.includes(source)) throw new Error('source invalide');\nif (body.entiteType && !VALID_ENTITE_TYPES.includes(body.entiteType)) throw new Error('entiteType invalide');\nif (body.entiteId && !UUID_RE.test(body.entiteId)) throw new Error('entiteId doit être un UUID valide');\n\nvar lignes = body.lignes;\nvar totalDebit = lignes.reduce(function(s, l) { return s + (parseFloat(l.debit) || 0); }; }, 0);\nvar totalCredit = lignes.reduce(function(s, l) { return s + (parseFloat(l.credit) || 0); }; }, 0);\nif (Math.abs(totalDebit - totalCredit) > 0.01) {\n  throw new Error(`Écriture déséquilibrée: débit ${totalDebit.toFixed(2)} ≠ crédit ${totalCredit.toFixed(2)}`);\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  journalCode: body.journalCode,\n  dateEcriture,\n  dateEcheance: body.dateEcheance || null,\n  libelle: body.libelle,\n  reference: body.reference || null,\n  typePiece,\n  entiteType: body.entiteType || null,\n  entiteId: body.entiteId || null,\n  montantTotal: totalDebit,\n  source,\n  lignes: JSON.stringify(lignes)\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const exerciceResult = $('05. Find Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceResult.length === 0) throw new Error('Aucun exercice ouvert pour cette date');\n\nconst exerciceId = exerciceResult[0].id;\nconst nextNum = parseInt($('06. Next Number').first().json.next_num) || 1;\nconst year = new Date().getFullYear();\nconst numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\nconst p = $('02. Parser').first().json;\n\nreturn [{ json: { ...p, exerciceId, numeroPiece } }];"
+        "jsCode": "var exerciceResult = $('05. Find Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceResult.length === 0) throw new Error('Aucun exercice ouvert pour cette date');\n\nvar exerciceId = exerciceResult[0].id;\nvar nextNum = parseInt($('06. Next Number').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\nvar p = $('02. Parser').first().json;\n\nreturn [{ json: { ...p, exerciceId, numeroPiece } }];"
       },
       "id": "07. Build Numero",
       "name": "07. Build Numero",
@@ -134,11 +136,12 @@
       "position": [
         1300,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const ecriture = $('08. Insert Ecriture').first().json;\nconst lignes = JSON.parse($('02. Parser').first().json.lignes);\n\n// Validation stricte des données des lignes\nconst UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst COMPTE_RE = /^[0-9]{3,10}$/;\n\nif (!ecriture.id || !UUID_RE.test(ecriture.id)) throw new Error('ID écriture invalide');\n\nconst params = [];\nlet paramIdx = 1;\n\nconst values = lignes.map((l, i) => {\n  const debit = parseFloat(l.debit) || 0;\n  const credit = parseFloat(l.credit) || 0;\n  if (!Number.isFinite(debit) || !Number.isFinite(credit)) throw new Error(`Ligne ${i}: montant invalide`);\n  const numeroCompte = String(l.numeroCompte || '').trim();\n  if (!COMPTE_RE.test(numeroCompte)) throw new Error(`Ligne ${i}: numéro de compte invalide (${numeroCompte})`);\n  const libelle = String(l.libelle || '').substring(0, 255);\n\n  params.push(ecriture.id, numeroCompte, libelle, debit, credit, i);\n  const p = `($${paramIdx}, $${paramIdx+1}, $${paramIdx+2}, $${paramIdx+3}, $${paramIdx+4}, $${paramIdx+5})`;\n  paramIdx += 6;\n  return p;\n}).join(',\n');\n\nconst query = `INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES ${values} RETURNING id, numero_compte, libelle, debit, credit, ordre;`;\nreturn [{ json: { ecritureId: ecriture.id, query, params } }];"
+        "jsCode": "var ecriture = $('08. Insert Ecriture').first().json;\nvar lignes = JSON.parse($('02. Parser').first().json.lignes);\n\n// Validation stricte des données des lignes\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nvar COMPTE_RE = /^[0-9]{3,10}$/;\n\nif (!ecriture.id || !UUID_RE.test(ecriture.id)) throw new Error('ID écriture invalide');\n\nvar params = [];\nvar paramIdx = 1;\n\nvar values = lignes.map(function(l, i) { return {\n  var debit = parseFloat(l.debit) || 0;\n  var credit = parseFloat(l.credit) || 0;\n  if (!Number.isFinite(debit) || !Number.isFinite(credit)) throw new Error(`Ligne ${i}: montant invalide`);\n  var numeroCompte = String(l.numeroCompte || '').trim();\n  if (!COMPTE_RE.test(numeroCompte)) throw new Error(`Ligne ${i}: numéro de compte invalide (${numeroCompte})`);\n  var libelle = String(l.libelle || '').substring(0, 255);\n\n  params.push(ecriture.id, numeroCompte, libelle, debit, credit, i);\n  var p = `($${paramIdx}, $${paramIdx+1}, $${paramIdx+2}, $${paramIdx+3}, $${paramIdx+4}, $${paramIdx+5})`;\n  paramIdx += 6;\n  return p;\n}; }).join(',\n');\n\nvar query = `INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES ${values} RETURNING id, numero_compte, libelle, debit, credit, ordre;`;\nreturn [{ json: { ecritureId: ecriture.id, query, params } }];"
       },
       "id": "09. Build Lines SQL",
       "name": "09. Build Lines SQL",
@@ -167,11 +170,12 @@
       "position": [
         1700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const ecriture = $('08. Insert Ecriture').first().json;\nconst lignes = $('10. Insert Lines').all().map(i => i.json).filter(l => l.id);\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    dateEcriture: ecriture.date_ecriture,\n    libelle: ecriture.libelle,\n    montantTotal: parseFloat(ecriture.montant_total),\n    statut: ecriture.statut,\n    lignes: lignes.map(l => ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0\n    }))\n  }\n} }];"
+        "jsCode": "var ecriture = $('08. Insert Ecriture').first().json;\nvar lignes = $('10. Insert Lines').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    dateEcriture: ecriture.date_ecriture,\n    libelle: ecriture.libelle,\n    montantTotal: parseFloat(ecriture.montant_total),\n    statut: ecriture.statut,\n    lignes: lignes.map(function(l) { return ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0\n    }); })\n  }\n} }];"
       },
       "id": "11. Format Response",
       "name": "11. Format Response",
@@ -185,7 +189,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "12. Respond",
       "name": "12. Respond",

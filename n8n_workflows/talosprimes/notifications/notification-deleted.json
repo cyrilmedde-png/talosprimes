@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.id) {\n  throw new Error('tenantId and id are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  id: body.id\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.id) {\n  throw new Error('tenantId and id are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  id: body.id\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -83,11 +83,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const deleted = $('05. Delete Notification').all().map(item => item.json).filter(d => d.id);\n\nif (deleted.length === 0) {\n  throw new Error('Notification not found');\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Notification deleted successfully',\n  notificationId: deleted[0].id\n} }];"
+        "jsCode": "var deleted = $('05. Delete Notification').all().map(function(item) { return item.json; }).filter(function(d) { return d.id; });\n\nif (deleted.length === 0) {\n  throw new Error('Notification not found');\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Notification deleted successfully',\n  notificationId: deleted[0].id\n} }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
@@ -103,7 +104,7 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

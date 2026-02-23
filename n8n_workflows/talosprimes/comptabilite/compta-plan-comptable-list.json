@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nconst classe = body.classe ? parseInt(body.classe) : null;\nconst search = body.search || null;\nconst nature = body.nature || null;\nreturn [{ json: { tenantId: body.tenantId, classe, search, nature } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar classe = body.classe ? parseInt(body.classe) : null;\nvar search = body.search || null;\nvar nature = body.nature || null;\nreturn [{ json: { tenantId: body.tenantId, classe, search, nature } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const items = $('05. Query').all().map(item => item.json).filter(c => c.id);\nconst comptes = items.map(c => ({\n  id: c.id,\n  numeroCompte: c.numero_compte,\n  libelle: c.libelle,\n  classe: c.classe,\n  type: c.type,\n  nature: c.nature,\n  compteParent: c.compte_parent,\n  soldeDebit: parseFloat(c.solde_debit) || 0,\n  soldeCredit: parseFloat(c.solde_credit) || 0,\n  solde: (parseFloat(c.solde_debit) || 0) - (parseFloat(c.solde_credit) || 0)\n}));\nreturn [{ json: { success: true, comptes, count: comptes.length } }];"
+        "jsCode": "var items = $('05. Query').all().map(function(item) { return item.json; }).filter(function(c) { return c.id; });\nvar comptes = items.map(function(c) { return ({\n  id: c.id,\n  numeroCompte: c.numero_compte,\n  libelle: c.libelle,\n  classe: c.classe,\n  type: c.type,\n  nature: c.nature,\n  compteParent: c.compte_parent,\n  soldeDebit: parseFloat(c.solde_debit) || 0,\n  soldeCredit: parseFloat(c.solde_credit) || 0,\n  solde: (parseFloat(c.solde_debit) || 0) - (parseFloat(c.solde_credit) || 0)\n}); });\nreturn [{ json: { success: true, comptes, count: comptes.length } }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
@@ -99,7 +100,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

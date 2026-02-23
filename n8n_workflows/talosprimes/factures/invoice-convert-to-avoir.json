@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, invoiceId: body.invoiceId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const inv = $('05. Get Invoice').first().json;\n\nif (!inv || !inv.id) {\n  throw new Error('Facture non trouvée ou statut incompatible (brouillon/annulée)');\n}\n\nreturn [{ json: inv }];"
+        "jsCode": "var inv = $('05. Get Invoice').first().json;\n\nif (!inv || !inv.id) {\n  throw new Error('Facture non trouvée ou statut incompatible (brouillon/annulée)');\n}\n\nreturn [{ json: inv }];"
       },
       "id": "06. Check Invoice",
       "name": "06. Check Invoice",
@@ -114,11 +115,12 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const inv = $('06. Check Invoice').first().json;\nconst nextNum = $('07. Get Next Avoir Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroAvoir = 'AVO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...inv, numeroAvoir } }];"
+        "jsCode": "var inv = $('06. Check Invoice').first().json;\nvar nextNum = $('07. Get Next Avoir Number').first().json.next_num || 1;\nvar year = new Date().getFullYear();\nvar numeroAvoir = 'AVO-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...inv, numeroAvoir } }];"
       },
       "id": "08. Prepare Avoir",
       "name": "08. Prepare Avoir",
@@ -147,7 +149,8 @@
       "position": [
         1500,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -167,11 +170,12 @@
       "position": [
         1700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "// Original prepare logic\nconst _origFn = function() {\nconst avoir = $('09. Create Avoir').first().json;\nconst lines = $('10. Get Invoice Lines').all().map(item => item.json).filter(l => l.id);\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, hasLines: false } }];\n}\n\nconst lineInserts = lines.map(line => ({\n  avoirId: avoir.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}));\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];\n};\nconst _origResult = _origFn();\nconst prev = _origResult[0].json;\n\nconst items = prev.lineInserts || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nconst params = [];\nlet idx = 1;\n\nconst values = items.map((item, i) => {\n  const parentId = item.avoirId;\n  const codeArticle = item.codeArticle || null;\n  const designation = String(item.designation || '').substring(0, 500);\n  const quantite = parseFloat(item.quantite) || 0;\n  const prixUnitaireHt = parseFloat(item.prixUnitaireHt) || 0;\n  const totalHt = parseFloat(item.totalHt) || 0;\n  const ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  const p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}).join(',\n');\n\nconst query = `INSERT INTO avoir_lines (id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
+        "jsCode": "// Original prepare logic\nvar _origFn = function() {\nvar avoir = $('09. Create Avoir').first().json;\nvar lines = $('10. Get Invoice Lines').all().map(function(item) { return item.json; }).filter(function(l) { return l.id; });\n\nif (lines.length === 0) {\n  return [{ json: { avoirId: avoir.id, hasLines: false } }];\n}\n\nvar lineInserts = lines.map(function(line) { return ({\n  avoirId: avoir.id,\n  codeArticle: line.code_article || null,\n  designation: line.designation || '',\n  quantite: line.quantite || 1,\n  prixUnitaireHt: line.prix_unitaire_ht || 0,\n  totalHt: line.total_ht || 0,\n  ordre: line.ordre || 0\n}); });\n\nreturn [{ json: { avoirId: avoir.id, lineInserts, hasLines: true } }];\n};\nvar _origResult = _origFn();\nvar prev = _origResult[0].json;\n\nvar items = prev.lineInserts || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nvar params = [];\nvar idx = 1;\n\nvar values = items.map(function(item, i) { return {\n  var parentId = item.avoirId;\n  var codeArticle = item.codeArticle || null;\n  var designation = String(item.designation || '').substring(0, 500);\n  var quantite = parseFloat(item.quantite) || 0;\n  var prixUnitaireHt = parseFloat(item.prixUnitaireHt) || 0;\n  var totalHt = parseFloat(item.totalHt) || 0;\n  var ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  var p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}; }).join(',\n');\n\nvar query = `INSERT INTO avoir_lines (id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, avoir_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
       },
       "id": "11. Prepare Avoir Lines",
       "name": "11. Prepare Avoir Lines",
@@ -200,7 +204,8 @@
       "position": [
         2100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -220,7 +225,8 @@
       "position": [
         2300,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -245,7 +251,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const avoir = $('09. Create Avoir').first().json;\nconst invoiceUpdate = $('13. Update Invoice Annulee').first().json;\n\nlet comptaResult = null;\ntry {\n  const compta = $('14. Call Compta Avoir').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation avoir' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta avoir échoué: ' + e.message };\n}\n\nreturn [{ json: {\n  success: true,\n  avoir: {\n    id: avoir.id,\n    tenantId: avoir.tenant_id,\n    clientFinalId: avoir.client_final_id,\n    invoiceId: avoir.invoice_id,\n    numeroAvoir: avoir.numero_avoir,\n    dateAvoir: avoir.date_avoir,\n    montantHt: avoir.montant_ht,\n    montantTtc: avoir.montant_ttc,\n    tvaTaux: avoir.tva_taux,\n    motif: avoir.motif,\n    statut: avoir.statut,\n    createdAt: avoir.created_at\n  },\n  invoiceStatut: 'annulee',\n  comptabilisation: comptaResult\n} }];"
+        "jsCode": "var avoir = $('09. Create Avoir').first().json;\nvar invoiceUpdate = $('13. Update Invoice Annulee').first().json;\n\nvar comptaResult = null;\ntry {\n  var compta = $('14. Call Compta Avoir').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation avoir' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta avoir échoué: ' + e.message };\n}\n\nreturn [{ json: {\n  success: true,\n  avoir: {\n    id: avoir.id,\n    tenantId: avoir.tenant_id,\n    clientFinalId: avoir.client_final_id,\n    invoiceId: avoir.invoice_id,\n    numeroAvoir: avoir.numero_avoir,\n    dateAvoir: avoir.date_avoir,\n    montantHt: avoir.montant_ht,\n    montantTtc: avoir.montant_ttc,\n    tvaTaux: avoir.tva_taux,\n    motif: avoir.motif,\n    statut: avoir.statut,\n    createdAt: avoir.created_at\n  },\n  invoiceStatut: 'annulee',\n  comptabilisation: comptaResult\n} }];"
       },
       "id": "15. Format Response",
       "name": "15. Format Response",
@@ -259,7 +265,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "16. Respond",
       "name": "16. Respond",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: {\n  tenantId: body.tenantId,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  compteFrom: body.compteFrom || null,\n  compteTo: body.compteTo || null,\n  classe: body.classe ? parseInt(body.classe) : null\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: {\n  tenantId: body.tenantId,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  compteFrom: body.compteFrom || null,\n  compteTo: body.compteTo || null,\n  classe: body.classe ? parseInt(body.classe) : null\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const items = $('05. Query Grand Livre').all().map(i => i.json).filter(l => l.numero_compte);\n\n// Grouper par compte\nconst comptes = {};\nlet totalDebit = 0, totalCredit = 0;\n\nfor (const l of items) {\n  const key = l.numero_compte;\n  if (!comptes[key]) {\n    comptes[key] = {\n      numeroCompte: l.numero_compte,\n      libelle: l.compte_libelle || l.numero_compte,\n      classe: l.classe,\n      mouvements: [],\n      totalDebit: 0,\n      totalCredit: 0\n    };\n  }\n  const debit = parseFloat(l.debit) || 0;\n  const credit = parseFloat(l.credit) || 0;\n  comptes[key].mouvements.push({\n    date: l.date_ecriture,\n    numeroPiece: l.numero_piece,\n    journal: l.journal_code,\n    libelle: l.libelle,\n    debit, credit,\n    lettrage: l.lettrage\n  });\n  comptes[key].totalDebit += debit;\n  comptes[key].totalCredit += credit;\n  totalDebit += debit;\n  totalCredit += credit;\n}\n\nconst grandLivre = Object.values(comptes).map(c => ({\n  ...c,\n  totalDebit: Math.round(c.totalDebit * 100) / 100,\n  totalCredit: Math.round(c.totalCredit * 100) / 100,\n  solde: Math.round((c.totalDebit - c.totalCredit) * 100) / 100,\n  nbMouvements: c.mouvements.length\n}));\n\nreturn [{ json: {\n  success: true,\n  grandLivre,\n  totaux: {\n    totalDebit: Math.round(totalDebit * 100) / 100,\n    totalCredit: Math.round(totalCredit * 100) / 100,\n    equilibre: Math.abs(totalDebit - totalCredit) < 0.01\n  },\n  nbComptes: grandLivre.length,\n  nbMouvements: items.length\n} }];"
+        "jsCode": "var items = $('05. Query Grand Livre').all().map(function(i) { return i.json; }).filter(function(l) { return l.numero_compte; });\n\n// Grouper par compte\nvar comptes = {};\nvar totalDebit = 0, totalCredit = 0;\n\nfor (var l of items) {\n  var key = l.numero_compte;\n  if (!comptes[key]) {\n    comptes[key] = {\n      numeroCompte: l.numero_compte,\n      libelle: l.compte_libelle || l.numero_compte,\n      classe: l.classe,\n      mouvements: [],\n      totalDebit: 0,\n      totalCredit: 0\n    };\n  }\n  var debit = parseFloat(l.debit) || 0;\n  var credit = parseFloat(l.credit) || 0;\n  comptes[key].mouvements.push({\n    date: l.date_ecriture,\n    numeroPiece: l.numero_piece,\n    journal: l.journal_code,\n    libelle: l.libelle,\n    debit, credit,\n    lettrage: l.lettrage\n  });\n  comptes[key].totalDebit += debit;\n  comptes[key].totalCredit += credit;\n  totalDebit += debit;\n  totalCredit += credit;\n}\n\nvar grandLivre = Object.values(comptes).map(function(c) { return ({\n  ...c,\n  totalDebit: Math.round(c.totalDebit * 100) / 100,\n  totalCredit: Math.round(c.totalCredit * 100) / 100,\n  solde: Math.round((c.totalDebit - c.totalCredit) * 100) / 100,\n  nbMouvements: c.mouvements.length\n}); });\n\nreturn [{ json: {\n  success: true,\n  grandLivre,\n  totaux: {\n    totalDebit: Math.round(totalDebit * 100) / 100,\n    totalCredit: Math.round(totalCredit * 100) / 100,\n    equilibre: Math.abs(totalDebit - totalCredit) < 0.01\n  },\n  nbComptes: grandLivre.length,\n  nbMouvements: items.length\n} }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
@@ -99,7 +100,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

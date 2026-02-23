@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,7 +102,8 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -121,11 +123,12 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const stats = $('05. Stats Generales').first().json;\nconst fin = $('06. Stats Financieres').first().json;\nconst evolution = $('07. Evolution Mensuelle').all().map(i => i.json).filter(e => e.mois);\n\nconst totalProduits = Math.round((parseFloat(fin.total_produits) || 0) * 100) / 100;\nconst totalCharges = Math.round((parseFloat(fin.total_charges) || 0) * 100) / 100;\nconst resultatNet = Math.round((totalProduits - totalCharges) * 100) / 100;\nconst tresorerie = Math.round((parseFloat(fin.tresorerie) || 0) * 100) / 100;\nconst creancesClients = Math.round((parseFloat(fin.creances_clients) || 0) * 100) / 100;\nconst dettesFournisseurs = Math.round((parseFloat(fin.dettes_fournisseurs) || 0) * 100) / 100;\nconst tvaCollectee = Math.round((parseFloat(fin.tva_collectee) || 0) * 100) / 100;\nconst tvaDeductible = Math.round((parseFloat(fin.tva_deductible) || 0) * 100) / 100;\nconst tvaDue = Math.round((tvaCollectee - tvaDeductible) * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  dashboard: {\n    exerciceCourant: stats.exercice_courant,\n    stats: {\n      totalEcritures: parseInt(stats.total_ecritures) || 0,\n      ecrituresBrouillon: parseInt(stats.ecritures_brouillon) || 0,\n      ecrituresValidees: parseInt(stats.ecritures_validees) || 0,\n      nbComptes: parseInt(stats.nb_comptes) || 0\n    },\n    indicateurs: {\n      chiffreAffaires: totalProduits,\n      totalCharges,\n      resultatNet,\n      margeNette: totalProduits > 0 ? Math.round((resultatNet / totalProduits) * 10000) / 100 : 0,\n      tresorerie,\n      creancesClients,\n      dettesFournisseurs,\n      besoinFondsRoulement: Math.round((creancesClients - dettesFournisseurs) * 100) / 100\n    },\n    tva: { collectee: tvaCollectee, deductible: tvaDeductible, due: tvaDue > 0 ? tvaDue : 0, credit: tvaDue < 0 ? Math.abs(tvaDue) : 0 },\n    evolutionMensuelle: evolution.map(e => ({\n      mois: e.mois,\n      produits: Math.round((parseFloat(e.produits) || 0) * 100) / 100,\n      charges: Math.round((parseFloat(e.charges) || 0) * 100) / 100,\n      resultat: Math.round(((parseFloat(e.produits) || 0) - (parseFloat(e.charges) || 0)) * 100) / 100\n    }))\n  }\n} }];"
+        "jsCode": "var stats = $('05. Stats Generales').first().json;\nvar fin = $('06. Stats Financieres').first().json;\nvar evolution = $('07. Evolution Mensuelle').all().map(function(i) { return i.json; }).filter(function(e) { return e.mois; });\n\nvar totalProduits = Math.round((parseFloat(fin.total_produits) || 0) * 100) / 100;\nvar totalCharges = Math.round((parseFloat(fin.total_charges) || 0) * 100) / 100;\nvar resultatNet = Math.round((totalProduits - totalCharges) * 100) / 100;\nvar tresorerie = Math.round((parseFloat(fin.tresorerie) || 0) * 100) / 100;\nvar creancesClients = Math.round((parseFloat(fin.creances_clients) || 0) * 100) / 100;\nvar dettesFournisseurs = Math.round((parseFloat(fin.dettes_fournisseurs) || 0) * 100) / 100;\nvar tvaCollectee = Math.round((parseFloat(fin.tva_collectee) || 0) * 100) / 100;\nvar tvaDeductible = Math.round((parseFloat(fin.tva_deductible) || 0) * 100) / 100;\nvar tvaDue = Math.round((tvaCollectee - tvaDeductible) * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  dashboard: {\n    exerciceCourant: stats.exercice_courant,\n    stats: {\n      totalEcritures: parseInt(stats.total_ecritures) || 0,\n      ecrituresBrouillon: parseInt(stats.ecritures_brouillon) || 0,\n      ecrituresValidees: parseInt(stats.ecritures_validees) || 0,\n      nbComptes: parseInt(stats.nb_comptes) || 0\n    },\n    indicateurs: {\n      chiffreAffaires: totalProduits,\n      totalCharges,\n      resultatNet,\n      margeNette: totalProduits > 0 ? Math.round((resultatNet / totalProduits) * 10000) / 100 : 0,\n      tresorerie,\n      creancesClients,\n      dettesFournisseurs,\n      besoinFondsRoulement: Math.round((creancesClients - dettesFournisseurs) * 100) / 100\n    },\n    tva: { collectee: tvaCollectee, deductible: tvaDeductible, due: tvaDue > 0 ? tvaDue : 0, credit: tvaDue < 0 ? Math.abs(tvaDue) : 0 },\n    evolutionMensuelle: evolution.map(function(e) { return ({\n      mois: e.mois,\n      produits: Math.round((parseFloat(e.produits) || 0) * 100) / 100,\n      charges: Math.round((parseFloat(e.charges) || 0) * 100) / 100,\n      resultat: Math.round(((parseFloat(e.produits) || 0) - (parseFloat(e.charges) || 0)) * 100) / 100\n    }); })\n  }\n} }];"
       },
       "id": "08. Format Dashboard",
       "name": "08. Format Dashboard",
@@ -139,7 +142,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "09. Respond",
       "name": "09. Respond",

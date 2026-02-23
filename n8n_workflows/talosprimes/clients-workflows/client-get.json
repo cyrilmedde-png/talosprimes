@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { data: { id, tenantId } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id).trim() : null;\nconst tenantId = data?.tenantId ? String(data.tenantId) : null;\n\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { id, tenantId } }];\n"
+        "jsCode": "// Parser le payload: { body: { data: { id, tenantId } } }\nvar raw = $input.first().json;\nvar payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nvar data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nvar id = data?.id ? String(data.id).trim() : null;\nvar tenantId = data?.tenantId ? String(data.tenantId) : null;\n\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\n\nreturn [{ json: { id, tenantId } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la réponse: { client: {...} }\nconst items = $input.all();\n\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { success: false, error: 'Client non trouvé' } }];\n}\n\nconst client = items[0].json;\n\nreturn [{ \n  json: { \n    success: true, \n    data: { \n      client: {\n        id: client.id,\n        tenantId: client.tenant_id,\n        type: client.type,\n        raisonSociale: client.raison_sociale ?? null,\n        nom: client.nom ?? null,\n        prenom: client.prenom ?? null,\n        email: client.email,\n        telephone: client.telephone ?? null,\n        adresse: client.adresse ?? null,\n        tags: client.tags ?? [],\n        statut: client.statut,\n        createdAt: client.created_at,\n        updatedAt: client.updated_at\n      }\n    } \n  } \n}];\n"
+        "jsCode": "// Formater la réponse: { client: {...} }\nvar items = $input.all();\n\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { success: false, error: 'Client non trouvé' } }];\n}\n\nvar client = items[0].json;\n\nreturn [{ \n  json: { \n    success: true, \n    data: { \n      client: {\n        id: client.id,\n        tenantId: client.tenant_id,\n        type: client.type,\n        raisonSociale: client.raison_sociale ?? null,\n        nom: client.nom ?? null,\n        prenom: client.prenom ?? null,\n        email: client.email,\n        telephone: client.telephone ?? null,\n        adresse: client.adresse ?? null,\n        tags: client.tags ?? [],\n        statut: client.statut,\n        createdAt: client.created_at,\n        updatedAt: client.updated_at\n      }\n    } \n  } \n}];\n"
       },
       "id": "Code_Format",
       "name": "Formater réponse",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom || null, dateTo: body.dateTo || null } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom || null, dateTo: body.dateTo || null } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const items = $('05. Query CR').all().map(i => i.json).filter(c => c.numero_compte);\n\nconst charges = { exploitation: [], financieres: [], exceptionnelles: [], total: 0 };\nconst produits = { exploitation: [], financiers: [], exceptionnels: [], total: 0 };\n\nfor (const c of items) {\n  const montant = Math.round((parseFloat(c.montant) || 0) * 100) / 100;\n  const entry = { numeroCompte: c.numero_compte, libelle: c.libelle, montant };\n  const prefix = c.numero_compte.substring(0, 2);\n\n  if (c.classe === 6) {\n    if (['66'].includes(prefix)) { charges.financieres.push(entry); }\n    else if (['67'].includes(prefix)) { charges.exceptionnelles.push(entry); }\n    else { charges.exploitation.push(entry); }\n    charges.total += montant;\n  } else if (c.classe === 7) {\n    if (['76'].includes(prefix)) { produits.financiers.push(entry); }\n    else if (['77'].includes(prefix)) { produits.exceptionnels.push(entry); }\n    else { produits.exploitation.push(entry); }\n    produits.total += montant;\n  }\n}\n\ncharges.total = Math.round(charges.total * 100) / 100;\nproduits.total = Math.round(produits.total * 100) / 100;\n\n// SIG - Soldes Intermédiaires de Gestion\nconst chargesExpl = charges.exploitation.reduce((s, c) => s + c.montant, 0);\nconst produitsExpl = produits.exploitation.reduce((s, p) => s + p.montant, 0);\nconst chargesFin = charges.financieres.reduce((s, c) => s + c.montant, 0);\nconst produitsFin = produits.financiers.reduce((s, p) => s + p.montant, 0);\nconst chargesExc = charges.exceptionnelles.reduce((s, c) => s + c.montant, 0);\nconst produitsExc = produits.exceptionnels.reduce((s, p) => s + p.montant, 0);\n\nconst resultatExploitation = Math.round((produitsExpl - chargesExpl) * 100) / 100;\nconst resultatFinancier = Math.round((produitsFin - chargesFin) * 100) / 100;\nconst resultatCourant = Math.round((resultatExploitation + resultatFinancier) * 100) / 100;\nconst resultatExceptionnel = Math.round((produitsExc - chargesExc) * 100) / 100;\nconst resultatNet = Math.round((produits.total - charges.total) * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  compteResultat: {\n    charges,\n    produits,\n    sig: {\n      resultatExploitation,\n      resultatFinancier,\n      resultatCourant,\n      resultatExceptionnel,\n      resultatNet\n    },\n    benefice: resultatNet >= 0\n  }\n} }];"
+        "jsCode": "var items = $('05. Query CR').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\n\nvar charges = { exploitation: [], financieres: [], exceptionnelles: [], total: 0 };\nvar produits = { exploitation: [], financiers: [], exceptionnels: [], total: 0 };\n\nfor (var c of items) {\n  var montant = Math.round((parseFloat(c.montant) || 0) * 100) / 100;\n  var entry = { numeroCompte: c.numero_compte, libelle: c.libelle, montant };\n  var prefix = c.numero_compte.substring(0, 2);\n\n  if (c.classe === 6) {\n    if (['66'].includes(prefix)) { charges.financieres.push(entry); }\n    else if (['67'].includes(prefix)) { charges.exceptionnelles.push(entry); }\n    else { charges.exploitation.push(entry); }\n    charges.total += montant;\n  } else if (c.classe === 7) {\n    if (['76'].includes(prefix)) { produits.financiers.push(entry); }\n    else if (['77'].includes(prefix)) { produits.exceptionnels.push(entry); }\n    else { produits.exploitation.push(entry); }\n    produits.total += montant;\n  }\n}\n\ncharges.total = Math.round(charges.total * 100) / 100;\nproduits.total = Math.round(produits.total * 100) / 100;\n\n// SIG - Soldes Intermédiaires de Gestion\nvar chargesExpl = charges.exploitation.reduce(function(s, c) { return s + c.montant; }; }, 0);\nvar produitsExpl = produits.exploitation.reduce(function(s, p) { return s + p.montant; }; }, 0);\nvar chargesFin = charges.financieres.reduce(function(s, c) { return s + c.montant; }; }, 0);\nvar produitsFin = produits.financiers.reduce(function(s, p) { return s + p.montant; }; }, 0);\nvar chargesExc = charges.exceptionnelles.reduce(function(s, c) { return s + c.montant; }; }, 0);\nvar produitsExc = produits.exceptionnels.reduce(function(s, p) { return s + p.montant; }; }, 0);\n\nvar resultatExploitation = Math.round((produitsExpl - chargesExpl) * 100) / 100;\nvar resultatFinancier = Math.round((produitsFin - chargesFin) * 100) / 100;\nvar resultatCourant = Math.round((resultatExploitation + resultatFinancier) * 100) / 100;\nvar resultatExceptionnel = Math.round((produitsExc - chargesExc) * 100) / 100;\nvar resultatNet = Math.round((produits.total - charges.total) * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  compteResultat: {\n    charges,\n    produits,\n    sig: {\n      resultatExploitation,\n      resultatFinancier,\n      resultatCourant,\n      resultatExceptionnel,\n      resultatNet\n    },\n    benefice: resultatNet >= 0\n  }\n} }];"
       },
       "id": "06. Format CR",
       "name": "06. Format CR",
@@ -99,7 +100,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

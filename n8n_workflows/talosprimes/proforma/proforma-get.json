@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.proformaId) {\n  throw new Error('tenantId and proformaId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, proformaId: body.proformaId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.proformaId) {\n  throw new Error('tenantId and proformaId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, proformaId: body.proformaId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const proformaItem = $('05. Get Proforma').first().json;\nconst lines = $('06. Get Lines').all().map(item => item.json);\n\nif (!proformaItem || !proformaItem.id) {\n  return [{ json: { error: 'Proforma not found' } }];\n}\n\nconst p = proformaItem;\n\nconst proforma = {\n  id: p.id,\n  tenant_id: p.tenant_id,\n  client_final_id: p.client_final_id,\n  invoice_id: p.invoice_id,\n  invoiceId: p.invoice_id,\n  numero_proforma: p.numero_proforma,\n  numeroProforma: p.numero_proforma,\n  date_proforma: p.date_proforma,\n  dateProforma: p.date_proforma,\n  date_validite: p.date_validite,\n  dateValidite: p.date_validite,\n  montant_ht: p.montant_ht,\n  montantHt: p.montant_ht,\n  montant_ttc: p.montant_ttc,\n  montantTtc: p.montant_ttc,\n  tva_taux: p.tva_taux,\n  tvaTaux: p.tva_taux,\n  description: p.description,\n  mode_paiement: p.mode_paiement,\n  modePaiement: p.mode_paiement,\n  statut: p.statut,\n  lien_pdf: p.lien_pdf,\n  lienPdf: p.lien_pdf,\n  created_at: p.created_at,\n  createdAt: p.created_at,\n  updated_at: p.updated_at,\n  updatedAt: p.updated_at,\n  clientFinal: p.client_final_id ? {\n    id: p.client_final_id,\n    nom: p.client_nom || null,\n    prenom: p.client_prenom || null,\n    email: p.client_email || null,\n    telephone: p.client_telephone || null,\n    raisonSociale: p.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: proforma }];"
+        "jsCode": "var proformaItem = $('05. Get Proforma').first().json;\nvar lines = $('06. Get Lines').all().map(function(item) { return item.json; });\n\nif (!proformaItem || !proformaItem.id) {\n  return [{ json: { error: 'Proforma not found' } }];\n}\n\nvar p = proformaItem;\n\nvar proforma = {\n  id: p.id,\n  tenant_id: p.tenant_id,\n  client_final_id: p.client_final_id,\n  invoice_id: p.invoice_id,\n  invoiceId: p.invoice_id,\n  numero_proforma: p.numero_proforma,\n  numeroProforma: p.numero_proforma,\n  date_proforma: p.date_proforma,\n  dateProforma: p.date_proforma,\n  date_validite: p.date_validite,\n  dateValidite: p.date_validite,\n  montant_ht: p.montant_ht,\n  montantHt: p.montant_ht,\n  montant_ttc: p.montant_ttc,\n  montantTtc: p.montant_ttc,\n  tva_taux: p.tva_taux,\n  tvaTaux: p.tva_taux,\n  description: p.description,\n  mode_paiement: p.mode_paiement,\n  modePaiement: p.mode_paiement,\n  statut: p.statut,\n  lien_pdf: p.lien_pdf,\n  lienPdf: p.lien_pdf,\n  created_at: p.created_at,\n  createdAt: p.created_at,\n  updated_at: p.updated_at,\n  updatedAt: p.updated_at,\n  clientFinal: p.client_final_id ? {\n    id: p.client_final_id,\n    nom: p.client_nom || null,\n    prenom: p.client_prenom || null,\n    email: p.client_email || null,\n    telephone: p.client_telephone || null,\n    raisonSociale: p.client_raison_sociale || null\n  } : null,\n  lines: lines\n};\n\nreturn [{ json: proforma }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -119,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.avoirId) {\n  throw new Error('tenantId and avoirId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.avoirId) {\n  throw new Error('tenantId and avoirId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const result = $('06. Delete Avoir').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { deleted: false, error: 'Avoir not found or already validated' } }];\n}\n\nreturn [{ json: { deleted: true, id: result.id, numero_avoir: result.numero_avoir } }];"
+        "jsCode": "var result = $('06. Delete Avoir').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { deleted: false, error: 'Avoir not found or already validated' } }];\n}\n\nreturn [{ json: { deleted: true, id: result.id, numero_avoir: result.numero_avoir } }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -119,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",

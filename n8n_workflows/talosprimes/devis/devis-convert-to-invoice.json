@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const devis = $('05. Get Devis').first().json;\nconst nextNum = $('06. Get Next Invoice Number').first().json.next_num || 1;\n\nif (!devis || !devis.id) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nconst year = new Date().getFullYear();\nconst numeroFacture = 'INV-' + year + '-' + String(nextNum).padStart(6, '0');\nconst now = new Date().toISOString();\nconst echeance = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  devisId: devis.id,\n  tenantId: devis.tenant_id,\n  clientFinalId: devis.client_final_id,\n  numeroFacture,\n  dateFacture: now,\n  dateEcheance: echeance,\n  montantHt: devis.montant_ht,\n  montantTtc: devis.montant_ttc,\n  tvaTaux: devis.tva_taux,\n  description: devis.description,\n  modePaiement: devis.mode_paiement\n} }];"
+        "jsCode": "var devis = $('05. Get Devis').first().json;\nvar nextNum = $('06. Get Next Invoice Number').first().json.next_num || 1;\n\nif (!devis || !devis.id) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nvar year = new Date().getFullYear();\nvar numeroFacture = 'INV-' + year + '-' + String(nextNum).padStart(6, '0');\nvar now = new Date().toISOString();\nvar echeance = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  devisId: devis.id,\n  tenantId: devis.tenant_id,\n  clientFinalId: devis.client_final_id,\n  numeroFacture,\n  dateFacture: now,\n  dateEcheance: echeance,\n  montantHt: devis.montant_ht,\n  montantTtc: devis.montant_ttc,\n  tvaTaux: devis.tva_taux,\n  description: devis.description,\n  modePaiement: devis.mode_paiement\n} }];"
       },
       "id": "07. Prepare Invoice Data",
       "name": "07. Prepare Invoice Data",
@@ -134,7 +136,8 @@
       "position": [
         1300,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -154,11 +157,12 @@
       "position": [
         1500,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "// Original prepare logic\nconst _origFn = function() {\nconst invoice = $('08. Create Invoice').first().json;\nconst lines = $('09. Get Devis Lines').all().map(item => item.json);\n\nreturn [{ json: {\n  invoiceId: invoice.id,\n  lines,\n  hasLines: lines.length > 0\n} }];\n};\nconst _origResult = _origFn();\nconst prev = _origResult[0].json;\n\nconst items = prev.lines || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nconst params = [];\nlet idx = 1;\n\nconst parentId = prev.invoiceId;\nconst values = items.map((item, i) => {\n  const codeArticle = item.code_article || null;\n  const designation = String(item.designation || '').substring(0, 500);\n  const quantite = parseFloat(item.quantite) || 0;\n  const prixUnitaireHt = parseFloat(item.prix_unitaire_ht) || 0;\n  const totalHt = parseFloat(item.total_ht) || 0;\n  const ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  const p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}).join(',\n');\n\nconst query = `INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
+        "jsCode": "// Original prepare logic\nvar _origFn = function() {\nvar invoice = $('08. Create Invoice').first().json;\nvar lines = $('09. Get Devis Lines').all().map(function(item) { return item.json; });\n\nreturn [{ json: {\n  invoiceId: invoice.id,\n  lines,\n  hasLines: lines.length > 0\n} }];\n};\nvar _origResult = _origFn();\nvar prev = _origResult[0].json;\n\nvar items = prev.lines || [];\n\nif (!prev.hasLines || items.length === 0) {\n  return [{ json: { ...prev, query: 'SELECT 1', params: [] } }];\n}\n\nvar params = [];\nvar idx = 1;\n\nvar parentId = prev.invoiceId;\nvar values = items.map(function(item, i) { return {\n  var codeArticle = item.code_article || null;\n  var designation = String(item.designation || '').substring(0, 500);\n  var quantite = parseFloat(item.quantite) || 0;\n  var prixUnitaireHt = parseFloat(item.prix_unitaire_ht) || 0;\n  var totalHt = parseFloat(item.total_ht) || 0;\n  var ordre = parseInt(item.ordre) || i;\n\n  params.push(parentId, codeArticle, designation, quantite, prixUnitaireHt, totalHt, ordre);\n  var p = `(gen_random_uuid(), $$${idx}, $$${idx+1}, $$${idx+2}, $$${idx+3}, $$${idx+4}, $$${idx+5}, $$${idx+6})`;\n  idx += 7;\n  return p;\n}; }).join(',\n');\n\nvar query = `INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ${values} RETURNING id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre`;\n\nreturn [{ json: { ...prev, query, params } }];"
       },
       "id": "10. Prepare Lines",
       "name": "10. Prepare Lines",
@@ -187,7 +191,8 @@
       "position": [
         1900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -207,11 +212,12 @@
       "position": [
         2100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $('08. Create Invoice').first().json;\nconst devis = $('12. Update Devis').first().json;\n\nreturn [{ json: {\n  invoice_id: invoice.id,\n  numero_facture: invoice.numero_facture,\n  devis_id: devis.id,\n  numero_devis: devis.numero_devis,\n  devis_statut: devis.statut\n} }];"
+        "jsCode": "var invoice = $('08. Create Invoice').first().json;\nvar devis = $('12. Update Devis').first().json;\n\nreturn [{ json: {\n  invoice_id: invoice.id,\n  numero_facture: invoice.numero_facture,\n  devis_id: devis.id,\n  numero_devis: devis.numero_devis,\n  devis_statut: devis.statut\n} }];"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",
@@ -225,7 +231,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "14. Respond",
       "name": "14. Respond",

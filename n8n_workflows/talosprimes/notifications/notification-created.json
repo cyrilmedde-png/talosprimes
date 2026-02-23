@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.type || !body.titre || !body.message) {\n  throw new Error('tenantId, type, titre, message are required');\n}\n\nconst donnees = body.donnees ? JSON.stringify(body.donnees) : null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  type: body.type,\n  titre: body.titre,\n  message: body.message,\n  donnees: donnees\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.type || !body.titre || !body.message) {\n  throw new Error('tenantId, type, titre, message are required');\n}\n\nvar donnees = body.donnees ? JSON.stringify(body.donnees) : null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  type: body.type,\n  titre: body.titre,\n  message: body.message,\n  donnees: donnees\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -83,11 +83,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const notification = $('05. Insert Notification').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: 'Notification created successfully',\n  notification: notification\n} }];"
+        "jsCode": "var notification = $('05. Insert Notification').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: 'Notification created successfully',\n  notification: notification\n} }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
@@ -103,7 +104,7 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

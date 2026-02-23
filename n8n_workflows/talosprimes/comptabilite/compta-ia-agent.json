@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.action) throw new Error('action is required');\n\n// Actions supportées:\n// 'classifier' - classifier une opération comptable\n// 'analyser' - analyser les écritures et détecter anomalies\n// 'suggestion' - suggérer des écritures pour un document\n// 'rapport' - générer un rapport/analyse textuelle\n// 'question' - répondre à une question comptable\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  action: body.action,\n  data: body.data || {},\n  question: body.question || null,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.action) throw new Error('action is required');\n\n// Actions supportées:\n// 'classifier' - classifier une opération comptable\n// 'analyser' - analyser les écritures et détecter anomalies\n// 'suggestion' - suggérer des écritures pour un document\n// 'rapport' - générer un rapport/analyse textuelle\n// 'question' - répondre à une question comptable\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  action: body.action,\n  data: body.data || {},\n  question: body.question || null,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nconst planComptable = $('05. Get Plan Comptable').all().map(i => i.json).filter(c => c.numero_compte);\nconst balance = $('06. Get Balance Rapide').all().map(i => i.json).filter(c => c.numero_compte);\n\nconst pcSummary = planComptable.map(c => `${c.numero_compte} ${c.libelle} (${c.nature})`).join('\n');\nconst balanceSummary = balance.map(c => `${c.numero_compte} ${c.compte_libelle}: D=${c.total_debit} C=${c.total_credit} S=${c.solde} (${c.nb_ecritures} écr.)`).join('\n');\n\nlet userPrompt = '';\n\nswitch (p.action) {\n  case 'classifier':\n    userPrompt = `CLASSIFICATION COMPTABLE\n\nOpération à classifier:\n${JSON.stringify(p.data, null, 2)}\n\nPlan comptable disponible:\n${pcSummary}\n\nClassifie cette opération en indiquant les comptes à débiter et créditer avec les montants. Réponds en JSON.`;\n    break;\n  case 'analyser':\n    userPrompt = `ANALYSE COMPTABLE ET DÉTECTION D'ANOMALIES\n\nBalance actuelle des comptes:\n${balanceSummary}\n\nAnalyse ces comptes et détecte:\n1. Comptes avec soldes anormaux\n2. Déséquilibres potentiels\n3. Comptes d'attente non soldés\n4. TVA à régulariser\n5. Toute anomalie comptable\n\nRéponds en JSON avec anomalies[], score_sante (0-100), recommandations[].`;\n    break;\n  case 'suggestion':\n    userPrompt = `SUGGESTION D'ÉCRITURES COMPTABLES\n\nDocument source:\n${JSON.stringify(p.data, null, 2)}\n\nPlan comptable:\n${pcSummary}\n\nSuggère les écritures comptables pour ce document. Respecte la partie double (débit = crédit). Inclus la TVA si applicable. Réponds en JSON.`;\n    break;\n  case 'rapport':\n    userPrompt = `RAPPORT COMPTABLE\n\nBalance des comptes:\n${balanceSummary}\n\nGénère un rapport d'analyse financière incluant:\n1. Synthèse de la situation\n2. Points forts et faiblesses\n3. Indicateurs clés (trésorerie, endettement, rentabilité)\n4. Recommandations\n\nRéponds en JSON avec rapport{type, sections[], totaux{}, observations[]}.`;\n    break;\n  case 'question':\n    userPrompt = `QUESTION COMPTABLE\n\nContexte - Balance des comptes:\n${balanceSummary}\n\nQuestion: ${p.question}\n\nRéponds de manière précise et professionnelle en citant les articles du PCG, CGI ou Code de Commerce pertinents. Réponds en JSON avec {reponse, references[], confiance}.`;\n    break;\n  default:\n    userPrompt = `Action non reconnue: ${p.action}. Actions valides: classifier, analyser, suggestion, rapport, question`;\n}\n\nreturn [{ json: { ...p, userPrompt, planComptableCount: planComptable.length, balanceCount: balance.length } }];"
+        "jsCode": "var p = $('02. Parser').first().json;\nvar planComptable = $('05. Get Plan Comptable').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\nvar balance = $('06. Get Balance Rapide').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\n\nvar pcSummary = planComptable.map(function(c) { return `${c.numero_compte} ${c.libelle} (${c.nature})`; }).join('\n');\nvar balanceSummary = balance.map(function(c) { return `${c.numero_compte} ${c.compte_libelle}: D=${c.total_debit} C=${c.total_credit} S=${c.solde} (${c.nb_ecritures} écr.)`; }).join('\n');\n\nvar userPrompt = '';\n\nswitch (p.action) {\n  case 'classifier':\n    userPrompt = `CLASSIFICATION COMPTABLE\n\nOpération à classifier:\n${JSON.stringify(p.data, null, 2)}\n\nPlan comptable disponible:\n${pcSummary}\n\nClassifie cette opération en indiquant les comptes à débiter et créditer avec les montants. Réponds en JSON.`;\n    break;\n  case 'analyser':\n    userPrompt = `ANALYSE COMPTABLE ET DÉTECTION D'ANOMALIES\n\nBalance actuelle des comptes:\n${balanceSummary}\n\nAnalyse ces comptes et détecte:\n1. Comptes avec soldes anormaux\n2. Déséquilibres potentiels\n3. Comptes d'attente non soldés\n4. TVA à régulariser\n5. Toute anomalie comptable\n\nRéponds en JSON avec anomalies[], score_sante (0-100), recommandations[].`;\n    break;\n  case 'suggestion':\n    userPrompt = `SUGGESTION D'ÉCRITURES COMPTABLES\n\nDocument source:\n${JSON.stringify(p.data, null, 2)}\n\nPlan comptable:\n${pcSummary}\n\nSuggère les écritures comptables pour ce document. Respecte la partie double (débit = crédit). Inclus la TVA si applicable. Réponds en JSON.`;\n    break;\n  case 'rapport':\n    userPrompt = `RAPPORT COMPTABLE\n\nBalance des comptes:\n${balanceSummary}\n\nGénère un rapport d'analyse financière incluant:\n1. Synthèse de la situation\n2. Points forts et faiblesses\n3. Indicateurs clés (trésorerie, endettement, rentabilité)\n4. Recommandations\n\nRéponds en JSON avec rapport{type, sections[], totaux{}, observations[]}.`;\n    break;\n  case 'question':\n    userPrompt = `QUESTION COMPTABLE\n\nContexte - Balance des comptes:\n${balanceSummary}\n\nQuestion: ${p.question}\n\nRéponds de manière précise et professionnelle en citant les articles du PCG, CGI ou Code de Commerce pertinents. Réponds en JSON avec {reponse, references[], confiance}.`;\n    break;\n  default:\n    userPrompt = `Action non reconnue: ${p.action}. Actions valides: classifier, analyser, suggestion, rapport, question`;\n}\n\nreturn [{ json: { ...p, userPrompt, planComptableCount: planComptable.length, balanceCount: balance.length } }];"
       },
       "id": "07. Build AI Prompt",
       "name": "07. Build AI Prompt",
@@ -154,7 +156,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nconst aiResponse = $('08. OpenAI GPT-4o').first().json;\n\nlet parsedResponse;\ntry {\n  // Extraire le JSON de la réponse\n  const content = aiResponse.message?.content || aiResponse.text || JSON.stringify(aiResponse);\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  parsedResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { reponse: content };\n} catch (e) {\n  parsedResponse = { reponse: aiResponse.message?.content || 'Erreur de parsing' };\n}\n\nreturn [{ json: {\n  success: true,\n  action: p.action,\n  resultat: parsedResponse,\n  metadata: {\n    modele: 'gpt-4o',\n    planComptableComptes: $('07. Build AI Prompt').first().json.planComptableCount,\n    balanceComptes: $('07. Build AI Prompt').first().json.balanceCount,\n    timestamp: new Date().toISOString()\n  }\n} }];"
+        "jsCode": "var p = $('02. Parser').first().json;\nvar aiResponse = $('08. OpenAI GPT-4o').first().json;\n\nvar parsedResponse;\ntry {\n  // Extraire le JSON de la réponse\n  var content = aiResponse.message?.content || aiResponse.text || JSON.stringify(aiResponse);\n  var jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  parsedResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { reponse: content };\n} catch (e) {\n  parsedResponse = { reponse: aiResponse.message?.content || 'Erreur de parsing' };\n}\n\nreturn [{ json: {\n  success: true,\n  action: p.action,\n  resultat: parsedResponse,\n  metadata: {\n    modele: 'gpt-4o',\n    planComptableComptes: $('07. Build AI Prompt').first().json.planComptableCount,\n    balanceComptes: $('07. Build AI Prompt').first().json.balanceCount,\n    timestamp: new Date().toISOString()\n  }\n} }];"
       },
       "id": "09. Format Response",
       "name": "09. Format Response",
@@ -183,12 +185,13 @@
       "position": [
         1700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($('09. Format Response').first().json) }}"
+        "responseBody": "={{ $('09. Format Response').first().json }}"
       },
       "id": "11. Respond",
       "name": "11. Respond",

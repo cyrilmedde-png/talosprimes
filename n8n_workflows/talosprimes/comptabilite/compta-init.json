@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nconst exerciceCode = body.exerciceCode || new Date().getFullYear().toString();\nconst dateDebut = body.dateDebut || `${exerciceCode}-01-01`;\nconst dateFin = body.dateFin || `${exerciceCode}-12-31`;\nreturn [{ json: { tenantId: body.tenantId, exerciceCode, dateDebut, dateFin } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar exerciceCode = body.exerciceCode || new Date().getFullYear().toString();\nvar dateDebut = body.dateDebut || `${exerciceCode}-01-01`;\nvar dateFin = body.dateFin || `${exerciceCode}-12-31`;\nreturn [{ json: { tenantId: body.tenantId, exerciceCode, dateDebut, dateFin } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,7 +102,8 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -121,7 +123,8 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -141,11 +144,12 @@
       "position": [
         1300,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const exercice = $('05. Create Exercice').all().map(i => i.json).filter(e => e.id);\nconst nbComptes = parseInt($('08. Count Comptes').first().json.nb_comptes) || 0;\n\nreturn [{ json: {\n  success: true,\n  message: `Comptabilité initialisée: ${nbComptes} comptes PCG, 5 journaux, exercice ${$('02. Parser').first().json.exerciceCode}`,\n  exercice: exercice[0] || { code: $('02. Parser').first().json.exerciceCode, status: 'already_exists' },\n  nbComptes,\n  journaux: ['VE - Ventes', 'AC - Achats', 'BQ - Banque', 'OD - Opérations Diverses', 'AN - À-Nouveaux']\n}}];"
+        "jsCode": "var exercice = $('05. Create Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nvar nbComptes = parseInt($('08. Count Comptes').first().json.nb_comptes) || 0;\n\nreturn [{ json: {\n  success: true,\n  message: `Comptabilité initialisée: ${nbComptes} comptes PCG, 5 journaux, exercice ${$('02. Parser').first().json.exerciceCode}`,\n  exercice: exercice[0] || { code: $('02. Parser').first().json.exerciceCode, status: 'already_exists' },\n  nbComptes,\n  journaux: ['VE - Ventes', 'AC - Achats', 'BQ - Banque', 'OD - Opérations Diverses', 'AN - À-Nouveaux']\n}}];"
       },
       "id": "09. Format Response",
       "name": "09. Format Response",
@@ -159,7 +163,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "10. Respond",
       "name": "10. Respond",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.numeroCompte) throw new Error('numeroCompte is required');\nif (!body.ligneIds || !Array.isArray(body.ligneIds) || body.ligneIds.length < 2) throw new Error('Au moins 2 ligneIds requises');\nreturn [{ json: { tenantId: body.tenantId, numeroCompte: body.numeroCompte, ligneIds: body.ligneIds } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.numeroCompte) throw new Error('numeroCompte is required');\nif (!body.ligneIds || !Array.isArray(body.ligneIds) || body.ligneIds.length < 2) throw new Error('Au moins 2 ligneIds requises');\nreturn [{ json: { tenantId: body.tenantId, numeroCompte: body.numeroCompte, ligneIds: body.ligneIds } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const lignes = $('05. Get Lignes').all().map(i => i.json).filter(l => l.id);\nif (lignes.length < 2) throw new Error('Lignes insuffisantes ou déjà lettrées');\n\nconst totalDebit = lignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0);\nconst totalCredit = lignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0);\nconst ecart = Math.round((totalDebit - totalCredit) * 100) / 100;\n\n// Tolérance d'écart de 0.05€ (arrondis)\nif (Math.abs(ecart) > 0.05) {\n  throw new Error(`Écart de lettrage trop important: ${ecart}€ (débit: ${totalDebit}, crédit: ${totalCredit})`);\n}\n\n// Générer code lettrage unique\nconst chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';\nconst now = Date.now();\nconst code = chars[Math.floor(now / 676) % 26] + chars[Math.floor(now / 26) % 26] + chars[now % 26];\n\nconst p = $('02. Parser').first().json;\nreturn [{ json: { ...p, codeLettrage: code, ecart, nbLignes: lignes.length, ligneIdsStr: lignes.map(l => \"'\" + l.id + \"'\").join(',') } }];"
+        "jsCode": "var lignes = $('05. Get Lignes').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\nif (lignes.length < 2) throw new Error('Lignes insuffisantes ou déjà lettrées');\n\nvar totalDebit = lignes.reduce(function(s, l) { return s + (parseFloat(l.debit) || 0); }; }, 0);\nvar totalCredit = lignes.reduce(function(s, l) { return s + (parseFloat(l.credit) || 0); }; }, 0);\nvar ecart = Math.round((totalDebit - totalCredit) * 100) / 100;\n\n// Tolérance d'écart de 0.05€ (arrondis)\nif (Math.abs(ecart) > 0.05) {\n  throw new Error(`Écart de lettrage trop important: ${ecart}€ (débit: ${totalDebit}, crédit: ${totalCredit})`);\n}\n\n// Générer code lettrage unique\nvar chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';\nvar now = Date.now();\nvar code = chars[Math.floor(now / 676) % 26] + chars[Math.floor(now / 26) % 26] + chars[now % 26];\n\nvar p = $('02. Parser').first().json;\nreturn [{ json: { ...p, codeLettrage: code, ecart, nbLignes: lignes.length, ligneIdsStr: lignes.map(function(l) { return \"'\" + l.id + \"'\"; }).join(',') } }];"
       },
       "id": "06. Verify Balance",
       "name": "06. Verify Balance",
@@ -114,7 +115,8 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -134,11 +136,12 @@
       "position": [
         1300,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const b = $('06. Verify Balance').first().json;\nreturn [{ json: { success: true, message: `Lettrage ${b.codeLettrage} appliqué sur ${b.nbLignes} lignes du compte ${b.numeroCompte}`, codeLettrage: b.codeLettrage, ecart: b.ecart } }];"
+        "jsCode": "var b = $('06. Verify Balance').first().json;\nreturn [{ json: { success: true, message: `Lettrage ${b.codeLettrage} appliqué sur ${b.nbLignes} lignes du compte ${b.numeroCompte}`, codeLettrage: b.codeLettrage, ecart: b.ecart } }];"
       },
       "id": "09. Format Response",
       "name": "09. Format Response",
@@ -152,7 +155,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "10. Respond",
       "name": "10. Respond",

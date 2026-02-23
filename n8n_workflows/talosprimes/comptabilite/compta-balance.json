@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: {\n  tenantId: body.tenantId,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  classe: body.classe ? parseInt(body.classe) : null,\n  niveau: body.niveau || 'detail' // 'racine' (1 chiffre), 'sous-classe' (3), 'detail' (6)\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: {\n  tenantId: body.tenantId,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  classe: body.classe ? parseInt(body.classe) : null,\n  niveau: body.niveau || 'detail' // 'racine' (1 chiffre), 'sous-classe' (3), 'detail' (6)\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const items = $('05. Query Balance').all().map(i => i.json).filter(c => c.numero_compte);\n\nlet totalDebit = 0, totalCredit = 0, totalSoldeDebit = 0, totalSoldeCredit = 0;\n\nconst balance = items.map(c => {\n  const debit = parseFloat(c.total_debit) || 0;\n  const credit = parseFloat(c.total_credit) || 0;\n  const solde = debit - credit;\n  totalDebit += debit;\n  totalCredit += credit;\n  if (solde > 0) totalSoldeDebit += solde;\n  else totalSoldeCredit += Math.abs(solde);\n\n  return {\n    numeroCompte: c.numero_compte,\n    libelle: c.compte_libelle || c.numero_compte,\n    classe: c.classe,\n    nature: c.nature,\n    totalDebit: Math.round(debit * 100) / 100,\n    totalCredit: Math.round(credit * 100) / 100,\n    soldeDebit: solde > 0 ? Math.round(solde * 100) / 100 : 0,\n    soldeCredit: solde < 0 ? Math.round(Math.abs(solde) * 100) / 100 : 0\n  };\n});\n\nreturn [{ json: {\n  success: true,\n  balance,\n  totaux: {\n    totalDebit: Math.round(totalDebit * 100) / 100,\n    totalCredit: Math.round(totalCredit * 100) / 100,\n    totalSoldeDebit: Math.round(totalSoldeDebit * 100) / 100,\n    totalSoldeCredit: Math.round(totalSoldeCredit * 100) / 100,\n    equilibreMouvements: Math.abs(totalDebit - totalCredit) < 0.01,\n    equilibreSoldes: Math.abs(totalSoldeDebit - totalSoldeCredit) < 0.01\n  },\n  nbComptes: balance.length\n} }];"
+        "jsCode": "var items = $('05. Query Balance').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\n\nvar totalDebit = 0, totalCredit = 0, totalSoldeDebit = 0, totalSoldeCredit = 0;\n\nvar balance = items.map(function(c) { return {\n  var debit = parseFloat(c.total_debit) || 0;\n  var credit = parseFloat(c.total_credit) || 0;\n  var solde = debit - credit;\n  totalDebit += debit;\n  totalCredit += credit;\n  if (solde > 0) totalSoldeDebit += solde;\n  else totalSoldeCredit += Math.abs(solde);\n\n  return {\n    numeroCompte: c.numero_compte,\n    libelle: c.compte_libelle || c.numero_compte,\n    classe: c.classe,\n    nature: c.nature,\n    totalDebit: Math.round(debit * 100) / 100,\n    totalCredit: Math.round(credit * 100) / 100,\n    soldeDebit: solde > 0 ? Math.round(solde * 100) / 100 : 0,\n    soldeCredit: solde < 0 ? Math.round(Math.abs(solde) * 100) / 100 : 0\n  };\n}; });\n\nreturn [{ json: {\n  success: true,\n  balance,\n  totaux: {\n    totalDebit: Math.round(totalDebit * 100) / 100,\n    totalCredit: Math.round(totalCredit * 100) / 100,\n    totalSoldeDebit: Math.round(totalSoldeDebit * 100) / 100,\n    totalSoldeCredit: Math.round(totalSoldeCredit * 100) / 100,\n    equilibreMouvements: Math.abs(totalDebit - totalCredit) < 0.01,\n    equilibreSoldes: Math.abs(totalSoldeDebit - totalSoldeCredit) < 0.01\n  },\n  nbComptes: balance.length\n} }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
@@ -99,7 +100,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nconst code=g(data,'code')||g(payload,'code');\nconst designation=g(data,'designation')||g(payload,'designation');\nif(!tenantId||!code||!designation)return [{json:{_error:true,message:'tenantId, code et designation requis'}}];\nconst body={tenantId,code,designation};\nvar px=g(data,'prixUnitaireHt','prix_unitaire_ht')||g(payload,'prixUnitaireHt','prix_unitaire_ht');if(px!=null&&px!==''){body.prixUnitaireHt=Number(px)}\nvar tv=g(data,'tvaTaux','tva_taux')||g(payload,'tvaTaux','tva_taux');if(tv!=null&&tv!==''){body.tvaTaux=Number(tv)}\nvar un=g(data,'unite')||g(payload,'unite');if(un)body.unite=un;\nreturn [{json:body}];"
+        "jsCode": "var raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nvar payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nvar data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nvar tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nvar code=g(data,'code')||g(payload,'code');\nvar designation=g(data,'designation')||g(payload,'designation');\nif(!tenantId||!code||!designation)return [{json:{_error:true,message:'tenantId, code et designation requis'}}];\nvar body={tenantId,code,designation};\nvar px=g(data,'prixUnitaireHt','prix_unitaire_ht')||g(payload,'prixUnitaireHt','prix_unitaire_ht');if(px!=null&&px!==''){body.prixUnitaireHt=Number(px)}\nvar tv=g(data,'tvaTaux','tva_taux')||g(payload,'tvaTaux','tva_taux');if(tv!=null&&tv!==''){body.tvaTaux=Number(tv)}\nvar un=g(data,'unite')||g(payload,'unite');if(un)body.unite=un;\nreturn [{json:body}];"
       },
       "id": "parser",
       "name": "02. Parser",
@@ -82,7 +82,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -120,7 +121,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nconst designation = (p.designation || '').replace(/'/g, \"''\");\nconst code = (p.code || '').replace(/'/g, \"''\");\nvar query = `INSERT INTO article_codes (id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${code}', '${designation}', ${p.prixUnitaireHt || 0}, ${p.tvaTaux || 20}, '${p.unite || 'unite'}', true, NOW(), NOW()) RETURNING *`;\nreturn [{json:{query}}];"
+        "jsCode": "var p = $('02. Parser').first().json;\nvar designation = (p.designation || '').replace(/'/g, \"''\");\nvar code = (p.code || '').replace(/'/g, \"''\");\nvar query = `INSERT INTO article_codes (id, tenant_id, code, designation, prix_unitaire_ht, tva_taux, unite, actif, created_at, updated_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${code}', '${designation}', ${p.prixUnitaireHt || 0}, ${p.tvaTaux || 20}, '${p.unite || 'unite'}', true, NOW(), NOW()) RETURNING *`;\nreturn [{json:{query}}];"
       },
       "id": "build-insert",
       "name": "08. Construire INSERT",
@@ -149,7 +150,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -169,11 +171,12 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const row=$input.first().json;\nconst article=row.article;\nif(!article)return [{json:{success:false,error:'Code article non recupere apres creation'}}];\nconst parsed=typeof article==='string'?JSON.parse(article):article;\nreturn [{json:{success:true,data:{article:parsed}}}];"
+        "jsCode": "var row=$input.first().json;\nvar article=row.article;\nif(!article)return [{json:{success:false,error:'Code article non recupere apres creation'}}];\nvar parsed=typeof article==='string'?JSON.parse(article):article;\nreturn [{json:{success:true,data:{article:parsed}}}];"
       },
       "id": "format",
       "name": "11. Formater reponse",
@@ -187,7 +190,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "respond-ok",
       "name": "12. Repondre succes",

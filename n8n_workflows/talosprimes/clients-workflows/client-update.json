@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\nconst id = data?.id ? String(data.id) : '';\nconst tenantId = data?.tenantId ? String(data.tenantId) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: {\n  id,\n  tenantId,\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  type: data.type || '',\n  raisonSociale: data.raisonSociale || data.raison_sociale || '',\n  adresse: data.adresse || '',\n  statut: data.statut || '',\n  tags: Array.isArray(data.tags) ? JSON.stringify(data.tags) : ''\n}}];\n"
+        "jsCode": "var raw = $input.first().json;\nvar payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nvar data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\nvar id = data?.id ? String(data.id) : '';\nvar tenantId = data?.tenantId ? String(data.tenantId) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: {\n  id,\n  tenantId,\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  type: data.type || '',\n  raisonSociale: data.raisonSociale || data.raison_sociale || '',\n  adresse: data.adresse || '',\n  statut: data.statut || '',\n  tags: Array.isArray(data.tags) ? JSON.stringify(data.tags) : ''\n}}];\n"
       },
       "id": "Code_Parse",
       "name": "Parser payload",

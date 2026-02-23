@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.avoirId) throw new Error('avoirId is required');\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.avoirId) throw new Error('avoirId is required');\nreturn [{ json: { tenantId: body.tenantId, avoirId: body.avoirId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,7 +102,8 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -121,11 +123,12 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const avoirArr = $('05. Get Avoir').all().map(i => i.json).filter(a => a.id);\nif (avoirArr.length === 0) throw new Error('Avoir non trouvé');\nconst avoir = avoirArr[0];\n\nconst exerciceArr = $('06. Get Exercice').all().map(i => i.json).filter(e => e.id);\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\n\nconst exerciceId = exerciceArr[0].id;\nconst nextNum = parseInt($('07. Next Number').first().json.next_num) || 1;\nconst year = new Date().getFullYear();\nconst numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nconst montantHt = parseFloat(avoir.montant_ht) || 0;\nconst montantTtc = parseFloat(avoir.montant_ttc) || 0;\nconst tva = Math.round((montantTtc - montantHt) * 100) / 100;\nconst clientName = avoir.client_raison_sociale || avoir.client_nom || 'Client';\nconst dateEcriture = avoir.date_avoir || new Date().toISOString().split('T')[0];\n\nreturn [{ json: {\n  tenantId: avoir.tenant_id, exerciceId, numeroPiece, dateEcriture,\n  libelle: `Avoir ${avoir.numero_avoir} - ${clientName}`,\n  referenceDoc: avoir.numero_avoir,\n  avoirId: avoir.id,\n  montantHt, montantTtc, tva\n} }];"
+        "jsCode": "var avoirArr = $('05. Get Avoir').all().map(function(i) { return i.json; }).filter(function(a) { return a.id; });\nif (avoirArr.length === 0) throw new Error('Avoir non trouvé');\nvar avoir = avoirArr[0];\n\nvar exerciceArr = $('06. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Aucun exercice ouvert');\n\nvar exerciceId = exerciceArr[0].id;\nvar nextNum = parseInt($('07. Next Number').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\n\nvar montantHt = parseFloat(avoir.montant_ht) || 0;\nvar montantTtc = parseFloat(avoir.montant_ttc) || 0;\nvar tva = Math.round((montantTtc - montantHt) * 100) / 100;\nvar clientName = avoir.client_raison_sociale || avoir.client_nom || 'Client';\nvar dateEcriture = avoir.date_avoir || new Date().toISOString().split('T')[0];\n\nreturn [{ json: {\n  tenantId: avoir.tenant_id, exerciceId, numeroPiece, dateEcriture,\n  libelle: `Avoir ${avoir.numero_avoir} - ${clientName}`,\n  referenceDoc: avoir.numero_avoir,\n  avoirId: avoir.id,\n  montantHt, montantTtc, tva\n} }];"
       },
       "id": "08. Build Ecriture",
       "name": "08. Build Ecriture",
@@ -154,7 +157,8 @@
       "position": [
         1500,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -174,11 +178,12 @@
       "position": [
         1700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const ecriture = $('09. Insert Ecriture').first().json;\nconst lignes = $('10. Insert Lines').all().map(i => i.json).filter(l => l.id);\nconst b = $('08. Build Ecriture').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: `Écriture avoir ${ecriture.numero_piece} créée (contrepassation)`,\n  ecriture: {\n    id: ecriture.id, numeroPiece: ecriture.numero_piece, journal: 'VE',\n    montantTtc: b.montantTtc, montantHt: b.montantHt, tva: b.tva,\n    lignes: lignes.map(l => ({ numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }))\n  }\n} }];"
+        "jsCode": "var ecriture = $('09. Insert Ecriture').first().json;\nvar lignes = $('10. Insert Lines').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\nvar b = $('08. Build Ecriture').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: `Écriture avoir ${ecriture.numero_piece} créée (contrepassation)`,\n  ecriture: {\n    id: ecriture.id, numeroPiece: ecriture.numero_piece, journal: 'VE',\n    montantTtc: b.montantTtc, montantHt: b.montantHt, tva: b.tva,\n    lignes: lignes.map(function(l) { return ({ numeroCompte: l.numero_compte, debit: parseFloat(l.debit), credit: parseFloat(l.credit) }); })\n  }\n} }];"
       },
       "id": "11. Format Response",
       "name": "11. Format Response",
@@ -192,7 +197,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "12. Respond",
       "name": "12. Respond",

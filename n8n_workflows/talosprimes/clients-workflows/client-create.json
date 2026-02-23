@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst data = body.data || body;\nreturn [{json: {\n  tenantId: data.tenantId || '00000000-0000-0000-0000-000000000001',\n  type: data.type || 'b2c',\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  raison_sociale: data.raisonSociale || data.raison_sociale || '',\n  adresse: data.adresse || ''\n}}];\n"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar data = body.data || body;\nreturn [{json: {\n  tenantId: data.tenantId || '00000000-0000-0000-0000-000000000001',\n  type: data.type || 'b2c',\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  raison_sociale: data.raisonSociale || data.raison_sociale || '',\n  adresse: data.adresse || ''\n}}];\n"
       },
       "id": "Code_Normalize",
       "name": "Normaliser",
@@ -32,7 +32,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $json;\nfunction esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); }\nconst rs = d.raison_sociale ? \"'\" + esc(d.raison_sociale) + \"'\" : 'NULL';\nconst adr = d.adresse ? \"'\" + esc(d.adresse) + \"'\" : 'NULL';\nconst query = \"INSERT INTO client_finals (id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"'::uuid, '\" + esc(d.type) + \"', \" + rs + \", '\" + esc(d.nom) + \"', '\" + esc(d.prenom) + \"', '\" + esc(d.email) + \"', '\" + esc(d.telephone) + \"', \" + adr + \", 'actif', NOW(), NOW()) ON CONFLICT (tenant_id, email) DO UPDATE SET nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone, raison_sociale = COALESCE(NULLIF(EXCLUDED.raison_sociale, ''), client_finals.raison_sociale), adresse = COALESCE(NULLIF(EXCLUDED.adresse, ''), client_finals.adresse), updated_at = NOW() RETURNING *\";\nreturn [{json: {query}}];"
+        "jsCode": "var d = $json;\nfunction esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); }\nvar rs = d.raison_sociale ? \"'\" + esc(d.raison_sociale) + \"'\" : 'NULL';\nvar adr = d.adresse ? \"'\" + esc(d.adresse) + \"'\" : 'NULL';\nvar query = \"INSERT INTO client_finals (id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"'::uuid, '\" + esc(d.type) + \"', \" + rs + \", '\" + esc(d.nom) + \"', '\" + esc(d.prenom) + \"', '\" + esc(d.email) + \"', '\" + esc(d.telephone) + \"', \" + adr + \", 'actif', NOW(), NOW()) ON CONFLICT (tenant_id, email) DO UPDATE SET nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone, raison_sociale = COALESCE(NULLIF(EXCLUDED.raison_sociale, ''), client_finals.raison_sociale), adresse = COALESCE(NULLIF(EXCLUDED.adresse, ''), client_finals.adresse), updated_at = NOW() RETURNING *\";\nreturn [{json: {query}}];"
       },
       "id": "Code_BuildSQL",
       "name": "Construire INSERT",

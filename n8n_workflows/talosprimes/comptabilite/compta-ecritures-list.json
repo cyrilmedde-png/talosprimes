@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 20;\nconst offset = (page - 1) * limit;\nreturn [{ json: {\n  tenantId: body.tenantId, page, limit, offset,\n  journalCode: body.journalCode || null,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  statut: body.statut || null,\n  typePiece: body.typePiece || null,\n  search: body.search || null\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar page = parseInt(body.page) || 1;\nvar limit = parseInt(body.limit) || 20;\nvar offset = (page - 1) * limit;\nreturn [{ json: {\n  tenantId: body.tenantId, page, limit, offset,\n  journalCode: body.journalCode || null,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  statut: body.statut || null,\n  typePiece: body.typePiece || null,\n  search: body.search || null\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const items = $('06. List').all().map(item => item.json).filter(e => e.id);\nconst total = parseInt($('05. Count').first().json.total) || 0;\nconst p = $('02. Parser').first().json;\nconst totalPages = Math.ceil(total / p.limit) || 1;\n\nconst ecritures = items.map(e => ({\n  id: e.id,\n  journalCode: e.journal_code,\n  journalLibelle: e.journal_libelle,\n  numeroPiece: e.numero_piece,\n  dateEcriture: e.date_ecriture,\n  dateEcheance: e.date_echeance,\n  libelle: e.libelle,\n  reference: e.reference,\n  typePiece: e.type_piece,\n  entiteType: e.entite_type,\n  entiteId: e.entite_id,\n  montantTotal: parseFloat(e.montant_total) || 0,\n  statut: e.statut,\n  source: e.source,\n  createdAt: e.created_at\n}));\n\nreturn [{ json: { success: true, ecritures, count: ecritures.length, total, page: p.page, limit: p.limit, totalPages } }];"
+        "jsCode": "var items = $('06. List').all().map(function(item) { return item.json; }).filter(function(e) { return e.id; });\nvar total = parseInt($('05. Count').first().json.total) || 0;\nvar p = $('02. Parser').first().json;\nvar totalPages = Math.ceil(total / p.limit) || 1;\n\nvar ecritures = items.map(function(e) { return ({\n  id: e.id,\n  journalCode: e.journal_code,\n  journalLibelle: e.journal_libelle,\n  numeroPiece: e.numero_piece,\n  dateEcriture: e.date_ecriture,\n  dateEcheance: e.date_echeance,\n  libelle: e.libelle,\n  reference: e.reference,\n  typePiece: e.type_piece,\n  entiteType: e.entite_type,\n  entiteId: e.entite_id,\n  montantTotal: parseFloat(e.montant_total) || 0,\n  statut: e.statut,\n  source: e.source,\n  createdAt: e.created_at\n}); });\n\nreturn [{ json: { success: true, ecritures, count: ecritures.length, total, page: p.page, limit: p.limit, totalPages } }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -119,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",

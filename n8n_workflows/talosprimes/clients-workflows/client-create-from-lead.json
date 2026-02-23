@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [500, 200],
+      "position": [
+        500,
+        200
+      ],
       "alwaysOutputData": true
     },
     {
@@ -49,7 +58,10 @@
       "name": "04. Build SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 200]
+      "position": [
+        700,
+        200
+      ]
     },
     {
       "parameters": {
@@ -66,7 +78,11 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [900, 200]
+      "position": [
+        900,
+        200
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -83,7 +99,11 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1100, 200]
+      "position": [
+        1100,
+        200
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -93,7 +113,10 @@
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 200]
+      "position": [
+        1300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -104,30 +127,89 @@
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1500, 200]
+      "position": [
+        1500,
+        200
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Get Lead", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Get Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Get Lead": {
-      "main": [[{ "node": "04. Build SQL", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "04. Build SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "04. Build SQL": {
-      "main": [[{ "node": "05. Create Client", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "05. Create Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "05. Create Client": {
-      "main": [[{ "node": "06. Update Lead Status", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Update Lead Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Update Lead Status": {
-      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Format Response": {
-      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

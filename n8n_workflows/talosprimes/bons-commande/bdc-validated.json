@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, bdcId: body.bdcId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, bdcId: body.bdcId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const result = $('05. Update BdC').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { error: 'Bon de commande not found or not in brouillon status' } }];\n}\n\nreturn [{ json: result }];"
+        "jsCode": "var result = $('05. Update BdC').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { error: 'Bon de commande not found or not in brouillon status' } }];\n}\n\nreturn [{ json: result }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
@@ -99,7 +100,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

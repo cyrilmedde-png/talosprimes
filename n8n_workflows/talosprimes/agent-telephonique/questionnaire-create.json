@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  callLogId: body.callLogId || null,\n  title: body.title || '',\n  description: body.description || '',\n  content: body.content || {},\n  status: body.status || 'pending',\n  completedAt: body.completedAt || null\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  callLogId: body.callLogId || null,\n  title: body.title || '',\n  description: body.description || '',\n  content: body.content || {},\n  status: body.status || 'pending',\n  completedAt: body.completedAt || null\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -49,7 +49,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required field: tenantId'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required field: tenantId' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -76,7 +76,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -92,7 +93,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sendAt: body.sendAt || new Date().toISOString()\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  phoneNumber: body.phoneNumber,\n  message: body.message,\n  templateId: body.templateId || null,\n  campaignId: body.campaignId || null,\n  sendAt: body.sendAt || new Date().toISOString()\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -57,7 +57,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: tenantId, phoneNumber, message'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required fields: tenantId, phoneNumber, message' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

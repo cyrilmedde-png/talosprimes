@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {

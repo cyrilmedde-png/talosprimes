@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nconst statut = data?.statut ? String(data.statut) : '';\nconst VALID = ['nouveau', 'contacte', 'qualifie', 'converti', 'perdu'];\nif (!id) throw new Error('ID requis');\nif (!statut) throw new Error('Statut requis');\nif (!VALID.includes(statut)) throw new Error('Statut invalide: ' + statut + '. Valeurs: ' + VALID.join(', '));\nreturn [{ json: { id, statut } }];\n"
+        "jsCode": "var raw = $input.first().json;\nvar payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nvar data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nvar id = data?.id ? String(data.id) : '';\nvar statut = data?.statut ? String(data.statut) : '';\nvar VALID = ['nouveau', 'contacte', 'qualifie', 'converti', 'perdu'];\nif (!id) throw new Error('ID requis');\nif (!statut) throw new Error('Statut requis');\nif (!VALID.includes(statut)) throw new Error('Statut invalide: ' + statut + '. Valeurs: ' + VALID.join(', '));\nreturn [{ json: { id, statut } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser payload",

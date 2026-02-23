@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -83,11 +83,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const results = $input.all();\nconst config = results.length > 0 ? results[0].json : null;\n\nif (!config) {\n  return [{ json: {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant'\n  } }];\n}\n\nif (!config.active) {\n  return [{ json: {\n    success: false,\n    error: 'La configuration Twilio est désactivée'\n  } }];\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Test call triggered successfully',\n  data: {\n    phoneNumber: config.phone_number,\n    agentName: config.agent_name,\n    companyName: config.company_name,\n    niche: config.niche,\n    active: config.active\n  }\n} }];"
+        "jsCode": "var results = $input.all();\nvar config = results.length > 0 ? results[0].json : null;\n\nif (!config) {\n  return [{ json: {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant'\n  } }];\n}\n\nif (!config.active) {\n  return [{ json: {\n    success: false,\n    error: 'La configuration Twilio est désactivée'\n  } }];\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Test call triggered successfully',\n  data: {\n    phoneNumber: config.phone_number,\n    agentName: config.agent_name,\n    companyName: config.company_name,\n    niche: config.niche,\n    active: config.active\n  }\n} }];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",
@@ -103,7 +104,7 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "07. Respond",
       "name": "07. Respond",

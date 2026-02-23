@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.ecritureId) throw new Error('ecritureId is required');\nreturn [{ json: { tenantId: body.tenantId, ecritureId: body.ecritureId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.ecritureId) throw new Error('ecritureId is required');\nreturn [{ json: { tenantId: body.tenantId, ecritureId: body.ecritureId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,7 +81,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -101,11 +102,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const ecritureArr = $('05. Get Ecriture').all().map(i => i.json).filter(e => e.id);\nif (ecritureArr.length === 0) return [{ json: { success: false, error: 'Écriture non trouvée' } }];\n\nconst e = ecritureArr[0];\nconst lignes = $('06. Get Lignes').all().map(i => i.json).filter(l => l.id);\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: e.id,\n    exerciceCode: e.exercice_code,\n    journalCode: e.journal_code,\n    journalLibelle: e.journal_libelle,\n    numeroPiece: e.numero_piece,\n    dateEcriture: e.date_ecriture,\n    dateEcheance: e.date_echeance,\n    libelle: e.libelle,\n    reference: e.reference,\n    typePiece: e.type_piece,\n    entiteType: e.entite_type,\n    entiteId: e.entite_id,\n    montantTotal: parseFloat(e.montant_total) || 0,\n    statut: e.statut,\n    source: e.source,\n    iaClassification: e.ia_classification,\n    createdAt: e.created_at,\n    lignes: lignes.map(l => ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      compteLibelle: l.compte_libelle,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0,\n      lettrage: l.lettrage\n    }))\n  }\n} }];"
+        "jsCode": "var ecritureArr = $('05. Get Ecriture').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (ecritureArr.length === 0) return [{ json: { success: false, error: 'Écriture non trouvée' } }];\n\nvar e = ecritureArr[0];\nvar lignes = $('06. Get Lignes').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: e.id,\n    exerciceCode: e.exercice_code,\n    journalCode: e.journal_code,\n    journalLibelle: e.journal_libelle,\n    numeroPiece: e.numero_piece,\n    dateEcriture: e.date_ecriture,\n    dateEcheance: e.date_echeance,\n    libelle: e.libelle,\n    reference: e.reference,\n    typePiece: e.type_piece,\n    entiteType: e.entite_type,\n    entiteId: e.entite_id,\n    montantTotal: parseFloat(e.montant_total) || 0,\n    statut: e.statut,\n    source: e.source,\n    iaClassification: e.ia_classification,\n    createdAt: e.created_at,\n    lignes: lignes.map(function(l) { return ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      compteLibelle: l.compte_libelle,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0,\n      lettrage: l.lettrage\n    }); })\n  }\n} }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -119,7 +121,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",

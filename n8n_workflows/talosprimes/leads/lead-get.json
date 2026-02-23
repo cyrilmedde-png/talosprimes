@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload: { body: { data: { id } } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id).trim() : null;\n\nif (!id) {\n  throw new Error('ID du lead requis');\n}\n\nreturn [{ json: { id } }];\n"
+        "jsCode": "// Parser le payload: { body: { data: { id } } }\nvar raw = $input.first().json;\nvar payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nvar data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nvar id = data?.id ? String(data.id).trim() : null;\n\nif (!id) {\n  throw new Error('ID du lead requis');\n}\n\nreturn [{ json: { id } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { success: false, error: 'Lead non trouvé' } }];\n}\nconst lead = items[0].json;\nreturn [{ json: { success: true, data: { lead: { id: lead.id, tenantId: lead.tenant_id, nom: lead.nom, prenom: lead.prenom, email: lead.email, telephone: lead.telephone, statut: lead.statut, source: lead.source, notes: lead.notes ?? null, dateContact: lead.date_contact ?? null, createdAt: lead.created_at, updatedAt: lead.updated_at } } } }];\n"
+        "jsCode": "var items = $input.all();\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { success: false, error: 'Lead non trouvé' } }];\n}\nvar lead = items[0].json;\nreturn [{ json: { success: true, data: { lead: { id: lead.id, tenantId: lead.tenant_id, nom: lead.nom, prenom: lead.prenom, email: lead.email, telephone: lead.telephone, statut: lead.statut, source: lead.source, notes: lead.notes ?? null, dateContact: lead.date_contact ?? null, createdAt: lead.created_at, updatedAt: lead.updated_at } } } }];\n"
       },
       "id": "Code_Format",
       "name": "Formater réponse",

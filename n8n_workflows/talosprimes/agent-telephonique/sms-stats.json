@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -49,7 +49,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required field: tenantId'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required field: tenantId' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -76,7 +76,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -95,7 +96,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -114,7 +116,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -133,7 +136,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -152,11 +156,12 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const totalSMS = $input[0].json.total_sms || 0;\nconst todaySMS = $input[1].json.today_sms || 0;\nconst byStatus = $input[2].all().map(item => item.json);\nconst byDirection = $input[3].all().map(item => item.json);\nconst last7Days = $input[4].all().map(item => item.json);\n\nreturn [{ json: {\n  stats: {\n    total_sms: totalSMS,\n    today_sms: todaySMS,\n    by_status: byStatus,\n    by_direction: byDirection,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'SMS statistics retrieved successfully'\n} }];"
+        "jsCode": "var totalSMS = $input[0].json.total_sms || 0;\nvar todaySMS = $input[1].json.today_sms || 0;\nvar byStatus = $input[2].all().map(function(item) { return item.json; });\nvar byDirection = $input[3].all().map(function(item) { return item.json; });\nvar last7Days = $input[4].all().map(function(item) { return item.json; });\n\nreturn [{ json: {\n  stats: {\n    total_sms: totalSMS,\n    today_sms: todaySMS,\n    by_status: byStatus,\n    by_direction: byDirection,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'SMS statistics retrieved successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
@@ -168,7 +173,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

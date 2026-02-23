@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  callLogId: body.callLogId,\n  title: body.title,\n  description: body.description,\n  content: body.content,\n  status: body.status,\n  completedAt: body.completedAt\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  leadId: body.leadId,\n  callLogId: body.callLogId,\n  title: body.title,\n  description: body.description,\n  content: body.content,\n  status: body.status,\n  completedAt: body.completedAt\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -53,7 +53,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required fields: id, tenantId'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required fields: id, tenantId' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -80,7 +80,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -96,7 +97,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -108,7 +109,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst setClauses = [];\nconst params = [];\nlet idx = 1;\n\nif (data.leadId !== undefined) {\n  setClauses.push('lead_id = $' + idx);\n  params.push(data.leadId || null);\n  idx++;\n}\n\nif (data.callLogId !== undefined) {\n  setClauses.push('call_log_id = $' + idx);\n  params.push(data.callLogId || null);\n  idx++;\n}\n\nif (data.title !== undefined) {\n  setClauses.push('title = $' + idx);\n  params.push(data.title);\n  idx++;\n}\n\nif (data.description !== undefined) {\n  setClauses.push('description = $' + idx);\n  params.push(data.description);\n  idx++;\n}\n\nif (data.content !== undefined) {\n  setClauses.push('content = $' + idx + '::jsonb');\n  params.push(JSON.stringify(data.content));\n  idx++;\n}\n\nif (data.status !== undefined) {\n  setClauses.push('status = $' + idx);\n  params.push(data.status);\n  idx++;\n}\n\nif (data.completedAt !== undefined) {\n  setClauses.push('completed_at = $' + idx);\n  params.push(data.completedAt || null);\n  idx++;\n}\n\nsetClauses.push('updated_at = NOW()');\n\nconst whereParts = [];\nwhereParts.push('id = $' + idx);\nparams.push(data.id);\nidx++;\nwhereParts.push('tenant_id = $' + idx);\nparams.push(data.tenantId);\nidx++;\n\nconst query = 'UPDATE questionnaires SET ' + setClauses.join(', ') + ' WHERE ' + whereParts.join(' AND ');\n\nreturn [{ json: { ...data, query, params } }];"
+        "jsCode": "var data = $input.first().json;\nvar setClauses = [];\nvar params = [];\nvar idx = 1;\n\nif (data.leadId !== undefined) {\n  setClauses.push('lead_id = $' + idx);\n  params.push(data.leadId || null);\n  idx++;\n}\n\nif (data.callLogId !== undefined) {\n  setClauses.push('call_log_id = $' + idx);\n  params.push(data.callLogId || null);\n  idx++;\n}\n\nif (data.title !== undefined) {\n  setClauses.push('title = $' + idx);\n  params.push(data.title);\n  idx++;\n}\n\nif (data.description !== undefined) {\n  setClauses.push('description = $' + idx);\n  params.push(data.description);\n  idx++;\n}\n\nif (data.content !== undefined) {\n  setClauses.push('content = $' + idx + '::jsonb');\n  params.push(JSON.stringify(data.content));\n  idx++;\n}\n\nif (data.status !== undefined) {\n  setClauses.push('status = $' + idx);\n  params.push(data.status);\n  idx++;\n}\n\nif (data.completedAt !== undefined) {\n  setClauses.push('completed_at = $' + idx);\n  params.push(data.completedAt || null);\n  idx++;\n}\n\nsetClauses.push('updated_at = NOW()');\n\nvar whereParts = [];\nwhereParts.push('id = $' + idx);\nparams.push(data.id);\nidx++;\nwhereParts.push('tenant_id = $' + idx);\nparams.push(data.tenantId);\nidx++;\n\nvar query = 'UPDATE questionnaires SET ' + setClauses.join(', ') + ' WHERE ' + whereParts.join(' AND ');\n\nreturn [{ json: { ...data, query, params } }];"
       },
       "id": "Build Update Query",
       "name": "Build Update Query",

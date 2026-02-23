@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nlet payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nlet data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nconst tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nconst clientFinalId=g(payload,'clientFinalId','client_final_id')||g(data,'clientFinalId','client_final_id');\nconst raisonSociale=g(payload,'raisonSociale','raison_sociale')||g(data,'raisonSociale','raison_sociale')||'';\nconst nom=g(payload,'nom')||g(data,'nom')||'';\nconst prenom=g(payload,'prenom')||g(data,'prenom')||'';\nconst modulesInclus=payload.modulesInclus||data.modulesInclus||payload.modules_inclus||data.modules_inclus||[];\nif(!tenantId||!clientFinalId)return [{json:{_error:true,message:'tenantId et clientFinalId requis'}}];\n// Generate slug from raison sociale or nom/prenom\nconst rawName=raisonSociale||((nom+' '+prenom).trim())||'client';\nconst slug=rawName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').substring(0,50);\nconst tenantSlug=slug+'-'+clientFinalId.substring(0,8);\nreturn [{json:{tenantId,clientFinalId,raisonSociale,nom,prenom,modulesInclus,tenantSlug}}];"
+        "jsCode": "var raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nvar payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nvar data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nvar tenantId=g(payload,'tenantId','tenant_id')||g(data,'tenantId','tenant_id')||g(raw,'tenantId','tenant_id');\nvar clientFinalId=g(payload,'clientFinalId','client_final_id')||g(data,'clientFinalId','client_final_id');\nvar raisonSociale=g(payload,'raisonSociale','raison_sociale')||g(data,'raisonSociale','raison_sociale')||'';\nvar nom=g(payload,'nom')||g(data,'nom')||'';\nvar prenom=g(payload,'prenom')||g(data,'prenom')||'';\nvar modulesInclus=payload.modulesInclus||data.modulesInclus||payload.modules_inclus||data.modules_inclus||[];\nif(!tenantId||!clientFinalId)return [{json:{_error:true,message:'tenantId et clientFinalId requis'}}];\n// Generate slug from raison sociale or nom/prenom\nvar rawName=raisonSociale||((nom+' '+prenom).trim())||'client';\nvar slug=rawName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').substring(0,50);\nvar tenantSlug=slug+'-'+clientFinalId.substring(0,8);\nreturn [{json:{tenantId,clientFinalId,raisonSociale,nom,prenom,modulesInclus,tenantSlug}}];"
       },
       "id": "parser",
       "name": "02. Parser",
@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// SSH placeholder - folder creation will be done when SSH credential is configured\nconst p=$('02. Parser').first().json;\nconst folderPath='/var/www/talosprimes/clients/'+p.tenantSlug;\n// TODO: Replace with SSH node when credential b7jMAjh1KJcIwqdo is configured\n// Command: mkdir -p {folderPath}/{documents,exports,uploads,config} && chmod -R 750 {folderPath}\nreturn [{json:{...p,folderPath,sshSkipped:true}}];"
+        "jsCode": "// SSH placeholder - folder creation will be done when SSH credential is configured\nvar p=$('02. Parser').first().json;\nvar folderPath='/var/www/talosprimes/clients/'+p.tenantSlug;\n// TODO: Replace with SSH node when credential b7jMAjh1KJcIwqdo is configured\n// Command: mkdir -p {folderPath}/{documents,exports,uploads,config} && chmod -R 750 {folderPath}\nreturn [{json:{...p,folderPath,sshSkipped:true}}];"
       },
       "id": "ssh-placeholder",
       "name": "05. SSH Creer dossiers (placeholder)",
@@ -79,7 +79,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('02. Parser').first().json;\nvar query = `INSERT INTO client_spaces (id, tenant_id, client_final_id, email, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), '${p.tenantId}'::uuid, '${p.clientFinalId}'::uuid, '${p.email}', '${p.token}', '${p.statut || 'en_attente'}', '${p.dateExpiration || new Date(Date.now() + 30*24*60*60*1000).toISOString()}', NOW()) RETURNING *`;\nreturn [{json:{query}}];"
+        "jsCode": "var p = $('02. Parser').first().json;\nvar query = `INSERT INTO client_spaces (id, tenant_id, client_final_id, email, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), '${p.tenantId}'::uuid, '${p.clientFinalId}'::uuid, '${p.email}', '${p.token}', '${p.statut || 'en_attente'}', '${p.dateExpiration || new Date(Date.now() + 30*24*60*60*1000).toISOString()}', NOW()) RETURNING *`;\nreturn [{json:{query}}];"
       },
       "id": "build-insert",
       "name": "06. Construire INSERT",
@@ -113,7 +113,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.tenantSlug}', '${(p.modules||[]}', $4, false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "var p = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${p.tenantId}', '${p.tenantSlug}', '${(p.modules||[]}', $4, false, NOW())`;\nreturn [{json:{query}}];"
       },
       "id": "build-notif",
       "name": "08. Construire notification",
@@ -147,7 +147,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const inserted=$('07. INSERT client_spaces').first().json;\nconst p=$('06. Construire INSERT').first().json;\nreturn [{json:{success:true,data:{id:inserted.id||'created',tenantSlug:p.tenantSlug,status:'en_attente_validation',folderPath:p.folderPath,modules:p.modules}}}];"
+        "jsCode": "var inserted=$('07. INSERT client_spaces').first().json;\nvar p=$('06. Construire INSERT').first().json;\nreturn [{json:{success:true,data:{id:inserted.id||'created',tenantSlug:p.tenantSlug,status:'en_attente_validation',folderPath:p.folderPath,modules:p.modules}}}];"
       },
       "id": "format",
       "name": "10. Formater reponse",
@@ -161,7 +161,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "respond-ok",
       "name": "11. Repondre",

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, bdcId: body.bdcId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.bdcId) {\n  throw new Error('tenantId and bdcId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, bdcId: body.bdcId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const bdc = $('05. Get BdC').first().json;\nconst nextNum = $('06. Get Next Invoice Number').first().json.next_num || 1;\n\nif (!bdc || !bdc.id) {\n  throw new Error('Bon de commande not found or not in valid status');\n}\n\nconst year = new Date().getFullYear();\nconst numeroFacture = 'INV-' + year + '-' + String(nextNum).padStart(6, '0');\nconst now = new Date().toISOString();\nconst echeance = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  bdcId: bdc.id,\n  tenantId: bdc.tenant_id,\n  clientFinalId: bdc.client_final_id,\n  numeroBdc: bdc.numero_bdc,\n  numeroFacture,\n  dateFacture: now,\n  dateEcheance: echeance,\n  montantHt: bdc.montant_ht,\n  montantTtc: bdc.montant_ttc,\n  tvaTaux: bdc.tva_taux,\n  description: bdc.description ? 'BDC ' + bdc.numero_bdc + ' - ' + bdc.description : 'Depuis BDC ' + bdc.numero_bdc,\n  modePaiement: bdc.mode_paiement\n} }];"
+        "jsCode": "var bdc = $('05. Get BdC').first().json;\nvar nextNum = $('06. Get Next Invoice Number').first().json.next_num || 1;\n\nif (!bdc || !bdc.id) {\n  throw new Error('Bon de commande not found or not in valid status');\n}\n\nvar year = new Date().getFullYear();\nvar numeroFacture = 'INV-' + year + '-' + String(nextNum).padStart(6, '0');\nvar now = new Date().toISOString();\nvar echeance = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  bdcId: bdc.id,\n  tenantId: bdc.tenant_id,\n  clientFinalId: bdc.client_final_id,\n  numeroBdc: bdc.numero_bdc,\n  numeroFacture,\n  dateFacture: now,\n  dateEcheance: echeance,\n  montantHt: bdc.montant_ht,\n  montantTtc: bdc.montant_ttc,\n  tvaTaux: bdc.tva_taux,\n  description: bdc.description ? 'BDC ' + bdc.numero_bdc + ' - ' + bdc.description : 'Depuis BDC ' + bdc.numero_bdc,\n  modePaiement: bdc.mode_paiement\n} }];"
       },
       "id": "07. Prepare Invoice Data",
       "name": "07. Prepare Invoice Data",
@@ -217,7 +217,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $('08. Create Invoice').first().json;\nconst bdc = $('12. Update BdC').first().json;\n\nreturn [{ json: {\n  invoice_id: invoice.id,\n  numero_facture: invoice.numero_facture,\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  bdc_statut: bdc.statut\n} }];"
+        "jsCode": "var invoice = $('08. Create Invoice').first().json;\nvar bdc = $('12. Update BdC').first().json;\n\nreturn [{ json: {\n  invoice_id: invoice.id,\n  numero_facture: invoice.numero_facture,\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  bdc_statut: bdc.statut\n} }];"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",

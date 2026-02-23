@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -49,7 +49,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required field: tenantId'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required field: tenantId' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -76,7 +76,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -95,7 +96,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -114,7 +116,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -133,7 +136,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -152,7 +156,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -171,7 +176,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -190,11 +196,12 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const totalCalls = $input[0].json.total_calls || 0;\nconst todayCalls = $input[1].json.today_calls || 0;\nconst avgDuration = $input[2].json.avg_duration_seconds || 0;\nconst byUrgency = $input[3].all().map(item => item.json);\nconst byAction = $input[4].all().map(item => item.json);\nconst bySentiment = $input[5].all().map(item => item.json);\nconst last7Days = $input[6].all().map(item => item.json);\n\nreturn [{ json: {\n  stats: {\n    total_calls: totalCalls,\n    today_calls: todayCalls,\n    avg_duration_seconds: avgDuration,\n    avg_duration_minutes: Math.round(avgDuration / 60),\n    by_urgency: byUrgency,\n    by_action: byAction,\n    by_sentiment: bySentiment,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'Call statistics retrieved successfully'\n} }];"
+        "jsCode": "var totalCalls = $input[0].json.total_calls || 0;\nvar todayCalls = $input[1].json.today_calls || 0;\nvar avgDuration = $input[2].json.avg_duration_seconds || 0;\nvar byUrgency = $input[3].all().map(function(item) { return item.json; });\nvar byAction = $input[4].all().map(function(item) { return item.json; });\nvar bySentiment = $input[5].all().map(function(item) { return item.json; });\nvar last7Days = $input[6].all().map(function(item) { return item.json; });\n\nreturn [{ json: {\n  stats: {\n    total_calls: totalCalls,\n    today_calls: todayCalls,\n    avg_duration_seconds: avgDuration,\n    avg_duration_minutes: Math.round(avgDuration / 60),\n    by_urgency: byUrgency,\n    by_action: byAction,\n    by_sentiment: bySentiment,\n    last_7_days: last7Days\n  },\n  success: true,\n  message: 'Call statistics retrieved successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
@@ -206,7 +213,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

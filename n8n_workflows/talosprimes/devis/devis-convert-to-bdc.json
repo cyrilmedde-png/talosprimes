@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const devis = $('05. Get Devis').first().json;\nconst nextNum = $('06. Get Next BDC Number').first().json.next_num || 1;\n\nif (!devis || !devis.id) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nconst year = new Date().getFullYear();\nconst numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\nconst now = new Date().toISOString();\nconst validite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  devisId: devis.id,\n  tenantId: devis.tenant_id,\n  clientFinalId: devis.client_final_id,\n  numeroDevis: devis.numero_devis,\n  numeroBdc,\n  dateBdc: now,\n  dateValidite: validite,\n  montantHt: devis.montant_ht,\n  montantTtc: devis.montant_ttc,\n  tvaTaux: devis.tva_taux,\n  description: devis.description ? 'Devis ' + devis.numero_devis + ' - ' + devis.description : 'Depuis devis ' + devis.numero_devis,\n  modePaiement: devis.mode_paiement\n} }];"
+        "jsCode": "var devis = $('05. Get Devis').first().json;\nvar nextNum = $('06. Get Next BDC Number').first().json.next_num || 1;\n\nif (!devis || !devis.id) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nvar year = new Date().getFullYear();\nvar numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\nvar now = new Date().toISOString();\nvar validite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  devisId: devis.id,\n  tenantId: devis.tenant_id,\n  clientFinalId: devis.client_final_id,\n  numeroDevis: devis.numero_devis,\n  numeroBdc,\n  dateBdc: now,\n  dateValidite: validite,\n  montantHt: devis.montant_ht,\n  montantTtc: devis.montant_ttc,\n  tvaTaux: devis.tva_taux,\n  description: devis.description ? 'Devis ' + devis.numero_devis + ' - ' + devis.description : 'Depuis devis ' + devis.numero_devis,\n  modePaiement: devis.mode_paiement\n} }];"
       },
       "id": "07. Prepare BdC Data",
       "name": "07. Prepare BdC Data",
@@ -196,7 +196,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const bdc = $('08. Create BdC').first().json;\nconst devis = $('12. Update Devis').first().json;\n\nreturn [{ json: {\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  devis_id: devis.id,\n  numero_devis: devis.numero_devis,\n  devis_statut: devis.statut\n} }];"
+        "jsCode": "var bdc = $('08. Create BdC').first().json;\nvar devis = $('12. Update Devis').first().json;\n\nreturn [{ json: {\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  devis_id: devis.id,\n  numero_devis: devis.numero_devis,\n  devis_statut: devis.statut\n} }];"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",

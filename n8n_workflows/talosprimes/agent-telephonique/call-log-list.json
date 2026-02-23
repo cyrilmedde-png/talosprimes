@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "name": "Parser",
       "type": "n8n-nodes-base.code",
@@ -49,7 +49,7 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ JSON.stringify({success: false, error: 'Missing required field: tenantId'}) }}"
+        "responseBody": "={{ { success: false, error: 'Missing required field: tenantId' } }}"
       },
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -76,11 +76,12 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: {\n  call_logs: $input.all().map(item => item.json),\n  count: $input.all().length,\n  success: true,\n  message: 'Call logs retrieved successfully'\n} }];"
+        "jsCode": "return [{ json: {\n  call_logs: $input.all().map(function(item) { return item.json; }),\n  count: $input.all().length,\n  success: true,\n  message: 'Call logs retrieved successfully'\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
@@ -92,7 +93,7 @@
     },
     {
       "parameters": {
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",

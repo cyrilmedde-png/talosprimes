@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'onboarding\n// Le webhook reçoit les données dans body ou directement\nconst raw = $input.item.json;\nconst payload = raw?.body || raw?.json || raw;\n\n// Le backend envoie : { event, tenantId, timestamp, data: { client: {...}, plan: {...}, avecStripe } }\nconst tenantId = payload.tenantId || payload.data?.tenantId;\nconst clientData = payload.data?.client || payload.client || payload.data || {};\nconst clientId = clientData.id || clientData.clientId;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nconst planFromPayload = payload.data?.plan || payload.plan || {};\nconst plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nconst avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\n// Validation\nif (!tenantId || !clientId) {\n  throw new Error(`Données manquantes : tenantId=${tenantId ? 'OK' : 'MANQUANT'}, clientId=${clientId ? 'OK' : 'MANQUANT'}`);\n}\n\n// Calculer les dates\nconst dateDebut = new Date();\nconst dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn [{\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n}];"
+        "jsCode": "// Préparer les données pour l'onboarding\n// Le webhook reçoit les données dans body ou directement\nvar raw = $input.item.json;\nvar payload = raw?.body || raw?.json || raw;\n\n// Le backend envoie : { event, tenantId, timestamp, data: { client: {...}, plan: {...}, avecStripe } }\nvar tenantId = payload.tenantId || payload.data?.tenantId;\nvar clientData = payload.data?.client || payload.client || payload.data || {};\nvar clientId = clientData.id || clientData.clientId;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nvar planFromPayload = payload.data?.plan || payload.plan || {};\nvar plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nvar avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\n// Validation\nif (!tenantId || !clientId) {\n  throw new Error(`Données manquantes : tenantId=${tenantId ? 'OK' : 'MANQUANT'}, clientId=${clientId ? 'OK' : 'MANQUANT'}`);\n}\n\n// Calculer les dates\nvar dateDebut = new Date();\nvar dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn [{\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n}];"
       },
       "id": "prepare-data",
       "name": "01. Préparer données onboarding",
@@ -236,7 +236,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les URLs de redirection pour Stripe Checkout\nconst prepareData = $('01. Préparer données onboarding').item.json;\nconst baseUrl = 'https://talosprimes.com';\nconst clientId = prepareData.clientId;\n\n// URLs de redirection après paiement\nconst successUrl = `${baseUrl}/clients?checkout=success&clientId=${clientId}&session_id={CHECKOUT_SESSION_ID}`;\nconst cancelUrl = `${baseUrl}/clients?checkout=cancelled&clientId=${clientId}`;\n\nreturn {\n  json: {\n    ...prepareData,\n    checkoutSuccessUrl: successUrl,\n    checkoutCancelUrl: cancelUrl\n  }\n};"
+        "jsCode": "// Préparer les URLs de redirection pour Stripe Checkout\nvar prepareData = $('01. Préparer données onboarding').item.json;\nvar baseUrl = 'https://talosprimes.com';\nvar clientId = prepareData.clientId;\n\n// URLs de redirection après paiement\nvar successUrl = `${baseUrl}/clients?checkout=success&clientId=${clientId}&session_id={CHECKOUT_SESSION_ID}`;\nvar cancelUrl = `${baseUrl}/clients?checkout=cancelled&clientId=${clientId}`;\n\nreturn [{\n  json: {\n    ...prepareData,\n    checkoutSuccessUrl: successUrl,\n    checkoutCancelUrl: cancelUrl\n  }\n}];"
       },
       "id": "prepare-checkout-urls",
       "name": "06b. Préparer URLs Checkout",
@@ -335,7 +335,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données avec les IDs Stripe et l'URL de checkout\nconst customerId = $('04. Stripe - Créer Customer').item.json.id;\nconst checkoutSession = $('07. Stripe - Créer Session Checkout').item.json;\nconst checkoutUrl = checkoutSession.url;\nconst prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn {\n  json: {\n    ...prepareData,\n    idClientStripe: customerId,\n    idSessionCheckoutStripe: checkoutSession.id,\n    checkoutUrl: checkoutUrl\n  }\n};"
+        "jsCode": "// Préparer les données avec les IDs Stripe et l'URL de checkout\nvar customerId = $('04. Stripe - Créer Customer').item.json.id;\nvar checkoutSession = $('07. Stripe - Créer Session Checkout').item.json;\nvar checkoutUrl = checkoutSession.url;\nvar prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn [{\n  json: {\n    ...prepareData,\n    idClientStripe: customerId,\n    idSessionCheckoutStripe: checkoutSession.id,\n    checkoutUrl: checkoutUrl\n  }\n}];"
       },
       "id": "prepare-with-stripe",
       "name": "08. Préparer avec IDs Stripe",
@@ -348,7 +348,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données après création de l'abonnement\n// Le Merge combine les données de deux sources :\n// - Input 0 : résultat de la requête PostgreSQL (abonnement créé)\n// - Input 1 : données conservées de 09c (toutes les infos)\n\nconst allItems = $input.all();\n\n// Trouver l'abonnement (résultat PostgreSQL)\nconst subscriptionItem = allItems.find(item => item.json[0]?.id || item.json.id) || allItems[0];\nconst subscriptionData = subscriptionItem.json[0] || subscriptionItem.json;\n\n// Trouver les données conservées (clientId, tenantId, plainPassword, etc.)\nconst dataItem = allItems.find(item => item.json.clientId && item.json.tenantId) || allItems[1] || {};\nconst savedData = dataItem.json || {};\n\n// Combiner toutes les données\nconst combinedData = {\n  ...savedData,\n  subscriptionData: subscriptionData,\n  subscriptionId: subscriptionData.id\n};\n\nreturn {\n  json: combinedData\n};"
+        "jsCode": "// Préparer les données après création de l'abonnement\n// Le Merge combine les données de deux sources :\n// - Input 0 : résultat de la requête PostgreSQL (abonnement créé)\n// - Input 1 : données conservées de 09c (toutes les infos)\n\nvar allItems = $input.all();\n\n// Trouver l'abonnement (résultat PostgreSQL)\nvar subscriptionItem = allItems.find(function(item) { return item.json[0]?.id || item.json.id; }) || allItems[0];\nvar subscriptionData = subscriptionItem.json[0] || subscriptionItem.json;\n\n// Trouver les données conservées (clientId, tenantId, plainPassword, etc.)\nvar dataItem = allItems.find(function(item) { return item.json.clientId && item.json.tenantId; }) || allItems[1] || {};\nvar savedData = dataItem.json || {};\n\n// Combiner toutes les données\nvar combinedData = {\n  ...savedData,\n  subscriptionData: subscriptionData,\n  subscriptionId: subscriptionData.id\n};\n\nreturn [{\n  json: combinedData\n}];"
       },
       "id": "prepare-after-subscription",
       "name": "10a. Préparer après abonnement",
@@ -361,7 +361,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les modules inclus pour la requête SQL paramétrisée\nconst inputItems = $input.all();\n\n// Trouver les données principales\nconst mainData = inputItems.find(item => item.json.plan || item.json.clientId) || inputItems[0] || {};\nconst passwordData = inputItems.find(item => item.json.plainPassword) || {};\n\nconst data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nconst modules = data.plan?.modulesInclus || data.modulesInclus || [];\n// Pour PG: passer comme array literal {mod1,mod2}\nconst modulesLiteral = '{' + modules.map(m => String(m)).join(',') + '}';\n\nconst query = `INSERT INTO client_subscriptions (\n  id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement,\n  montant_mensuel, modules_inclus, statut, id_client_stripe,\n  id_abonnement_stripe, temporary_password, updated_at\n) VALUES (\n  gen_random_uuid(), '${data.clientId}'::uuid, '${String(data.plan.nomPlan)}', '${data.dateDebut}'::timestamptz, '${data.dateProchainRenouvellement}'::timestamptz,\n  ${data.plan.montantMensuel}, '${modulesLiteral}'::text[], 'actif', ${data.idClientStripe ? \"'\" + data.idClientStripe + \"'\" : 'NULL'}, ${data.idAbonnementStripe ? \"'\" + data.idAbonnementStripe + \"'\" : 'NULL'}, ${data.plainPassword ? \"'\" + data.plainPassword.replace(/'/g, \"''\") + \"'\" : 'NULL'}, NOW()\n) RETURNING *;`;\n\nreturn {\n  json: {\n    query,\n    allData: data\n  }\n};"
+        "jsCode": "// Préparer les modules inclus pour la requête SQL paramétrisée\nvar inputItems = $input.all();\n\n// Trouver les données principales\nvar mainData = inputItems.find(function(item) { return item.json.plan || item.json.clientId; }) || inputItems[0] || {};\nvar passwordData = inputItems.find(function(item) { return item.json.plainPassword; }) || {};\n\nvar data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nvar modules = data.plan?.modulesInclus || data.modulesInclus || [];\n// Pour PG: passer comme array literal {mod1,mod2}\nvar modulesLiteral = '{' + modules.map(function(m) { return String(m); }).join(',') + '}';\n\nvar query = `INSERT INTO client_subscriptions (\n  id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement,\n  montant_mensuel, modules_inclus, statut, id_client_stripe,\n  id_abonnement_stripe, temporary_password, updated_at\n) VALUES (\n  gen_random_uuid(), '${data.clientId}'::uuid, '${String(data.plan.nomPlan)}', '${data.dateDebut}'::timestamptz, '${data.dateProchainRenouvellement}'::timestamptz,\n  ${data.plan.montantMensuel}, '${modulesLiteral}'::text[], 'actif', ${data.idClientStripe ? \"'\" + data.idClientStripe + \"'\" : 'NULL'}, ${data.idAbonnementStripe ? \"'\" + data.idAbonnementStripe + \"'\" : 'NULL'}, ${data.plainPassword ? \"'\" + data.plainPassword.replace(/'/g, \"''\") + \"'\" : 'NULL'}, NOW()\n) RETURNING *;`;\n\nreturn [{\n  json: {\n    query,\n    allData: data\n  }\n}];"
       },
       "id": "prepare-sql",
       "name": "09. Préparer requête SQL",
@@ -374,7 +374,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Conserver toutes les données de préparation pour les nœuds suivants\n// Car après l'exécution SQL, ces données seront perdues\nconst allData = $input.item.json.allData || $input.item.json;\n\nreturn {\n  json: allData\n};"
+        "jsCode": "// Conserver toutes les données de préparation pour les nœuds suivants\n// Car après l'exécution SQL, ces données seront perdues\nvar allData = $input.item.json.allData || $input.item.json;\n\nreturn {\n  json: allData\n};"
       },
       "id": "keep-data",
       "name": "09c. Conserver données",
@@ -403,7 +403,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -421,7 +422,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Générer un mot de passe sécurisé aléatoire et l'ajouter aux données\nconst generatePassword = () => {\n  const length = 12;\n  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\n  let password = '';\n  for (let i = 0; i < length; i++) {\n    password += charset.charAt(Math.floor(Math.random() * charset.length));\n  }\n  return password;\n};\n\nconst prepareData = $input.item.json;\nconst clientData = prepareData.clientData || {};\n\n// Générer le mot de passe\nconst plainPassword = generatePassword();\n\n// Nom du tenant (basé sur le nom du client)\nconst tenantName = clientData.raisonSociale || `${clientData.nom || ''} ${clientData.prenom || ''}`.trim() || clientData.email || 'Client';\n\n// Retourner toutes les données avec le mot de passe ajouté\nreturn {\n  json: {\n    ...prepareData,\n    tenantName: tenantName,\n    clientEmail: clientData.email || '',\n    plainPassword: plainPassword,\n    clientNom: clientData.nom || '',\n    clientPrenom: clientData.prenom || '',\n    clientRaisonSociale: clientData.raisonSociale || null\n  }\n};"
+        "jsCode": "// Générer un mot de passe sécurisé aléatoire et l'ajouter aux données\nvar generatePassword = function() {\n  var length = 12;\n  var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\n  var password = '';\n  for (var i = 0; i < length; i++) {\n    password += charset.charAt(Math.floor(Math.random() * charset.length));\n  }\n  return password;\n};\n\nvar prepareData = $input.item.json;\nvar clientData = prepareData.clientData || {};\n\n// Générer le mot de passe\nvar plainPassword = generatePassword();\n\n// Nom du tenant (basé sur le nom du client)\nvar tenantName = clientData.raisonSociale || `${clientData.nom || ''} ${clientData.prenom || ''}`.trim() || clientData.email || 'Client';\n\n// Retourner toutes les données avec le mot de passe ajouté\nreturn [{\n  json: {\n    ...prepareData,\n    tenantName: tenantName,\n    clientEmail: clientData.email || '',\n    plainPassword: plainPassword,\n    clientNom: clientData.nom || '',\n    clientPrenom: clientData.prenom || '',\n    clientRaisonSociale: clientData.raisonSociale || null\n  }\n}];"
       },
       "id": "generate-password",
       "name": "09a. Générer mot de passe",
@@ -448,7 +449,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour créer l'espace client (dossier VPS + enregistrement BDD)\n// La création du Tenant+User est reportée à la validation admin\nconst data = $input.item.json;\n\nconst clientId = data.clientId || data.subscriptionData?.client_final_id;\nconst tenantId = data.tenantId;\nconst nom = data.clientNom || data.clientData?.nom || '';\nconst prenom = data.clientPrenom || data.clientData?.prenom || '';\nconst raisonSociale = data.clientRaisonSociale || data.clientData?.raisonSociale || '';\nconst modulesInclus = data.plan?.modulesInclus || data.subscriptionData?.modules_inclus || [];\n\nif (!clientId || !tenantId) {\n  throw new Error('Données manquantes pour créer espace client: clientId ou tenantId');\n}\n\nreturn {\n  json: {\n    tenantId,\n    clientFinalId: clientId,\n    raisonSociale,\n    nom,\n    prenom,\n    modulesInclus\n  }\n};"
+        "jsCode": "// Préparer les données pour créer l'espace client (dossier VPS + enregistrement BDD)\n// La création du Tenant+User est reportée à la validation admin\nvar data = $input.item.json;\n\nvar clientId = data.clientId || data.subscriptionData?.client_final_id;\nvar tenantId = data.tenantId;\nvar nom = data.clientNom || data.clientData?.nom || '';\nvar prenom = data.clientPrenom || data.clientData?.prenom || '';\nvar raisonSociale = data.clientRaisonSociale || data.clientData?.raisonSociale || '';\nvar modulesInclus = data.plan?.modulesInclus || data.subscriptionData?.modules_inclus || [];\n\nif (!clientId || !tenantId) {\n  throw new Error('Données manquantes pour créer espace client: clientId ou tenantId');\n}\n\nreturn [{\n  json: {\n    tenantId,\n    clientFinalId: clientId,\n    raisonSociale,\n    nom,\n    prenom,\n    modulesInclus\n  }\n}];"
       },
       "id": "prepare-client-space",
       "name": "10b. Préparer création espace client",
@@ -497,7 +498,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la réponse de succès\n// Récupérer la réponse de création d'espace client (10c)\nconst spaceResponse = $input.item.json;\nconst spaceData = spaceResponse.data || spaceResponse || {};\n\n// Récupérer les données depuis 10a via le contexte du workflow\nconst prepareData = $node['10a. Préparer après abonnement'].json || {};\n\n// Données client depuis prepareData\nconst clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nconst avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\nconst stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\nreturn {\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé — en attente de validation admin. Redirection vers le paiement...\" \n      : \"Espace client créé — en attente de validation par l'administrateur. Les identifiants seront envoyés après validation.\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    clientSpace: {\n      id: spaceData.id || null,\n      tenantSlug: spaceData.tenantSlug || null,\n      status: 'en_attente_validation',\n      folderPath: spaceData.folderPath || null,\n      modules: spaceData.modules || []\n    },\n    credentials: null,\n    stripe: stripe\n  }\n};"
+        "jsCode": "// Préparer la réponse de succès\n// Récupérer la réponse de création d'espace client (10c)\nvar spaceResponse = $input.item.json;\nvar spaceData = spaceResponse.data || spaceResponse || {};\n\n// Récupérer les données depuis 10a via le contexte du workflow\nvar prepareData = $('10a. Préparer après abonnement').first().json || {};\n\n// Données client depuis prepareData\nvar clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nvar avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\nvar stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\nreturn [{\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé — en attente de validation admin. Redirection vers le paiement...\" \n      : \"Espace client créé — en attente de validation par l'administrateur. Les identifiants seront envoyés après validation.\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    clientSpace: {\n      id: spaceData.id || null,\n      tenantSlug: spaceData.tenantSlug || null,\n      status: 'en_attente_validation',\n      folderPath: spaceData.folderPath || null,\n      modules: spaceData.modules || []\n    },\n    credentials: null,\n    stripe: stripe\n  }\n}];"
       },
       "id": "format-response",
       "name": "11. Formater réponse",
@@ -510,7 +511,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer le body JSON pour la notification\nconst responseData = $input.item.json;\nconst subscription = responseData.subscription;\nconst client = responseData.client || {};\nconst clientSpace = responseData.clientSpace || {};\n\nlet tenantId, clientId;\ntry {\n  const prepareData = $node['10a. Préparer après abonnement'].json || {};\n  tenantId = prepareData.tenantId;\n  clientId = prepareData.clientId;\n} catch (e) {\n  tenantId = clientSpace.tenantSlug;\n  clientId = client.id;\n}\n\nconst clientName = client.prenom || client.nom || client.raisonSociale || 'le client';\nconst titreStripe = responseData.stripe ? ' (Stripe)' : '';\nconst messageStripe = responseData.stripe ? ' - Abonnement Stripe créé' : '';\n\nreturn {\n  json: {\n    type: 'client_onboarding',\n    titre: `Espace client en attente de validation${titreStripe}`,\n    message: `L'espace client pour ${clientName} a été créé et attend votre validation. Les identifiants seront envoyés après validation${messageStripe}`,\n    donnees: {\n      tenantId: tenantId,\n      clientId: clientId,\n      clientSpaceId: clientSpace.id || null,\n      subscriptionId: subscription?.id || subscription?.[0]?.id\n    }\n  }\n};"
+        "jsCode": "// Préparer le body JSON pour la notification\nvar responseData = $input.item.json;\nvar subscription = responseData.subscription;\nvar client = responseData.client || {};\nvar clientSpace = responseData.clientSpace || {};\n\nvar tenantId, clientId;\ntry {\n  var prepareData = $('10a. Préparer après abonnement').first().json || {};\n  tenantId = prepareData.tenantId;\n  clientId = prepareData.clientId;\n} catch (e) {\n  tenantId = clientSpace.tenantSlug;\n  clientId = client.id;\n}\n\nvar clientName = client.prenom || client.nom || client.raisonSociale || 'le client';\nvar titreStripe = responseData.stripe ? ' (Stripe)' : '';\nvar messageStripe = responseData.stripe ? ' - Abonnement Stripe créé' : '';\n\nreturn [{\n  json: {\n    type: 'client_onboarding',\n    titre: `Espace client en attente de validation${titreStripe}`,\n    message: `L'espace client pour ${clientName} a été créé et attend votre validation. Les identifiants seront envoyés après validation${messageStripe}`,\n    donnees: {\n      tenantId: tenantId,\n      clientId: clientId,\n      clientSpaceId: clientSpace.id || null,\n      subscriptionId: subscription?.id || subscription?.[0]?.id\n    }\n  }\n}];"
       },
       "id": "prepare-notification",
       "name": "11b. Préparer notification",
@@ -523,7 +524,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.donnees?.tenantId || d.tenantId || '00000000-0000-0000-0000-000000000001'}', '${(d.titre || 'Notification').replace(/'/g, \"''\")}', '${(d.message || '').replace(/'/g, \"''\")}', '${d.type || \"info\"}', false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "var d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.donnees?.tenantId || d.tenantId || '00000000-0000-0000-0000-000000000001'}', '${(d.titre || 'Notification').replace(/'/g, \"''\")}', '${(d.message || '').replace(/'/g, \"''\")}', '${d.type || \"info\"}', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "name": "12. Créer notification - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -556,7 +557,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {

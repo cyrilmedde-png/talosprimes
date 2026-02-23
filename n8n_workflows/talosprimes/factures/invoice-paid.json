@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  invoiceId: body.invoiceId,\n  referencePayment: body.referencePayment || null,\n  datePaiement: body.datePaiement || new Date().toISOString().split('T')[0],\n  modePaiement: body.modePaiement || null\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.invoiceId) {\n  throw new Error('tenantId and invoiceId are required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  invoiceId: body.invoiceId,\n  referencePayment: body.referencePayment || null,\n  datePaiement: body.datePaiement || new Date().toISOString().split('T')[0],\n  modePaiement: body.modePaiement || null\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -86,7 +86,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = $('05. Update Invoice').all().map(i => i.json).filter(i => i.id);\n\nif (results.length === 0) {\n  return [{ json: { updated: false, error: 'Facture non trouvée ou déjà payée' } }];\n}\n\nconst result = results[0];\nconst parser = $('02. Parser').first().json;\n\nreturn [{ json: {\n  updated: true,\n  id: result.id,\n  tenantId: result.tenant_id,\n  numeroFacture: result.numero_facture,\n  statut: result.statut,\n  idExternePaiement: result.id_externe_paiement,\n  modePaiement: parser.modePaiement || result.mode_paiement || 'virement',\n  montantTtc: result.montant_ttc,\n  datePaiement: parser.datePaiement,\n  updatedAt: result.updated_at\n} }];"
+        "jsCode": "var results = $('05. Update Invoice').all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\n\nif (results.length === 0) {\n  return [{ json: { updated: false, error: 'Facture non trouvée ou déjà payée' } }];\n}\n\nvar result = results[0];\nvar parser = $('02. Parser').first().json;\n\nreturn [{ json: {\n  updated: true,\n  id: result.id,\n  tenantId: result.tenant_id,\n  numeroFacture: result.numero_facture,\n  statut: result.statut,\n  idExternePaiement: result.id_externe_paiement,\n  modePaiement: parser.modePaiement || result.mode_paiement || 'virement',\n  montantTtc: result.montant_ttc,\n  datePaiement: parser.datePaiement,\n  updatedAt: result.updated_at\n} }];"
       },
       "id": "06. Check Result",
       "name": "06. Check Result",
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error || 'Facture non trouvée ou déjà payée' }) }}"
+        "responseBody": "={{ {  success: false, error: $json.error || 'Facture non trouvée ou déjà payée'  } }}"
       },
       "id": "08. Respond Not Found",
       "name": "08. Respond Not Found",
@@ -154,7 +154,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $('06. Check Result').first().json;\nlet comptaResult = null;\n\ntry {\n  const compta = $('09. Call Compta').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta échoué: ' + e.message };\n}\n\nreturn [{ json: {\n  success: true,\n  invoice: {\n    id: invoice.id,\n    tenantId: invoice.tenantId,\n    numeroFacture: invoice.numeroFacture,\n    statut: invoice.statut,\n    idExternePaiement: invoice.idExternePaiement,\n    updatedAt: invoice.updatedAt\n  },\n  comptabilisation: comptaResult\n} }];"
+        "jsCode": "var invoice = $('06. Check Result').first().json;\nvar comptaResult = null;\n\ntry {\n  var compta = $('09. Call Compta').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta échoué: ' + e.message };\n}\n\nreturn [{ json: {\n  success: true,\n  invoice: {\n    id: invoice.id,\n    tenantId: invoice.tenantId,\n    numeroFacture: invoice.numeroFacture,\n    statut: invoice.statut,\n    idExternePaiement: invoice.idExternePaiement,\n    updatedAt: invoice.updatedAt\n  },\n  comptabilisation: comptaResult\n} }];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",
@@ -168,7 +168,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "11. Respond",
       "name": "11. Respond",

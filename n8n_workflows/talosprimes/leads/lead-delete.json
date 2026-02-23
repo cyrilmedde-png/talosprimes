@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nconst tenantId = String(payload?.tenantId || data?.tenantId || '').trim();\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id, tenantId } }];\n"
+        "jsCode": "var raw = $input.first().json;\nvar payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nvar data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nvar id = data?.id ? String(data.id) : '';\nvar tenantId = String(payload?.tenantId || data?.tenantId || '').trim();\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id, tenantId } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",

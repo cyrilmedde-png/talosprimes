@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nconst page = parseInt(body.page) || 1;\nconst limit = parseInt(body.limit) || 10;\nconst offset = (page - 1) * limit;\nconst workflow = body.workflow || null;\nconst typeEvenement = body.typeEvenement || null;\nconst statutExecution = body.statutExecution || null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  page,\n  limit,\n  offset,\n  workflow,\n  typeEvenement,\n  statutExecution\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nvar page = parseInt(body.page) || 1;\nvar limit = parseInt(body.limit) || 10;\nvar offset = (page - 1) * limit;\nvar workflow = body.workflow || null;\nvar typeEvenement = body.typeEvenement || null;\nvar statutExecution = body.statutExecution || null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  page,\n  limit,\n  offset,\n  workflow,\n  typeEvenement,\n  statutExecution\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -109,7 +109,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const logItems = $('06. List Query').all();\nconst logs = logItems.map(item => item.json).filter(l => l.id);\nconst countResult = $('05. Count Query').first().json;\nconst total = parseInt(countResult.total) || 0;\nconst totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\nreturn [{ json: {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n} }];"
+        "jsCode": "var logItems = $('06. List Query').all();\nvar logs = logItems.map(function(item) { return item.json; }).filter(function(l) { return l.id; });\nvar countResult = $('05. Count Query').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\nreturn [{ json: {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n} }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -125,7 +125,7 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",

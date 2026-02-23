@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser le payload\nconst raw = $input.first().json;\nconst payload = raw?.body || raw?.json || raw;\n// Le backend envoie { event, tenantId, timestamp, data: { id, ... } }\nconst tenantId = String(payload?.tenantId || '').trim();\nconst data = payload?.data || payload;\nconst leadId = String(data?.id || data?.leadId || '').trim();\n\nif (!leadId) throw new Error('ID du lead requis');\nif (!tenantId) throw new Error('tenantId requis');\n\nreturn { json: { leadId, tenantId } };"
+        "jsCode": "// Parser le payload\nvar raw = $input.first().json;\nvar payload = raw?.body || raw?.json || raw;\n// Le backend envoie { event, tenantId, timestamp, data: { id, ... } }\nvar tenantId = String(payload?.tenantId || '').trim();\nvar data = payload?.data || payload;\nvar leadId = String(data?.id || data?.leadId || '').trim();\n\nif (!leadId) throw new Error('ID du lead requis');\nif (!tenantId) throw new Error('tenantId requis');\n\nreturn { json: { leadId, tenantId } };"
       },
       "id": "Code_Parse",
       "name": "02. Parser Payload",
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer données\nconst response = $input.first().json;\nconst parsed = $('02. Parser Payload').first().json;\nconst leadData = response.data?.lead || response.data || response;\n\nconst leadId = leadData.id || parsed.leadId;\nconst nom = leadData.nom || '';\nconst prenom = leadData.prenom || '';\nconst email = leadData.email || '';\nconst telephone = leadData.telephone || '';\nconst tenantId = parsed.tenantId;\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\nconst questionnaireUrl = `https://talosprimes.com/questionnaire/${leadId}`;\n\nreturn { json: { leadId, nom, prenom, email, telephone, tenantId, questionnaireUrl } };"
+        "jsCode": "// Préparer données\nvar response = $input.first().json;\nvar parsed = $('02. Parser Payload').first().json;\nvar leadData = response.data?.lead || response.data || response;\n\nvar leadId = leadData.id || parsed.leadId;\nvar nom = leadData.nom || '';\nvar prenom = leadData.prenom || '';\nvar email = leadData.email || '';\nvar telephone = leadData.telephone || '';\nvar tenantId = parsed.tenantId;\n\nif (!leadId) throw new Error('ID du lead introuvable');\nif (!email) throw new Error('Email du lead introuvable');\n\nvar questionnaireUrl = `https://talosprimes.com/questionnaire/${leadId}`;\n\nreturn { json: { leadId, nom, prenom, email, telephone, tenantId, questionnaireUrl } };"
       },
       "id": "Code_Prepare",
       "name": "04. Préparer Données",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Notification: Statut mis à jour\nconst data = $('04. Préparer Données').first().json;\n\nreturn {\n  json: {\n    type: 'lead_questionnaire_status',\n    titre: '✅ Statut lead mis à jour',\n    message: `Le statut du lead ${data.prenom} ${data.nom} a été mis à jour à 'contacte'`,\n    donnees: {\n      tenantId: data.tenantId,\n      leadId: data.leadId,\n      statut: 'contacte'\n    }\n  }\n};"
+        "jsCode": "// Notification: Statut mis à jour\nvar data = $('04. Préparer Données').first().json;\n\nreturn {\n  json: {\n    type: 'lead_questionnaire_status',\n    titre: '✅ Statut lead mis à jour',\n    message: `Le statut du lead ${data.prenom} ${data.nom} a été mis à jour à 'contacte'`,\n    donnees: {\n      tenantId: data.tenantId,\n      leadId: data.leadId,\n      statut: 'contacte'\n    }\n  }\n};"
       },
       "id": "Code_NotificationStatus",
       "name": "06. Notification - Statut",
@@ -100,7 +100,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "var d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "name": "07. API - Notification Statut - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -133,11 +133,12 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "// Conserver données pour email\nconst data = $('04. Préparer Données').first().json;\nreturn { json: data };"
+        "jsCode": "// Conserver données pour email\nvar data = $('04. Préparer Données').first().json;\nreturn { json: data };"
       },
       "id": "Code_Continue",
       "name": "08. Continuer",
@@ -150,7 +151,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater Email Client\nconst data = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 40px 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 20px; }\n    .welcome-box { background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .welcome-box p { margin: 0; color: #4f46e5; font-weight: 500; }\n    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3); transition: transform 0.2s; }\n    .button:hover { transform: translateY(-2px); }\n    .info-text { color: #6b7280; margin: 20px 0; }\n    .footer { background: #f9fafb; padding: 25px; text-align: center; color: #6b7280; font-size: 13px; border-top: 1px solid #e5e7eb; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p style=\"margin: 10px 0 0 0; opacity: 0.95;\">Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting`>Bonjour ${data.prenom} ${data.nom} 👋</div>\n      <div class=`welcome-box\">\n        <p>Bienvenue chez TalosPrimes !</p>\n      </div>\n      <p style=\"color: #374151; margin: 20px 0;\">Merci pour votre intérêt pour <strong>TalosPrimes</strong> ! Nous sommes ravis de vous accompagner dans votre projet.</p>\n      <p style=\"color: #374151; margin: 20px 0;\">Pour mieux comprendre vos besoins et vous proposer la solution la plus adaptée, nous vous invitons à remplir ce questionnaire :</p>\n      <p style=\"text-align: center;\">\n        <a href=`${data.questionnaireUrl}` class=\"button\">📝 Remplir le questionnaire</a>\n      </p>\n      <p class=\"info-text\">Ce questionnaire ne prendra que quelques minutes et nous permettra de personnaliser notre offre selon vos besoins spécifiques.</p>\n      <p style=\"color: #374151; margin: 30px 0 20px 0;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer`>\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nconst text = `Bonjour ${data.prenom} ${data.nom},\n\nBienvenue chez TalosPrimes !\n\nMerci pour votre intérêt pour TalosPrimes ! Nous sommes ravis de vous accompagner dans votre projet.\n\nPour mieux comprendre vos besoins et vous proposer la solution la plus adaptée, nous vous invitons à remplir ce questionnaire :\n\n${data.questionnaireUrl}\n\nCe questionnaire ne prendra que quelques minutes et nous permettra de personnaliser notre offre selon vos besoins spécifiques.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    from: `TalosPrimes <contact@talosprimes.com>\",\n    to: [data.email],\n    subject: \"Bienvenue chez TalosPrimes - Questionnaire personnalisé\",\n    html: html,\n    text: text\n  }\n};"
+        "jsCode": "// Formater Email Client\nvar data = $input.first().json;\n\nvar html = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <style>\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f4f4; }\n    .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n    .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 40px 30px; text-align: center; }\n    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }\n    .content { padding: 40px 30px; }\n    .greeting { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 20px; }\n    .welcome-box { background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center; }\n    .welcome-box p { margin: 0; color: #4f46e5; font-weight: 500; }\n    .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; text-decoration: none; border-radius: 8px; margin: 25px 0; font-weight: 600; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3); transition: transform 0.2s; }\n    .button:hover { transform: translateY(-2px); }\n    .info-text { color: #6b7280; margin: 20px 0; }\n    .footer { background: #f9fafb; padding: 25px; text-align: center; color: #6b7280; font-size: 13px; border-top: 1px solid #e5e7eb; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>TalosPrimes</h1>\n      <p style=\"margin: 10px 0 0 0; opacity: 0.95;\">Gestion d'entreprise automatisée</p>\n    </div>\n    <div class=\"content\">\n      <div class=\"greeting`>Bonjour ${data.prenom} ${data.nom} 👋</div>\n      <div class=`welcome-box\">\n        <p>Bienvenue chez TalosPrimes !</p>\n      </div>\n      <p style=\"color: #374151; margin: 20px 0;\">Merci pour votre intérêt pour <strong>TalosPrimes</strong> ! Nous sommes ravis de vous accompagner dans votre projet.</p>\n      <p style=\"color: #374151; margin: 20px 0;\">Pour mieux comprendre vos besoins et vous proposer la solution la plus adaptée, nous vous invitons à remplir ce questionnaire :</p>\n      <p style=\"text-align: center;\">\n        <a href=`${data.questionnaireUrl}` class=\"button\">📝 Remplir le questionnaire</a>\n      </p>\n      <p class=\"info-text\">Ce questionnaire ne prendra que quelques minutes et nous permettra de personnaliser notre offre selon vos besoins spécifiques.</p>\n      <p style=\"color: #374151; margin: 30px 0 20px 0;\">Cordialement,<br><strong>L'équipe TalosPrimes</strong></p>\n    </div>\n    <div class=\"footer`>\n      <p><strong>TalosPrimes</strong> - Plateforme SaaS de gestion d'entreprise</p>\n      <p>Cet email a été envoyé automatiquement.</p>\n    </div>\n  </div>\n</body>\n</html>`;\n\nvar text = `Bonjour ${data.prenom} ${data.nom},\n\nBienvenue chez TalosPrimes !\n\nMerci pour votre intérêt pour TalosPrimes ! Nous sommes ravis de vous accompagner dans votre projet.\n\nPour mieux comprendre vos besoins et vous proposer la solution la plus adaptée, nous vous invitons à remplir ce questionnaire :\n\n${data.questionnaireUrl}\n\nCe questionnaire ne prendra que quelques minutes et nous permettra de personnaliser notre offre selon vos besoins spécifiques.\n\nCordialement,\nL'équipe TalosPrimes`;\n\nreturn {\n  json: {\n    from: `TalosPrimes <contact@talosprimes.com>\",\n    to: [data.email],\n    subject: \"Bienvenue chez TalosPrimes - Questionnaire personnalisé\",\n    html: html,\n    text: text\n  }\n};"
       },
       "id": "Code_FormatEmail",
       "name": "09. Formatage Email Client",
@@ -189,7 +190,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Notification: Email envoyé\nconst data = $('09. Formatage Email Client').first().json;\nconst leadData = $('04. Préparer Données').first().json;\n\nreturn {\n  json: {\n    type: 'lead_questionnaire_email',\n    titre: '📧 Email questionnaire envoyé',\n    message: `Email questionnaire envoyé à ${data.to[0]} pour ${leadData.prenom} ${leadData.nom}`,\n    donnees: {\n      tenantId: leadData.tenantId,\n      leadId: leadData.leadId,\n      email: data.to[0]\n    }\n  }\n};"
+        "jsCode": "// Notification: Email envoyé\nvar data = $('09. Formatage Email Client').first().json;\nvar leadData = $('04. Préparer Données').first().json;\n\nreturn {\n  json: {\n    type: 'lead_questionnaire_email',\n    titre: '📧 Email questionnaire envoyé',\n    message: `Email questionnaire envoyé à ${data.to[0]} pour ${leadData.prenom} ${leadData.nom}`,\n    donnees: {\n      tenantId: leadData.tenantId,\n      leadId: leadData.leadId,\n      email: data.to[0]\n    }\n  }\n};"
       },
       "id": "Code_NotificationEmail",
       "name": "11. Notification - Email Envoyé",
@@ -202,7 +203,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "var d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "name": "12. API - Notification Email - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -235,7 +236,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -256,7 +258,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Notification d'erreur\nconst error = $input.first().json;\nconst parsed = $('02. Parser Payload').first()?.json || {};\n\nreturn {\n  json: {\n    type: 'lead_questionnaire_error',\n    titre: '🚨 Erreur workflow questionnaire',\n    message: `Erreur : ${error.message || error.error?.message || 'Erreur inconnue'}`,\n    donnees: {\n      tenantId: parsed.tenantId || '',\n      error: error.message || error.error?.message || 'Erreur inconnue',\n      executionId: $execution.id\n    }\n  }\n};"
+        "jsCode": "// Notification d'erreur\nvar error = $input.first().json;\nvar parsed = $('02. Parser Payload').first()?.json || {};\n\nreturn {\n  json: {\n    type: 'lead_questionnaire_error',\n    titre: '🚨 Erreur workflow questionnaire',\n    message: `Erreur : ${error.message || error.error?.message || 'Erreur inconnue'}`,\n    donnees: {\n      tenantId: parsed.tenantId || '',\n      error: error.message || error.error?.message || 'Erreur inconnue',\n      executionId: $execution.id\n    }\n  }\n};"
       },
       "id": "Code_NotificationError",
       "name": "ERROR. Notification Erreur",
@@ -269,7 +271,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "var d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.tenantId}', '${d.titre || 'Notification'}', '${d.message}', '${d.type || 'info'}', false, NOW())`;\nreturn [{json:{query}}];"
       },
       "name": "ERROR. API - Notification Erreur - Construire SQL",
       "type": "n8n-nodes-base.code",
@@ -302,7 +304,8 @@
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {

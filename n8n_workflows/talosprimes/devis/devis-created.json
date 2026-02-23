@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\nif (!body.clientFinalId) {\n  throw new Error('clientFinalId is required');\n}\n\nconst montantHt = parseFloat(body.montantHt) || 0;\nconst tvaTaux = parseFloat(body.tvaTaux) || 20;\nconst montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateDevis: body.dateDevis || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\nif (!body.clientFinalId) {\n  throw new Error('clientFinalId is required');\n}\n\nvar montantHt = parseFloat(body.montantHt) || 0;\nvar tvaTaux = parseFloat(body.tvaTaux) || 20;\nvar montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  clientFinalId: body.clientFinalId,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateDevis: body.dateDevis || new Date().toISOString(),\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  lines: body.lines || []\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -81,11 +81,12 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const parser = $('02. Parser').first().json;\nconst nextNum = $('05. Get Next Number').first().json.next_num || 1;\nconst year = new Date().getFullYear();\nconst numeroDevis = 'DEV-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroDevis } }];"
+        "jsCode": "var parser = $('02. Parser').first().json;\nvar nextNum = $('05. Get Next Number').first().json.next_num || 1;\nvar year = new Date().getFullYear();\nvar numeroDevis = 'DEV-' + year + '-' + String(nextNum).padStart(6, '0');\n\nreturn [{ json: { ...parser, numeroDevis } }];"
       },
       "id": "06. Generate Number",
       "name": "06. Generate Number",
@@ -127,7 +128,8 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -160,11 +162,12 @@
       "position": [
         1500,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const devis = $('07. Insert Devis').first().json;\n\nreturn [{ json: {\n  id: devis.id,\n  tenant_id: devis.tenant_id,\n  client_final_id: devis.client_final_id,\n  numero_devis: devis.numero_devis,\n  date_devis: devis.date_devis,\n  date_validite: devis.date_validite,\n  montant_ht: devis.montant_ht,\n  montant_ttc: devis.montant_ttc,\n  tva_taux: devis.tva_taux,\n  description: devis.description,\n  mode_paiement: devis.mode_paiement,\n  statut: devis.statut,\n  created_at: devis.created_at,\n  updated_at: devis.updated_at\n} }];"
+        "jsCode": "var devis = $('07. Insert Devis').first().json;\n\nreturn [{ json: {\n  id: devis.id,\n  tenant_id: devis.tenant_id,\n  client_final_id: devis.client_final_id,\n  numero_devis: devis.numero_devis,\n  date_devis: devis.date_devis,\n  date_validite: devis.date_validite,\n  montant_ht: devis.montant_ht,\n  montant_ttc: devis.montant_ttc,\n  tva_taux: devis.tva_taux,\n  description: devis.description,\n  mode_paiement: devis.mode_paiement,\n  statut: devis.statut,\n  created_at: devis.created_at,\n  updated_at: devis.updated_at\n} }];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",

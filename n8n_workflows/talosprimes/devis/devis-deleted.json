@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.devisId) {\n  throw new Error('tenantId and devisId are required');\n}\n\nreturn [{ json: { tenantId: body.tenantId, devisId: body.devisId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -82,7 +82,8 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -103,11 +104,12 @@
       "position": [
         900,
         300
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const result = $('06. Delete Devis').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { deleted: false, error: 'Devis not found or already invoiced' } }];\n}\n\nreturn [{ json: { deleted: true, id: result.id, numero_devis: result.numero_devis } }];"
+        "jsCode": "var result = $('06. Delete Devis').first().json;\n\nif (!result || !result.id) {\n  return [{ json: { deleted: false, error: 'Devis not found or already invoiced' } }];\n}\n\nreturn [{ json: { deleted: true, id: result.id, numero_devis: result.numero_devis } }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -209,5 +211,7 @@
     }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
