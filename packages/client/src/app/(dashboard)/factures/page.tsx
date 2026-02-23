@@ -436,6 +436,7 @@ export default function FacturesPage() {
             dateEcheance,
             description,
             modePaiement,
+            bdcId: selectedBdcId || undefined,
             ...(apiLines.length > 0 ? { lines: apiLines } : {}),
           });
           break;

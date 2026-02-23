@@ -344,6 +344,19 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
 
+        // Si un devisId est fourni, passer le devis en 'commandee' automatiquement
+        if (body.devisId) {
+          try {
+            await prisma.devis.update({
+              where: { id: body.devisId, tenantId },
+              data: { statut: 'commandee' },
+            });
+            fastify.log.info('Devis %s passé en commandee après création BdC via n8n', body.devisId);
+          } catch (devisErr) {
+            fastify.log.warn(devisErr, 'Impossible de passer le devis %s en commandee', body.devisId);
+          }
+        }
+
         return reply.status(201).send({
           success: true,
           message: 'Bon de commande créé via n8n',
@@ -397,6 +410,19 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       // Log the event
       await logEvent(tenantId, 'bdc_create', 'BonCommande', bon.id, { numeroBdc: bon.numeroBdc, montantTtc: Number(bon.montantTtc) }, 'succes');
+
+      // Si un devisId est fourni, passer le devis en 'commandee' automatiquement
+      if (body.devisId) {
+        try {
+          await prisma.devis.update({
+            where: { id: body.devisId, tenantId },
+            data: { statut: 'commandee' },
+          });
+          fastify.log.info('Devis %s passé en commandee après création BdC %s', body.devisId, bon.numeroBdc);
+        } catch (devisErr) {
+          fastify.log.warn(devisErr, 'Impossible de passer le devis %s en commandee', body.devisId);
+        }
+      }
 
       return reply.status(201).send({
         success: true,

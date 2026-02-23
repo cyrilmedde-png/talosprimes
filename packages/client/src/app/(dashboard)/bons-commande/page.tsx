@@ -186,6 +186,7 @@ export default function BonsCommandePage() {
         tvaTaux: parseFloat(createForm.tvaTaux.replace(',', '.')) || 20,
         description: createForm.description || undefined,
         modePaiement: createForm.modePaiement || undefined,
+        devisId: selectedDevisId || undefined,
         lines: apiLines.length > 0 ? apiLines : undefined,
       });
       setShowCreateModal(false);

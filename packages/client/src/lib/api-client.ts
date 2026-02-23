@@ -370,6 +370,7 @@ export const apiClient = {
       dateEcheance?: string;
       description?: string;
       modePaiement?: string;
+      bdcId?: string;
       lines?: { designation: string; quantite: number; prixUnitaireHt: number; codeArticle?: string | null }[];
     }) =>
       authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>('/api/invoices', {
@@ -454,6 +455,7 @@ export const apiClient = {
       dateValidite?: string;
       description?: string;
       modePaiement?: string;
+      devisId?: string;
       lines?: { designation: string; quantite: number; prixUnitaireHt: number; codeArticle?: string | null }[];
     }) =>
       authenticatedFetch<{ success: boolean; message: string; data: { bon: BonCommande } }>('/api/bons-commande', {

@@ -69,6 +69,7 @@ const createInvoiceSchema = z.object({
   modePaiement: z.string().optional().nullable(),
   lines: z.array(invoiceLineSchema).optional(),
   lienPdf: z.union([z.string().url(), z.literal('')]).optional().nullable(),
+  bdcId: z.string().uuid().optional().nullable(),
 });
 
 // Schema de validation pour mettre à jour une facture
@@ -596,6 +597,19 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             }
           }
 
+          // Si un bdcId est fourni, passer le BdC en 'facture' automatiquement
+          if (body.bdcId) {
+            try {
+              await prisma.bonCommande.update({
+                where: { id: body.bdcId, tenantId },
+                data: { statut: 'facture' },
+              });
+              fastify.log.info('BdC %s passé en facture après création facture via n8n', body.bdcId);
+            } catch (bdcErr) {
+              fastify.log.warn(bdcErr, 'Impossible de passer le BdC %s en facture', body.bdcId);
+            }
+          }
+
           return reply.status(201).send({
             success: true,
             message: 'Facture créée via n8n',
@@ -717,6 +731,19 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
 
         // Log the event
         await logEvent(tenantId, 'invoice_create', 'Invoice', invoice.id, { numeroFacture: invoice.numeroFacture, montantTtc: Number(invoice.montantTtc) }, 'succes');
+
+        // Si un bdcId est fourni, passer le BdC en 'facture' automatiquement
+        if (body.bdcId) {
+          try {
+            await prisma.bonCommande.update({
+              where: { id: body.bdcId, tenantId },
+              data: { statut: 'facture' },
+            });
+            fastify.log.info('BdC %s passé en facture après création facture %s', body.bdcId, invoice.numeroFacture);
+          } catch (bdcErr) {
+            fastify.log.warn(bdcErr, 'Impossible de passer le BdC %s en facture', body.bdcId);
+          }
+        }
 
         // Comptabilisation automatique (async, non-bloquant)
         n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
