@@ -316,6 +316,7 @@ export async function seedExerciceComptable(prisma: PrismaClient, tenantId: stri
     await prisma.exerciceComptable.create({
       data: {
         tenantId,
+        code: `EX${year}`,
         libelle: `Exercice ${year}`,
         dateDebut,
         dateFin,
