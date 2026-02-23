@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "lead_get",
-        "responseMode": "lastNode",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "Webhook_LeadGet",
@@ -125,7 +125,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
