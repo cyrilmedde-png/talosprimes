@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id } }];\n"
+        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst id = data?.id ? String(data.id) : '';\nconst tenantId = String(payload?.tenantId || data?.tenantId || '').trim();\nif (!id) throw new Error('ID requis');\nreturn [{ json: { id, tenantId } }];\n"
       },
       "id": "Code_Parse",
       "name": "Parser ID",
@@ -33,7 +33,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"DELETE FROM leads WHERE id = '\" + $json.id + \"' RETURNING id, nom, prenom, email\" }}"
+        "query": "={{ \"DELETE FROM leads WHERE id = '\" + $json.id + \"'::uuid\" + ($json.tenantId ? \" AND tenant_id = '\" + $json.tenantId + \"'::uuid\" : '') + \" RETURNING id, nom, prenom, email\" }}"
       },
       "id": "PG_Delete",
       "name": "Postgres - DELETE lead",

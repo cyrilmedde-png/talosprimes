@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// n8n Webhook output met le payload dans $json.body\n// Payload backend attendu (dans body): { event, tenantId, timestamp, data, metadata }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\nconst nom = String(data?.nom ?? '').trim();\nconst prenom = String(data?.prenom ?? '').trim();\nconst email = String(data?.email ?? '').trim();\nconst telephone = String(data?.telephone ?? '').trim();\nconst source = String(data?.source ?? 'admin').trim() || 'admin';\nconst notes = data?.notes ?? undefined;\n\nif (!nom || !prenom || !email || !telephone) {\n  throw new Error('Champs requis manquants (nom, prenom, email, telephone)');\n}\n\nreturn [{ json: { nom, prenom, email, telephone, source, notes } }];\n"
+        "jsCode": "// n8n Webhook output met le payload dans $json.body\n// Payload backend attendu (dans body): { event, tenantId, timestamp, data, metadata }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : payload;\n\nconst tenantId = String(payload?.tenantId ?? '00000000-0000-0000-0000-000000000001').trim();\nconst nom = String(data?.nom ?? '').trim();\nconst prenom = String(data?.prenom ?? '').trim();\nconst email = String(data?.email ?? '').trim();\nconst telephone = String(data?.telephone ?? '').trim();\nconst source = String(data?.source ?? 'admin').trim() || 'admin';\nconst notes = data?.notes ?? undefined;\n\nif (!nom || !prenom || !email || !telephone) {\n  throw new Error('Champs requis manquants (nom, prenom, email, telephone)');\n}\n\nreturn [{ json: { tenantId, nom, prenom, email, telephone, source, notes } }];\n"
       },
       "id": "Code_Normalize",
       "name": "Normaliser payload",
@@ -32,7 +32,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $json;\n// Escape single quotes\nconst esc = (v) => v ? String(v).replace(/'/g, \"''\") : '';\nconst query = `INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, notes, statut, date_contact, created_at, updated_at)\nVALUES (\n  gen_random_uuid(),\n  '${esc(d.tenantId)}',\n  '${esc(d.nom)}',\n  '${esc(d.prenom)}',\n  '${esc(d.email)}',\n  '${esc(d.telephone)}',\n  '${esc(d.source || 'admin')}',\n  ${d.notes ? \"'\" + esc(d.notes) + \"'\" : 'NULL'},\n  'nouveau',\n  NOW(),\n  NOW(), NOW()\n) RETURNING *`;\nreturn [{json: {query}}];"
+        "jsCode": "const d = $json;\n// Escape single quotes\nconst esc = (v) => v ? String(v).replace(/'/g, \"''\") : '';\nconst query = `INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, notes, statut, created_at, updated_at)\nVALUES (\n  gen_random_uuid(),\n  '${esc(d.tenantId)}'::uuid,\n  '${esc(d.nom)}',\n  '${esc(d.prenom)}',\n  '${esc(d.email)}',\n  '${esc(d.telephone)}',\n  '${esc(d.source || 'admin')}',\n  ${d.notes ? \"'\" + esc(d.notes) + \"'\" : 'NULL'},\n  'nouveau',\n  NOW(), NOW()\n) ON CONFLICT (email) DO UPDATE SET nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone, updated_at = NOW() RETURNING *`;\nreturn [{json: {query}}];"
       },
       "id": "Code_BuildSQL",
       "name": "Construire INSERT",
