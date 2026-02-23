@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedModules } from './seeds/01-modules';
 import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications, seedWorkflowLinksAgentTelephonique, seedWorkflowLinksClients, seedWorkflowLinksLeads, seedWorkflowLinksComptabilite } from './seeds/02-workflow-links';
+import { seedPlanComptable, seedJournauxComptables, seedExerciceComptable } from './seeds/04-plan-comptable';
 import { runSeedLanding } from './seed-landing';
 
 const prisma = new PrismaClient();
@@ -101,7 +102,12 @@ async function main() {
   await seedWorkflowLinksLeads(prisma, tenant.id);
   await seedWorkflowLinksComptabilite(prisma, tenant.id);
 
-  // 7. Agent Téléphonique - données de démo
+  // 7. Plan Comptable Général + Journaux + Exercice
+  await seedPlanComptable(prisma, tenant.id);
+  await seedJournauxComptables(prisma, tenant.id);
+  await seedExerciceComptable(prisma, tenant.id);
+
+  // 8. Agent Téléphonique - données de démo
   console.log('📱 Création des données Agent Téléphonique...');
 
   // Créer la config Twilio
