@@ -32,8 +32,21 @@
     },
     {
       "parameters": {
+        "jsCode": "const d = $json;\nfunction esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); }\nconst rs = d.raison_sociale ? \"'\" + esc(d.raison_sociale) + \"'\" : 'NULL';\nconst adr = d.adresse ? \"'\" + esc(d.adresse) + \"'\" : 'NULL';\nconst query = \"INSERT INTO client_finals (id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"'::uuid, '\" + esc(d.type) + \"', \" + rs + \", '\" + esc(d.nom) + \"', '\" + esc(d.prenom) + \"', '\" + esc(d.email) + \"', '\" + esc(d.telephone) + \"', \" + adr + \", 'actif', NOW(), NOW()) ON CONFLICT (tenant_id, email) DO UPDATE SET nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone, raison_sociale = COALESCE(NULLIF(EXCLUDED.raison_sociale, ''), client_finals.raison_sociale), adresse = COALESCE(NULLIF(EXCLUDED.adresse, ''), client_finals.adresse), updated_at = NOW() RETURNING *\";\nreturn [{json: {query}}];"
+      },
+      "id": "Code_BuildSQL",
+      "name": "Construire INSERT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO client_finals (id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at)\nVALUES (\n  gen_random_uuid(),\n  '\" + $json.tenantId + \"'::uuid,\n  '\" + $json.type + \"',\n  NULLIF('\" + $json.raison_sociale + \"', ''),\n  '\" + $json.nom + \"',\n  '\" + $json.prenom + \"',\n  '\" + $json.email + \"',\n  '\" + $json.telephone + \"',\n  NULLIF('\" + $json.adresse + \"', ''),\n  'actif',\n  NOW(), NOW()\n)\nON CONFLICT (tenant_id, email) DO UPDATE SET\n  nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone,\n  raison_sociale = COALESCE(NULLIF(EXCLUDED.raison_sociale, ''), client_finals.raison_sociale),\n  adresse = COALESCE(NULLIF(EXCLUDED.adresse, ''), client_finals.adresse),\n  updated_at = NOW()\nRETURNING id, tenant_id, type, raison_sociale, nom, prenom, email, telephone, adresse, statut, created_at, updated_at\" }}",
+        "query": "={{ $json.query }}",
         "options": {
           "queryBatching": "independently"
         }
@@ -43,7 +56,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        780,
+        920,
         300
       ],
       "credentials": {
@@ -64,7 +77,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1020,
+        1140,
         300
       ]
     }
@@ -82,6 +95,17 @@
       ]
     },
     "Normaliser": {
+      "main": [
+        [
+          {
+            "node": "Construire INSERT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construire INSERT": {
       "main": [
         [
           {
@@ -108,6 +132,5 @@
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner"
-  },
-  "_comment": "Converted from HTTP Request to Postgres Direct on 2026-02-21. Enum ClientFinalType = b2b|b2c (not particulier). Tested OK."
+  }
 }
