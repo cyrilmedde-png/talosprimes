@@ -11,10 +11,7 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
@@ -24,10 +21,7 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,10 +38,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -58,10 +49,7 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
@@ -73,15 +61,9 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        700,
-        300
-      ],
+      "position": [700, 300],
       "alwaysOutputData": true
     },
     {
@@ -94,49 +76,34 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        900,
-        300
-      ],
+      "position": [900, 300],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "var devis = $('05. Get Devis').first().json;\nvar nextNum = $('06. Get Next BDC Number').first().json.next_num || 1;\n\nif (!devis || !devis.id) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nvar year = new Date().getFullYear();\nvar numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\nvar now = new Date().toISOString();\nvar validite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nreturn [{ json: {\n  devisId: devis.id,\n  tenantId: devis.tenant_id,\n  clientFinalId: devis.client_final_id,\n  numeroDevis: devis.numero_devis,\n  numeroBdc,\n  dateBdc: now,\n  dateValidite: validite,\n  montantHt: devis.montant_ht,\n  montantTtc: devis.montant_ttc,\n  tvaTaux: devis.tva_taux,\n  description: devis.description ? 'Devis ' + devis.numero_devis + ' - ' + devis.description : 'Depuis devis ' + devis.numero_devis,\n  modePaiement: devis.mode_paiement\n} }];"
+        "jsCode": "var devis = $('05. Get Devis').first().json;\nvar nextNum = $('06. Get Next BDC Number').first().json.next_num || 1;\n\nif (!devis || !devis.id) {\n  throw new Error('Devis not found or not in acceptee status');\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nvar year = new Date().getFullYear();\nvar numeroBdc = 'BDC-' + year + '-' + String(nextNum).padStart(6, '0');\nvar now = new Date().toISOString();\nvar validite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();\n\nvar insertQuery = \"INSERT INTO bons_commande (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, devis_id, created_at, updated_at) VALUES (gen_random_uuid(), \" + esc(devis.tenant_id) + \"::uuid, \" + (devis.client_final_id ? esc(devis.client_final_id) + \"::uuid\" : \"NULL\") + \", \" + esc(numeroBdc) + \", \" + esc(now) + \"::timestamptz, \" + esc(validite) + \"::timestamptz, \" + num(devis.montant_ht) + \", \" + num(devis.montant_ttc) + \", \" + num(devis.tva_taux || 20) + \", \" + esc(devis.description ? 'Devis ' + devis.numero_devis + ' - ' + devis.description : 'Depuis devis ' + devis.numero_devis) + \", \" + esc(devis.mode_paiement) + \", 'valide', \" + esc(devis.id) + \"::uuid, NOW(), NOW()) RETURNING id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, devis_id\";\n\nvar updateQuery = \"UPDATE devis SET statut = 'commandee', updated_at = NOW() WHERE id = \" + esc(devis.id) + \" RETURNING id, numero_devis, statut\";\n\nreturn [{ json: {\n  devisId: devis.id,\n  tenantId: devis.tenant_id,\n  clientFinalId: devis.client_final_id,\n  numeroDevis: devis.numero_devis,\n  numeroBdc: numeroBdc,\n  dateBdc: now,\n  dateValidite: validite,\n  montantHt: devis.montant_ht,\n  montantTtc: devis.montant_ttc,\n  tvaTaux: devis.tva_taux,\n  description: devis.description,\n  modePaiement: devis.mode_paiement,\n  insertQuery: insertQuery,\n  updateQuery: updateQuery\n} }];"
       },
       "id": "07. Prepare BdC Data",
       "name": "07. Prepare BdC Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO bons_commande (id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, devis_id, created_at, updated_at) VALUES (gen_random_uuid(), '\" + $('07. Prepare BdC Data').first().json.tenantId + \"', \" + ($('07. Prepare BdC Data').first().json.clientFinalId ? \"'\" + $('07. Prepare BdC Data').first().json.clientFinalId + \"'\" : \"NULL\") + \", '\" + $('07. Prepare BdC Data').first().json.numeroBdc + \"', '\" + $('07. Prepare BdC Data').first().json.dateBdc + \"', '\" + $('07. Prepare BdC Data').first().json.dateValidite + \"', \" + $('07. Prepare BdC Data').first().json.montantHt + \", \" + $('07. Prepare BdC Data').first().json.montantTtc + \", \" + ($('07. Prepare BdC Data').first().json.tvaTaux || 20) + \", \" + ($('07. Prepare BdC Data').first().json.description ? \"'\" + $('07. Prepare BdC Data').first().json.description.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", \" + ($('07. Prepare BdC Data').first().json.modePaiement ? \"'\" + $('07. Prepare BdC Data').first().json.modePaiement + \"'\" : \"NULL\") + \", 'brouillon', '\" + $('07. Prepare BdC Data').first().json.devisId + \"', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, numero_bdc, date_bdc, date_validite, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, devis_id, created_at, updated_at\" }"
+        "query": "={{ $json.insertQuery }}"
       },
       "id": "08. Create BdC",
       "name": "08. Create BdC",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        1300,
-        300
-      ],
+      "position": [1300, 300],
       "alwaysOutputData": true
     },
     {
@@ -149,15 +116,9 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        1500,
-        300
-      ],
+      "position": [1500, 300],
       "alwaysOutputData": true
     },
     {
@@ -168,10 +129,7 @@
       "name": "10. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1700,
-        300
-      ]
+      "position": [1700, 300]
     },
     {
       "parameters": {
@@ -183,29 +141,35 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        1900,
-        300
-      ],
+      "position": [1900, 300],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "var bdc = $('08. Create BdC').first().json;\nvar devis = $('12. Update Devis').first().json;\n\nreturn [{ json: {\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  devis_id: devis.id,\n  numero_devis: devis.numero_devis,\n  devis_statut: devis.statut\n} }];"
+        "operation": "executeQuery",
+        "query": "={{ $('07. Prepare BdC Data').first().json.updateQuery }}"
+      },
+      "id": "12. Update Devis",
+      "name": "12. Update Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [2100, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var bdc = $('08. Create BdC').first().json;\nvar devis = $('12. Update Devis').first().json;\n\nreturn [{ json: {\n  success: true,\n  bdc_id: bdc.id,\n  numero_bdc: bdc.numero_bdc,\n  devis_id: devis.id,\n  numero_devis: devis.numero_devis,\n  devis_statut: devis.statut\n} }];"
       },
       "id": "13. Format Response",
       "name": "13. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2300,
-        300
-      ]
+      "position": [2300, 300]
     },
     {
       "parameters": {
@@ -216,176 +180,23 @@
       "name": "14. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2500,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"UPDATE devis SET statut = 'commandee', updated_at = NOW() WHERE id = '\" + $('07. Prepare BdC Data').first().json.devisId + \"' RETURNING id, numero_devis, statut\" }}"
-      },
-      "id": "12. Update Devis",
-      "name": "12. Update Devis",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        2100,
-        300
-      ],
-      "alwaysOutputData": true
+      "position": [2500, 300]
     }
   ],
   "connections": {
-    "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "03. Valide ?": {
-      "main": [
-        [
-          {
-            "node": "05. Get Devis",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "05. Get Devis": {
-      "main": [
-        [
-          {
-            "node": "06. Get Next BDC Number",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "06. Get Next BDC Number": {
-      "main": [
-        [
-          {
-            "node": "07. Prepare BdC Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "07. Prepare BdC Data": {
-      "main": [
-        [
-          {
-            "node": "08. Create BdC",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "08. Create BdC": {
-      "main": [
-        [
-          {
-            "node": "09. Get Devis Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "09. Get Devis Lines": {
-      "main": [
-        [
-          {
-            "node": "10. Prepare Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10. Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "11. Create BdC Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "11. Create BdC Lines": {
-      "main": [
-        [
-          {
-            "node": "12. Update Devis",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "13. Format Response": {
-      "main": [
-        [
-          {
-            "node": "14. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "12. Update Devis": {
-      "main": [
-        [
-          {
-            "node": "13. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Get Devis", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Get Devis": { "main": [[{ "node": "06. Get Next BDC Number", "type": "main", "index": 0 }]] },
+    "06. Get Next BDC Number": { "main": [[{ "node": "07. Prepare BdC Data", "type": "main", "index": 0 }]] },
+    "07. Prepare BdC Data": { "main": [[{ "node": "08. Create BdC", "type": "main", "index": 0 }]] },
+    "08. Create BdC": { "main": [[{ "node": "09. Get Devis Lines", "type": "main", "index": 0 }]] },
+    "09. Get Devis Lines": { "main": [[{ "node": "10. Prepare Lines", "type": "main", "index": 0 }]] },
+    "10. Prepare Lines": { "main": [[{ "node": "11. Create BdC Lines", "type": "main", "index": 0 }]] },
+    "11. Create BdC Lines": { "main": [[{ "node": "12. Update Devis", "type": "main", "index": 0 }]] },
+    "12. Update Devis": { "main": [[{ "node": "13. Format Response", "type": "main", "index": 0 }]] },
+    "13. Format Response": { "main": [[{ "node": "14. Respond", "type": "main", "index": 0 }]] }
   },
   "active": true,
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": { "executionOrder": "v1" }
 }
