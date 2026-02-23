@@ -565,6 +565,19 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           }
         } catch (_) { /* non-bloquant */ }
 
+        // Assurer que le journal VE (Ventes) existe
+        try {
+          const journalVE = await prisma.journalComptable.findUnique({
+            where: { tenantId_code: { tenantId, code: 'VE' } },
+          });
+          if (!journalVE) {
+            await prisma.journalComptable.create({
+              data: { tenantId, code: 'VE', libelle: 'Journal des Ventes', type: 'VE' },
+            });
+            fastify.log.info('Journal VE créé automatiquement pour tenant %s', tenantId);
+          }
+        } catch (_) { /* non-bloquant */ }
+
         // Comptabilisation automatique après conversion BdC → facture
         try {
           const resData = res.data as Record<string, unknown> | undefined;
@@ -645,6 +658,19 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
             data: { tenantId, code: String(year), dateDebut: new Date(`${year}-01-01`), dateFin: new Date(`${year}-12-31`), cloture: false },
           });
           fastify.log.info('Exercice comptable %d créé automatiquement pour tenant %s', year, tenantId);
+        }
+      } catch (_) { /* non-bloquant */ }
+
+      // Assurer que le journal VE (Ventes) existe
+      try {
+        const journalVE = await prisma.journalComptable.findUnique({
+          where: { tenantId_code: { tenantId, code: 'VE' } },
+        });
+        if (!journalVE) {
+          await prisma.journalComptable.create({
+            data: { tenantId, code: 'VE', libelle: 'Journal des Ventes', type: 'VE' },
+          });
+          fastify.log.info('Journal VE créé automatiquement pour tenant %s', tenantId);
         }
       } catch (_) { /* non-bloquant */ }
 

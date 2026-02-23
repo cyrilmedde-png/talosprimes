@@ -767,6 +767,21 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           fastify.log.warn(exErr, 'Impossible de vérifier/créer l\'exercice comptable');
         }
 
+        // Assurer que le journal VE (Ventes) existe avant la comptabilisation
+        try {
+          const journalVE = await prisma.journalComptable.findUnique({
+            where: { tenantId_code: { tenantId, code: 'VE' } },
+          });
+          if (!journalVE) {
+            await prisma.journalComptable.create({
+              data: { tenantId, code: 'VE', libelle: 'Journal des Ventes', type: 'VE' },
+            });
+            fastify.log.info('Journal VE créé automatiquement pour tenant %s', tenantId);
+          }
+        } catch (jErr) {
+          fastify.log.warn(jErr, 'Impossible de vérifier/créer le journal VE');
+        }
+
         // Comptabilisation automatique (async, non-bloquant)
         n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
           invoiceId: invoice.id,
