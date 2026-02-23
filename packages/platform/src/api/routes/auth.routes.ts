@@ -5,7 +5,7 @@ import type { JWTPayload } from '../../services/auth.service.js';
 import { prisma } from '../../config/database.js';
 
 // ID fixe du tenant démo (créé par le seed)
-const DEMO_TENANT_ID = 'demo0000-0000-0000-0000-000000000001';
+const DEMO_TENANT_ID = 'de000000-0000-0000-0000-000000000001';
 const DEMO_USER_EMAIL = 'demo@talosprimes.com';
 
 // Schema de validation pour le login

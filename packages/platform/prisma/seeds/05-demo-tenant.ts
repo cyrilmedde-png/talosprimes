@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const DEMO_TENANT_ID = 'demo0000-0000-0000-0000-000000000001';
+const DEMO_TENANT_ID = 'de000000-0000-0000-0000-000000000001';
 const DEMO_USER_EMAIL = 'demo@talosprimes.com';
 const DEMO_USER_PASSWORD = 'demo2026';
 

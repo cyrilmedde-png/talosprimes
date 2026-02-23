@@ -263,7 +263,7 @@ async function main() {
   await seedDemoTenant(prisma);
 
   // 10. Workflow links pour le tenant démo
-  const DEMO_TENANT_ID = 'demo0000-0000-0000-0000-000000000001';
+  const DEMO_TENANT_ID = 'de000000-0000-0000-0000-000000000001';
   await seedWorkflowLinksFacturation(prisma, DEMO_TENANT_ID);
   await seedWorkflowLinksArticles(prisma, DEMO_TENANT_ID);
   await seedWorkflowLinksBdc(prisma, DEMO_TENANT_ID);
