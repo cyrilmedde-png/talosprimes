@@ -150,5 +150,8 @@
       ]
     }
   },
-  "settings": {}
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
 }
