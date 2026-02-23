@@ -316,8 +316,7 @@ export async function seedExerciceComptable(prisma: PrismaClient, tenantId: stri
     await prisma.exerciceComptable.create({
       data: {
         tenantId,
-        code: `EX${year}`,
-        libelle: `Exercice ${year}`,
+        code: `${year}`,
         dateDebut,
         dateFin,
         cloture: false,
@@ -325,6 +324,6 @@ export async function seedExerciceComptable(prisma: PrismaClient, tenantId: stri
     });
     console.log(`✅ Exercice ${year} créé`);
   } else {
-    console.log(`✅ Exercice déjà existant : ${existing.libelle}`);
+    console.log(`✅ Exercice déjà existant : ${existing.code}`);
   }
 }
