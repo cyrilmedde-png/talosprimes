@@ -718,6 +718,14 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         // Log the event
         await logEvent(tenantId, 'invoice_create', 'Invoice', invoice.id, { numeroFacture: invoice.numeroFacture, montantTtc: Number(invoice.montantTtc) }, 'succes');
 
+        // Comptabilisation automatique (async, non-bloquant)
+        n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
+          invoiceId: invoice.id,
+          tenantId,
+        }).catch((err) => {
+          fastify.log.warn(err, 'Échec comptabilisation auto pour facture %s', invoice.id);
+        });
+
         return reply.status(201).send({
           success: true,
           message: 'Facture créée',

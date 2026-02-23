@@ -526,6 +526,21 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
+
+        // Comptabilisation automatique après conversion BdC → facture
+        try {
+          const resData = res.data as Record<string, unknown> | undefined;
+          const invoiceId = resData?.invoiceId ?? resData?.invoice_id ?? (resData?.invoice as Record<string, unknown>)?.id;
+          if (invoiceId) {
+            n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
+              invoiceId: String(invoiceId),
+              tenantId,
+            }).catch((err) => {
+              fastify.log.warn(err, 'Échec comptabilisation auto pour facture %s', invoiceId);
+            });
+          }
+        } catch (_) { /* non-bloquant */ }
+
         return reply.status(201).send({
           success: true,
           message: 'Facture créée via n8n',
@@ -582,6 +597,14 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       // Log the event
       await logEvent(tenantId, 'bdc_convert_to_invoice', 'BonCommande', bon.id, { numeroBdc: bon.numeroBdc, numeroFacture }, 'succes');
+
+      // Comptabilisation automatique (async, non-bloquant)
+      n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
+        invoiceId: invoice.id,
+        tenantId,
+      }).catch((err) => {
+        fastify.log.warn(err, 'Échec comptabilisation auto pour facture %s', invoice.id);
+      });
 
       return reply.status(201).send({
         success: true,

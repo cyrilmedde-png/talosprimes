@@ -7,9 +7,12 @@ const FACTURATION_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'invoices_list', workflowN8nId: 'invoices_list', workflowN8nNom: 'invoices-list' },
   { typeEvenement: 'invoice_get', workflowN8nId: 'invoice_get', workflowN8nNom: 'invoice-get' },
   { typeEvenement: 'invoice_update', workflowN8nId: 'invoice_update', workflowN8nNom: 'invoice-update' },
+  { typeEvenement: 'invoice_send', workflowN8nId: 'invoice_send', workflowN8nNom: 'invoice-sent' },
   { typeEvenement: 'invoice_paid', workflowN8nId: 'invoice_paid', workflowN8nNom: 'invoice-paid' },
   { typeEvenement: 'invoice_overdue', workflowN8nId: 'invoice_overdue', workflowN8nNom: 'invoice-overdue' },
+  { typeEvenement: 'invoice_delete', workflowN8nId: 'invoice_delete', workflowN8nNom: 'invoice-deleted' },
   { typeEvenement: 'invoice_generate_pdf', workflowN8nId: 'invoice_generate_pdf', workflowN8nNom: 'invoice-generate-pdf' },
+  { typeEvenement: 'invoice_convert_to_avoir', workflowN8nId: 'invoice_convert_to_avoir', workflowN8nNom: 'invoice-convert-to-avoir' },
 ];
 
 const ARTICLES_WORKFLOWS: WfDef[] = [
@@ -26,6 +29,7 @@ const DEVIS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'devis_send', workflowN8nId: 'devis_send', workflowN8nNom: 'devis-sent' },
   { typeEvenement: 'devis_accept', workflowN8nId: 'devis_accept', workflowN8nNom: 'devis-accepted' },
   { typeEvenement: 'devis_convert_to_invoice', workflowN8nId: 'devis_convert_to_invoice', workflowN8nNom: 'devis-convert-to-invoice' },
+  { typeEvenement: 'devis_convert_to_bdc', workflowN8nId: 'devis_convert_to_bdc', workflowN8nNom: 'devis-convert-to-bdc' },
   { typeEvenement: 'devis_delete', workflowN8nId: 'devis_delete', workflowN8nNom: 'devis-deleted' },
 ];
 
@@ -95,6 +99,13 @@ const CLIENTS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'client_update', workflowN8nId: 'client_update', workflowN8nNom: 'client-update' },
   { typeEvenement: 'clients_list', workflowN8nId: 'clients_list', workflowN8nNom: 'clients-list' },
   { typeEvenement: 'client_deleted_cleanup_lead', workflowN8nId: 'client_deleted_cleanup_lead', workflowN8nNom: 'client-deleted-cleanup-lead' },
+  { typeEvenement: 'client_onboarding', workflowN8nId: 'client_onboarding', workflowN8nNom: 'client-onboarding' },
+  { typeEvenement: 'stripe_checkout_completed', workflowN8nId: 'stripe_checkout_completed', workflowN8nNom: 'stripe-checkout-completed' },
+  { typeEvenement: 'client_space_create', workflowN8nId: 'client_space_create', workflowN8nNom: 'client-space-create' },
+  { typeEvenement: 'client_space_validate', workflowN8nId: 'client_space_validate', workflowN8nNom: 'client-space-validate' },
+  { typeEvenement: 'client_space_list', workflowN8nId: 'client_space_list', workflowN8nNom: 'client-space-list' },
+  { typeEvenement: 'client_space_get', workflowN8nId: 'client_space_get', workflowN8nNom: 'client-space-get' },
+  { typeEvenement: 'client_space_resend_email', workflowN8nId: 'client_space_resend_email', workflowN8nNom: 'client-space-resend-email' },
 ];
 
 const LEADS_WORKFLOWS: WfDef[] = [
