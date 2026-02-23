@@ -1,137 +1,97 @@
 {
-  "name": "Clients - Delete (client_delete) → Postgres Direct → Respond",
+  "name": "client-delete",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "client_delete",
-        "responseMode": "responseNode",
-        "options": {}
+        "responseMode": "responseNode"
       },
-      "id": "Webhook_ClientDelete",
-      "name": "Webhook - client_delete",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\nconst id = data?.id ? String(data.id) : '';\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\nreturn [{ json: { id, tenantId } }];\n"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = body.tenantId || raw.tenantId || '';\nvar id = data.id || body.id || '';\nif (!id) throw new Error('ID du client requis');\nif (!tenantId) throw new Error('Tenant ID requis');\nreturn [{ json: { id: String(id), tenantId: String(tenantId) } }];"
       },
-      "id": "Code_Parse",
-      "name": "Parser ID",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        560,
-        300
-      ]
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var id = $json.id;\nvar tenantId = $json.tenantId;\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar query = 'BEGIN; '\n  + 'DELETE FROM devis_lines WHERE devis_id IN (SELECT id FROM devis WHERE client_final_id = ' + esc(id) + '::uuid AND tenant_id = ' + esc(tenantId) + '::uuid); '\n  + 'DELETE FROM devis WHERE client_final_id = ' + esc(id) + '::uuid AND tenant_id = ' + esc(tenantId) + '::uuid; '\n  + 'DELETE FROM bon_commande_lines WHERE bon_commande_id IN (SELECT id FROM bons_commande WHERE client_final_id = ' + esc(id) + '::uuid AND tenant_id = ' + esc(tenantId) + '::uuid); '\n  + 'DELETE FROM bons_commande WHERE client_final_id = ' + esc(id) + '::uuid AND tenant_id = ' + esc(tenantId) + '::uuid; '\n  + 'DELETE FROM invoice_lines WHERE invoice_id IN (SELECT id FROM invoices WHERE client_final_id = ' + esc(id) + '::uuid AND tenant_id = ' + esc(tenantId) + '::uuid); '\n  + 'DELETE FROM invoices WHERE client_final_id = ' + esc(id) + '::uuid AND tenant_id = ' + esc(tenantId) + '::uuid; '\n  + 'DELETE FROM client_finals WHERE id = ' + esc(id) + '::uuid AND tenant_id = ' + esc(tenantId) + '::uuid RETURNING id, nom, prenom, email; '\n  + 'COMMIT;';\n\nreturn [{ json: { query: query, id: id, tenantId: tenantId } }];"
+      },
+      "id": "03. Build SQL",
+      "name": "03. Build SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 200]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"DELETE FROM client_finals\nWHERE id = '\" + $json.id + \"'::uuid\nAND tenant_id = '\" + $json.tenantId + \"'::uuid\nRETURNING id, nom, prenom, email\" }}",
-        "options": {
-          "queryBatching": "independently"
-        }
+        "query": "={{ $json.query }}"
       },
-      "id": "PG_Delete",
-      "name": "Postgres - Delete Client",
+      "id": "04. Execute Delete",
+      "name": "04. Execute Delete",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        780,
-        300
-      ],
+      "typeVersion": 2,
       "credentials": {
         "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
       },
+      "position": [700, 200],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst deleted = items.filter(i => i.json && i.json.id);\nif (deleted.length === 0) {\n  return [{ json: { success: false, message: 'Client non trouvé ou déjà supprimé' } }];\n}\nconst d = deleted[0].json;\nreturn [{ json: { success: true, message: 'Client supprimé', id: d.id, email: d.email } }];\n"
+        "jsCode": "var items = $input.all();\nvar deleted = items.filter(function(i) { return i.json && i.json.id; });\nif (deleted.length === 0) {\n  return [{ json: { success: true, message: 'Client supprimé (ou déjà supprimé)' } }];\n}\nvar d = deleted[0].json;\nreturn [{ json: { success: true, message: 'Client supprimé', id: d.id, nom: d.nom, prenom: d.prenom, email: d.email } }];"
       },
-      "id": "Code_Verify",
-      "name": "Vérifier suppression",
+      "id": "05. Format Response",
+      "name": "05. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1000,
-        300
-      ]
+      "position": [900, 200]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "Respond_ClientDelete",
-      "name": "Respond",
+      "id": "06. Respond",
+      "name": "06. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        1240,
-        300
-      ]
+      "typeVersion": 1,
+      "position": [1100, 200]
     }
   ],
   "connections": {
-    "Webhook - client_delete": {
-      "main": [
-        [
-          {
-            "node": "Parser ID",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
-    "Parser ID": {
-      "main": [
-        [
-          {
-            "node": "Postgres - Delete Client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "02. Parser": {
+      "main": [[{ "node": "03. Build SQL", "type": "main", "index": 0 }]]
     },
-    "Postgres - Delete Client": {
-      "main": [
-        [
-          {
-            "node": "Vérifier suppression",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "03. Build SQL": {
+      "main": [[{ "node": "04. Execute Delete", "type": "main", "index": 0 }]]
     },
-    "Vérifier suppression": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "04. Execute Delete": {
+      "main": [[{ "node": "05. Format Response", "type": "main", "index": 0 }]]
+    },
+    "05. Format Response": {
+      "main": [[{ "node": "06. Respond", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
-  },
-  "_comment": "Converted from HTTP Request to Postgres Direct on 2026-02-21. Includes tenant_id in WHERE clause for security. Tested OK."
+    "executionOrder": "v1"
+  }
 }

@@ -561,7 +561,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($('11. Formater réponse').item.json) }}",
+        "responseBody": "={{ $('11. Formater réponse').first().json }}",
         "options": {}
       },
       "id": "respond-webhook",
@@ -576,7 +576,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: 'Données invalides: clientId ou tenantId manquant' }) }}",
+        "responseBody": "={ \"success\": false, \"error\": \"Données invalides: clientId ou tenantId manquant\" }",
         "options": {}
       },
       "id": "respond-error",
@@ -868,6 +868,7 @@
       ]
     }
   },
+  "active": true,
   "pinData": {},
   "settings": {
     "executionOrder": "v1"

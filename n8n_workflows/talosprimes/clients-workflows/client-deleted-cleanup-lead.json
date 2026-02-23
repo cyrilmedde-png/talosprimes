@@ -1,215 +1,153 @@
 {
-  "name": "Clients - Après suppression : lead en abandonné (client.deleted)",
+  "name": "client-deleted-cleanup-lead",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "client-deleted-cleanup-lead",
-        "responseMode": "responseNode",
-        "options": {}
+        "responseMode": "responseNode"
       },
-      "id": "Webhook_ClientDeleted",
-      "name": "Webhook - client-deleted-cleanup-lead",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        300,
-        300
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "// Payload envoyé par l'app : { event, tenantId, timestamp, data: { clientId, tenantId, email } }\nconst raw = $input.first().json;\nconst payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nconst data = (payload && typeof payload === 'object' && 'data' in payload) ? payload.data : (payload ?? {});\n\nconst email = (data.email || '').trim().toLowerCase();\nconst tenantId = payload?.tenantId || raw?.tenantId || '';\n\nif (!email) {\n  return [{ json: { email: '', tenantId, skip: true } }];\n}\n\nreturn [{ json: { email, tenantId, skip: false } }];\n"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar email = String(data.email || body.email || raw.email || '').trim().toLowerCase();\nvar tenantId = body.tenantId || raw.tenantId || '';\nif (!email) return [{ json: { email: '', tenantId: tenantId, skip: true } }];\nif (!tenantId) throw new Error('Tenant ID requis');\nreturn [{ json: { email: email, tenantId: String(tenantId), skip: false } }];"
       },
-      "id": "Code_Extract",
-      "name": "Extraire email client",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        520,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "https://api.talosprimes.com/api/leads?statut=converti&limit=500",
-        "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
-      },
-      "id": "HTTP_GetLeads",
-      "name": "API TalosPrimes - GET leads convertis",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        740,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Trouver le lead dont l'email correspond au client supprimé\nconst clientEmail = $('Extraire email client').first().json.email;\nif (!clientEmail) {\n  return [{ json: { leadId: null } }];\n}\n\nconst res = $input.first().json;\nconst leads = res?.data?.leads || [];\nconst lead = leads.find(l => (l.email || '').toLowerCase() === clientEmail);\n\nreturn [{ json: { leadId: lead ? lead.id : null } }];\n"
-      },
-      "id": "Code_Find",
-      "name": "Trouver lead par email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        960,
-        300
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
             {
-              "value1": "={{ $json.leadId }}",
-              "operation": "isNotEmpty"
+              "value1": "={{ $json.skip }}",
+              "operation": "equals",
+              "value2": "false"
             }
           ]
         }
       },
-      "id": "IF_Found",
-      "name": "Lead trouvé ?",
+      "id": "03. Skip ?",
+      "name": "03. Skip ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        1180,
-        300
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "method": "PATCH",
-        "url": "=https://api.talosprimes.com/api/leads/{{ $json.leadId }}/statut",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\"statut\":\"abandonne\"}",
-        "options": {
-          "timeout": 15000,
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, tenant_id, nom, prenom, email, statut FROM leads WHERE email = '\" + $('02. Parser').first().json.email.replace(/'/g, \"''\") + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'::uuid AND statut = 'converti' LIMIT 1\" }}"
+      },
+      "id": "04. Find Lead",
+      "name": "04. Find Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
       },
-      "id": "HTTP_PatchLeadStatut",
-      "name": "API TalosPrimes - PATCH lead statut abandonné",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        1400,
-        200
-      ]
+      "position": [700, 200],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "responseBody": "={{ { success: true, message: 'Lead passé en abandonné' } }}",
-        "responseCode": 200,
-        "options": {}
+        "jsCode": "var lead = $('04. Find Lead').first().json;\nif (!lead || !lead.id) {\n  return [{ json: { found: false, query: 'SELECT 1' } }];\n}\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar query = \"UPDATE leads SET statut = 'abandonne', updated_at = NOW() WHERE id = \" + esc(lead.id) + \"::uuid AND tenant_id = \" + esc($('02. Parser').first().json.tenantId) + \"::uuid RETURNING id, nom, prenom, email, statut\";\nreturn [{ json: { found: true, leadId: lead.id, query: query } }];"
       },
-      "id": "Respond_Cleanup",
-      "name": "Respond",
+      "id": "05. Build Update SQL",
+      "name": "05. Build Update SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "06. Update Lead",
+      "name": "06. Update Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [1100, 200],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var buildSql = $('05. Build Update SQL').first().json;\nif (!buildSql.found) {\n  return [{ json: { success: true, message: 'Aucun lead converti trouvé pour cet email' } }];\n}\nvar updated = $('06. Update Lead').first().json;\nreturn [{ json: { success: true, message: 'Lead passé en abandonné', leadId: buildSql.leadId, lead: updated } }];"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1620,
-        300
-      ]
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Skip - pas d'email client\" }"
+      },
+      "id": "09. Respond Skip",
+      "name": "09. Respond Skip",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
     }
   ],
   "connections": {
-    "Webhook - client-deleted-cleanup-lead": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Skip ?", "type": "main", "index": 0 }]]
+    },
+    "03. Skip ?": {
       "main": [
-        [
-          {
-            "node": "Extraire email client",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "04. Find Lead", "type": "main", "index": 0 }],
+        [{ "node": "09. Respond Skip", "type": "main", "index": 0 }]
       ]
     },
-    "Extraire email client": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - GET leads convertis",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "04. Find Lead": {
+      "main": [[{ "node": "05. Build Update SQL", "type": "main", "index": 0 }]]
     },
-    "API TalosPrimes - GET leads convertis": {
-      "main": [
-        [
-          {
-            "node": "Trouver lead par email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Build Update SQL": {
+      "main": [[{ "node": "06. Update Lead", "type": "main", "index": 0 }]]
     },
-    "Trouver lead par email": {
-      "main": [
-        [
-          {
-            "node": "Lead trouvé ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Update Lead": {
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
     },
-    "Lead trouvé ?": {
-      "main": [
-        [
-          {
-            "node": "API TalosPrimes - PATCH lead statut abandonné",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "API TalosPrimes - PATCH lead statut abandonné": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Format Response": {
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  },
-  "versionId": "v1"
+  }
 }
