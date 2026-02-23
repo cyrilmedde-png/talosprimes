@@ -11,10 +11,7 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
@@ -24,10 +21,7 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
@@ -44,10 +38,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -58,10 +49,7 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
@@ -78,10 +66,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
@@ -91,18 +76,25 @@
       "name": "06. Generate Number",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ]
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nconst clientPart = d.clientFinalId ? esc(d.clientFinalId) : 'NULL';\nconst descPart = d.description ? esc(d.description) : 'NULL';\nconst modePart = d.modePaiement ? esc(d.modePaiement) : 'NULL';\nconst lienPart = d.lienPdf ? esc(d.lienPdf) : 'NULL';\n\nconst query = 'INSERT INTO invoices (id, tenant_id, client_final_id, type, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, lien_pdf, statut, created_at, updated_at) VALUES (gen_random_uuid(), ' + esc(d.tenantId) + '::uuid, ' + clientPart + ', ' + esc(d.type) + ', ' + esc(d.numeroFacture) + ', ' + esc(d.dateFacture) + ', ' + esc(d.dateEcheance) + ', ' + d.montantHt + ', ' + d.montantTtc + ', ' + d.tvaTaux + ', ' + descPart + ', ' + modePart + ', ' + lienPart + ', ' + \"'brouillon'\" + ', NOW(), NOW()) RETURNING *';\n\nreturn [{ json: { query, lines: d.lines || [] } }];"
+      },
+      "id": "07. Build Insert SQL",
+      "name": "07. Build Insert SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO invoices (id, tenant_id, client_final_id, type, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, lien_pdf, statut, created_at, updated_at) VALUES (gen_random_uuid(), '\" + $('06. Generate Number').first().json.tenantId + \"', \" + ($('06. Generate Number').first().json.clientFinalId ? \"'\" + $('06. Generate Number').first().json.clientFinalId + \"'\" : \"NULL\") + \", '\" + $('06. Generate Number').first().json.type + \"', '\" + $('06. Generate Number').first().json.numeroFacture + \"', '\" + $('06. Generate Number').first().json.dateFacture + \"', '\" + $('06. Generate Number').first().json.dateEcheance + \"', \" + $('06. Generate Number').first().json.montantHt + \", \" + $('06. Generate Number').first().json.montantTtc + \", \" + $('06. Generate Number').first().json.tvaTaux + \", \" + ($('06. Generate Number').first().json.description ? \"'\" + $('06. Generate Number').first().json.description + \"'\" : \"NULL\") + \", \" + ($('06. Generate Number').first().json.modePaiement ? \"'\" + $('06. Generate Number').first().json.modePaiement + \"'\" : \"NULL\") + \", \" + ($('06. Generate Number').first().json.lienPdf ? \"'\" + $('06. Generate Number').first().json.lienPdf + \"'\" : \"NULL\") + \", 'brouillon', NOW(), NOW()) RETURNING id, tenant_id, client_final_id, type, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, mode_paiement, statut, lien_pdf, created_at, updated_at\" }}"
+        "query": "={{ $json.query }}"
       },
-      "id": "07. Insert Invoice",
-      "name": "07. Insert Invoice",
+      "id": "07b. Insert Invoice",
+      "name": "07b. Insert Invoice",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -111,23 +103,17 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $('07. Insert Invoice').first().json;\nconst parser = $('02. Parser').first().json;\nconst lines = parser.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { invoiceId: invoice.id, hasLines: false, query: 'SELECT 1' } }];\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nconst values = lines.map((line, i) => {\n  const parentId = esc(invoice.id);\n  const codeArticle = line.codeArticle ? esc(line.codeArticle) : 'NULL';\n  const designation = esc(String(line.designation || '').substring(0, 500));\n  const quantite = parseFloat(line.quantite) || 1;\n  const prixUnitaireHt = parseFloat(line.prixUnitaireHt || line.prixUnitaireHT) || 0;\n  const totalHt = Math.round(quantite * prixUnitaireHt * 100) / 100;\n  const ordre = i;\n  return '(gen_random_uuid(), ' + parentId + ', ' + codeArticle + ', ' + designation + ', ' + quantite + ', ' + prixUnitaireHt + ', ' + totalHt + ', ' + ordre + ')';\n}).join(', ');\n\nconst query = 'INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ' + values + ' RETURNING id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre';\n\nreturn [{ json: { invoiceId: invoice.id, hasLines: true, query } }];"
+        "jsCode": "const invoice = $json;\nconst lines = $('07. Build Insert SQL').first().json.lines || [];\n\nif (lines.length === 0) {\n  return [{ json: { invoiceId: invoice.id, hasLines: false, query: 'SELECT 1' } }];\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nconst values = lines.map(function(line, i) {\n  var parentId = esc(invoice.id);\n  var codeArticle = line.codeArticle ? esc(line.codeArticle) : 'NULL';\n  var designation = esc(String(line.designation || '').substring(0, 500));\n  var quantite = parseFloat(line.quantite) || 1;\n  var prixUnitaireHt = parseFloat(line.prixUnitaireHt || line.prixUnitaireHT) || 0;\n  var totalHt = Math.round(quantite * prixUnitaireHt * 100) / 100;\n  var ordre = i;\n  return '(gen_random_uuid(), ' + parentId + ', ' + codeArticle + ', ' + designation + ', ' + quantite + ', ' + prixUnitaireHt + ', ' + totalHt + ', ' + ordre + ')';\n}).join(', ');\n\nvar query = 'INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ' + values + ' RETURNING id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre';\n\nreturn [{ json: { invoiceId: invoice.id, hasLines: true, query: query } }];"
       },
       "id": "08. Prepare Lines",
       "name": "08. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1500, 300]
     },
     {
       "parameters": {
@@ -144,10 +130,7 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [
-        1500,
-        300
-      ]
+      "position": [1700, 300]
     },
     {
       "parameters": {
@@ -155,7 +138,7 @@
         "url": "=http://localhost:5678/webhook/compta-auto-facture",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: $('07. Insert Invoice').first().json.tenant_id, invoiceId: $('07. Insert Invoice').first().json.id }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $('07b. Insert Invoice').first().json.tenant_id, invoiceId: $('07b. Insert Invoice').first().json.id }) }}",
         "options": {
           "timeout": 15000
         }
@@ -164,158 +147,72 @@
       "name": "10. Call Compta",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [
-        1700,
-        300
-      ],
+      "position": [1900, 300],
       "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "const invoice = $('07. Insert Invoice').first().json;\n\nlet comptaResult = null;\ntry {\n  const compta = $('10. Call Compta').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta échoué: ' + e.message };\n}\n\nreturn [{ json: {\n  id: invoice.id,\n  tenantId: invoice.tenant_id,\n  clientFinalId: invoice.client_final_id,\n  type: invoice.type,\n  numeroFacture: invoice.numero_facture,\n  dateFacture: invoice.date_facture,\n  dateEcheance: invoice.date_echeance,\n  montantHt: invoice.montant_ht,\n  montantTtc: invoice.montant_ttc,\n  tvaTaux: invoice.tva_taux,\n  description: invoice.description,\n  modePaiement: invoice.mode_paiement,\n  statut: invoice.statut,\n  lienPdf: invoice.lien_pdf,\n  createdAt: invoice.created_at,\n  updatedAt: invoice.updated_at,\n  comptabilisation: comptaResult\n} }];"
+        "jsCode": "const invoice = $('07b. Insert Invoice').first().json;\n\nvar comptaResult = null;\ntry {\n  var compta = $('10. Call Compta').first().json;\n  if (compta && compta.success) {\n    comptaResult = compta.ecriture || compta;\n  } else {\n    comptaResult = { error: compta.error || compta.message || 'Erreur comptabilisation' };\n  }\n} catch (e) {\n  comptaResult = { error: 'Appel compta echoue: ' + e.message };\n}\n\nreturn [{ json: {\n  id: invoice.id,\n  tenantId: invoice.tenant_id,\n  clientFinalId: invoice.client_final_id,\n  type: invoice.type,\n  numeroFacture: invoice.numero_facture,\n  dateFacture: invoice.date_facture,\n  dateEcheance: invoice.date_echeance,\n  montantHt: invoice.montant_ht,\n  montantTtc: invoice.montant_ttc,\n  tvaTaux: invoice.tva_taux,\n  description: invoice.description,\n  modePaiement: invoice.mode_paiement,\n  statut: invoice.statut,\n  lienPdf: invoice.lien_pdf,\n  createdAt: invoice.created_at,\n  updatedAt: invoice.updated_at,\n  comptabilisation: comptaResult\n} }];"
       },
       "id": "11. Format Response",
       "name": "11. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1900,
-        300
-      ]
+      "position": [2100, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "12. Respond",
       "name": "12. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        2100,
-        300
-      ]
+      "position": [2300, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
     },
     "03. Valide ?": {
       "main": [
-        [
-          {
-            "node": "05. Get Next Number",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "05. Get Next Number", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
       ]
     },
     "05. Get Next Number": {
-      "main": [
-        [
-          {
-            "node": "06. Generate Number",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "06. Generate Number", "type": "main", "index": 0 }]]
     },
     "06. Generate Number": {
-      "main": [
-        [
-          {
-            "node": "07. Insert Invoice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "07. Build Insert SQL", "type": "main", "index": 0 }]]
     },
-    "07. Insert Invoice": {
-      "main": [
-        [
-          {
-            "node": "08. Prepare Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Build Insert SQL": {
+      "main": [[{ "node": "07b. Insert Invoice", "type": "main", "index": 0 }]]
+    },
+    "07b. Insert Invoice": {
+      "main": [[{ "node": "08. Prepare Lines", "type": "main", "index": 0 }]]
     },
     "08. Prepare Lines": {
-      "main": [
-        [
-          {
-            "node": "09. Insert Lines",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "09. Insert Lines", "type": "main", "index": 0 }]]
     },
     "09. Insert Lines": {
-      "main": [
-        [
-          {
-            "node": "10. Call Compta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "10. Call Compta", "type": "main", "index": 0 }]]
     },
     "10. Call Compta": {
-      "main": [
-        [
-          {
-            "node": "11. Format Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "11. Format Response", "type": "main", "index": 0 }]]
     },
     "11. Format Response": {
-      "main": [
-        [
-          {
-            "node": "12. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "12. Respond", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {}
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
 }
