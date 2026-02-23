@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst data = body.data || body;\nreturn [{json: {\n  tenantId: data.tenantId || '00000000-0000-0000-0000-000000000001',\n  type: data.type || 'b2c',\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  raison_sociale: data.raison_sociale || '',\n  adresse: data.adresse || ''\n}}];\n"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst data = body.data || body;\nreturn [{json: {\n  tenantId: data.tenantId || '00000000-0000-0000-0000-000000000001',\n  type: data.type || 'b2c',\n  nom: data.nom || '',\n  prenom: data.prenom || '',\n  email: data.email || '',\n  telephone: data.telephone || '',\n  raison_sociale: data.raisonSociale || data.raison_sociale || '',\n  adresse: data.adresse || ''\n}}];\n"
       },
       "id": "Code_Normalize",
       "name": "Normaliser",
