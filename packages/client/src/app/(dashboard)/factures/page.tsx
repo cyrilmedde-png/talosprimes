@@ -283,7 +283,7 @@ export default function FacturesPage() {
             designation: ol.designation || '',
             quantite: String(ol.quantite || 1),
             unite: '',
-            prixUnitaireHT: String(ol.prixUnitaireHt || 0),
+            prixUnitaireHT: String(ol.prixUnitaireHt || ''),
             tauxTVA: String(ol.tauxTva || 20),
           })));
         }

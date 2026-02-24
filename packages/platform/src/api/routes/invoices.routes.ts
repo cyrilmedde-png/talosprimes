@@ -518,37 +518,41 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           imageMediaType = mimeType;
         }
 
-        const systemPrompt = `Tu es un expert en extraction de données de factures fournisseur. Tu reçois une image ou un PDF de facture d'achat. Tu dois extraire les informations structurées suivantes et les retourner UNIQUEMENT en JSON valide, sans aucun texte avant ou après. Si une information n'est pas trouvée, utilise null.
+        const systemPrompt = `Tu es un expert en extraction de données de factures fournisseur. Tu reçois une image ou un PDF de facture d'achat. Tu dois extraire les informations structurées suivantes et les retourner UNIQUEMENT en JSON valide, sans aucun texte avant ou après.
+
+IMPORTANT : Extrais les VRAIS montants visibles sur la facture. Ne mets JAMAIS 0 pour les montants - cherche bien les prix unitaires, totaux, montants HT et TTC sur le document.
 
 Format JSON attendu :
 {
   "fournisseurNom": "Nom de l'entreprise fournisseur",
-  "fournisseurSiret": "Numéro SIRET du fournisseur",
-  "fournisseurTvaIntra": "Numéro TVA intracommunautaire",
+  "fournisseurSiret": "Numéro SIRET du fournisseur (14 chiffres)",
+  "fournisseurTvaIntra": "Numéro TVA intracommunautaire (FR + 11 chiffres)",
   "fournisseurAdresse": "Adresse complète du fournisseur",
   "dateFacture": "YYYY-MM-DD",
-  "numeroFacture": "Numéro de la facture",
-  "montantHt": 0.00,
-  "montantTtc": 0.00,
+  "numeroFacture": "Numéro/référence de la facture",
+  "montantHt": 123.45,
+  "montantTtc": 148.14,
   "tvaTaux": 20.0,
-  "description": "Description générale de la facture",
+  "description": "Description générale ou objet de la facture",
   "categorieFrais": "carburant|fournitures_bureau|telecom|assurance|loyer|entretien|transport|restauration|sous_traitance|autre",
   "lignes": [
     {
-      "designation": "Libellé de la ligne",
+      "designation": "Libellé exact de la ligne tel qu'il apparaît sur la facture",
       "quantite": 1,
-      "prixUnitaireHt": 0.00,
-      "totalHt": 0.00
+      "prixUnitaireHt": 123.45,
+      "totalHt": 123.45
     }
   ]
 }
 
 Règles :
-- Les montants doivent être des nombres (pas de chaînes)
+- Les montants doivent être des NOMBRES avec les vraies valeurs lues sur la facture (JAMAIS 0 sauf si c'est réellement 0)
+- Si tu ne trouves pas le prix unitaire d'une ligne mais que tu as le total HT de la ligne, mets le totalHt et calcule prixUnitaireHt = totalHt / quantite
 - Le taux TVA doit être un pourcentage (ex: 20 pour 20%)
 - La catégorie de frais doit correspondre à l'un des choix proposés
-- Si la facture contient plusieurs lignes d'articles, les extraire toutes
+- Si la facture contient plusieurs lignes d'articles, les extraire TOUTES avec leurs montants
 - Le format de date doit être YYYY-MM-DD
+- Si une information n'est pas trouvée, utilise null (sauf pour les montants : cherche bien)
 - Retourne UNIQUEMENT le JSON, rien d'autre`;
 
         try {
@@ -648,23 +652,20 @@ Règles :
           // Nettoyer les lignes
           if (Array.isArray(extractedData.lignes)) {
             extractedData.lignes = (extractedData.lignes as Array<Record<string, unknown>>).map((l) => ({
-              designation: l.designation || l.libelle || 'Article',
+              designation: String(l.designation || ''),
               quantite: parseInt(String(l.quantite)) || 1,
-              prixUnitaireHt: parseFloat(String(l.prixUnitaireHt || l.prix_unitaire_ht || 0)),
-              totalHt: parseFloat(String(l.totalHt || l.total_ht || 0)),
+              prixUnitaireHt: parseFloat(String(l.prixUnitaireHt)) || 0,
+              totalHt: parseFloat(String(l.totalHt)) || 0,
             }));
           }
 
-          // Calculs montants manquants
-          const ht = extractedData.montantHt as number | undefined;
-          const ttc = extractedData.montantTtc as number | undefined;
-          const tva = extractedData.tvaTaux as number | undefined;
-          if (!ttc && ht && tva) {
-            extractedData.montantTtc = Math.round(ht * (1 + tva / 100) * 100) / 100;
-          }
-          if (!ht && ttc && tva) {
-            extractedData.montantHt = Math.round(ttc / (1 + tva / 100) * 100) / 100;
-          }
+          // Log la réponse OCR parsée pour debug
+          fastify.log.info('OCR parsed data: montantHt=%s, montantTtc=%s, lignes=%d, lignesSample=%s',
+            extractedData.montantHt,
+            extractedData.montantTtc,
+            Array.isArray(extractedData.lignes) ? (extractedData.lignes as unknown[]).length : 0,
+            JSON.stringify((extractedData.lignes as unknown[] || []).slice(0, 2)).slice(0, 300),
+          );
 
           fastify.log.info('OCR scan réussi pour tenant %s, clés extraites: %s', tenantId, Object.keys(extractedData).join(', '));
 
