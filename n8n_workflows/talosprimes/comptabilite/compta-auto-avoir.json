@@ -152,7 +152,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO ecritures_comptables (id, tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference_doc, source_auto, source_id, statut) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.exerciceId + \"', 'VE', '\" + $json.numeroPiece + \"', '\" + $json.dateEcriture + \"', '\" + $json.libelle.replace(/'/g, \"''\") + \"', '\" + $json.referenceDoc + \"', 'avoir', '\" + $json.avoirId + \"', 'validee') RETURNING id, numero_piece;\" }}"
+        "query": "={{ \"INSERT INTO ecritures_comptables (id, tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference_doc, source_auto, source_id, statut, updated_at) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.exerciceId + \"', 'VE', '\" + $json.numeroPiece + \"', '\" + $json.dateEcriture + \"', '\" + $json.libelle.replace(/'/g, \"''\") + \"', '\" + $json.referenceDoc + \"', 'avoir', '\" + $json.avoirId + \"', 'validee', NOW()) RETURNING id, numero_piece;\" }}"
       },
       "id": "09. Insert Ecriture",
       "name": "09. Insert Ecriture",

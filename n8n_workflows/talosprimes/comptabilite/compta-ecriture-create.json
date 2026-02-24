@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\n// === VALIDATION STRICTE (anti-injection SQL) ===\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nvar DATE_RE = /^\\d{4}-\\d{2}-\\d{2}$/;\nvar SAFE_TEXT = /^[\\w\\s\\-àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ.,;:!?()\\/#&€@+'\"°%*]+$/;\nvar VALID_JOURNAL_CODES = ['VE', 'AC', 'BQ', 'CA', 'OD', 'AN', 'EXT'];\nvar VALID_TYPES_PIECE = ['facture', 'avoir', 'reglement', 'manuelle', 'ouverture'];\nvar VALID_SOURCES = ['facture', 'avoir', 'reglement', 'manuelle', 'import'];\nvar VALID_ENTITE_TYPES = ['facture', 'avoir', 'devis', 'bon_commande', 'proforma', null];\n\n// Escaping removed - values are validated by SAFE_TEXT regex and passed as params downstream\n\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID valide)');\nif (!body.journalCode || !VALID_JOURNAL_CODES.includes(body.journalCode)) throw new Error('journalCode invalide: ' + VALID_JOURNAL_CODES.join(', '));\nif (!body.libelle || !SAFE_TEXT.test(body.libelle)) throw new Error('libelle requis (caractères spéciaux non autorisés)');\nif (!body.lignes || !Array.isArray(body.lignes) || body.lignes.length < 2) throw new Error('Au moins 2 lignes requises');\n\nvar dateEcriture = body.dateEcriture || new Date().toISOString().split('T')[0];\nif (!DATE_RE.test(dateEcriture)) throw new Error('dateEcriture format invalide (YYYY-MM-DD)');\nif (body.dateEcheance && !DATE_RE.test(body.dateEcheance)) throw new Error('dateEcheance format invalide');\n\nvar typePiece = body.typePiece || 'manuelle';\nif (!VALID_TYPES_PIECE.includes(typePiece)) throw new Error('typePiece invalide');\nvar source = body.source || 'manuelle';\nif (!VALID_SOURCES.includes(source)) throw new Error('source invalide');\nif (body.entiteType && !VALID_ENTITE_TYPES.includes(body.entiteType)) throw new Error('entiteType invalide');\nif (body.entiteId && !UUID_RE.test(body.entiteId)) throw new Error('entiteId doit être un UUID valide');\n\nvar lignes = body.lignes;\nvar totalDebit = lignes.reduce(function(s, l) { return s + (parseFloat(l.debit) || 0); }; }, 0);\nvar totalCredit = lignes.reduce(function(s, l) { return s + (parseFloat(l.credit) || 0); }; }, 0);\nif (Math.abs(totalDebit - totalCredit) > 0.01) {\n  throw new Error(`Écriture déséquilibrée: débit ${totalDebit.toFixed(2)} ≠ crédit ${totalCredit.toFixed(2)}`);\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  journalCode: body.journalCode,\n  dateEcriture,\n  dateEcheance: body.dateEcheance || null,\n  libelle: body.libelle,\n  reference: body.reference || null,\n  typePiece,\n  entiteType: body.entiteType || null,\n  entiteId: body.entiteId || null,\n  montantTotal: totalDebit,\n  source,\n  lignes: JSON.stringify(lignes)\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\n// === VALIDATION STRICTE ===\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nvar DATE_RE = /^\\d{4}-\\d{2}-\\d{2}$/;\nvar SAFE_TEXT = /^[\\w\\s\\-àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ.,;:!?()\\/#&€@+'\\\"°%*]+$/;\nvar VALID_JOURNAL_CODES = ['VE', 'AC', 'BQ', 'CA', 'OD', 'AN', 'EXT'];\nvar VALID_SOURCES = ['facture', 'avoir', 'paiement', 'manuelle', 'import'];\n\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID valide)');\nif (!body.journalCode || !VALID_JOURNAL_CODES.includes(body.journalCode)) throw new Error('journalCode invalide: ' + VALID_JOURNAL_CODES.join(', '));\nif (!body.libelle || !SAFE_TEXT.test(body.libelle)) throw new Error('libelle requis (caractères spéciaux non autorisés)');\nif (!body.lignes || !Array.isArray(body.lignes) || body.lignes.length < 2) throw new Error('Au moins 2 lignes requises');\n\nvar dateEcriture = body.dateEcriture || new Date().toISOString().split('T')[0];\nif (!DATE_RE.test(dateEcriture)) throw new Error('dateEcriture format invalide (YYYY-MM-DD)');\n\nvar sourceAuto = body.sourceAuto || 'manuelle';\nif (!VALID_SOURCES.includes(sourceAuto)) throw new Error('sourceAuto invalide');\nif (body.sourceId && !UUID_RE.test(body.sourceId)) throw new Error('sourceId doit être un UUID valide');\n\nvar lignes = body.lignes;\nvar totalDebit = lignes.reduce(function(s, l) { return s + (parseFloat(l.debit) || 0); }, 0);\nvar totalCredit = lignes.reduce(function(s, l) { return s + (parseFloat(l.credit) || 0); }, 0);\nif (Math.abs(totalDebit - totalCredit) > 0.01) {\n  throw new Error('Ecriture desequilibree: debit ' + totalDebit.toFixed(2) + ' != credit ' + totalCredit.toFixed(2));\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  journalCode: body.journalCode,\n  dateEcriture: dateEcriture,\n  libelle: body.libelle,\n  referenceDoc: body.referenceDoc || body.reference || null,\n  sourceAuto: sourceAuto,\n  sourceId: body.sourceId || null,\n  lignes: JSON.stringify(lignes)\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -117,7 +117,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var exerciceResult = $('05. Find Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceResult.length === 0) throw new Error('Aucun exercice ouvert pour cette date');\n\nvar exerciceId = exerciceResult[0].id;\nvar nextNum = parseInt($('06. Next Number').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = `EC-${year}-${String(nextNum).padStart(6, '0')}`;\nvar p = $('02. Parser').first().json;\n\nreturn [{ json: { ...p, exerciceId, numeroPiece } }];"
+        "jsCode": "var exerciceResult = $('05. Find Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceResult.length === 0) throw new Error('Aucun exercice ouvert pour cette date');\n\nvar exerciceId = exerciceResult[0].id;\nvar nextNum = parseInt($('06. Next Number').first().json.next_num) || 1;\nvar year = new Date().getFullYear();\nvar numeroPiece = 'EC-' + year + '-' + String(nextNum).padStart(6, '0');\nvar p = $('02. Parser').first().json;\n\nreturn [{ json: {\n  tenantId: p.tenantId,\n  exerciceId: exerciceId,\n  journalCode: p.journalCode,\n  numeroPiece: numeroPiece,\n  dateEcriture: p.dateEcriture,\n  libelle: p.libelle,\n  referenceDoc: p.referenceDoc,\n  sourceAuto: p.sourceAuto,\n  sourceId: p.sourceId,\n  lignes: p.lignes\n} }];"
       },
       "id": "07. Build Numero",
       "name": "07. Build Numero",
@@ -130,35 +130,14 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO ecritures_comptables (tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, date_echeance, libelle, reference, type_piece, entite_type, entite_id, montant_total, source) VALUES ('\" + $json.tenantId + \"', '\" + $json.exerciceId + \"', '\" + $json.journalCode + \"', '\" + $json.numeroPiece + \"', '\" + $json.dateEcriture + \"', '\" + $json.dateEcheance + \"', '\" + $json.libelle + \"', '\" + $json.reference + \"', '\" + $json.typePiece + \"', '\" + $json.tenantId + \"'0, '\" + $json.tenantId + \"'1, '\" + $json.tenantId + \"'2, '\" + $json.tenantId + \"'3) RETURNING id, numero_piece, date_ecriture, libelle, montant_total, statut;\" }}"
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar p = $input.first().json;\n\nvar sourceIdVal = p.sourceId ? esc(p.sourceId) + '::uuid' : 'NULL';\nvar refDocVal = p.referenceDoc ? esc(p.referenceDoc) : 'NULL';\nvar sourceAutoVal = p.sourceAuto ? esc(p.sourceAuto) : 'NULL';\n\nvar query = 'INSERT INTO ecritures_comptables (id, tenant_id, exercice_id, journal_code, numero_piece, date_ecriture, libelle, reference_doc, source_auto, source_id, statut, updated_at) VALUES (gen_random_uuid(), ' + esc(p.tenantId) + '::uuid, ' + esc(p.exerciceId) + '::uuid, ' + esc(p.journalCode) + ', ' + esc(p.numeroPiece) + ', ' + esc(p.dateEcriture) + '::date, ' + esc(p.libelle) + ', ' + refDocVal + ', ' + sourceAutoVal + ', ' + sourceIdVal + ', ' + esc('brouillon') + ', NOW()) RETURNING id, numero_piece, date_ecriture, libelle, statut;';\n\nreturn [{ json: { query: query, lignes: p.lignes } }];"
       },
-      "id": "08. Insert Ecriture",
-      "name": "08. Insert Ecriture",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        1300,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "var ecriture = $('08. Insert Ecriture').first().json;\nvar lignes = JSON.parse($('02. Parser').first().json.lignes);\n\n// Validation stricte des données des lignes\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nvar COMPTE_RE = /^[0-9]{3,10}$/;\n\nif (!ecriture.id || !UUID_RE.test(ecriture.id)) throw new Error('ID écriture invalide');\n\nvar params = [];\nvar paramIdx = 1;\n\nvar values = lignes.map(function(l, i) { return {\n  var debit = parseFloat(l.debit) || 0;\n  var credit = parseFloat(l.credit) || 0;\n  if (!Number.isFinite(debit) || !Number.isFinite(credit)) throw new Error(`Ligne ${i}: montant invalide`);\n  var numeroCompte = String(l.numeroCompte || '').trim();\n  if (!COMPTE_RE.test(numeroCompte)) throw new Error(`Ligne ${i}: numéro de compte invalide (${numeroCompte})`);\n  var libelle = String(l.libelle || '').substring(0, 255);\n\n  params.push(ecriture.id, numeroCompte, libelle, debit, credit, i);\n  var p = `($${paramIdx}, $${paramIdx+1}, $${paramIdx+2}, $${paramIdx+3}, $${paramIdx+4}, $${paramIdx+5})`;\n  paramIdx += 6;\n  return p;\n}; }).join(',\n');\n\nvar query = `INSERT INTO lignes_ecritures (ecriture_id, numero_compte, libelle, debit, credit, ordre) VALUES ${values} RETURNING id, numero_compte, libelle, debit, credit, ordre;`;\nreturn [{ json: { ecritureId: ecriture.id, query, params } }];"
-      },
-      "id": "09. Build Lines SQL",
-      "name": "09. Build Lines SQL",
+      "id": "08. Build Insert",
+      "name": "08. Build Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1500,
+        1300,
         300
       ]
     },
@@ -167,8 +146,8 @@
         "operation": "executeQuery",
         "query": "={{ $json.query }}"
       },
-      "id": "10. Insert Lines",
-      "name": "10. Insert Lines",
+      "id": "09. Insert Ecriture",
+      "name": "09. Insert Ecriture",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -178,21 +157,55 @@
         }
       },
       "position": [
-        1700,
+        1500,
         300
       ],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "var ecriture = $('08. Insert Ecriture').first().json;\nvar lignes = $('10. Insert Lines').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    dateEcriture: ecriture.date_ecriture,\n    libelle: ecriture.libelle,\n    montantTotal: parseFloat(ecriture.montant_total),\n    statut: ecriture.statut,\n    lignes: lignes.map(function(l) { return ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0\n    }); })\n  }\n} }];"
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar ecriture = $('09. Insert Ecriture').first().json;\nvar lignes = JSON.parse($('08. Build Insert').first().json.lignes);\n\nvar COMPTE_RE = /^[0-9]{3,10}$/;\n\nif (!ecriture.id) throw new Error('ID ecriture invalide');\n\nvar values = lignes.map(function(l, i) {\n  var debit = parseFloat(l.debit) || 0;\n  var credit = parseFloat(l.credit) || 0;\n  var numeroCompte = String(l.numeroCompte || '').trim();\n  if (!COMPTE_RE.test(numeroCompte)) throw new Error('Ligne ' + i + ': numero de compte invalide (' + numeroCompte + ')');\n  var libelle = String(l.libelle || '').substring(0, 255);\n\n  return '(gen_random_uuid(), ' + esc(ecriture.id) + '::uuid, ' + esc(numeroCompte) + ', ' + esc(libelle) + ', ' + debit + ', ' + credit + ', ' + i + ')';\n}).join(',\\n');\n\nvar query = 'INSERT INTO lignes_ecritures (id, ecriture_id, numero_compte, libelle_ligne, debit, credit, ordre) VALUES\\n' + values + '\\nRETURNING id, numero_compte, libelle_ligne, debit, credit, ordre;';\n\nreturn [{ json: { ecritureId: ecriture.id, query: query } }];"
       },
-      "id": "11. Format Response",
-      "name": "11. Format Response",
+      "id": "10. Build Lines SQL",
+      "name": "10. Build Lines SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
+        1700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "11. Insert Lines",
+      "name": "11. Insert Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
         1900,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var ecriture = $('09. Insert Ecriture').first().json;\nvar lignes = $('11. Insert Lines').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: ecriture.id,\n    numeroPiece: ecriture.numero_piece,\n    dateEcriture: ecriture.date_ecriture,\n    libelle: ecriture.libelle,\n    statut: ecriture.statut,\n    lignes: lignes.map(function(l) { return ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      libelle: l.libelle_ligne,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0\n    }); })\n  }\n} }];"
+      },
+      "id": "12. Format Response",
+      "name": "12. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
         300
       ]
     },
@@ -201,12 +214,12 @@
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "12. Respond",
-      "name": "12. Respond",
+      "id": "13. Respond",
+      "name": "13. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2100,
+        2300,
         300
       ]
     }
@@ -278,51 +291,62 @@
       "main": [
         [
           {
-            "node": "08. Insert Ecriture",
+            "node": "08. Build Insert",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "08. Insert Ecriture": {
+    "08. Build Insert": {
       "main": [
         [
           {
-            "node": "09. Build Lines SQL",
+            "node": "09. Insert Ecriture",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "09. Build Lines SQL": {
+    "09. Insert Ecriture": {
       "main": [
         [
           {
-            "node": "10. Insert Lines",
+            "node": "10. Build Lines SQL",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "10. Insert Lines": {
+    "10. Build Lines SQL": {
       "main": [
         [
           {
-            "node": "11. Format Response",
+            "node": "11. Insert Lines",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "11. Format Response": {
+    "11. Insert Lines": {
       "main": [
         [
           {
-            "node": "12. Respond",
+            "node": "12. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Format Response": {
+      "main": [
+        [
+          {
+            "node": "13. Respond",
             "type": "main",
             "index": 0
           }
