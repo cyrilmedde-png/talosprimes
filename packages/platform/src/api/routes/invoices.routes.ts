@@ -610,6 +610,36 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             }
           }
 
+          // Auto-init compta + comptabilisation auto (branche frontend → n8n)
+          try {
+            const nbComptes = await prisma.planComptable.count({ where: { tenantId } });
+            if (nbComptes === 0) {
+              fastify.log.info('Plan comptable vide pour tenant %s, lancement auto-init compta...', tenantId);
+              const initRes = await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
+              if (initRes.success) {
+                fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
+              } else {
+                fastify.log.warn('Auto-init compta échouée pour tenant %s: %s', tenantId, initRes.error);
+              }
+            }
+          } catch (initErr) {
+            fastify.log.warn(initErr, 'Impossible de vérifier/initialiser la comptabilité');
+          }
+
+          // Comptabilisation automatique (async, non-bloquant)
+          try {
+            const resData = res.data as Record<string, unknown> | undefined;
+            const invoiceId = resData?.invoiceId ?? resData?.invoice_id ?? (resData?.invoice as Record<string, unknown>)?.id ?? resData?.id;
+            if (invoiceId) {
+              n8nService.triggerWorkflow(tenantId, 'compta_auto_facture', {
+                invoiceId: String(invoiceId),
+                tenantId,
+              }).catch((err) => {
+                fastify.log.warn(err, 'Échec comptabilisation auto pour facture %s', invoiceId);
+              });
+            }
+          } catch (_) { /* non-bloquant */ }
+
           return reply.status(201).send({
             success: true,
             message: 'Facture créée via n8n',
