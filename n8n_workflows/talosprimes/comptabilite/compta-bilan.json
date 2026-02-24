@@ -47,7 +47,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: 'tenantId manquant' } }}"
+        "responseBody": "={{ ({ success: false, error: 'tenantId manquant' }) }}"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
