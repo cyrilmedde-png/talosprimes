@@ -75,25 +75,51 @@
     },
     {
       "parameters": {
-        "jsCode": "// Vérifier si l'écriture existe déjà\nvar rows = $input.all().map(function(i) { return i.json; }).filter(function(r) { return r.id; });\nif (rows.length > 0) {\n  // Déjà existant — on envoie vers output 1 (index 1)\n  return [[], [{ json: { alreadyExists: true } }]];\n}\n// Pas d'existant — on continue vers output 0 (index 0)\nreturn [[{ json: $('07. Validate Invoice').first().json }], []];"
+        "jsCode": "var rows = $input.all().map(function(i) { return i.json; }).filter(function(r) { return r.id; });\nvar prev = $('07. Validate Invoice').first().json;\nif (rows.length > 0) {\n  return [{ json: { alreadyExists: true } }];\n}\nreturn [{ json: { alreadyExists: false, tenantId: prev.tenantId, invoiceId: prev.invoiceId, invoice: prev.invoice, exerciceQuery: prev.exerciceQuery } }];"
       },
       "id": "09. Already Exists?",
       "name": "09. Already Exists?",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300],
-      "outputs": ["main", "main"]
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "check-already-exists",
+              "leftValue": "={{ $json.alreadyExists }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "09b. Route",
+      "name": "09b. Route",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1500, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: true, message: 'Écriture déjà existante pour cette facture', alreadyExists: true }) }}"
       },
-      "id": "09b. Respond Already",
-      "name": "09b. Respond Already",
+      "id": "09c. Respond Already",
+      "name": "09c. Respond Already",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1500, 150]
+      "position": [1700, 150]
     },
     {
       "parameters": {
@@ -107,18 +133,18 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [1500, 400],
+      "position": [1700, 400],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(Math.round(n * 100) / 100); }\n\nvar tenantId = $('02. Parser').first().json.tenantId;\nvar invoice = $('07. Validate Invoice').first().json.invoice;\n\n// Exercice ouvert obligatoire\nvar exerciceArr = $('10. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Aucun exercice comptable ouvert pour tenant ' + tenantId);\nvar exerciceId = exerciceArr[0].id;\n\n// Prochain numéro de pièce\nvar nextNumQuery = \"SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = \" + esc(tenantId) + \"::uuid AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'\";\n\nreturn [{ json: { tenantId: tenantId, invoice: invoice, exerciceId: exerciceId, nextNumQuery: nextNumQuery } }];"
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(Math.round(n * 100) / 100); }\n\nvar tenantId = $('02. Parser').first().json.tenantId;\nvar invoice = $('09. Already Exists?').first().json.invoice;\n\n// Exercice ouvert obligatoire\nvar exerciceArr = $('10. Get Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (exerciceArr.length === 0) throw new Error('Aucun exercice comptable ouvert pour tenant ' + tenantId);\nvar exerciceId = exerciceArr[0].id;\n\n// Prochain numéro de pièce\nvar nextNumQuery = \"SELECT COALESCE(MAX(CAST(SUBSTRING(numero_piece FROM 'EC-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_num FROM ecritures_comptables WHERE tenant_id = \" + esc(tenantId) + \"::uuid AND numero_piece LIKE 'EC-' || TO_CHAR(CURRENT_DATE, 'YYYY') || '-%'\";\n\nreturn [{ json: { tenantId: tenantId, invoice: invoice, exerciceId: exerciceId, nextNumQuery: nextNumQuery } }];"
       },
       "id": "11. Validate Exercice",
       "name": "11. Validate Exercice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1700, 400]
+      "position": [1900, 400]
     },
     {
       "parameters": {
@@ -132,7 +158,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [1900, 400],
+      "position": [2100, 400],
       "alwaysOutputData": true
     },
     {
@@ -143,7 +169,7 @@
       "name": "13. Build Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2100, 400]
+      "position": [2300, 400]
     },
     {
       "parameters": {
@@ -157,7 +183,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [2300, 400],
+      "position": [2500, 400],
       "alwaysOutputData": true
     },
     {
@@ -168,7 +194,7 @@
       "name": "15. Build Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2500, 400]
+      "position": [2700, 400]
     },
     {
       "parameters": {
@@ -182,7 +208,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [2700, 400],
+      "position": [2900, 400],
       "alwaysOutputData": true
     },
     {
@@ -193,7 +219,7 @@
       "name": "17. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2900, 400]
+      "position": [3100, 400]
     },
     {
       "parameters": {
@@ -204,7 +230,7 @@
       "name": "18. Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3100, 400]
+      "position": [3300, 400]
     }
   ],
   "connections": {
@@ -227,9 +253,12 @@
       "main": [[{ "node": "09. Already Exists?", "type": "main", "index": 0 }]]
     },
     "09. Already Exists?": {
+      "main": [[{ "node": "09b. Route", "type": "main", "index": 0 }]]
+    },
+    "09b. Route": {
       "main": [
-        [{ "node": "10. Get Exercice", "type": "main", "index": 0 }],
-        [{ "node": "09b. Respond Already", "type": "main", "index": 0 }]
+        [{ "node": "09c. Respond Already", "type": "main", "index": 0 }],
+        [{ "node": "10. Get Exercice", "type": "main", "index": 0 }]
       ]
     },
     "10. Get Exercice": {
