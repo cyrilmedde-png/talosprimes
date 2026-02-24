@@ -59,11 +59,24 @@ await fastify.register(helmet, {
   contentSecurityPolicy: false, // Désactivé car on gère CORS séparément
 });
 
-// CORS - Autoriser uniquement le domaine frontend
+// CORS - Autoriser le domaine frontend + sous-domaine démo
+const ALLOWED_ORIGINS = env.NODE_ENV === 'production'
+  ? [
+      env.CORS_ORIGIN || 'https://talosprimes.com',
+      'https://demo.talosprimes.com',
+    ]
+  : true;
+
 await fastify.register(cors, {
-  origin: env.NODE_ENV === 'production' 
-    ? (env.CORS_ORIGIN || 'https://talosprimes.com') // Une seule origine (sans virgule)
-    : true, // En dev, autoriser tout
+  origin: Array.isArray(ALLOWED_ORIGINS)
+    ? (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'), false);
+        }
+      }
+    : ALLOWED_ORIGINS,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-TalosPrimes-N8N-Secret', 'X-Idempotency-Key'],
