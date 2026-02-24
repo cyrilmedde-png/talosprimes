@@ -59,17 +59,8 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"max_tokens\": 2000,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un expert en extraction de données de factures fournisseur. Tu reçois une image ou un PDF de facture d'achat. Tu dois extraire les informations structurées suivantes et les retourner UNIQUEMENT en JSON valide, sans aucun texte avant ou après. Si une information n'est pas trouvée, utilise null.\\n\\nFormat JSON attendu :\\n{\\n  \\\"fournisseurNom\\\": \\\"Nom de l'entreprise fournisseur\\\",\\n  \\\"fournisseurSiret\\\": \\\"Numéro SIRET du fournisseur\\\",\\n  \\\"fournisseurTvaIntra\\\": \\\"Numéro TVA intracommunautaire\\\",\\n  \\\"fournisseurAdresse\\\": \\\"Adresse complète du fournisseur\\\",\\n  \\\"dateFacture\\\": \\\"YYYY-MM-DD\\\",\\n  \\\"numeroFacture\\\": \\\"Numéro de la facture\\\",\\n  \\\"montantHt\\\": 0.00,\\n  \\\"montantTtc\\\": 0.00,\\n  \\\"tvaTaux\\\": 20.0,\\n  \\\"description\\\": \\\"Description générale de la facture\\\",\\n  \\\"categorieFrais\\\": \\\"carburant|fournitures_bureau|telecom|assurance|loyer|entretien|transport|restauration|sous_traitance|autre\\\",\\n  \\\"lignes\\\": [\\n    {\\n      \\\"designation\\\": \\\"Libellé de la ligne\\\",\\n      \\\"quantite\\\": 1,\\n      \\\"prixUnitaireHt\\\": 0.00,\\n      \\\"totalHt\\\": 0.00\\n    }\\n  ]\\n}\\n\\nRègles :\\n- Les montants doivent être des nombres (pas de chaînes)\\n- Le taux TVA doit être un pourcentage (ex: 20 pour 20%)\\n- La catégorie de frais doit correspondre à l'un des choix proposés\\n- Si la facture contient plusieurs lignes d'articles, les extraire toutes\\n- Le format de date doit être YYYY-MM-DD\\n- Retourne UNIQUEMENT le JSON, rien d'autre\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Extrais toutes les informations de cette facture fournisseur :\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:{{ $json.imageMediaType }};base64,{{ $json.documentBase64 }}\"\n          }\n        }\n      ]\n    }\n  ]\n}",
@@ -80,11 +71,11 @@
       "id": "05. OpenAI Vision OCR",
       "name": "05. OpenAI Vision OCR",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "typeVersion": 4.2,
       "credentials": {
-        "httpHeaderAuth": {
-          "name": "OpenAI API Key",
-          "id": "openai-header-auth"
+        "openAiApi": {
+          "name": "OpenAI",
+          "id": "MmpYHYAt746xfTrB"
         }
       },
       "position": [700, 300],
