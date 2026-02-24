@@ -68,6 +68,7 @@ enum PaymentProvider {
 enum InvoiceType {
   facture_entreprise
   facture_client_final
+  facture_achat
 }
 
 enum InvoiceStatus {

@@ -58,8 +58,8 @@ const flexibleDate = z.string().refine(
 
 const createInvoiceSchema = z.object({
   tenantId: z.string().uuid().optional(),
-  clientFinalId: z.string().uuid(),
-  type: z.enum(['facture_entreprise', 'facture_client_final']).default('facture_client_final'),
+  clientFinalId: z.string().uuid().optional().nullable(),
+  type: z.enum(['facture_entreprise', 'facture_client_final', 'facture_achat']).default('facture_client_final'),
   montantHt: z.number().positive(),
   tvaTaux: z.number().min(0).max(100).default(20),
   dateFacture: flexibleDate,
@@ -482,16 +482,19 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           return reply.status(403).send({ success: false, error: 'Accès refusé' });
         }
 
-        // Vérifier que le client existe et appartient au tenant
-        const client = await prisma.clientFinal.findFirst({
-          where: {
-            id: body.clientFinalId,
-            tenantId,
-          },
-        });
-
-        if (!client) {
-          return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+        // Vérifier que le client existe (sauf facture d'achat : pas de client)
+        if (body.clientFinalId) {
+          const client = await prisma.clientFinal.findFirst({
+            where: {
+              id: body.clientFinalId,
+              tenantId,
+            },
+          });
+          if (!client) {
+            return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+          }
+        } else if (body.type !== 'facture_achat') {
+          return reply.status(400).send({ success: false, error: 'clientFinalId requis pour ce type de facture' });
         }
 
         // Nettoyer le body : retirer tenantId s'il était dans le body
