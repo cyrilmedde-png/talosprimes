@@ -32,19 +32,29 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ String($json._error || '') }}",
-              "operation": "notEqual",
-              "value2": "true"
+              "id": "1157aebc-e8ef-4bcf-a71e-87c3d790e0ed",
+              "leftValue": "={{ String($json._error || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-valid",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         640,
         300
@@ -88,18 +98,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.existing_id }}",
-              "operation": "isNotEmpty"
+              "id": "a5508fe1-ce8d-45e3-8dad-4e39904725b1",
+              "leftValue": "={{ $json.existing_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-exists",
       "name": "06. Existe ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1080,
         300

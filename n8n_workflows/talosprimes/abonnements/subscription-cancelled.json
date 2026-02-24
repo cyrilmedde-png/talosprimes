@@ -59,18 +59,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json[0]?.id }}",
-              "operation": "isNotEmpty"
+              "id": "7d6731ad-3a35-4430-a7d9-9017c75eb624",
+              "leftValue": "={{ $json[0]?.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "validate-subscription",
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         900,
         400
@@ -143,18 +153,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.idAbonnementStripe }}",
-              "operation": "isNotEmpty"
+              "id": "f1d5bb79-b4f9-4f76-95bd-98868cfd3320",
+              "leftValue": "={{ $json.idAbonnementStripe }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-stripe",
       "name": "07. IF - Stripe configuré ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1340,
         300
@@ -186,18 +206,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.status }}",
-              "operation": "isNotEmpty"
+              "id": "4033e12e-a918-41c8-bc8e-a2f6236a0ac3",
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "validate-stripe",
       "name": "08a. Valider réponse Stripe",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1780,
         200

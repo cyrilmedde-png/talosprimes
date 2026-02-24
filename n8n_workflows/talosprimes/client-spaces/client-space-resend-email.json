@@ -32,19 +32,29 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ String($json._error || '') }}",
-              "operation": "notEqual",
-              "value2": "true"
+              "id": "69f5b1c1-90d9-4dc9-9aba-9e249d70c404",
+              "leftValue": "={{ String($json._error || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-valid",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         640,
         300
@@ -117,19 +127,29 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ String($json._error || '') }}",
-              "operation": "notEqual",
-              "value2": "true"
+              "id": "8b9c3b40-6ddb-45df-ae14-af97d7217e59",
+              "leftValue": "={{ String($json._error || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-found",
       "name": "08. Trouve ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1520,
         300

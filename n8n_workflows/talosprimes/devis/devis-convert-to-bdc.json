@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,24 +24,40 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.tenantId }}",
-              "operation": "isNotEmpty"
+              "id": "1a956fc4-4cc9-4f7f-9823-e0f7c2e9acca",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [500, 200]
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -49,7 +68,10 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     },
     {
       "parameters": {
@@ -61,9 +83,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [700, 300],
+      "position": [
+        700,
+        300
+      ],
       "alwaysOutputData": true
     },
     {
@@ -76,9 +104,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [900, 300],
+      "position": [
+        900,
+        300
+      ],
       "alwaysOutputData": true
     },
     {
@@ -89,7 +123,10 @@
       "name": "07. Prepare BdC Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -101,9 +138,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [1300, 300],
+      "position": [
+        1300,
+        300
+      ],
       "alwaysOutputData": true
     },
     {
@@ -116,9 +159,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [1500, 300],
+      "position": [
+        1500,
+        300
+      ],
       "alwaysOutputData": true
     },
     {
@@ -129,7 +178,10 @@
       "name": "10. Prepare Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1700, 300]
+      "position": [
+        1700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -141,9 +193,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [1900, 300],
+      "position": [
+        1900,
+        300
+      ],
       "alwaysOutputData": true
     },
     {
@@ -156,9 +214,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [2100, 300],
+      "position": [
+        2100,
+        300
+      ],
       "alwaysOutputData": true
     },
     {
@@ -169,7 +233,10 @@
       "name": "13. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2300, 300]
+      "position": [
+        2300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -180,23 +247,155 @@
       "name": "14. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2500, 300]
+      "position": [
+        2500,
+        300
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
-    "03. Valide ?": { "main": [[{ "node": "05. Get Devis", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
-    "05. Get Devis": { "main": [[{ "node": "06. Get Next BDC Number", "type": "main", "index": 0 }]] },
-    "06. Get Next BDC Number": { "main": [[{ "node": "07. Prepare BdC Data", "type": "main", "index": 0 }]] },
-    "07. Prepare BdC Data": { "main": [[{ "node": "08. Create BdC", "type": "main", "index": 0 }]] },
-    "08. Create BdC": { "main": [[{ "node": "09. Get Devis Lines", "type": "main", "index": 0 }]] },
-    "09. Get Devis Lines": { "main": [[{ "node": "10. Prepare Lines", "type": "main", "index": 0 }]] },
-    "10. Prepare Lines": { "main": [[{ "node": "11. Create BdC Lines", "type": "main", "index": 0 }]] },
-    "11. Create BdC Lines": { "main": [[{ "node": "12. Update Devis", "type": "main", "index": 0 }]] },
-    "12. Update Devis": { "main": [[{ "node": "13. Format Response", "type": "main", "index": 0 }]] },
-    "13. Format Response": { "main": [[{ "node": "14. Respond", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Devis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Devis": {
+      "main": [
+        [
+          {
+            "node": "06. Get Next BDC Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Get Next BDC Number": {
+      "main": [
+        [
+          {
+            "node": "07. Prepare BdC Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Prepare BdC Data": {
+      "main": [
+        [
+          {
+            "node": "08. Create BdC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Create BdC": {
+      "main": [
+        [
+          {
+            "node": "09. Get Devis Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Get Devis Lines": {
+      "main": [
+        [
+          {
+            "node": "10. Prepare Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Prepare Lines": {
+      "main": [
+        [
+          {
+            "node": "11. Create BdC Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Create BdC Lines": {
+      "main": [
+        [
+          {
+            "node": "12. Update Devis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Update Devis": {
+      "main": [
+        [
+          {
+            "node": "13. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Format Response": {
+      "main": [
+        [
+          {
+            "node": "14. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

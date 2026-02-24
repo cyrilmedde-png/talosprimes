@@ -30,21 +30,37 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.id }}",
-              "operation": "notEmpty"
+              "id": "b9d71dc8-96b7-40c0-96bd-0b4267f2b643",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             },
             {
-              "value1": "={{ $json.tenantId }}",
-              "operation": "notEmpty"
+              "id": "97ad0f92-a339-4f7d-8994-fa3e3e527907",
+              "leftValue": "={{ $json.tenantId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "name": "If",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         650,
         250

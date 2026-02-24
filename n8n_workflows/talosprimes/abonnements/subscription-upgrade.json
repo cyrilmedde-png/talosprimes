@@ -59,18 +59,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json[0]?.id }}",
-              "operation": "isNotEmpty"
+              "id": "27c29138-3ea5-4854-850a-001161abf400",
+              "leftValue": "={{ $json[0]?.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "validate-subscription",
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         900,
         400
@@ -92,18 +102,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.idAbonnementStripe }}",
-              "operation": "isNotEmpty"
+              "id": "24c1746c-d8d1-4319-a873-d62e7fdb1563",
+              "leftValue": "={{ $json.idAbonnementStripe }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-stripe",
       "name": "06. IF - Stripe configuré ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1340,
         300

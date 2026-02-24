@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,25 +24,41 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.skip }}",
-              "operation": "equals",
-              "value2": "false"
+              "id": "8d7adf11-9abc-4e9e-a302-83a5e71efb88",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Skip ?",
       "name": "03. Skip ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [500, 200]
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -56,7 +75,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [700, 200],
+      "position": [
+        700,
+        200
+      ],
       "alwaysOutputData": true
     },
     {
@@ -67,7 +89,10 @@
       "name": "05. Build Update SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 200]
+      "position": [
+        900,
+        200
+      ]
     },
     {
       "parameters": {
@@ -84,7 +109,10 @@
           "id": "OGqj65ZoFRileCck"
         }
       },
-      "position": [1100, 200],
+      "position": [
+        1100,
+        200
+      ],
       "alwaysOutputData": true
     },
     {
@@ -95,7 +123,10 @@
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 200]
+      "position": [
+        1300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -106,7 +137,10 @@
       "name": "08. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1500, 200]
+      "position": [
+        1500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -117,33 +151,96 @@
       "name": "09. Respond Skip",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [
+        700,
+        100
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Skip ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "03. Skip ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "03. Skip ?": {
       "main": [
-        [{ "node": "04. Find Lead", "type": "main", "index": 0 }],
-        [{ "node": "09. Respond Skip", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "04. Find Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "09. Respond Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "04. Find Lead": {
-      "main": [[{ "node": "05. Build Update SQL", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "05. Build Update SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "05. Build Update SQL": {
-      "main": [[{ "node": "06. Update Lead", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Update Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Update Lead": {
-      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Format Response": {
-      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

@@ -57,19 +57,29 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "comparator": ">",
-              "value1": "={{ $('03-fetch-subscription').first().json.length }}",
-              "value2": 0
+              "id": "1ca6f044-49a0-44a9-9263-969c40502edf",
+              "leftValue": "={{ $('03-fetch-subscription').first().json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "04-validation",
       "name": "Validation",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         850,
         300
@@ -91,18 +101,29 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "comparator": "notEmpty",
-              "value1": "={{ $json.stripeSubscriptionId }}"
+              "id": "bed068f2-af67-4b0c-bc93-d8150a447707",
+              "leftValue": "={{ $json.stripeSubscriptionId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "06-if-stripe-configured",
       "name": "IF Stripe configuré",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1250,
         300

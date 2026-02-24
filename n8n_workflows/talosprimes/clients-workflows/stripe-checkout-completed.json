@@ -34,22 +34,36 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.clientId }}",
-              "operation": "isNotEmpty"
+              "id": "36dfd24e-6465-47c3-aff5-fd4a3f2be5ed",
+              "leftValue": "={{ $json.clientId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             },
             {
-              "value1": "={{ $json.tenantId }}",
-              "operation": "isNotEmpty"
+              "id": "09df45d8-b066-48f8-892c-ffca82d372dc",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "validate-data",
       "name": "03. Validation données",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         680,
         400

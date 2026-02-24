@@ -34,22 +34,36 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.clientId }}",
-              "operation": "isNotEmpty"
+              "id": "f4e82151-88ed-4632-82f4-fa0b58774d96",
+              "leftValue": "={{ $json.clientId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             },
             {
-              "value1": "={{ $json.tenantId }}",
-              "operation": "isNotEmpty"
+              "id": "cd394766-f314-44e0-b08e-13d1ad269589",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "validate-data",
       "name": "02. Validation données",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         680,
         400
@@ -58,19 +72,29 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ String($json.avecStripe || '') }}",
-              "operation": "equals",
-              "value2": "true"
+              "id": "b1d309ac-93d1-498e-b9ac-099d8f7e5cc3",
+              "leftValue": "={{ String($json.avecStripe || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-stripe",
       "name": "03. IF - Stripe activé ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         900,
         400

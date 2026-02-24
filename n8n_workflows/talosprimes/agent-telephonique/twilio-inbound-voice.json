@@ -35,18 +35,29 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.isCallback }}",
-              "value2": true
+              "id": "7e6c6ac2-d2e7-43a0-a1d5-258f94c0310c",
+              "leftValue": "={{ $json.isCallback }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Is Callback?",
       "name": "03. Is Callback?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         300
@@ -105,18 +116,29 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.hasText }}",
-              "value2": true
+              "id": "e98da725-c807-4c0c-9c14-f309f75f7221",
+              "leftValue": "={{ $json.hasText }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "07. Has Text?",
       "name": "07. Has Text?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         900,
         200
@@ -346,18 +368,29 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.isProspect || $json.needsEscalation }}",
-              "value2": true
+              "id": "6e0850b0-34ba-45a4-bcfe-eb4782a997bb",
+              "leftValue": "={{ $json.isProspect || $json.needsEscalation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "19. Need Action?",
       "name": "19. Need Action?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         3300,
         600
@@ -403,18 +436,29 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.hasToolCall }}",
-              "value2": true
+              "id": "f420da73-33d1-4132-b70f-cdb037d1913d",
+              "leftValue": "={{ $json.hasToolCall }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "22. Has Tool Call?",
       "name": "22. Has Tool Call?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         2100,
         250

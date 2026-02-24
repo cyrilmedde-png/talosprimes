@@ -25,41 +25,13 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.tenantId }}",
-              "operation": "isNotEmpty"
-            }
-          ]
-        }
-      },
-      "id": "03. Valide ?",
-      "name": "03. Valide ?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [500, 300]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: 'Données manquantes (tenantId ou invoiceId)' }) }}"
-      },
-      "id": "04. Respond Error",
-      "name": "04. Respond Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [700, 150]
-    },
-    {
-      "parameters": {
-        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar tenantId = $json.tenantId;\nvar invoiceId = $json.invoiceId;\nvar q = 'SELECT i.id, i.tenant_id, i.type, i.numero_facture, i.date_facture, i.montant_ht, i.montant_ttc, i.tva_taux, i.statut, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = ' + esc(invoiceId) + '::uuid AND i.tenant_id = ' + esc(tenantId) + '::uuid';\nreturn [{ json: { tenantId: tenantId, invoiceId: invoiceId, query: q } }];"
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar tenantId = $json.tenantId;\nvar invoiceId = $json.invoiceId;\nif (!tenantId || !invoiceId) throw new Error('Données manquantes (tenantId ou invoiceId)');\nvar q = 'SELECT i.id, i.tenant_id, i.type, i.numero_facture, i.date_facture, i.montant_ht, i.montant_ttc, i.tva_taux, i.statut, cf.nom as client_nom, cf.raison_sociale as client_raison_sociale FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.id = ' + esc(invoiceId) + '::uuid AND i.tenant_id = ' + esc(tenantId) + '::uuid';\nreturn [{ json: { tenantId: tenantId, invoiceId: invoiceId, query: q } }];"
       },
       "id": "05. Build Get Invoice",
       "name": "05. Build Get Invoice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 400]
+      "position": [500, 300]
     },
     {
       "parameters": {
@@ -73,7 +45,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [900, 400],
+      "position": [700, 300],
       "alwaysOutputData": true
     },
     {
@@ -84,7 +56,7 @@
       "name": "07. Validate Invoice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 400]
+      "position": [900, 300]
     },
     {
       "parameters": {
@@ -98,25 +70,19 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [1300, 400],
+      "position": [1100, 300],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.id }}",
-              "operation": "isEmpty"
-            }
-          ]
-        }
+        "jsCode": "// Vérifier si l'écriture existe déjà\nvar rows = $input.all().map(function(i) { return i.json; }).filter(function(r) { return r.id; });\nif (rows.length > 0) {\n  // Déjà existant — on envoie vers output 1 (index 1)\n  return [[], [{ json: { alreadyExists: true } }]];\n}\n// Pas d'existant — on continue vers output 0 (index 0)\nreturn [[{ json: $('07. Validate Invoice').first().json }], []];"
       },
       "id": "09. Already Exists?",
       "name": "09. Already Exists?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1500, 400]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300],
+      "outputs": ["main", "main"]
     },
     {
       "parameters": {
@@ -127,12 +93,12 @@
       "name": "09b. Respond Already",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1700, 250]
+      "position": [1500, 150]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('07. Validate Invoice').first().json.exerciceQuery }}"
+        "query": "={{ $json.exerciceQuery }}"
       },
       "id": "10. Get Exercice",
       "name": "10. Get Exercice",
@@ -141,7 +107,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [1700, 500],
+      "position": [1500, 400],
       "alwaysOutputData": true
     },
     {
@@ -152,7 +118,7 @@
       "name": "11. Validate Exercice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 500]
+      "position": [1700, 400]
     },
     {
       "parameters": {
@@ -166,7 +132,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [2100, 500],
+      "position": [1900, 400],
       "alwaysOutputData": true
     },
     {
@@ -177,7 +143,7 @@
       "name": "13. Build Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2300, 500]
+      "position": [2100, 400]
     },
     {
       "parameters": {
@@ -191,7 +157,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [2500, 500],
+      "position": [2300, 400],
       "alwaysOutputData": true
     },
     {
@@ -202,7 +168,7 @@
       "name": "15. Build Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2700, 500]
+      "position": [2500, 400]
     },
     {
       "parameters": {
@@ -216,7 +182,7 @@
       "credentials": {
         "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [2900, 500],
+      "position": [2700, 400],
       "alwaysOutputData": true
     },
     {
@@ -227,7 +193,7 @@
       "name": "17. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 500]
+      "position": [2900, 400]
     },
     {
       "parameters": {
@@ -238,7 +204,7 @@
       "name": "18. Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3300, 500]
+      "position": [3100, 400]
     }
   ],
   "connections": {
@@ -246,13 +212,7 @@
       "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
     },
     "02. Parser": {
-      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
-    },
-    "03. Valide ?": {
-      "main": [
-        [{ "node": "05. Build Get Invoice", "type": "main", "index": 0 }],
-        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
-      ]
+      "main": [[{ "node": "05. Build Get Invoice", "type": "main", "index": 0 }]]
     },
     "05. Build Get Invoice": {
       "main": [[{ "node": "06. Get Invoice", "type": "main", "index": 0 }]]

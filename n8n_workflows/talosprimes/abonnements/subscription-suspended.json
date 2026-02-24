@@ -59,18 +59,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json[0]?.id }}",
-              "operation": "isNotEmpty"
+              "id": "cd2116a8-d1ba-4f6f-8c19-e66ebca17a16",
+              "leftValue": "={{ $json[0]?.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "validate-subscription",
       "name": "04. Validation",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         900,
         400
@@ -92,18 +102,28 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.idAbonnementStripe }}",
-              "operation": "isNotEmpty"
+              "id": "cadcc12b-67f9-40dd-b6ca-dbe3f5b0d727",
+              "leftValue": "={{ $json.idAbonnementStripe }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "check-stripe-id",
       "name": "06. Vérifier Stripe ID",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1340,
         300
@@ -204,19 +224,29 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "={{ $json[0]?.active_count }}",
-              "operation": "equals",
-              "value2": 0
+              "id": "c1a518da-1f85-4024-9177-61a803013e14",
+              "leftValue": "={{ $json[0]?.active_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "has-active-subscriptions",
       "name": "10. Abonnements actifs restants ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         2220,
         300
