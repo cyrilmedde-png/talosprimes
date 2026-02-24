@@ -775,7 +775,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Auto-initialiser la comptabilité si le plan comptable est vide
+        // Auto-init compta si plan comptable vide (branche n8n callback)
         try {
           const nbComptes = await prisma.planComptable.count({ where: { tenantId } });
           if (nbComptes === 0) {
@@ -785,34 +785,6 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
             } else {
               fastify.log.warn('Auto-init compta échouée pour tenant %s: %s', tenantId, initRes.error);
-            }
-          } else {
-            // Plan comptable existe, vérifier exercice et journal VE seulement
-            const exercice = await prisma.exerciceComptable.findFirst({
-              where: { tenantId, cloture: false },
-            });
-            if (!exercice) {
-              const year = new Date().getFullYear();
-              await prisma.exerciceComptable.create({
-                data: {
-                  tenantId,
-                  code: String(year),
-                  dateDebut: new Date(`${year}-01-01`),
-                  dateFin: new Date(`${year}-12-31`),
-                  cloture: false,
-                },
-              });
-              fastify.log.info('Exercice comptable %d créé automatiquement pour tenant %s', year, tenantId);
-            }
-
-            const journalVE = await prisma.journalComptable.findUnique({
-              where: { tenantId_code: { tenantId, code: 'VE' } },
-            });
-            if (!journalVE) {
-              await prisma.journalComptable.create({
-                data: { tenantId, code: 'VE', libelle: 'Journal des Ventes', type: 'VE' },
-              });
-              fastify.log.info('Journal VE créé automatiquement pour tenant %s', tenantId);
             }
           }
         } catch (initErr) {

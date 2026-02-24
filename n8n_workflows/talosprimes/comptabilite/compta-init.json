@@ -72,7 +72,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO journaux_comptables (id, tenant_id, code, libelle, type) VALUES (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'VE', 'Journal des Ventes', 'ventes'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'AC', 'Journal des Achats', 'achats'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'BQ', 'Journal de Banque', 'banque'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'OD', 'Journal des Opérations Diverses', 'operations_diverses'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'AN', 'Journal des À-Nouveaux', 'a_nouveaux') ON CONFLICT (tenant_id, code) DO NOTHING RETURNING id, code, libelle;\" }}"
+        "query": "={{ \"INSERT INTO journaux_comptables (id, tenant_id, code, libelle, type) VALUES (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'VE', 'Journal des Ventes', 'VE'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'AC', 'Journal des Achats', 'AC'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'BQ', 'Journal de Banque', 'BQ'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'OD', 'Journal des Opérations Diverses', 'OD'), (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', 'AN', 'Journal des À-Nouveaux', 'AN') ON CONFLICT (tenant_id, code) DO NOTHING RETURNING id, code, libelle;\" }}"
       },
       "id": "06. Create Journaux",
       "name": "06. Create Journaux",
@@ -123,7 +123,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var exercice = $('05. Create Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nvar nbComptes = parseInt($('08. Count Comptes').first().json.nb_comptes) || 0;\n\nreturn [{ json: {\n  success: true,\n  message: 'Comptabilité initialisée: ' + nbComptes + ' comptes PCG, 5 journaux, exercice ' + $('02. Parser').first().json.exerciceCode,\n  exercice: exercice[0] || { code: $('02. Parser').first().json.exerciceCode, status: 'already_exists' },\n  nbComptes: nbComptes,\n  journaux: ['VE - Ventes', 'AC - Achats', 'BQ - Banque', 'OD - Opérations Diverses', 'AN - À-Nouveaux']\n}}];"
+        "jsCode": "var exercice = $('05. Create Exercice').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nvar nbComptes = parseInt($('08. Count Comptes').first().json.nb_comptes) || 0;\nvar journauxResult = $('06. Create Journaux').all().map(function(i) { return i.json; }).filter(function(j) { return j.code; });\nvar journauxCodes = journauxResult.map(function(j) { return j.code; });\nif (journauxCodes.length === 0) journauxCodes = ['VE','AC','BQ','OD','AN'];\n\nreturn [{ json: {\n  success: true,\n  message: 'Comptabilité initialisée: ' + nbComptes + ' comptes PCG, ' + journauxCodes.length + ' journaux, exercice ' + $('02. Parser').first().json.exerciceCode,\n  exercice: exercice[0] || { code: $('02. Parser').first().json.exerciceCode, status: 'already_exists' },\n  nbComptes: nbComptes,\n  journaux: journauxCodes\n}}];"
       },
       "id": "09. Format Response",
       "name": "09. Format Response",
