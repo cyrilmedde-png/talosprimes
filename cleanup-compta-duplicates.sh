@@ -2,10 +2,12 @@
 ##############################################################################
 # cleanup-compta-duplicates.sh
 # Supprime tous les workflows compta doublons (garde uniquement les IDs fixes)
+# Appelle l'API REST n8n depuis le HOST (pas depuis le conteneur)
 # Usage: bash cleanup-compta-duplicates.sh
 ##############################################################################
 
 CONTAINER="n8n"
+N8N_URL="http://localhost:5678"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -53,20 +55,14 @@ while IFS='|' read -r wid wname rest; do
     KEPT=$((KEPT + 1))
   else
     echo -n "  DELETE $wid ($wname) ... "
-    # Supprimer via l'API REST interne au conteneur
-    RESULT=$(docker exec "$CONTAINER" wget -q -O- --method=DELETE "http://localhost:5678/api/v1/workflows/$wid" 2>&1)
-    if echo "$RESULT" | grep -q '"id"'; then
+    # Supprimer via l'API REST depuis le HOST
+    HTTP_CODE=$(curl -s -o /tmp/n8n_delete_resp.json -w "%{http_code}" -X DELETE "$N8N_URL/api/v1/workflows/$wid")
+    if [ "$HTTP_CODE" = "200" ]; then
       echo -e "${GREEN}supprimé${NC}"
       DELETED=$((DELETED + 1))
     else
-      # Fallback : essayer avec curl si wget échoue
-      RESULT2=$(docker exec "$CONTAINER" curl -s -X DELETE "http://localhost:5678/api/v1/workflows/$wid" 2>&1)
-      if echo "$RESULT2" | grep -q '"id"'; then
-        echo -e "${GREEN}supprimé${NC}"
-        DELETED=$((DELETED + 1))
-      else
-        echo -e "${YELLOW}échec (${RESULT2:0:80})${NC}"
-      fi
+      BODY=$(cat /tmp/n8n_delete_resp.json 2>/dev/null | head -c 100)
+      echo -e "${YELLOW}échec HTTP $HTTP_CODE ($BODY)${NC}"
     fi
   fi
 done <<< "$COMPTA_WF"
