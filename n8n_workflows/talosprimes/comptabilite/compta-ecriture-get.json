@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID valide)');\nif (!body.ecritureId && !body.id) throw new Error('ecritureId requis');\nvar ecritureId = body.ecritureId || body.id;\nif (!UUID_RE.test(ecritureId)) throw new Error('ecritureId invalide (UUID)');\nreturn [{ json: { tenantId: body.tenantId, ecritureId: ecritureId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID valide)');\nif (!body.ecritureId && !body.id) throw new Error('ecritureId requis');\nvar ecritureId = body.ecritureId || body.id;\nif (!UUID_RE.test(ecritureId)) throw new Error('ecritureId invalide (UUID)');\nreturn [{ json: { tenantId: body.tenantId, ecritureId: ecritureId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
