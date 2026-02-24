@@ -7,248 +7,125 @@
         "responseMode": "responseNode",
         "httpMethod": "POST"
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
         "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!UUID_RE.test(body.tenantId)) throw new Error('tenantId invalide');\nvar today = new Date().toISOString().split('T')[0];\nreturn [{ json: {\n  tenantId: body.tenantId,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || today,\n  typeDeclaration: body.typeDeclaration || 'mensuelle'\n} }];"
       },
-      "id": "parser",
-      "name": "Parser",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
+          "options": { "caseSensitive": true, "leftValue": "" },
           "conditions": [
             {
-              "id": "cond-1",
+              "id": "tva-valid-1",
               "leftValue": "={{ $json.tenantId }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
+              "operator": { "type": "string", "operation": "notEmpty" }
             }
           ],
           "combinator": "and"
         },
         "options": {}
       },
-      "id": "if-valide",
-      "name": "IF Valide",
+      "id": "03. IF Valide",
+      "name": "03. IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={ \"success\": false, \"error\": \"Paramètres manquants\" }"
       },
-      "id": "respond-error",
-      "name": "Respond Error",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
-        "jsCode": "function esc(v) { return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar p = $('Parser').first().json;\nvar dateFilter = '';\nif (p.dateFrom) dateFilter += ' AND e.date_ecriture >= ' + esc(p.dateFrom) + '::date';\nif (p.dateTo) dateFilter += ' AND e.date_ecriture <= ' + esc(p.dateTo) + '::date';\n\nvar queryTVAComptes = \"SELECT le.numero_compte, pc.libelle as account_name, COALESCE(SUM(le.debit), 0) as total_debit, COALESCE(SUM(le.credit), 0) as total_credit, COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) as solde FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = \" + esc(p.tenantId) + \"::uuid AND e.statut = 'validee' AND (le.numero_compte LIKE '44571%' OR le.numero_compte LIKE '44566%' OR le.numero_compte LIKE '44562%')\" + dateFilter + \" GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte\";\n\nvar queryBasesHT = \"SELECT SUBSTRING(le.numero_compte, 1, 1) as class, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '6%' THEN (le.debit - le.credit) ELSE 0 END), 0) as total_achats, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '7%' THEN (le.credit - le.debit) ELSE 0 END), 0) as total_ventes FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = \" + esc(p.tenantId) + \"::uuid AND e.statut = 'validee' AND (le.numero_compte LIKE '6%' OR le.numero_compte LIKE '7%')\" + dateFilter + \" GROUP BY class\";\n\nreturn [{ json: { queryTVAComptes: queryTVAComptes, queryBasesHT: queryBasesHT } }];"
+        "jsCode": "function esc(v) { return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar p = $('02. Parser').first().json;\nvar dateFilter = '';\nif (p.dateFrom) dateFilter += ' AND e.date_ecriture >= ' + esc(p.dateFrom) + '::date';\nif (p.dateTo) dateFilter += ' AND e.date_ecriture <= ' + esc(p.dateTo) + '::date';\n\nvar queryTVAComptes = \"SELECT le.numero_compte, pc.libelle as account_name, COALESCE(SUM(le.debit), 0) as total_debit, COALESCE(SUM(le.credit), 0) as total_credit, COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) as solde FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = \" + esc(p.tenantId) + \"::uuid AND e.statut = 'validee' AND (le.numero_compte LIKE '44571%' OR le.numero_compte LIKE '44566%' OR le.numero_compte LIKE '44562%')\" + dateFilter + \" GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte\";\n\nvar queryBasesHT = \"SELECT SUBSTRING(le.numero_compte, 1, 1) as class, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '6%' THEN (le.debit - le.credit) ELSE 0 END), 0) as total_achats, COALESCE(SUM(CASE WHEN le.numero_compte LIKE '7%' THEN (le.credit - le.debit) ELSE 0 END), 0) as total_ventes FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = \" + esc(p.tenantId) + \"::uuid AND e.statut = 'validee' AND (le.numero_compte LIKE '6%' OR le.numero_compte LIKE '7%')\" + dateFilter + \" GROUP BY class\";\n\nreturn [{ json: { queryTVAComptes: queryTVAComptes, queryBasesHT: queryBasesHT } }];"
       },
-      "id": "build-queries",
-      "name": "Build Queries",
+      "id": "05. Build Queries",
+      "name": "05. Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        700,
-        300
-      ]
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.queryTVAComptes }}"
       },
-      "id": "query-tva-comptes",
-      "name": "Query TVA Comptes",
+      "id": "06. Query TVA Comptes",
+      "name": "06. Query TVA Comptes",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        900,
-        250
-      ],
+      "position": [900, 300],
       "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('Build Queries').first().json.queryBasesHT }}"
+        "query": "={{ $('05. Build Queries').first().json.queryBasesHT }}"
       },
-      "id": "query-bases-ht",
-      "name": "Query Bases HT",
+      "id": "07. Query Bases HT",
+      "name": "07. Query Bases HT",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
       },
-      "position": [
-        900,
-        400
-      ],
+      "position": [1100, 300],
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "function inferTauxFromAccount(accountNumber) {\n  if (!accountNumber) return 20;\n  var suffix = accountNumber.slice(-2);\n  var suffixNum = parseInt(suffix);\n  if (suffixNum === 10 || suffixNum === 11) return 20;\n  if (suffixNum === 12) return 10;\n  if (suffixNum === 13) return 5.5;\n  if (suffixNum === 14) return 2.1;\n  return 20;\n}\nvar tvaItems = $('Query TVA Comptes').all().map(function(i) { return i.json; }).filter(function(r) { return r.numero_compte; });\nvar basesItems = $('Query Bases HT').all().map(function(i) { return i.json; });\nvar p = $('Parser').first().json;\nvar tvaCollectee = [], tvaDeductible = [];\nvar totalCollectee = 0, totalDeductible = 0;\nvar basesData = basesItems.length > 0 ? basesItems[0] : {};\nvar totalAchats = Math.abs(parseFloat(basesData.total_achats) || 0);\nvar totalVentes = Math.abs(parseFloat(basesData.total_ventes) || 0);\ntvaItems.forEach(function(row) {\n  var nc = row.numero_compte || '';\n  var montantTVA = Math.abs(parseFloat(row.solde) || 0);\n  var taux = inferTauxFromAccount(nc);\n  var baseHT = montantTVA > 0 ? Math.round((montantTVA / (taux / 100)) * 100) / 100 : 0;\n  if (nc.startsWith('44571')) {\n    totalCollectee += montantTVA;\n    tvaCollectee.push({ taux: taux, baseHT: baseHT, montantTVA: Math.round(montantTVA * 100) / 100, compteCollecte: nc });\n  } else if (nc.startsWith('44566') || nc.startsWith('44562')) {\n    totalDeductible += montantTVA;\n    tvaDeductible.push({ taux: taux, baseHT: baseHT, montantTVA: Math.round(montantTVA * 100) / 100, compteDeductible: nc });\n  }\n});\ntotalCollectee = Math.round(totalCollectee * 100) / 100;\ntotalDeductible = Math.round(totalDeductible * 100) / 100;\nvar tvaAPayer = totalCollectee - totalDeductible;\nvar result = { success: true, periode: { dateFrom: p.dateFrom, dateTo: p.dateTo }, typeDeclaration: p.typeDeclaration, totalCollectee: totalCollectee, totalDeductible: totalDeductible };\nif (tvaCollectee.length > 0) result.tvaCollectee = tvaCollectee;\nif (tvaDeductible.length > 0) result.tvaDeductible = tvaDeductible;\nif (tvaAPayer > 0) result.tvaAPayer = tvaAPayer;\nelse if (tvaAPayer < 0) result.creditTVA = Math.abs(tvaAPayer);\nreturn [{ json: result }];"
+        "jsCode": "function inferTauxFromAccount(accountNumber) {\n  if (!accountNumber) return 20;\n  var suffix = accountNumber.slice(-2);\n  var suffixNum = parseInt(suffix);\n  if (suffixNum === 10 || suffixNum === 11) return 20;\n  if (suffixNum === 12) return 10;\n  if (suffixNum === 13) return 5.5;\n  if (suffixNum === 14) return 2.1;\n  return 20;\n}\nvar tvaItems = $('06. Query TVA Comptes').all().map(function(i) { return i.json; }).filter(function(r) { return r.numero_compte; });\nvar basesItems = $('07. Query Bases HT').all().map(function(i) { return i.json; });\nvar p = $('02. Parser').first().json;\nvar tvaCollectee = [], tvaDeductible = [];\nvar totalCollectee = 0, totalDeductible = 0;\nvar basesData = basesItems.length > 0 ? basesItems[0] : {};\nvar totalAchats = Math.abs(parseFloat(basesData.total_achats) || 0);\nvar totalVentes = Math.abs(parseFloat(basesData.total_ventes) || 0);\ntvaItems.forEach(function(row) {\n  var nc = row.numero_compte || '';\n  var montantTVA = Math.abs(parseFloat(row.solde) || 0);\n  var taux = inferTauxFromAccount(nc);\n  var baseHT = montantTVA > 0 ? Math.round((montantTVA / (taux / 100)) * 100) / 100 : 0;\n  if (nc.startsWith('44571')) {\n    totalCollectee += montantTVA;\n    tvaCollectee.push({ taux: taux, baseHT: baseHT, montantTVA: Math.round(montantTVA * 100) / 100, compteCollecte: nc });\n  } else if (nc.startsWith('44566') || nc.startsWith('44562')) {\n    totalDeductible += montantTVA;\n    tvaDeductible.push({ taux: taux, baseHT: baseHT, montantTVA: Math.round(montantTVA * 100) / 100, compteDeductible: nc });\n  }\n});\ntotalCollectee = Math.round(totalCollectee * 100) / 100;\ntotalDeductible = Math.round(totalDeductible * 100) / 100;\nvar tvaAPayer = totalCollectee - totalDeductible;\nvar result = { success: true, periode: { dateFrom: p.dateFrom, dateTo: p.dateTo }, typeDeclaration: p.typeDeclaration, totalCollectee: totalCollectee, totalDeductible: totalDeductible };\nif (tvaCollectee.length > 0) result.tvaCollectee = tvaCollectee;\nif (tvaDeductible.length > 0) result.tvaDeductible = tvaDeductible;\nif (tvaAPayer > 0) result.tvaAPayer = tvaAPayer;\nelse if (tvaAPayer < 0) result.creditTVA = Math.abs(tvaAPayer);\nreturn [{ json: result }];"
       },
-      "id": "format-tva",
-      "name": "Format TVA",
+      "id": "08. Format TVA",
+      "name": "08. Format TVA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "respond",
-      "name": "Respond",
+      "id": "09. Respond",
+      "name": "09. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1500, 300]
     }
   ],
   "connections": {
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parser": {
-      "main": [
-        [
-          {
-            "node": "IF Valide",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF Valide": {
-      "main": [
-        [
-          {
-            "node": "Build Queries",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Queries": {
-      "main": [
-        [
-          {
-            "node": "Query TVA Comptes",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Query Bases HT",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query TVA Comptes": {
-      "main": [
-        [
-          {
-            "node": "Format TVA",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query Bases HT": {
-      "main": [
-        [
-          {
-            "node": "Format TVA",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format TVA": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. IF Valide", "type": "main", "index": 0 }]] },
+    "03. IF Valide": { "main": [[{ "node": "05. Build Queries", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Build Queries": { "main": [[{ "node": "06. Query TVA Comptes", "type": "main", "index": 0 }]] },
+    "06. Query TVA Comptes": { "main": [[{ "node": "07. Query Bases HT", "type": "main", "index": 0 }]] },
+    "07. Query Bases HT": { "main": [[{ "node": "08. Format TVA", "type": "main", "index": 0 }]] },
+    "08. Format TVA": { "main": [[{ "node": "09. Respond", "type": "main", "index": 0 }]] }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "active": true
 }
