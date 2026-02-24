@@ -19,6 +19,7 @@ import {
   PencilSquareIcon,
   ClipboardDocumentListIcon,
   ArrowTopRightOnSquareIcon,
+  DocumentMagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -30,9 +31,25 @@ const STATUT_LABELS: Record<string, string> = {
   annulee: 'Annulée',
 };
 
-const TYPE_FACTURE_OPTIONS: { value: 'facture_entreprise' | 'facture_client_final'; label: string }[] = [
+const TYPE_FACTURE_OPTIONS: { value: 'facture_entreprise' | 'facture_client_final' | 'facture_achat'; label: string }[] = [
   { value: 'facture_client_final', label: 'Facture client final' },
   { value: 'facture_entreprise', label: 'Facture entreprise' },
+  { value: 'facture_achat', label: "Facture d'achat (fournisseur)" },
+];
+
+const CATEGORIES_FRAIS = [
+  'Achats marchandises',
+  'Fournitures bureau',
+  'Services extérieurs',
+  'Sous-traitance',
+  'Loyer / Charges',
+  'Déplacements',
+  'Télécommunications',
+  'Assurances',
+  'Honoraires',
+  'Publicité',
+  'Entretien / Réparations',
+  'Autre',
 ];
 
 const TYPE_DOCUMENT_OPTIONS: { value: 'facture' | 'devis' | 'proforma' | 'avoir'; label: string }[] = [
@@ -81,7 +98,7 @@ export default function FacturesPage() {
   const [createForm, setCreateForm] = useState({
     typeDocument: 'facture' as 'facture' | 'devis' | 'proforma' | 'avoir',
     clientFinalId: '',
-    type: 'facture_client_final' as 'facture_entreprise' | 'facture_client_final',
+    type: 'facture_client_final' as 'facture_entreprise' | 'facture_client_final' | 'facture_achat',
     montantHt: '',
     tvaTaux: '20',
     description: '',
@@ -90,7 +107,14 @@ export default function FacturesPage() {
     conditionsPaiement: '',
     reference: '',
     notes: '',
+    // Champs fournisseur (facture d'achat)
+    fournisseurNom: '',
+    fournisseurSiret: '',
+    fournisseurTvaIntra: '',
+    fournisseurAdresse: '',
+    categorieFrais: '',
   });
+  const [scanning, setScanning] = useState(false);
   const [lignes, setLignes] = useState<LigneArticle[]>([]);
   const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
   const [bdcValides, setBdcValides] = useState<BonCommande[]>([]);
@@ -123,6 +147,11 @@ export default function FacturesPage() {
       conditionsPaiement: '',
       reference: '',
       notes: '',
+      fournisseurNom: '',
+      fournisseurSiret: '',
+      fournisseurTvaIntra: '',
+      fournisseurAdresse: '',
+      categorieFrais: '',
     });
     setLignes([getDefaultLigne()]);
     setSelectedBdcId('');
@@ -200,6 +229,62 @@ export default function FacturesPage() {
       }
     } catch {
       // silently ignore
+    }
+  };
+
+  const handleScanDocument = async (file: File) => {
+    try {
+      setScanning(true);
+      setError(null);
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Retirer le préfixe data:...;base64,
+          const base64Data = result.split(',')[1] || result;
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await apiClient.invoices.scanDocument({
+        documentBase64: base64,
+        fileName: file.name,
+        mimeType: file.type || 'application/pdf',
+      });
+      if (res.success && res.data) {
+        const d = res.data as Record<string, string | number | undefined>;
+        setCreateForm((f) => ({
+          ...f,
+          fournisseurNom: String(d.fournisseurNom || f.fournisseurNom || ''),
+          fournisseurSiret: String(d.fournisseurSiret || f.fournisseurSiret || ''),
+          fournisseurTvaIntra: String(d.fournisseurTvaIntra || f.fournisseurTvaIntra || ''),
+          fournisseurAdresse: String(d.fournisseurAdresse || f.fournisseurAdresse || ''),
+          categorieFrais: String(d.categorieFrais || f.categorieFrais || ''),
+          montantHt: d.montantHt ? String(d.montantHt) : f.montantHt,
+          tvaTaux: d.tvaTaux ? String(d.tvaTaux) : f.tvaTaux,
+          dateFacture: d.dateFacture ? String(d.dateFacture).slice(0, 10) : f.dateFacture,
+          reference: d.numeroFacture ? String(d.numeroFacture) : f.reference,
+          description: d.description ? String(d.description) : f.description,
+        }));
+        // Pré-remplir les lignes si l'OCR en renvoie
+        const ocrLignes = (res.data as { lignes?: Array<{ designation?: string; quantite?: number; prixUnitaireHt?: number; tauxTva?: number }> }).lignes;
+        if (ocrLignes && ocrLignes.length > 0) {
+          setLignes(ocrLignes.map((ol) => ({
+            id: `ligne-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            codeArticle: '',
+            designation: ol.designation || '',
+            quantite: String(ol.quantite || 1),
+            unite: '',
+            prixUnitaireHT: String(ol.prixUnitaireHt || 0),
+            tauxTVA: String(ol.tauxTva || 20),
+          })));
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du scan du document');
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -341,8 +426,17 @@ export default function FacturesPage() {
       montantHt = parseFloat(createForm.montantHt.replace(',', '.'));
       tvaTaux = parseFloat(createForm.tvaTaux.replace(',', '.')) || 20;
     }
-    if (!createForm.clientFinalId || Number.isNaN(montantHt) || montantHt <= 0) {
-      setError('Client obligatoire et au moins un montant HT (lignes ou montant global).');
+    const isAchat = createForm.type === 'facture_achat';
+    if (!isAchat && !createForm.clientFinalId) {
+      setError('Client obligatoire pour une facture de vente.');
+      return;
+    }
+    if (isAchat && !createForm.fournisseurNom) {
+      setError('Nom du fournisseur obligatoire pour une facture d\'achat.');
+      return;
+    }
+    if (Number.isNaN(montantHt) || montantHt <= 0) {
+      setError('Au moins un montant HT est requis (lignes ou montant global).');
       return;
     }
     createSubmittingRef.current = true;
@@ -438,6 +532,14 @@ export default function FacturesPage() {
             modePaiement,
             bdcId: selectedBdcId || undefined,
             ...(apiLines.length > 0 ? { lines: apiLines } : {}),
+            // Champs fournisseur (facture d'achat)
+            ...(createForm.type === 'facture_achat' ? {
+              fournisseurNom: createForm.fournisseurNom || undefined,
+              fournisseurSiret: createForm.fournisseurSiret || undefined,
+              fournisseurTvaIntra: createForm.fournisseurTvaIntra || undefined,
+              fournisseurAdresse: createForm.fournisseurAdresse || undefined,
+              categorieFrais: createForm.categorieFrais || undefined,
+            } : {}),
           });
           break;
       }
@@ -462,6 +564,10 @@ export default function FacturesPage() {
   };
 
   const clientLabel = (inv: Invoice) => {
+    // Pour les factures d'achat, afficher le fournisseur
+    if (inv.type === 'facture_achat' && inv.fournisseurNom) {
+      return `📥 ${inv.fournisseurNom}`;
+    }
     const c = inv.clientFinal;
     if (!c) return '—';
     if (c.raisonSociale) return c.raisonSociale;
@@ -783,10 +889,10 @@ export default function FacturesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Type client</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Type de facture</label>
                   <select
                     value={createForm.type}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, type: e.target.value as 'facture_entreprise' | 'facture_client_final' }))}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, type: e.target.value as 'facture_entreprise' | 'facture_client_final' | 'facture_achat' }))}
                     className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500"
                   >
                     {TYPE_FACTURE_OPTIONS.map((o) => (
@@ -797,9 +903,11 @@ export default function FacturesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Client *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  {createForm.type === 'facture_achat' ? 'Client (optionnel pour achat)' : 'Client *'}
+                </label>
                 <select
-                  required
+                  required={createForm.type !== 'facture_achat'}
                   value={createForm.clientFinalId}
                   onChange={(e) => setCreateForm((f) => ({ ...f, clientFinalId: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500"
@@ -820,6 +928,93 @@ export default function FacturesPage() {
                   </div>
                 )}
               </div>
+
+              {/* Section Fournisseur + Scanner OCR (facture d'achat uniquement) */}
+              {createForm.type === 'facture_achat' && (
+                <div className="rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-orange-300 flex items-center gap-2">
+                      <DocumentMagnifyingGlassIcon className="h-5 w-5" />
+                      Informations fournisseur
+                    </h3>
+                    <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer ${scanning ? 'bg-orange-600 text-white' : 'bg-orange-500 hover:bg-orange-600 text-gray-900'}`}>
+                      <DocumentMagnifyingGlassIcon className="h-4 w-4" />
+                      {scanning ? 'Analyse en cours…' : 'Scanner un document (OCR)'}
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp"
+                        className="hidden"
+                        disabled={scanning}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleScanDocument(file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {scanning && (
+                    <div className="text-sm text-orange-200 animate-pulse">
+                      Analyse du document par IA… Les champs seront pré-remplis automatiquement.
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Nom du fournisseur</label>
+                      <input
+                        type="text"
+                        value={createForm.fournisseurNom}
+                        onChange={(e) => setCreateForm((f) => ({ ...f, fournisseurNom: e.target.value }))}
+                        placeholder="Ex. SARL Dupont & Fils"
+                        className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">SIRET</label>
+                      <input
+                        type="text"
+                        value={createForm.fournisseurSiret}
+                        onChange={(e) => setCreateForm((f) => ({ ...f, fournisseurSiret: e.target.value }))}
+                        placeholder="123 456 789 00012"
+                        className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">N° TVA intracommunautaire</label>
+                      <input
+                        type="text"
+                        value={createForm.fournisseurTvaIntra}
+                        onChange={(e) => setCreateForm((f) => ({ ...f, fournisseurTvaIntra: e.target.value }))}
+                        placeholder="FR 12 345678901"
+                        className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Catégorie de frais</label>
+                      <select
+                        value={createForm.categorieFrais}
+                        onChange={(e) => setCreateForm((f) => ({ ...f, categorieFrais: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-orange-500"
+                      >
+                        <option value="">— Sélectionner —</option>
+                        {CATEGORIES_FRAIS.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Adresse du fournisseur</label>
+                    <textarea
+                      value={createForm.fournisseurAdresse}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, fournisseurAdresse: e.target.value }))}
+                      rows={2}
+                      placeholder="Adresse complète du fournisseur"
+                      className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>

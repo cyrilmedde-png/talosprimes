@@ -363,7 +363,7 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; data: { invoice: Invoice } }>(`/api/invoices/${id}`),
     create: (data: {
       clientFinalId: string;
-      type?: 'facture_entreprise' | 'facture_client_final';
+      type?: 'facture_entreprise' | 'facture_client_final' | 'facture_achat';
       montantHt: number;
       tvaTaux?: number;
       dateFacture?: string;
@@ -372,8 +372,23 @@ export const apiClient = {
       modePaiement?: string;
       bdcId?: string;
       lines?: { designation: string; quantite: number; prixUnitaireHt: number; codeArticle?: string | null }[];
+      // Champs fournisseur (facture d'achat)
+      fournisseurNom?: string;
+      fournisseurSiret?: string;
+      fournisseurTvaIntra?: string;
+      fournisseurAdresse?: string;
+      categorieFrais?: string;
     }) =>
       authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice } }>('/api/invoices', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    scanDocument: (data: {
+      documentBase64: string;
+      fileName?: string;
+      mimeType?: string;
+    }) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/invoices/scan-document', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -855,7 +870,7 @@ export const apiClient = {
 export interface Invoice {
   id: string;
   tenantId: string;
-  type: 'facture_entreprise' | 'facture_client_final';
+  type: 'facture_entreprise' | 'facture_client_final' | 'facture_achat';
   clientFinalId: string;
   montantHt: number;
   montantTtc: number;
@@ -866,6 +881,14 @@ export interface Invoice {
   statut: 'brouillon' | 'envoyee' | 'payee' | 'en_retard' | 'annulee';
   lienPdf?: string | null;
   idExternePaiement?: string | null;
+  // Champs fournisseur (facture d'achat)
+  fournisseurNom?: string | null;
+  fournisseurSiret?: string | null;
+  fournisseurTvaIntra?: string | null;
+  fournisseurAdresse?: string | null;
+  categorieFrais?: string | null;
+  documentOriginalUrl?: string | null;
+  ocrData?: Record<string, unknown> | null;
   clientFinal?: {
     id: string;
     email: string;
