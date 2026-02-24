@@ -8,6 +8,7 @@
 
 CONTAINER="n8n"
 N8N_URL="http://localhost:5678"
+N8N_API_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0ZTI5ZWQyMC1jMDZlLTQwNTAtODAyMy0xZmU5NjZjMDNjZjUiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzcxNzI0MTY5fQ.izBC6PXFZkE0DkIBqpRkLGrf-qiI04c67Ry6FabfhIs"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -56,7 +57,7 @@ while IFS='|' read -r wid wname rest; do
   else
     echo -n "  DELETE $wid ($wname) ... "
     # Supprimer via l'API REST depuis le HOST
-    HTTP_CODE=$(curl -s -o /tmp/n8n_delete_resp.json -w "%{http_code}" -X DELETE "$N8N_URL/api/v1/workflows/$wid")
+    HTTP_CODE=$(curl -s -o /tmp/n8n_delete_resp.json -w "%{http_code}" -X DELETE "$N8N_URL/api/v1/workflows/$wid" -H "X-N8N-API-KEY: $N8N_API_KEY")
     if [ "$HTTP_CODE" = "200" ]; then
       echo -e "${GREEN}supprimé${NC}"
       DELETED=$((DELETED + 1))
