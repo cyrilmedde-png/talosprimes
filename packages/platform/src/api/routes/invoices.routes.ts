@@ -544,10 +544,13 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
 
         fastify.log.info('OCR scan réussi pour tenant %s', tenantId);
 
+        // Extraire les données : res.data contient { success, extractedData }
+        const extractedData = (res.data as Record<string, unknown>)?.extractedData || res.data;
+
         return reply.status(200).send({
           success: true,
           message: 'Document scanné avec succès',
-          data: res.data,
+          data: extractedData,
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
