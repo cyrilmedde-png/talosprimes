@@ -47,7 +47,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"Paramètres invalides\" }"
+        "responseBody": "={{ { success: false, error: 'Paramètres invalides' } }}"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -114,7 +114,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"Vérification du lettrage échouée\" }"
+        "responseBody": "={{ { success: false, error: 'Vérification du lettrage échouée' } }}"
       },
       "id": "09. Respond Balance Error",
       "name": "09. Respond Balance Error",

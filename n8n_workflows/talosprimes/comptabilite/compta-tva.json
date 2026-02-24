@@ -47,7 +47,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"Paramètres manquants\" }"
+        "responseBody": "={{ { success: false, error: 'Paramètres manquants' } }}"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
