@@ -693,12 +693,14 @@ else
   if npx prisma migrate deploy 2>&1; then
     log_ok "Migrations appliquees"
   else
-    log_warn "prisma migrate deploy a echoue, tentative avec db push..."
-    if npx prisma db push --accept-data-loss=false 2>&1; then
-      log_ok "Schema synchronise via db push"
-    else
-      log_warn "Prisma db push a echoue (non bloquant si pas de changements)"
-    fi
+    log_warn "prisma migrate deploy a echoue (non bloquant)"
+  fi
+
+  log_info "Synchronisation du schema (db push)..."
+  if npx prisma db push --accept-data-loss=false 2>&1; then
+    log_ok "Schema synchronise via db push"
+  else
+    log_warn "Prisma db push: pas de changements ou erreur (non bloquant)"
   fi
 
   cd "$PROJECT_DIR"
