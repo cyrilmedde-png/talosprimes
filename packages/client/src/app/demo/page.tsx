@@ -9,7 +9,6 @@ export default function DemoPage() {
   const router = useRouter();
   const { setUser, setModulesActifs, setDemo } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -34,7 +33,6 @@ export default function DemoPage() {
       } catch (err) {
         if (!mounted) return;
         setError(err instanceof Error ? err.message : 'Erreur de connexion démo');
-        setLoading(false);
       }
     }
 
@@ -54,7 +52,6 @@ export default function DemoPage() {
           <p className="text-gray-400">{error}</p>
           <button
             onClick={() => {
-              setLoading(true);
               setError(null);
               window.location.reload();
             }}
