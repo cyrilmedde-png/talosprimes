@@ -116,15 +116,26 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
+  // Pages masquées en mode démo (actions dangereuses / configuration)
+  const DEMO_HIDDEN_PAGES = ['/settings', '/dashboard/cms', '/agent-ia/configuration'];
+
   // Filtrer les groupes de navigation selon les modules actifs du tenant
   const navGroups = useMemo(() => {
-    return allNavGroups.filter((group) => {
-      // Les groupes sans requiredModules (Administration) sont toujours visibles
-      if (group.requiredModules.length === 0) return true;
-      // Au moins un des modules requis doit être actif
-      return group.requiredModules.some((mod) => modulesActifs.includes(mod));
-    });
-  }, [modulesActifs]);
+    return allNavGroups
+      .filter((group) => {
+        if (group.requiredModules.length === 0) return true;
+        return group.requiredModules.some((mod) => modulesActifs.includes(mod));
+      })
+      .map((group) => {
+        if (!isDemo) return group;
+        // En mode démo : masquer les pages dangereuses
+        return {
+          ...group,
+          items: group.items.filter((item) => !DEMO_HIDDEN_PAGES.includes(item.href)),
+        };
+      })
+      .filter((group) => group.items.length > 0); // Supprimer les groupes vides
+  }, [modulesActifs, isDemo]);
 
   const handleLogout = () => {
     clearTokens();

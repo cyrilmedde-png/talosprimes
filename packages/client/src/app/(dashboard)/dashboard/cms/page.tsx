@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getAccessToken } from '@/lib/auth';
 import { Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle } from 'lucide-react';
 
+import { useDemoGuard } from '@/hooks/useDemoGuard';
 // Types
 interface Testimonial {
   id: string;
@@ -50,6 +51,7 @@ interface LegalPage {
 
 export default function CMSPage() {
   const [activeTab, setActiveTab] = useState<TabType>('content');
+  const { isDemo, demoAlert } = useDemoGuard();
   
   // Content
   const [content, setContent] = useState<Record<string, string>>({});
@@ -201,6 +203,8 @@ export default function CMSPage() {
 
   // Supprimer testimonial
   const deleteTestimonial = async (id: string) => {
+    // demo-guard: deleteTestimonial
+    if (isDemo) { demoAlert(); return; }
     if (!confirm('Supprimer ce témoignage ?')) return;
     
     try {
@@ -233,6 +237,8 @@ export default function CMSPage() {
 
   // Supprimer message
   const deleteMessage = async (id: string) => {
+    // demo-guard: deleteMessage
+    if (isDemo) { demoAlert(); return; }
     if (!confirm('Supprimer ce message ?')) return;
     
     try {

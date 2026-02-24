@@ -18,6 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
+import { useDemoGuard } from '@/hooks/useDemoGuard';
 const STATUT_LABELS: Record<string, string> = {
   brouillon: 'Brouillon',
   envoyee: 'Envoyé',
@@ -37,6 +38,7 @@ type LigneDevis = {
 
 export default function DevisPage() {
   const router = useRouter();
+  const { isDemo, demoAlert } = useDemoGuard();
   const [devisList, setDevisList] = useState<Devis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -227,6 +229,8 @@ export default function DevisPage() {
   };
 
   const handleDelete = async (devis: Devis) => {
+    // demo-guard: handleDelete
+    if (isDemo) { demoAlert(); return; }
     if (!confirm(`Supprimer le devis ${devis.numeroDevis} ?`)) return;
     try {
       setActionLoading(devis.id);

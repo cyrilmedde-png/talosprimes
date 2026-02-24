@@ -346,3 +346,42 @@ export function requireRole(...allowedRoles: string[]) {
     }
   };
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Middleware de blocage en mode démo
+// ─────────────────────────────────────────────────────────────────
+
+const DEMO_TENANT_ID = 'de000000-0000-0000-0000-000000000001';
+
+/**
+ * Middleware qui bloque les requêtes DELETE et les modifications sensibles
+ * pour le tenant démo. Les requêtes GET/POST de lecture restent autorisées.
+ */
+export async function demoGuardMiddleware(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const tenantId = request.tenantId || request.user?.tenantId;
+  if (tenantId !== DEMO_TENANT_ID) return; // Pas en mode démo, on laisse passer
+
+  const method = request.method.toUpperCase();
+
+  // Bloquer toutes les suppressions
+  if (method === 'DELETE') {
+    reply.code(403).send({
+      error: 'Action non disponible en mode démo',
+      message: 'Les suppressions sont désactivées en mode démonstration.',
+    });
+    return;
+  }
+
+  // Bloquer les modifications de paramètres entreprise (PUT/PATCH sur /settings ou /tenant)
+  const url = request.url.toLowerCase();
+  if ((method === 'PUT' || method === 'PATCH') && (url.includes('/settings') || url.includes('/tenant'))) {
+    reply.code(403).send({
+      error: 'Action non disponible en mode démo',
+      message: 'La modification des paramètres est désactivée en mode démonstration.',
+    });
+    return;
+  }
+}

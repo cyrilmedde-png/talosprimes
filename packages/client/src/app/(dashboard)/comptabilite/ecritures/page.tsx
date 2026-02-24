@@ -9,6 +9,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
+import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 type EcritureLigne = {
   id: string;
@@ -41,6 +42,7 @@ type ListResponse = {
 
 export default function EcrituresPage() {
   const [data, setData] = useState<ListResponse>({});
+  const { isDemo, demoAlert } = useDemoGuard();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -143,6 +145,8 @@ export default function EcrituresPage() {
   };
 
   const removeLigne = (idx: number) => {
+    // demo-guard: removeLigne
+    if (isDemo) { demoAlert(); return; }
     if (form.lignes.length <= 2) return;
     setForm(f => ({ ...f, lignes: f.lignes.filter((_, i) => i !== idx) }));
   };

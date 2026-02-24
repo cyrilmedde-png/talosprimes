@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
-import { authMiddleware, requireRole } from './middleware/auth.middleware.js';
+import { authMiddleware, requireRole, demoGuardMiddleware } from './middleware/auth.middleware.js';
 import { authRoutes } from './api/routes/auth.routes.js';
 import { clientsRoutes } from './api/routes/clients.routes.js';
 import { subscriptionsRoutes } from './api/routes/subscriptions.routes.js';
@@ -111,6 +111,10 @@ fastify.get('/health', async (_request, reply) => {
 // Décorer Fastify avec les middlewares d'authentification
 fastify.decorate('authenticate', authMiddleware);
 fastify.decorate('requireRole', requireRole);
+
+// Hook global : bloquer les actions dangereuses en mode démo
+// S'exécute après l'auth (qui injecte request.tenantId)
+fastify.addHook('preHandler', demoGuardMiddleware);
 
 // Enregistrer les routes d'authentification
 await fastify.register(async (fastify) => {

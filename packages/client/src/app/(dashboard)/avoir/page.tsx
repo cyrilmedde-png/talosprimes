@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
+import { useDemoGuard } from '@/hooks/useDemoGuard';
 const STATUT_LABELS: Record<string, string> = {
   brouillon: 'Brouillon',
   validee: 'Validée',
@@ -32,6 +33,7 @@ type LigneAvoir = {
 
 export default function AvoirPage() {
   const router = useRouter();
+  const { isDemo, demoAlert } = useDemoGuard();
   const [avoirsList, setAvoirsList] = useState<Avoir[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -216,6 +218,8 @@ export default function AvoirPage() {
   };
 
   const handleDelete = async (avoir: Avoir) => {
+    // demo-guard: handleDelete
+    if (isDemo) { demoAlert(); return; }
     if (!confirm(`Supprimer l'avoir ${avoir.numeroAvoir} ?`)) return;
     try {
       setActionLoading(avoir.id);
