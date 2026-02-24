@@ -203,6 +203,7 @@ export class N8nService {
     }
 
     try {
+      // 1. Chercher un WorkflowLink en DB pour ce tenant + event type
       const workflowLink = await prisma.workflowLink.findFirst({
         where: {
           tenantId,
@@ -211,35 +212,24 @@ export class N8nService {
         },
       });
 
-      if (!workflowLink) {
-        return { success: false, error: `Workflow non trouvé pour ${eventType}` };
+      // 2. Déterminer le chemin webhook :
+      //    - Si WorkflowLink trouvé → utiliser workflowN8nId (résolu via aliases)
+      //    - Sinon → fallback sur WEBHOOK_PATH_ALIASES (permet aux tenants sans seed de fonctionner)
+      let webhookPath: string;
+      if (workflowLink) {
+        webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
+      } else {
+        const aliasPath = WEBHOOK_PATH_ALIASES[eventType];
+        if (!aliasPath) {
+          return { success: false, error: `Workflow non trouvé pour ${eventType}` };
+        }
+        webhookPath = aliasPath;
+        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), fallback sur alias: ${webhookPath}`);
       }
 
-      // IMPORTANT: Les webhooks n8n sont publics par défaut
-      // Si votre instance n8n nécessite une authentification, vous devez :
-      // 1. Soit désactiver l'authentification pour les webhooks dans n8n
-      // 2. Soit utiliser l'API REST de n8n au lieu des webhooks
-      // 3. Soit configurer n8n pour accepter les webhooks avec authentification
-      
-      // Pour l'instant, on n'envoie PAS d'headers d'authentification pour les webhooks
-      // car les webhooks n8n sont publics par défaut
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-
-      // Si n8n nécessite une authentification pour les webhooks (configuration spéciale),
-      // vous pouvez décommenter ces lignes et configurer n8n en conséquence :
-      // if (this.apiKey) {
-      //   headers['X-N8N-API-KEY'] = this.apiKey;
-      // } else if (this.username && this.password) {
-      //   const credentials = Buffer.from(`${this.username}:${this.password}`).toString('base64');
-      //   headers['Authorization'] = `Basic ${credentials}`;
-      // }
-
-      // Envoyer le payload à plat + dans data pour compatibilité avec tous les workflows
-      // Nouveaux workflows (devis, bdc, proforma, notifications, logs) : lisent $input.body.tenantId, .page, etc.
-      // Anciens workflows (clients, leads, invoices) : lisent payload.data.xxx avec fallback sur payload.xxx
-      const webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
       const response = await fetch(`${this.apiUrl}/webhook/${webhookPath}`, {
         method: 'POST',
         headers,
@@ -319,11 +309,18 @@ export class N8nService {
         },
       });
 
-      if (!workflowLink) {
-        console.log(`[n8n] Aucun workflow actif trouvé pour l'événement: ${eventType} (tenant: ${tenantId})`);
-        // Retourner success: true car c'est un cas normal (pas de workflow configuré pour cet événement)
-        // Ne pas logger comme erreur pour éviter de polluer les logs avec des "erreurs" normales
-        return { success: true, workflowId: undefined };
+      // Déterminer le chemin webhook (avec fallback sur aliases si pas de WorkflowLink)
+      let webhookPath: string;
+      if (workflowLink) {
+        webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
+      } else {
+        const aliasPath = WEBHOOK_PATH_ALIASES[eventType];
+        if (!aliasPath) {
+          console.log(`[n8n] Aucun workflow actif trouvé pour l'événement: ${eventType} (tenant: ${tenantId})`);
+          return { success: true, workflowId: undefined };
+        }
+        webhookPath = aliasPath;
+        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), fallback sur alias: ${webhookPath}`);
       }
 
       // Préparer le payload pour n8n — à plat + data wrapper pour compatibilité
@@ -334,20 +331,15 @@ export class N8nService {
         ...payload,     // champs à plat pour les nouveaux workflows
         data: payload,   // wrapper data pour les anciens workflows
         metadata: {
-          workflowId: workflowLink.workflowN8nId,
-          workflowName: workflowLink.workflowN8nNom,
-          module: workflowLink.moduleMetier.code,
+          workflowId: workflowLink?.workflowN8nId ?? webhookPath,
+          workflowName: workflowLink?.workflowN8nNom ?? webhookPath,
+          module: workflowLink?.moduleMetier?.code ?? 'unknown',
         },
       };
 
-      // IMPORTANT: Les webhooks n8n sont publics par défaut
-      // On n'envoie PAS d'headers d'authentification pour les webhooks
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-
-      // Appel à l'API n8n (webhook public) — chemin normalisé (invoice_create → invoice-created)
-      const webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
       const response = await fetch(`${this.apiUrl}/webhook/${webhookPath}`, {
         method: 'POST',
         headers,
@@ -361,11 +353,11 @@ export class N8nService {
 
       await response.json().catch(() => ({}));
 
-      console.log(`[n8n] Workflow déclenché avec succès: ${workflowLink.workflowN8nNom} (${eventType})`);
+      console.log(`[n8n] Workflow déclenché avec succès: ${workflowLink?.workflowN8nNom ?? webhookPath} (${eventType})`);
 
       return {
         success: true,
-        workflowId: workflowLink.workflowN8nId,
+        workflowId: workflowLink?.workflowN8nId ?? webhookPath,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';

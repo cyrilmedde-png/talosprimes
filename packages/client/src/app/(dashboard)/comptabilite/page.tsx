@@ -72,6 +72,8 @@ export default function ComptabilitePage() {
         // Forcer initialized pour basculer immédiatement vers le dashboard
         setDashboard(prev => ({ ...prev, initialized: true, kpis: res.data?.kpis || prev?.kpis }));
         await loadDashboard();
+      } else {
+        setError((res as any).error || 'Erreur lors de l\'initialisation');
       }
     } catch (e: any) {
       setError(e.message || 'Erreur lors de l\'initialisation');
