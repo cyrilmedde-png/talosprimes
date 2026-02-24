@@ -11,39 +11,27 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        100,
-        200
-      ]
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId, dateFin: body.dateFin || new Date().toISOString().split('T')[0] } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!UUID_RE.test(body.tenantId)) throw new Error('tenantId invalide');\nvar today = new Date().toISOString().split('T')[0];\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom || null, dateTo: body.dateTo || today } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        300,
-        200
-      ]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
+          "options": { "caseSensitive": true, "leftValue": "" },
           "conditions": [
             {
-              "id": "f4b8d52d-9ca6-491f-bfab-9ec22c325c47",
+              "id": "bilan-valid-1",
               "leftValue": "={{ $json.tenantId }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
+              "operator": { "type": "string", "operation": "notEmpty" }
             }
           ],
           "combinator": "and"
@@ -54,10 +42,7 @@
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        500,
-        200
-      ]
+      "position": [500, 200]
     },
     {
       "parameters": {
@@ -68,158 +53,79 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        700,
-        100
-      ]
+      "position": [700, 100]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT le.numero_compte, pc.libelle, pc.classe, pc.nature, COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) as solde FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND e.statut != 'brouillon' AND e.date_ecriture <= '\" + $json.dateFin + \"' AND pc.classe IN (1,2,3,4,5) GROUP BY le.numero_compte, pc.libelle, pc.classe, pc.nature HAVING COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) != 0 ORDER BY le.numero_compte;\" }}"
+        "jsCode": "function esc(v) { return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar p = $('02. Parser').first().json;\nvar dateFilter = p.dateTo ? ' AND e.date_ecriture <= ' + esc(p.dateTo) + '::date' : '';\nvar dateFilterFrom = p.dateFrom ? ' AND e.date_ecriture >= ' + esc(p.dateFrom) + '::date' : '';\n\nvar bilanQuery = 'SELECT le.numero_compte, pc.libelle, pc.classe, COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) as solde FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = ' + esc(p.tenantId) + '::uuid AND e.statut = ' + esc('validee') + ' AND pc.classe IN (1,2,3,4,5)' + dateFilter + dateFilterFrom + ' GROUP BY le.numero_compte, pc.libelle, pc.classe HAVING COALESCE(SUM(le.debit), 0) - COALESCE(SUM(le.credit), 0) != 0 ORDER BY le.numero_compte;';\n\nvar resultatQuery = 'SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as resultat_net FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = ' + esc(p.tenantId) + '::uuid AND e.statut = ' + esc('validee') + ' AND pc.classe IN (6,7)' + dateFilter + dateFilterFrom + ';';\n\nreturn [{ json: { bilanQuery: bilanQuery, resultatQuery: resultatQuery } }];"
       },
-      "id": "05. Query Bilan Comptes",
-      "name": "05. Query Bilan Comptes",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        700,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as resultat_net FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND e.statut != 'brouillon' AND e.date_ecriture <= '\" + $('02. Parser').first().json.dateFin + \"' AND pc.classe IN (6,7);\" }}"
-      },
-      "id": "06. Query Resultat",
-      "name": "06. Query Resultat",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        900,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "var items = $('05. Query Bilan Comptes').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\nvar resultatNet = parseFloat($('06. Query Resultat').first().json.resultat_net) || 0;\n\n// Structure bilan\nvar actif = {\n  immobilisations: { label: 'Actif Immobilisé (Classe 2)', comptes: [], total: 0 },\n  stocks: { label: 'Stocks (Classe 3)', comptes: [], total: 0 },\n  creances: { label: 'Créances (Classe 4 actif)', comptes: [], total: 0 },\n  tresorerie: { label: 'Trésorerie (Classe 5)', comptes: [], total: 0 }\n};\n\nvar passif = {\n  capitaux: { label: 'Capitaux Propres (Classe 1)', comptes: [], total: 0 },\n  dettes: { label: 'Dettes (Classe 4 passif)', comptes: [], total: 0 }\n};\n\nfor (var c of items) {\n  var solde = parseFloat(c.solde) || 0;\n  var entry = { numeroCompte: c.numero_compte, libelle: c.libelle, solde: Math.round(Math.abs(solde) * 100) / 100 };\n\n  if (c.classe === 2) { actif.immobilisations.comptes.push(entry); actif.immobilisations.total += solde; }\n  else if (c.classe === 3) { actif.stocks.comptes.push(entry); actif.stocks.total += solde; }\n  else if (c.classe === 5) { actif.tresorerie.comptes.push(entry); actif.tresorerie.total += solde; }\n  else if (c.classe === 1) { passif.capitaux.comptes.push(entry); passif.capitaux.total += Math.abs(solde); }\n  else if (c.classe === 4) {\n    if (c.nature === 'actif' || solde > 0) { actif.creances.comptes.push(entry); actif.creances.total += Math.abs(solde); }\n    else { passif.dettes.comptes.push(entry); passif.dettes.total += Math.abs(solde); }\n  }\n}\n\nvar totalActif = Object.values(actif).reduce(function(s, a) { return s + a.total; }; }, 0);\nvar totalPassif = Object.values(passif).reduce(function(s, p) { return s + p.total; }; }, 0);\n\n// Ajouter résultat net au passif (capitaux propres)\npassif.capitaux.comptes.push({ numeroCompte: resultatNet >= 0 ? '120000' : '129000', libelle: resultatNet >= 0 ? 'Résultat net (bénéfice)' : 'Résultat net (perte)', solde: Math.round(Math.abs(resultatNet) * 100) / 100 });\npassif.capitaux.total += resultatNet;\ntotalPassif += resultatNet;\n\n// Arrondir\nfor (var k of Object.keys(actif)) actif[k].total = Math.round(actif[k].total * 100) / 100;\nfor (var k of Object.keys(passif)) passif[k].total = Math.round(passif[k].total * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  bilan: {\n    date: $('02. Parser').first().json.dateFin,\n    actif,\n    passif,\n    totalActif: Math.round(totalActif * 100) / 100,\n    totalPassif: Math.round(totalPassif * 100) / 100,\n    equilibre: Math.abs(totalActif - totalPassif) < 0.01,\n    resultatNet: Math.round(resultatNet * 100) / 100\n  }\n} }];"
-      },
-      "id": "07. Format Bilan",
-      "name": "07. Format Bilan",
+      "id": "05. Build Queries",
+      "name": "05. Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.bilanQuery }}"
+      },
+      "id": "06. Query Bilan Comptes",
+      "name": "06. Query Bilan Comptes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [900, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('05. Build Queries').first().json.resultatQuery }}"
+      },
+      "id": "07. Query Resultat",
+      "name": "07. Query Resultat",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [1100, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('06. Query Bilan Comptes').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\nvar resultatNet = parseFloat($('07. Query Resultat').first().json.resultat_net) || 0;\nvar p = $('02. Parser').first().json;\n\nvar actifImmobilise = [];\nvar actifCirculant = [];\nvar capitauxPropres = [];\nvar dettes = [];\nvar totalActif = 0;\nvar totalPassif = 0;\n\nfor (var i = 0; i < items.length; i++) {\n  var c = items[i];\n  var solde = parseFloat(c.solde) || 0;\n  var entry = { numero: c.numero_compte, libelle: c.libelle || c.numero_compte, montant: Math.round(Math.abs(solde) * 100) / 100 };\n  var classe = parseInt(c.classe);\n\n  if (classe === 2) {\n    actifImmobilise.push(entry);\n    totalActif += Math.abs(solde);\n  } else if (classe === 3 || classe === 5) {\n    actifCirculant.push(entry);\n    totalActif += Math.abs(solde);\n  } else if (classe === 1) {\n    capitauxPropres.push(entry);\n    totalPassif += Math.abs(solde);\n  } else if (classe === 4) {\n    if (solde > 0) {\n      actifCirculant.push(entry);\n      totalActif += solde;\n    } else {\n      dettes.push(entry);\n      totalPassif += Math.abs(solde);\n    }\n  }\n}\n\nif (resultatNet !== 0) {\n  capitauxPropres.push({ numero: resultatNet >= 0 ? '120000' : '129000', libelle: resultatNet >= 0 ? 'Résultat net (bénéfice)' : 'Résultat net (perte)', montant: Math.round(Math.abs(resultatNet) * 100) / 100 });\n  totalPassif += Math.abs(resultatNet);\n}\n\ntotalActif = Math.round(totalActif * 100) / 100;\ntotalPassif = Math.round(totalPassif * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  actif: { actifImmobilise: actifImmobilise, actifCirculant: actifCirculant, totalActif: totalActif },\n  passif: { capitauxPropres: capitauxPropres, dettes: dettes, totalPassif: totalPassif },\n  equilibre: Math.abs(totalActif - totalPassif) < 0.01,\n  periode: { dateFrom: p.dateFrom || '', dateTo: p.dateTo }\n} }];"
+      },
+      "id": "08. Format Bilan",
+      "name": "08. Format Bilan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "08. Respond",
-      "name": "08. Respond",
+      "id": "09. Respond",
+      "name": "09. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1300,
-        300
-      ]
+      "position": [1500, 300]
     }
   ],
   "connections": {
-    "01. Webhook": {
-      "main": [
-        [
-          {
-            "node": "02. Parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "02. Parser": {
-      "main": [
-        [
-          {
-            "node": "03. Valide ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "03. Valide ?": {
-      "main": [
-        [
-          {
-            "node": "05. Query Bilan Comptes",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "04. Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "05. Query Bilan Comptes": {
-      "main": [
-        [
-          {
-            "node": "06. Query Resultat",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "06. Query Resultat": {
-      "main": [
-        [
-          {
-            "node": "07. Format Bilan",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "07. Format Bilan": {
-      "main": [
-        [
-          {
-            "node": "08. Respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": { "main": [[{ "node": "05. Build Queries", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "05. Build Queries": { "main": [[{ "node": "06. Query Bilan Comptes", "type": "main", "index": 0 }]] },
+    "06. Query Bilan Comptes": { "main": [[{ "node": "07. Query Resultat", "type": "main", "index": 0 }]] },
+    "07. Query Resultat": { "main": [[{ "node": "08. Format Bilan", "type": "main", "index": 0 }]] },
+    "08. Format Bilan": { "main": [[{ "node": "09. Respond", "type": "main", "index": 0 }]] }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "active": true
 }

@@ -5,69 +5,75 @@
       "parameters": {
         "path": "compta-tva",
         "responseMode": "responseNode",
-        "httpMethod": "POST"
+        "method": "POST"
       },
-      "id": "01. Webhook",
-      "name": "01. Webhook",
+      "id": "webhook-tva",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
         100,
-        200
+        100
       ]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.dateFrom || !body.dateTo) throw new Error('dateFrom et dateTo requis');\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom, dateTo: body.dateTo, typeDeclaration: body.typeDeclaration || 'mensuelle' } }];"
+        "jsCode": "// Extract and validate input parameters\nvar { dateFrom, dateTo, typeDeclaration } = $input.first().json;\n\nreturn {\n  tenantId: $env.tenantId || 'default',\n  dateFrom: dateFrom || null,\n  dateTo: dateTo || null,\n  typeDeclaration: typeDeclaration || 'mensuelle'\n};"
       },
-      "id": "02. Parser",
-      "name": "02. Parser",
+      "id": "parser-tva",
+      "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         300,
-        200
+        100
       ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
-          "conditions": [
+          "boolean": [
             {
-              "id": "d166fe1a-f577-45d6-bb0c-e0cfd11033dc",
-              "leftValue": "={{ $json.tenantId }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
+              "value1": "={{ $node[\"parser-tva\"].json.dateFrom }}",
+              "condition": "notEmpty"
+            },
+            {
+              "value1": "={{ $node[\"parser-tva\"].json.dateTo }}",
+              "condition": "notEmpty"
             }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+          ]
+        }
       },
-      "id": "03. Valide ?",
-      "name": "03. Valide ?",
+      "id": "if-valide",
+      "name": "IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
         500,
-        200
+        100
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }"
+        "jsCode": "return {\n  success: false,\n  error: 'Missing required parameters: dateFrom and dateTo are required'\n};"
       },
-      "id": "04. Respond Error",
-      "name": "04. Respond Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Helper function for SQL injection protection\nfunction esc(value) {\n  if (value === null || value === undefined) {\n    return \"NULL\";\n  }\n  if (typeof value === 'number') {\n    return value.toString();\n  }\n  if (typeof value === 'boolean') {\n    return value ? 'TRUE' : 'FALSE';\n  }\n  var str = value.toString();\n  return \"'\" + str.replace(/'/g, \"''\") + \"'\";\n}\n\nvar dateFrom = $node[\"parser-tva\"].json.dateFrom;\nvar dateTo = $node[\"parser-tva\"].json.dateTo;\n\n// Query 1: Get all TVA accounts with their balances\nvar queryTVAComptes = `\n  SELECT \n    account_number,\n    account_name,\n    SUM(CASE WHEN debit > 0 THEN debit ELSE 0 END) as total_debit,\n    SUM(CASE WHEN credit > 0 THEN credit ELSE 0 END) as total_credit,\n    SUM(CASE WHEN debit > 0 THEN debit ELSE 0 END) - SUM(CASE WHEN credit > 0 THEN credit ELSE 0 END) as solde\n  FROM journal_entries\n  WHERE \n    entry_date >= ${esc(dateFrom)} \n    AND entry_date <= ${esc(dateTo)}\n    AND (\n      account_number LIKE '44571%'\n      OR account_number LIKE '44566%'\n      OR account_number LIKE '44562%'\n    )\n  GROUP BY account_number, account_name\n  ORDER BY account_number\n`;\n\n// Query 2: Get totals for class 6 (achats) and class 7 (ventes)\nvar queryBasesHT = `\n  SELECT \n    SUBSTRING(account_number, 1, 1) as class,\n    SUM(CASE WHEN account_number LIKE '6%' THEN (COALESCE(debit, 0) - COALESCE(credit, 0)) ELSE 0 END) as total_achats,\n    SUM(CASE WHEN account_number LIKE '7%' THEN (COALESCE(credit, 0) - COALESCE(debit, 0)) ELSE 0 END) as total_ventes\n  FROM journal_entries\n  WHERE \n    entry_date >= ${esc(dateFrom)} \n    AND entry_date <= ${esc(dateTo)}\n    AND (account_number LIKE '6%' OR account_number LIKE '7%')\n  GROUP BY class\n`;\n\nreturn {\n  queryTVAComptes,\n  queryBasesHT,\n  dateFrom,\n  dateTo\n};"
+      },
+      "id": "build-queries",
+      "name": "Build Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         700,
         100
@@ -75,142 +81,156 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT le.numero_compte, pc.libelle, COALESCE(SUM(le.credit), 0) as total_credit, COALESCE(SUM(le.debit), 0) as total_debit FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND e.statut != 'brouillon' AND e.date_ecriture >= '\" + $json.dateFrom + \"' AND e.date_ecriture <= '\" + $json.dateTo + \"' AND le.numero_compte LIKE '4457%' OR le.numero_compte LIKE '4456%' GROUP BY le.numero_compte, pc.libelle ORDER BY le.numero_compte;\" }}"
+        "postgresCredentialId": "OGqj65ZoFRileCck",
+        "query": "={{ $node[\"build-queries\"].json.queryTVAComptes }}",
+        "alwaysOutputData": true
       },
-      "id": "05. Query TVA Comptes",
-      "name": "05. Query TVA Comptes",
+      "id": "query-tva-comptes",
+      "name": "Query TVA Comptes",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        700,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT COALESCE(SUM(CASE WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) as base_ht_ventes, COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit ELSE 0 END), 0) as base_ht_achats FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND e.statut != 'brouillon' AND e.date_ecriture >= '\" + $('02. Parser').first().json.dateFrom + \"' AND e.date_ecriture <= '\" + $('02. Parser').first().json.dateTo + \"' AND pc.classe IN (6,7);\" }}"
-      },
-      "id": "06. Query Bases HT",
-      "name": "06. Query Bases HT",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
       "position": [
         900,
-        300
-      ],
-      "alwaysOutputData": true
+        50
+      ]
     },
     {
       "parameters": {
-        "jsCode": "var tvaComptes = $('05. Query TVA Comptes').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\nvar basesHt = $('06. Query Bases HT').first().json;\nvar p = $('02. Parser').first().json;\n\nvar tvaCollectee = 0;\nvar tvaDeductible = 0;\nvar detail = [];\n\nfor (var c of tvaComptes) {\n  var credit = parseFloat(c.total_credit) || 0;\n  var debit = parseFloat(c.total_debit) || 0;\n  \n  if (c.numero_compte.startsWith('44571')) {\n    // TVA collectée = solde créditeur\n    var montant = credit - debit;\n    tvaCollectee += montant;\n    detail.push({ compte: c.numero_compte, libelle: c.libelle || 'TVA collectée', type: 'collectee', montant: Math.round(montant * 100) / 100 });\n  } else if (c.numero_compte.startsWith('44566') || c.numero_compte.startsWith('44562')) {\n    // TVA déductible = solde débiteur\n    var montant = debit - credit;\n    tvaDeductible += montant;\n    detail.push({ compte: c.numero_compte, libelle: c.libelle || 'TVA déductible', type: 'deductible', montant: Math.round(montant * 100) / 100 });\n  }\n}\n\ntvaCollectee = Math.round(tvaCollectee * 100) / 100;\ntvaDeductible = Math.round(tvaDeductible * 100) / 100;\nvar tvaDue = Math.round((tvaCollectee - tvaDeductible) * 100) / 100;\nvar creditTva = tvaDue < 0 ? Math.abs(tvaDue) : 0;\n\nreturn [{ json: {\n  success: true,\n  declarationTva: {\n    periode: `${p.dateFrom} / ${p.dateTo}`,\n    typeDeclaration: p.typeDeclaration,\n    baseHtVentes: Math.round((parseFloat(basesHt.base_ht_ventes) || 0) * 100) / 100,\n    baseHtAchats: Math.round((parseFloat(basesHt.base_ht_achats) || 0) * 100) / 100,\n    tvaCollectee,\n    tvaDeductible,\n    tvaDue: tvaDue > 0 ? tvaDue : 0,\n    creditTva,\n    detail,\n    aDecaisser: tvaDue > 0\n  }\n} }];"
+        "postgresCredentialId": "OGqj65ZoFRileCck",
+        "query": "={{ $node[\"build-queries\"].json.queryBasesHT }}",
+        "alwaysOutputData": true
       },
-      "id": "07. Format TVA",
-      "name": "07. Format TVA",
+      "id": "query-bases-ht",
+      "name": "Query Bases HT",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Helper function to infer TVA rate from account number\nfunction inferTauxFromAccount(accountNumber) {\n  if (!accountNumber) return 20;\n  var suffix = accountNumber.slice(-2);\n  var suffixNum = parseInt(suffix);\n  \n  // Standard French TVA rates based on account suffix\n  if (suffixNum === 10 || suffixNum === 11) return 20;   // 20% - Normal rate\n  if (suffixNum === 12) return 10;                        // 10%\n  if (suffixNum === 13) return 5.5;                       // 5.5%\n  if (suffixNum === 14) return 2.1;                       // 2.1%\n  \n  return 20; // Default to 20%\n}\n\nvar tvaComptes = $node[\"query-tva-comptes\"].json;\nvar basesHT = $node[\"query-bases-ht\"].json;\nvar dateFrom = $node[\"parser-tva\"].json.dateFrom;\nvar dateTo = $node[\"parser-tva\"].json.dateTo;\nvar typeDeclaration = $node[\"parser-tva\"].json.typeDeclaration;\n\n// Initialize result arrays\nvar tvaCollectee = [];\nvar tvaDeductible = [];\n\nvar totalCollectee = 0;\nvar totalDeductible = 0;\n\n// Get total bases from query results\nvar basesData = Array.isArray(basesHT) ? basesHT[0] : {};\nvar totalAchats = Math.abs(parseFloat(basesData.total_achats) || 0);\nvar totalVentes = Math.abs(parseFloat(basesData.total_ventes) || 0);\n\n// Process TVA accounts\nif (Array.isArray(tvaComptes)) {\n  tvaComptes.forEach(account => {\n    var accountNumber = account.account_number || '';\n    var montantTVA = Math.abs(parseFloat(account.solde) || 0);\n    var taux = inferTauxFromAccount(accountNumber);\n    var baseHT = montantTVA > 0 ? (montantTVA / (taux / 100)) : 0;\n    \n    // Determine if this is collectée or déductible\n    if (accountNumber.startsWith('44571')) {\n      // TVA Collectée (credit side)\n      totalCollectee += montantTVA;\n      tvaCollectee.push({\n        taux: taux,\n        baseHT: Math.round(baseHT * 100) / 100,\n        montantTVA: Math.round(montantTVA * 100) / 100,\n        compteCollecte: accountNumber\n      });\n    } else if (accountNumber.startsWith('44566') || accountNumber.startsWith('44562')) {\n      // TVA Déductible (debit side)\n      totalDeductible += montantTVA;\n      tvaDeductible.push({\n        taux: taux,\n        baseHT: Math.round(baseHT * 100) / 100,\n        montantTVA: Math.round(montantTVA * 100) / 100,\n        compteDeductible: accountNumber\n      });\n    }\n  });\n}\n\n// Round totals\ntotalCollectee = Math.round(totalCollectee * 100) / 100;\ntotalDeductible = Math.round(totalDeductible * 100) / 100;\n\n// Calculate TVA à payer or crédit\nvar tvaAPayer = totalCollectee - totalDeductible;\nvar result = {\n  success: true,\n  periode: {\n    dateFrom: dateFrom,\n    dateTo: dateTo\n  },\n  typeDeclaration: typeDeclaration,\n  totalCollectee: totalCollectee,\n  totalDeductible: totalDeductible\n};\n\n// Add arrays only if they have data\nif (tvaCollectee.length > 0) {\n  result.tvaCollectee = tvaCollectee;\n}\nif (tvaDeductible.length > 0) {\n  result.tvaDeductible = tvaDeductible;\n}\n\n// Add TVA à payer or crédit\nif (tvaAPayer > 0) {\n  result.tvaAPayer = tvaAPayer;\n} else if (tvaAPayer < 0) {\n  result.creditTVA = Math.abs(tvaAPayer);\n}\n\nreturn result;"
+      },
+      "id": "format-tva",
+      "name": "Format TVA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         1100,
-        300
+        100
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "responseData": "={{ $node[\"format-tva\"].json }}"
       },
-      "id": "08. Respond",
-      "name": "08. Respond",
+      "id": "respond-success",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
         1300,
-        300
+        100
       ]
     }
   ],
   "connections": {
-    "01. Webhook": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "02. Parser",
+            "node": "Parser",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "02. Parser": {
+    "Parser": {
       "main": [
         [
           {
-            "node": "03. Valide ?",
+            "node": "IF Valide",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "03. Valide ?": {
+    "IF Valide": {
       "main": [
         [
           {
-            "node": "05. Query TVA Comptes",
+            "node": "Build Queries",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "04. Respond Error",
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05. Query TVA Comptes": {
+    "Respond Error": {
       "main": [
         [
           {
-            "node": "06. Query Bases HT",
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. Query Bases HT": {
+    "Build Queries": {
       "main": [
         [
           {
-            "node": "07. Format TVA",
+            "node": "Query TVA Comptes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Bases HT",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "07. Format TVA": {
+    "Query TVA Comptes": {
       "main": [
         [
           {
-            "node": "08. Respond",
+            "node": "Format TVA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Bases HT": {
+      "main": [
+        [
+          {
+            "node": "Format TVA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format TVA": {
+      "main": [
+        [
+          {
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
@@ -218,8 +238,8 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
-  },
-  "active": true
+  }
 }

@@ -1,272 +1,358 @@
 {
-  "name": "compta-lettrage",
+  "name": "Compta Lettrage",
   "nodes": [
     {
       "parameters": {
         "path": "compta-lettrage",
+        "httpMethod": "POST",
         "responseMode": "responseNode",
-        "httpMethod": "POST"
+        "options": {}
       },
-      "id": "01. Webhook",
-      "name": "01. Webhook",
+      "id": "webhook",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        100,
-        200
+        250,
+        300
       ]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.numeroCompte) throw new Error('numeroCompte is required');\nif (!body.ligneIds || !Array.isArray(body.ligneIds) || body.ligneIds.length < 2) throw new Error('Au moins 2 ligneIds requises');\nreturn [{ json: { tenantId: body.tenantId, numeroCompte: body.numeroCompte, ligneIds: body.ligneIds } }];"
+        "jsCode": "function esc(v) {\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nvar tenantId = $input.body.tenantId;\nvar numeroCompte = $input.body.numeroCompte;\nvar ligneIds = $input.body.ligneIds || [];\n\n// Validate tenantId format\nvar uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !uuidRegex.test(tenantId)) {\n  return {\n    error: \"Invalid or missing tenantId\",\n    valid: false\n  };\n}\n\n// Validate all ligneIds are UUIDs\nvar allValid = ligneIds.every(function(id) {\n  return uuidRegex.test(id);\n});\n\nif (!allValid) {\n  return {\n    error: \"Invalid ligneIds format\",\n    valid: false\n  };\n}\n\nreturn {\n  tenantId: tenantId,\n  numeroCompte: numeroCompte || null,\n  ligneIds: ligneIds,\n  valid: true\n};"
       },
-      "id": "02. Parser",
-      "name": "02. Parser",
+      "id": "parser",
+      "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        300,
-        200
+        450,
+        300
       ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
+          "matchType": "all",
           "conditions": [
             {
-              "id": "4178fedb-3991-475f-a56c-9cbea123186e",
-              "leftValue": "={{ $json.tenantId }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
+              "key": "{{$node.parser.output.json.valid}}",
+              "condition": "equals",
+              "value": true
             }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+          ]
+        }
       },
-      "id": "03. Valide ?",
-      "name": "03. Valide ?",
+      "id": "if_valide",
+      "name": "IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        500,
-        200
+        650,
+        300
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"Données manquantes\" }"
+        "respondWithCode": 400,
+        "responseBody": "{{{\n  \"error\": $node.parser.output.json.error,\n  \"success\": false\n}}}"
       },
-      "id": "04. Respond Error",
-      "name": "04. Respond Error",
+      "id": "respond_error",
+      "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        700,
-        100
+        850,
+        150
       ]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT le.id, le.numero_compte, le.debit, le.credit, le.lettrage FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND le.numero_compte = '\" + $json.numeroCompte + \"' AND le.id = ANY('{\" + ($json.ligneIds || []  || []).join(\",\") + \"}'::uuid[]) AND le.lettrage IS NULL;\" }}"
+        "jsCode": "function esc(v) {\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nvar tenantId = $node.parser.output.json.tenantId;\nvar ligneIds = $node.parser.output.json.ligneIds;\n\nif (!ligneIds || ligneIds.length === 0) {\n  return { error: \"No ligneIds provided\" };\n}\n\n// Build IN clause with proper UUID casting\nvar inClause = ligneIds.map(function(id) {\n  return esc(id) + \"::uuid\";\n}).join(\",\");\n\nvar query = \"SELECT * FROM lignes_ecritures \" +\n  \"WHERE tenant_id = \" + esc(tenantId) + \"::uuid \" +\n  \"AND id IN (\" + inClause + \") \" +\n  \"ORDER BY date_ecriture ASC\";\n\nreturn {\n  query: query,\n  ligneIds: ligneIds,\n  tenantId: tenantId\n};"
       },
-      "id": "05. Get Lignes",
-      "name": "05. Get Lignes",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        700,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "var lignes = $('05. Get Lignes').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\nif (lignes.length < 2) throw new Error('Lignes insuffisantes ou déjà lettrées');\n\nvar totalDebit = lignes.reduce(function(s, l) { return s + (parseFloat(l.debit) || 0); }; }, 0);\nvar totalCredit = lignes.reduce(function(s, l) { return s + (parseFloat(l.credit) || 0); }; }, 0);\nvar ecart = Math.round((totalDebit - totalCredit) * 100) / 100;\n\n// Tolérance d'écart de 0.05€ (arrondis)\nif (Math.abs(ecart) > 0.05) {\n  throw new Error(`Écart de lettrage trop important: ${ecart}€ (débit: ${totalDebit}, crédit: ${totalCredit})`);\n}\n\n// Générer code lettrage unique\nvar chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';\nvar now = Date.now();\nvar code = chars[Math.floor(now / 676) % 26] + chars[Math.floor(now / 26) % 26] + chars[now % 26];\n\nvar p = $('02. Parser').first().json;\nreturn [{ json: { ...p, codeLettrage: code, ecart, nbLignes: lignes.length, ligneIdsStr: lignes.map(function(l) { return \"'\" + l.id + \"'\"; }).join(',') } }];"
-      },
-      "id": "06. Verify Balance",
-      "name": "06. Verify Balance",
+      "id": "build_queries",
+      "name": "Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
+        850,
         300
       ]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"UPDATE lignes_ecritures SET lettrage = '\" + $json.codeLettrage + \"', date_lettrage = CURRENT_DATE WHERE id IN ('\" + $json.ligneIdsStr + \"') RETURNING id, lettrage;\" }}"
-      },
-      "id": "07. Apply Lettrage",
-      "name": "07. Apply Lettrage",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
+        "credential": "OGqj65ZoFRileCck",
+        "mode": "rawQuery",
+        "query": "{{$node.build_queries.output.json.query}}",
+        "options": {
+          "alwaysOutputData": true
         }
       },
+      "id": "get_lignes",
+      "name": "Get Lignes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
       "position": [
-        1100,
+        1050,
         300
-      ],
-      "alwaysOutputData": true
+      ]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO lettrages (tenant_id, code_lettrage, numero_compte, date_lettrage, montant, ecart) VALUES ('\" + $json.tenantId + \"', '\" + $json.codeLettrage + \"', '\" + $json.numeroCompte + \"', CURRENT_DATE, (SELECT COALESCE(SUM(debit),0) FROM lignes_ecritures WHERE lettrage = '\" + $json.codeLettrage + \"'), '\" + $json.ecart + \"') RETURNING id, code_lettrage;\" }}"
+        "jsCode": "var lignes = $node.get_lignes.output.json[0].pairedItem.item || [];\n\nif (!Array.isArray(lignes)) {\n  lignes = $node.get_lignes.output.json[0] ? [$node.get_lignes.output.json[0]] : [];\n}\n\n// Verify we have at least 2 lignes\nif (lignes.length < 2) {\n  return {\n    error: \"At least 2 accounting lines required for lettrage\",\n    valid: false\n  };\n}\n\n// Calculate total debits and credits\nvar totalDebits = lignes.reduce(function(sum, ligne) {\n  return sum + (parseFloat(ligne.debit) || 0);\n}, 0);\n\nvar totalCredits = lignes.reduce(function(sum, ligne) {\n  return sum + (parseFloat(ligne.credit) || 0);\n}, 0);\n\n// Check balance with tolerance of 0.05 EUR\nvar tolerance = 0.05;\nvar difference = Math.abs(totalDebits - totalCredits);\n\nif (difference > tolerance) {\n  return {\n    error: \"Debit and credit balance mismatch. Difference: \" + difference.toFixed(2),\n    valid: false,\n    totalDebits: totalDebits,\n    totalCredits: totalCredits\n  };\n}\n\n// Generate lettrage code with timestamp\nvar now = new Date();\nvar letterageCode = \"LTR_\" + now.getTime() + \"_\" + Math.random().toString(36).substring(7).toUpperCase();\n\nreturn {\n  lignes: lignes,\n  totalDebits: totalDebits,\n  totalCredits: totalCredits,\n  difference: difference,\n  letterageCode: letterageCode,\n  valid: true\n};"
       },
-      "id": "08. Insert Lettrage",
-      "name": "08. Insert Lettrage",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "position": [
-        1300,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "var b = $('06. Verify Balance').first().json;\nreturn [{ json: { success: true, message: `Lettrage ${b.codeLettrage} appliqué sur ${b.nbLignes} lignes du compte ${b.numeroCompte}`, codeLettrage: b.codeLettrage, ecart: b.ecart } }];"
-      },
-      "id": "09. Format Response",
-      "name": "09. Format Response",
+      "id": "verify_balance",
+      "name": "Verify Balance",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1500,
+        1250,
         300
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "conditions": {
+          "matchType": "all",
+          "conditions": [
+            {
+              "key": "{{$node.verify_balance.output.json.valid}}",
+              "condition": "equals",
+              "value": true
+            }
+          ]
+        }
       },
-      "id": "10. Respond",
-      "name": "10. Respond",
+      "id": "if_balance_valid",
+      "name": "IF Balance Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function esc(v) {\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nvar lignes = $node.verify_balance.output.json.lignes;\nvar letterageCode = $node.verify_balance.output.json.letterageCode;\nvar tenantId = $node.parser.output.json.tenantId;\nvar now = new Date().toISOString();\n\n// Build IN clause for UPDATE statement\nvar ligneIds = lignes.map(function(ligne) {\n  return esc(ligne.id) + \"::uuid\";\n});\nvar inClause = \"(\" + ligneIds.join(\",\") + \")\";\n\nvar updateQuery = \"UPDATE lignes_ecritures \" +\n  \"SET lettrage = \" + esc(letterageCode) + \", \" +\n  \"date_lettrage = \" + esc(now) + \"::timestamp \" +\n  \"WHERE id IN \" + inClause + \" \" +\n  \"AND tenant_id = \" + esc(tenantId) + \"::uuid\";\n\nvar insertQuery = \"INSERT INTO lettrages \" +\n  \"(tenant_id, lettrage_code, date_lettrage, nombre_lignes, montant_total) \" +\n  \"VALUES (\" +\n  esc(tenantId) + \"::uuid, \" +\n  esc(letterageCode) + \", \" +\n  esc(now) + \"::timestamp, \" +\n  lignes.length + \", \" +\n  $node.verify_balance.output.json.totalDebits +\n  \")\";\n\nreturn {\n  updateQuery: updateQuery,\n  insertQuery: insertQuery,\n  letterageCode: letterageCode,\n  ligneCount: lignes.length\n};"
+      },
+      "id": "build_update",
+      "name": "Build Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "credential": "OGqj65ZoFRileCck",
+        "mode": "rawQuery",
+        "query": "{{$node.build_update.output.json.updateQuery}}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "apply_lettrage",
+      "name": "Apply Lettrage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "credential": "OGqj65ZoFRileCck",
+        "mode": "rawQuery",
+        "query": "{{$node.build_update.output.json.insertQuery}}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "insert_lettrage",
+      "name": "Insert Lettrage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  letterageCode: $node.build_update.output.json.letterageCode,\n  message: \"Lettrage applied successfully\",\n  ligneCount: $node.build_update.output.json.ligneCount,\n  totalDebits: $node.verify_balance.output.json.totalDebits,\n  totalCredits: $node.verify_balance.output.json.totalCredits\n};"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 200,
+        "responseBody": "{{$node.format_response.output.json}}"
+      },
+      "id": "respond_success",
+      "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1700,
+        2450,
         300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 422,
+        "responseBody": "{{{\n  \"error\": $node.verify_balance.output.json.error,\n  \"success\": false,\n  \"totalDebits\": $node.verify_balance.output.json.totalDebits,\n  \"totalCredits\": $node.verify_balance.output.json.totalCredits\n}}}"
+      },
+      "id": "respond_balance_error",
+      "name": "Respond Balance Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        150
       ]
     }
   ],
   "connections": {
-    "01. Webhook": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "02. Parser",
+            "node": "Parser",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "02. Parser": {
+    "Parser": {
       "main": [
         [
           {
-            "node": "03. Valide ?",
+            "node": "IF Valide",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "03. Valide ?": {
+    "IF Valide": {
       "main": [
         [
           {
-            "node": "05. Get Lignes",
+            "node": "Build Queries",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "04. Respond Error",
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05. Get Lignes": {
+    "Build Queries": {
       "main": [
         [
           {
-            "node": "06. Verify Balance",
+            "node": "Get Lignes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. Verify Balance": {
+    "Get Lignes": {
       "main": [
         [
           {
-            "node": "07. Apply Lettrage",
+            "node": "Verify Balance",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "07. Apply Lettrage": {
+    "Verify Balance": {
       "main": [
         [
           {
-            "node": "08. Insert Lettrage",
+            "node": "IF Balance Valid",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "08. Insert Lettrage": {
+    "IF Balance Valid": {
       "main": [
         [
           {
-            "node": "09. Format Response",
+            "node": "Build Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Balance Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "09. Format Response": {
+    "Build Update": {
       "main": [
         [
           {
-            "node": "10. Respond",
+            "node": "Apply Lettrage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Lettrage": {
+      "main": [
+        [
+          {
+            "node": "Insert Lettrage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Lettrage": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
             "type": "main",
             "index": 0
           }
@@ -274,8 +360,8 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
-  },
-  "active": true
+  }
 }

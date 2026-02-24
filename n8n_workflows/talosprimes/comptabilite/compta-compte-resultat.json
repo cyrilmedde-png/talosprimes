@@ -1,184 +1,220 @@
 {
-  "name": "compta-compte-resultat",
+  "id": "compta-compte-resultat",
+  "name": "Compte de Résultat",
+  "active": true,
   "nodes": [
     {
       "parameters": {
         "path": "compta-compte-resultat",
         "responseMode": "responseNode",
-        "httpMethod": "POST"
+        "options": {}
       },
-      "id": "01. Webhook",
-      "name": "01. Webhook",
+      "id": "webhook",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        100,
-        200
-      ]
+        250,
+        100
+      ],
+      "webhookId": "webhook"
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom || null, dateTo: body.dateTo || null } }];"
+        "jsCode": "var body = $input.first().json;\nvar tenantId = body.tenantId;\nvar dateFrom = body.dateFrom;\nvar dateTo = body.dateTo;\n\nif (!tenantId || !dateFrom || !dateTo) {\n  throw new Error('Missing required fields: tenantId, dateFrom, dateTo');\n}\n\nreturn {\n  json: {\n    tenantId,\n    dateFrom,\n    dateTo\n  }\n};"
       },
-      "id": "02. Parser",
-      "name": "02. Parser",
+      "id": "parser",
+      "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        300,
-        200
-      ]
+        450,
+        100
+      ],
+      "executionOrder": "v1"
     },
     {
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": true,
-            "leftValue": ""
+            "nodeOutputType": "json"
           },
           "conditions": [
             {
-              "id": "f4469905-6f4c-4c50-90ec-78d41c5a9cd7",
-              "leftValue": "={{ $json.tenantId }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
+              "key": "tenantId",
+              "condition": "exists"
             }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+          ]
+        }
       },
-      "id": "03. Valide ?",
-      "name": "03. Valide ?",
+      "id": "ifValide",
+      "name": "IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        500,
-        200
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
-      },
-      "id": "04. Respond Error",
-      "name": "04. Respond Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        700,
+        650,
         100
       ]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT le.numero_compte, pc.libelle, pc.classe, CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0) WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END as montant FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND e.statut != 'brouillon' AND pc.classe IN (6,7) AND \" + ($json.dateFrom ? \"e.date_ecriture >= '\" + $json.dateFrom + \"'\" : \"1=1\") + \" AND \" + ($json.dateTo ? \"e.date_ecriture <= '\" + $json.dateTo + \"'\" : \"1=1\") + \" GROUP BY le.numero_compte, pc.libelle, pc.classe HAVING CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0) WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END != 0 ORDER BY le.numero_compte;\" }}"
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "options": {}
       },
-      "id": "05. Query CR",
-      "name": "05. Query CR",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
+      "id": "respondError",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
       "position": [
-        700,
-        300
-      ],
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "var items = $('05. Query CR').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\n\nvar charges = { exploitation: [], financieres: [], exceptionnelles: [], total: 0 };\nvar produits = { exploitation: [], financiers: [], exceptionnels: [], total: 0 };\n\nfor (var c of items) {\n  var montant = Math.round((parseFloat(c.montant) || 0) * 100) / 100;\n  var entry = { numeroCompte: c.numero_compte, libelle: c.libelle, montant };\n  var prefix = c.numero_compte.substring(0, 2);\n\n  if (c.classe === 6) {\n    if (['66'].includes(prefix)) { charges.financieres.push(entry); }\n    else if (['67'].includes(prefix)) { charges.exceptionnelles.push(entry); }\n    else { charges.exploitation.push(entry); }\n    charges.total += montant;\n  } else if (c.classe === 7) {\n    if (['76'].includes(prefix)) { produits.financiers.push(entry); }\n    else if (['77'].includes(prefix)) { produits.exceptionnels.push(entry); }\n    else { produits.exploitation.push(entry); }\n    produits.total += montant;\n  }\n}\n\ncharges.total = Math.round(charges.total * 100) / 100;\nproduits.total = Math.round(produits.total * 100) / 100;\n\n// SIG - Soldes Intermédiaires de Gestion\nvar chargesExpl = charges.exploitation.reduce(function(s, c) { return s + c.montant; }; }, 0);\nvar produitsExpl = produits.exploitation.reduce(function(s, p) { return s + p.montant; }; }, 0);\nvar chargesFin = charges.financieres.reduce(function(s, c) { return s + c.montant; }; }, 0);\nvar produitsFin = produits.financiers.reduce(function(s, p) { return s + p.montant; }; }, 0);\nvar chargesExc = charges.exceptionnelles.reduce(function(s, c) { return s + c.montant; }; }, 0);\nvar produitsExc = produits.exceptionnels.reduce(function(s, p) { return s + p.montant; }; }, 0);\n\nvar resultatExploitation = Math.round((produitsExpl - chargesExpl) * 100) / 100;\nvar resultatFinancier = Math.round((produitsFin - chargesFin) * 100) / 100;\nvar resultatCourant = Math.round((resultatExploitation + resultatFinancier) * 100) / 100;\nvar resultatExceptionnel = Math.round((produitsExc - chargesExc) * 100) / 100;\nvar resultatNet = Math.round((produits.total - charges.total) * 100) / 100;\n\nreturn [{ json: {\n  success: true,\n  compteResultat: {\n    charges,\n    produits,\n    sig: {\n      resultatExploitation,\n      resultatFinancier,\n      resultatCourant,\n      resultatExceptionnel,\n      resultatNet\n    },\n    benefice: resultatNet >= 0\n  }\n} }];"
-      },
-      "id": "06. Format CR",
-      "name": "06. Format CR",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        900,
-        300
+        850,
+        250
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "jsCode": "var { tenantId, dateFrom, dateTo } = $input.first().json;\n\nfunction esc(value) {\n  if (typeof value === 'string') {\n    return \"'\" + value.replace(/'/g, \"''\") + \"'\";\n  }\n  return value;\n}\n\nvar query = `\nSELECT le.numero_compte, pc.libelle, pc.classe,\n  CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0)\n       WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END as montant\nFROM lignes_ecritures le\nJOIN ecritures_comptables e ON le.ecriture_id = e.id\nLEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id\nWHERE e.tenant_id = ${esc(tenantId)}::uuid\n  AND e.statut = 'validee'\n  AND pc.classe IN (6, 7)\n  AND e.date >= ${esc(dateFrom)}::date\n  AND e.date <= ${esc(dateTo)}::date\nGROUP BY le.numero_compte, pc.libelle, pc.classe\nHAVING SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END) != 0\nORDER BY le.numero_compte\n`;\n\nreturn {\n  json: {\n    query: query.trim(),\n    tenantId,\n    dateFrom,\n    dateTo\n  }\n};"
       },
-      "id": "07. Respond",
-      "name": "07. Respond",
+      "id": "buildQueries",
+      "name": "Build Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        850,
+        100
+      ],
+      "executionOrder": "v1"
+    },
+    {
+      "parameters": {
+        "nodeCredentialType": "postgres",
+        "connectionProperties": {
+          "database": {},
+          "credentials": {
+            "credentialsId": "OGqj65ZoFRileCck"
+          }
+        },
+        "queryType": "raw",
+        "query": "={{ $node.buildQueries.json.query }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "queryCR",
+      "name": "Query CR",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.first().json;\nvar { dateFrom, dateTo } = $node.buildQueries.json;\n\nvar produitsExploitation = [];\nvar produitsFinanciers = [];\nvar produitsExceptionnels = [];\n\nvar chargesExploitation = [];\nvar chargesFinancieres = [];\nvar chargesExceptionnelles = [];\n\nvar totalProduits = 0;\nvar totalCharges = 0;\n\nif (Array.isArray(rows)) {\n  rows.forEach(row => {\n    var { numero_compte, libelle, classe, montant } = row;\n    var poste = {\n      numero: numero_compte,\n      libelle: libelle || 'Sans libellé',\n      montant: parseFloat(montant) || 0\n    };\n\n    if (classe === 7) {\n      totalProduits += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '70' && numPrefix <= '75') {\n        produitsExploitation.push(poste);\n      } else if (numPrefix === '76') {\n        produitsFinanciers.push(poste);\n      } else if (numPrefix === '77') {\n        produitsExceptionnels.push(poste);\n      }\n    } else if (classe === 6) {\n      totalCharges += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '60' && numPrefix <= '65') {\n        chargesExploitation.push(poste);\n      } else if (numPrefix === '66') {\n        chargesFinancieres.push(poste);\n      } else if (numPrefix === '67') {\n        chargesExceptionnelles.push(poste);\n      }\n    }\n  });\n}\n\nvar resultatExploitation = totalProduits - totalCharges;\nvar resultatFinancier = 0;\nvar resultatExceptionnel = 0;\nvar resultatNet = resultatExploitation + resultatFinancier + resultatExceptionnel;\n\nreturn {\n  json: {\n    success: true,\n    produits: {\n      produitsExploitation,\n      produitsFinanciers,\n      produitsExceptionnels,\n      totalProduits\n    },\n    charges: {\n      chargesExploitation,\n      chargesFinancieres,\n      chargesExceptionnelles,\n      totalCharges\n    },\n    resultatExploitation,\n    resultatFinancier,\n    resultatExceptionnel,\n    resultatNet,\n    periode: {\n      dateFrom,\n      dateTo\n    }\n  }\n};"
+      },
+      "id": "formatCR",
+      "name": "Format CR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        100
+      ],
+      "executionOrder": "v1"
+    },
+    {
+      "parameters": {
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1100,
-        300
+        1450,
+        100
       ]
     }
   ],
   "connections": {
-    "01. Webhook": {
+    "Webhook": {
       "main": [
         [
           {
-            "node": "02. Parser",
+            "node": "Parser",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "02. Parser": {
+    "Parser": {
       "main": [
         [
           {
-            "node": "03. Valide ?",
+            "node": "IF Valide",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "03. Valide ?": {
+    "IF Valide": {
       "main": [
         [
           {
-            "node": "05. Query CR",
+            "node": "Build Queries",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "04. Respond Error",
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05. Query CR": {
+    "Build Queries": {
       "main": [
         [
           {
-            "node": "06. Format CR",
+            "node": "Query CR",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. Format CR": {
+    "Query CR": {
       "main": [
         [
           {
-            "node": "07. Respond",
+            "node": "Format CR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format CR": {
+      "main": [
+        [
+          {
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
@@ -188,6 +224,5 @@
   },
   "settings": {
     "executionOrder": "v1"
-  },
-  "active": true
+  }
 }
