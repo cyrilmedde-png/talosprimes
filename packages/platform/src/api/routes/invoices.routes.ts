@@ -552,6 +552,32 @@ Règles :
 - Retourne UNIQUEMENT le JSON, rien d'autre`;
 
         try {
+          // Construire le contenu utilisateur selon le type de fichier
+          // - Images (PNG, JPEG, GIF, WebP) → type: "image_url" avec data URI
+          // - PDFs → type: "file" avec file_data (format OpenAI files API)
+          const userContent: Array<Record<string, unknown>> = [
+            { type: 'text', text: 'Extrais toutes les informations de cette facture fournisseur :' },
+          ];
+
+          if (imageMediaType === 'application/pdf') {
+            // Format PDF : utiliser le type "file" d'OpenAI
+            userContent.push({
+              type: 'file',
+              file: {
+                filename: body.fileName || 'document.pdf',
+                file_data: `data:application/pdf;base64,${body.documentBase64}`,
+              },
+            });
+          } else {
+            // Format image : utiliser image_url avec data URI
+            userContent.push({
+              type: 'image_url',
+              image_url: {
+                url: `data:${imageMediaType};base64,${body.documentBase64}`,
+              },
+            });
+          }
+
           const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -563,18 +589,7 @@ Règles :
               max_tokens: 2000,
               messages: [
                 { role: 'system', content: systemPrompt },
-                {
-                  role: 'user',
-                  content: [
-                    { type: 'text', text: 'Extrais toutes les informations de cette facture fournisseur :' },
-                    {
-                      type: 'image_url',
-                      image_url: {
-                        url: `data:${imageMediaType};base64,${body.documentBase64}`,
-                      },
-                    },
-                  ],
-                },
+                { role: 'user', content: userContent },
               ],
             }),
           });
@@ -582,9 +597,17 @@ Règles :
           if (!openaiResponse.ok) {
             const errBody = await openaiResponse.text();
             fastify.log.error('OpenAI Vision erreur HTTP %d pour tenant %s: %s', openaiResponse.status, tenantId, errBody.slice(0, 500));
+            // Extraire le message d'erreur OpenAI pour l'afficher
+            let openaiErrMsg = `Erreur OpenAI (HTTP ${openaiResponse.status})`;
+            try {
+              const errJson = JSON.parse(errBody) as { error?: { message?: string } };
+              if (errJson.error?.message) {
+                openaiErrMsg = errJson.error.message;
+              }
+            } catch { /* garder le message générique */ }
             return reply.status(502).send({
               success: false,
-              error: `Erreur OpenAI Vision (HTTP ${openaiResponse.status}). Vérifiez que le fichier est une image valide (PNG, JPEG) ou un PDF.`,
+              error: openaiErrMsg,
             });
           }
 
