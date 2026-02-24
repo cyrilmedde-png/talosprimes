@@ -46,14 +46,24 @@
     },
     {
       "parameters": {
+        "jsCode": "var err = $json.error || 'Parametres invalides';\nreturn [{ json: { success: false, error: err } }];"
+      },
+      "id": "03b. Format Error",
+      "name": "03b. Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 100]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ ({ success: false, error: 'Paramètres invalides' }) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 100]
+      "position": [800, 100]
     },
     {
       "parameters": {
@@ -82,7 +92,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var items = $('06. Get Lignes').all().map(function(i) { return i.json; }).filter(function(r) { return r.id; });\nif (items.length < 2) {\n  return [{ json: { letterageCode: '', error: 'Lignes comptables non trouvées (min 2 requises, trouvé: ' + items.length + ')' } }];\n}\nvar totalDebits = 0, totalCredits = 0;\nitems.forEach(function(l) { totalDebits += (parseFloat(l.debit) || 0); totalCredits += (parseFloat(l.credit) || 0); });\nvar difference = Math.abs(totalDebits - totalCredits);\nif (difference > 0.05) {\n  return [{ json: { letterageCode: '', error: 'Écart débit/crédit trop important: ' + difference.toFixed(2) } }];\n}\nvar letterageCode = 'LTR_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8).toUpperCase();\nreturn [{ json: { letterageCode: letterageCode, lignes: items, totalDebits: totalDebits, totalCredits: totalCredits, difference: difference } }];"
+        "jsCode": "var items = $('06. Get Lignes').all().map(function(i) { return i.json; }).filter(function(r) { return r.id; });\nif (items.length < 2) {\n  return [{ json: { letterageCode: '', error: 'Lignes comptables non trouvees (min 2 requises, trouve: ' + items.length + ')' } }];\n}\nvar totalDebits = 0, totalCredits = 0;\nitems.forEach(function(l) { totalDebits += (parseFloat(l.debit) || 0); totalCredits += (parseFloat(l.credit) || 0); });\nvar difference = Math.abs(totalDebits - totalCredits);\nif (difference > 0.05) {\n  return [{ json: { letterageCode: '', error: 'Ecart debit/credit trop important: ' + difference.toFixed(2) } }];\n}\nvar letterageCode = 'LTR_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8).toUpperCase();\nreturn [{ json: { letterageCode: letterageCode, lignes: items, totalDebits: totalDebits, totalCredits: totalCredits, difference: difference } }];"
       },
       "id": "07. Verify Balance",
       "name": "07. Verify Balance",
@@ -113,14 +123,24 @@
     },
     {
       "parameters": {
+        "jsCode": "var err = $json.error || 'Verification du lettrage echouee';\nreturn [{ json: { success: false, error: err } }];"
+      },
+      "id": "08b. Format Balance Error",
+      "name": "08b. Format Balance Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ ({ success: false, error: 'Vérification du lettrage échouée' }) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "09. Respond Balance Error",
       "name": "09. Respond Balance Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1500, 200]
+      "position": [1600, 200]
     },
     {
       "parameters": {
@@ -149,7 +169,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var bu = $('10. Build Update').first().json;\nreturn [{ json: { success: true, letterageCode: bu.letterageCode, message: 'Lettrage appliqué avec succès', ligneCount: bu.ligneCount, totalDebits: bu.totalDebits, totalCredits: bu.totalCredits } }];"
+        "jsCode": "var bu = $('10. Build Update').first().json;\nreturn [{ json: { success: true, letterageCode: bu.letterageCode, message: 'Lettrage applique avec succes', ligneCount: bu.ligneCount, totalDebits: bu.totalDebits, totalCredits: bu.totalCredits } }];"
       },
       "id": "12. Format Response",
       "name": "12. Format Response",
@@ -172,11 +192,13 @@
   "connections": {
     "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
     "02. Parser": { "main": [[{ "node": "03. IF Valide", "type": "main", "index": 0 }]] },
-    "03. IF Valide": { "main": [[{ "node": "05. Build Queries", "type": "main", "index": 0 }], [{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
+    "03. IF Valide": { "main": [[{ "node": "05. Build Queries", "type": "main", "index": 0 }], [{ "node": "03b. Format Error", "type": "main", "index": 0 }]] },
+    "03b. Format Error": { "main": [[{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
     "05. Build Queries": { "main": [[{ "node": "06. Get Lignes", "type": "main", "index": 0 }]] },
     "06. Get Lignes": { "main": [[{ "node": "07. Verify Balance", "type": "main", "index": 0 }]] },
     "07. Verify Balance": { "main": [[{ "node": "08. IF Balance OK", "type": "main", "index": 0 }]] },
-    "08. IF Balance OK": { "main": [[{ "node": "10. Build Update", "type": "main", "index": 0 }], [{ "node": "09. Respond Balance Error", "type": "main", "index": 0 }]] },
+    "08. IF Balance OK": { "main": [[{ "node": "10. Build Update", "type": "main", "index": 0 }], [{ "node": "08b. Format Balance Error", "type": "main", "index": 0 }]] },
+    "08b. Format Balance Error": { "main": [[{ "node": "09. Respond Balance Error", "type": "main", "index": 0 }]] },
     "10. Build Update": { "main": [[{ "node": "11. Apply Lettrage", "type": "main", "index": 0 }]] },
     "11. Apply Lettrage": { "main": [[{ "node": "12. Format Response", "type": "main", "index": 0 }]] },
     "12. Format Response": { "main": [[{ "node": "13. Respond", "type": "main", "index": 0 }]] }
