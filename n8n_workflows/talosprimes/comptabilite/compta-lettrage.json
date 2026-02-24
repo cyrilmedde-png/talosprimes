@@ -30,8 +30,8 @@
           "conditions": [
             {
               "id": "lett-valid-1",
-              "leftValue": "={{ $json.valid }}",
-              "operator": { "type": "boolean", "operation": "true" }
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": { "type": "string", "operation": "notEmpty" }
             }
           ],
           "combinator": "and"
@@ -47,7 +47,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: $('02. Parser').first().json.error || 'Paramètres invalides' }) }}"
+        "responseBody": "={ \"success\": false, \"error\": \"Paramètres invalides\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -97,8 +97,8 @@
           "conditions": [
             {
               "id": "lett-balance-1",
-              "leftValue": "={{ $json.valid }}",
-              "operator": { "type": "boolean", "operation": "true" }
+              "leftValue": "={{ $json.letterageCode }}",
+              "operator": { "type": "string", "operation": "notEmpty" }
             }
           ],
           "combinator": "and"
@@ -114,7 +114,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: $('07. Verify Balance').first().json.error || 'Vérification échouée' }) }}"
+        "responseBody": "={ \"success\": false, \"error\": \"Vérification du lettrage échouée\" }"
       },
       "id": "09. Respond Balance Error",
       "name": "09. Respond Balance Error",
