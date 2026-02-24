@@ -5,7 +5,8 @@
       "parameters": {
         "path": "compta-tva",
         "responseMode": "responseNode",
-        "method": "POST"
+        "method": "POST",
+        "httpMethod": "POST"
       },
       "id": "webhook-tva",
       "name": "Webhook",

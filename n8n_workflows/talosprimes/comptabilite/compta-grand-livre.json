@@ -5,7 +5,8 @@
       "parameters": {
         "path": "compta-grand-livre",
         "responseMode": "responseNode",
-        "method": "POST"
+        "method": "POST",
+        "httpMethod": "POST"
       },
       "id": "webhook",
       "name": "Webhook",
