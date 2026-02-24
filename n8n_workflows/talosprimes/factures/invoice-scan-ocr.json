@@ -93,8 +93,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "respondWith": "firstIncomingItem"
       },
       "id": "07. Respond",
       "name": "07. Respond",

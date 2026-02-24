@@ -542,10 +542,36 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        fastify.log.info('OCR scan réussi pour tenant %s', tenantId);
+        fastify.log.info('OCR scan réponse brute pour tenant %s: %s', tenantId, JSON.stringify(res.data).slice(0, 500));
 
-        // Extraire les données : res.data contient { success, extractedData }
-        const extractedData = (res.data as Record<string, unknown>)?.extractedData || res.data;
+        // res.data peut être :
+        // - { success: true, extractedData: { ... } }  (format n8n Parse node)
+        // - { success: false, error: "..." }  (erreur OpenAI ou parse)
+        // - directement les données extraites si n8n les envoie à plat
+        const resData = res.data as Record<string, unknown> | undefined;
+
+        // Vérifier si le workflow n8n a signalé une erreur interne
+        if (resData?.success === false) {
+          const errMsg = String(resData.error || 'Erreur interne du workflow OCR');
+          fastify.log.warn('OCR workflow erreur interne pour tenant %s: %s', tenantId, errMsg);
+          return reply.status(502).send({
+            success: false,
+            error: errMsg,
+          });
+        }
+
+        // Extraire les données : soit dans extractedData, soit à plat
+        const extractedData = resData?.extractedData || resData;
+
+        if (!extractedData || Object.keys(extractedData as object).length === 0) {
+          fastify.log.warn('OCR scan retourné vide pour tenant %s', tenantId);
+          return reply.status(502).send({
+            success: false,
+            error: 'Le scan OCR n\'a pas retourné de données. Vérifiez le document envoyé.',
+          });
+        }
+
+        fastify.log.info('OCR scan réussi pour tenant %s, clés extraites: %s', tenantId, Object.keys(extractedData as object).join(', '));
 
         return reply.status(200).send({
           success: true,

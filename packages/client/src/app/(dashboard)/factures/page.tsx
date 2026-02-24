@@ -252,6 +252,11 @@ export default function FacturesPage() {
         fileName: file.name,
         mimeType: file.type || 'application/pdf',
       });
+      console.log('[OCR] Réponse scan:', JSON.stringify(res).slice(0, 1000));
+      if (!res.success) {
+        setError(res.error || 'Erreur lors du scan OCR');
+        return;
+      }
       if (res.success && res.data) {
         const d = res.data as Record<string, string | number | undefined>;
         setCreateForm((f) => ({

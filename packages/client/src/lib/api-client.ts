@@ -388,7 +388,7 @@ export const apiClient = {
       fileName?: string;
       mimeType?: string;
     }) =>
-      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/invoices/scan-document', {
+      authenticatedFetch<{ success: boolean; error?: string; data?: Record<string, unknown> }>('/api/invoices/scan-document', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
