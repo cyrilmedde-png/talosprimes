@@ -499,85 +499,166 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
 
         const body = scanDocumentSchema.parse(request.body);
 
-        // Envoyer le document à n8n pour extraction OCR via AI Vision
-        fastify.log.info('Lancement OCR scan document pour tenant %s (fichier: %s, type: %s)', tenantId, body.fileName, body.mimeType);
+        // Appel direct à OpenAI Vision (bypass n8n pour éviter les limites d'expression sur le base64)
+        fastify.log.info('Lancement OCR scan document pour tenant %s (fichier: %s, type: %s, taille base64: %d)', tenantId, body.fileName, body.mimeType, body.documentBase64.length);
 
-        const res = await n8nService.callWorkflowReturn<{
-          success: boolean;
-          extractedData: {
-            fournisseurNom?: string;
-            fournisseurSiret?: string;
-            fournisseurTvaIntra?: string;
-            fournisseurAdresse?: string;
-            dateFacture?: string;
-            numeroFacture?: string;
-            montantHt?: number;
-            montantTtc?: number;
-            tvaTaux?: number;
-            description?: string;
-            categorieFrais?: string;
-            lignes?: Array<{
-              designation: string;
-              quantite: number;
-              prixUnitaireHt: number;
-              totalHt: number;
-            }>;
+        if (!env.OPENAI_API_KEY) {
+          return reply.status(500).send({
+            success: false,
+            error: 'OPENAI_API_KEY non configurée sur le serveur',
+          });
+        }
+
+        // Déterminer le media type pour la data URI
+        const mimeType = body.mimeType || 'image/png';
+        let imageMediaType = 'image/png';
+        if (mimeType === 'application/pdf') {
+          imageMediaType = 'application/pdf';
+        } else if (mimeType.startsWith('image/')) {
+          imageMediaType = mimeType;
+        }
+
+        const systemPrompt = `Tu es un expert en extraction de données de factures fournisseur. Tu reçois une image ou un PDF de facture d'achat. Tu dois extraire les informations structurées suivantes et les retourner UNIQUEMENT en JSON valide, sans aucun texte avant ou après. Si une information n'est pas trouvée, utilise null.
+
+Format JSON attendu :
+{
+  "fournisseurNom": "Nom de l'entreprise fournisseur",
+  "fournisseurSiret": "Numéro SIRET du fournisseur",
+  "fournisseurTvaIntra": "Numéro TVA intracommunautaire",
+  "fournisseurAdresse": "Adresse complète du fournisseur",
+  "dateFacture": "YYYY-MM-DD",
+  "numeroFacture": "Numéro de la facture",
+  "montantHt": 0.00,
+  "montantTtc": 0.00,
+  "tvaTaux": 20.0,
+  "description": "Description générale de la facture",
+  "categorieFrais": "carburant|fournitures_bureau|telecom|assurance|loyer|entretien|transport|restauration|sous_traitance|autre",
+  "lignes": [
+    {
+      "designation": "Libellé de la ligne",
+      "quantite": 1,
+      "prixUnitaireHt": 0.00,
+      "totalHt": 0.00
+    }
+  ]
+}
+
+Règles :
+- Les montants doivent être des nombres (pas de chaînes)
+- Le taux TVA doit être un pourcentage (ex: 20 pour 20%)
+- La catégorie de frais doit correspondre à l'un des choix proposés
+- Si la facture contient plusieurs lignes d'articles, les extraire toutes
+- Le format de date doit être YYYY-MM-DD
+- Retourne UNIQUEMENT le JSON, rien d'autre`;
+
+        try {
+          const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              max_tokens: 2000,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                {
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: 'Extrais toutes les informations de cette facture fournisseur :' },
+                    {
+                      type: 'image_url',
+                      image_url: {
+                        url: `data:${imageMediaType};base64,${body.documentBase64}`,
+                      },
+                    },
+                  ],
+                },
+              ],
+            }),
+          });
+
+          if (!openaiResponse.ok) {
+            const errBody = await openaiResponse.text();
+            fastify.log.error('OpenAI Vision erreur HTTP %d pour tenant %s: %s', openaiResponse.status, tenantId, errBody.slice(0, 500));
+            return reply.status(502).send({
+              success: false,
+              error: `Erreur OpenAI Vision (HTTP ${openaiResponse.status}). Vérifiez que le fichier est une image valide (PNG, JPEG) ou un PDF.`,
+            });
+          }
+
+          const openaiData = await openaiResponse.json() as {
+            choices?: Array<{ message?: { content?: string } }>;
           };
-        }>(
-          tenantId,
-          'invoice_scan_ocr',
-          {
-            tenantId,
-            documentBase64: body.documentBase64,
-            fileName: body.fileName,
-            mimeType: body.mimeType,
-          },
-        );
 
-        if (!res.success) {
-          fastify.log.warn('OCR scan échoué pour tenant %s: %s', tenantId, res.error);
+          const content = openaiData.choices?.[0]?.message?.content || '';
+          if (!content) {
+            fastify.log.warn('OpenAI Vision réponse vide pour tenant %s', tenantId);
+            return reply.status(502).send({
+              success: false,
+              error: 'OpenAI Vision n\'a pas retourné de contenu. Réessayez avec une image plus nette.',
+            });
+          }
+
+          // Nettoyer le contenu (enlever les backticks markdown si présents)
+          const cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+          let extractedData: Record<string, unknown>;
+          try {
+            extractedData = JSON.parse(cleanContent);
+          } catch {
+            fastify.log.warn('OCR parse JSON échoué pour tenant %s, contenu: %s', tenantId, cleanContent.slice(0, 300));
+            return reply.status(502).send({
+              success: false,
+              error: 'Impossible de parser la réponse OCR. Le document n\'est peut-être pas une facture lisible.',
+            });
+          }
+
+          // Nettoyer les montants (string → number)
+          for (const key of ['montantHt', 'montantTtc', 'tvaTaux']) {
+            if (extractedData[key] && typeof extractedData[key] === 'string') {
+              extractedData[key] = parseFloat((extractedData[key] as string).replace(/[^0-9.,]/g, '').replace(',', '.'));
+            }
+          }
+
+          // Nettoyer les lignes
+          if (Array.isArray(extractedData.lignes)) {
+            extractedData.lignes = (extractedData.lignes as Array<Record<string, unknown>>).map((l) => ({
+              designation: l.designation || l.libelle || 'Article',
+              quantite: parseInt(String(l.quantite)) || 1,
+              prixUnitaireHt: parseFloat(String(l.prixUnitaireHt || l.prix_unitaire_ht || 0)),
+              totalHt: parseFloat(String(l.totalHt || l.total_ht || 0)),
+            }));
+          }
+
+          // Calculs montants manquants
+          const ht = extractedData.montantHt as number | undefined;
+          const ttc = extractedData.montantTtc as number | undefined;
+          const tva = extractedData.tvaTaux as number | undefined;
+          if (!ttc && ht && tva) {
+            extractedData.montantTtc = Math.round(ht * (1 + tva / 100) * 100) / 100;
+          }
+          if (!ht && ttc && tva) {
+            extractedData.montantHt = Math.round(ttc / (1 + tva / 100) * 100) / 100;
+          }
+
+          fastify.log.info('OCR scan réussi pour tenant %s, clés extraites: %s', tenantId, Object.keys(extractedData).join(', '));
+
+          return reply.status(200).send({
+            success: true,
+            message: 'Document scanné avec succès',
+            data: extractedData,
+          });
+
+        } catch (fetchError) {
+          const errMsg = fetchError instanceof Error ? fetchError.message : 'Erreur inconnue';
+          fastify.log.error('OCR fetch erreur pour tenant %s: %s', tenantId, errMsg);
           return reply.status(502).send({
             success: false,
-            error: res.error || 'Erreur lors du scan OCR du document',
+            error: `Erreur de connexion à OpenAI: ${errMsg}`,
           });
         }
-
-        fastify.log.info('OCR scan réponse brute pour tenant %s: %s', tenantId, JSON.stringify(res.data).slice(0, 500));
-
-        // res.data peut être :
-        // - { success: true, extractedData: { ... } }  (format n8n Parse node)
-        // - { success: false, error: "..." }  (erreur OpenAI ou parse)
-        // - directement les données extraites si n8n les envoie à plat
-        const resData = res.data as Record<string, unknown> | undefined;
-
-        // Vérifier si le workflow n8n a signalé une erreur interne
-        if (resData?.success === false) {
-          const errMsg = String(resData.error || 'Erreur interne du workflow OCR');
-          fastify.log.warn('OCR workflow erreur interne pour tenant %s: %s', tenantId, errMsg);
-          return reply.status(502).send({
-            success: false,
-            error: errMsg,
-          });
-        }
-
-        // Extraire les données : soit dans extractedData, soit à plat
-        const extractedData = resData?.extractedData || resData;
-
-        if (!extractedData || Object.keys(extractedData as object).length === 0) {
-          fastify.log.warn('OCR scan retourné vide pour tenant %s', tenantId);
-          return reply.status(502).send({
-            success: false,
-            error: 'Le scan OCR n\'a pas retourné de données. Vérifiez le document envoyé.',
-          });
-        }
-
-        fastify.log.info('OCR scan réussi pour tenant %s, clés extraites: %s', tenantId, Object.keys(extractedData as object).join(', '));
-
-        return reply.status(200).send({
-          success: true,
-          message: 'Document scanné avec succès',
-          data: extractedData,
-        });
       } catch (error) {
         if (error instanceof z.ZodError) {
           return reply.status(400).send({
