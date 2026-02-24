@@ -7,7 +7,7 @@ import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 const createSchema = z.object({
   code: z.string().min(1).max(20),
   designation: z.string().min(1),
-  prixUnitaireHt: z.number().positive().optional().nullable(),
+  prixUnitaireHt: z.number().nonnegative().optional().nullable(),
   tvaTaux: z.number().min(0).max(100).optional().nullable(),
   unite: z.string().optional().nullable(),
 });
@@ -158,9 +158,10 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }
@@ -248,9 +249,10 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }
