@@ -70,6 +70,22 @@ const createInvoiceSchema = z.object({
   lines: z.array(invoiceLineSchema).optional(),
   lienPdf: z.union([z.string().url(), z.literal('')]).optional().nullable(),
   bdcId: z.string().uuid().optional().nullable(),
+  // Champs spécifiques facture d'achat (fournisseur)
+  fournisseurNom: z.string().optional().nullable(),
+  fournisseurSiret: z.string().optional().nullable(),
+  fournisseurTvaIntra: z.string().optional().nullable(),
+  fournisseurAdresse: z.string().optional().nullable(),
+  categorieFrais: z.string().optional().nullable(),
+  documentOriginalUrl: z.string().optional().nullable(),
+  ocrData: z.any().optional().nullable(),
+});
+
+// Schema pour le scan OCR de document
+const scanDocumentSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  documentBase64: z.string().min(1, 'Document requis (base64)'),
+  fileName: z.string().optional().default('document.pdf'),
+  mimeType: z.string().optional().default('application/pdf'),
 });
 
 // Schema de validation pour mettre à jour une facture
@@ -111,6 +127,13 @@ function normalizeInvoiceFromN8n(row: Record<string, unknown>): Record<string, u
     tvaTaux: toNum(row.tva_taux ?? row.tvaTaux),
     statut: row.statut,
     lienPdf: toStr(row.lien_pdf ?? row.lienPdf),
+    fournisseurNom: toStr(row.fournisseur_nom ?? row.fournisseurNom),
+    fournisseurSiret: toStr(row.fournisseur_siret ?? row.fournisseurSiret),
+    fournisseurTvaIntra: toStr(row.fournisseur_tva_intra ?? row.fournisseurTvaIntra),
+    fournisseurAdresse: toStr(row.fournisseur_adresse ?? row.fournisseurAdresse),
+    categorieFrais: toStr(row.categorie_frais ?? row.categorieFrais),
+    documentOriginalUrl: toStr(row.document_original_url ?? row.documentOriginalUrl),
+    ocrData: row.ocr_data ?? row.ocrData ?? null,
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
     clientFinal: row.clientFinal ?? null,
@@ -455,6 +478,94 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // POST /api/invoices/scan-document - Scanner un document fournisseur via OCR (AI Vision)
+  fastify.post(
+    '/scan-document',
+    {
+      preHandler: [authMiddleware],
+      bodyLimit: 10 * 1024 * 1024, // 10 MB pour les documents base64
+    },
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+      try {
+        const tenantId = request.tenantId;
+        if (!tenantId) {
+          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        }
+
+        // Vérifier droits
+        if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        }
+
+        const body = scanDocumentSchema.parse(request.body);
+
+        // Envoyer le document à n8n pour extraction OCR via AI Vision
+        fastify.log.info('Lancement OCR scan document pour tenant %s (fichier: %s, type: %s)', tenantId, body.fileName, body.mimeType);
+
+        const res = await n8nService.callWorkflowReturn<{
+          success: boolean;
+          extractedData: {
+            fournisseurNom?: string;
+            fournisseurSiret?: string;
+            fournisseurTvaIntra?: string;
+            fournisseurAdresse?: string;
+            dateFacture?: string;
+            numeroFacture?: string;
+            montantHt?: number;
+            montantTtc?: number;
+            tvaTaux?: number;
+            description?: string;
+            categorieFrais?: string;
+            lignes?: Array<{
+              designation: string;
+              quantite: number;
+              prixUnitaireHt: number;
+              totalHt: number;
+            }>;
+          };
+        }>(
+          tenantId,
+          'invoice_scan_ocr',
+          {
+            tenantId,
+            documentBase64: body.documentBase64,
+            fileName: body.fileName,
+            mimeType: body.mimeType,
+          },
+        );
+
+        if (!res.success) {
+          fastify.log.warn('OCR scan échoué pour tenant %s: %s', tenantId, res.error);
+          return reply.status(502).send({
+            success: false,
+            error: res.error || 'Erreur lors du scan OCR du document',
+          });
+        }
+
+        fastify.log.info('OCR scan réussi pour tenant %s', tenantId);
+
+        return reply.status(200).send({
+          success: true,
+          message: 'Document scanné avec succès',
+          data: res.data,
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({
+            success: false,
+            error: 'Validation échouée',
+            details: error.errors,
+          });
+        }
+        fastify.log.error(error, 'Erreur lors du scan OCR du document');
+        return reply.status(500).send({
+          success: false,
+          error: 'Erreur lors du scan OCR du document',
+        });
+      }
+    }
+  );
+
   // POST /api/invoices - Crée une nouvelle facture
   fastify.post(
     '/',
@@ -723,6 +834,14 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               modePaiement: body.modePaiement,
               lienPdf: body.lienPdf,
               statut: 'brouillon',
+              // Champs fournisseur (facture d'achat)
+              fournisseurNom: body.fournisseurNom ?? null,
+              fournisseurSiret: body.fournisseurSiret ?? null,
+              fournisseurTvaIntra: body.fournisseurTvaIntra ?? null,
+              fournisseurAdresse: body.fournisseurAdresse ?? null,
+              categorieFrais: body.categorieFrais ?? null,
+              documentOriginalUrl: body.documentOriginalUrl ?? null,
+              ocrData: body.ocrData ?? null,
               ...(body.lines && body.lines.length > 0 ? {
                 lines: {
                   create: body.lines.map((l, i) => ({

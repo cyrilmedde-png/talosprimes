@@ -451,6 +451,16 @@ model Invoice {
   statut            InvoiceStatus @default(brouillon)
   lienPdf           String?       @map("lien_pdf")
   idExternePaiement String?       @map("id_externe_paiement")
+
+  // Champs spécifiques facture d'achat (fournisseur)
+  fournisseurNom      String?     @map("fournisseur_nom")
+  fournisseurSiret    String?     @map("fournisseur_siret")
+  fournisseurTvaIntra String?     @map("fournisseur_tva_intra")
+  fournisseurAdresse  String?     @map("fournisseur_adresse") @db.Text
+  categorieFrais      String?     @map("categorie_frais")
+  documentOriginalUrl String?     @map("document_original_url")
+  ocrData             Json?       @map("ocr_data")
+
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
   deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz(6)

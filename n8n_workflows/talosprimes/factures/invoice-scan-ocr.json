@@ -1,0 +1,130 @@
+{
+  "name": "invoice-scan-ocr",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "invoice-scan-ocr",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.documentBase64) throw new Error('documentBase64 is required');\n\nvar mimeType = body.mimeType || 'application/pdf';\nvar fileName = body.fileName || 'document.pdf';\n\n// Déterminer le type d'image pour l'API Vision\nvar imageMediaType = 'image/png';\nif (mimeType === 'application/pdf') {\n  imageMediaType = 'application/pdf';\n} else if (mimeType.startsWith('image/')) {\n  imageMediaType = mimeType;\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  documentBase64: body.documentBase64,\n  mimeType: mimeType,\n  imageMediaType: imageMediaType,\n  fileName: fileName\n}}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.documentBase64 }}",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Document base64 manquant ou invalide\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"max_tokens\": 2000,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un expert en extraction de données de factures fournisseur. Tu reçois une image ou un PDF de facture d'achat. Tu dois extraire les informations structurées suivantes et les retourner UNIQUEMENT en JSON valide, sans aucun texte avant ou après. Si une information n'est pas trouvée, utilise null.\\n\\nFormat JSON attendu :\\n{\\n  \\\"fournisseurNom\\\": \\\"Nom de l'entreprise fournisseur\\\",\\n  \\\"fournisseurSiret\\\": \\\"Numéro SIRET du fournisseur\\\",\\n  \\\"fournisseurTvaIntra\\\": \\\"Numéro TVA intracommunautaire\\\",\\n  \\\"fournisseurAdresse\\\": \\\"Adresse complète du fournisseur\\\",\\n  \\\"dateFacture\\\": \\\"YYYY-MM-DD\\\",\\n  \\\"numeroFacture\\\": \\\"Numéro de la facture\\\",\\n  \\\"montantHt\\\": 0.00,\\n  \\\"montantTtc\\\": 0.00,\\n  \\\"tvaTaux\\\": 20.0,\\n  \\\"description\\\": \\\"Description générale de la facture\\\",\\n  \\\"categorieFrais\\\": \\\"carburant|fournitures_bureau|telecom|assurance|loyer|entretien|transport|restauration|sous_traitance|autre\\\",\\n  \\\"lignes\\\": [\\n    {\\n      \\\"designation\\\": \\\"Libellé de la ligne\\\",\\n      \\\"quantite\\\": 1,\\n      \\\"prixUnitaireHt\\\": 0.00,\\n      \\\"totalHt\\\": 0.00\\n    }\\n  ]\\n}\\n\\nRègles :\\n- Les montants doivent être des nombres (pas de chaînes)\\n- Le taux TVA doit être un pourcentage (ex: 20 pour 20%)\\n- La catégorie de frais doit correspondre à l'un des choix proposés\\n- Si la facture contient plusieurs lignes d'articles, les extraire toutes\\n- Le format de date doit être YYYY-MM-DD\\n- Retourne UNIQUEMENT le JSON, rien d'autre\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Extrais toutes les informations de cette facture fournisseur :\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:{{ $json.imageMediaType }};base64,{{ $json.documentBase64 }}\"\n          }\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "05. OpenAI Vision OCR",
+      "name": "05. OpenAI Vision OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "OpenAI API Key",
+          "id": "openai-header-auth"
+        }
+      },
+      "position": [700, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var input = $input.first().json;\n\n// Vérifier si l'appel OpenAI a réussi\nif (input.error) {\n  return [{ json: {\n    success: false,\n    error: 'Erreur API OpenAI: ' + (input.error.message || JSON.stringify(input.error))\n  }}];\n}\n\n// Extraire la réponse de GPT-4 Vision\nvar choices = input.choices || [];\nif (choices.length === 0) {\n  return [{ json: {\n    success: false,\n    error: 'Pas de réponse de OpenAI Vision'\n  }}];\n}\n\nvar content = choices[0].message.content || '';\n\n// Nettoyer le contenu (enlever les backticks markdown si présents)\ncontent = content.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\ntry {\n  var extractedData = JSON.parse(content);\n  \n  // Valider et nettoyer les montants\n  if (extractedData.montantHt && typeof extractedData.montantHt === 'string') {\n    extractedData.montantHt = parseFloat(extractedData.montantHt.replace(/[^0-9.,]/g, '').replace(',', '.'));\n  }\n  if (extractedData.montantTtc && typeof extractedData.montantTtc === 'string') {\n    extractedData.montantTtc = parseFloat(extractedData.montantTtc.replace(/[^0-9.,]/g, '').replace(',', '.'));\n  }\n  if (extractedData.tvaTaux && typeof extractedData.tvaTaux === 'string') {\n    extractedData.tvaTaux = parseFloat(extractedData.tvaTaux.replace(/[^0-9.,]/g, '').replace(',', '.'));\n  }\n  \n  // Nettoyer les lignes\n  if (extractedData.lignes && Array.isArray(extractedData.lignes)) {\n    extractedData.lignes = extractedData.lignes.map(function(l) {\n      return {\n        designation: l.designation || l.libelle || 'Article',\n        quantite: parseInt(l.quantite) || 1,\n        prixUnitaireHt: parseFloat(l.prixUnitaireHt || l.prix_unitaire_ht || 0),\n        totalHt: parseFloat(l.totalHt || l.total_ht || 0)\n      };\n    });\n  }\n  \n  // Si montantTtc manquant mais montantHt et tvaTaux présents, calculer\n  if (!extractedData.montantTtc && extractedData.montantHt && extractedData.tvaTaux) {\n    extractedData.montantTtc = Math.round(extractedData.montantHt * (1 + extractedData.tvaTaux / 100) * 100) / 100;\n  }\n  \n  // Si montantHt manquant mais montantTtc et tvaTaux présents, calculer\n  if (!extractedData.montantHt && extractedData.montantTtc && extractedData.tvaTaux) {\n    extractedData.montantHt = Math.round(extractedData.montantTtc / (1 + extractedData.tvaTaux / 100) * 100) / 100;\n  }\n  \n  return [{ json: {\n    success: true,\n    extractedData: extractedData\n  }}];\n} catch (parseErr) {\n  // Si le JSON est invalide, essayer d'extraire les données manuellement\n  return [{ json: {\n    success: false,\n    error: 'Impossible de parser la réponse OCR: ' + parseErr.message,\n    rawContent: content\n  }}];\n}"
+      },
+      "id": "06. Parse OCR Response",
+      "name": "06. Parse OCR Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. OpenAI Vision OCR", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. OpenAI Vision OCR": { "main": [[{ "node": "06. Parse OCR Response", "type": "main", "index": 0 }]] },
+    "06. Parse OCR Response": { "main": [[{ "node": "07. Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": true,
+  "id": "invoice-scan-ocr"
+}

@@ -133,6 +133,8 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   questionnaire_create: 'questionnaire-create',
   questionnaire_update: 'questionnaire-update',
   questionnaire_delete: 'questionnaire-delete',
+  // OCR / Scan de documents
+  invoice_scan_ocr: 'invoice-scan-ocr',
   // Comptabilité
   compta_init: 'compta-init',
   compta_plan_comptable_list: 'compta-plan-comptable-list',
