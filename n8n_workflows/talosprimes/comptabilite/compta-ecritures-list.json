@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar page = parseInt(body.page) || 1;\nvar limit = parseInt(body.limit) || 20;\nvar offset = (page - 1) * limit;\nreturn [{ json: {\n  tenantId: body.tenantId, page, limit, offset,\n  journalCode: body.journalCode || null,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || null,\n  statut: body.statut || null,\n  typePiece: body.typePiece || null,\n  search: body.search || null\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nif (!UUID_RE.test(body.tenantId)) throw new Error('tenantId invalide');\n\nvar page = parseInt(body.page) || 1;\nvar limit = parseInt(body.limit) || 20;\nif (limit > 100) limit = 100;\nif (page < 1) page = 1;\nvar offset = (page - 1) * limit;\n\nvar SAFE_TEXT = /^[\\w\\s\\-àâäéèêëïîôùûüÿçÀÂÄÉÈÊËÏÎÔÙÛÜŸÇ.,;:!?()\\/#&€@+'\\\"°%*]+$/;\nvar journalCode = body.journalCode || null;\nif (journalCode && !SAFE_TEXT.test(journalCode)) journalCode = null;\nvar statut = body.statut || null;\nif (statut && !SAFE_TEXT.test(statut)) statut = null;\nvar search = body.search || null;\nif (search && !SAFE_TEXT.test(search)) search = null;\nvar DATE_RE = /^\\d{4}-\\d{2}-\\d{2}$/;\nvar dateFrom = body.dateFrom || null;\nif (dateFrom && !DATE_RE.test(dateFrom)) dateFrom = null;\nvar dateTo = body.dateTo || null;\nif (dateTo && !DATE_RE.test(dateTo)) dateTo = null;\n\nreturn [{ json: {\n  tenantId: body.tenantId, page: page, limit: limit, offset: offset,\n  journalCode: journalCode,\n  dateFrom: dateFrom,\n  dateTo: dateTo,\n  statut: statut,\n  search: search\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -75,32 +75,24 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM ecritures_comptables WHERE tenant_id = '\" + $json.tenantId + \"' AND \" + ($json.journalCode ? \"journal_code = '\" + $json.journalCode + \"'\" : \"1=1\") + \" AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"1=1\") + \" AND \" + ($json.typePiece ? \"type_piece = '\" + $json.typePiece + \"'\" : \"1=1\") + \" AND \" + ($json.dateFrom ? \"date_ecriture >= '\" + $json.dateFrom + \"'\" : \"1=1\") + \" AND \" + ($json.dateTo ? \"date_ecriture <= '\" + $json.dateTo + \"'\" : \"1=1\") + \" AND ('\" + $json.search + \"' IS NULL OR (numero_piece ILIKE '%' || '\" + $json.search + \"' || '%' OR libelle ILIKE '%' || '\" + $json.search + \"' || '%' OR reference ILIKE '%' || '\" + $json.search + \"' || '%'))\" }}"
+        "jsCode": "function esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar p = $('02. Parser').first().json;\nvar where = \"e.tenant_id = \" + esc(p.tenantId) + \"::uuid\";\nif (p.journalCode) where += \" AND e.journal_code = \" + esc(p.journalCode);\nif (p.statut) where += \" AND e.statut = \" + esc(p.statut);\nif (p.dateFrom) where += \" AND e.date_ecriture >= \" + esc(p.dateFrom) + \"::date\";\nif (p.dateTo) where += \" AND e.date_ecriture <= \" + esc(p.dateTo) + \"::date\";\nif (p.search) {\n  var s = esc('%' + p.search + '%');\n  where += \" AND (e.numero_piece ILIKE \" + s + \" OR e.libelle ILIKE \" + s + \" OR e.reference_doc ILIKE \" + s + \")\";\n}\n\nvar countQuery = \"SELECT COUNT(*) as total FROM ecritures_comptables e WHERE \" + where + \";\";\n\nvar listQuery = \"SELECT e.id, e.journal_code, e.numero_piece, e.date_ecriture, e.libelle, e.reference_doc, e.statut, e.source_auto, e.source_id, e.created_at, j.libelle as journal_libelle, COALESCE(SUM(l.debit), 0) as total_debit, COALESCE(SUM(l.credit), 0) as total_credit FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id LEFT JOIN lignes_ecritures l ON l.ecriture_id = e.id WHERE \" + where + \" GROUP BY e.id, e.journal_code, e.numero_piece, e.date_ecriture, e.libelle, e.reference_doc, e.statut, e.source_auto, e.source_id, e.created_at, j.libelle ORDER BY e.date_ecriture DESC, e.numero_piece DESC LIMIT \" + p.limit + \" OFFSET \" + p.offset + \";\";\n\nreturn [{ json: { countQuery: countQuery, listQuery: listQuery, page: p.page, limit: p.limit } }];"
       },
-      "id": "05. Count",
-      "name": "05. Count",
-      "type": "n8n-nodes-base.postgres",
+      "id": "05. Build Queries",
+      "name": "05. Build Queries",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
       "position": [
         700,
         300
-      ],
-      "alwaysOutputData": true
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT e.id, e.journal_code, e.numero_piece, e.date_ecriture, e.date_echeance, e.libelle, e.reference, e.type_piece, e.entite_type, e.entite_id, e.montant_total, e.statut, e.source, e.created_at, j.libelle as journal_libelle FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id WHERE e.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND \" + ($('02. Parser').first().json.journalCode ? \"e.journal_code = '\" + $('02. Parser').first().json.journalCode + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.statut ? \"e.statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.typePiece ? \"e.type_piece = '\" + $('02. Parser').first().json.typePiece + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.dateFrom ? \"e.date_ecriture >= '\" + $('02. Parser').first().json.dateFrom + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.dateTo ? \"e.date_ecriture <= '\" + $('02. Parser').first().json.dateTo + \"'\" : \"1=1\") + \" AND ('\" + $('02. Parser').first().json.search + \"' IS NULL OR (e.numero_piece ILIKE '%' || '\" + $('02. Parser').first().json.search + \"' || '%' OR e.libelle ILIKE '%' || '\" + $('02. Parser').first().json.search + \"' || '%')) ORDER BY e.date_ecriture DESC, e.numero_piece DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
+        "query": "={{ $json.countQuery }}"
       },
-      "id": "06. List",
-      "name": "06. List",
+      "id": "06. Count",
+      "name": "06. Count",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -117,14 +109,35 @@
     },
     {
       "parameters": {
-        "jsCode": "var items = $('06. List').all().map(function(item) { return item.json; }).filter(function(e) { return e.id; });\nvar total = parseInt($('05. Count').first().json.total) || 0;\nvar p = $('02. Parser').first().json;\nvar totalPages = Math.ceil(total / p.limit) || 1;\n\nvar ecritures = items.map(function(e) { return ({\n  id: e.id,\n  journalCode: e.journal_code,\n  journalLibelle: e.journal_libelle,\n  numeroPiece: e.numero_piece,\n  dateEcriture: e.date_ecriture,\n  dateEcheance: e.date_echeance,\n  libelle: e.libelle,\n  reference: e.reference,\n  typePiece: e.type_piece,\n  entiteType: e.entite_type,\n  entiteId: e.entite_id,\n  montantTotal: parseFloat(e.montant_total) || 0,\n  statut: e.statut,\n  source: e.source,\n  createdAt: e.created_at\n}); });\n\nreturn [{ json: { success: true, ecritures, count: ecritures.length, total, page: p.page, limit: p.limit, totalPages } }];"
+        "operation": "executeQuery",
+        "query": "={{ $('05. Build Queries').first().json.listQuery }}"
       },
-      "id": "07. Format Response",
-      "name": "07. Format Response",
+      "id": "07. List",
+      "name": "07. List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1100,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('07. List').all().map(function(item) { return item.json; }).filter(function(e) { return e.id; });\nvar total = parseInt($('06. Count').first().json.total) || 0;\nvar p = $('05. Build Queries').first().json;\nvar totalPages = Math.ceil(total / p.limit) || 1;\n\nvar ecritures = items.map(function(e) { return ({\n  id: e.id,\n  journalCode: e.journal_code,\n  journalLibelle: e.journal_libelle || null,\n  numeroPiece: e.numero_piece,\n  dateEcriture: e.date_ecriture,\n  libelle: e.libelle,\n  referenceDoc: e.reference_doc || null,\n  statut: e.statut,\n  sourceAuto: e.source_auto || null,\n  sourceId: e.source_id || null,\n  totalDebit: parseFloat(e.total_debit) || 0,\n  totalCredit: parseFloat(e.total_credit) || 0,\n  montantTotal: Math.max(parseFloat(e.total_debit) || 0, parseFloat(e.total_credit) || 0),\n  createdAt: e.created_at\n}); });\n\nreturn [{ json: { success: true, ecritures: ecritures, count: ecritures.length, total: total, page: p.page, limit: p.limit, totalPages: totalPages } }];"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1300,
         300
       ]
     },
@@ -133,12 +146,12 @@
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "08. Respond",
-      "name": "08. Respond",
+      "id": "09. Respond",
+      "name": "09. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1300,
+        1500,
         300
       ]
     }
@@ -170,7 +183,7 @@
       "main": [
         [
           {
-            "node": "05. Count",
+            "node": "05. Build Queries",
             "type": "main",
             "index": 0
           }
@@ -184,33 +197,44 @@
         ]
       ]
     },
-    "05. Count": {
+    "05. Build Queries": {
       "main": [
         [
           {
-            "node": "06. List",
+            "node": "06. Count",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. List": {
+    "06. Count": {
       "main": [
         [
           {
-            "node": "07. Format Response",
+            "node": "07. List",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "07. Format Response": {
+    "07. List": {
       "main": [
         [
           {
-            "node": "08. Respond",
+            "node": "08. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
             "type": "main",
             "index": 0
           }

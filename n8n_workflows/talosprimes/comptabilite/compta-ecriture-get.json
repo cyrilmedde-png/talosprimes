@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.ecritureId) throw new Error('ecritureId is required');\nreturn [{ json: { tenantId: body.tenantId, ecritureId: body.ecritureId } }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID valide)');\nif (!body.ecritureId && !body.id) throw new Error('ecritureId requis');\nvar ecritureId = body.ecritureId || body.id;\nif (!UUID_RE.test(ecritureId)) throw new Error('ecritureId invalide (UUID)');\nreturn [{ json: { tenantId: body.tenantId, ecritureId: ecritureId } }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -75,32 +75,24 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"SELECT e.*, j.libelle as journal_libelle, ex.code as exercice_code FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id LEFT JOIN exercices_comptables ex ON e.exercice_id = ex.id WHERE e.id = '\" + $json.ecritureId + \"' AND e.tenant_id = '\" + $json.tenantId + \"';\" }}"
+        "jsCode": "function esc(v) { return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar p = $('02. Parser').first().json;\n\nvar ecritureQuery = \"SELECT e.id, e.exercice_id, e.journal_code, e.numero_piece, e.date_ecriture, e.libelle, e.reference_doc, e.statut, e.source_auto, e.source_id, e.created_at, e.updated_at, j.libelle as journal_libelle, ex.code as exercice_code FROM ecritures_comptables e LEFT JOIN journaux_comptables j ON e.journal_code = j.code AND e.tenant_id = j.tenant_id LEFT JOIN exercices_comptables ex ON e.exercice_id = ex.id WHERE e.id = \" + esc(p.ecritureId) + \"::uuid AND e.tenant_id = \" + esc(p.tenantId) + \"::uuid;\";\n\nvar lignesQuery = \"SELECT le.id, le.numero_compte, le.libelle_ligne, le.debit, le.credit, le.lettrage, le.date_lettrage, le.ordre, pc.libelle as compte_libelle FROM lignes_ecritures le LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = \" + esc(p.tenantId) + \"::uuid WHERE le.ecriture_id = \" + esc(p.ecritureId) + \"::uuid ORDER BY le.ordre ASC;\";\n\nreturn [{ json: { ecritureQuery: ecritureQuery, lignesQuery: lignesQuery } }];"
       },
-      "id": "05. Get Ecriture",
-      "name": "05. Get Ecriture",
-      "type": "n8n-nodes-base.postgres",
+      "id": "05. Build Queries",
+      "name": "05. Build Queries",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
       "position": [
         700,
         300
-      ],
-      "alwaysOutputData": true
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT le.*, pc.libelle as compte_libelle FROM lignes_ecritures le LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' WHERE le.ecriture_id = '\" + $('02. Parser').first().json.ecritureId + \"' ORDER BY le.ordre ASC;\" }}"
+        "query": "={{ $json.ecritureQuery }}"
       },
-      "id": "06. Get Lignes",
-      "name": "06. Get Lignes",
+      "id": "06. Get Ecriture",
+      "name": "06. Get Ecriture",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
@@ -117,14 +109,35 @@
     },
     {
       "parameters": {
-        "jsCode": "var ecritureArr = $('05. Get Ecriture').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (ecritureArr.length === 0) return [{ json: { success: false, error: 'Écriture non trouvée' } }];\n\nvar e = ecritureArr[0];\nvar lignes = $('06. Get Lignes').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: e.id,\n    exerciceCode: e.exercice_code,\n    journalCode: e.journal_code,\n    journalLibelle: e.journal_libelle,\n    numeroPiece: e.numero_piece,\n    dateEcriture: e.date_ecriture,\n    dateEcheance: e.date_echeance,\n    libelle: e.libelle,\n    reference: e.reference,\n    typePiece: e.type_piece,\n    entiteType: e.entite_type,\n    entiteId: e.entite_id,\n    montantTotal: parseFloat(e.montant_total) || 0,\n    statut: e.statut,\n    source: e.source,\n    iaClassification: e.ia_classification,\n    createdAt: e.created_at,\n    lignes: lignes.map(function(l) { return ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      compteLibelle: l.compte_libelle,\n      libelle: l.libelle,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0,\n      lettrage: l.lettrage\n    }); })\n  }\n} }];"
+        "operation": "executeQuery",
+        "query": "={{ $('05. Build Queries').first().json.lignesQuery }}"
       },
-      "id": "07. Format Response",
-      "name": "07. Format Response",
+      "id": "07. Get Lignes",
+      "name": "07. Get Lignes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1100,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var ecritureArr = $('06. Get Ecriture').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (ecritureArr.length === 0) return [{ json: { success: false, error: 'Écriture non trouvée' } }];\n\nvar e = ecritureArr[0];\nvar lignes = $('07. Get Lignes').all().map(function(i) { return i.json; }).filter(function(l) { return l.id; });\n\nvar totalDebit = lignes.reduce(function(s, l) { return s + (parseFloat(l.debit) || 0); }, 0);\nvar totalCredit = lignes.reduce(function(s, l) { return s + (parseFloat(l.credit) || 0); }, 0);\n\nreturn [{ json: {\n  success: true,\n  ecriture: {\n    id: e.id,\n    exerciceId: e.exercice_id,\n    exerciceCode: e.exercice_code || null,\n    journalCode: e.journal_code,\n    journalLibelle: e.journal_libelle || null,\n    numeroPiece: e.numero_piece,\n    dateEcriture: e.date_ecriture,\n    libelle: e.libelle,\n    referenceDoc: e.reference_doc || null,\n    statut: e.statut,\n    sourceAuto: e.source_auto || null,\n    sourceId: e.source_id || null,\n    totalDebit: totalDebit,\n    totalCredit: totalCredit,\n    montantTotal: Math.max(totalDebit, totalCredit),\n    createdAt: e.created_at,\n    updatedAt: e.updated_at,\n    lignes: lignes.map(function(l) { return ({\n      id: l.id,\n      numeroCompte: l.numero_compte,\n      compteLibelle: l.compte_libelle || null,\n      libelleLigne: l.libelle_ligne || null,\n      debit: parseFloat(l.debit) || 0,\n      credit: parseFloat(l.credit) || 0,\n      lettrage: l.lettrage || null,\n      dateLettrage: l.date_lettrage || null,\n      ordre: l.ordre\n    }); })\n  }\n} }];"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1300,
         300
       ]
     },
@@ -133,12 +146,12 @@
         "respondWith": "json",
         "responseBody": "={{ $json }}"
       },
-      "id": "08. Respond",
-      "name": "08. Respond",
+      "id": "09. Respond",
+      "name": "09. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1300,
+        1500,
         300
       ]
     }
@@ -170,7 +183,7 @@
       "main": [
         [
           {
-            "node": "05. Get Ecriture",
+            "node": "05. Build Queries",
             "type": "main",
             "index": 0
           }
@@ -184,33 +197,44 @@
         ]
       ]
     },
-    "05. Get Ecriture": {
+    "05. Build Queries": {
       "main": [
         [
           {
-            "node": "06. Get Lignes",
+            "node": "06. Get Ecriture",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. Get Lignes": {
+    "06. Get Ecriture": {
       "main": [
         [
           {
-            "node": "07. Format Response",
+            "node": "07. Get Lignes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "07. Format Response": {
+    "07. Get Lignes": {
       "main": [
         [
           {
-            "node": "08. Respond",
+            "node": "08. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
             "type": "main",
             "index": 0
           }
