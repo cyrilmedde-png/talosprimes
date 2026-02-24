@@ -55,7 +55,8 @@
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "{{{\n  \"error\": $node.parser.output.json.error,\n  \"success\": false\n}}}"
+        "responseBody": "={{ JSON.stringify({\"success\": false, \"error\": $json.error || \"Paramètres invalides\"}) }}",
+        "respondWith": "json"
       },
       "id": "respond_error",
       "name": "Respond Error",
@@ -68,7 +69,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function esc(v) {\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nvar tenantId = $node.parser.output.json.tenantId;\nvar ligneIds = $node.parser.output.json.ligneIds;\n\nif (!ligneIds || ligneIds.length === 0) {\n  return { error: \"No ligneIds provided\" };\n}\n\n// Build IN clause with proper UUID casting\nvar inClause = ligneIds.map(function(id) {\n  return esc(id) + \"::uuid\";\n}).join(\",\");\n\nvar query = \"SELECT * FROM lignes_ecritures \" +\n  \"WHERE tenant_id = \" + esc(tenantId) + \"::uuid \" +\n  \"AND id IN (\" + inClause + \") \" +\n  \"ORDER BY date_ecriture ASC\";\n\nreturn {\n  query: query,\n  ligneIds: ligneIds,\n  tenantId: tenantId\n};"
+        "jsCode": "function esc(v) {\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nvar tenantId = $('Parser').first().json.tenantId;\nvar ligneIds = $('Parser').first().json.ligneIds;\n\nif (!ligneIds || ligneIds.length === 0) {\n  return { error: \"No ligneIds provided\" };\n}\n\n// Build IN clause with proper UUID casting\nvar inClause = ligneIds.map(function(id) {\n  return esc(id) + \"::uuid\";\n}).join(\",\");\n\nvar query = \"SELECT * FROM lignes_ecritures \" +\n  \"WHERE tenant_id = \" + esc(tenantId) + \"::uuid \" +\n  \"AND id IN (\" + inClause + \") \" +\n  \"ORDER BY date_ecriture ASC\";\n\nreturn {\n  query: query,\n  ligneIds: ligneIds,\n  tenantId: tenantId\n};"
       },
       "id": "build_queries",
       "name": "Build Queries",
@@ -83,10 +84,11 @@
       "parameters": {
         "credential": "OGqj65ZoFRileCck",
         "mode": "rawQuery",
-        "query": "{{$node.build_queries.output.json.query}}",
+        "query": "={{ $('Build Queries').first().json.query }}",
         "options": {
           "alwaysOutputData": true
-        }
+        },
+        "operation": "executeQuery"
       },
       "id": "get_lignes",
       "name": "Get Lignes",
@@ -95,11 +97,17 @@
       "position": [
         1050,
         300
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "var lignes = $node.get_lignes.output.json[0].pairedItem.item || [];\n\nif (!Array.isArray(lignes)) {\n  lignes = $node.get_lignes.output.json[0] ? [$node.get_lignes.output.json[0]] : [];\n}\n\n// Verify we have at least 2 lignes\nif (lignes.length < 2) {\n  return {\n    error: \"At least 2 accounting lines required for lettrage\",\n    valid: false\n  };\n}\n\n// Calculate total debits and credits\nvar totalDebits = lignes.reduce(function(sum, ligne) {\n  return sum + (parseFloat(ligne.debit) || 0);\n}, 0);\n\nvar totalCredits = lignes.reduce(function(sum, ligne) {\n  return sum + (parseFloat(ligne.credit) || 0);\n}, 0);\n\n// Check balance with tolerance of 0.05 EUR\nvar tolerance = 0.05;\nvar difference = Math.abs(totalDebits - totalCredits);\n\nif (difference > tolerance) {\n  return {\n    error: \"Debit and credit balance mismatch. Difference: \" + difference.toFixed(2),\n    valid: false,\n    totalDebits: totalDebits,\n    totalCredits: totalCredits\n  };\n}\n\n// Generate lettrage code with timestamp\nvar now = new Date();\nvar letterageCode = \"LTR_\" + now.getTime() + \"_\" + Math.random().toString(36).substring(7).toUpperCase();\n\nreturn {\n  lignes: lignes,\n  totalDebits: totalDebits,\n  totalCredits: totalCredits,\n  difference: difference,\n  letterageCode: letterageCode,\n  valid: true\n};"
+        "jsCode": "var lignes = $('Get Lignes').first().json[0].pairedItem.item || [];\n\nif (!Array.isArray(lignes)) {\n  lignes = $('Get Lignes').first().json[0] ? [$('Get Lignes').first().json[0]] : [];\n}\n\n// Verify we have at least 2 lignes\nif (lignes.length < 2) {\n  return {\n    error: \"At least 2 accounting lines required for lettrage\",\n    valid: false\n  };\n}\n\n// Calculate total debits and credits\nvar totalDebits = lignes.reduce(function(sum, ligne) {\n  return sum + (parseFloat(ligne.debit) || 0);\n}, 0);\n\nvar totalCredits = lignes.reduce(function(sum, ligne) {\n  return sum + (parseFloat(ligne.credit) || 0);\n}, 0);\n\n// Check balance with tolerance of 0.05 EUR\nvar tolerance = 0.05;\nvar difference = Math.abs(totalDebits - totalCredits);\n\nif (difference > tolerance) {\n  return {\n    error: \"Debit and credit balance mismatch. Difference: \" + difference.toFixed(2),\n    valid: false,\n    totalDebits: totalDebits,\n    totalCredits: totalCredits\n  };\n}\n\n// Generate lettrage code with timestamp\nvar now = new Date();\nvar letterageCode = \"LTR_\" + now.getTime() + \"_\" + Math.random().toString(36).substring(7).toUpperCase();\n\nreturn {\n  lignes: lignes,\n  totalDebits: totalDebits,\n  totalCredits: totalCredits,\n  difference: difference,\n  letterageCode: letterageCode,\n  valid: true\n};"
       },
       "id": "verify_balance",
       "name": "Verify Balance",
@@ -134,7 +142,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function esc(v) {\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nvar lignes = $node.verify_balance.output.json.lignes;\nvar letterageCode = $node.verify_balance.output.json.letterageCode;\nvar tenantId = $node.parser.output.json.tenantId;\nvar now = new Date().toISOString();\n\n// Build IN clause for UPDATE statement\nvar ligneIds = lignes.map(function(ligne) {\n  return esc(ligne.id) + \"::uuid\";\n});\nvar inClause = \"(\" + ligneIds.join(\",\") + \")\";\n\nvar updateQuery = \"UPDATE lignes_ecritures \" +\n  \"SET lettrage = \" + esc(letterageCode) + \", \" +\n  \"date_lettrage = \" + esc(now) + \"::timestamp \" +\n  \"WHERE id IN \" + inClause + \" \" +\n  \"AND tenant_id = \" + esc(tenantId) + \"::uuid\";\n\nvar insertQuery = \"INSERT INTO lettrages \" +\n  \"(tenant_id, lettrage_code, date_lettrage, nombre_lignes, montant_total) \" +\n  \"VALUES (\" +\n  esc(tenantId) + \"::uuid, \" +\n  esc(letterageCode) + \", \" +\n  esc(now) + \"::timestamp, \" +\n  lignes.length + \", \" +\n  $node.verify_balance.output.json.totalDebits +\n  \")\";\n\nreturn {\n  updateQuery: updateQuery,\n  insertQuery: insertQuery,\n  letterageCode: letterageCode,\n  ligneCount: lignes.length\n};"
+        "jsCode": "function esc(v) {\n  return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nvar lignes = $('Verify Balance').first().json.lignes;\nvar letterageCode = $('Verify Balance').first().json.letterageCode;\nvar tenantId = $('Parser').first().json.tenantId;\nvar now = new Date().toISOString();\n\n// Build IN clause for UPDATE statement\nvar ligneIds = lignes.map(function(ligne) {\n  return esc(ligne.id) + \"::uuid\";\n});\nvar inClause = \"(\" + ligneIds.join(\",\") + \")\";\n\nvar updateQuery = \"UPDATE lignes_ecritures \" +\n  \"SET lettrage = \" + esc(letterageCode) + \", \" +\n  \"date_lettrage = \" + esc(now) + \"::timestamp \" +\n  \"WHERE id IN \" + inClause + \" \" +\n  \"AND tenant_id = \" + esc(tenantId) + \"::uuid\";\n\nvar insertQuery = \"INSERT INTO lettrages \" +\n  \"(tenant_id, lettrage_code, date_lettrage, nombre_lignes, montant_total) \" +\n  \"VALUES (\" +\n  esc(tenantId) + \"::uuid, \" +\n  esc(letterageCode) + \", \" +\n  esc(now) + \"::timestamp, \" +\n  lignes.length + \", \" +\n  $('Verify Balance').first().json.totalDebits +\n  \")\";\n\nreturn {\n  updateQuery: updateQuery,\n  insertQuery: insertQuery,\n  letterageCode: letterageCode,\n  ligneCount: lignes.length\n};"
       },
       "id": "build_update",
       "name": "Build Update",
@@ -149,10 +157,11 @@
       "parameters": {
         "credential": "OGqj65ZoFRileCck",
         "mode": "rawQuery",
-        "query": "{{$node.build_update.output.json.updateQuery}}",
+        "query": "={{ $('Build Update').first().json.updateQuery }}",
         "options": {
           "alwaysOutputData": true
-        }
+        },
+        "operation": "executeQuery"
       },
       "id": "apply_lettrage",
       "name": "Apply Lettrage",
@@ -161,16 +170,23 @@
       "position": [
         1850,
         300
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
     },
     {
       "parameters": {
         "credential": "OGqj65ZoFRileCck",
         "mode": "rawQuery",
-        "query": "{{$node.build_update.output.json.insertQuery}}",
+        "query": "={{ $('Build Update').first().json.insertQuery }}",
         "options": {
           "alwaysOutputData": true
-        }
+        },
+        "operation": "executeQuery"
       },
       "id": "insert_lettrage",
       "name": "Insert Lettrage",
@@ -179,11 +195,17 @@
       "position": [
         2050,
         300
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "return {\n  success: true,\n  letterageCode: $node.build_update.output.json.letterageCode,\n  message: \"Lettrage applied successfully\",\n  ligneCount: $node.build_update.output.json.ligneCount,\n  totalDebits: $node.verify_balance.output.json.totalDebits,\n  totalCredits: $node.verify_balance.output.json.totalCredits\n};"
+        "jsCode": "return {\n  success: true,\n  letterageCode: $('Build Update').first().json.letterageCode,\n  message: \"Lettrage applied successfully\",\n  ligneCount: $('Build Update').first().json.ligneCount,\n  totalDebits: $('Verify Balance').first().json.totalDebits,\n  totalCredits: $('Verify Balance').first().json.totalCredits\n};"
       },
       "id": "format_response",
       "name": "Format Response",
@@ -197,7 +219,8 @@
     {
       "parameters": {
         "respondWithCode": 200,
-        "responseBody": "{{$node.format_response.output.json}}"
+        "responseBody": "{{$node.format_response.output.json}}",
+        "respondWith": "json"
       },
       "id": "respond_success",
       "name": "Respond Success",
@@ -211,7 +234,8 @@
     {
       "parameters": {
         "respondWithCode": 422,
-        "responseBody": "{{{\n  \"error\": $node.verify_balance.output.json.error,\n  \"success\": false,\n  \"totalDebits\": $node.verify_balance.output.json.totalDebits,\n  \"totalCredits\": $node.verify_balance.output.json.totalCredits\n}}}"
+        "responseBody": "={{ JSON.stringify({\"success\": false, \"error\": $json.error || \"Erreur balance\"}) }}",
+        "respondWith": "json"
       },
       "id": "respond_balance_error",
       "name": "Respond Balance Error",

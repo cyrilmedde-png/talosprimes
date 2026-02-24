@@ -62,7 +62,9 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "options": {}
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respondError",
       "name": "Respond Error",
@@ -97,10 +99,11 @@
           }
         },
         "queryType": "raw",
-        "query": "={{ $node.buildQueries.json.query }}",
+        "query": "={{ $('Build Queries').first().json.query }}",
         "options": {
           "alwaysOutputData": true
-        }
+        },
+        "operation": "executeQuery"
       },
       "id": "queryCR",
       "name": "Query CR",
@@ -119,7 +122,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var rows = $input.first().json;\nvar { dateFrom, dateTo } = $node.buildQueries.json;\n\nvar produitsExploitation = [];\nvar produitsFinanciers = [];\nvar produitsExceptionnels = [];\n\nvar chargesExploitation = [];\nvar chargesFinancieres = [];\nvar chargesExceptionnelles = [];\n\nvar totalProduits = 0;\nvar totalCharges = 0;\n\nif (Array.isArray(rows)) {\n  rows.forEach(row => {\n    var { numero_compte, libelle, classe, montant } = row;\n    var poste = {\n      numero: numero_compte,\n      libelle: libelle || 'Sans libellé',\n      montant: parseFloat(montant) || 0\n    };\n\n    if (classe === 7) {\n      totalProduits += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '70' && numPrefix <= '75') {\n        produitsExploitation.push(poste);\n      } else if (numPrefix === '76') {\n        produitsFinanciers.push(poste);\n      } else if (numPrefix === '77') {\n        produitsExceptionnels.push(poste);\n      }\n    } else if (classe === 6) {\n      totalCharges += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '60' && numPrefix <= '65') {\n        chargesExploitation.push(poste);\n      } else if (numPrefix === '66') {\n        chargesFinancieres.push(poste);\n      } else if (numPrefix === '67') {\n        chargesExceptionnelles.push(poste);\n      }\n    }\n  });\n}\n\nvar resultatExploitation = totalProduits - totalCharges;\nvar resultatFinancier = 0;\nvar resultatExceptionnel = 0;\nvar resultatNet = resultatExploitation + resultatFinancier + resultatExceptionnel;\n\nreturn {\n  json: {\n    success: true,\n    produits: {\n      produitsExploitation,\n      produitsFinanciers,\n      produitsExceptionnels,\n      totalProduits\n    },\n    charges: {\n      chargesExploitation,\n      chargesFinancieres,\n      chargesExceptionnelles,\n      totalCharges\n    },\n    resultatExploitation,\n    resultatFinancier,\n    resultatExceptionnel,\n    resultatNet,\n    periode: {\n      dateFrom,\n      dateTo\n    }\n  }\n};"
+        "jsCode": "var rows = $input.first().json;\nvar { dateFrom, dateTo } = $('Build Queries').first().json;\n\nvar produitsExploitation = [];\nvar produitsFinanciers = [];\nvar produitsExceptionnels = [];\n\nvar chargesExploitation = [];\nvar chargesFinancieres = [];\nvar chargesExceptionnelles = [];\n\nvar totalProduits = 0;\nvar totalCharges = 0;\n\nif (Array.isArray(rows)) {\n  rows.forEach(row => {\n    var { numero_compte, libelle, classe, montant } = row;\n    var poste = {\n      numero: numero_compte,\n      libelle: libelle || 'Sans libellé',\n      montant: parseFloat(montant) || 0\n    };\n\n    if (classe === 7) {\n      totalProduits += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '70' && numPrefix <= '75') {\n        produitsExploitation.push(poste);\n      } else if (numPrefix === '76') {\n        produitsFinanciers.push(poste);\n      } else if (numPrefix === '77') {\n        produitsExceptionnels.push(poste);\n      }\n    } else if (classe === 6) {\n      totalCharges += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '60' && numPrefix <= '65') {\n        chargesExploitation.push(poste);\n      } else if (numPrefix === '66') {\n        chargesFinancieres.push(poste);\n      } else if (numPrefix === '67') {\n        chargesExceptionnelles.push(poste);\n      }\n    }\n  });\n}\n\nvar resultatExploitation = totalProduits - totalCharges;\nvar resultatFinancier = 0;\nvar resultatExceptionnel = 0;\nvar resultatNet = resultatExploitation + resultatFinancier + resultatExceptionnel;\n\nreturn {\n  json: {\n    success: true,\n    produits: {\n      produitsExploitation,\n      produitsFinanciers,\n      produitsExceptionnels,\n      totalProduits\n    },\n    charges: {\n      chargesExploitation,\n      chargesFinancieres,\n      chargesExceptionnelles,\n      totalCharges\n    },\n    resultatExploitation,\n    resultatFinancier,\n    resultatExceptionnel,\n    resultatNet,\n    periode: {\n      dateFrom,\n      dateTo\n    }\n  }\n};"
       },
       "id": "formatCR",
       "name": "Format CR",
@@ -136,7 +139,9 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "options": {}
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond",
       "name": "Respond",

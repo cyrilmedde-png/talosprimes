@@ -70,7 +70,9 @@
     },
     {
       "parameters": {
-        "respondWithData": "{{ {error: 'Invalid request parameters', details: $json.validations} }}"
+        "respondWithData": "{{ {error: 'Invalid request parameters', details: $json.validations} }}",
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond_error",
       "name": "Respond Error",
@@ -104,7 +106,9 @@
         },
         "queryType": "native",
         "nativeQuery": "{{ $json.query }}",
-        "alwaysOutputData": true
+        "alwaysOutputData": true,
+        "operation": "executeQuery",
+        "query": "={{ $('Build Queries').first().json.query }}"
       },
       "id": "query_grand_livre",
       "name": "Query Grand Livre",
@@ -114,7 +118,13 @@
         800,
         200
       ],
-      "disabled": false
+      "disabled": false,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -132,7 +142,9 @@
     },
     {
       "parameters": {
-        "respondWithData": "{{ $json }}"
+        "respondWithData": "{{ $json }}",
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond_success",
       "name": "Respond",

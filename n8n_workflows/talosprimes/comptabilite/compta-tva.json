@@ -69,7 +69,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Helper function for SQL injection protection\nfunction esc(value) {\n  if (value === null || value === undefined) {\n    return \"NULL\";\n  }\n  if (typeof value === 'number') {\n    return value.toString();\n  }\n  if (typeof value === 'boolean') {\n    return value ? 'TRUE' : 'FALSE';\n  }\n  var str = value.toString();\n  return \"'\" + str.replace(/'/g, \"''\") + \"'\";\n}\n\nvar dateFrom = $node[\"parser-tva\"].json.dateFrom;\nvar dateTo = $node[\"parser-tva\"].json.dateTo;\n\n// Query 1: Get all TVA accounts with their balances\nvar queryTVAComptes = `\n  SELECT \n    account_number,\n    account_name,\n    SUM(CASE WHEN debit > 0 THEN debit ELSE 0 END) as total_debit,\n    SUM(CASE WHEN credit > 0 THEN credit ELSE 0 END) as total_credit,\n    SUM(CASE WHEN debit > 0 THEN debit ELSE 0 END) - SUM(CASE WHEN credit > 0 THEN credit ELSE 0 END) as solde\n  FROM journal_entries\n  WHERE \n    entry_date >= ${esc(dateFrom)} \n    AND entry_date <= ${esc(dateTo)}\n    AND (\n      account_number LIKE '44571%'\n      OR account_number LIKE '44566%'\n      OR account_number LIKE '44562%'\n    )\n  GROUP BY account_number, account_name\n  ORDER BY account_number\n`;\n\n// Query 2: Get totals for class 6 (achats) and class 7 (ventes)\nvar queryBasesHT = `\n  SELECT \n    SUBSTRING(account_number, 1, 1) as class,\n    SUM(CASE WHEN account_number LIKE '6%' THEN (COALESCE(debit, 0) - COALESCE(credit, 0)) ELSE 0 END) as total_achats,\n    SUM(CASE WHEN account_number LIKE '7%' THEN (COALESCE(credit, 0) - COALESCE(debit, 0)) ELSE 0 END) as total_ventes\n  FROM journal_entries\n  WHERE \n    entry_date >= ${esc(dateFrom)} \n    AND entry_date <= ${esc(dateTo)}\n    AND (account_number LIKE '6%' OR account_number LIKE '7%')\n  GROUP BY class\n`;\n\nreturn {\n  queryTVAComptes,\n  queryBasesHT,\n  dateFrom,\n  dateTo\n};"
+        "jsCode": "// Helper function for SQL injection protection\nfunction esc(value) {\n  if (value === null || value === undefined) {\n    return \"NULL\";\n  }\n  if (typeof value === 'number') {\n    return value.toString();\n  }\n  if (typeof value === 'boolean') {\n    return value ? 'TRUE' : 'FALSE';\n  }\n  var str = value.toString();\n  return \"'\" + str.replace(/'/g, \"''\") + \"'\";\n}\n\nvar dateFrom = $('Parser').first().json.dateFrom;\nvar dateTo = $('Parser').first().json.dateTo;\n\n// Query 1: Get all TVA accounts with their balances\nvar queryTVAComptes = `\n  SELECT \n    account_number,\n    account_name,\n    SUM(CASE WHEN debit > 0 THEN debit ELSE 0 END) as total_debit,\n    SUM(CASE WHEN credit > 0 THEN credit ELSE 0 END) as total_credit,\n    SUM(CASE WHEN debit > 0 THEN debit ELSE 0 END) - SUM(CASE WHEN credit > 0 THEN credit ELSE 0 END) as solde\n  FROM journal_entries\n  WHERE \n    entry_date >= ${esc(dateFrom)} \n    AND entry_date <= ${esc(dateTo)}\n    AND (\n      account_number LIKE '44571%'\n      OR account_number LIKE '44566%'\n      OR account_number LIKE '44562%'\n    )\n  GROUP BY account_number, account_name\n  ORDER BY account_number\n`;\n\n// Query 2: Get totals for class 6 (achats) and class 7 (ventes)\nvar queryBasesHT = `\n  SELECT \n    SUBSTRING(account_number, 1, 1) as class,\n    SUM(CASE WHEN account_number LIKE '6%' THEN (COALESCE(debit, 0) - COALESCE(credit, 0)) ELSE 0 END) as total_achats,\n    SUM(CASE WHEN account_number LIKE '7%' THEN (COALESCE(credit, 0) - COALESCE(debit, 0)) ELSE 0 END) as total_ventes\n  FROM journal_entries\n  WHERE \n    entry_date >= ${esc(dateFrom)} \n    AND entry_date <= ${esc(dateTo)}\n    AND (account_number LIKE '6%' OR account_number LIKE '7%')\n  GROUP BY class\n`;\n\nreturn {\n  queryTVAComptes,\n  queryBasesHT,\n  dateFrom,\n  dateTo\n};"
       },
       "id": "build-queries",
       "name": "Build Queries",
@@ -83,8 +83,9 @@
     {
       "parameters": {
         "postgresCredentialId": "OGqj65ZoFRileCck",
-        "query": "={{ $node[\"build-queries\"].json.queryTVAComptes }}",
-        "alwaysOutputData": true
+        "query": "={{ $('Build Queries').first().json.queryTVAComptes }}",
+        "alwaysOutputData": true,
+        "operation": "executeQuery"
       },
       "id": "query-tva-comptes",
       "name": "Query TVA Comptes",
@@ -93,13 +94,20 @@
       "position": [
         900,
         50
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
     },
     {
       "parameters": {
         "postgresCredentialId": "OGqj65ZoFRileCck",
-        "query": "={{ $node[\"build-queries\"].json.queryBasesHT }}",
-        "alwaysOutputData": true
+        "query": "={{ $('Build Queries').first().json.queryBasesHT }}",
+        "alwaysOutputData": true,
+        "operation": "executeQuery"
       },
       "id": "query-bases-ht",
       "name": "Query Bases HT",
@@ -108,11 +116,17 @@
       "position": [
         900,
         200
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Helper function to infer TVA rate from account number\nfunction inferTauxFromAccount(accountNumber) {\n  if (!accountNumber) return 20;\n  var suffix = accountNumber.slice(-2);\n  var suffixNum = parseInt(suffix);\n  \n  // Standard French TVA rates based on account suffix\n  if (suffixNum === 10 || suffixNum === 11) return 20;   // 20% - Normal rate\n  if (suffixNum === 12) return 10;                        // 10%\n  if (suffixNum === 13) return 5.5;                       // 5.5%\n  if (suffixNum === 14) return 2.1;                       // 2.1%\n  \n  return 20; // Default to 20%\n}\n\nvar tvaComptes = $node[\"query-tva-comptes\"].json;\nvar basesHT = $node[\"query-bases-ht\"].json;\nvar dateFrom = $node[\"parser-tva\"].json.dateFrom;\nvar dateTo = $node[\"parser-tva\"].json.dateTo;\nvar typeDeclaration = $node[\"parser-tva\"].json.typeDeclaration;\n\n// Initialize result arrays\nvar tvaCollectee = [];\nvar tvaDeductible = [];\n\nvar totalCollectee = 0;\nvar totalDeductible = 0;\n\n// Get total bases from query results\nvar basesData = Array.isArray(basesHT) ? basesHT[0] : {};\nvar totalAchats = Math.abs(parseFloat(basesData.total_achats) || 0);\nvar totalVentes = Math.abs(parseFloat(basesData.total_ventes) || 0);\n\n// Process TVA accounts\nif (Array.isArray(tvaComptes)) {\n  tvaComptes.forEach(account => {\n    var accountNumber = account.account_number || '';\n    var montantTVA = Math.abs(parseFloat(account.solde) || 0);\n    var taux = inferTauxFromAccount(accountNumber);\n    var baseHT = montantTVA > 0 ? (montantTVA / (taux / 100)) : 0;\n    \n    // Determine if this is collectée or déductible\n    if (accountNumber.startsWith('44571')) {\n      // TVA Collectée (credit side)\n      totalCollectee += montantTVA;\n      tvaCollectee.push({\n        taux: taux,\n        baseHT: Math.round(baseHT * 100) / 100,\n        montantTVA: Math.round(montantTVA * 100) / 100,\n        compteCollecte: accountNumber\n      });\n    } else if (accountNumber.startsWith('44566') || accountNumber.startsWith('44562')) {\n      // TVA Déductible (debit side)\n      totalDeductible += montantTVA;\n      tvaDeductible.push({\n        taux: taux,\n        baseHT: Math.round(baseHT * 100) / 100,\n        montantTVA: Math.round(montantTVA * 100) / 100,\n        compteDeductible: accountNumber\n      });\n    }\n  });\n}\n\n// Round totals\ntotalCollectee = Math.round(totalCollectee * 100) / 100;\ntotalDeductible = Math.round(totalDeductible * 100) / 100;\n\n// Calculate TVA à payer or crédit\nvar tvaAPayer = totalCollectee - totalDeductible;\nvar result = {\n  success: true,\n  periode: {\n    dateFrom: dateFrom,\n    dateTo: dateTo\n  },\n  typeDeclaration: typeDeclaration,\n  totalCollectee: totalCollectee,\n  totalDeductible: totalDeductible\n};\n\n// Add arrays only if they have data\nif (tvaCollectee.length > 0) {\n  result.tvaCollectee = tvaCollectee;\n}\nif (tvaDeductible.length > 0) {\n  result.tvaDeductible = tvaDeductible;\n}\n\n// Add TVA à payer or crédit\nif (tvaAPayer > 0) {\n  result.tvaAPayer = tvaAPayer;\n} else if (tvaAPayer < 0) {\n  result.creditTVA = Math.abs(tvaAPayer);\n}\n\nreturn result;"
+        "jsCode": "// Helper function to infer TVA rate from account number\nfunction inferTauxFromAccount(accountNumber) {\n  if (!accountNumber) return 20;\n  var suffix = accountNumber.slice(-2);\n  var suffixNum = parseInt(suffix);\n  \n  // Standard French TVA rates based on account suffix\n  if (suffixNum === 10 || suffixNum === 11) return 20;   // 20% - Normal rate\n  if (suffixNum === 12) return 10;                        // 10%\n  if (suffixNum === 13) return 5.5;                       // 5.5%\n  if (suffixNum === 14) return 2.1;                       // 2.1%\n  \n  return 20; // Default to 20%\n}\n\nvar tvaComptes = $('Query TVA Comptes').first().json;\nvar basesHT = $('Query Bases HT').first().json;\nvar dateFrom = $('Parser').first().json.dateFrom;\nvar dateTo = $('Parser').first().json.dateTo;\nvar typeDeclaration = $('Parser').first().json.typeDeclaration;\n\n// Initialize result arrays\nvar tvaCollectee = [];\nvar tvaDeductible = [];\n\nvar totalCollectee = 0;\nvar totalDeductible = 0;\n\n// Get total bases from query results\nvar basesData = Array.isArray(basesHT) ? basesHT[0] : {};\nvar totalAchats = Math.abs(parseFloat(basesData.total_achats) || 0);\nvar totalVentes = Math.abs(parseFloat(basesData.total_ventes) || 0);\n\n// Process TVA accounts\nif (Array.isArray(tvaComptes)) {\n  tvaComptes.forEach(account => {\n    var accountNumber = account.account_number || '';\n    var montantTVA = Math.abs(parseFloat(account.solde) || 0);\n    var taux = inferTauxFromAccount(accountNumber);\n    var baseHT = montantTVA > 0 ? (montantTVA / (taux / 100)) : 0;\n    \n    // Determine if this is collectée or déductible\n    if (accountNumber.startsWith('44571')) {\n      // TVA Collectée (credit side)\n      totalCollectee += montantTVA;\n      tvaCollectee.push({\n        taux: taux,\n        baseHT: Math.round(baseHT * 100) / 100,\n        montantTVA: Math.round(montantTVA * 100) / 100,\n        compteCollecte: accountNumber\n      });\n    } else if (accountNumber.startsWith('44566') || accountNumber.startsWith('44562')) {\n      // TVA Déductible (debit side)\n      totalDeductible += montantTVA;\n      tvaDeductible.push({\n        taux: taux,\n        baseHT: Math.round(baseHT * 100) / 100,\n        montantTVA: Math.round(montantTVA * 100) / 100,\n        compteDeductible: accountNumber\n      });\n    }\n  });\n}\n\n// Round totals\ntotalCollectee = Math.round(totalCollectee * 100) / 100;\ntotalDeductible = Math.round(totalDeductible * 100) / 100;\n\n// Calculate TVA à payer or crédit\nvar tvaAPayer = totalCollectee - totalDeductible;\nvar result = {\n  success: true,\n  periode: {\n    dateFrom: dateFrom,\n    dateTo: dateTo\n  },\n  typeDeclaration: typeDeclaration,\n  totalCollectee: totalCollectee,\n  totalDeductible: totalDeductible\n};\n\n// Add arrays only if they have data\nif (tvaCollectee.length > 0) {\n  result.tvaCollectee = tvaCollectee;\n}\nif (tvaDeductible.length > 0) {\n  result.tvaDeductible = tvaDeductible;\n}\n\n// Add TVA à payer or crédit\nif (tvaAPayer > 0) {\n  result.tvaAPayer = tvaAPayer;\n} else if (tvaAPayer < 0) {\n  result.creditTVA = Math.abs(tvaAPayer);\n}\n\nreturn result;"
       },
       "id": "format-tva",
       "name": "Format TVA",
@@ -125,7 +139,9 @@
     },
     {
       "parameters": {
-        "responseData": "={{ $node[\"format-tva\"].json }}"
+        "responseData": "={{ $node[\"format-tva\"].json }}",
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond-success",
       "name": "Respond",

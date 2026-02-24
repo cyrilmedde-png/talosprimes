@@ -55,7 +55,8 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"tenantId is required\"\n}"
+        "responseBody": "={{ JSON.stringify({\"success\": false, \"error\": \"tenantId is required\"}) }}",
+        "respondWith": "json"
       },
       "id": "respond_error",
       "name": "Respond Error",
@@ -68,7 +69,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function esc(str) {\n  if (str === null || str === undefined) return 'NULL';\n  if (typeof str === 'number') return str.toString();\n  var escaped = str.toString().replace(/'/g, \"''\");\n  return `'${escaped}'`;\n}\n\nvar tenantId = $node.parser.json.tenantId;\nvar dateFrom = $node.parser.json.dateFrom;\nvar dateTo = $node.parser.json.dateTo;\n\nvar dateFilter = '';\nif (dateFrom && dateTo) {\n  dateFilter = `AND e.date_ecriture >= ${esc(dateFrom)} AND e.date_ecriture <= ${esc(dateTo)}`;\n} else if (dateFrom) {\n  dateFilter = `AND e.date_ecriture >= ${esc(dateFrom)}`;\n} else if (dateTo) {\n  dateFilter = `AND e.date_ecriture <= ${esc(dateTo)}`;\n}\n\nvar query = `SELECT le.numero_compte, pc.libelle as compte_libelle, pc.classe,\n  COALESCE(SUM(le.debit), 0) as total_debit,\n  COALESCE(SUM(le.credit), 0) as total_credit\nFROM lignes_ecritures le\nJOIN ecritures_comptables e ON le.ecriture_id = e.id\nLEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id\nWHERE e.tenant_id = ${esc(tenantId)}::uuid AND e.statut = 'validee'\n  ${dateFilter}\nGROUP BY le.numero_compte, pc.libelle, pc.classe\nHAVING COALESCE(SUM(le.debit), 0) != 0 OR COALESCE(SUM(le.credit), 0) != 0\nORDER BY le.numero_compte ASC`;\n\nreturn {\n  query\n};"
+        "jsCode": "function esc(str) {\n  if (str === null || str === undefined) return 'NULL';\n  if (typeof str === 'number') return str.toString();\n  var escaped = str.toString().replace(/'/g, \"''\");\n  return `'${escaped}'`;\n}\n\nvar tenantId = $('Parser').first().json.tenantId;\nvar dateFrom = $('Parser').first().json.dateFrom;\nvar dateTo = $('Parser').first().json.dateTo;\n\nvar dateFilter = '';\nif (dateFrom && dateTo) {\n  dateFilter = `AND e.date_ecriture >= ${esc(dateFrom)} AND e.date_ecriture <= ${esc(dateTo)}`;\n} else if (dateFrom) {\n  dateFilter = `AND e.date_ecriture >= ${esc(dateFrom)}`;\n} else if (dateTo) {\n  dateFilter = `AND e.date_ecriture <= ${esc(dateTo)}`;\n}\n\nvar query = `SELECT le.numero_compte, pc.libelle as compte_libelle, pc.classe,\n  COALESCE(SUM(le.debit), 0) as total_debit,\n  COALESCE(SUM(le.credit), 0) as total_credit\nFROM lignes_ecritures le\nJOIN ecritures_comptables e ON le.ecriture_id = e.id\nLEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id\nWHERE e.tenant_id = ${esc(tenantId)}::uuid AND e.statut = 'validee'\n  ${dateFilter}\nGROUP BY le.numero_compte, pc.libelle, pc.classe\nHAVING COALESCE(SUM(le.debit), 0) != 0 OR COALESCE(SUM(le.credit), 0) != 0\nORDER BY le.numero_compte ASC`;\n\nreturn {\n  query\n};"
       },
       "id": "build_queries",
       "name": "Build Queries",
@@ -85,8 +86,9 @@
         "nodeCredentials": {
           "postgres": "OGqj65ZoFRileCck"
         },
-        "query": "{{ $node.build_queries.json.query }}",
-        "alwaysOutputData": true
+        "query": "={{ $('Build Queries').first().json.query }}",
+        "alwaysOutputData": true,
+        "operation": "executeQuery"
       },
       "id": "query_balance",
       "name": "Query Balance",
@@ -95,7 +97,13 @@
       "position": [
         1050,
         300
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
     },
     {
       "parameters": {
@@ -115,7 +123,8 @@
         "respondWithOptions": {
           "responseType": "json"
         },
-        "responseBody": "{{ $node.format_response.json }}"
+        "responseBody": "{{ $node.format_response.json }}",
+        "respondWith": "json"
       },
       "id": "respond",
       "name": "Respond",
