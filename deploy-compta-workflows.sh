@@ -108,23 +108,30 @@ echo "$ALL_WF" | grep -i compta
 echo ""
 
 # Extraire les IDs pour nos 5 webhooks
-# On cherche les plus récents (dernière occurrence de chaque nom)
+# On garde le DERNIER ID trouvé (= le plus récent import) pour chaque type
+# et on désactive tous les anciens doublons
 declare -A WF_IDS
+declare -A WF_ALL_IDS  # all IDs per type, space-separated
 
 while IFS='|' read -r id name rest; do
   id=$(echo "$id" | xargs)
   name=$(echo "$name" | xargs)
+  key=""
   case "$name" in
-    *"Grand Livre"*|*"grand-livre"*|*"grand_livre"*)  WF_IDS["grand-livre"]="$id" ;;
-    *"Balance"*|*"balance"*)                            WF_IDS["balance"]="$id" ;;
-    *"Compte"*"R"*"sultat"*|*"compte-resultat"*)       WF_IDS["compte-resultat"]="$id" ;;
-    *"TVA"*|*"tva"*)                                    WF_IDS["tva"]="$id" ;;
-    *"Lettrage"*|*"lettrage"*)                          WF_IDS["lettrage"]="$id" ;;
+    *"Grand Livre"*|*"grand-livre"*|*"grand_livre"*)  key="grand-livre" ;;
+    *"Balance"*|*"balance"*)                            key="balance" ;;
+    *"Compte"*"R"*"sultat"*|*"compte-resultat"*)       key="compte-resultat" ;;
+    *"TVA"*|*"tva"*)                                    key="tva" ;;
+    *"Lettrage"*|*"lettrage"*)                          key="lettrage" ;;
   esac
+  if [ -n "$key" ]; then
+    WF_IDS["$key"]="$id"  # last one wins = newest
+    WF_ALL_IDS["$key"]="${WF_ALL_IDS[$key]} $id"
+  fi
 done <<< "$ALL_WF"
 
 echo ""
-log "IDs détectés:"
+log "IDs détectés (plus récent):"
 for key in grand-livre balance compte-resultat tva lettrage; do
   if [ -n "${WF_IDS[$key]}" ]; then
     ok "  $key → ${WF_IDS[$key]}"
@@ -134,18 +141,24 @@ for key in grand-livre balance compte-resultat tva lettrage; do
 done
 
 ##############################################################################
-# ÉTAPE 5 : Activer tous les workflows trouvés
+# ÉTAPE 5 : Désactiver TOUS les anciens doublons, activer seulement le dernier
 ##############################################################################
 echo ""
-log "Activation des workflows..."
+log "Désactivation des anciens doublons + activation des nouveaux..."
 
 for key in grand-livre balance compte-resultat tva lettrage; do
-  wid="${WF_IDS[$key]}"
-  if [ -n "$wid" ]; then
-    echo -n "  Activating $key ($wid) ... "
-    docker exec -u node "$CONTAINER" n8n update:workflow --id="$wid" --active=true 2>/dev/null
-    ok "activé"
-  fi
+  newest="${WF_IDS[$key]}"
+  for wid in ${WF_ALL_IDS[$key]}; do
+    if [ "$wid" = "$newest" ]; then
+      echo -n "  ACTIVATE $key ($wid) ... "
+      docker exec -u node "$CONTAINER" n8n update:workflow --id="$wid" --active=true 2>/dev/null
+      ok "activé"
+    else
+      echo -n "  deactivate old $key ($wid) ... "
+      docker exec -u node "$CONTAINER" n8n update:workflow --id="$wid" --active=false 2>/dev/null
+      ok "désactivé"
+    fi
+  done
 done
 
 ##############################################################################
