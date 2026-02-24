@@ -341,6 +341,36 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
 
+        // Auto-init compta si plan comptable vide
+        try {
+          const nbComptes = await prisma.planComptable.count({ where: { tenantId } });
+          if (nbComptes === 0) {
+            fastify.log.info('Plan comptable vide pour tenant %s, lancement auto-init compta (avoir)...', tenantId);
+            const initRes = await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
+            if (initRes.success) {
+              fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
+            } else {
+              fastify.log.warn('Auto-init compta échouée pour tenant %s: %s', tenantId, initRes.error);
+            }
+          }
+        } catch (initErr) {
+          fastify.log.warn(initErr, 'Impossible de vérifier/initialiser la comptabilité');
+        }
+
+        // Comptabilisation automatique avoir (async, non-bloquant)
+        try {
+          const resData = res.data as Record<string, unknown> | undefined;
+          const avoirId = resData?.avoirId ?? resData?.avoir_id ?? (resData?.avoir as Record<string, unknown>)?.id ?? resData?.id;
+          if (avoirId) {
+            n8nService.triggerWorkflow(tenantId, 'compta_auto_avoir', {
+              avoirId: String(avoirId),
+              tenantId,
+            }).catch((err) => {
+              fastify.log.warn(err, 'Échec comptabilisation auto pour avoir %s', avoirId);
+            });
+          }
+        } catch (_) { /* non-bloquant */ }
+
         return reply.status(201).send({
           success: true,
           message: 'Avoir créé via n8n',
@@ -391,6 +421,30 @@ export async function avoirRoutes(fastify: FastifyInstance) {
 
       // Log the event
       await logEvent(tenantId, 'avoir_create', 'Avoir', avoir.id, { numeroAvoir: avoir.numeroAvoir, montantTtc: Number(avoir.montantTtc) }, 'succes');
+
+      // Auto-init compta si plan comptable vide (callback n8n)
+      try {
+        const nbComptes = await prisma.planComptable.count({ where: { tenantId } });
+        if (nbComptes === 0) {
+          fastify.log.info('Plan comptable vide pour tenant %s, lancement auto-init compta (avoir callback)...', tenantId);
+          const initRes = await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
+          if (initRes.success) {
+            fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
+          } else {
+            fastify.log.warn('Auto-init compta échouée pour tenant %s: %s', tenantId, initRes.error);
+          }
+        }
+      } catch (initErr) {
+        fastify.log.warn(initErr, 'Impossible de vérifier/initialiser la comptabilité');
+      }
+
+      // Comptabilisation automatique avoir (async, non-bloquant)
+      n8nService.triggerWorkflow(tenantId, 'compta_auto_avoir', {
+        avoirId: avoir.id,
+        tenantId,
+      }).catch((err) => {
+        fastify.log.warn(err, 'Échec comptabilisation auto pour avoir %s', avoir.id);
+      });
 
       return reply.status(201).send({
         success: true,
@@ -443,6 +497,16 @@ export async function avoirRoutes(fastify: FastifyInstance) {
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
         }
+        // Comptabilisation automatique avoir à la validation (async, non-bloquant)
+        try {
+          n8nService.triggerWorkflow(tenantId, 'compta_auto_avoir', {
+            avoirId: params.id,
+            tenantId,
+          }).catch((err) => {
+            fastify.log.warn(err, 'Échec comptabilisation auto pour avoir %s', params.id);
+          });
+        } catch (_) { /* non-bloquant */ }
+
         return reply.status(200).send({
           success: true,
           message: 'Avoir validé via n8n',
@@ -458,6 +522,14 @@ export async function avoirRoutes(fastify: FastifyInstance) {
 
       // Log the event
       await logEvent(tenantId, 'avoir_validate', 'Avoir', updated.id, { numeroAvoir: avoir.numeroAvoir }, 'succes');
+
+      // Comptabilisation automatique avoir à la validation (callback n8n)
+      n8nService.triggerWorkflow(tenantId, 'compta_auto_avoir', {
+        avoirId: updated.id,
+        tenantId,
+      }).catch((err) => {
+        fastify.log.warn(err, 'Échec comptabilisation auto pour avoir %s', updated.id);
+      });
 
       return reply.status(200).send({ success: true, message: 'Avoir validé', data: { avoir: updated } });
     } catch (error) {
