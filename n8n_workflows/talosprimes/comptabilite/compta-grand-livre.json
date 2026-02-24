@@ -5,7 +5,6 @@
       "parameters": {
         "path": "compta-grand-livre",
         "responseMode": "responseNode",
-        "method": "POST",
         "httpMethod": "POST"
       },
       "id": "webhook",
@@ -13,148 +12,127 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        0,
+        100,
         200
-      ],
-      "webhookId": "uuid-will-be-generated",
-      "disabled": false
+      ]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json;\n\n// Extract and validate UUID format\nvar uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nvar tenantId = body.tenantId || body.tenant_id;\nvar dateFrom = body.dateFrom || body.date_from || body.period?.dateFrom;\nvar dateTo = body.dateTo || body.date_to || body.period?.dateTo;\nvar compteFrom = body.compteFrom || body.compte_from || null;\nvar compteTo = body.compteTo || body.compte_to || null;\n\nvar isValidUUID = (id) => {\n  if (!id || typeof id !== 'string') return false;\n  return uuidRegex.test(id);\n};\n\nvar isValidDate = (date) => {\n  if (!date || typeof date !== 'string') return false;\n  return !isNaN(new Date(date).getTime());\n};\n\nreturn {\n  tenantId,\n  dateFrom,\n  dateTo,\n  compteFrom,\n  compteTo,\n  validations: {\n    tenantIdValid: isValidUUID(tenantId),\n    dateFromValid: isValidDate(dateFrom),\n    dateToValid: isValidDate(dateTo),\n    comptesValid: !compteFrom || !compteTo || (typeof compteFrom === 'string' && typeof compteTo === 'string')\n  }\n};"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!UUID_RE.test(body.tenantId)) throw new Error('tenantId invalide');\nvar today = new Date().toISOString().split('T')[0];\nreturn [{ json: {\n  tenantId: body.tenantId,\n  dateFrom: body.dateFrom || null,\n  dateTo: body.dateTo || today,\n  compteFrom: body.compteFrom || null,\n  compteTo: body.compteTo || null\n} }];"
       },
       "id": "parser",
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        200,
+        300,
         200
-      ],
-      "disabled": false
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "nodeOutputs": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "conditions": [
-                {
-                  "key": "validations.tenantIdValid",
-                  "condition": "notEmpty"
-                },
-                {
-                  "key": "validations.dateFromValid",
-                  "condition": "notEmpty"
-                },
-                {
-                  "key": "validations.dateToValid",
-                  "condition": "notEmpty"
-                }
-              ],
-              "combinator": "and",
-              "type": "object"
+              "id": "cond-1",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "if_valide",
+      "id": "if-valide",
       "name": "IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        400,
+        500,
         200
-      ],
-      "disabled": false
+      ]
     },
     {
       "parameters": {
-        "respondWithData": "{{ {error: 'Invalid request parameters', details: $json.validations} }}",
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant ou invalide\" }"
       },
-      "id": "respond_error",
+      "id": "respond-error",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        600,
-        400
-      ],
-      "disabled": false
+        700,
+        100
+      ]
     },
     {
       "parameters": {
-        "jsCode": "var { tenantId, dateFrom, dateTo, compteFrom, compteTo } = $input.first().json;\n\n// Helper function to safely escape SQL strings\nvar esc = (value) => {\n  if (value === null || value === undefined) return 'NULL';\n  if (typeof value === 'boolean') return value ? 'true' : 'false';\n  if (typeof value === 'number') return value.toString();\n  \n  // For UUIDs and dates, use parameterized query style\n  if (typeof value === 'string') {\n    // Return the string as-is for parameterized placeholders\n    return value.replace(/'/g, \"''\");\n  }\n  return value.toString().replace(/'/g, \"''\");\n};\n\n// Build the base query\nvar query = `\nSELECT \n  le.numero_compte, \n  pc.libelle as compte_libelle, \n  e.date_ecriture, \n  e.numero_piece, \n  e.journal_code, \n  le.libelle_ligne, \n  le.debit, \n  le.credit\nFROM lignes_ecritures le\nJOIN ecritures_comptables e ON le.ecriture_id = e.id\nLEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id\nWHERE e.tenant_id = '${esc(tenantId)}'::uuid \n  AND e.statut = 'validee'\n`;\n\n// Add date filters\nif (dateFrom) {\n  query += ` AND e.date_ecriture >= '${esc(dateFrom)}'`;\n}\nif (dateTo) {\n  query += ` AND e.date_ecriture <= '${esc(dateTo)}'`;\n}\n\n// Add account range filters\nif (compteFrom) {\n  query += ` AND le.numero_compte >= '${esc(compteFrom)}'`;\n}\nif (compteTo) {\n  query += ` AND le.numero_compte <= '${esc(compteTo)}'`;\n}\n\nquery += `\nORDER BY le.numero_compte ASC, e.date_ecriture ASC, le.ordre ASC\n`;\n\nreturn {\n  query,\n  tenantId,\n  dateFrom,\n  dateTo,\n  compteFrom,\n  compteTo\n};"
+        "jsCode": "function esc(v) { return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar p = $('Parser').first().json;\nvar query = \"SELECT le.numero_compte, pc.libelle as compte_libelle, e.date_ecriture, e.numero_piece, e.journal_code, le.libelle_ligne, le.debit, le.credit FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = \" + esc(p.tenantId) + \"::uuid AND e.statut = 'validee'\";\nif (p.dateFrom) query += \" AND e.date_ecriture >= \" + esc(p.dateFrom) + \"::date\";\nif (p.dateTo) query += \" AND e.date_ecriture <= \" + esc(p.dateTo) + \"::date\";\nif (p.compteFrom) query += \" AND le.numero_compte >= \" + esc(p.compteFrom);\nif (p.compteTo) query += \" AND le.numero_compte <= \" + esc(p.compteTo);\nquery += \" ORDER BY le.numero_compte ASC, e.date_ecriture ASC\";\nreturn [{ json: { query: query } }];"
       },
-      "id": "build_queries",
+      "id": "build-queries",
       "name": "Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        600,
-        200
-      ],
-      "disabled": false
+        700,
+        300
+      ]
     },
     {
       "parameters": {
-        "credentialsToUse": {
-          "credentialType": "postgres",
-          "credentialId": "OGqj65ZoFRileCck"
-        },
-        "queryType": "native",
-        "nativeQuery": "{{ $json.query }}",
-        "alwaysOutputData": true,
         "operation": "executeQuery",
-        "query": "={{ $('Build Queries').first().json.query }}"
+        "query": "={{ $json.query }}"
       },
-      "id": "query_grand_livre",
+      "id": "query-grand-livre",
       "name": "Query Grand Livre",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        800,
-        200
-      ],
-      "disabled": false,
       "credentials": {
         "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "position": [
+        900,
+        300
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "var rows = $input.first().json.data || [];\nvar { dateFrom, dateTo, tenantId } = $input.first().json;\n\n// Group by numero_compte\nvar compteMap = {};\n\nvar totalDebit = 0;\nvar totalCredit = 0;\n\nrows.forEach((row) => {\n  var numeroCompte = row.numero_compte || '';\n  var libelleCompte = row.compte_libelle || 'Sans libellé';\n  var debit = parseFloat(row.debit) || 0;\n  var credit = parseFloat(row.credit) || 0;\n\n  totalDebit += debit;\n  totalCredit += credit;\n\n  if (!compteMap[numeroCompte]) {\n    compteMap[numeroCompte] = {\n      numeroCompte,\n      libelleCompte,\n      totalDebit: 0,\n      totalCredit: 0,\n      solde: 0,\n      lignes: []\n    };\n  }\n\n  compteMap[numeroCompte].totalDebit += debit;\n  compteMap[numeroCompte].totalCredit += credit;\n\n  // Add line to compte\n  compteMap[numeroCompte].lignes.push({\n    date: row.date_ecriture,\n    journalCode: row.journal_code,\n    numeroEcriture: row.numero_piece || null,\n    libelle: row.libelle_ligne,\n    debit,\n    credit\n  });\n});\n\n// Calculate solde and running balance (soldeCumule) for each compte\nvar comptes = Object.values(compteMap).map((compte) => {\n  compte.solde = compte.totalDebit - compte.totalCredit;\n  \n  // Calculate running balance (soldeCumule) for each line\n  var runningBalance = 0;\n  compte.lignes.forEach((ligne) => {\n    runningBalance += (ligne.debit - ligne.credit);\n    ligne.soldeCumule = runningBalance;\n  });\n\n  return compte;\n});\n\nvar response = {\n  success: true,\n  comptes,\n  totaux: {\n    totalDebit,\n    totalCrebit\n  },\n  periode: {\n    dateFrom: dateFrom || null,\n    dateTo: dateTo || null\n  }\n};\n\nreturn response;"
+        "jsCode": "var items = $('Query Grand Livre').all().map(function(i) { return i.json; }).filter(function(c) { return c.numero_compte; });\nvar p = $('Parser').first().json;\nvar compteMap = {};\nvar totalDebit = 0;\nvar totalCredit = 0;\nfor (var i = 0; i < items.length; i++) {\n  var row = items[i];\n  var nc = row.numero_compte || '';\n  var d = parseFloat(row.debit) || 0;\n  var c = parseFloat(row.credit) || 0;\n  totalDebit += d;\n  totalCredit += c;\n  if (!compteMap[nc]) {\n    compteMap[nc] = { numeroCompte: nc, libelleCompte: row.compte_libelle || 'Sans libellé', totalDebit: 0, totalCredit: 0, solde: 0, lignes: [] };\n  }\n  compteMap[nc].totalDebit += d;\n  compteMap[nc].totalCredit += c;\n  compteMap[nc].lignes.push({ date: row.date_ecriture, journalCode: row.journal_code, numeroEcriture: row.numero_piece || null, libelle: row.libelle_ligne, debit: d, credit: c });\n}\nvar comptes = Object.values(compteMap).map(function(compte) {\n  compte.solde = compte.totalDebit - compte.totalCredit;\n  var rb = 0;\n  compte.lignes.forEach(function(l) { rb += (l.debit - l.credit); l.soldeCumule = rb; });\n  return compte;\n});\nreturn [{ json: {\n  success: true,\n  comptes: comptes,\n  totaux: { totalDebit: totalDebit, totalCredit: totalCredit },\n  periode: { dateFrom: p.dateFrom || null, dateTo: p.dateTo || null }\n} }];"
       },
-      "id": "format_response",
+      "id": "format-response",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1000,
-        200
-      ],
-      "disabled": false
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
-        "respondWithData": "{{ $json }}",
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
-      "id": "respond_success",
+      "id": "respond",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1200,
-        200
-      ],
-      "disabled": false
+        1300,
+        300
+      ]
     }
   ],
   "connections": {
@@ -232,13 +210,8 @@
       ]
     }
   },
-  "active": true,
   "settings": {
-    "errorHandler": "continueErrorHandler",
-    "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all"
+    "executionOrder": "v1"
   },
-  "staticData": null,
-  "hash": "",
-  "id": ""
+  "active": true
 }

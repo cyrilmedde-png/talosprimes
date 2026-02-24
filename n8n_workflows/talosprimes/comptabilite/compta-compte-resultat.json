@@ -1,13 +1,10 @@
 {
-  "id": "compta-compte-resultat",
   "name": "Compte de Résultat",
-  "active": true,
   "nodes": [
     {
       "parameters": {
         "path": "compta-compte-resultat",
         "responseMode": "responseNode",
-        "options": {},
         "httpMethod": "POST"
       },
       "id": "webhook",
@@ -15,141 +12,126 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        250,
-        100
-      ],
-      "webhookId": "webhook"
+        100,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json;\nvar tenantId = body.tenantId;\nvar dateFrom = body.dateFrom;\nvar dateTo = body.dateTo;\n\nif (!tenantId || !dateFrom || !dateTo) {\n  throw new Error('Missing required fields: tenantId, dateFrom, dateTo');\n}\n\nreturn {\n  json: {\n    tenantId,\n    dateFrom,\n    dateTo\n  }\n};"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!UUID_RE.test(body.tenantId)) throw new Error('tenantId invalide');\nvar today = new Date().toISOString().split('T')[0];\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom || null, dateTo: body.dateTo || today } }];"
       },
       "id": "parser",
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        450,
-        100
-      ],
-      "executionOrder": "v1"
+        300,
+        200
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "options": {
-            "nodeOutputType": "json"
+            "caseSensitive": true,
+            "leftValue": ""
           },
           "conditions": [
             {
-              "key": "tenantId",
-              "condition": "exists"
+              "id": "cond-1",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "ifValide",
+      "id": "if-valide",
       "name": "IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        650,
-        100
+        500,
+        200
       ]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "options": {},
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
       },
-      "id": "respondError",
+      "id": "respond-error",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        850,
-        250
+        700,
+        100
       ]
     },
     {
       "parameters": {
-        "jsCode": "var { tenantId, dateFrom, dateTo } = $input.first().json;\n\nfunction esc(value) {\n  if (typeof value === 'string') {\n    return \"'\" + value.replace(/'/g, \"''\") + \"'\";\n  }\n  return value;\n}\n\nvar query = `\nSELECT le.numero_compte, pc.libelle, pc.classe,\n  CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0)\n       WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END as montant\nFROM lignes_ecritures le\nJOIN ecritures_comptables e ON le.ecriture_id = e.id\nLEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id\nWHERE e.tenant_id = ${esc(tenantId)}::uuid\n  AND e.statut = 'validee'\n  AND pc.classe IN (6, 7)\n  AND e.date >= ${esc(dateFrom)}::date\n  AND e.date <= ${esc(dateTo)}::date\nGROUP BY le.numero_compte, pc.libelle, pc.classe\nHAVING SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END) != 0\nORDER BY le.numero_compte\n`;\n\nreturn {\n  json: {\n    query: query.trim(),\n    tenantId,\n    dateFrom,\n    dateTo\n  }\n};"
+        "jsCode": "function esc(v) { return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar p = $('Parser').first().json;\nvar dateFilter = '';\nif (p.dateFrom) dateFilter += ' AND e.date_ecriture >= ' + esc(p.dateFrom) + '::date';\nif (p.dateTo) dateFilter += ' AND e.date_ecriture <= ' + esc(p.dateTo) + '::date';\nvar query = \"SELECT le.numero_compte, pc.libelle, pc.classe, CASE WHEN pc.classe = 6 THEN COALESCE(SUM(le.debit - le.credit), 0) WHEN pc.classe = 7 THEN COALESCE(SUM(le.credit - le.debit), 0) ELSE 0 END as montant FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = \" + esc(p.tenantId) + \"::uuid AND e.statut = 'validee' AND pc.classe IN (6, 7)\" + dateFilter + \" GROUP BY le.numero_compte, pc.libelle, pc.classe HAVING COALESCE(SUM(CASE WHEN pc.classe = 6 THEN le.debit - le.credit WHEN pc.classe = 7 THEN le.credit - le.debit ELSE 0 END), 0) != 0 ORDER BY le.numero_compte\";\nreturn [{ json: { query: query, dateFrom: p.dateFrom, dateTo: p.dateTo } }];"
       },
-      "id": "buildQueries",
+      "id": "build-queries",
       "name": "Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        850,
-        100
-      ],
-      "executionOrder": "v1"
+        700,
+        300
+      ]
     },
     {
       "parameters": {
-        "nodeCredentialType": "postgres",
-        "connectionProperties": {
-          "database": {},
-          "credentials": {
-            "credentialsId": "OGqj65ZoFRileCck"
-          }
-        },
-        "queryType": "raw",
-        "query": "={{ $('Build Queries').first().json.query }}",
-        "options": {
-          "alwaysOutputData": true
-        },
-        "operation": "executeQuery"
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
       },
-      "id": "queryCR",
+      "id": "query-cr",
       "name": "Query CR",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        1050,
-        100
-      ],
       "credentials": {
         "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "position": [
+        900,
+        300
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "var rows = $input.first().json;\nvar { dateFrom, dateTo } = $('Build Queries').first().json;\n\nvar produitsExploitation = [];\nvar produitsFinanciers = [];\nvar produitsExceptionnels = [];\n\nvar chargesExploitation = [];\nvar chargesFinancieres = [];\nvar chargesExceptionnelles = [];\n\nvar totalProduits = 0;\nvar totalCharges = 0;\n\nif (Array.isArray(rows)) {\n  rows.forEach(row => {\n    var { numero_compte, libelle, classe, montant } = row;\n    var poste = {\n      numero: numero_compte,\n      libelle: libelle || 'Sans libellé',\n      montant: parseFloat(montant) || 0\n    };\n\n    if (classe === 7) {\n      totalProduits += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '70' && numPrefix <= '75') {\n        produitsExploitation.push(poste);\n      } else if (numPrefix === '76') {\n        produitsFinanciers.push(poste);\n      } else if (numPrefix === '77') {\n        produitsExceptionnels.push(poste);\n      }\n    } else if (classe === 6) {\n      totalCharges += poste.montant;\n      var numPrefix = numero_compte.substring(0, 2);\n      if (numPrefix >= '60' && numPrefix <= '65') {\n        chargesExploitation.push(poste);\n      } else if (numPrefix === '66') {\n        chargesFinancieres.push(poste);\n      } else if (numPrefix === '67') {\n        chargesExceptionnelles.push(poste);\n      }\n    }\n  });\n}\n\nvar resultatExploitation = totalProduits - totalCharges;\nvar resultatFinancier = 0;\nvar resultatExceptionnel = 0;\nvar resultatNet = resultatExploitation + resultatFinancier + resultatExceptionnel;\n\nreturn {\n  json: {\n    success: true,\n    produits: {\n      produitsExploitation,\n      produitsFinanciers,\n      produitsExceptionnels,\n      totalProduits\n    },\n    charges: {\n      chargesExploitation,\n      chargesFinancieres,\n      chargesExceptionnelles,\n      totalCharges\n    },\n    resultatExploitation,\n    resultatFinancier,\n    resultatExceptionnel,\n    resultatNet,\n    periode: {\n      dateFrom,\n      dateTo\n    }\n  }\n};"
+        "jsCode": "var items = $('Query CR').all().map(function(i) { return i.json; }).filter(function(r) { return r.numero_compte; });\nvar p = $('Build Queries').first().json;\nvar produitsExploitation = [], produitsFinanciers = [], produitsExceptionnels = [];\nvar chargesExploitation = [], chargesFinancieres = [], chargesExceptionnelles = [];\nvar totalProduits = 0, totalCharges = 0;\nitems.forEach(function(row) {\n  var poste = { numero: row.numero_compte, libelle: row.libelle || 'Sans libellé', montant: parseFloat(row.montant) || 0 };\n  var np = row.numero_compte.substring(0, 2);\n  if (parseInt(row.classe) === 7) {\n    totalProduits += poste.montant;\n    if (np >= '70' && np <= '75') produitsExploitation.push(poste);\n    else if (np === '76') produitsFinanciers.push(poste);\n    else if (np === '77') produitsExceptionnels.push(poste);\n  } else if (parseInt(row.classe) === 6) {\n    totalCharges += poste.montant;\n    if (np >= '60' && np <= '65') chargesExploitation.push(poste);\n    else if (np === '66') chargesFinancieres.push(poste);\n    else if (np === '67') chargesExceptionnelles.push(poste);\n  }\n});\nvar resultatNet = totalProduits - totalCharges;\nreturn [{ json: {\n  success: true,\n  produits: { produitsExploitation: produitsExploitation, produitsFinanciers: produitsFinanciers, produitsExceptionnels: produitsExceptionnels, totalProduits: totalProduits },\n  charges: { chargesExploitation: chargesExploitation, chargesFinancieres: chargesFinancieres, chargesExceptionnelles: chargesExceptionnelles, totalCharges: totalCharges },\n  resultatExploitation: totalProduits - totalCharges,\n  resultatNet: resultatNet,\n  periode: { dateFrom: p.dateFrom || '', dateTo: p.dateTo || '' }\n} }];"
       },
-      "id": "formatCR",
+      "id": "format-cr",
       "name": "Format CR",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1250,
-        100
-      ],
-      "executionOrder": "v1"
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "options": {},
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "respond",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1450,
-        100
+        1300,
+        300
       ]
     }
   ],
@@ -230,5 +212,7 @@
   },
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "active": true,
+  "id": "compta-compte-resultat"
 }

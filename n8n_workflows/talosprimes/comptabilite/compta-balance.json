@@ -5,7 +5,6 @@
       "parameters": {
         "path": "compta-balance",
         "responseMode": "responseNode",
-        "method": "POST",
         "httpMethod": "POST"
       },
       "id": "webhook",
@@ -13,125 +12,125 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        250,
-        300
+        100,
+        200
       ]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json;\nvar tenantId = body.tenantId;\nvar dateFrom = body.dateFrom;\nvar dateTo = body.dateTo;\n\nreturn {\n  tenantId,\n  dateFrom,\n  dateTo\n};"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nif (!body.tenantId) throw new Error('tenantId is required');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!UUID_RE.test(body.tenantId)) throw new Error('tenantId invalide');\nvar today = new Date().toISOString().split('T')[0];\nreturn [{ json: { tenantId: body.tenantId, dateFrom: body.dateFrom || null, dateTo: body.dateTo || today } }];"
       },
       "id": "parser",
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        450,
-        300
+        300,
+        200
       ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value1": "{{ $node.parser.json.tenantId }}",
-              "operation": "notEmpty"
+              "id": "cond-1",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "if_valide",
+      "id": "if-valide",
       "name": "IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        650,
-        300
+        500,
+        200
       ]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "={{ JSON.stringify({\"success\": false, \"error\": \"tenantId is required\"}) }}",
-        "respondWith": "json"
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
       },
-      "id": "respond_error",
+      "id": "respond-error",
       "name": "Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        850,
-        150
+        700,
+        100
       ]
     },
     {
       "parameters": {
-        "jsCode": "function esc(str) {\n  if (str === null || str === undefined) return 'NULL';\n  if (typeof str === 'number') return str.toString();\n  var escaped = str.toString().replace(/'/g, \"''\");\n  return `'${escaped}'`;\n}\n\nvar tenantId = $('Parser').first().json.tenantId;\nvar dateFrom = $('Parser').first().json.dateFrom;\nvar dateTo = $('Parser').first().json.dateTo;\n\nvar dateFilter = '';\nif (dateFrom && dateTo) {\n  dateFilter = `AND e.date_ecriture >= ${esc(dateFrom)} AND e.date_ecriture <= ${esc(dateTo)}`;\n} else if (dateFrom) {\n  dateFilter = `AND e.date_ecriture >= ${esc(dateFrom)}`;\n} else if (dateTo) {\n  dateFilter = `AND e.date_ecriture <= ${esc(dateTo)}`;\n}\n\nvar query = `SELECT le.numero_compte, pc.libelle as compte_libelle, pc.classe,\n  COALESCE(SUM(le.debit), 0) as total_debit,\n  COALESCE(SUM(le.credit), 0) as total_credit\nFROM lignes_ecritures le\nJOIN ecritures_comptables e ON le.ecriture_id = e.id\nLEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id\nWHERE e.tenant_id = ${esc(tenantId)}::uuid AND e.statut = 'validee'\n  ${dateFilter}\nGROUP BY le.numero_compte, pc.libelle, pc.classe\nHAVING COALESCE(SUM(le.debit), 0) != 0 OR COALESCE(SUM(le.credit), 0) != 0\nORDER BY le.numero_compte ASC`;\n\nreturn {\n  query\n};"
+        "jsCode": "function esc(v) { return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar p = $('Parser').first().json;\nvar dateFilter = '';\nif (p.dateFrom) dateFilter += ' AND e.date_ecriture >= ' + esc(p.dateFrom) + '::date';\nif (p.dateTo) dateFilter += ' AND e.date_ecriture <= ' + esc(p.dateTo) + '::date';\nvar query = \"SELECT le.numero_compte, pc.libelle as compte_libelle, pc.classe, COALESCE(SUM(le.debit), 0) as total_debit, COALESCE(SUM(le.credit), 0) as total_credit FROM lignes_ecritures le JOIN ecritures_comptables e ON le.ecriture_id = e.id LEFT JOIN plan_comptable pc ON le.numero_compte = pc.numero_compte AND pc.tenant_id = e.tenant_id WHERE e.tenant_id = \" + esc(p.tenantId) + \"::uuid AND e.statut = 'validee'\" + dateFilter + \" GROUP BY le.numero_compte, pc.libelle, pc.classe HAVING COALESCE(SUM(le.debit), 0) != 0 OR COALESCE(SUM(le.credit), 0) != 0 ORDER BY le.numero_compte ASC\";\nreturn [{ json: { query: query } }];"
       },
-      "id": "build_queries",
+      "id": "build-queries",
       "name": "Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        850,
+        700,
         300
       ]
     },
     {
       "parameters": {
-        "nodeCredentialType": "postgres",
-        "nodeCredentials": {
-          "postgres": "OGqj65ZoFRileCck"
-        },
-        "query": "={{ $('Build Queries').first().json.query }}",
-        "alwaysOutputData": true,
-        "operation": "executeQuery"
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
       },
-      "id": "query_balance",
+      "id": "query-balance",
       "name": "Query Balance",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        1050,
-        300
-      ],
       "credentials": {
         "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
-      }
+      },
+      "position": [
+        900,
+        300
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "var classLabels = {\n  1: 'Comptes de capitaux',\n  2: \"Comptes d'immobilisations\",\n  3: 'Comptes de stocks',\n  4: 'Comptes de tiers',\n  5: 'Comptes financiers',\n  6: 'Comptes de charges',\n  7: 'Comptes de produits'\n};\n\nvar data = $input.first().json;\nvar rows = Array.isArray(data) ? data : (data.rows || []);\n\nvar grouped = {};\nrows.forEach(row => {\n  var classe = row.classe || 0;\n  if (!grouped[classe]) {\n    grouped[classe] = [];\n  }\n  grouped[classe].push(row);\n});\n\nvar classes = Object.keys(grouped)\n  .sort((a, b) => parseInt(a) - parseInt(b))\n  .map(classKey => {\n    var classe = parseInt(classKey);\n    var comptes = grouped[classe].map(row => {\n      var debit = parseFloat(row.total_debit) || 0;\n      var credit = parseFloat(row.total_credit) || 0;\n      var solde = debit - credit;\n      return {\n        numeroCompte: row.numero_compte,\n        libelleCompte: row.compte_libelle || '',\n        totalDebit: debit,\n        totalCredit: credit,\n        soldeDebiteur: solde > 0 ? solde : 0,\n        soldeCrediteur: solde < 0 ? Math.abs(solde) : 0\n      };\n    });\n\n    var classeTotals = comptes.reduce((acc, compte) => ({\n      totalDebit: acc.totalDebit + compte.totalDebit,\n      totalCredit: acc.totalCredit + compte.totalCredit,\n      totalSoldeDebiteur: acc.totalSoldeDebiteur + compte.soldeDebiteur,\n      totalSoldeCrediteur: acc.totalSoldeCrediteur + compte.soldeCrediteur\n    }), {\n      totalDebit: 0,\n      totalCredit: 0,\n      totalSoldeDebiteur: 0,\n      totalSoldeCrediteur: 0\n    });\n\n    return {\n      classe,\n      libelleClasse: classLabels[classe] || '',\n      comptes,\n      ...classeTotals\n    };\n  });\n\nvar totauxGeneraux = classes.reduce((acc, classeData) => ({\n  totalDebit: acc.totalDebit + classeData.totalDebit,\n  totalCredit: acc.totalCredit + classeData.totalCredit,\n  totalSoldeDebiteur: acc.totalSoldeDebiteur + classeData.totalSoldeDebiteur,\n  totalSoldeCrediteur: acc.totalSoldeCrediteur + classeData.totalSoldeCrediteur\n}), {\n  totalDebit: 0,\n  totalCredit: 0,\n  totalSoldeDebiteur: 0,\n  totalSoldeCrediteur: 0\n});\n\nreturn {\n  success: true,\n  classes,\n  totauxGeneraux\n};"
+        "jsCode": "var classLabels = { 1: 'Comptes de capitaux', 2: \"Comptes d'immobilisations\", 3: 'Comptes de stocks', 4: 'Comptes de tiers', 5: 'Comptes financiers', 6: 'Comptes de charges', 7: 'Comptes de produits' };\nvar items = $('Query Balance').all().map(function(i) { return i.json; }).filter(function(r) { return r.numero_compte; });\nvar grouped = {};\nitems.forEach(function(row) {\n  var classe = row.classe || 0;\n  if (!grouped[classe]) grouped[classe] = [];\n  grouped[classe].push(row);\n});\nvar classes = Object.keys(grouped).sort(function(a, b) { return parseInt(a) - parseInt(b); }).map(function(ck) {\n  var classe = parseInt(ck);\n  var comptes = grouped[classe].map(function(row) {\n    var d = parseFloat(row.total_debit) || 0;\n    var c = parseFloat(row.total_credit) || 0;\n    var solde = d - c;\n    return { numeroCompte: row.numero_compte, libelleCompte: row.compte_libelle || '', totalDebit: d, totalCredit: c, soldeDebiteur: solde > 0 ? solde : 0, soldeCrediteur: solde < 0 ? Math.abs(solde) : 0 };\n  });\n  var t = comptes.reduce(function(a, co) { return { totalDebit: a.totalDebit + co.totalDebit, totalCredit: a.totalCredit + co.totalCredit, totalSoldeDebiteur: a.totalSoldeDebiteur + co.soldeDebiteur, totalSoldeCrediteur: a.totalSoldeCrediteur + co.soldeCrediteur }; }, { totalDebit: 0, totalCredit: 0, totalSoldeDebiteur: 0, totalSoldeCrediteur: 0 });\n  return { classe: classe, libelleClasse: classLabels[classe] || '', comptes: comptes, totalDebit: t.totalDebit, totalCredit: t.totalCredit, totalSoldeDebiteur: t.totalSoldeDebiteur, totalSoldeCrediteur: t.totalSoldeCrediteur };\n});\nvar tg = classes.reduce(function(a, cd) { return { totalDebit: a.totalDebit + cd.totalDebit, totalCredit: a.totalCredit + cd.totalCredit, totalSoldeDebiteur: a.totalSoldeDebiteur + cd.totalSoldeDebiteur, totalSoldeCrediteur: a.totalSoldeCrediteur + cd.totalSoldeCrediteur }; }, { totalDebit: 0, totalCredit: 0, totalSoldeDebiteur: 0, totalSoldeCrediteur: 0 });\nreturn [{ json: { success: true, classes: classes, totauxGeneraux: tg } }];"
       },
-      "id": "format_response",
+      "id": "format-response",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1250,
+        1100,
         300
       ]
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "{{ $node.format_response.json }}",
-        "respondWith": "json"
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
       },
       "id": "respond",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1450,
+        1300,
         300
       ]
     }
@@ -211,9 +210,8 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1"
+  "active": true
 }
