@@ -62,7 +62,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ ({ success: false, error: 'tenantId manquant' }) }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "respond-error",
       "name": "Respond Error",
@@ -105,7 +105,8 @@
         900,
         300
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -132,6 +133,19 @@
       "position": [
         1300,
         300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var err = $json.error || 'tenantId manquant';\nreturn [{ json: { success: false, error: err } }];"
+      },
+      "id": "format-error",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
       ]
     }
   ],
@@ -169,7 +183,7 @@
         ],
         [
           {
-            "node": "Respond Error",
+            "node": "Format Error",
             "type": "main",
             "index": 0
           }
@@ -203,6 +217,17 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }

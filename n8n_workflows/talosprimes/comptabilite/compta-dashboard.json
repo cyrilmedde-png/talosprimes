@@ -92,7 +92,8 @@
         700,
         300
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -113,7 +114,8 @@
         900,
         300
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -134,7 +136,8 @@
         1100,
         300
       ],
-      "alwaysOutputData": true
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -253,5 +256,6 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "active": true
+  "active": true,
+  "id": "compta-dashboard"
 }

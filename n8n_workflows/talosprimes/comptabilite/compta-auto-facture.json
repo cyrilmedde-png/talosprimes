@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 300]
+      "position": [
+        100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -31,7 +37,10 @@
       "name": "05. Build Get Invoice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [500, 300]
+      "position": [
+        500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -43,10 +52,17 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [700, 300],
-      "alwaysOutputData": true
+      "position": [
+        700,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -56,7 +72,10 @@
       "name": "07. Validate Invoice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -68,10 +87,17 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [1100, 300],
-      "alwaysOutputData": true
+      "position": [
+        1100,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -81,7 +107,10 @@
       "name": "09. Already Exists?",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -108,7 +137,10 @@
       "name": "09b. Route",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1500, 300]
+      "position": [
+        1500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -119,7 +151,10 @@
       "name": "09c. Respond Already",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1700, 150]
+      "position": [
+        1700,
+        150
+      ]
     },
     {
       "parameters": {
@@ -131,10 +166,17 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [1700, 400],
-      "alwaysOutputData": true
+      "position": [
+        1700,
+        400
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -144,7 +186,10 @@
       "name": "11. Validate Exercice",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 400]
+      "position": [
+        1900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -156,10 +201,17 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [2100, 400],
-      "alwaysOutputData": true
+      "position": [
+        2100,
+        400
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -169,7 +221,10 @@
       "name": "13. Build Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2300, 400]
+      "position": [
+        2300,
+        400
+      ]
     },
     {
       "parameters": {
@@ -181,10 +236,17 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [2500, 400],
-      "alwaysOutputData": true
+      "position": [
+        2500,
+        400
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -194,7 +256,10 @@
       "name": "15. Build Lines",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2700, 400]
+      "position": [
+        2700,
+        400
+      ]
     },
     {
       "parameters": {
@@ -206,10 +271,17 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [2900, 400],
-      "alwaysOutputData": true
+      "position": [
+        2900,
+        400
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -219,7 +291,10 @@
       "name": "17. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 400]
+      "position": [
+        3100,
+        400
+      ]
     },
     {
       "parameters": {
@@ -230,64 +305,200 @@
       "name": "18. Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [3300, 400]
+      "position": [
+        3300,
+        400
+      ]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "02. Parser": {
-      "main": [[{ "node": "05. Build Get Invoice", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "05. Build Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "05. Build Get Invoice": {
-      "main": [[{ "node": "06. Get Invoice", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "06. Get Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "06. Get Invoice": {
-      "main": [[{ "node": "07. Validate Invoice", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "07. Validate Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "07. Validate Invoice": {
-      "main": [[{ "node": "08. Check Existing", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "08. Check Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "08. Check Existing": {
-      "main": [[{ "node": "09. Already Exists?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "09. Already Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09. Already Exists?": {
-      "main": [[{ "node": "09b. Route", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "09b. Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "09b. Route": {
       "main": [
-        [{ "node": "09c. Respond Already", "type": "main", "index": 0 }],
-        [{ "node": "10. Get Exercice", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "09c. Respond Already",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "10. Get Exercice",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "10. Get Exercice": {
-      "main": [[{ "node": "11. Validate Exercice", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "11. Validate Exercice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "11. Validate Exercice": {
-      "main": [[{ "node": "12. Get Next Num", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "12. Get Next Num",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "12. Get Next Num": {
-      "main": [[{ "node": "13. Build Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "13. Build Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "13. Build Insert": {
-      "main": [[{ "node": "14. Insert Ecriture", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "14. Insert Ecriture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "14. Insert Ecriture": {
-      "main": [[{ "node": "15. Build Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "15. Build Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "15. Build Lines": {
-      "main": [[{ "node": "16. Insert Lines", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "16. Insert Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "16. Insert Lines": {
-      "main": [[{ "node": "17. Format Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "17. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "17. Format Response": {
-      "main": [[{ "node": "18. Respond OK", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "18. Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1"
   },
-  "active": true
+  "active": true,
+  "id": "compta-auto-facture"
 }

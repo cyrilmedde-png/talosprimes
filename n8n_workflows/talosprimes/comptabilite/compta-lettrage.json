@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,17 +24,26 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
           "conditions": [
             {
               "id": "lett-valid-1",
               "leftValue": "={{ $json.tenantId }}",
-              "operator": { "type": "string", "operation": "notEmpty" }
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
           ],
           "combinator": "and"
@@ -42,7 +54,10 @@
       "name": "03. IF Valide",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [500, 200]
+      "position": [
+        500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -52,7 +67,10 @@
       "name": "03b. Format Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, 100]
+      "position": [
+        600,
+        100
+      ]
     },
     {
       "parameters": {
@@ -63,7 +81,10 @@
       "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [800, 100]
+      "position": [
+        800,
+        100
+      ]
     },
     {
       "parameters": {
@@ -73,7 +94,10 @@
       "name": "05. Build Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 300]
+      "position": [
+        700,
+        300
+      ]
     },
     {
       "parameters": {
@@ -85,9 +109,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [900, 300],
+      "position": [
+        900,
+        300
+      ],
       "alwaysOutputData": true,
       "continueOnFail": true
     },
@@ -99,17 +129,26 @@
       "name": "07. Verify Balance",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [
+        1100,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
           "conditions": [
             {
               "id": "lett-balance-1",
               "leftValue": "={{ $json.letterageCode }}",
-              "operator": { "type": "string", "operation": "notEmpty" }
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
           ],
           "combinator": "and"
@@ -120,7 +159,10 @@
       "name": "08. IF Balance OK",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -130,7 +172,10 @@
       "name": "08b. Format Balance Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, 200]
+      "position": [
+        1400,
+        200
+      ]
     },
     {
       "parameters": {
@@ -141,7 +186,10 @@
       "name": "09. Respond Balance Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1600, 200]
+      "position": [
+        1600,
+        200
+      ]
     },
     {
       "parameters": {
@@ -151,7 +199,10 @@
       "name": "10. Build Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1500, 400]
+      "position": [
+        1500,
+        400
+      ]
     },
     {
       "parameters": {
@@ -163,9 +214,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "credentials": {
-        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
       },
-      "position": [1700, 400],
+      "position": [
+        1700,
+        400
+      ],
       "alwaysOutputData": true,
       "continueOnFail": true
     },
@@ -177,7 +234,10 @@
       "name": "12. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 400]
+      "position": [
+        1900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -188,23 +248,163 @@
       "name": "13. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2100, 400]
+      "position": [
+        2100,
+        400
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. IF Valide", "type": "main", "index": 0 }]] },
-    "03. IF Valide": { "main": [[{ "node": "05. Build Queries", "type": "main", "index": 0 }], [{ "node": "03b. Format Error", "type": "main", "index": 0 }]] },
-    "03b. Format Error": { "main": [[{ "node": "04. Respond Error", "type": "main", "index": 0 }]] },
-    "05. Build Queries": { "main": [[{ "node": "06. Get Lignes", "type": "main", "index": 0 }]] },
-    "06. Get Lignes": { "main": [[{ "node": "07. Verify Balance", "type": "main", "index": 0 }]] },
-    "07. Verify Balance": { "main": [[{ "node": "08. IF Balance OK", "type": "main", "index": 0 }]] },
-    "08. IF Balance OK": { "main": [[{ "node": "10. Build Update", "type": "main", "index": 0 }], [{ "node": "08b. Format Balance Error", "type": "main", "index": 0 }]] },
-    "08b. Format Balance Error": { "main": [[{ "node": "09. Respond Balance Error", "type": "main", "index": 0 }]] },
-    "10. Build Update": { "main": [[{ "node": "11. Apply Lettrage", "type": "main", "index": 0 }]] },
-    "11. Apply Lettrage": { "main": [[{ "node": "12. Format Response", "type": "main", "index": 0 }]] },
-    "12. Format Response": { "main": [[{ "node": "13. Respond", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. IF Valide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. IF Valide": {
+      "main": [
+        [
+          {
+            "node": "05. Build Queries",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "03b. Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03b. Format Error": {
+      "main": [
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Build Queries": {
+      "main": [
+        [
+          {
+            "node": "06. Get Lignes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Get Lignes": {
+      "main": [
+        [
+          {
+            "node": "07. Verify Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Verify Balance": {
+      "main": [
+        [
+          {
+            "node": "08. IF Balance OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. IF Balance OK": {
+      "main": [
+        [
+          {
+            "node": "10. Build Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08b. Format Balance Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08b. Format Balance Error": {
+      "main": [
+        [
+          {
+            "node": "09. Respond Balance Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Build Update": {
+      "main": [
+        [
+          {
+            "node": "11. Apply Lettrage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Apply Lettrage": {
+      "main": [
+        [
+          {
+            "node": "12. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Format Response": {
+      "main": [
+        [
+          {
+            "node": "13. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "active": true
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "id": "compta-lettrage"
 }
