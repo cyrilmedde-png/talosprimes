@@ -520,30 +520,16 @@ export default function CMSPage() {
         <p className="mt-2 text-sm text-gray-400">Modifiez le contenu, les témoignages et consultez les messages de contact</p>
       </div>
 
+      {/* Bandeau info tarifs */}
+      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+        <p className="text-sm text-blue-300">
+          💡 Cette section affiche un aperçu de ce que vos visiteurs verront sur la page tarifs.
+          Pour modifier les plans, rendez-vous dans <strong>Administration → Plans &amp; Modules</strong>.
+        </p>
+      </div>
+
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-700/30">
-        <button
-          onClick={() => setActiveTab('tarifs')}
-          className={`px-6 py-3 font-semibold transition ${
-            activeTab === 'tarifs'
-              ? 'border-b-2 border-indigo-500 text-white'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          <CreditCard className="w-4 h-4 inline mr-1" />
-          Tarifs ({tarifsPlans.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('pages')}
-          className={`px-6 py-3 font-semibold transition ${
-            activeTab === 'pages'
-              ? 'border-b-2 border-indigo-500 text-white'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          <FileText className="w-4 h-4 inline mr-1" />
-          Pages ({cmsPages.length})
-        </button>
         <button
           onClick={() => setActiveTab('content')}
           className={`px-6 py-3 font-semibold transition ${
@@ -598,6 +584,28 @@ export default function CMSPage() {
           }`}
         >
           ⚖️ Pages Légales
+        </button>
+        <button
+          onClick={() => setActiveTab('tarifs')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'tarifs'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <CreditCard className="w-4 h-4 inline mr-1" />
+          Tarifs ({tarifsPlans.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('pages')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'pages'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <FileText className="w-4 h-4 inline mr-1" />
+          Pages ({cmsPages.length})
         </button>
       </div>
 
@@ -1348,12 +1356,6 @@ export default function CMSPage() {
             </div>
           )}
 
-          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-            <p className="text-sm text-blue-300">
-              💡 Cette section affiche un aperçu de ce que vos visiteurs verront sur la page tarifs.
-              Pour modifier les plans, rendez-vous dans <strong>Administration → Plans &amp; Modules</strong>.
-            </p>
-          </div>
         </div>
       )}
 
