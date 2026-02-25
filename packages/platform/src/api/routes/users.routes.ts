@@ -134,13 +134,13 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
-      const userData = {
+      const userData: Prisma.UserUncheckedCreateInput = {
         tenantId,
         email: data.email,
         passwordHash,
         role: data.role,
         statut: 'actif',
-      } as Record<string, unknown>;
+      };
       
       if (data.nom) userData.nom = data.nom;
       if (data.prenom) userData.prenom = data.prenom;
