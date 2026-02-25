@@ -484,7 +484,7 @@ export default function FacturesPage() {
       switch (createForm.typeDocument) {
         case 'devis':
           await apiClient.devis.create({
-            clientFinalId: createForm.clientFinalId,
+            clientFinalId: createForm.clientFinalId || undefined,
             montantHt,
             tvaTaux,
             dateDevis: new Date(createForm.dateFacture).toISOString(),
@@ -500,7 +500,7 @@ export default function FacturesPage() {
 
         case 'proforma':
           await apiClient.proformas.create({
-            clientFinalId: createForm.clientFinalId,
+            clientFinalId: createForm.clientFinalId || undefined,
             montantHt,
             tvaTaux,
             dateProforma: new Date(createForm.dateFacture).toISOString(),
@@ -516,7 +516,7 @@ export default function FacturesPage() {
 
         case 'avoir':
           await apiClient.avoirs.create({
-            clientFinalId: createForm.clientFinalId,
+            clientFinalId: createForm.clientFinalId || undefined,
             montantHt,
             tvaTaux,
             dateAvoir: new Date(createForm.dateFacture).toISOString(),
@@ -531,7 +531,7 @@ export default function FacturesPage() {
         case 'facture':
         default:
           await apiClient.invoices.create({
-            clientFinalId: createForm.clientFinalId,
+            clientFinalId: createForm.clientFinalId || undefined,
             type: createForm.type,
             montantHt,
             tvaTaux,
