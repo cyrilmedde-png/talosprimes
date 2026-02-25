@@ -58,12 +58,12 @@ export default function SituationsPage() {
           apiClient.btp.situations.list(''),
           apiClient.btp.chantiers.list(),
         ]);
-        const rawSit = situationsRes.data as unknown as { success?: boolean; data?: Situation[] };
-        const sitData = Array.isArray(rawSit?.data) ? rawSit.data : [];
+        const rawSit = situationsRes.data as unknown as { success: boolean; data: Situation[] };
+        const sitData = rawSit.data;
         setSituations(sitData);
         setFilteredSituations(sitData);
-        const rawCh = chantiersRes.data as unknown as { success?: boolean; data?: Chantier[] };
-        setChantiers(Array.isArray(rawCh?.data) ? rawCh.data : []);
+        const rawCh = chantiersRes.data as unknown as { success: boolean; data: Chantier[] };
+        setChantiers(rawCh.data);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to load data';

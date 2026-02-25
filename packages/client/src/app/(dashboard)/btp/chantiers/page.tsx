@@ -60,8 +60,8 @@ export default function ChantiersPage() {
       try {
         setLoading({ isLoading: true, error: null });
         const response = await apiClient.btp.chantiers.list();
-        const raw = response.data as unknown as { success?: boolean; data?: Chantier[] };
-        const chantiersData = Array.isArray(raw?.data) ? raw.data : [];
+        const raw = response.data as unknown as { success: boolean; data: Chantier[] };
+        const chantiersData = raw.data;
         setChantiers(chantiersData);
         setFilteredChantiers(chantiersData);
       } catch (error) {

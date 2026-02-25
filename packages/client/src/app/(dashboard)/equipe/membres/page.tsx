@@ -35,8 +35,8 @@ export default function MembresPage(): JSX.Element {
       try {
         setLoading(true);
         const response = await apiClient.equipe.membres.list();
-        const raw = response.data as unknown as { success?: boolean; data?: { items?: Membre[] } };
-        const membresData = raw?.data?.items ?? [];
+        const raw = response.data as unknown as { success: boolean; data: { items: Membre[] } };
+        const membresData = raw.data.items;
         setMembres(membresData);
         setFilteredMembres(membresData);
 
