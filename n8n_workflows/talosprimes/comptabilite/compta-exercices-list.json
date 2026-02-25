@@ -59,7 +59,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \nvar tid = $('02. Parser').first().json.tenantId;\n'SELECT id, tenant_id, code, date_debut, date_fin, cloture, date_cloture, resultat_net, created_at, updated_at FROM exercices_comptables WHERE tenant_id = \\'' + tid + '\\' ORDER BY date_debut DESC';\n}}",
+        "query": "={{ \"SELECT id, tenant_id, code, date_debut, date_fin, cloture, date_cloture, resultat_net, created_at, updated_at FROM exercices_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' ORDER BY date_debut DESC;\" }}",
         "options": {}
       },
       "id": "Postgres_List",
@@ -76,7 +76,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var items = $input.all();\nvar exercices = [];\nif (items && items.length > 0 && items[0].json && items[0].json.id) {\n  for (var i = 0; i < items.length; i++) {\n    var e = items[i].json;\n    exercices.push({\n      id: e.id,\n      tenantId: e.tenant_id,\n      code: e.code,\n      dateDebut: e.date_debut,\n      dateFin: e.date_fin,\n      cloture: e.cloture || false,\n      dateCloture: e.date_cloture || null,\n      resultatNet: e.resultat_net ? parseFloat(e.resultat_net) : null,\n      createdAt: e.created_at,\n      updatedAt: e.updated_at\n    });\n  }\n}\nreturn [{ json: { success: true, data: { exercices: exercices } } }];"
+        "jsCode": "var items = $input.all();\nvar exercices = [];\nif (items && items.length > 0 && items[0].json && items[0].json.id) {\n  for (var i = 0; i < items.length; i++) {\n    var e = items[i].json;\n    exercices.push({\n      id: e.id,\n      tenantId: e.tenant_id,\n      code: e.code,\n      dateDebut: e.date_debut,\n      dateFin: e.date_fin,\n      cloture: e.cloture || false,\n      dateCloture: e.date_cloture || null,\n      resultatNet: e.resultat_net ? parseFloat(e.resultat_net) : null,\n      createdAt: e.created_at,\n      updatedAt: e.updated_at\n    });\n  }\n}\nreturn [{ json: { exercices: exercices } }];"
       },
       "id": "Code_Format",
       "name": "06. Format Response",
@@ -130,6 +130,5 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": []
+  "staticData": null
 }

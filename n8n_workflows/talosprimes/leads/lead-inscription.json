@@ -28,7 +28,8 @@
       "position": [
         460,
         400
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -313,7 +314,7 @@
     {
       "parameters": {
         "operation": "send",
-        "from": "",
+        "from": "+17178075753",
         "to": "={{ $json.to }}",
         "message": "={{ $json.message }}",
         "options": {}
@@ -553,6 +554,13 @@
         [
           {
             "node": "03. API - Sauvegarder Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ERROR. Notification Erreur",
             "type": "main",
             "index": 0
           }
