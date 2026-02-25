@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { getAccessToken } from '@/lib/auth';
-import { Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle } from 'lucide-react';
+import { Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle, FileText, CreditCard, Pencil, Globe, GripVertical } from 'lucide-react';
 
 import { useDemoGuard } from '@/hooks/useDemoGuard';
+import { apiClient, type CmsPageData, type PlanWithModules } from '@/lib/api-client';
 // Types
 interface Testimonial {
   id: string;
@@ -31,7 +32,7 @@ interface ContactMessage {
   createdAt: string;
 }
 
-type TabType = 'content' | 'testimonials' | 'messages' | 'config' | 'legal';
+type TabType = 'content' | 'testimonials' | 'messages' | 'config' | 'legal' | 'tarifs' | 'pages';
 
 interface ConfigSection {
   key: string;
@@ -79,11 +80,31 @@ export default function CMSPage() {
   // Messages
   const [messages, setMessages] = useState<ContactMessage[]>([]);
 
+  // Tarifs (plans publics)
+  const [tarifsPlans, setTarifsPlans] = useState<PlanWithModules[]>([]);
+
+  // CMS Pages
+  const [cmsPages, setCmsPages] = useState<CmsPageData[]>([]);
+  const [showPageForm, setShowPageForm] = useState(false);
+  const [editingPage, setEditingPage] = useState<CmsPageData | null>(null);
+  const [pageForm, setPageForm] = useState({
+    slug: '',
+    titre: '',
+    contenu: '',
+    metaTitle: '',
+    metaDesc: '',
+    publie: false,
+    ordre: 0,
+  });
+  const [savingPage, setSavingPage] = useState(false);
+
   // Charger les données
   useEffect(() => {
     loadContent();
     loadTestimonials();
     loadMessages();
+    loadTarifs();
+    loadCmsPages();
   }, []);
 
   const loadContent = async () => {
@@ -120,6 +141,86 @@ export default function CMSPage() {
       setMessages(data);
     } catch (error) {
       console.error('Erreur chargement messages:', error);
+    }
+  };
+
+  const loadTarifs = async () => {
+    try {
+      const res = await apiClient.landingTarifs();
+      if (res.success) setTarifsPlans(res.data.plans);
+    } catch (error) {
+      console.error('Erreur chargement tarifs:', error);
+    }
+  };
+
+  const loadCmsPages = async () => {
+    try {
+      const res = await apiClient.cmsPages.listAll();
+      if (res.success) setCmsPages(res.data.pages);
+    } catch (error) {
+      console.error('Erreur chargement pages CMS:', error);
+    }
+  };
+
+  const resetPageForm = () => {
+    setPageForm({ slug: '', titre: '', contenu: '', metaTitle: '', metaDesc: '', publie: false, ordre: 0 });
+    setEditingPage(null);
+    setShowPageForm(false);
+  };
+
+  const openEditPage = (page: CmsPageData) => {
+    setEditingPage(page);
+    setPageForm({
+      slug: page.slug,
+      titre: page.titre,
+      contenu: page.contenu,
+      metaTitle: page.metaTitle ?? '',
+      metaDesc: page.metaDesc ?? '',
+      publie: page.publie,
+      ordre: page.ordre,
+    });
+    setShowPageForm(true);
+  };
+
+  const handleSavePage = async () => {
+    if (isDemo) { demoAlert(); return; }
+    if (!pageForm.slug || !pageForm.titre) { alert('Slug et titre requis'); return; }
+    setSavingPage(true);
+    try {
+      if (editingPage) {
+        await apiClient.cmsPages.update(editingPage.id, pageForm);
+      } else {
+        await apiClient.cmsPages.create(pageForm);
+      }
+      await loadCmsPages();
+      resetPageForm();
+      alert(editingPage ? 'Page modifiée !' : 'Page créée !');
+    } catch (error) {
+      console.error('Erreur sauvegarde page:', error);
+      alert('Erreur lors de la sauvegarde');
+    } finally {
+      setSavingPage(false);
+    }
+  };
+
+  const handleDeletePage = async (id: string) => {
+    if (isDemo) { demoAlert(); return; }
+    if (!confirm('Supprimer cette page ?')) return;
+    try {
+      await apiClient.cmsPages.delete(id);
+      await loadCmsPages();
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+    }
+  };
+
+  const handleTogglePublish = async (page: CmsPageData) => {
+    if (isDemo) { demoAlert(); return; }
+    try {
+      await apiClient.cmsPages.update(page.id, { publie: !page.publie });
+      await loadCmsPages();
+    } catch (error) {
+      console.error('Erreur publication:', error);
     }
   };
 
@@ -475,6 +576,28 @@ export default function CMSPage() {
           }`}
         >
           ⚖️ Pages Légales
+        </button>
+        <button
+          onClick={() => setActiveTab('tarifs')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'tarifs'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <CreditCard className="w-4 h-4 inline mr-1" />
+          Tarifs ({tarifsPlans.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('pages')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'pages'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <FileText className="w-4 h-4 inline mr-1" />
+          Pages ({cmsPages.length})
         </button>
       </div>
 
@@ -1143,13 +1266,313 @@ export default function CMSPage() {
           <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-6">
             <h3 className="font-bold text-yellow-300 mb-2">💡 Conseils</h3>
             <ul className="text-yellow-200 text-sm space-y-2">
-              <li>• Remplissez d'abord toutes vos informations dans l'onglet <strong>Configuration</strong></li>
+              <li>• Remplissez d&apos;abord toutes vos informations dans l&apos;onglet <strong>Configuration</strong></li>
               <li>• Utilisez la génération IA pour créer un contenu personnalisé automatiquement</li>
               <li>• Vous pouvez ensuite modifier manuellement le contenu généré</li>
-              <li>• N'oubliez pas de sauvegarder après modification</li>
+              <li>• N&apos;oubliez pas de sauvegarder après modification</li>
               <li>• Les pages légales sont accessibles directement depuis le footer de la landing page</li>
             </ul>
           </div>
+        </div>
+      )}
+
+      {/* Tarifs Tab */}
+      {activeTab === 'tarifs' && (
+        <div className="space-y-6">
+          <div className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg border border-gray-700/30">
+            <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-indigo-400" />
+              Aperçu des tarifs (landing page)
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Ces tarifs sont automatiquement synchronisés depuis vos Plans &amp; Modules.
+              Modifiez-les dans la section <strong>Plans</strong> du menu Administration.
+            </p>
+            <button
+              onClick={loadTarifs}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition mb-4"
+            >
+              Rafraîchir
+            </button>
+          </div>
+
+          {tarifsPlans.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p>Aucun plan actif. Créez des plans dans Administration → Plans &amp; Modules.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {tarifsPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-gray-800/40 border border-gray-700/30 rounded-xl p-6 relative overflow-hidden"
+                >
+                  <div
+                    className="absolute top-0 left-0 right-0 h-1"
+                    style={{ backgroundColor: plan.couleur ?? '#6366f1' }}
+                  />
+                  <h3 className="text-lg font-bold text-white mt-2">{plan.nom}</h3>
+                  {plan.description && (
+                    <p className="text-sm text-gray-400 mt-1">{plan.description}</p>
+                  )}
+                  <div className="mt-4">
+                    <span className="text-3xl font-bold text-white">
+                      {Number(plan.prixMensuel).toFixed(0)}€
+                    </span>
+                    <span className="text-gray-400 text-sm">/mois</span>
+                    {plan.prixAnnuel && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        ou {Number(plan.prixAnnuel).toFixed(0)}€/an
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-1 text-xs text-indigo-400">
+                    {plan.essaiJours} jours d&apos;essai gratuit
+                  </div>
+                  <div className="mt-4 border-t border-gray-700/30 pt-4">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                      Modules inclus ({plan.planModules.length})
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {plan.planModules.map((pm) => (
+                        <li key={pm.id} className="flex items-center gap-2 text-sm text-gray-300">
+                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                          {pm.module.nomAffiche}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+            <p className="text-sm text-blue-300">
+              💡 Cette section affiche un aperçu de ce que vos visiteurs verront sur la page tarifs.
+              Pour modifier les plans, rendez-vous dans <strong>Administration → Plans &amp; Modules</strong>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pages Tab */}
+      {activeTab === 'pages' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-400" />
+                Pages dynamiques
+              </h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Créez des pages personnalisées accessibles sur votre site (ex: À propos, FAQ, etc.)
+              </p>
+            </div>
+            <button
+              onClick={() => { resetPageForm(); setShowPageForm(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition"
+            >
+              <Plus className="w-4 h-4" />
+              Nouvelle page
+            </button>
+          </div>
+
+          {/* Formulaire création/édition */}
+          {showPageForm && (
+            <div className="bg-gray-800/40 border border-gray-700/30 rounded-xl p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-white">
+                {editingPage ? `Modifier : ${editingPage.titre}` : 'Créer une nouvelle page'}
+              </h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Titre <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={pageForm.titre}
+                    onChange={(e) => {
+                      const titre = e.target.value;
+                      setPageForm((prev) => ({
+                        ...prev,
+                        titre,
+                        slug: prev.slug || titre.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+                      }));
+                    }}
+                    placeholder="Ma page"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Slug (URL) <span className="text-red-400">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 text-sm">/page/</span>
+                    <input
+                      type="text"
+                      value={pageForm.slug}
+                      onChange={(e) => setPageForm((prev) => ({ ...prev, slug: e.target.value }))}
+                      placeholder="ma-page"
+                      className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Contenu (Markdown/HTML)</label>
+                <textarea
+                  value={pageForm.contenu}
+                  onChange={(e) => setPageForm((prev) => ({ ...prev, contenu: e.target.value }))}
+                  rows={10}
+                  placeholder="# Mon titre&#10;&#10;Le contenu de la page en Markdown ou HTML..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono text-sm resize-y"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Meta Title (SEO)</label>
+                  <input
+                    type="text"
+                    value={pageForm.metaTitle}
+                    onChange={(e) => setPageForm((prev) => ({ ...prev, metaTitle: e.target.value }))}
+                    placeholder="Titre pour le référencement"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Meta Description (SEO)</label>
+                  <input
+                    type="text"
+                    value={pageForm.metaDesc}
+                    onChange={(e) => setPageForm((prev) => ({ ...prev, metaDesc: e.target.value }))}
+                    placeholder="Description pour le référencement"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pageForm.publie}
+                    onChange={(e) => setPageForm((prev) => ({ ...prev, publie: e.target.checked }))}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-gray-300">Publier immédiatement</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-400">Ordre :</label>
+                  <input
+                    type="number"
+                    value={pageForm.ordre}
+                    onChange={(e) => setPageForm((prev) => ({ ...prev, ordre: parseInt(e.target.value) || 0 }))}
+                    className="w-20 bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={resetPageForm}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSavePage}
+                  disabled={savingPage || !pageForm.slug || !pageForm.titre}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {savingPage ? 'Sauvegarde...' : (editingPage ? 'Enregistrer' : 'Créer la page')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Liste des pages */}
+          {cmsPages.length === 0 && !showPageForm ? (
+            <div className="text-center py-12 text-gray-500">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p>Aucune page créée. Cliquez sur &quot;Nouvelle page&quot; pour commencer.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {cmsPages.map((page) => (
+                <div
+                  key={page.id}
+                  className="bg-gray-800/40 border border-gray-700/30 rounded-lg p-4 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-4">
+                    <GripVertical className="w-4 h-4 text-gray-600" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-white">{page.titre}</h4>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          page.publie
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {page.publie ? 'Publié' : 'Brouillon'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-gray-500 font-mono">/page/{page.slug}</span>
+                        {page.metaTitle && (
+                          <span className="text-xs text-gray-600">SEO: {page.metaTitle}</span>
+                        )}
+                        <span className="text-xs text-gray-600">
+                          Modifié le {new Date(page.updatedAt).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleTogglePublish(page)}
+                      className="p-2 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition"
+                      title={page.publie ? 'Dépublier' : 'Publier'}
+                    >
+                      {page.publie ? <Eye className="w-4 h-4 text-green-400" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => openEditPage(page)}
+                      className="p-2 rounded hover:bg-gray-700 text-gray-400 hover:text-indigo-400 transition"
+                      title="Modifier"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    {page.publie && (
+                      <a
+                        href={`/page/${page.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition"
+                        title="Voir la page"
+                      >
+                        <Globe className="w-4 h-4" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => handleDeletePage(page.id)}
+                      className="p-2 rounded hover:bg-gray-700 text-gray-400 hover:text-red-400 transition"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

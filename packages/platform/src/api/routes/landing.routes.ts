@@ -337,6 +337,187 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // ===== CMS PAGES DYNAMIQUES =====
+
+  // GET /api/landing/pages - Pages publiées (PUBLIC)
+  fastify.get(
+    '/api/landing/pages',
+    async (_request, reply) => {
+      try {
+        const pages = await prisma.cmsPage.findMany({
+          where: { publie: true },
+          orderBy: { ordre: 'asc' },
+        });
+        return reply.send({ success: true, data: { pages } });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur lors de la récupération des pages' });
+      }
+    }
+  );
+
+  // GET /api/landing/pages/all - Toutes les pages (ADMIN)
+  fastify.get(
+    '/api/landing/pages/all',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (_request, reply) => {
+      try {
+        const pages = await prisma.cmsPage.findMany({
+          orderBy: { ordre: 'asc' },
+        });
+        return reply.send({ success: true, data: { pages } });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur lors de la récupération des pages' });
+      }
+    }
+  );
+
+  // GET /api/landing/pages/:slug - Page par slug (PUBLIC)
+  fastify.get<{ Params: { slug: string } }>(
+    '/api/landing/pages/:slug',
+    async (request, reply) => {
+      const { slug } = request.params;
+      try {
+        const page = await prisma.cmsPage.findUnique({ where: { slug } });
+        if (!page || !page.publie) {
+          return reply.status(404).send({ error: 'Page introuvable' });
+        }
+        return reply.send({ success: true, data: { page } });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur' });
+      }
+    }
+  );
+
+  // POST /api/landing/pages - Créer une page (ADMIN)
+  fastify.post<{
+    Body: {
+      slug: string;
+      titre: string;
+      contenu: string;
+      metaTitle?: string;
+      metaDesc?: string;
+      publie?: boolean;
+      ordre?: number;
+    };
+  }>(
+    '/api/landing/pages',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      const { slug, titre, contenu, metaTitle, metaDesc, publie, ordre } = request.body;
+
+      if (!slug || !titre) {
+        return reply.status(400).send({ error: 'Slug et titre sont requis' });
+      }
+
+      try {
+        const page = await prisma.cmsPage.create({
+          data: {
+            slug: slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+            titre,
+            contenu: contenu || '',
+            metaTitle: metaTitle || null,
+            metaDesc: metaDesc || null,
+            publie: publie ?? false,
+            ordre: ordre ?? 0,
+          },
+        });
+        return reply.status(201).send({ success: true, data: { page } });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur lors de la création de la page' });
+      }
+    }
+  );
+
+  // PUT /api/landing/pages/:id - Modifier une page (ADMIN)
+  fastify.put<{
+    Params: { id: string };
+    Body: {
+      slug?: string;
+      titre?: string;
+      contenu?: string;
+      metaTitle?: string;
+      metaDesc?: string;
+      publie?: boolean;
+      ordre?: number;
+    };
+  }>(
+    '/api/landing/pages/:id',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { slug, titre, contenu, metaTitle, metaDesc, publie, ordre } = request.body;
+
+      try {
+        const data: Record<string, unknown> = {};
+        if (slug !== undefined) data.slug = slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        if (titre !== undefined) data.titre = titre;
+        if (contenu !== undefined) data.contenu = contenu;
+        if (metaTitle !== undefined) data.metaTitle = metaTitle;
+        if (metaDesc !== undefined) data.metaDesc = metaDesc;
+        if (publie !== undefined) data.publie = publie;
+        if (ordre !== undefined) data.ordre = ordre;
+
+        const page = await prisma.cmsPage.update({ where: { id }, data });
+        return reply.send({ success: true, data: { page } });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur lors de la mise à jour de la page' });
+      }
+    }
+  );
+
+  // DELETE /api/landing/pages/:id - Supprimer une page (ADMIN)
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/landing/pages/:id',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      try {
+        await prisma.cmsPage.delete({ where: { id } });
+        return reply.send({ success: true, message: 'Page supprimée' });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur lors de la suppression' });
+      }
+    }
+  );
+
+  // GET /api/landing/tarifs - Plans publics pour affichage tarifs (PUBLIC)
+  fastify.get(
+    '/api/landing/tarifs',
+    async (_request, reply) => {
+      try {
+        const plans = await prisma.plan.findMany({
+          where: { actif: true },
+          orderBy: { prixMensuel: 'asc' },
+          include: {
+            planModules: {
+              include: {
+                module: { select: { code: true, nomAffiche: true, categorie: true } },
+              },
+            },
+          },
+        });
+        return reply.send({ success: true, data: { plans } });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: 'Erreur' });
+      }
+    }
+  );
+
   // ===== GÉNÉRATION IA PAGES LÉGALES =====
 
   // POST /api/landing/generate-legal/:pageId - Générer contenu légal avec IA (ADMIN)

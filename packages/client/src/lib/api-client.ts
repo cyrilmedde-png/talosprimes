@@ -948,6 +948,32 @@ export const apiClient = {
         method: 'POST',
       }),
   },
+
+  // CMS Pages dynamiques
+  cmsPages: {
+    listAll: () =>
+      authenticatedFetch<{ success: boolean; data: { pages: CmsPageData[] } }>('/api/landing/pages/all'),
+    listPublic: () =>
+      authenticatedFetch<{ success: boolean; data: { pages: CmsPageData[] } }>('/api/landing/pages'),
+    getBySlug: (slug: string) =>
+      authenticatedFetch<{ success: boolean; data: { page: CmsPageData } }>(`/api/landing/pages/${slug}`),
+    create: (data: { slug: string; titre: string; contenu: string; metaTitle?: string; metaDesc?: string; publie?: boolean; ordre?: number }) =>
+      authenticatedFetch<{ success: boolean; data: { page: CmsPageData } }>('/api/landing/pages', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<{ slug: string; titre: string; contenu: string; metaTitle: string; metaDesc: string; publie: boolean; ordre: number }>) =>
+      authenticatedFetch<{ success: boolean; data: { page: CmsPageData } }>(`/api/landing/pages/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string }>(`/api/landing/pages/${id}`, { method: 'DELETE' }),
+  },
+
+  // Landing Tarifs (public)
+  landingTarifs: () =>
+    authenticatedFetch<{ success: boolean; data: { plans: PlanWithModules[] } }>('/api/landing/tarifs'),
 };
 
 // Types pour les factures
@@ -1246,6 +1272,20 @@ export interface ClientModuleData {
   activatedAt: string;
   expiresAt: string | null;
   module: ModuleMetier;
+}
+
+// Type pour les pages CMS
+export interface CmsPageData {
+  id: string;
+  slug: string;
+  titre: string;
+  contenu: string;
+  metaTitle: string | null;
+  metaDesc: string | null;
+  publie: boolean;
+  ordre: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Type pour les abonnements

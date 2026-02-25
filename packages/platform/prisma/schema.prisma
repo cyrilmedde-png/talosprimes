@@ -950,6 +950,25 @@ model LandingContent {
   @@map("landing_content")
 }
 
+// CmsPage (pages dynamiques créées depuis l'admin)
+model CmsPage {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique // ex: "tarifs", "a-propos", "faq"
+  titre     String
+  contenu   String   @db.Text // Markdown ou HTML
+  metaTitle String?  @map("meta_title")
+  metaDesc  String?  @map("meta_description") @db.Text
+  publie    Boolean  @default(false)
+  ordre     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([publie])
+  @@index([ordre])
+  @@map("cms_pages")
+}
+
 // ContactMessage (messages de contact)
 model ContactMessage {
   id          String   @id @default(uuid()) @db.Uuid
