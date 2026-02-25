@@ -5,7 +5,6 @@ import { apiClient } from '@/lib/api-client';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
-  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 interface Chantier {
