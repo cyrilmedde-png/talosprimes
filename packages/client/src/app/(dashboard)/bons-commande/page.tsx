@@ -13,6 +13,7 @@ import {
   DocumentArrowDownIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
@@ -60,6 +61,18 @@ export default function BonsCommandePage() {
   const [devisAcceptes, setDevisAcceptes] = useState<Devis[]>([]);
   const [selectedDevisId, setSelectedDevisId] = useState('');
   const createSubmittingRef = useRef(false);
+
+  // Modal édition
+  const [showEdit, setShowEdit] = useState(false);
+  const [editingBdc, setEditingBdc] = useState<Record<string, unknown> | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    clientFinalId: '',
+    tvaTaux: '20',
+    modePaiement: '',
+    description: '',
+  });
+  const [editLines, setEditLines] = useState<LigneBdc[]>([]);
 
   const getDefaultLigne = (): LigneBdc => ({
     id: `l-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -246,6 +259,80 @@ export default function BonsCommandePage() {
     }
   };
 
+  const openEditModal = (bdc: Record<string, unknown>) => {
+    setEditingBdc(bdc);
+    const b = bdc as unknown as {
+      clientFinalId?: string;
+      tvaTaux?: number;
+      modePaiement?: string;
+      description?: string;
+      lines?: Array<{ codeArticle?: string | null; designation?: string; quantite?: number; prixUnitaireHt?: number }>;
+    };
+    setEditForm({
+      clientFinalId: b.clientFinalId || '',
+      tvaTaux: String(b.tvaTaux ?? 20),
+      modePaiement: b.modePaiement || '',
+      description: b.description || '',
+    });
+    setEditLines(
+      (b.lines && b.lines.length > 0)
+        ? b.lines.map((l) => ({
+            id: `l-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            codeArticle: l.codeArticle || '',
+            designation: l.designation || '',
+            quantite: String(l.quantite ?? 1),
+            prixUnitaireHT: String(l.prixUnitaireHt ?? 0),
+          }))
+        : [getDefaultLigne()]
+    );
+    setShowEdit(true);
+  };
+
+  const handleUpdateBdc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBdc) return;
+    if (editing) return;
+
+    try {
+      const bdcId = (editingBdc as unknown as { id: string }).id;
+      setEditing(true);
+      setError(null);
+
+      const apiLines = editLines
+        .filter((l) => l.designation.trim())
+        .map((l) => ({
+          codeArticle: l.codeArticle || null,
+          designation: l.designation.trim(),
+          quantite: Math.max(1, Math.round(parseFloat(l.quantite.replace(',', '.')) || 1)),
+          prixUnitaireHt: parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0,
+        }));
+
+      const res = await apiClient.bonsCommande.update(bdcId, {
+        clientFinalId: editForm.clientFinalId || undefined,
+        tvaTaux: parseFloat(editForm.tvaTaux.replace(',', '.')) || 20,
+        modePaiement: editForm.modePaiement || undefined,
+        description: editForm.description || undefined,
+        lines: apiLines.length > 0 ? apiLines : undefined,
+      });
+
+      if (res.success) {
+        setShowEdit(false);
+        setEditingBdc(null);
+        setSuccess('Bon de commande modifié');
+        await loadBons();
+      } else {
+        setError((res as unknown as { message?: string }).message || 'Erreur lors de la modification');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la modification');
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  const addEditLine = () => setEditLines([...editLines, getDefaultLigne()]);
+  const removeEditLine = (index: number) => setEditLines(editLines.filter((_, i) => i !== index));
+
   const formatDate = (d: string) => {
     try { return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }); } catch { return d; }
   };
@@ -376,6 +463,18 @@ export default function BonsCommandePage() {
                             title="Convertir en facture"
                           >
                             <DocumentArrowDownIcon className="h-4 w-4" />Facturer
+                          </button>
+                        )}
+                        {bon.statut !== 'facture' && (
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(bon as unknown as Record<string, unknown>)}
+                            disabled={!!actionLoading}
+                            className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors disabled:opacity-40"
+                            title="Modifier"
+                          >
+                            <PencilSquareIcon className="h-4 w-4" />
+                            <span className="hidden sm:inline">Modifier</span>
                           </button>
                         )}
                         {bon.statut !== 'facture' && (
@@ -596,6 +695,185 @@ export default function BonsCommandePage() {
                 <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600">Annuler</button>
                 <button type="submit" disabled={creating} className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium disabled:opacity-50">
                   {creating ? 'Création…' : 'Créer le bon de commande'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Édition bon de commande */}
+      {showEdit && editingBdc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 overflow-y-auto" onClick={() => !editing && setShowEdit(false)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] mx-2 sm:mx-4 my-8 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 shrink-0">
+              <h2 className="text-lg font-semibold text-white">Modifier le bon de commande {(editingBdc as unknown as { numeroBdc?: string }).numeroBdc}</h2>
+              <button type="button" onClick={() => !editing && setShowEdit(false)} className="p-1 rounded text-gray-400 hover:text-white">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateBdc} className="p-6 space-y-5 overflow-y-auto shrink min-h-0 flex-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Client *</label>
+                <select
+                  required
+                  value={editForm.clientFinalId}
+                  onChange={(e) => setEditForm((f) => ({ ...f, clientFinalId: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sélectionner un client</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>{c.raisonSociale || [c.prenom, c.nom].filter(Boolean).join(' ') || c.email}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">TVA % *</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editForm.tvaTaux}
+                    onChange={(e) => setEditForm((f) => ({ ...f, tvaTaux: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Mode de paiement</label>
+                  <input
+                    type="text"
+                    value={editForm.modePaiement}
+                    onChange={(e) => setEditForm((f) => ({ ...f, modePaiement: e.target.value }))}
+                    placeholder="Virement, CB..."
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                  <input
+                    type="text"
+                    value={editForm.description}
+                    onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-300">Lignes / Articles</label>
+                  <button type="button" onClick={addEditLine} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 text-sm">
+                    <PlusIcon className="h-4 w-4" /> Ajouter
+                  </button>
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-gray-600">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-700/70 text-gray-300">
+                      <tr>
+                        <th className="px-3 py-2 text-left w-28 font-medium">Code Art.</th>
+                        <th className="px-3 py-2 text-left font-medium">Désignation</th>
+                        <th className="px-3 py-2 text-right w-20">Qté</th>
+                        <th className="px-3 py-2 text-right w-28">Prix unit. HT</th>
+                        <th className="px-3 py-2 text-right w-28">Montant HT</th>
+                        <th className="px-3 py-2 w-10" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-600">
+                      {editLines.map((ligne, idx) => {
+                        const qte = parseFloat(ligne.quantite.replace(',', '.')) || 0;
+                        const pu = parseFloat(ligne.prixUnitaireHT.replace(',', '.')) || 0;
+                        const mtHt = Math.round(qte * pu * 100) / 100;
+                        return (
+                          <tr key={ligne.id} className="bg-gray-800/50">
+                            <td className="px-3 py-2">
+                              <select
+                                value={ligne.codeArticle}
+                                onChange={(e) => {
+                                  const code = e.target.value;
+                                  const found = articleCodes.find((a) => a.code === code);
+                                  setEditLines((prev) => prev.map((l, i) => i === idx ? {
+                                    ...l,
+                                    codeArticle: code,
+                                    designation: found ? found.designation : l.designation,
+                                    prixUnitaireHT: found?.prixUnitaireHt ? String(Number(found.prixUnitaireHt)) : l.prixUnitaireHT,
+                                  } : l));
+                                }}
+                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-sm focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">—</option>
+                                {articleCodes.filter((a) => a.actif).map((a) => (
+                                  <option key={a.id} value={a.code}>{a.code}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={ligne.designation}
+                                onChange={(e) => setEditLines((prev) => prev.map((l, i) => i === idx ? { ...l, designation: e.target.value } : l))}
+                                placeholder="Désignation"
+                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={ligne.quantite}
+                                onChange={(e) => setEditLines((prev) => prev.map((l, i) => i === idx ? { ...l, quantite: e.target.value } : l))}
+                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={ligne.prixUnitaireHT}
+                                onChange={(e) => setEditLines((prev) => prev.map((l, i) => i === idx ? { ...l, prixUnitaireHT: e.target.value } : l))}
+                                placeholder="0.00"
+                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right text-gray-300 tabular-nums">{mtHt.toFixed(2)} €</td>
+                            <td className="px-3 py-2">
+                              <button
+                                type="button"
+                                onClick={() => removeEditLine(idx)}
+                                disabled={editLines.length <= 1}
+                                className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-gray-700 disabled:opacity-40"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {editLines.length > 0 && (() => {
+                  let totalHt = 0;
+                  editLines.forEach((l) => {
+                    const qte = parseFloat(l.quantite.replace(',', '.')) || 0;
+                    const pu = parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0;
+                    totalHt += qte * pu;
+                  });
+                  const tva = parseFloat(editForm.tvaTaux.replace(',', '.')) || 20;
+                  const totalTtc = totalHt * (1 + tva / 100);
+                  return (
+                    <div className="mt-2 flex justify-end gap-6 text-sm">
+                      <span className="text-gray-400">Total HT : <strong className="text-white">{totalHt.toFixed(2)} €</strong></span>
+                      <span className="text-gray-400">Total TTC : <strong className="text-blue-400">{totalTtc.toFixed(2)} €</strong></span>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-700">
+                <button type="button" onClick={() => !editing && setShowEdit(false)} className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600">Annuler</button>
+                <button type="submit" disabled={editing} className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium disabled:opacity-50">
+                  {editing ? 'Enregistrement…' : 'Enregistrer les modifications'}
                 </button>
               </div>
             </form>

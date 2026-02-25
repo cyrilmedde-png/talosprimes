@@ -481,6 +481,11 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; message: string; data: { bon: BonCommande } }>(`/api/bons-commande/${id}/validate`, {
         method: 'PUT',
       }),
+    update: (id: string, data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { bon: BonCommande } }>(`/api/bons-commande/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
     convertToInvoice: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice; bon: BonCommande } }>(`/api/bons-commande/${id}/convert-to-invoice`, {
         method: 'POST',
@@ -536,6 +541,11 @@ export const apiClient = {
     accept: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string; data: { devis: Devis } }>(`/api/devis/${id}/accept`, {
         method: 'PUT',
+      }),
+    update: (id: string, data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { devis: Devis } }>(`/api/devis/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
       }),
     convertToInvoice: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string; data: { invoice: Invoice; devis: Devis } }>(`/api/devis/${id}/convert-to-invoice`, {

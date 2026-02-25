@@ -66,6 +66,14 @@ const createSchema = z.object({
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
+const updateSchema = z.object({
+  clientFinalId: z.string().uuid().optional(),
+  tvaTaux: z.number().min(0).max(100).optional(),
+  description: z.string().optional().nullable(),
+  modePaiement: z.string().optional().nullable(),
+  lines: z.array(lineSchema).optional(),
+});
+
 export async function bonsCommandeRoutes(fastify: FastifyInstance) {
   // GET /api/bons-commande - Liste
   fastify.get('/', {
@@ -685,6 +693,112 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur conversion bon → facture');
+      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+    }
+  });
+
+  // PUT /api/bons-commande/:id - Update (allows editing even after validation)
+  fastify.put('/:id', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+    try {
+      const fromN8n = request.isN8nRequest === true;
+      const params = paramsSchema.parse(request.params);
+      const body = updateSchema.parse(request.body);
+      const tenantId = request.tenantId as string;
+
+      if (!tenantId) {
+        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+      }
+
+      if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+      }
+
+      const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
+      if (!bon) return reply.status(404).send({ success: false, error: 'Bon de commande non trouvé' });
+
+      if (!fromN8n) {
+        const res = await n8nService.callWorkflowReturn<{ bon: unknown }>(
+          tenantId,
+          'bdc_update',
+          { bdcId: params.id, ...body }
+        );
+        if (!res.success) {
+          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
+        return reply.status(200).send({
+          success: true,
+          message: 'Bon de commande mis à jour via n8n',
+          data: res.data,
+        });
+      }
+
+      const clientFinalId = body.clientFinalId || bon.clientFinalId;
+      const client = await prisma.clientFinal.findFirst({
+        where: { id: clientFinalId, tenantId }
+      });
+      if (!client) return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+
+      const tvaTaux = body.tvaTaux ?? bon.tvaTaux ?? 20;
+      const lines = body.lines ?? [];
+      const montantHt = lines.length > 0
+        ? Number((lines.reduce((sum, l) => sum + ((l.quantite ?? 1) * l.prixUnitaireHt), 0)).toFixed(2))
+        : bon.montantHt;
+      const montantTtc = Number((montantHt * (1 + tvaTaux / 100)).toFixed(2));
+
+      const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        await tx.bonCommandeLine.deleteMany({ where: { bonCommandeId: params.id } });
+
+        return tx.bonCommande.update({
+          where: { id: params.id },
+          data: {
+            clientFinalId,
+            tvaTaux,
+            montantHt,
+            montantTtc,
+            description: body.description ?? bon.description,
+            modePaiement: body.modePaiement ?? bon.modePaiement,
+            ...(lines.length > 0 ? {
+              lines: {
+                create: lines.map((l, i) => ({
+                  codeArticle: l.codeArticle ?? null,
+                  designation: l.designation,
+                  quantite: l.quantite ?? 1,
+                  prixUnitaireHt: l.prixUnitaireHt,
+                  totalHt: (l.quantite ?? 1) * l.prixUnitaireHt,
+                  ordre: i,
+                })),
+              },
+            } : {}),
+          },
+          include: {
+            clientFinal: { select: { id: true, email: true, nom: true, prenom: true, raisonSociale: true } },
+            lines: { orderBy: { ordre: 'asc' } },
+          },
+        });
+      });
+
+      await logEvent(tenantId, 'bdc_update', 'BonCommande', updated.id, { numeroBdc: updated.numeroBdc, montantTtc: Number(updated.montantTtc) }, 'succes');
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Bon de commande mis à jour',
+        data: { bon: updated },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      try {
+        const _tid = request.tenantId;
+        if (request.isN8nRequest && _tid) {
+          await logEvent(_tid, 'bdc_update', 'BonCommande', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+        }
+      } catch (_) {}
+      if (error instanceof z.ZodError) {
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+      }
+      fastify.log.error(error, 'Erreur mise à jour bon de commande');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
     }
   });
