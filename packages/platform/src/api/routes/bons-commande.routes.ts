@@ -718,22 +718,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
       if (!bon) return reply.status(404).send({ success: false, error: 'Bon de commande non trouvé' });
 
-      if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ bon: unknown }>(
-          tenantId,
-          'bdc_update',
-          { bdcId: params.id, ...body }
-        );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
-        return reply.status(200).send({
-          success: true,
-          message: 'Bon de commande mis à jour via n8n',
-          data: res.data,
-        });
-      }
-
       const clientFinalId = body.clientFinalId || bon.clientFinalId;
       if (!clientFinalId) return reply.status(400).send({ success: false, error: 'Client requis' });
       const client = await prisma.clientFinal.findFirst({
