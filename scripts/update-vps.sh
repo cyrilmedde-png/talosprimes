@@ -703,6 +703,37 @@ else
     log_warn "Prisma db push: pas de changements ou erreur (non bloquant)"
   fi
 
+  # --- Execution des seeds SQL (idempotents avec ON CONFLICT) ---
+  SEED_SQL_DIR="$PLATFORM_DIR/prisma"
+  DATABASE_URL=""
+
+  # Charger DATABASE_URL depuis le .env platform
+  if [ -f "$PLATFORM_DIR/.env" ]; then
+    DATABASE_URL=$(grep -E '^DATABASE_URL=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+  fi
+
+  if [ -n "$DATABASE_URL" ]; then
+    # Executer tous les fichiers seed-*.sql (idempotents)
+    SEED_FILES=$(find "$SEED_SQL_DIR" -maxdepth 1 -name 'seed-*.sql' -type f 2>/dev/null | sort)
+    if [ -n "$SEED_FILES" ]; then
+      log_info "Execution des seeds SQL..."
+      while IFS= read -r seed_file; do
+        seed_name=$(basename "$seed_file")
+        log_info "  -> $seed_name"
+        if psql "$DATABASE_URL" -f "$seed_file" 2>&1 | tail -5; then
+          log_ok "  $seed_name execute"
+        else
+          log_warn "  $seed_name: erreur (non bloquant)"
+        fi
+      done <<< "$SEED_FILES"
+    else
+      log_info "Aucun fichier seed-*.sql trouve"
+    fi
+  else
+    log_warn "DATABASE_URL non trouvee dans .env — seeds SQL ignores"
+    log_info "Ajoutez DATABASE_URL dans $PLATFORM_DIR/.env pour executer les seeds"
+  fi
+
   cd "$PROJECT_DIR"
 fi
 
