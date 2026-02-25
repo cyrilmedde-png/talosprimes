@@ -520,14 +520,6 @@ export default function CMSPage() {
         <p className="mt-2 text-sm text-gray-400">Modifiez le contenu, les témoignages et consultez les messages de contact</p>
       </div>
 
-      {/* Bandeau info tarifs */}
-      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
-        <p className="text-sm text-blue-300">
-          💡 Cette section affiche un aperçu de ce que vos visiteurs verront sur la page tarifs.
-          Pour modifier les plans, rendez-vous dans <strong>Administration → Plans &amp; Modules</strong>.
-        </p>
-      </div>
-
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-700/30">
         <button
@@ -1287,6 +1279,13 @@ export default function CMSPage() {
       {/* Tarifs Tab */}
       {activeTab === 'tarifs' && (
         <div className="space-y-6">
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+            <p className="text-sm text-blue-300">
+              💡 Cette section affiche un aperçu de ce que vos visiteurs verront sur la page tarifs.
+              Pour modifier les plans, rendez-vous dans <strong>Administration → Plans &amp; Modules</strong>.
+            </p>
+          </div>
+
           <div className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg border border-gray-700/30">
             <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-indigo-400" />
