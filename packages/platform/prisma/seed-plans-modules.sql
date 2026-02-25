@@ -60,10 +60,10 @@ ON CONFLICT (code) DO UPDATE SET
 
 -- Plan Starter : facturation de base + dashboard + notifications
 INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
-SELECT gen_random_uuid(), p.id, m.id, v.limite, v.config::jsonb
+SELECT gen_random_uuid(), p.id, m.id, v.limite::integer, v.config::jsonb
 FROM plans p
 CROSS JOIN (VALUES
-  ('facturation', NULL, NULL),
+  ('facturation', NULL::integer, NULL::text),
   ('devis', NULL, NULL),
   ('bons_commande', NULL, NULL),
   ('avoirs', NULL, NULL),
@@ -80,10 +80,10 @@ ON CONFLICT (plan_id, module_id) DO UPDATE SET
 
 -- Plan Pro : tout starter + comptabilité + clients + leads + SMS (limité)
 INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
-SELECT gen_random_uuid(), p.id, m.id, v.limite, v.config::jsonb
+SELECT gen_random_uuid(), p.id, m.id, v.limite::integer, v.config::jsonb
 FROM plans p
 CROSS JOIN (VALUES
-  ('facturation', NULL, NULL),
+  ('facturation', NULL::integer, NULL::text),
   ('devis', NULL, NULL),
   ('bons_commande', NULL, NULL),
   ('avoirs', NULL, NULL),
@@ -104,10 +104,10 @@ ON CONFLICT (plan_id, module_id) DO UPDATE SET
 
 -- Plan Enterprise : tout illimité + Agent IA
 INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
-SELECT gen_random_uuid(), p.id, m.id, v.limite, v.config::jsonb
+SELECT gen_random_uuid(), p.id, m.id, v.limite::integer, v.config::jsonb
 FROM plans p
 CROSS JOIN (VALUES
-  ('facturation', NULL, NULL),
+  ('facturation', NULL::integer, NULL::text),
   ('devis', NULL, NULL),
   ('bons_commande', NULL, NULL),
   ('avoirs', NULL, NULL),

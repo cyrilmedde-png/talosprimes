@@ -435,7 +435,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
         }
 
         // Transaction : supprimer les anciens, insérer les nouveaux
-        await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+        await prisma.$transaction(async (tx) => {
           // Supprimer tous les plan_modules existants
           await tx.planModule.deleteMany({ where: { planId: id } });
 

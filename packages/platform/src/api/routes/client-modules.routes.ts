@@ -185,7 +185,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
         }
 
         // Transaction : désactiver les anciens, activer les nouveaux
-        const result = await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
+        const result = await prisma.$transaction(async (tx) => {
           // Désactiver tous les modules existants
           await tx.clientModule.updateMany({
             where: { clientFinalId: clientId },
