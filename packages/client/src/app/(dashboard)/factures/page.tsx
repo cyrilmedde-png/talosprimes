@@ -93,6 +93,9 @@ export default function FacturesPage() {
   const [total, setTotal] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Onglets Ventes / Achats
+  const [activeTab, setActiveTab] = useState<'ventes' | 'achats'>('ventes');
+
   // Modal Créer une facture
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [clients, setClients] = useState<ClientFinal[]>([]);
@@ -583,6 +586,10 @@ export default function FacturesPage() {
     return [c.prenom, c.nom].filter(Boolean).join(' ') || c.email;
   };
 
+  const filteredInvoices = invoices.filter((inv) =>
+    activeTab === 'achats' ? inv.type === 'facture_achat' : inv.type !== 'facture_achat'
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -607,6 +614,27 @@ export default function FacturesPage() {
           >
             <PlusIcon className="h-5 w-5" />
             Créer une facture
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowCreateModal(true);
+              setError(null);
+              resetCreateForm();
+              setCreateForm((f) => ({ ...f, type: 'facture_achat', typeDocument: 'facture' }));
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium text-sm"
+          >
+            <DocumentMagnifyingGlassIcon className="h-5 w-5" />
+            Facture d&apos;achat
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/bons-commande')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm"
+          >
+            <ClipboardDocumentListIcon className="h-5 w-5" />
+            Bons de commande
           </button>
           <button
             type="button"
@@ -655,6 +683,38 @@ export default function FacturesPage() {
         </div>
       )}
 
+      {/* Onglets Ventes / Achats */}
+      <div className="flex gap-1 border-b border-gray-700">
+        <button
+          type="button"
+          onClick={() => { setActiveTab('ventes'); setPage(1); }}
+          className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'ventes'
+              ? 'bg-gray-800 text-amber-400 border border-gray-700 border-b-transparent -mb-px'
+              : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+          }`}
+        >
+          Factures de vente
+          <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-300">
+            {invoices.filter((i) => i.type !== 'facture_achat').length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('achats'); setPage(1); }}
+          className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'achats'
+              ? 'bg-gray-800 text-orange-400 border border-gray-700 border-b-transparent -mb-px'
+              : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+          }`}
+        >
+          Factures d&apos;achat
+          <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-300">
+            {invoices.filter((i) => i.type === 'facture_achat').length}
+          </span>
+        </button>
+      </div>
+
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <label htmlFor="statut" className="text-sm text-gray-400">Statut</label>
@@ -677,13 +737,19 @@ export default function FacturesPage() {
           <div className="p-12 text-center text-gray-400">Chargement des factures…</div>
         ) : invoices.length === 0 ? (
           <div className="p-12 text-center text-gray-400">Aucune facture.</div>
+        ) : filteredInvoices.length === 0 ? (
+          <div className="p-12 text-center text-gray-400">
+            {activeTab === 'achats' ? "Aucune facture d'achat." : 'Aucune facture de vente.'}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-700">
               <thead>
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">N° Facture</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Client</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                    {activeTab === 'achats' ? 'Fournisseur' : 'Client'}
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Montant TTC</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
@@ -691,7 +757,7 @@ export default function FacturesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {invoices.map((inv) => (
+                {filteredInvoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-gray-700/30">
                     <td className="px-4 py-3 text-sm font-mono text-white">{inv.numeroFacture}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">{clientLabel(inv)}</td>

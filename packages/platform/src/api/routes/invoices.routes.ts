@@ -5,7 +5,7 @@ import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
-import { generateInvoicePdf } from '../../services/pdf.service.js';
+import { generateInvoicePdf, generateDocumentPdf } from '../../services/pdf.service.js';
 import { sendEmail, isEmailSendConfigured } from '../../services/email-agent.service.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
@@ -181,28 +181,27 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               dateTo: queryParams.dateTo,
             }
           );
-          if (res.success && res.data) {
-            const raw = res.data as { invoices?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
-            const invoices = Array.isArray(raw.invoices)
-              ? raw.invoices.map((inv) => normalizeInvoiceFromN8n(inv as Record<string, unknown>))
-              : [];
-            return reply.status(200).send({
-              success: true,
-              data: {
-                invoices,
-                count: invoices.length,
-                total: raw.total ?? invoices.length,
-                page: raw.page ?? 1,
-                limit: raw.limit ?? 20,
-                totalPages: raw.totalPages ?? 1,
-              },
-            });
+          if (!res.success) {
+            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n lors de la liste des factures' });
           }
-          // Workflow non trouvé ou erreur n8n → fallback BDD pour que la liste s'affiche quand même
-          fastify.log.warn({ err: res.error }, 'Liste factures: n8n indisponible, fallback BDD');
+          const raw = res.data as { invoices?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
+          const invoices = Array.isArray(raw.invoices)
+            ? raw.invoices.map((inv) => normalizeInvoiceFromN8n(inv as Record<string, unknown>))
+            : [];
+          return reply.status(200).send({
+            success: true,
+            data: {
+              invoices,
+              count: invoices.length,
+              total: raw.total ?? invoices.length,
+              page: raw.page ?? 1,
+              limit: raw.limit ?? 20,
+              totalPages: raw.totalPages ?? 1,
+            },
+          });
         }
 
-        // Récupérer depuis la base de données (fallback ou si USE_N8N_VIEWS=false)
+        // Récupérer depuis la base de données (USE_N8N_VIEWS=false ou appel n8n)
         const page = queryParams.page ? parseInt(queryParams.page, 10) : 1;
         const limit = queryParams.limit ? parseInt(queryParams.limit, 10) : 20;
         const skip = (page - 1) * limit;
@@ -439,29 +438,62 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
         }
 
-        const forPdf = {
-          numeroFacture: invoice.numeroFacture,
-          dateFacture: invoice.dateFacture,
-          dateEcheance: invoice.dateEcheance,
-          montantHt: Number(invoice.montantHt),
-          montantTtc: Number(invoice.montantTtc),
-          tvaTaux: invoice.tvaTaux != null ? Number(invoice.tvaTaux) : null,
-          description: invoice.description ?? undefined,
-          codeArticle: invoice.codeArticle ?? undefined,
-          modePaiement: invoice.modePaiement ?? undefined,
-          statut: invoice.statut,
-          lines: invoice.lines.map((l: any) => ({
-            codeArticle: l.codeArticle,
-            designation: l.designation,
-            quantite: l.quantite,
-            prixUnitaireHt: Number(l.prixUnitaireHt),
-            totalHt: Number(l.totalHt),
-          })),
-          clientFinal: invoice.clientFinal ?? undefined,
-          tenant: invoice.tenant ?? undefined,
-        };
+        // Utiliser le type facture_achat pour le PDF si applicable
+        const isAchat = invoice.type === 'facture_achat';
+        let pdfBytes: Uint8Array;
 
-        const pdfBytes = await generateInvoicePdf(forPdf);
+        if (isAchat) {
+          const forPdf = {
+            numero: invoice.numeroFacture,
+            dateDocument: invoice.dateFacture,
+            dateSecondaire: invoice.dateEcheance,
+            montantHt: Number(invoice.montantHt),
+            montantTtc: Number(invoice.montantTtc),
+            tvaTaux: invoice.tvaTaux != null ? Number(invoice.tvaTaux) : null,
+            description: invoice.description ?? undefined,
+            modePaiement: invoice.modePaiement ?? undefined,
+            statut: invoice.statut,
+            lines: invoice.lines.map((l: any) => ({
+              codeArticle: l.codeArticle,
+              designation: l.designation,
+              quantite: l.quantite,
+              prixUnitaireHt: Number(l.prixUnitaireHt),
+              totalHt: Number(l.totalHt),
+            })),
+            clientFinal: undefined,
+            tenant: invoice.tenant ?? undefined,
+            fournisseur: {
+              nom: (invoice as any).fournisseurNom ?? null,
+              siret: (invoice as any).fournisseurSiret ?? null,
+              tvaIntra: (invoice as any).fournisseurTvaIntra ?? null,
+              adresse: (invoice as any).fournisseurAdresse ?? null,
+            },
+          };
+          pdfBytes = await generateDocumentPdf(forPdf, 'facture_achat');
+        } else {
+          const forPdf = {
+            numeroFacture: invoice.numeroFacture,
+            dateFacture: invoice.dateFacture,
+            dateEcheance: invoice.dateEcheance,
+            montantHt: Number(invoice.montantHt),
+            montantTtc: Number(invoice.montantTtc),
+            tvaTaux: invoice.tvaTaux != null ? Number(invoice.tvaTaux) : null,
+            description: invoice.description ?? undefined,
+            codeArticle: invoice.codeArticle ?? undefined,
+            modePaiement: invoice.modePaiement ?? undefined,
+            statut: invoice.statut,
+            lines: invoice.lines.map((l: any) => ({
+              codeArticle: l.codeArticle,
+              designation: l.designation,
+              quantite: l.quantite,
+              prixUnitaireHt: Number(l.prixUnitaireHt),
+              totalHt: Number(l.totalHt),
+            })),
+            clientFinal: invoice.clientFinal ?? undefined,
+            tenant: invoice.tenant ?? undefined,
+          };
+          pdfBytes = await generateInvoicePdf(forPdf);
+        }
         const filename = `facture-${invoice.numeroFacture.replace(/\s+/g, '-')}.pdf`;
 
         return reply
@@ -828,6 +860,8 @@ Règles :
               }
 
               if (invoiceId) {
+                // Supprimer les lignes existantes (évite doublons si n8n en a déjà créé)
+                await prisma.invoiceLine.deleteMany({ where: { invoiceId: invoiceId as string } });
                 await prisma.invoiceLine.createMany({
                   data: body.lines.map((l, i) => ({
                     invoiceId: invoiceId as string,
@@ -941,7 +975,7 @@ Règles :
           let numeroFacture = bodyWithoutTenantId.numeroFacture;
           if (!numeroFacture) {
             const year = new Date().getFullYear();
-            const prefix = `INV-${year}-`;
+            const prefix = body.type === 'facture_achat' ? `FAC-ACH-${year}-` : `INV-${year}-`;
             const result = await tx.$queryRaw<[{ next_num: bigint }]>`
               SELECT COALESCE(
                 MAX(CAST(SUBSTRING(numero_facture FROM ${prefix.length + 1}) AS INTEGER)),

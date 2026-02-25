@@ -43,9 +43,15 @@ export type DocumentForPdf = {
     telephone?: string | null;
     emailContact: string;
   } | null;
+  fournisseur?: {
+    nom?: string | null;
+    siret?: string | null;
+    tvaIntra?: string | null;
+    adresse?: string | null;
+  } | null;
 };
 
-export type DocumentType = 'facture' | 'devis' | 'avoir' | 'bon_commande' | 'proforma';
+export type DocumentType = 'facture' | 'facture_achat' | 'devis' | 'avoir' | 'bon_commande' | 'proforma';
 
 // Configuration par type de document
 const DOC_CONFIG: Record<DocumentType, {
@@ -68,6 +74,17 @@ const DOC_CONFIG: Record<DocumentType, {
       'Indemnite forfaitaire pour frais de recouvrement : 40,00 EUR.',
     ],
     showPaymentInfo: true,
+  },
+  facture_achat: {
+    title: "FACTURE D'ACHAT",
+    numeroLabel: 'N\u00B0 Facture',
+    clientLabel: 'Client (votre entreprise)',
+    dateLabel: 'Date de facturation',
+    dateSecondaireLabel: "Date d'echeance",
+    mentionsLegales: [
+      "Facture d'achat enregistree a des fins comptables.",
+    ],
+    showPaymentInfo: false,
   },
   devis: {
     title: 'DEVIS',
@@ -344,37 +361,89 @@ export async function generateDocumentPdf(document: DocumentForPdf, documentType
   // CLIENT
   // ═══════════════════════════════════════════════════════════════════
 
-  page.drawText(config.clientLabel, { x: ml, y, size: 8, font, color: COLORS.muted });
-  y -= 16;
+  if (documentType === 'facture_achat') {
+    // ── Facture d'achat : Fournisseur (émetteur) à gauche, Entreprise (client) à droite ──
+    const fournisseur = document.fournisseur;
+    const tenant = document.tenant;
 
-  const client = document.clientFinal;
-  const clientName =
-    (client?.raisonSociale || [client?.prenom, client?.nom].filter(Boolean).join(' ') || '-').trim() || 'Client';
-
-  page.drawText(safe(clientName), { x: ml, y, size: 12, font: fontBold, color: COLORS.dark });
-  y -= 15;
-
-  if (client?.adresse) {
-    const adresseLines = safe(client.adresse).split('\n').filter(Boolean);
-    for (const line of adresseLines) {
-      page.drawText(line.trim(), { x: ml, y, size: 9, font, color: COLORS.text });
+    // Fournisseur (émetteur) — colonne gauche
+    page.drawText('Fournisseur', { x: ml, y, size: 8, font, color: COLORS.muted });
+    y -= 16;
+    page.drawText(safe(fournisseur?.nom || 'Fournisseur inconnu'), { x: ml, y, size: 12, font: fontBold, color: COLORS.dark });
+    y -= 15;
+    if (fournisseur?.adresse) {
+      const adresseLines = safe(fournisseur.adresse).split('\n').filter(Boolean);
+      for (const aLine of adresseLines) {
+        page.drawText(aLine.trim(), { x: ml, y, size: 9, font, color: COLORS.text });
+        y -= 13;
+      }
+    }
+    if (fournisseur?.siret) {
+      page.drawText(`SIRET : ${safe(fournisseur.siret)}`, { x: ml, y, size: 8, font, color: COLORS.muted });
       y -= 13;
     }
-  }
-  if (client?.email) {
-    page.drawText(safe(client.email), { x: ml, y, size: 9, font: fontOblique, color: COLORS.accent });
-    y -= 13;
-  }
-  if (client?.telephone) {
-    page.drawText(safe(client.telephone), { x: ml, y, size: 9, font, color: COLORS.text });
-    y -= 13;
-  }
+    if (fournisseur?.tvaIntra) {
+      page.drawText(`TVA Intra : ${safe(fournisseur.tvaIntra)}`, { x: ml, y, size: 8, font, color: COLORS.muted });
+      y -= 13;
+    }
 
-  // Motif pour les avoirs
-  if (documentType === 'avoir' && document.motif) {
-    y -= 5;
-    page.drawText(`Motif : ${safe(document.motif)}`, { x: ml, y, size: 9, font: fontOblique, color: COLORS.text });
-    y -= 13;
+    // Entreprise (client = destinataire) — colonne droite
+    const rightCol = width / 2 + 20;
+    const clientStartY = y + 15 + 16; // remonter au niveau du nom fournisseur
+    page.drawText(config.clientLabel, { x: rightCol, y: clientStartY + 16, size: 8, font, color: COLORS.muted });
+    page.drawText(safe(tenant?.nomEntreprise || 'Mon entreprise'), { x: rightCol, y: clientStartY, size: 12, font: fontBold, color: COLORS.dark });
+    let yClientRight = clientStartY - 15;
+    if (tenant?.adressePostale) {
+      page.drawText(safe(tenant.adressePostale), { x: rightCol, y: yClientRight, size: 9, font, color: COLORS.text });
+      yClientRight -= 13;
+    }
+    const cpVilleClient = [tenant?.codePostal, tenant?.ville].filter(Boolean).join(' ');
+    if (cpVilleClient) {
+      page.drawText(safe(cpVilleClient), { x: rightCol, y: yClientRight, size: 9, font, color: COLORS.text });
+      yClientRight -= 13;
+    }
+    if (tenant?.siret) {
+      page.drawText(`SIRET : ${safe(tenant.siret)}`, { x: rightCol, y: yClientRight, size: 8, font, color: COLORS.muted });
+      yClientRight -= 13;
+    }
+    if (tenant?.emailContact) {
+      page.drawText(safe(tenant.emailContact), { x: rightCol, y: yClientRight, size: 9, font: fontOblique, color: COLORS.accent });
+      yClientRight -= 13;
+    }
+  } else {
+    // ── Factures normales : bloc client classique ──
+    page.drawText(config.clientLabel, { x: ml, y, size: 8, font, color: COLORS.muted });
+    y -= 16;
+
+    const client = document.clientFinal;
+    const clientName =
+      (client?.raisonSociale || [client?.prenom, client?.nom].filter(Boolean).join(' ') || '-').trim() || 'Client';
+
+    page.drawText(safe(clientName), { x: ml, y, size: 12, font: fontBold, color: COLORS.dark });
+    y -= 15;
+
+    if (client?.adresse) {
+      const adresseLines = safe(client.adresse).split('\n').filter(Boolean);
+      for (const aLine of adresseLines) {
+        page.drawText(aLine.trim(), { x: ml, y, size: 9, font, color: COLORS.text });
+        y -= 13;
+      }
+    }
+    if (client?.email) {
+      page.drawText(safe(client.email), { x: ml, y, size: 9, font: fontOblique, color: COLORS.accent });
+      y -= 13;
+    }
+    if (client?.telephone) {
+      page.drawText(safe(client.telephone), { x: ml, y, size: 9, font, color: COLORS.text });
+      y -= 13;
+    }
+
+    // Motif pour les avoirs
+    if (documentType === 'avoir' && document.motif) {
+      y -= 5;
+      page.drawText(`Motif : ${safe(document.motif)}`, { x: ml, y, size: 9, font: fontOblique, color: COLORS.text });
+      y -= 13;
+    }
   }
 
   y -= 20;
