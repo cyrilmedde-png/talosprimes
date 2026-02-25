@@ -16,6 +16,8 @@ import {
   Phone,
   MapPin,
   ChevronDown,
+  Menu,
+  X,
 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
 
@@ -50,6 +52,7 @@ export default function LandingPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -118,11 +121,12 @@ export default function LandingPage() {
       {showToast && <Toast type={toastType} message={toastMessage} onClose={() => setShowToast(false)} />}
 
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200">
-        <nav className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+        <nav className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-slate-900 font-medium">
             <Workflow className="w-6 h-6 text-slate-700" strokeWidth={1.5} />
             <span>{content.footer_company_name || 'TalosPrimes'}</span>
           </Link>
+          {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-slate-500 text-sm hover:text-slate-900 transition">Fonctionnalités</a>
             <a href="#testimonials" className="text-slate-500 text-sm hover:text-slate-900 transition">Témoignages</a>
@@ -132,7 +136,31 @@ export default function LandingPage() {
               {content.hero_cta_primary || 'Essayer'}
             </CtaLink>
           </div>
+          {/* Bouton hamburger mobile */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-slate-600 hover:text-slate-900 focus:outline-none"
+            aria-label="Menu"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </nav>
+        {/* Menu mobile déroulant */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-3 shadow-lg">
+            <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Fonctionnalités</a>
+            <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Témoignages</a>
+            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Contact</a>
+            <div className="border-t border-slate-100 pt-3 space-y-2">
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block w-full text-center px-4 py-2.5 border border-slate-300 text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition">
+                Connexion
+              </Link>
+              <CtaLink href={primaryLink} className="block w-full text-center px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
+                {content.hero_cta_primary || 'Essayer'}
+              </CtaLink>
+            </div>
+          </div>
+        )}
       </header>
 
       <section className="pt-24 pb-16 px-6 border-b border-slate-100">
