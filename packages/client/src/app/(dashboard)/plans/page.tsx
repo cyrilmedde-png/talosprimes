@@ -15,6 +15,7 @@ import {
   LockOpenIcon,
   PlusIcon,
   XMarkIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { apiClient, type PlanWithModules, type ModuleMetier, type ClientModuleData } from '@/lib/api-client';
 
@@ -130,6 +131,17 @@ function PlansTab({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<PlanWithModules | null>(null);
+  const [editForm, setEditForm] = useState({
+    nom: '',
+    description: '',
+    prixMensuel: '',
+    prixAnnuel: '',
+    essaiJours: '14',
+    couleur: '#6366f1',
+    selectedModules: [] as string[],
+  });
   const [newPlan, setNewPlan] = useState({
     code: '',
     nom: '',
@@ -187,7 +199,7 @@ function PlansTab({
       if (newPlan.description) payload.description = newPlan.description;
       if (newPlan.prixAnnuel) payload.prixAnnuel = parseFloat(newPlan.prixAnnuel);
       await apiClient.plans.create(payload);
-      setMessage({ type: 'success', text: `Plan "${newPlan.nom}" cr\u00e9\u00e9 avec succ\u00e8s` });
+      setMessage({ type: 'success', text: `Plan "${newPlan.nom}" créé avec succès` });
       setShowCreateModal(false);
       setNewPlan({
         code: '',
@@ -201,7 +213,7 @@ function PlansTab({
       });
       onRefresh();
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erreur cr\u00e9ation' });
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erreur création' });
     } finally {
       setSaving(false);
     }
@@ -214,6 +226,59 @@ function PlansTab({
         ? prev.selectedModules.filter((c) => c !== code)
         : [...prev.selectedModules, code],
     }));
+  };
+
+  const toggleEditModuleSelection = (code: string) => {
+    setEditForm((prev) => ({
+      ...prev,
+      selectedModules: prev.selectedModules.includes(code)
+        ? prev.selectedModules.filter((c) => c !== code)
+        : [...prev.selectedModules, code],
+    }));
+  };
+
+  const openEditModal = (plan: PlanWithModules) => {
+    setEditingPlan(plan);
+    setEditForm({
+      nom: plan.nom,
+      description: plan.description ?? '',
+      prixMensuel: String(Number(plan.prixMensuel)),
+      prixAnnuel: plan.prixAnnuel ? String(Number(plan.prixAnnuel)) : '',
+      essaiJours: String(plan.essaiJours),
+      couleur: plan.couleur ?? '#6366f1',
+      selectedModules: plan.planModules.map((pm) => pm.module.code),
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditPlan = async () => {
+    if (!editingPlan || !editForm.nom || !editForm.prixMensuel) {
+      setMessage({ type: 'error', text: 'Nom et prix mensuel sont obligatoires' });
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      await apiClient.plans.update(editingPlan.id, {
+        nom: editForm.nom,
+        description: editForm.description || undefined,
+        prixMensuel: parseFloat(editForm.prixMensuel),
+        prixAnnuel: editForm.prixAnnuel ? parseFloat(editForm.prixAnnuel) : undefined,
+        essaiJours: parseInt(editForm.essaiJours) || 14,
+        couleur: editForm.couleur,
+      });
+      await apiClient.plans.updateModules(editingPlan.id,
+        editForm.selectedModules.map((code) => ({ moduleCode: code })),
+      );
+      setMessage({ type: 'success', text: `Plan "${editForm.nom}" modifié avec succès` });
+      setShowEditModal(false);
+      setEditingPlan(null);
+      onRefresh();
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erreur modification' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -261,7 +326,7 @@ function PlansTab({
           className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
-          Cr\u00e9er un plan
+          Créer un plan
         </button>
       </div>
 
@@ -335,6 +400,14 @@ function PlansTab({
 
                   {/* Actions */}
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(plan)}
+                      disabled={saving}
+                      className="p-2 rounded hover:bg-gray-700 text-gray-400 hover:text-amber-400 transition-colors"
+                      title="Modifier"
+                    >
+                      <PencilSquareIcon className="h-5 w-5" />
+                    </button>
                     <button
                       onClick={() => handleToggleActive(plan)}
                       disabled={saving}
@@ -447,6 +520,153 @@ function PlansTab({
         })}
       </div>
 
+      {/* Modal Modifier un plan */}
+      {showEditModal && editingPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <PencilSquareIcon className="h-5 w-5 text-amber-400" />
+                Modifier le plan : {editingPlan.code}
+              </h3>
+              <button
+                onClick={() => { setShowEditModal(false); setEditingPlan(null); }}
+                className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Nom */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Nom du plan <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.nom}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, nom: e.target.value }))}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
+                />
+              </div>
+
+              {/* Prix + Essai + Couleur */}
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Prix/mois <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={editForm.prixMensuel}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, prixMensuel: e.target.value }))}
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 pr-8"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">&euro;</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Prix/an</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={editForm.prixAnnuel}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, prixAnnuel: e.target.value }))}
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 pr-8"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">&euro;</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Essai (jours)</label>
+                  <input
+                    type="number"
+                    value={editForm.essaiJours}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, essaiJours: e.target.value }))}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Couleur</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={editForm.couleur}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, couleur: e.target.value }))}
+                      className="w-10 h-10 rounded cursor-pointer bg-transparent border-0"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{editForm.couleur}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sélection modules */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Modules inclus ({editForm.selectedModules.length})
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {modules
+                    .filter((m) => m.actif)
+                    .map((m) => {
+                      const selected = editForm.selectedModules.includes(m.code);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => toggleEditModuleSelection(m.code)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition-colors ${
+                            selected
+                              ? 'bg-amber-500/10 border-amber-500/30 text-white'
+                              : 'bg-gray-900/50 border-gray-700/30 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+                          }`}
+                        >
+                          {selected ? (
+                            <CheckCircleIcon className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                          ) : (
+                            <XCircleIcon className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                          )}
+                          <span className="truncate">{m.nomAffiche}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer modal */}
+            <div className="flex justify-end gap-3 p-5 border-t border-gray-700">
+              <button
+                onClick={() => { setShowEditModal(false); setEditingPlan(null); }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleEditPlan}
+                disabled={saving || !editForm.nom || !editForm.prixMensuel}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Créer un plan */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -454,7 +674,7 @@ function PlansTab({
             <div className="flex items-center justify-between p-5 border-b border-gray-700">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <PlusIcon className="h-5 w-5 text-amber-400" />
-                Cr\u00e9er un nouveau plan
+                Créer un nouveau plan
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -612,7 +832,7 @@ function PlansTab({
                 disabled={saving || !newPlan.code || !newPlan.nom || !newPlan.prixMensuel}
                 className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
               >
-                {saving ? 'Cr\u00e9ation...' : 'Cr\u00e9er le plan'}
+                {saving ? 'Création...' : 'Créer le plan'}
               </button>
             </div>
           </div>
