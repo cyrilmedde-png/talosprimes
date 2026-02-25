@@ -1,8 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
-import type { PrismaClient } from '@prisma/client';
 
 // Schemas de validation
 const clientIdSchema = z.object({
@@ -58,7 +58,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
 
         // Aussi récupérer l'abonnement et son plan
         const subscription = await prisma.clientSubscription.findFirst({
-          where: { clientFinalId: clientId, statut: { in: ['actif', 'essai'] } },
+          where: { clientFinalId: clientId, statut: 'actif' },
           include: {
             plan: {
               include: {
@@ -68,7 +68,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { updatedAt: 'desc' },
         });
 
         reply.code(200).send({
@@ -90,8 +90,8 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
                 }
               : null,
             modulesActifs: clientModules
-              .filter((cm) => cm.actif)
-              .map((cm) => cm.module.code),
+              .filter((cm: { actif: boolean }) => cm.actif)
+              .map((cm: { module: { code: string } }) => cm.module.code),
           },
         });
       } catch (error) {
@@ -156,7 +156,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
             return;
           }
 
-          modulesToActivate = plan.planModules.map((pm) => ({
+          modulesToActivate = plan.planModules.map((pm: { module: { code: string }; limiteUsage: number | null; config: unknown }) => ({
             moduleCode: pm.module.code,
             limiteUsage: pm.limiteUsage,
             config: pm.config as Record<string, unknown> | null,
@@ -166,7 +166,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
           await prisma.clientSubscription.updateMany({
             where: {
               clientFinalId: clientId,
-              statut: { in: ['actif', 'essai'] },
+              statut: 'actif',
             },
             data: { planId: plan.id },
           });
@@ -185,7 +185,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
         }
 
         // Transaction : désactiver les anciens, activer les nouveaux
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
           // Désactiver tous les modules existants
           await tx.clientModule.updateMany({
             where: { clientFinalId: clientId },
@@ -211,16 +211,16 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
                 },
               },
               create: {
-                clientFinalId: clientId,
-                moduleId: mod.id,
+                clientFinal: { connect: { id: clientId } },
+                module: { connect: { id: mod.id } },
                 actif: true,
                 limiteUsage: m.limiteUsage,
-                config: m.config,
+                config: m.config ?? Prisma.JsonNull,
               },
               update: {
                 actif: true,
                 limiteUsage: m.limiteUsage,
-                config: m.config,
+                config: m.config ?? Prisma.JsonNull,
                 usageActuel: 0,
               },
             });
@@ -284,8 +284,8 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
             },
           },
           create: {
-            clientFinalId: clientId,
-            moduleId: mod.id,
+            clientFinal: { connect: { id: clientId } },
+            module: { connect: { id: mod.id } },
             actif,
           },
           update: { actif },
@@ -332,7 +332,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
           FROM client_subscriptions cs
           LEFT JOIN plans p ON p.id = cs.plan_id
           WHERE cs.tenant_id = ${tenantId}
-            AND cs.statut IN ('actif', 'essai')
+            AND cs.statut = 'actif'
           GROUP BY p.code, p.nom
           ORDER BY count DESC
         `;
@@ -356,12 +356,12 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
         reply.code(200).send({
           success: true,
           data: {
-            clientsParPlan: clientsParPlan.map((r) => ({
+            clientsParPlan: clientsParPlan.map((r: { plan_code: string | null; plan_nom: string | null; count: bigint }) => ({
               planCode: r.plan_code,
               planNom: r.plan_nom,
               count: Number(r.count),
             })),
-            modulesPopulaires: modulesPopulaires.map((r) => ({
+            modulesPopulaires: modulesPopulaires.map((r: { module_code: string; module_nom: string; count: bigint }) => ({
               moduleCode: r.module_code,
               moduleNom: r.module_nom,
               count: Number(r.count),

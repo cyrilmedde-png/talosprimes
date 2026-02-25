@@ -1,8 +1,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
-import type { PrismaClient } from '@prisma/client';
 
 // Schemas de validation
 const planIdSchema = z.object({
@@ -336,9 +336,9 @@ export async function plansRoutes(fastify: FastifyInstance) {
                       });
                       if (!mod) throw new Error(`Module "${m.moduleCode}" introuvable`);
                       return {
-                        moduleId: mod.id,
+                        module: { connect: { id: mod.id } },
                         limiteUsage: m.limiteUsage ?? null,
-                        config: m.config ?? null,
+                        config: m.config ?? Prisma.JsonNull,
                       };
                     })
                   ),
@@ -435,7 +435,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
         }
 
         // Transaction : supprimer les anciens, insérer les nouveaux
-        await prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>) => {
+        await prisma.$transaction(async (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => {
           // Supprimer tous les plan_modules existants
           await tx.planModule.deleteMany({ where: { planId: id } });
 
@@ -448,10 +448,10 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
             await tx.planModule.create({
               data: {
-                planId: id,
-                moduleId: mod.id,
+                plan: { connect: { id } },
+                module: { connect: { id: mod.id } },
                 limiteUsage: m.limiteUsage ?? null,
-                config: m.config ?? null,
+                config: m.config ?? Prisma.JsonNull,
               },
             });
           }
@@ -499,7 +499,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
         // Vérifier s'il y a des abonnements actifs liés
         const activeSubscriptions = await prisma.clientSubscription.count({
-          where: { planId: id, statut: { in: ['actif', 'essai'] } },
+          where: { planId: id, statut: 'actif' },
         });
 
         if (activeSubscriptions > 0) {
