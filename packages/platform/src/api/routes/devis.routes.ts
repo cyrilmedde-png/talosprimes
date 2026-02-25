@@ -811,16 +811,17 @@ export async function devisRoutes(fastify: FastifyInstance) {
       }
 
       const clientFinalId = body.clientFinalId || devis.clientFinalId;
+      if (!clientFinalId) return reply.status(400).send({ success: false, error: 'Client requis' });
       const client = await prisma.clientFinal.findFirst({
         where: { id: clientFinalId, tenantId }
       });
       if (!client) return reply.status(404).send({ success: false, error: 'Client non trouvé' });
 
-      const tvaTaux = body.tvaTaux ?? devis.tvaTaux ?? 20;
+      const tvaTaux = Number(body.tvaTaux ?? devis.tvaTaux ?? 20);
       const lines = body.lines ?? [];
       const montantHt = lines.length > 0
         ? Number((lines.reduce((sum, l) => sum + ((l.quantite ?? 1) * l.prixUnitaireHt), 0)).toFixed(2))
-        : devis.montantHt;
+        : Number(devis.montantHt);
       const montantTtc = Number((montantHt * (1 + tvaTaux / 100)).toFixed(2));
 
       const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
