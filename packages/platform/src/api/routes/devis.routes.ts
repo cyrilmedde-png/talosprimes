@@ -190,7 +190,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, data: { devis } });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur récupération devis');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -412,7 +413,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur création devis');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -475,7 +477,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur envoi devis');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -538,7 +541,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur acceptation devis');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -650,7 +654,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur conversion devis → facture');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -752,7 +757,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur conversion devis → bon de commande');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -811,7 +817,8 @@ export async function devisRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur suppression devis');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });

@@ -160,8 +160,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           reply.code(400).send({
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             message: error.errors.map((e) => e.message).join(', '),
           });
           return;
@@ -442,8 +443,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           reply.code(400).send({
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             message: error.errors.map((e) => e.message).join(', '),
           });
           return;
@@ -552,8 +554,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           reply.code(400).send({
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             message: error.errors.map((e) => e.message).join(', '),
           });
           return;
@@ -683,8 +686,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           reply.code(400).send({
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             message: error.errors.map((e) => e.message).join(', '),
           });
           return;

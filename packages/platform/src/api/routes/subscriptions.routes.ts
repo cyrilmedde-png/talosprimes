@@ -106,9 +106,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }
@@ -175,9 +176,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }
@@ -247,9 +249,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }
@@ -322,9 +325,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }
@@ -402,9 +406,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }
@@ -466,9 +471,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           return reply.status(400).send({
             success: false,
-            error: 'Validation échouée',
+            error: `Validation échouée : ${msgs}`,
             details: error.errors,
           });
         }

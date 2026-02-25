@@ -191,7 +191,8 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, data: { avoir } });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur récupération avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -291,7 +292,8 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           .send(Buffer.from(pdfBytes));
       } catch (error) {
         if (error instanceof z.ZodError) {
-          return reply.status(400).send({ success: false, error: 'ID invalide', details: error.errors });
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+          return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
         }
         console.error('=== ERREUR GENERATION PDF AVOIR ===', error);
         fastify.log.error(error, 'Erreur génération PDF avoir');
@@ -460,7 +462,8 @@ export async function avoirRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur création avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -541,7 +544,8 @@ export async function avoirRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur validation avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -600,7 +604,8 @@ export async function avoirRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur suppression avoir');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });

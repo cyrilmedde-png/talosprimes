@@ -300,7 +300,8 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       return reply.status(200).send({ success: true, data: { callLog } });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur récupération call log');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -390,7 +391,8 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur création call log');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -453,7 +455,8 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur mise à jour call log');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -506,7 +509,8 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Validation échouée', details: error.errors });
+        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
       }
       fastify.log.error(error, 'Erreur suppression call log');
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });

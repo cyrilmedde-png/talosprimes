@@ -78,9 +78,10 @@ export async function authRoutes(fastify: FastifyInstance) {
       } catch (error) {
         // Gestion des erreurs
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           reply.code(400).send({
-            error: 'Validation échouée',
-            message: error.errors.map((e) => e.message).join(', '),
+            error: `Validation échouée : ${msgs}`,
+            details: error.errors,
           });
           return;
         }
@@ -124,9 +125,10 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
           reply.code(400).send({
-            error: 'Validation échouée',
-            message: error.errors.map((e) => e.message).join(', '),
+            error: `Validation échouée : ${msgs}`,
+            details: error.errors,
           });
           return;
         }
