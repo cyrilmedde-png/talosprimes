@@ -115,7 +115,7 @@
       "typeVersion": 1,
       "position": [1560, 500],
       "credentials": {
-        "twilioApi": { "id": "twilio-cred", "name": "Twilio" }
+        "twilioApi": { "id": "9dKAFunSg4lJcj77", "name": "Twilio account" }
       }
     },
     {
