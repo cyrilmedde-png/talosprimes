@@ -486,35 +486,12 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_WEBHOOK_BASE_URL || 'https://n8n.talosprimes.com' }}/webhook/client-space-create",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  tenantId: $json.tenantId,\n  clientFinalId: $json.clientFinalId,\n  raisonSociale: $json.raisonSociale || '',\n  nom: $json.nom || '',\n  prenom: $json.prenom || '',\n  modulesInclus: $json.modulesInclus || []\n}) }}",
-        "options": {
-          "headers": {
-            "entries": [
-              {
-                "name": "x-talosprimes-n8n-secret",
-                "value": "={{ $env.TALOSPRIMES_N8N_SECRET }}"
-              }
-            ]
-          }
-        }
+        "jsCode": "var data = $input.first().json;\nvar clientFinalId = data.clientFinalId;\nvar tenantId = data.tenantId;\nvar raisonSociale = data.raisonSociale || '';\nvar nom = data.nom || '';\nvar prenom = data.prenom || '';\nvar modulesInclus = data.modulesInclus || [];\n\nvar rawName = raisonSociale || ((nom + ' ' + prenom).trim()) || 'client';\nvar slug = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);\nvar tenantSlug = slug + '-' + clientFinalId.substring(0, 8);\nvar folderPath = '/var/www/talosprimes/clients/' + tenantSlug;\nvar token = '';\nvar chars = 'abcdefghijklmnopqrstuvwxyz0123456789';\nfor (var i = 0; i < 32; i++) { token += chars.charAt(Math.floor(Math.random() * chars.length)); }\nvar dateExpiration = new Date(Date.now() + 30*24*60*60*1000).toISOString();\n\nfunction esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); }\nvar query = \"INSERT INTO client_spaces (id, tenant_id, client_final_id, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), '\" + esc(tenantId) + \"'::uuid, '\" + esc(clientFinalId) + \"'::uuid, '\" + esc(token) + \"', 'en_attente', '\" + esc(dateExpiration) + \"'::timestamptz, NOW()) RETURNING *\";\n\nreturn [{ json: { query: query, tenantSlug: tenantSlug, folderPath: folderPath, modules: modulesInclus } }];"
       },
-      "id": "create-client-space",
-      "name": "10c. Créer espace client",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "create-client-space-sql",
+      "name": "10c. Préparer INSERT espace client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         2220,
         500
@@ -522,14 +499,36 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la réponse de succès\n// Récupérer la réponse de création d'espace client (10c)\nvar spaceResponse = $input.item.json;\nvar spaceData = spaceResponse.data || spaceResponse || {};\n\n// Récupérer les données depuis 10a via le contexte du workflow\nvar prepareData = $('10a. Préparer après abonnement').first().json || {};\n\n// Données client depuis prepareData\nvar clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nvar avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\nvar stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\nreturn [{\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé — en attente de validation admin. Redirection vers le paiement...\" \n      : \"Espace client créé — en attente de validation par l'administrateur. Les identifiants seront envoyés après validation.\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    clientSpace: {\n      id: spaceData.id || null,\n      tenantSlug: spaceData.tenantSlug || null,\n      status: 'en_attente_validation',\n      folderPath: spaceData.folderPath || null,\n      modules: spaceData.modules || []\n    },\n    credentials: null,\n    stripe: stripe\n  }\n}];"
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "create-client-space-pg",
+      "name": "10d. INSERT client_spaces",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2440,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la réponse de succès\n// Récupérer la réponse INSERT de client_spaces (10d)\nvar pgResult = $input.item.json;\nvar spaceRecord = pgResult[0] || pgResult || {};\n\n// Récupérer les métadonnées du slug depuis 10c\nvar spaceMetadata = $('10c. Préparer INSERT espace client').first().json || {};\n\n// Récupérer les données depuis 10a via le contexte du workflow\nvar prepareData = $('10a. Préparer après abonnement').first().json || {};\n\n// Données client depuis prepareData\nvar clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nvar avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\nvar stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\nreturn [{\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé — en attente de validation admin. Redirection vers le paiement...\" \n      : \"Espace client créé — en attente de validation par l'administrateur. Les identifiants seront envoyés après validation.\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    clientSpace: {\n      id: spaceRecord.id || null,\n      tenantSlug: spaceMetadata.tenantSlug || null,\n      status: 'en_attente_validation',\n      folderPath: spaceMetadata.folderPath || null,\n      modules: spaceMetadata.modules || []\n    },\n    credentials: null,\n    stripe: stripe\n  }\n}];"
       },
       "id": "format-response",
       "name": "11. Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2440,
+        2660,
         500
       ]
     },
@@ -542,7 +541,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2440,
+        2660,
         650
       ]
     },
@@ -554,7 +553,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2660,
+        2880,
         650
       ],
       "id": "12. Créer notification - Construire SQL"
@@ -572,7 +571,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2880,
+        3100,
         650
       ],
       "id": "create-notification-pg",
@@ -595,7 +594,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2880,
+        3100,
         500
       ]
     },
@@ -831,14 +830,25 @@
       "main": [
         [
           {
-            "node": "10c. Créer espace client",
+            "node": "10c. Préparer INSERT espace client",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "10c. Créer espace client": {
+    "10c. Préparer INSERT espace client": {
+      "main": [
+        [
+          {
+            "node": "10d. INSERT client_spaces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10d. INSERT client_spaces": {
       "main": [
         [
           {
@@ -894,14 +904,8 @@
       ]
     }
   },
-  "active": true,
-  "pinData": {},
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2026-01-09T13:45:00.000Z",
-  "versionId": "1"
+  "staticData": null
 }
