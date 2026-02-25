@@ -521,7 +521,29 @@ export default function CMSPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-700/30">
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-700/30">
+        <button
+          onClick={() => setActiveTab('tarifs')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'tarifs'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <CreditCard className="w-4 h-4 inline mr-1" />
+          Tarifs ({tarifsPlans.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('pages')}
+          className={`px-6 py-3 font-semibold transition ${
+            activeTab === 'pages'
+              ? 'border-b-2 border-indigo-500 text-white'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <FileText className="w-4 h-4 inline mr-1" />
+          Pages ({cmsPages.length})
+        </button>
         <button
           onClick={() => setActiveTab('content')}
           className={`px-6 py-3 font-semibold transition ${
@@ -576,28 +598,6 @@ export default function CMSPage() {
           }`}
         >
           ⚖️ Pages Légales
-        </button>
-        <button
-          onClick={() => setActiveTab('tarifs')}
-          className={`px-6 py-3 font-semibold transition ${
-            activeTab === 'tarifs'
-              ? 'border-b-2 border-indigo-500 text-white'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          <CreditCard className="w-4 h-4 inline mr-1" />
-          Tarifs ({tarifsPlans.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('pages')}
-          className={`px-6 py-3 font-semibold transition ${
-            activeTab === 'pages'
-              ? 'border-b-2 border-indigo-500 text-white'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          <FileText className="w-4 h-4 inline mr-1" />
-          Pages ({cmsPages.length})
         </button>
       </div>
 
