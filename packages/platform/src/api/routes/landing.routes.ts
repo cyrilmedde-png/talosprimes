@@ -376,6 +376,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   );
 
   // GET /api/landing/pages/:slug - Page par slug (PUBLIC)
+  // Pour le slug "tarifs", inclut aussi les plans actifs
   fastify.get<{ Params: { slug: string } }>(
     '/api/landing/pages/:slug',
     async (request, reply) => {
@@ -385,6 +386,23 @@ export async function landingRoutes(fastify: FastifyInstance) {
         if (!page || !page.publie) {
           return reply.status(404).send({ error: 'Page introuvable' });
         }
+
+        // Si c'est la page tarifs, inclure les plans actifs
+        if (slug === 'tarifs') {
+          const plans = await prisma.plan.findMany({
+            where: { actif: true },
+            orderBy: { prixMensuel: 'asc' },
+            include: {
+              planModules: {
+                include: {
+                  module: { select: { code: true, nomAffiche: true, categorie: true } },
+                },
+              },
+            },
+          });
+          return reply.send({ success: true, data: { page, plans } });
+        }
+
         return reply.send({ success: true, data: { page } });
       } catch (error) {
         fastify.log.error(error);

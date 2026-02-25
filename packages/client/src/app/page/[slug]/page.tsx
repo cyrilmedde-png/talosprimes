@@ -57,24 +57,15 @@ export default function DynamicCmsPage() {
         const data = await res.json();
         if (data.success && data.data?.page) {
           setPage(data.data.page);
+          // Pour la page tarifs, les plans sont inclus dans la réponse
+          if (data.data.plans) {
+            setPlans(data.data.plans);
+          }
         } else {
           setNotFound(true);
         }
       } catch {
         setNotFound(true);
-      }
-
-      // Si c'est la page tarifs, charger les plans
-      if (slug === 'tarifs') {
-        try {
-          const res = await fetch(`${API_URL}/api/landing/tarifs`);
-          const data = await res.json();
-          if (data.success && data.data?.plans) {
-            setPlans(data.data.plans);
-          }
-        } catch {
-          // Plans non critiques
-        }
       }
 
       setLoading(false);
