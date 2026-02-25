@@ -13,6 +13,8 @@ import {
   ArrowPathIcon,
   LockClosedIcon,
   LockOpenIcon,
+  PlusIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { apiClient, type PlanWithModules, type ModuleMetier, type ClientModuleData } from '@/lib/api-client';
 
@@ -127,6 +129,17 @@ function PlansTab({
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPlan, setNewPlan] = useState({
+    code: '',
+    nom: '',
+    description: '',
+    prixMensuel: '',
+    prixAnnuel: '',
+    essaiJours: '14',
+    couleur: '#6366f1',
+    selectedModules: [] as string[],
+  });
 
   const handleToggleActive = async (plan: PlanWithModules) => {
     setSaving(true);
@@ -153,6 +166,54 @@ function PlansTab({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreatePlan = async () => {
+    if (!newPlan.code || !newPlan.nom || !newPlan.prixMensuel) {
+      setMessage({ type: 'error', text: 'Code, nom et prix mensuel sont obligatoires' });
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      const payload: Parameters<typeof apiClient.plans.create>[0] = {
+        code: newPlan.code.toLowerCase().replace(/\s+/g, '_'),
+        nom: newPlan.nom,
+        prixMensuel: parseFloat(newPlan.prixMensuel),
+        essaiJours: parseInt(newPlan.essaiJours) || 14,
+        couleur: newPlan.couleur,
+        modules: newPlan.selectedModules.map((code) => ({ moduleCode: code })),
+      };
+      if (newPlan.description) payload.description = newPlan.description;
+      if (newPlan.prixAnnuel) payload.prixAnnuel = parseFloat(newPlan.prixAnnuel);
+      await apiClient.plans.create(payload);
+      setMessage({ type: 'success', text: `Plan "${newPlan.nom}" cr\u00e9\u00e9 avec succ\u00e8s` });
+      setShowCreateModal(false);
+      setNewPlan({
+        code: '',
+        nom: '',
+        description: '',
+        prixMensuel: '',
+        prixAnnuel: '',
+        essaiJours: '14',
+        couleur: '#6366f1',
+        selectedModules: [],
+      });
+      onRefresh();
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erreur cr\u00e9ation' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleModuleSelection = (code: string) => {
+    setNewPlan((prev) => ({
+      ...prev,
+      selectedModules: prev.selectedModules.includes(code)
+        ? prev.selectedModules.filter((c) => c !== code)
+        : [...prev.selectedModules, code],
+    }));
   };
 
   return (
@@ -191,6 +252,17 @@ function PlansTab({
           </div>
           <div className="text-sm text-gray-400">Modules disponibles</div>
         </div>
+      </div>
+
+      {/* Bouton créer un plan */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition-colors"
+        >
+          <PlusIcon className="h-5 w-5" />
+          Cr\u00e9er un plan
+        </button>
       </div>
 
       {/* Liste des plans */}
@@ -374,6 +446,178 @@ function PlansTab({
           );
         })}
       </div>
+
+      {/* Modal Créer un plan */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <PlusIcon className="h-5 w-5 text-amber-400" />
+                Cr\u00e9er un nouveau plan
+              </h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Nom + Code */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Nom du plan <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newPlan.nom}
+                    onChange={(e) => {
+                      const nom = e.target.value;
+                      setNewPlan((prev) => ({
+                        ...prev,
+                        nom,
+                        code: prev.code || nom.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+                      }));
+                    }}
+                    placeholder="Ex: Sur Mesure"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Code <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newPlan.code}
+                    onChange={(e) => setNewPlan((prev) => ({ ...prev, code: e.target.value }))}
+                    placeholder="sur_mesure"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={newPlan.description}
+                  onChange={(e) => setNewPlan((prev) => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  placeholder="Description du plan..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
+                />
+              </div>
+
+              {/* Prix + Essai + Couleur */}
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Prix/mois <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={newPlan.prixMensuel}
+                      onChange={(e) => setNewPlan((prev) => ({ ...prev, prixMensuel: e.target.value }))}
+                      placeholder="59"
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 pr-8"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">&euro;</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Prix/an</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={newPlan.prixAnnuel}
+                      onChange={(e) => setNewPlan((prev) => ({ ...prev, prixAnnuel: e.target.value }))}
+                      placeholder="590"
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 pr-8"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">&euro;</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Essai (jours)</label>
+                  <input
+                    type="number"
+                    value={newPlan.essaiJours}
+                    onChange={(e) => setNewPlan((prev) => ({ ...prev, essaiJours: e.target.value }))}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Couleur</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={newPlan.couleur}
+                      onChange={(e) => setNewPlan((prev) => ({ ...prev, couleur: e.target.value }))}
+                      className="w-10 h-10 rounded cursor-pointer bg-transparent border-0"
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{newPlan.couleur}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sélection modules */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Modules inclus ({newPlan.selectedModules.length})
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {modules
+                    .filter((m) => m.actif)
+                    .map((m) => {
+                      const selected = newPlan.selectedModules.includes(m.code);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => toggleModuleSelection(m.code)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-sm transition-colors ${
+                            selected
+                              ? 'bg-amber-500/10 border-amber-500/30 text-white'
+                              : 'bg-gray-900/50 border-gray-700/30 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+                          }`}
+                        >
+                          {selected ? (
+                            <CheckCircleIcon className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                          ) : (
+                            <XCircleIcon className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                          )}
+                          <span className="truncate">{m.nomAffiche}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer modal */}
+            <div className="flex justify-end gap-3 p-5 border-t border-gray-700">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCreatePlan}
+                disabled={saving || !newPlan.code || !newPlan.nom || !newPlan.prixMensuel}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Cr\u00e9ation...' : 'Cr\u00e9er le plan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -412,9 +656,10 @@ function ModulesTab({
 
       {Object.entries(categories).map(([categorie, mods]) => (
         <div key={categorie} className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <CubeIcon className="h-4 w-4" />
+          <h3 className="text-lg font-bold text-gray-200 mb-4 flex items-center gap-2 border-b border-gray-700/30 pb-2">
+            <CubeIcon className="h-5 w-5 text-amber-400" />
             {categorie}
+            <span className="text-sm font-normal text-gray-500 ml-1">({mods.length})</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {mods.map((m) => {
