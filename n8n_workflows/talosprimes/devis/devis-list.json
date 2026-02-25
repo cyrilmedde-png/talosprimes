@@ -117,14 +117,48 @@
     },
     {
       "parameters": {
-        "jsCode": "var items = $('06. List Query').all().map(function(item) { return item.json; }).filter(function(d) { return d.id; });\nvar countResult = $('05. Count Query').first().json;\nvar parser = $('02. Parser').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / parser.limit) || 1;\n\nvar devis = items.map(function(d) { return ({\n  id: d.id,\n  tenant_id: d.tenant_id,\n  client_final_id: d.client_final_id,\n  numero_devis: d.numero_devis,\n  date_devis: d.date_devis,\n  date_validite: d.date_validite,\n  montant_ht: d.montant_ht,\n  montant_ttc: d.montant_ttc,\n  tva_taux: d.tva_taux,\n  description: d.description,\n  mode_paiement: d.mode_paiement,\n  statut: d.statut,\n  invoice_id: d.invoice_id,\n  lien_pdf: d.lien_pdf,\n  created_at: d.created_at,\n  updated_at: d.updated_at,\n  clientFinal: d.client_final_id ? {\n    id: d.client_final_id,\n    nom: d.client_nom || null,\n    prenom: d.client_prenom || null,\n    email: d.client_email || null,\n    telephone: d.client_telephone || null,\n    raison_sociale: d.client_raison_sociale || null\n  } : null\n}); });\n\nreturn [{ json: {\n  devis,\n  count: devis.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
+        "jsCode": "var devisItems = $('06. List Query').all().map(function(item) { return item.json; }).filter(function(d) { return d.id; });\nvar devisIds = devisItems.map(function(d) { return \"'\" + d.id + \"'\"; });\nvar idsClause = devisIds.length > 0 ? devisIds.join(',') : \"'00000000-0000-0000-0000-000000000000'\";\nvar query = 'SELECT id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM devis_lines WHERE devis_id IN (' + idsClause + ') ORDER BY ordre ASC';\nreturn [{ json: { query, devisIds: devisItems.map(function(d) { return d.id; }) } }];"
+      },
+      "id": "06b. Prepare Lines Query",
+      "name": "06b. Prepare Lines Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "06c. Lines Query",
+      "name": "06c. Lines Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1100,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('06. List Query').all().map(function(item) { return item.json; }).filter(function(d) { return d.id; });\nvar linesRaw = $('06c. Lines Query').all().map(function(item) { return item.json; }).filter(function(l) { return l.devis_id; });\nvar countResult = $('05. Count Query').first().json;\nvar parser = $('02. Parser').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / parser.limit) || 1;\n\n// Grouper les lignes par devis_id\nvar linesByDevisId = {};\nfor (var i = 0; i < linesRaw.length; i++) {\n  var l = linesRaw[i];\n  var did = l.devis_id;\n  if (!linesByDevisId[did]) linesByDevisId[did] = [];\n  linesByDevisId[did].push({\n    id: l.id,\n    devisId: l.devis_id,\n    codeArticle: l.code_article || null,\n    designation: l.designation || '',\n    quantite: parseFloat(l.quantite) || 1,\n    prixUnitaireHt: parseFloat(l.prix_unitaire_ht) || 0,\n    totalHt: parseFloat(l.total_ht) || 0,\n    ordre: parseInt(l.ordre) || 0\n  });\n}\n\nvar devis = items.map(function(d) { return ({\n  id: d.id,\n  tenant_id: d.tenant_id,\n  client_final_id: d.client_final_id,\n  numero_devis: d.numero_devis,\n  date_devis: d.date_devis,\n  date_validite: d.date_validite,\n  montant_ht: d.montant_ht,\n  montant_ttc: d.montant_ttc,\n  tva_taux: d.tva_taux,\n  description: d.description,\n  mode_paiement: d.mode_paiement,\n  statut: d.statut,\n  invoice_id: d.invoice_id,\n  lien_pdf: d.lien_pdf,\n  created_at: d.created_at,\n  updated_at: d.updated_at,\n  clientFinal: d.client_final_id ? {\n    id: d.client_final_id,\n    nom: d.client_nom || null,\n    prenom: d.client_prenom || null,\n    email: d.client_email || null,\n    telephone: d.client_telephone || null,\n    raison_sociale: d.client_raison_sociale || null\n  } : null,\n  lines: linesByDevisId[d.id] || []\n}); });\n\nreturn [{ json: {\n  devis,\n  count: devis.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1300,
         300
       ]
     },
@@ -138,7 +172,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1300,
+        1500,
         300
       ]
     }
@@ -196,6 +230,28 @@
       ]
     },
     "06. List Query": {
+      "main": [
+        [
+          {
+            "node": "06b. Prepare Lines Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06b. Prepare Lines Query": {
+      "main": [
+        [
+          {
+            "node": "06c. Lines Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06c. Lines Query": {
       "main": [
         [
           {

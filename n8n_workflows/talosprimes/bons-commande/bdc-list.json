@@ -117,14 +117,48 @@
     },
     {
       "parameters": {
-        "jsCode": "var items = $('06. List Query').all().map(function(item) { return item.json; }).filter(function(b) { return b.id; });\nvar countResult = $('05. Count Query').first().json;\nvar parser = $('02. Parser').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / parser.limit) || 1;\n\nvar bons = items.map(function(b) { return ({\n  id: b.id,\n  tenant_id: b.tenant_id,\n  client_final_id: b.client_final_id,\n  numero_bdc: b.numero_bdc,\n  numeroBdc: b.numero_bdc,\n  date_bdc: b.date_bdc,\n  dateBdc: b.date_bdc,\n  date_validite: b.date_validite,\n  dateValidite: b.date_validite,\n  montant_ht: b.montant_ht,\n  montantHt: b.montant_ht,\n  montant_ttc: b.montant_ttc,\n  montantTtc: b.montant_ttc,\n  tva_taux: b.tva_taux,\n  tvaTaux: b.tva_taux,\n  description: b.description,\n  mode_paiement: b.mode_paiement,\n  modePaiement: b.mode_paiement,\n  statut: b.statut,\n  invoice_id: b.invoice_id,\n  invoiceId: b.invoice_id,\n  created_at: b.created_at,\n  createdAt: b.created_at,\n  updated_at: b.updated_at,\n  updatedAt: b.updated_at,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null\n  } : null\n}); });\n\nreturn [{ json: {\n  bons,\n  count: bons.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
+        "jsCode": "var bdcItems = $('06. List Query').all().map(function(item) { return item.json; }).filter(function(b) { return b.id; });\nvar bdcIds = bdcItems.map(function(b) { return \"'\" + b.id + \"'\"; });\nvar idsClause = bdcIds.length > 0 ? bdcIds.join(',') : \"'00000000-0000-0000-0000-000000000000'\";\nvar query = 'SELECT id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre FROM bon_commande_lines WHERE bon_commande_id IN (' + idsClause + ') ORDER BY ordre ASC';\nreturn [{ json: { query } }];"
+      },
+      "id": "06b. Prepare Lines Query",
+      "name": "06b. Prepare Lines Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "06c. Lines Query",
+      "name": "06c. Lines Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1100,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('06. List Query').all().map(function(item) { return item.json; }).filter(function(b) { return b.id; });\nvar linesRaw = $('06c. Lines Query').all().map(function(item) { return item.json; }).filter(function(l) { return l.bon_commande_id; });\nvar countResult = $('05. Count Query').first().json;\nvar parser = $('02. Parser').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / parser.limit) || 1;\n\n// Grouper les lignes par bon_commande_id\nvar linesByBdcId = {};\nfor (var i = 0; i < linesRaw.length; i++) {\n  var l = linesRaw[i];\n  var bid = l.bon_commande_id;\n  if (!linesByBdcId[bid]) linesByBdcId[bid] = [];\n  linesByBdcId[bid].push({\n    id: l.id,\n    bonCommandeId: l.bon_commande_id,\n    codeArticle: l.code_article || null,\n    designation: l.designation || '',\n    quantite: parseFloat(l.quantite) || 1,\n    prixUnitaireHt: parseFloat(l.prix_unitaire_ht) || 0,\n    totalHt: parseFloat(l.total_ht) || 0,\n    ordre: parseInt(l.ordre) || 0\n  });\n}\n\nvar bons = items.map(function(b) { return ({\n  id: b.id,\n  tenant_id: b.tenant_id,\n  client_final_id: b.client_final_id,\n  numero_bdc: b.numero_bdc,\n  numeroBdc: b.numero_bdc,\n  date_bdc: b.date_bdc,\n  dateBdc: b.date_bdc,\n  date_validite: b.date_validite,\n  dateValidite: b.date_validite,\n  montant_ht: b.montant_ht,\n  montantHt: b.montant_ht,\n  montant_ttc: b.montant_ttc,\n  montantTtc: b.montant_ttc,\n  tva_taux: b.tva_taux,\n  tvaTaux: b.tva_taux,\n  description: b.description,\n  mode_paiement: b.mode_paiement,\n  modePaiement: b.mode_paiement,\n  statut: b.statut,\n  invoice_id: b.invoice_id,\n  invoiceId: b.invoice_id,\n  created_at: b.created_at,\n  createdAt: b.created_at,\n  updated_at: b.updated_at,\n  updatedAt: b.updated_at,\n  clientFinal: b.client_final_id ? {\n    id: b.client_final_id,\n    nom: b.client_nom || null,\n    prenom: b.client_prenom || null,\n    email: b.client_email || null,\n    telephone: b.client_telephone || null,\n    raisonSociale: b.client_raison_sociale || null\n  } : null,\n  lines: linesByBdcId[b.id] || []\n}); });\n\nreturn [{ json: {\n  bons,\n  count: bons.length,\n  total,\n  page: parser.page,\n  limit: parser.limit,\n  totalPages\n}}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1300,
         300
       ]
     },
@@ -138,7 +172,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1300,
+        1500,
         300
       ]
     }
@@ -196,6 +230,28 @@
       ]
     },
     "06. List Query": {
+      "main": [
+        [
+          {
+            "node": "06b. Prepare Lines Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06b. Prepare Lines Query": {
+      "main": [
+        [
+          {
+            "node": "06c. Lines Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06c. Lines Query": {
       "main": [
         [
           {
