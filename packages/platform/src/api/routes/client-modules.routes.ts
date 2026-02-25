@@ -215,12 +215,12 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
                 module: { connect: { id: mod.id } },
                 actif: true,
                 limiteUsage: m.limiteUsage,
-                config: m.config ?? Prisma.JsonNull,
+                config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
               },
               update: {
                 actif: true,
                 limiteUsage: m.limiteUsage,
-                config: m.config ?? Prisma.JsonNull,
+                config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
                 usageActuel: 0,
               },
             });

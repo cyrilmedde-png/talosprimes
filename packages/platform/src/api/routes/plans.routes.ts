@@ -338,7 +338,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
                       return {
                         module: { connect: { id: mod.id } },
                         limiteUsage: m.limiteUsage ?? null,
-                        config: m.config ?? Prisma.JsonNull,
+                        config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
                       };
                     })
                   ),
@@ -451,7 +451,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
                 plan: { connect: { id } },
                 module: { connect: { id: mod.id } },
                 limiteUsage: m.limiteUsage ?? null,
-                config: m.config ?? Prisma.JsonNull,
+                config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
               },
             });
           }
