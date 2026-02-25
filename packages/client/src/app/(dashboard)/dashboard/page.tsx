@@ -165,17 +165,17 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden">
+              <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-700/30">
                   <thead className="bg-gray-800/20">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Email
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Type
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      <th scope="col" className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         Statut
                       </th>
                     </tr>
@@ -183,10 +183,10 @@ export default function DashboardPage() {
                   <tbody className="bg-transparent divide-y divide-gray-700/30">
                     {clients.map((client) => (
                       <tr key={client.id} className="hover:bg-gray-800/20">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-white">{client.email}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
                           <div className="text-sm text-white">
                             {client.type === 'b2b' ? 'B2B' : 'B2C'}
                           </div>
@@ -197,7 +197,7 @@ export default function DashboardPage() {
                             <div className="text-sm text-gray-400">{client.prenom} {client.nom}</div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             client.statut === 'actif' 
                               ? 'bg-green-100 text-green-800' 

@@ -311,22 +311,22 @@ export default function BonsCommandePage() {
             <table className="min-w-full divide-y divide-gray-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">N° BDC</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Client</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Montant TTC</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Actions</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">N° BDC</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Client</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-400 uppercase">Montant TTC</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-400 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {bons.map((bon) => (
                   <tr key={bon.id} className="hover:bg-gray-700/30">
-                    <td className="px-4 py-3 text-sm font-mono text-white">{bon.numeroBdc}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{clientLabel(bon)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400">{formatDate(bon.dateBdc)}</td>
-                    <td className="px-4 py-3 text-sm text-right text-white">{(Number(bon.montantTtc) || 0).toFixed(2)} €</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm font-mono text-white">{bon.numeroBdc}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm text-gray-300">{clientLabel(bon)}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm text-gray-400">{formatDate(bon.dateBdc)}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-sm text-right text-white">{(Number(bon.montantTtc) || 0).toFixed(2)} €</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3">
                       <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
                         bon.statut === 'facture' ? 'bg-green-500/20 text-green-300' :
                         bon.statut === 'valide' ? 'bg-blue-500/20 text-blue-300' :
@@ -336,7 +336,7 @@ export default function BonsCommandePage() {
                         {STATUT_LABELS[bon.statut] ?? bon.statut}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-right">
                       <div className="flex items-center justify-end gap-1 flex-wrap">
                         <button
                           type="button"
@@ -412,8 +412,8 @@ export default function BonsCommandePage() {
 
       {/* Modal Créer bon de commande */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 overflow-y-auto" onClick={() => !creating && setShowCreateModal(false)}>
-          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] my-8 flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 overflow-y-auto" onClick={() => !creating && setShowCreateModal(false)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full mx-2 sm:mx-0 max-w-3xl max-h-[85vh] my-8 flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 shrink-0">
               <h2 className="text-lg font-semibold text-white">Nouveau bon de commande</h2>
               <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="p-1 rounded text-gray-400 hover:text-white">

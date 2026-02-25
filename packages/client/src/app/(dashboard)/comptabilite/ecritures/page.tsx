@@ -234,40 +234,42 @@ export default function EcrituresPage() {
         ) : !data.ecritures?.length ? (
           <div className="p-8 text-center text-gray-400">Aucune écriture trouvée</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-400 border-b border-gray-700 bg-gray-800/80">
-                <th className="text-left py-3 px-4">N°</th>
-                <th className="text-left py-3 px-4">Date</th>
-                <th className="text-left py-3 px-4">Journal</th>
-                <th className="text-left py-3 px-4">Libellé</th>
-                <th className="text-right py-3 px-4">Débit</th>
-                <th className="text-right py-3 px-4">Crédit</th>
-                <th className="text-center py-3 px-4">Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.ecritures.map((e) => (
-                <tr
-                  key={e.id}
-                  onClick={() => handleViewDetail(e.id)}
-                  className="border-b border-gray-700/50 hover:bg-gray-700/30 cursor-pointer"
-                >
-                  <td className="py-3 px-4 text-white font-mono text-xs">{e.numero || e.id.slice(0, 8)}</td>
-                  <td className="py-3 px-4 text-gray-300">{fmtDate(e.dateEcriture)}</td>
-                  <td className="py-3 px-4">
-                    <span className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs font-mono">{e.journalCode}</span>
-                  </td>
-                  <td className="py-3 px-4 text-white">{e.libelle}</td>
-                  <td className="py-3 px-4 text-right text-green-400">{fmt(e.totalDebit || 0)}</td>
-                  <td className="py-3 px-4 text-right text-red-400">{fmt(e.totalCredit || 0)}</td>
-                  <td className="py-3 px-4 text-center">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-400 border-b border-gray-700 bg-gray-800/80">
+                  <th className="text-left py-2 sm:py-3 px-2 sm:px-4">N°</th>
+                  <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Date</th>
+                  <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Journal</th>
+                  <th className="text-left py-2 sm:py-3 px-2 sm:px-4">Libellé</th>
+                  <th className="text-right py-2 sm:py-3 px-2 sm:px-4">Débit</th>
+                  <th className="text-right py-2 sm:py-3 px-2 sm:px-4">Crédit</th>
+                  <th className="text-center py-2 sm:py-3 px-2 sm:px-4">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.ecritures.map((e) => (
+                  <tr
+                    key={e.id}
+                    onClick={() => handleViewDetail(e.id)}
+                    className="border-b border-gray-700/50 hover:bg-gray-700/30 cursor-pointer"
+                  >
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-white font-mono text-xs">{e.numero || e.id.slice(0, 8)}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-gray-300">{fmtDate(e.dateEcriture)}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4">
+                      <span className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs font-mono">{e.journalCode}</span>
+                    </td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-white">{e.libelle}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-right text-green-400">{fmt(e.totalDebit || 0)}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-right text-red-400">{fmt(e.totalCredit || 0)}</td>
+                    <td className="py-2 sm:py-3 px-2 sm:px-4 text-center">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${statutBadge(e.statut)}`}>{e.statut}</span>
                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -296,8 +298,8 @@ export default function EcrituresPage() {
 
       {/* Modal création */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full mx-2 sm:mx-0 max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white">Nouvelle écriture comptable</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-white"><XMarkIcon className="h-6 w-6" /></button>
@@ -405,8 +407,8 @@ export default function EcrituresPage() {
 
       {/* Modal détail */}
       {showDetail && detailEcriture && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 w-full mx-2 sm:mx-0 max-w-2xl max-h-[80vh] overflow-y-auto p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">Écriture {detailEcriture.numero || detailEcriture.id.slice(0, 8)}</h2>
               <button onClick={() => setShowDetail(false)} className="text-gray-400 hover:text-white"><XMarkIcon className="h-6 w-6" /></button>

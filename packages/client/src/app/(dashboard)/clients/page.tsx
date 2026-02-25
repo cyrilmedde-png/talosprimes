@@ -353,20 +353,20 @@ export default function ClientsPage() {
 
   return (
     <div>
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-8 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Clients</h1>
           <p className="mt-2 text-sm text-gray-400">
             Gestion des clients finaux
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
           <button
             onClick={() => {
               setCreateMode('from-lead');
               setShowCreateModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+            className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
           >
             <CheckCircleIcon className="h-5 w-5" />
             Créer depuis lead
@@ -386,7 +386,7 @@ export default function ClientsPage() {
               });
               setShowCreateModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors"
+            className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors"
           >
             <UserPlusIcon className="h-5 w-5" />
             Nouveau client
@@ -423,29 +423,29 @@ export default function ClientsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-400">Total Clients</h3>
-            <UserIcon className="h-6 w-6 text-indigo-400" />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
+            <h3 className="text-xs sm:text-sm font-medium text-gray-400">Total Clients</h3>
+            <UserIcon className="h-5 sm:h-6 w-5 sm:w-6 text-indigo-400" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-white">{filteredClients.length}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-white">{filteredClients.length}</p>
         </div>
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-400">Clients B2C</h3>
-            <UserCircleIcon className="h-6 w-6 text-green-400" />
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
+            <h3 className="text-xs sm:text-sm font-medium text-gray-400">Clients B2C</h3>
+            <UserCircleIcon className="h-5 sm:h-6 w-5 sm:w-6 text-green-400" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-white">
+          <p className="text-2xl sm:text-3xl font-bold text-white">
             {filteredClients.filter(c => c.type === 'b2c').length}
           </p>
         </div>
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-400">Clients B2B</h3>
-            <BuildingOfficeIcon className="h-6 w-6 text-yellow-400" />
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md col-span-2 md:col-span-1">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
+            <h3 className="text-xs sm:text-sm font-medium text-gray-400">Clients B2B</h3>
+            <BuildingOfficeIcon className="h-5 sm:h-6 w-5 sm:w-6 text-yellow-400" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-white">
+          <p className="text-2xl sm:text-3xl font-bold text-white">
             {filteredClients.filter(c => c.type === 'b2b').length}
           </p>
         </div>
@@ -480,26 +480,26 @@ export default function ClientsPage() {
                   <table className="min-w-full divide-y divide-gray-700/30">
                     <thead className="bg-gray-800/30">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom / Prénom</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom / Prénom</th>
+                        <th className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                        <th className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
                       {clientsB2C.map((client) => (
                         <tr key={client.id} className="hover:bg-gray-800/30">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-white">
                             {client.prenom} {client.nom}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.email}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.telephone || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-300">{client.email}</td>
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-300">{client.telephone || '-'}</td>
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 text-xs rounded ${
-                              client.statut === 'actif' 
-                                ? 'bg-green-900/30 text-green-400' 
+                              client.statut === 'actif'
+                                ? 'bg-green-900/30 text-green-400'
                                 : client.statut === 'inactif'
                                 ? 'bg-gray-900/30 text-gray-400'
                                 : 'bg-red-900/30 text-red-400'
@@ -507,10 +507,10 @@ export default function ClientsPage() {
                               {client.statut}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          <td className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-400">
                             {new Date(client.createdAt).toLocaleDateString('fr-FR')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
                               {!clientSubscriptions[client.id] && (
                                 <button
@@ -574,26 +574,26 @@ export default function ClientsPage() {
                   <table className="min-w-full divide-y divide-gray-700/30">
                     <thead className="bg-gray-800/30">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Raison sociale</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Raison sociale</th>
+                        <th className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                        <th className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
+                        <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
                       {clientsB2B.map((client) => (
                         <tr key={client.id} className="hover:bg-gray-800/30">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-white">
                             {client.raisonSociale}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.email}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{client.telephone || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-300">{client.email}</td>
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-300">{client.telephone || '-'}</td>
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap">
                             <span className={`px-2 py-1 text-xs rounded ${
-                              client.statut === 'actif' 
-                                ? 'bg-green-900/30 text-green-400' 
+                              client.statut === 'actif'
+                                ? 'bg-green-900/30 text-green-400'
                                 : client.statut === 'inactif'
                                 ? 'bg-gray-900/30 text-gray-400'
                                 : 'bg-red-900/30 text-red-400'
@@ -601,10 +601,10 @@ export default function ClientsPage() {
                               {client.statut}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          <td className="hidden sm:table-cell px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm text-gray-400">
                             {new Date(client.createdAt).toLocaleDateString('fr-FR')}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleEdit(client)}
@@ -636,15 +636,15 @@ export default function ClientsPage() {
       {/* Modal Créer depuis Lead */}
       {showCreateModal && createMode === 'from-lead' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Créer un client depuis un lead converti</h2>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 max-w-2xl w-full mx-2 sm:mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-start sm:items-center mb-4 gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Créer un client depuis un lead converti</h2>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
                   setSelectedLead(null);
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white flex-shrink-0"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
@@ -674,7 +674,7 @@ export default function ClientsPage() {
                   ))}
                 </div>
               )}
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2">
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
@@ -700,9 +700,9 @@ export default function ClientsPage() {
       {/* Modal Créer directement */}
       {showCreateModal && createMode === 'direct' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Créer un nouveau client</h2>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 max-w-2xl w-full mx-2 sm:mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-start sm:items-center mb-4 gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Créer un nouveau client</h2>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -717,7 +717,7 @@ export default function ClientsPage() {
                     tags: [],
                   });
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white flex-shrink-0"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
@@ -810,7 +810,7 @@ export default function ClientsPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2">
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
@@ -844,15 +844,15 @@ export default function ClientsPage() {
       {/* Modal Éditer */}
       {showEditModal && selectedClient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Modifier le client</h2>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 max-w-2xl w-full mx-2 sm:mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-start sm:items-center mb-4 gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Modifier le client</h2>
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setSelectedClient(null);
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white flex-shrink-0"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
@@ -921,7 +921,7 @@ export default function ClientsPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2">
                 <button
                   onClick={() => {
                     setShowEditModal(false);
@@ -946,15 +946,15 @@ export default function ClientsPage() {
       {/* Modal Créer Espace Client */}
       {showOnboardingModal && selectedClient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Créer l'espace client</h2>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 max-w-2xl w-full mx-2 sm:mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-start sm:items-center mb-4 gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Créer l'espace client</h2>
               <button
                 onClick={() => {
                   setShowOnboardingModal(false);
                   setSelectedClient(null);
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white flex-shrink-0"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
@@ -1062,7 +1062,7 @@ export default function ClientsPage() {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2 pt-4">
                 <button
                   onClick={() => {
                     setShowOnboardingModal(false);

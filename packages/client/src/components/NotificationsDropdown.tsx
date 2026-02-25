@@ -138,7 +138,7 @@ export default function NotificationsDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-gray-800 rounded-lg shadow-xl z-50 border border-gray-700 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-gray-800 rounded-lg shadow-xl z-50 border border-gray-700 overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between bg-gray-900">
             <h3 className="text-lg font-semibold text-white">Notifications</h3>

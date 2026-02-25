@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -24,6 +24,8 @@ import {
   CalculatorIcon,
   DocumentCheckIcon as QuestionIcon,
   Cog6ToothIcon as SettingsIcon,
+  Bars3Icon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -38,7 +40,6 @@ type NavGroup = {
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   items: NavItem[];
-  /** Codes de modules requis pour afficher ce groupe (au moins un doit être actif) */
   requiredModules: string[];
 };
 
@@ -87,7 +88,7 @@ const allNavGroups: NavGroup[] = [
   {
     label: 'Administration',
     icon: WrenchScrewdriverIcon,
-    requiredModules: [], // Toujours visible
+    requiredModules: [],
     items: [
       { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
@@ -115,11 +116,30 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   const { clearAuth, modulesActifs, isDemo } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Pages masquées en mode démo (actions dangereuses / configuration)
+  // Détecter mobile (< 768px)
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setMobileOpen(false);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Fermer le menu mobile quand on change de page
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   const DEMO_HIDDEN_PAGES = ['/settings', '/dashboard/cms', '/agent-ia/configuration'];
 
-  // Filtrer les groupes de navigation selon les modules actifs du tenant
   const navGroups = useMemo(() => {
     return allNavGroups
       .filter((group) => {
@@ -128,13 +148,12 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
       })
       .map((group) => {
         if (!isDemo) return group;
-        // En mode démo : masquer les pages dangereuses
         return {
           ...group,
           items: group.items.filter((item) => !DEMO_HIDDEN_PAGES.includes(item.href)),
         };
       })
-      .filter((group) => group.items.length > 0); // Supprimer les groupes vides
+      .filter((group) => group.items.length > 0);
   }, [modulesActifs, isDemo]);
 
   const handleLogout = () => {
@@ -144,9 +163,9 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   };
 
   const handleToggle = (collapsed: boolean) => {
+    if (isMobile) return; // Sur mobile, pas de hover toggle
     setIsCollapsed(collapsed);
     onToggle?.(collapsed);
-    // Si on collapse, on ferme tous les groupes
     if (collapsed) {
       setOpenGroups({});
     }
@@ -159,134 +178,165 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   const isItemActive = (href: string) =>
     pathname === href || pathname?.startsWith(href + '/');
 
-  // Un groupe est actif si un de ses items est actif
   const isGroupActive = (group: NavGroup) =>
     group.items.some((item) => isItemActive(item.href));
 
-  return (
-    <div
-      className={`
-        fixed inset-y-0 left-0 z-40 bg-gray-900 transform transition-all duration-300 ease-in-out
-        ${isCollapsed ? 'w-16' : 'w-60'}
-      `}
-      onMouseEnter={() => handleToggle(false)}
-      onMouseLeave={() => handleToggle(true)}
-    >
-      <div className="flex-1 flex flex-col min-h-0 h-full">
-        <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-          {/* Logo / Déconnexion */}
-          <div className="flex items-center flex-shrink-0 px-4 mb-6">
+  // Sur mobile, la sidebar est un drawer plein écran
+  const sidebarExpanded = isMobile ? mobileOpen : !isCollapsed;
+
+  const sidebarContent = (
+    <div className="flex-1 flex flex-col min-h-0 h-full">
+      <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+        {/* Logo / Déconnexion */}
+        <div className="flex items-center flex-shrink-0 px-4 mb-6 justify-between">
+          <button
+            onClick={handleLogout}
+            className="text-2xl font-bold text-white hover:text-gray-300 transition-colors focus:outline-none"
+            title="Déconnexion"
+          >
+            {sidebarExpanded ? 'TalosPrimes' : 'TP'}
+          </button>
+          {/* Bouton fermer sur mobile */}
+          {isMobile && mobileOpen && (
             <button
-              onClick={handleLogout}
-              className={`
-                text-2xl font-bold text-white hover:text-gray-300 transition-colors focus:outline-none
-                ${isCollapsed ? 'text-center w-full' : ''}
-              `}
-              title="Déconnexion"
+              onClick={() => setMobileOpen(false)}
+              className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none"
             >
-              {isCollapsed ? 'TP' : 'TalosPrimes'}
+              <XMarkIcon className="h-6 w-6" />
             </button>
-          </div>
-
-          {/* Badge démo */}
-          {isDemo && !isCollapsed && (
-            <div className="mx-4 mb-3 px-2 py-1 bg-amber-500/20 border border-amber-500/40 rounded text-amber-400 text-xs text-center font-medium">
-              MODE DÉMO
-            </div>
           )}
-
-          <nav className="flex-1 px-2 space-y-1">
-            {/* Items standalone (Dashboard, Assistant IA) */}
-            {standaloneItems.map((item) => {
-              const active = isItemActive(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`
-                    group flex items-center px-2 py-2 text-sm font-medium rounded-md
-                    ${active ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
-                    ${isCollapsed ? 'justify-center' : ''}
-                  `}
-                  title={isCollapsed ? item.name : ''}
-                >
-                  <item.icon
-                    className={`flex-shrink-0 h-6 w-6 ${isCollapsed ? '' : 'mr-3'} ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}
-                  />
-                  {!isCollapsed && <span>{item.name}</span>}
-                </Link>
-              );
-            })}
-
-            {/* Séparateur */}
-            {!isCollapsed && <div className="border-t border-gray-700 my-2" />}
-            {isCollapsed && <div className="my-2" />}
-
-            {/* Groupes avec menus déroulants (filtrés par modules actifs) */}
-            {navGroups.map((group) => {
-              const groupActive = isGroupActive(group);
-              const isOpen = openGroups[group.label] || false;
-
-              return (
-                <div key={group.label}>
-                  {/* Bouton du groupe */}
-                  <button
-                    onClick={() => {
-                      if (!isCollapsed) {
-                        toggleGroup(group.label);
-                      }
-                    }}
-                    className={`
-                      w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md
-                      ${groupActive ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
-                      ${isCollapsed ? 'justify-center' : ''}
-                    `}
-                    title={isCollapsed ? group.label : ''}
-                  >
-                    <group.icon
-                      className={`flex-shrink-0 h-6 w-6 ${isCollapsed ? '' : 'mr-3'} ${groupActive ? 'text-amber-400' : 'text-gray-400 group-hover:text-gray-300'}`}
-                    />
-                    {!isCollapsed && (
-                      <>
-                        <span className="flex-1 text-left">{group.label}</span>
-                        <ChevronDownIcon
-                          className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                        />
-                      </>
-                    )}
-                  </button>
-
-                  {/* Items du groupe (déroulant) */}
-                  {!isCollapsed && isOpen && (
-                    <div className="ml-4 mt-1 space-y-0.5">
-                      {group.items.map((item) => {
-                        const active = isItemActive(item.href);
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`
-                              group flex items-center pl-4 pr-2 py-1.5 text-sm rounded-md border-l-2
-                              ${active
-                                ? 'border-amber-400 bg-gray-800/60 text-white'
-                                : 'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-white hover:border-gray-500'}
-                            `}
-                          >
-                            <item.icon
-                              className={`flex-shrink-0 h-5 w-5 mr-2.5 ${active ? 'text-amber-400' : 'text-gray-500 group-hover:text-gray-300'}`}
-                            />
-                            <span>{item.name}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
         </div>
+
+        {/* Badge démo */}
+        {isDemo && sidebarExpanded && (
+          <div className="mx-4 mb-3 px-2 py-1 bg-amber-500/20 border border-amber-500/40 rounded text-amber-400 text-xs text-center font-medium">
+            MODE DÉMO
+          </div>
+        )}
+
+        <nav className="flex-1 px-2 space-y-1">
+          {standaloneItems.map((item) => {
+            const active = isItemActive(item.href);
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`
+                  group flex items-center px-2 py-2.5 text-sm font-medium rounded-md
+                  ${active ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
+                  ${!sidebarExpanded ? 'justify-center' : ''}
+                `}
+                title={!sidebarExpanded ? item.name : ''}
+              >
+                <item.icon
+                  className={`flex-shrink-0 h-6 w-6 ${sidebarExpanded ? 'mr-3' : ''} ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}
+                />
+                {sidebarExpanded && <span>{item.name}</span>}
+              </Link>
+            );
+          })}
+
+          {sidebarExpanded && <div className="border-t border-gray-700 my-2" />}
+          {!sidebarExpanded && <div className="my-2" />}
+
+          {navGroups.map((group) => {
+            const groupActive = isGroupActive(group);
+            const isOpen = openGroups[group.label] || false;
+
+            return (
+              <div key={group.label}>
+                <button
+                  onClick={() => {
+                    if (sidebarExpanded) {
+                      toggleGroup(group.label);
+                    }
+                  }}
+                  className={`
+                    w-full group flex items-center px-2 py-2.5 text-sm font-medium rounded-md
+                    ${groupActive ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
+                    ${!sidebarExpanded ? 'justify-center' : ''}
+                  `}
+                  title={!sidebarExpanded ? group.label : ''}
+                >
+                  <group.icon
+                    className={`flex-shrink-0 h-6 w-6 ${sidebarExpanded ? 'mr-3' : ''} ${groupActive ? 'text-amber-400' : 'text-gray-400 group-hover:text-gray-300'}`}
+                  />
+                  {sidebarExpanded && (
+                    <>
+                      <span className="flex-1 text-left">{group.label}</span>
+                      <ChevronDownIcon
+                        className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {sidebarExpanded && isOpen && (
+                  <div className="ml-4 mt-1 space-y-0.5">
+                    {group.items.map((item) => {
+                      const active = isItemActive(item.href);
+                      return (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className={`
+                            group flex items-center pl-4 pr-2 py-2 text-sm rounded-md border-l-2
+                            ${active
+                              ? 'border-amber-400 bg-gray-800/60 text-white'
+                              : 'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-white hover:border-gray-500'}
+                          `}
+                        >
+                          <item.icon
+                            className={`flex-shrink-0 h-5 w-5 mr-2.5 ${active ? 'text-amber-400' : 'text-gray-500 group-hover:text-gray-300'}`}
+                          />
+                          <span>{item.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Bouton hamburger mobile — toujours visible en haut à gauche */}
+      {isMobile && !mobileOpen && (
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="fixed top-3 left-3 z-50 p-2 rounded-lg bg-gray-800 border border-gray-700 text-white shadow-lg hover:bg-gray-700 focus:outline-none"
+          aria-label="Ouvrir le menu"
+        >
+          <Bars3Icon className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* Overlay mobile */}
+      {isMobile && mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`
+          ${isMobile
+            ? `fixed inset-y-0 left-0 z-50 w-72 bg-gray-900 transform transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`
+            : `fixed inset-y-0 left-0 z-40 bg-gray-900 transform transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-60'}`
+          }
+        `}
+        onMouseEnter={() => !isMobile && handleToggle(false)}
+        onMouseLeave={() => !isMobile && handleToggle(true)}
+      >
+        {sidebarContent}
+      </div>
+    </>
   );
 }

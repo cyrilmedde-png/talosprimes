@@ -594,15 +594,15 @@ export default function FacturesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <BanknotesIcon className="h-8 w-8 text-amber-400" />
+          <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+            <BanknotesIcon className="h-6 sm:h-8 w-6 sm:w-8 text-amber-400" />
             Factures
           </h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-1 text-xs sm:text-sm text-gray-400">
             Liste des factures (conformité aux normes européennes : numéro, dates, TVA, mentions légales).
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           <button
             type="button"
             onClick={() => {
@@ -610,10 +610,11 @@ export default function FacturesPage() {
               setError(null);
               resetCreateForm();
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium text-sm"
+            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium text-xs sm:text-sm"
           >
-            <PlusIcon className="h-5 w-5" />
-            Créer une facture
+            <PlusIcon className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="hidden xs:inline">Créer une facture</span>
+            <span className="inline xs:hidden">Facture</span>
           </button>
           <button
             type="button"
@@ -623,42 +624,44 @@ export default function FacturesPage() {
               resetCreateForm();
               setCreateForm((f) => ({ ...f, type: 'facture_achat', typeDocument: 'facture' }));
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium text-sm"
+            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-medium text-xs sm:text-sm"
           >
-            <DocumentMagnifyingGlassIcon className="h-5 w-5" />
-            Facture d&apos;achat
+            <DocumentMagnifyingGlassIcon className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="hidden xs:inline">Facture d&apos;achat</span>
+            <span className="inline xs:hidden">Achat</span>
           </button>
           <button
             type="button"
             onClick={() => router.push('/bons-commande')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm"
+            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs sm:text-sm"
           >
-            <ClipboardDocumentListIcon className="h-5 w-5" />
-            Bons de commande
+            <ClipboardDocumentListIcon className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="hidden xs:inline">Bons de commande</span>
+            <span className="inline xs:hidden">BC</span>
           </button>
           <button
             type="button"
             onClick={() => router.push('/devis')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm"
+            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs sm:text-sm"
           >
-            <DocumentTextIcon className="h-5 w-5" />
-            Devis
+            <DocumentTextIcon className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="hidden xs:inline">Devis</span>
           </button>
           <button
             type="button"
             onClick={() => router.push('/proforma')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm"
+            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium text-xs sm:text-sm"
           >
-            <DocumentTextIcon className="h-5 w-5" />
-            Proforma
+            <DocumentTextIcon className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="hidden xs:inline">Proforma</span>
           </button>
           <button
             type="button"
             onClick={() => router.push('/avoir')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium text-sm"
+            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs sm:text-sm"
           >
-            <ReceiptRefundIcon className="h-5 w-5" />
-            Avoir
+            <ReceiptRefundIcon className="h-4 sm:h-5 w-4 sm:w-5" />
+            <span className="hidden xs:inline">Avoir</span>
           </button>
         </div>
       </div>
@@ -684,45 +687,47 @@ export default function FacturesPage() {
       )}
 
       {/* Onglets Ventes / Achats */}
-      <div className="flex gap-1 border-b border-gray-700">
+      <div className="flex gap-1 border-b border-gray-700 overflow-x-auto">
         <button
           type="button"
           onClick={() => { setActiveTab('ventes'); setPage(1); }}
-          className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+          className={`px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
             activeTab === 'ventes'
               ? 'bg-gray-800 text-amber-400 border border-gray-700 border-b-transparent -mb-px'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
           }`}
         >
-          Factures de vente
-          <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-300">
+          <span className="hidden xs:inline">Factures de vente</span>
+          <span className="inline xs:hidden">Ventes</span>
+          <span className="ml-1 sm:ml-2 text-xs px-1 sm:px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-300">
             {invoices.filter((i) => i.type !== 'facture_achat').length}
           </span>
         </button>
         <button
           type="button"
           onClick={() => { setActiveTab('achats'); setPage(1); }}
-          className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+          className={`px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
             activeTab === 'achats'
               ? 'bg-gray-800 text-orange-400 border border-gray-700 border-b-transparent -mb-px'
               : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
           }`}
         >
-          Factures d&apos;achat
-          <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-300">
+          <span className="hidden xs:inline">Factures d&apos;achat</span>
+          <span className="inline xs:hidden">Achats</span>
+          <span className="ml-1 sm:ml-2 text-xs px-1 sm:px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-300">
             {invoices.filter((i) => i.type === 'facture_achat').length}
           </span>
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label htmlFor="statut" className="text-sm text-gray-400">Statut</label>
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <label htmlFor="statut" className="text-xs sm:text-sm text-gray-400">Statut</label>
           <select
             id="statut"
             value={statutFilter}
             onChange={(e) => { setStatutFilter(e.target.value); setPage(1); }}
-            className="rounded-lg bg-gray-800 border border-gray-600 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            className="rounded-lg bg-gray-800 border border-gray-600 text-white px-2 sm:px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
           >
             <option value="">Tous</option>
             {Object.entries(STATUT_LABELS).map(([value, label]) => (
@@ -746,24 +751,24 @@ export default function FacturesPage() {
             <table className="min-w-full divide-y divide-gray-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">N° Facture</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">N° Facture</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">
                     {activeTab === 'achats' ? 'Fournisseur' : 'Client'}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Montant TTC</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Actions</th>
+                  <th className="hidden sm:table-cell px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-400 uppercase">Montant TTC</th>
+                  <th className="hidden sm:table-cell px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                  <th className="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-medium text-gray-400 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {filteredInvoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-gray-700/30">
-                    <td className="px-4 py-3 text-sm font-mono text-white">{inv.numeroFacture}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{clientLabel(inv)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400">{formatDate(inv.dateFacture)}</td>
-                    <td className="px-4 py-3 text-sm text-right text-white">{(Number(inv.montantTtc) || 0).toFixed(2)} €</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm font-mono text-white">{inv.numeroFacture}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-300">{clientLabel(inv)}</td>
+                    <td className="hidden sm:table-cell px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-gray-400">{formatDate(inv.dateFacture)}</td>
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-right text-white">{(Number(inv.montantTtc) || 0).toFixed(2)} €</td>
+                    <td className="hidden sm:table-cell px-2 py-2 sm:px-4 sm:py-3">
                       <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
                         inv.statut === 'payee' ? 'bg-green-500/20 text-green-300' :
                         inv.statut === 'envoyee' ? 'bg-blue-500/20 text-blue-300' :
@@ -774,35 +779,35 @@ export default function FacturesPage() {
                         {STATUT_LABELS[inv.statut] ?? inv.statut}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-2 py-2 sm:px-4 sm:py-3 text-right">
                       <div className="flex items-center justify-end gap-1 flex-wrap">
                         <button
                           type="button"
                           onClick={() => handleView(inv)}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-white hover:bg-gray-600"
+                          className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-white hover:bg-gray-600"
                           title="Voir"
                         >
                           <EyeIcon className="h-4 w-4" />
-                          Voir
+                          <span className="hidden sm:inline">Voir</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleEditOpen(inv)}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-amber-400 hover:bg-gray-600"
+                          className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-amber-400 hover:bg-gray-600"
                           title="Modifier"
                         >
                           <PencilSquareIcon className="h-4 w-4" />
-                          Modifier
+                          <span className="hidden sm:inline">Modifier</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(inv)}
                           disabled={!allowDeleteAny && inv.statut !== 'brouillon' || !!actionLoading}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-red-400 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-red-400 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
                           title={allowDeleteAny ? 'Supprimer' : 'Supprimer (brouillon uniquement)'}
                         >
                           <TrashIcon className="h-4 w-4" />
-                          Supprimer
+                          <span className="hidden sm:inline">Supprimer</span>
                         </button>
                         <button
                           onClick={() => handleView(inv)}
@@ -839,44 +844,44 @@ export default function FacturesPage() {
                             type="button"
                             onClick={() => handleConvertToAvoir(inv)}
                             disabled={!!actionLoading}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-rose-400 hover:bg-gray-600 disabled:opacity-40"
+                            className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-rose-400 hover:bg-gray-600 disabled:opacity-40"
                             title="Créer un avoir"
                           >
                             <ReceiptRefundIcon className="h-4 w-4" />
-                            Avoir
+                            <span className="hidden sm:inline">Avoir</span>
                           </button>
                         )}
                         {inv.bonsCommande && inv.bonsCommande.length > 0 && (
                           <button
                             type="button"
                             onClick={() => router.push(`/bons-commande?highlight=${inv.bonsCommande![0].id}`)}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-blue-300 hover:text-blue-200 hover:bg-gray-600"
+                            className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-blue-300 hover:text-blue-200 hover:bg-gray-600"
                             title={`Bon de commande : ${inv.bonsCommande[0].numeroBdc}`}
                           >
                             <ClipboardDocumentListIcon className="h-4 w-4" />
-                            {inv.bonsCommande[0].numeroBdc}
+                            <span className="hidden sm:inline">{inv.bonsCommande[0].numeroBdc}</span>
                           </button>
                         )}
                         {inv.devis && inv.devis.length > 0 && (
                           <button
                             type="button"
                             onClick={() => router.push(`/devis?highlight=${inv.devis![0].id}`)}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-teal-300 hover:text-teal-200 hover:bg-gray-600"
+                            className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-teal-300 hover:text-teal-200 hover:bg-gray-600"
                             title={`Devis : ${inv.devis[0].numeroDevis}`}
                           >
                             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                            {inv.devis[0].numeroDevis}
+                            <span className="hidden sm:inline">{inv.devis[0].numeroDevis}</span>
                           </button>
                         )}
                         {inv.proformas && inv.proformas.length > 0 && (
                           <button
                             type="button"
                             onClick={() => router.push(`/proforma?highlight=${inv.proformas![0].id}`)}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-purple-300 hover:text-purple-200 hover:bg-gray-600"
+                            className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-purple-300 hover:text-purple-200 hover:bg-gray-600"
                             title={`Proforma : ${inv.proformas[0].numeroProforma}`}
                           >
                             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                            {inv.proformas[0].numeroProforma}
+                            <span className="hidden sm:inline">{inv.proformas[0].numeroProforma}</span>
                           </button>
                         )}
                       </div>
@@ -889,27 +894,27 @@ export default function FacturesPage() {
         )}
 
         {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-700 flex items-center justify-between text-sm text-gray-400">
-            <span>
+          <div className="px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
+            <span className="order-2 sm:order-1">
               {total} facture{total !== 1 ? 's' : ''}
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2 order-1 sm:order-2">
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                className="px-2 sm:px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50 text-xs"
               >
                 Précédent
               </button>
-              <span className="py-1">
-                Page {page} / {totalPages}
+              <span className="py-1 text-xs">
+                {page} / {totalPages}
               </span>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                className="px-2 sm:px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50 text-xs"
               >
                 Suivant
               </button>
@@ -920,15 +925,15 @@ export default function FacturesPage() {
 
       {/* Modal Créer facture / devis / proforma / avoir */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 overflow-y-auto" onClick={() => !creating && setShowCreateModal(false)}>
-          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] my-8 flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 shrink-0">
-              <h2 className="text-lg font-semibold text-white">Nouveau document (facture, devis, proforma, avoir)</h2>
-              <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="p-1 rounded text-gray-400 hover:text-white">
-                <XMarkIcon className="h-6 w-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 overflow-y-auto" onClick={() => !creating && setShowCreateModal(false)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] my-4 sm:my-8 mx-2 sm:mx-4 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-700 shrink-0">
+              <h2 className="text-sm sm:text-lg font-semibold text-white">Nouveau document (facture, devis, proforma, avoir)</h2>
+              <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="p-1 rounded text-gray-400 hover:text-white shrink-0">
+                <XMarkIcon className="h-5 sm:h-6 w-5 sm:w-6" />
               </button>
             </div>
-            <form onSubmit={handleCreateInvoice} className="p-6 space-y-5 overflow-y-auto shrink min-h-0 flex-1">
+            <form onSubmit={handleCreateInvoice} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto shrink min-h-0 flex-1">
               {bdcValides.length > 0 && (
                 <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/30 p-3">
                   <label className="block text-sm font-medium text-indigo-300 mb-1 flex items-center gap-1.5">
@@ -1151,17 +1156,17 @@ export default function FacturesPage() {
                   </button>
                 </div>
                 <div className="overflow-x-auto rounded-lg border border-gray-600">
-                  <table className="min-w-full text-sm">
+                  <table className="min-w-full text-xs sm:text-sm">
                     <thead className="bg-gray-700/70 text-gray-300">
                       <tr>
-                        <th className="px-3 py-2 text-left w-32 font-medium">Code Art.</th>
-                        <th className="px-3 py-2 text-left font-medium">Désignation</th>
-                        <th className="px-3 py-2 text-right w-20">Qté</th>
-                        <th className="px-3 py-2 text-left w-24">Unité</th>
-                        <th className="px-3 py-2 text-right w-28">Prix unit. HT</th>
-                        <th className="px-3 py-2 text-right w-20">TVA %</th>
-                        <th className="px-3 py-2 text-right w-28">Montant HT</th>
-                        <th className="px-3 py-2 w-10" />
+                        <th className="px-2 sm:px-3 py-2 text-left w-24 sm:w-32 font-medium">Code Art.</th>
+                        <th className="px-2 sm:px-3 py-2 text-left font-medium">Désignation</th>
+                        <th className="px-2 sm:px-3 py-2 text-right w-16 sm:w-20">Qté</th>
+                        <th className="px-2 sm:px-3 py-2 text-left w-20 sm:w-24">Unité</th>
+                        <th className="px-2 sm:px-3 py-2 text-right w-24 sm:w-28">Prix unit. HT</th>
+                        <th className="px-2 sm:px-3 py-2 text-right w-16 sm:w-20">TVA %</th>
+                        <th className="px-2 sm:px-3 py-2 text-right w-24 sm:w-28">Montant HT</th>
+                        <th className="px-2 sm:px-3 py-2 w-8 sm:w-10" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-600">
@@ -1171,7 +1176,7 @@ export default function FacturesPage() {
                         const mtHt = Math.round(qte * pu * 100) / 100;
                         return (
                           <tr key={ligne.id} className="bg-gray-800/50">
-                            <td className="px-3 py-2">
+                            <td className="px-2 sm:px-3 py-2">
                               <select
                                 value={ligne.codeArticle}
                                 onChange={(e) => {
@@ -1185,7 +1190,7 @@ export default function FacturesPage() {
                                     unite: found?.unite || l.unite,
                                   } : l));
                                 }}
-                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-sm focus:ring-1 focus:ring-amber-500"
+                                className="w-full px-2 py-1 sm:py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-xs sm:text-sm focus:ring-1 focus:ring-amber-500"
                               >
                                 <option value="">—</option>
                                 {articleCodes.filter((a) => a.actif).map((a) => (
@@ -1193,56 +1198,56 @@ export default function FacturesPage() {
                                 ))}
                               </select>
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="px-2 sm:px-3 py-2">
                               <input
                                 type="text"
                                 value={ligne.designation}
                                 onChange={(e) => setLignes((prev) => prev.map((l) => (l.id === ligne.id ? { ...l, designation: e.target.value } : l)))}
                                 placeholder="Désignation"
-                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white focus:ring-1 focus:ring-amber-500"
+                                className="w-full px-2 py-1 sm:py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-xs sm:text-sm focus:ring-1 focus:ring-amber-500"
                               />
                             </td>
-                            <td className="px-3 py-2 text-right">
+                            <td className="px-2 sm:px-3 py-2 text-right">
                               <input
                                 type="text"
                                 inputMode="decimal"
                                 value={ligne.quantite}
                                 onChange={(e) => setLignes((prev) => prev.map((l) => (l.id === ligne.id ? { ...l, quantite: e.target.value } : l)))}
-                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right focus:ring-1 focus:ring-amber-500"
+                                className="w-full px-2 py-1 sm:py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right text-xs sm:text-sm focus:ring-1 focus:ring-amber-500"
                               />
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="px-2 sm:px-3 py-2">
                               <select
                                 value={ligne.unite}
                                 onChange={(e) => setLignes((prev) => prev.map((l) => (l.id === ligne.id ? { ...l, unite: e.target.value } : l)))}
-                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white focus:ring-1 focus:ring-amber-500"
+                                className="w-full px-2 py-1 sm:py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-xs sm:text-sm focus:ring-1 focus:ring-amber-500"
                               >
                                 {UNITES_OPTIONS.map((u) => (
                                   <option key={u || 'v'} value={u}>{u || '—'}</option>
                                 ))}
                               </select>
                             </td>
-                            <td className="px-3 py-2 text-right">
+                            <td className="px-2 sm:px-3 py-2 text-right">
                               <input
                                 type="text"
                                 inputMode="decimal"
                                 value={ligne.prixUnitaireHT}
                                 onChange={(e) => setLignes((prev) => prev.map((l) => (l.id === ligne.id ? { ...l, prixUnitaireHT: e.target.value } : l)))}
                                 placeholder="0.00"
-                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right focus:ring-1 focus:ring-amber-500"
+                                className="w-full px-2 py-1 sm:py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right text-xs sm:text-sm focus:ring-1 focus:ring-amber-500"
                               />
                             </td>
-                            <td className="px-3 py-2 text-right">
+                            <td className="px-2 sm:px-3 py-2 text-right">
                               <input
                                 type="text"
                                 inputMode="decimal"
                                 value={ligne.tauxTVA}
                                 onChange={(e) => setLignes((prev) => prev.map((l) => (l.id === ligne.id ? { ...l, tauxTVA: e.target.value } : l)))}
-                                className="w-full px-2 py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right focus:ring-1 focus:ring-amber-500"
+                                className="w-full px-2 py-1 sm:py-1.5 rounded bg-gray-700 border border-gray-600 text-white text-right text-xs sm:text-sm focus:ring-1 focus:ring-amber-500"
                               />
                             </td>
-                            <td className="px-3 py-2 text-right text-gray-300 tabular-nums">{mtHt.toFixed(2)} €</td>
-                            <td className="px-3 py-2">
+                            <td className="px-2 sm:px-3 py-2 text-right text-gray-300 tabular-nums text-xs sm:text-sm">{mtHt.toFixed(2)} €</td>
+                            <td className="px-2 sm:px-3 py-2">
                               <button
                                 type="button"
                                 onClick={() => setLignes((prev) => prev.filter((l) => l.id !== ligne.id))}
@@ -1250,7 +1255,7 @@ export default function FacturesPage() {
                                 className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-gray-700 disabled:opacity-40"
                                 title="Supprimer la ligne"
                               >
-                                <TrashIcon className="h-4 w-4" />
+                                <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                               </button>
                             </td>
                           </tr>
@@ -1307,11 +1312,11 @@ export default function FacturesPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-700">
-                <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600">
+              <div className="flex justify-end gap-2 pt-2 sm:pt-3 border-t border-gray-700 px-4 sm:px-6 py-3 sm:py-4">
+                <button type="button" onClick={() => !creating && setShowCreateModal(false)} className="px-3 sm:px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 text-sm">
                   Annuler
                 </button>
-                <button type="submit" disabled={creating} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium disabled:opacity-50">
+                <button type="submit" disabled={creating} className="px-3 sm:px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium disabled:opacity-50 text-sm">
                   {creating ? 'Création…' : createForm.typeDocument === 'facture' ? 'Créer la facture' : `Créer (${createForm.typeDocument})`}
                 </button>
               </div>
@@ -1322,24 +1327,24 @@ export default function FacturesPage() {
 
       {/* Modal Modifier statut */}
       {editInvoiceId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => !savingEdit && setEditInvoiceId(null)}>
-          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-white mb-4">Modifier le statut</h3>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Statut</label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60" onClick={() => !savingEdit && setEditInvoiceId(null)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-xl w-full max-w-sm mx-2 sm:mx-4 p-4 sm:p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Modifier le statut</h3>
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">Statut</label>
             <select
               value={editStatut}
               onChange={(e) => setEditStatut(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-2 focus:ring-amber-500 mb-4"
+              className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:ring-2 focus:ring-amber-500 mb-4"
             >
               {Object.entries(STATUT_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => !savingEdit && setEditInvoiceId(null)} className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600">
+              <button type="button" onClick={() => !savingEdit && setEditInvoiceId(null)} className="px-3 sm:px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 text-sm">
                 Annuler
               </button>
-              <button type="button" onClick={handleEditSave} disabled={savingEdit} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium disabled:opacity-50">
+              <button type="button" onClick={handleEditSave} disabled={savingEdit} className="px-3 sm:px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-gray-900 font-medium disabled:opacity-50 text-sm">
                 {savingEdit ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </div>
