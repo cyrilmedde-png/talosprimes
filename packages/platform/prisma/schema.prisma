@@ -332,6 +332,7 @@ model ClientFinal {
   avoirs         Avoir[]
   proformas      Proforma[]
   clientSpaces   ClientSpace[]
+  clientModules  ClientModule[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -375,16 +376,88 @@ model ModuleMetier {
   prixParUtilisateur  Decimal? @map("prix_par_utilisateur") @db.Decimal(10, 2)
   categorie           String?  @map("categorie")
   icone               String?  @map("icone")
+  ordreAffichage      Int      @default(0) @map("ordre_affichage")
+  actif               Boolean  @default(true) @map("actif")
   workflowTemplates   String[] @default([]) @map("workflow_templates") @db.Text
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relations
-  workflowLinks WorkflowLink[]
+  workflowLinks  WorkflowLink[]
+  planModules    PlanModule[]
+  clientModules  ClientModule[]
 
   @@index([code])
   @@index([metierCible])
   @@map("module_metiers")
+}
+
+// Plan d'abonnement (formules proposées aux clients finaux)
+model Plan {
+  id                    String   @id @default(uuid()) @db.Uuid
+  code                  String   @unique
+  nom                   String
+  description           String?  @db.Text
+  prixMensuel           Decimal  @map("prix_mensuel") @db.Decimal(10, 2)
+  prixAnnuel            Decimal? @map("prix_annuel") @db.Decimal(10, 2)
+  stripeProductId       String?  @map("stripe_product_id")
+  stripePriceIdMensuel  String?  @map("stripe_price_id_mensuel")
+  stripePriceIdAnnuel   String?  @map("stripe_price_id_annuel")
+  essaiJours            Int      @default(0) @map("essai_jours")
+  ordreAffichage        Int      @default(0) @map("ordre_affichage")
+  actif                 Boolean  @default(true) @map("actif")
+  couleur               String?  @map("couleur")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  planModules         PlanModule[]
+  clientSubscriptions ClientSubscription[]
+
+  @@index([code])
+  @@index([actif])
+  @@map("plans")
+}
+
+// Liaison Plan ↔ Module (quels modules sont inclus dans chaque plan)
+model PlanModule {
+  id           String  @id @default(uuid()) @db.Uuid
+  planId       String  @map("plan_id") @db.Uuid
+  moduleId     String  @map("module_id") @db.Uuid
+  limiteUsage  Int?    @map("limite_usage")
+  config       Json?   @map("config") @db.JsonB
+
+  // Relations
+  plan   Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  module ModuleMetier @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, moduleId])
+  @@index([planId])
+  @@index([moduleId])
+  @@map("plan_modules")
+}
+
+// Modules attribués à un client final (résultat de son abonnement)
+model ClientModule {
+  id             String    @id @default(uuid()) @db.Uuid
+  clientFinalId  String    @map("client_final_id") @db.Uuid
+  moduleId       String    @map("module_id") @db.Uuid
+  actif          Boolean   @default(true) @map("actif")
+  limiteUsage    Int?      @map("limite_usage")
+  usageActuel    Int       @default(0) @map("usage_actuel")
+  config         Json?     @map("config") @db.JsonB
+  activatedAt    DateTime  @default(now()) @map("activated_at")
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  // Relations
+  clientFinal ClientFinal  @relation(fields: [clientFinalId], references: [id], onDelete: Cascade)
+  module      ModuleMetier @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([clientFinalId, moduleId])
+  @@index([clientFinalId])
+  @@index([moduleId])
+  @@index([actif])
+  @@map("client_modules")
 }
 
 // Abonnement Entreprise (ce que l'entreprise paye)
@@ -412,6 +485,7 @@ model Subscription {
 model ClientSubscription {
   id                       String              @id @default(uuid()) @db.Uuid
   clientFinalId            String              @map("client_final_id") @db.Uuid
+  planId                   String?             @map("plan_id") @db.Uuid
   planInterneId            String?             @map("plan_interne_id")
   nomPlan                  String              @map("nom_plan")
   dateDebut                DateTime            @map("date_debut") @db.Timestamptz(6)
@@ -426,8 +500,10 @@ model ClientSubscription {
 
   // Relations
   clientFinal ClientFinal @relation(fields: [clientFinalId], references: [id], onDelete: Cascade)
+  plan        Plan?       @relation(fields: [planId], references: [id], onDelete: SetNull)
 
   @@index([clientFinalId])
+  @@index([planId])
   @@index([statut])
   @@index([dateProchainRenouvellement])
   @@map("client_subscriptions")

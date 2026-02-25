@@ -93,6 +93,7 @@ const allNavGroups: NavGroup[] = [
     requiredModules: [],
     items: [
       { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
+      { name: 'Plans & Modules', href: '/plans', icon: BanknotesIcon },
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
       { name: 'Notifications', href: '/notifications', icon: BellIcon },
       { name: 'CMS Landing Page', href: '/dashboard/cms', icon: PencilSquareIcon },

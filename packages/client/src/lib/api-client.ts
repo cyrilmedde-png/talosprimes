@@ -853,6 +853,77 @@ export const apiClient = {
       }),
   },
 
+  // Plans et Modules
+  plans: {
+    list: () =>
+      authenticatedFetch<{ success: boolean; data: { plans: PlanWithModules[] } }>('/api/plans'),
+    listAll: () =>
+      authenticatedFetch<{ success: boolean; data: { plans: PlanWithModules[] } }>('/api/plans/all'),
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { plan: PlanWithModules } }>(`/api/plans/${id}`),
+    getByCode: (code: string) =>
+      authenticatedFetch<{ success: boolean; data: { plan: PlanWithModules } }>(`/api/plans/by-code/${code}`),
+    create: (data: {
+      code: string;
+      nom: string;
+      description?: string;
+      prixMensuel: number;
+      prixAnnuel?: number;
+      essaiJours?: number;
+      ordreAffichage?: number;
+      actif?: boolean;
+      couleur?: string;
+      modules?: Array<{ moduleCode: string; limiteUsage?: number | null; config?: Record<string, unknown> | null }>;
+    }) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { plan: PlanWithModules } }>('/api/plans', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<{
+      nom: string;
+      description: string;
+      prixMensuel: number;
+      prixAnnuel: number;
+      essaiJours: number;
+      ordreAffichage: number;
+      actif: boolean;
+      couleur: string;
+    }>) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { plan: PlanWithModules } }>(`/api/plans/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    updateModules: (id: string, modules: Array<{ moduleCode: string; limiteUsage?: number | null; config?: Record<string, unknown> | null }>) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { plan: PlanWithModules } }>(`/api/plans/${id}/modules`, {
+        method: 'PUT',
+        body: JSON.stringify({ modules }),
+      }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean; message: string }>(`/api/plans/${id}`, { method: 'DELETE' }),
+    modules: () =>
+      authenticatedFetch<{ success: boolean; data: { modules: ModuleMetier[] } }>('/api/plans/modules'),
+    modulesAll: () =>
+      authenticatedFetch<{ success: boolean; data: { modules: ModuleMetier[] } }>('/api/plans/modules/all'),
+  },
+
+  // Modules Clients
+  clientModules: {
+    get: (clientId: string) =>
+      authenticatedFetch<{ success: boolean; data: { clientModules: ClientModuleData[]; subscription: { id: string; nomPlan: string; statut: string; plan: { code: string; nom: string; prixMensuel: number } | null } | null; modulesActifs: string[] } }>(`/api/client-modules/${clientId}`),
+    activate: (clientId: string, data: { planCode?: string; modules?: Array<{ moduleCode: string; limiteUsage?: number | null; config?: Record<string, unknown> | null }> }) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { modulesActives: string[]; count: number } }>(`/api/client-modules/${clientId}/activate`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    toggle: (clientId: string, moduleCode: string, actif: boolean) =>
+      authenticatedFetch<{ success: boolean; message: string; data: { clientModule: ClientModuleData } }>(`/api/client-modules/${clientId}/toggle`, {
+        method: 'PATCH',
+        body: JSON.stringify({ moduleCode, actif }),
+      }),
+    stats: () =>
+      authenticatedFetch<{ success: boolean; data: { clientsParPlan: Array<{ planCode: string | null; planNom: string | null; count: number }>; modulesPopulaires: Array<{ moduleCode: string; moduleNom: string; count: number }> } }>('/api/client-modules/stats'),
+  },
+
   // Espaces Clients
   clientSpaces: {
     list: (params?: { status?: string }) => {
@@ -1119,6 +1190,62 @@ export interface ProformaListResponse {
     limit: number;
     totalPages: number;
   };
+}
+
+// Types pour les plans et modules
+export interface ModuleMetier {
+  id: string;
+  code: string;
+  nomAffiche: string;
+  description: string | null;
+  categorie: string | null;
+  icone: string | null;
+  prixParMois: number;
+  ordreAffichage: number;
+  actif: boolean;
+  _count?: { planModules: number; clientModules: number };
+}
+
+export interface PlanModule {
+  id: string;
+  planId: string;
+  moduleId: string;
+  limiteUsage: number | null;
+  config: Record<string, unknown> | null;
+  module: ModuleMetier;
+}
+
+export interface PlanWithModules {
+  id: string;
+  code: string;
+  nom: string;
+  description: string | null;
+  prixMensuel: number;
+  prixAnnuel: number | null;
+  stripeProductId: string | null;
+  stripePriceIdMensuel: string | null;
+  stripePriceIdAnnuel: string | null;
+  essaiJours: number;
+  ordreAffichage: number;
+  actif: boolean;
+  couleur: string | null;
+  planModules: PlanModule[];
+  _count?: { clientSubscriptions: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClientModuleData {
+  id: string;
+  clientFinalId: string;
+  moduleId: string;
+  actif: boolean;
+  limiteUsage: number | null;
+  usageActuel: number;
+  config: Record<string, unknown> | null;
+  activatedAt: string;
+  expiresAt: string | null;
+  module: ModuleMetier;
 }
 
 // Type pour les abonnements

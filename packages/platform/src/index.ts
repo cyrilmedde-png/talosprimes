@@ -28,6 +28,8 @@ import { smsRoutes } from './api/routes/sms.routes.js';
 import { questionnairesRoutes } from './api/routes/questionnaires.routes.js';
 import { comptabiliteRoutes } from './api/routes/comptabilite.routes.js';
 import { clientSpacesRoutes } from './api/routes/client-spaces.routes.js';
+import { plansRoutes } from './api/routes/plans.routes.js';
+import { clientModulesRoutes } from './api/routes/client-modules.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -236,6 +238,16 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes espaces clients
 await fastify.register(async (fastify) => {
   await fastify.register(clientSpacesRoutes, { prefix: '/api/client-spaces' });
+});
+
+// Enregistrer les routes plans et modules
+await fastify.register(async (fastify) => {
+  await fastify.register(plansRoutes, { prefix: '/api/plans' });
+});
+
+// Enregistrer les routes modules clients
+await fastify.register(async (fastify) => {
+  await fastify.register(clientModulesRoutes, { prefix: '/api/client-modules' });
 });
 
 // Route de test
