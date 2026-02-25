@@ -703,8 +703,9 @@ else
     log_warn "Prisma db push: pas de changements ou erreur (non bloquant)"
   fi
 
-  # --- Execution des seeds SQL (idempotents avec ON CONFLICT) ---
+  # --- Execution des seeds SQL (uniquement les nouveaux) ---
   SEED_SQL_DIR="$PLATFORM_DIR/prisma"
+  SEEDS_DONE_FILE="$PLATFORM_DIR/.seeds-done"
   DATABASE_URL=""
 
   # Charger DATABASE_URL depuis le .env platform
@@ -712,20 +713,33 @@ else
     DATABASE_URL=$(grep -E '^DATABASE_URL=' "$PLATFORM_DIR/.env" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
   fi
 
+  # Creer le fichier de suivi s'il n'existe pas
+  [ ! -f "$SEEDS_DONE_FILE" ] && touch "$SEEDS_DONE_FILE"
+
   if [ -n "$DATABASE_URL" ]; then
-    # Executer tous les fichiers seed-*.sql (idempotents)
     SEED_FILES=$(find "$SEED_SQL_DIR" -maxdepth 1 -name 'seed-*.sql' -type f 2>/dev/null | sort)
     if [ -n "$SEED_FILES" ]; then
-      log_info "Execution des seeds SQL..."
+      NEW_SEEDS=0
       while IFS= read -r seed_file; do
         seed_name=$(basename "$seed_file")
-        log_info "  -> $seed_name"
+        # Verifier si ce seed a deja ete execute
+        if grep -qxF "$seed_name" "$SEEDS_DONE_FILE" 2>/dev/null; then
+          continue
+        fi
+        # Nouveau seed → executer
+        NEW_SEEDS=$((NEW_SEEDS + 1))
+        log_info "  -> $seed_name (nouveau)"
         if psql "$DATABASE_URL" -f "$seed_file" 2>&1 | tail -5; then
+          # Marquer comme execute
+          echo "$seed_name" >> "$SEEDS_DONE_FILE"
           log_ok "  $seed_name execute"
         else
           log_warn "  $seed_name: erreur (non bloquant)"
         fi
       done <<< "$SEED_FILES"
+      if [ "$NEW_SEEDS" -eq 0 ]; then
+        log_info "Seeds SQL: aucun nouveau seed a executer"
+      fi
     else
       log_info "Aucun fichier seed-*.sql trouve"
     fi
