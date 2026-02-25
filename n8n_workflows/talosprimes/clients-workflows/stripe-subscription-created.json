@@ -1,0 +1,89 @@
+{
+  "name": "Stripe - Subscription Created (Sync BDD)",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "customer.subscription.created"
+        ]
+      },
+      "id": "trigger-sub-created",
+      "name": "01. Stripe Trigger",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "credentials": {
+        "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
+      },
+      "webhookId": "stripe-subscription-created"
+    },
+    {
+      "parameters": {
+        "jsCode": "var event = $input.item.json;\nvar sub = event.data?.object || event;\n\nvar subscriptionId = sub.id;\nvar customerId = sub.customer;\nvar status = sub.status;\nvar currentPeriodStart = sub.current_period_start ? new Date(sub.current_period_start * 1000).toISOString() : null;\nvar currentPeriodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;\nvar clientId = sub.metadata?.clientId;\nvar tenantId = sub.metadata?.tenantId;\nvar planName = sub.metadata?.planName || sub.items?.data?.[0]?.plan?.nickname || '';\n\nif (!clientId || !tenantId) {\n  throw new Error('Metadata manquantes dans subscription: clientId=' + (clientId || 'ABSENT') + ', tenantId=' + (tenantId || 'ABSENT'));\n}\n\nreturn [{\n  json: {\n    subscriptionId,\n    customerId,\n    status,\n    currentPeriodStart,\n    currentPeriodEnd,\n    clientId,\n    tenantId,\n    planName\n  }\n}];"
+      },
+      "id": "parse-sub",
+      "name": "02. Parser subscription",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE client_subscriptions SET id_abonnement_stripe = '\" + $json.subscriptionId + \"', id_client_stripe = '\" + $json.customerId + \"', date_debut = '\" + ($json.currentPeriodStart || new Date().toISOString()) + \"'::timestamptz, date_prochain_renouvellement = '\" + ($json.currentPeriodEnd || '') + \"'::timestamptz, updated_at = NOW() WHERE client_final_id = '\" + $json.clientId + \"'::uuid RETURNING *;\" }}",
+        "options": {}
+      },
+      "id": "update-sub",
+      "name": "03. UPDATE subscription BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var data = $('02. Parser subscription').item.json;\nvar planName = (data.planName || 'Abonnement').replace(/'/g, \"''\");\n\nreturn [{\n  json: {\n    query: \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + data.tenantId.replace(/'/g, \"''\") + \"', 'Abonnement Stripe cree', 'L''abonnement \" + planName + \" (\" + data.subscriptionId + \") a ete cree sur Stripe et synchronise en base de donnees.', 'info', false, NOW())\"\n  }\n}];"
+      },
+      "id": "prepare-notif",
+      "name": "04. Préparer notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "insert-notif",
+      "name": "05. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "01. Stripe Trigger": {
+      "main": [[{ "node": "02. Parser subscription", "type": "main", "index": 0 }]]
+    },
+    "02. Parser subscription": {
+      "main": [[{ "node": "03. UPDATE subscription BDD", "type": "main", "index": 0 }]]
+    },
+    "03. UPDATE subscription BDD": {
+      "main": [[{ "node": "04. Préparer notification", "type": "main", "index": 0 }]]
+    },
+    "04. Préparer notification": {
+      "main": [[{ "node": "05. INSERT notification", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null
+}

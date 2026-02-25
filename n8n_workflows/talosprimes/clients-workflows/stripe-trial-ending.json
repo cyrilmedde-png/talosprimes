@@ -1,0 +1,139 @@
+{
+  "name": "Stripe - Trial Ending (Notifier client avant echeance)",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "customer.subscription.trial_will_end"
+        ]
+      },
+      "id": "trigger-trial",
+      "name": "01. Stripe Trigger",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "credentials": {
+        "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
+      },
+      "webhookId": "stripe-trial-ending"
+    },
+    {
+      "parameters": {
+        "jsCode": "var event = $input.item.json;\nvar sub = event.data?.object || event;\n\nvar subscriptionId = sub.id;\nvar customerId = sub.customer;\nvar trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null;\nvar clientId = sub.metadata?.clientId;\nvar tenantId = sub.metadata?.tenantId;\nvar planName = sub.metadata?.planName || sub.items?.data?.[0]?.plan?.nickname || 'votre abonnement';\n\nif (!clientId || !tenantId) {\n  throw new Error('Metadata manquantes: clientId=' + (clientId || 'ABSENT'));\n}\n\nvar trialEndDate = trialEnd ? new Date(trialEnd).toLocaleDateString('fr-FR') : 'bientot';\n\nreturn [{\n  json: {\n    subscriptionId,\n    customerId,\n    trialEnd,\n    trialEndDate,\n    clientId,\n    tenantId,\n    planName\n  }\n}];"
+      },
+      "id": "parse-trial",
+      "name": "02. Parser données trial",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT email, nom, prenom, raison_sociale, telephone FROM clients_finaux WHERE id = '\" + $json.clientId + \"'::uuid LIMIT 1;\" }}",
+        "options": {}
+      },
+      "id": "get-client",
+      "name": "03. Récupérer infos client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var client = $('03. Récupérer infos client').first().json;\nvar data = $('02. Parser données trial').first().json;\nvar record = client[0] || client;\n\nvar email = record.email;\nvar telephone = record.telephone;\nvar nom = record.prenom ? (record.prenom + ' ' + (record.nom || '')) : (record.raison_sociale || 'Client');\nvar portalUrl = 'https://talosprimes.com/clients';\n\nvar subject = 'TalosPrimes - Votre abonnement arrive a echeance';\nvar html = '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>' +\n'body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }' +\n'.container { max-width: 600px; margin: 0 auto; padding: 20px; }' +\n'.header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }' +\n'.content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }' +\n'.alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }' +\n'.button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }' +\n'</style></head><body><div class=\"container\">' +\n'<div class=\"header\"><h1>Votre abonnement arrive a echeance</h1></div>' +\n'<div class=\"content\">' +\n'<p>Bonjour ' + nom.trim() + ',</p>' +\n'<div class=\"alert\"><strong>Votre abonnement ' + data.planName + ' arrive a echeance le ' + data.trialEndDate + '.</strong></div>' +\n'<p>Pour continuer a beneficier de tous les services TalosPrimes, assurez-vous que votre moyen de paiement est a jour.</p>' +\n'<p>Si vous souhaitez modifier ou renouveler votre abonnement :</p>' +\n'<p style=\"text-align: center;\"><a href=\"' + portalUrl + '\" class=\"button\">Gerer mon abonnement</a></p>' +\n'<p>Si vous ne souhaitez pas renouveler, votre acces sera desactive a la fin de la periode.</p>' +\n'<p>Cordialement,<br>L\\'equipe TalosPrimes</p>' +\n'</div></div></body></html>';\n\nreturn [{ json: {\n  to: email,\n  telephone: telephone,\n  subject: subject,\n  html: html,\n  clientNom: nom.trim(),\n  tenantId: data.tenantId,\n  planName: data.planName,\n  trialEndDate: data.trialEndDate,\n  clientId: data.clientId\n} }];"
+      },
+      "id": "prepare-messages",
+      "name": "04. Préparer messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "fromEmail": "TalosPrimes <noreply@talosprimes.com>",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": { "appendAttribution": false }
+      },
+      "id": "send-email",
+      "name": "05. Envoyer email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, 300],
+      "credentials": {
+        "smtp": { "id": "hepAQJGA9ubd1NF4", "name": "SMTP account" }
+      }
+    },
+    {
+      "parameters": {
+        "from": "+17178075753",
+        "to": "={{ $('04. Préparer messages').item.json.telephone }}",
+        "message": "={{ 'TalosPrimes: Votre abonnement ' + $('04. Préparer messages').item.json.planName + ' arrive a echeance le ' + $('04. Préparer messages').item.json.trialEndDate + '. Connectez-vous pour renouveler: https://talosprimes.com/clients' }}"
+      },
+      "id": "send-sms",
+      "name": "06. Envoyer SMS Twilio",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1120, 500],
+      "credentials": {
+        "twilioApi": { "id": "twilio-cred", "name": "Twilio" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var d = $('04. Préparer messages').item.json;\nreturn [{\n  json: {\n    query: \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + d.tenantId.replace(/'/g, \"''\") + \"', 'Echeance abonnement - \" + d.clientNom.replace(/'/g, \"''\") + \"', 'L''abonnement \" + d.planName.replace(/'/g, \"''\") + \" de \" + d.clientNom.replace(/'/g, \"''\") + \" arrive a echeance le \" + d.trialEndDate + \". Email et SMS de rappel envoyes.', 'warning', false, NOW())\"\n  }\n}];"
+      },
+      "id": "prepare-notif",
+      "name": "07. Préparer notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "insert-notif",
+      "name": "08. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "01. Stripe Trigger": {
+      "main": [[{ "node": "02. Parser données trial", "type": "main", "index": 0 }]]
+    },
+    "02. Parser données trial": {
+      "main": [[{ "node": "03. Récupérer infos client", "type": "main", "index": 0 }]]
+    },
+    "03. Récupérer infos client": {
+      "main": [[{ "node": "04. Préparer messages", "type": "main", "index": 0 }]]
+    },
+    "04. Préparer messages": {
+      "main": [[
+        { "node": "05. Envoyer email", "type": "main", "index": 0 },
+        { "node": "06. Envoyer SMS Twilio", "type": "main", "index": 0 },
+        { "node": "07. Préparer notification", "type": "main", "index": 0 }
+      ]]
+    },
+    "07. Préparer notification": {
+      "main": [[{ "node": "08. INSERT notification", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null
+}

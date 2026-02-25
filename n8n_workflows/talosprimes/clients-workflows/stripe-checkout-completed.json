@@ -1,29 +1,34 @@
 {
-  "name": "Stripe - Envoyer identifiants après paiement",
+  "name": "Stripe - Checkout Completed (Activer abo + envoyer identifiants)",
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "stripe-checkout-completed",
-        "responseMode": "responseNode",
-        "options": {}
+        "events": [
+          "checkout.session.completed"
+        ]
       },
-      "id": "webhook-stripe",
-      "name": "01. Webhook Stripe",
-      "type": "n8n-nodes-base.webhook",
+      "id": "trigger-checkout",
+      "name": "01. Stripe Trigger",
+      "type": "n8n-nodes-base.stripeTrigger",
       "typeVersion": 1,
       "position": [
         240,
         400
       ],
+      "credentials": {
+        "stripeApi": {
+          "id": "hTgbVXtv3dG8wSJ4",
+          "name": "Stripe API"
+        }
+      },
       "webhookId": "stripe-checkout-completed"
     },
     {
       "parameters": {
-        "jsCode": "// Extraire les données du webhook Stripe\nvar payload = $input.item.json;\nvar session = payload.body?.data?.object || payload.body?.object || payload;\n\n// Vérifier que c'est un événement checkout.session.completed\nvar eventType = payload.body?.type || payload.type;\nif (eventType !== 'checkout.session.completed') {\n  return {\n    json: { skip: true, reason: 'Event type not checkout.session.completed' }\n  };\n}\n\n// Extraire les métadonnées de la session\nvar metadata = session.metadata || {};\nvar clientId = metadata.clientId;\nvar tenantId = metadata.tenantId;\n\n// Extraire les informations de l'abonnement créé\nvar subscriptionId = session.subscription;\n\nreturn {\n  json: {\n    eventType,\n    sessionId: session.id,\n    clientId,\n    tenantId,\n    subscriptionId,\n    customerId: session.customer,\n    customerEmail: session.customer_details?.email || session.customer_email,\n    amountTotal: session.amount_total / 100, // Convertir de centimes en euros\n    currency: session.currency\n  }\n};"
+        "jsCode": "var event = $input.item.json;\nvar session = event.data?.object || event;\n\nvar customerId = session.customer;\nvar subscriptionId = session.subscription;\nvar paymentStatus = session.payment_status;\nvar clientId = session.metadata?.clientId;\nvar tenantId = session.metadata?.tenantId;\nvar planName = session.metadata?.planName;\nvar amountTotal = session.amount_total;\nvar currency = session.currency;\nvar customerEmail = session.customer_details?.email || session.customer_email;\n\nif (!clientId || !tenantId) {\n  throw new Error('Metadata manquantes: clientId=' + (clientId || 'ABSENT') + ', tenantId=' + (tenantId || 'ABSENT'));\n}\n\nreturn [{\n  json: {\n    customerId,\n    subscriptionId,\n    paymentStatus,\n    clientId,\n    tenantId,\n    planName,\n    amountTotal,\n    currency,\n    customerEmail,\n    sessionId: session.id\n  }\n}];"
       },
-      "id": "extract-data",
-      "name": "02. Extraire données",
+      "id": "parse-session",
+      "name": "02. Parser données session",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -71,55 +76,87 @@
     },
     {
       "parameters": {
-        "jsCode": "var d = $input.first().json;\nvar query = \"SELECT cs.temporary_password, cf.email, cf.nom, cf.prenom, cf.raison_sociale FROM client_subscriptions cs JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cf.id = '\" + d.clientId + \"' AND cs.temporary_password IS NOT NULL ORDER BY cs.created_at DESC LIMIT 1;\";\nreturn [{ json: { ...d, query: query } }];"
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE client_subscriptions SET statut = 'actif', id_client_stripe = '\" + $json.customerId + \"', id_abonnement_stripe = '\" + ($json.subscriptionId || '') + \"', updated_at = NOW() WHERE client_final_id = '\" + $json.clientId + \"'::uuid RETURNING *;\" }}",
+        "options": {}
       },
-      "id": "build-sql",
-      "name": "04. Build SQL",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "activate-subscription",
+      "name": "04. Activer abonnement",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
         900,
         300
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}"
+        "query": "={{ \"UPDATE client_spaces SET statut = 'actif', updated_at = NOW() WHERE client_final_id = '\" + $('02. Parser données session').item.json.clientId + \"'::uuid AND statut = 'en_attente' RETURNING *;\" }}",
+        "options": {}
       },
-      "id": "get-credentials-pg",
-      "name": "04b. Get Credentials PG",
+      "id": "activate-space",
+      "name": "05. Activer espace client",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "alwaysOutputData": true,
-      "position": [
-        1000,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Preparer l'email avec les identifiants\nvar credResult = $('04b. Get Credentials PG').first().json;\nvar stripeData = $('02. Extraire données').first().json;\n\nvar email = credResult.email || stripeData.customerEmail;\nvar password = credResult.temporary_password;\n\nif (!email || !password) {\n  throw new Error('Email ou mot de passe manquant');\n}\n\n// URL de connexion\nvar loginUrl = 'https://talosprimes.com/login';\n\n// Template HTML pour l'email\nvar htmlTemplate = '<!DOCTYPE html>\n' +\n'<html>\n' +\n'<head>\n' +\n'  <meta charset=\\\"UTF-8\\\">\n' +\n'  <style>\n' +\n'    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n' +\n'    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n' +\n'    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }\n' +\n'    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }\n' +\n'    .credentials { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }\n' +\n'    .credential-item { margin: 10px 0; }\n' +\n'    .credential-label { font-weight: bold; color: #667eea; }\n' +\n'    .credential-value { font-family: monospace; background: #f0f0f0; padding: 8px; border-radius: 4px; display: inline-block; margin-top: 5px; }\n' +\n'    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }\n' +\n'    .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }\n' +\n'    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }\n' +\n'  </style>\n' +\n'</head>\n' +\n'<body>\n' +\n'  <div class=\\\"container\\\">\n' +\n'    <div class=\\\"header\\\">\n' +\n'      <h1>Bienvenue sur TalosPrimes !</h1>\n' +\n'      <p>Votre paiement a ete valide avec succes</p>\n' +\n'    </div>\n' +\n'    <div class=\\\"content\\\">\n' +\n'      <p>Bonjour,</p>\n' +\n'      <p>Votre abonnement TalosPrimes a ete active avec succes. Vous pouvez maintenant acceder a votre espace client.</p>\n' +\n'      <div class=\\\"credentials\\\">\n' +\n'        <h2 style=\\\"margin-top: 0;\\\">Vos identifiants de connexion :</h2>\n' +\n'        <div class=\\\"credential-item\\\">\n' +\n'          <div class=\\\"credential-label\\\">Email :</div>\n' +\n'          <div class=\\\"credential-value\\\">' + email + '</div>\n' +\n'        </div>\n' +\n'        <div class=\\\"credential-item\\\">\n' +\n'          <div class=\\\"credential-label\\\">Mot de passe temporaire :</div>\n' +\n'          <div class=\\\"credential-value\\\">' + password + '</div>\n' +\n'        </div>\n' +\n'      </div>\n' +\n'      <div class=\\\"warning\\\">\n' +\n'        <strong>Important :</strong> Pour des raisons de securite, vous devrez changer votre mot de passe lors de votre premiere connexion.\n' +\n'      </div>\n' +\n'      <p style=\\\"text-align: center;\\\">\n' +\n'        <a href=\\\"' + loginUrl + '\\\" class=\\\"button\\\">Se connecter maintenant</a>\n' +\n'      </p>\n' +\n'      <p>Si vous avez des questions, n\\'hesitez pas a nous contacter.</p>\n' +\n'      <p>Cordialement,<br>L\\'equipe TalosPrimes</p>\n' +\n'    </div>\n' +\n'    <div class=\\\"footer\\\">\n' +\n'      <p>Cet email a ete envoye automatiquement. Ne repondez pas a cet email.</p>\n' +\n'    </div>\n' +\n'  </div>\n' +\n'</body>\n' +\n'</html>';\n\nreturn [{ json: {\n  to: email,\n  subject: 'Bienvenue sur TalosPrimes - Vos identifiants de connexion',\n  html: htmlTemplate\n} }];"
-      },
-      "id": "prepare-email",
-      "name": "05. Préparer email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "typeVersion": 2.5,
       "position": [
         1120,
         300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT cs.temporary_password, cf.email, cf.nom, cf.prenom, cf.raison_sociale, cf.telephone FROM client_subscriptions cs JOIN clients_finaux cf ON cs.client_final_id = cf.id WHERE cf.id = '\" + $('02. Parser données session').item.json.clientId + \"'::uuid AND cs.temporary_password IS NOT NULL ORDER BY cs.created_at DESC LIMIT 1;\" }}",
+        "options": {}
+      },
+      "id": "get-credentials",
+      "name": "06. Récupérer identifiants",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1340,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var credResult = $('06. Récupérer identifiants').first().json;\nvar stripeData = $('02. Parser données session').first().json;\nvar record = credResult[0] || credResult;\n\nvar email = record.email || stripeData.customerEmail;\nvar password = record.temporary_password;\nvar nom = record.prenom ? (record.prenom + ' ' + (record.nom || '')) : (record.raison_sociale || 'Client');\nvar loginUrl = 'https://talosprimes.com/login';\n\nif (!email || !password) {\n  throw new Error('Email ou mot de passe manquant: email=' + (email || 'ABSENT') + ', password=' + (password ? 'OK' : 'ABSENT'));\n}\n\nvar htmlTemplate = '<!DOCTYPE html>' +\n'<html><head><meta charset=\"UTF-8\"><style>' +\n'body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }' +\n'.container { max-width: 600px; margin: 0 auto; padding: 20px; }' +\n'.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }' +\n'.content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }' +\n'.credentials { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #667eea; }' +\n'.credential-label { font-weight: bold; color: #667eea; }' +\n'.credential-value { font-family: monospace; background: #f0f0f0; padding: 8px; border-radius: 4px; display: inline-block; margin-top: 5px; }' +\n'.button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }' +\n'.warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }' +\n'.footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }' +\n'</style></head><body><div class=\"container\">' +\n'<div class=\"header\"><h1>Bienvenue sur TalosPrimes !</h1><p>Votre paiement a ete valide avec succes</p></div>' +\n'<div class=\"content\">' +\n'<p>Bonjour ' + nom.trim() + ',</p>' +\n'<p>Votre abonnement TalosPrimes a ete active avec succes. Vous pouvez maintenant acceder a votre espace client.</p>' +\n'<div class=\"credentials\">' +\n'<h2 style=\"margin-top: 0;\">Vos identifiants de connexion :</h2>' +\n'<div style=\"margin: 10px 0;\"><div class=\"credential-label\">Email :</div><div class=\"credential-value\">' + email + '</div></div>' +\n'<div style=\"margin: 10px 0;\"><div class=\"credential-label\">Mot de passe temporaire :</div><div class=\"credential-value\">' + password + '</div></div>' +\n'</div>' +\n'<div class=\"warning\"><strong>Important :</strong> Pour des raisons de securite, vous devrez changer votre mot de passe lors de votre premiere connexion.</div>' +\n'<p style=\"text-align: center;\"><a href=\"' + loginUrl + '\" class=\"button\">Se connecter maintenant</a></p>' +\n'<p>Cordialement,<br>L\\'equipe TalosPrimes</p>' +\n'</div><div class=\"footer\"><p>Cet email a ete envoye automatiquement.</p></div></div></body></html>';\n\nreturn [{ json: {\n  to: email,\n  subject: 'Bienvenue sur TalosPrimes - Vos identifiants de connexion',\n  html: htmlTemplate\n} }];"
+      },
+      "id": "prepare-email",
+      "name": "07. Préparer email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
       ]
     },
     {
       "parameters": {
-        "fromEmail": "={{ $json.from || 'TalosPrimes <noreply@talosprimes.com>' }}",
-        "toEmail": "={{ Array.isArray($json.to) ? $json.to[0] : $json.to }}",
+        "fromEmail": "TalosPrimes <noreply@talosprimes.com>",
+        "toEmail": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
         "emailFormat": "html",
         "html": "={{ $json.html }}",
@@ -128,11 +165,11 @@
         }
       },
       "id": "send-email",
-      "name": "06. Envoyer email",
+      "name": "08. Envoyer email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1340,
+        1780,
         300
       ],
       "credentials": {
@@ -144,48 +181,53 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ {  success: true, message: 'Email envoyé avec succès'  } }}",
-        "options": {}
+        "jsCode": "var data = $('02. Parser données session').item.json;\nvar montant = data.amountTotal ? (data.amountTotal / 100).toFixed(2) + ' ' + (data.currency || 'EUR').toUpperCase() : 'N/A';\nvar planName = (data.planName || 'Abonnement').replace(/'/g, \"''\");\nvar clientInfo = (data.customerEmail || data.clientId).replace(/'/g, \"''\");\n\nreturn [{\n  json: {\n    query: \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + data.tenantId.replace(/'/g, \"''\") + \"', 'Paiement confirme - \" + planName + \"', 'Le paiement de \" + montant + \" a ete confirme pour \" + clientInfo + \". Abonnement et espace client actifs.', 'success', false, NOW())\"\n  }\n}];"
       },
-      "id": "respond-webhook",
-      "name": "07. Répondre au webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
+      "id": "prepare-notif",
+      "name": "09. Préparer notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1560,
-        300
+        1340,
+        500
       ]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ {  success: false, error: 'Données manquantes'  } }}",
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
         "options": {}
       },
-      "id": "respond-error",
-      "name": "Répondre erreur",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
+      "id": "insert-notif",
+      "name": "10. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
-        900,
+        1560,
         500
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true
     }
   ],
   "connections": {
-    "01. Webhook Stripe": {
+    "01. Stripe Trigger": {
       "main": [
         [
           {
-            "node": "02. Extraire données",
+            "node": "02. Parser données session",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "02. Extraire données": {
+    "02. Parser données session": {
       "main": [
         [
           {
@@ -200,58 +242,67 @@
       "main": [
         [
           {
-            "node": "04. Build SQL",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Répondre erreur",
+            "node": "04. Activer abonnement",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "04. Build SQL": {
+    "04. Activer abonnement": {
       "main": [
         [
           {
-            "node": "04b. Get Credentials PG",
+            "node": "05. Activer espace client",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "04b. Get Credentials PG": {
+    "05. Activer espace client": {
       "main": [
         [
           {
-            "node": "05. Préparer email",
+            "node": "06. Récupérer identifiants",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "09. Préparer notification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "05. Préparer email": {
+    "06. Récupérer identifiants": {
       "main": [
         [
           {
-            "node": "06. Envoyer email",
+            "node": "07. Préparer email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "06. Envoyer email": {
+    "07. Préparer email": {
       "main": [
         [
           {
-            "node": "07. Répondre au webhook",
+            "node": "08. Envoyer email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Préparer notification": {
+      "main": [
+        [
+          {
+            "node": "10. INSERT notification",
             "type": "main",
             "index": 0
           }
@@ -259,14 +310,8 @@
       ]
     }
   },
-  "pinData": {},
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2026-02-23T00:00:00.000Z",
-  "versionId": "1",
-  "active": true
+  "staticData": null
 }

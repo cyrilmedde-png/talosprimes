@@ -1,0 +1,177 @@
+{
+  "name": "Stripe - Subscription Deleted (Desactiver espace client)",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "customer.subscription.deleted"
+        ]
+      },
+      "id": "trigger-sub-deleted",
+      "name": "01. Stripe Trigger",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "credentials": {
+        "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
+      },
+      "webhookId": "stripe-subscription-deleted"
+    },
+    {
+      "parameters": {
+        "jsCode": "var event = $input.item.json;\nvar sub = event.data?.object || event;\n\nvar subscriptionId = sub.id;\nvar customerId = sub.customer;\nvar clientId = sub.metadata?.clientId;\nvar tenantId = sub.metadata?.tenantId;\nvar planName = sub.metadata?.planName || sub.items?.data?.[0]?.plan?.nickname || 'Abonnement';\nvar canceledAt = sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : new Date().toISOString();\n\nif (!clientId || !tenantId) {\n  throw new Error('Metadata manquantes: clientId=' + (clientId || 'ABSENT'));\n}\n\nreturn [{\n  json: {\n    subscriptionId,\n    customerId,\n    clientId,\n    tenantId,\n    planName,\n    canceledAt\n  }\n}];"
+      },
+      "id": "parse-deleted",
+      "name": "02. Parser subscription",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE client_subscriptions SET statut = 'annule', updated_at = NOW() WHERE client_final_id = '\" + $json.clientId + \"'::uuid AND id_abonnement_stripe = '\" + $json.subscriptionId + \"' RETURNING *;\" }}",
+        "options": {}
+      },
+      "id": "cancel-sub",
+      "name": "03. Annuler abonnement BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE client_spaces SET statut = 'inactif', updated_at = NOW() WHERE client_final_id = '\" + $('02. Parser subscription').item.json.clientId + \"'::uuid AND statut IN ('actif', 'en_attente', 'suspendu') RETURNING *;\" }}",
+        "options": {}
+      },
+      "id": "deactivate-space",
+      "name": "04. Désactiver espace client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT email, nom, prenom, raison_sociale, telephone FROM clients_finaux WHERE id = '\" + $('02. Parser subscription').item.json.clientId + \"'::uuid LIMIT 1;\" }}",
+        "options": {}
+      },
+      "id": "get-client",
+      "name": "05. Récupérer infos client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var client = $('05. Récupérer infos client').first().json;\nvar data = $('02. Parser subscription').first().json;\nvar record = client[0] || client;\n\nvar email = record.email;\nvar telephone = record.telephone;\nvar nom = record.prenom ? (record.prenom + ' ' + (record.nom || '')) : (record.raison_sociale || 'Client');\nvar reactivateUrl = 'https://talosprimes.com/clients';\n\nvar subject = 'TalosPrimes - Votre abonnement a ete resilie';\nvar html = '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>' +\n'body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }' +\n'.container { max-width: 600px; margin: 0 auto; padding: 20px; }' +\n'.header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }' +\n'.content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }' +\n'.alert { background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px; }' +\n'.button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }' +\n'</style></head><body><div class=\"container\">' +\n'<div class=\"header\"><h1>Abonnement resilie</h1></div>' +\n'<div class=\"content\">' +\n'<p>Bonjour ' + nom.trim() + ',</p>' +\n'<div class=\"alert\"><strong>Votre abonnement ' + data.planName + ' a ete resilie.</strong></div>' +\n'<p>Votre espace client et vos services TalosPrimes ont ete desactives.</p>' +\n'<p>Si vous souhaitez reactiver votre abonnement :</p>' +\n'<p style=\"text-align: center;\"><a href=\"' + reactivateUrl + '\" class=\"button\">Reactiver mon abonnement</a></p>' +\n'<p>Vos donnees seront conservees pendant 30 jours. Passe ce delai, elles seront supprimees.</p>' +\n'<p>Cordialement,<br>L\\'equipe TalosPrimes</p>' +\n'</div></div></body></html>';\n\nreturn [{ json: {\n  to: email,\n  telephone: telephone,\n  subject: subject,\n  html: html,\n  clientNom: nom.trim(),\n  tenantId: data.tenantId,\n  planName: data.planName,\n  clientId: data.clientId\n} }];"
+      },
+      "id": "prepare-messages",
+      "name": "06. Préparer messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "fromEmail": "TalosPrimes <noreply@talosprimes.com>",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.html }}",
+        "options": { "appendAttribution": false }
+      },
+      "id": "send-email",
+      "name": "07. Envoyer email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 300],
+      "credentials": {
+        "smtp": { "id": "hepAQJGA9ubd1NF4", "name": "SMTP account" }
+      }
+    },
+    {
+      "parameters": {
+        "from": "+17178075753",
+        "to": "={{ $('06. Préparer messages').item.json.telephone }}",
+        "message": "={{ 'TalosPrimes: Votre abonnement ' + $('06. Préparer messages').item.json.planName + ' a ete resilie. Pour reactiver: https://talosprimes.com/clients' }}"
+      },
+      "id": "send-sms",
+      "name": "08. Envoyer SMS Twilio",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1560, 500],
+      "credentials": {
+        "twilioApi": { "id": "twilio-cred", "name": "Twilio" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var d = $('06. Préparer messages').item.json;\nreturn [{\n  json: {\n    query: \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + d.tenantId.replace(/'/g, \"''\") + \"', 'Abonnement resilie - \" + d.clientNom.replace(/'/g, \"''\") + \"', 'Le client \" + d.clientNom.replace(/'/g, \"''\") + \" a resilie son abonnement \" + d.planName.replace(/'/g, \"''\") + \". L''espace client a ete desactive. Email et SMS de notification envoyes.', 'error', false, NOW())\"\n  }\n}];"
+      },
+      "id": "prepare-notif",
+      "name": "09. Préparer notification admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "insert-notif",
+      "name": "10. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "01. Stripe Trigger": {
+      "main": [[{ "node": "02. Parser subscription", "type": "main", "index": 0 }]]
+    },
+    "02. Parser subscription": {
+      "main": [[{ "node": "03. Annuler abonnement BDD", "type": "main", "index": 0 }]]
+    },
+    "03. Annuler abonnement BDD": {
+      "main": [[{ "node": "04. Désactiver espace client", "type": "main", "index": 0 }]]
+    },
+    "04. Désactiver espace client": {
+      "main": [[{ "node": "05. Récupérer infos client", "type": "main", "index": 0 }]]
+    },
+    "05. Récupérer infos client": {
+      "main": [[{ "node": "06. Préparer messages", "type": "main", "index": 0 }]]
+    },
+    "06. Préparer messages": {
+      "main": [[
+        { "node": "07. Envoyer email", "type": "main", "index": 0 },
+        { "node": "08. Envoyer SMS Twilio", "type": "main", "index": 0 },
+        { "node": "09. Préparer notification admin", "type": "main", "index": 0 }
+      ]]
+    },
+    "09. Préparer notification admin": {
+      "main": [[{ "node": "10. INSERT notification", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null
+}

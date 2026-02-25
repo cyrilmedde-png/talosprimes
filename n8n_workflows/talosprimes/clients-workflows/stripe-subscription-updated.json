@@ -1,0 +1,149 @@
+{
+  "name": "Stripe - Subscription Updated (Changement plan/statut)",
+  "nodes": [
+    {
+      "parameters": {
+        "events": [
+          "customer.subscription.updated"
+        ]
+      },
+      "id": "trigger-sub-updated",
+      "name": "01. Stripe Trigger",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [240, 400],
+      "credentials": {
+        "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
+      },
+      "webhookId": "stripe-subscription-updated"
+    },
+    {
+      "parameters": {
+        "jsCode": "var event = $input.item.json;\nvar sub = event.data?.object || event;\nvar previousAttributes = event.data?.previous_attributes || {};\n\nvar subscriptionId = sub.id;\nvar customerId = sub.customer;\nvar status = sub.status;\nvar cancelAtPeriodEnd = sub.cancel_at_period_end;\nvar currentPeriodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;\nvar clientId = sub.metadata?.clientId;\nvar tenantId = sub.metadata?.tenantId;\n\nvar statusChanged = previousAttributes.status ? true : false;\nvar previousStatus = previousAttributes.status || null;\nvar planChanged = previousAttributes.items ? true : false;\n\nvar newPlanName = sub.items?.data?.[0]?.plan?.nickname || sub.items?.data?.[0]?.price?.nickname || '';\nvar newAmount = sub.items?.data?.[0]?.price?.unit_amount ? sub.items.data[0].price.unit_amount / 100 : null;\n\nif (!clientId || !tenantId) {\n  throw new Error('Metadata manquantes: clientId=' + (clientId || 'ABSENT'));\n}\n\nreturn [{\n  json: {\n    subscriptionId,\n    customerId,\n    status,\n    previousStatus,\n    statusChanged,\n    planChanged,\n    cancelAtPeriodEnd,\n    currentPeriodEnd,\n    clientId,\n    tenantId,\n    newPlanName,\n    newAmount\n  }\n}];"
+      },
+      "id": "parse-update",
+      "name": "02. Parser changements",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "var d = $input.item.json;\n\nvar setClauses = [\"updated_at = NOW()\"];\n\nif (d.statusChanged) {\n  var statutMap = { active: 'actif', past_due: 'impaye', canceled: 'annule', unpaid: 'impaye', trialing: 'essai', incomplete: 'en_attente', incomplete_expired: 'expire' };\n  var newStatut = statutMap[d.status] || d.status;\n  setClauses.push(\"statut = '\" + newStatut + \"'\");\n}\n\nif (d.newAmount) {\n  setClauses.push(\"montant_mensuel = \" + d.newAmount);\n}\n\nif (d.newPlanName) {\n  setClauses.push(\"nom_plan = '\" + d.newPlanName.replace(/'/g, \"''\") + \"'\");\n}\n\nif (d.currentPeriodEnd) {\n  setClauses.push(\"date_prochain_renouvellement = '\" + d.currentPeriodEnd + \"'::timestamptz\");\n}\n\nvar query = \"UPDATE client_subscriptions SET \" + setClauses.join(', ') + \" WHERE client_final_id = '\" + d.clientId + \"'::uuid RETURNING *;\";\n\nreturn [{ json: { query: query, data: d } }];"
+      },
+      "id": "build-update-sql",
+      "name": "03. Construire UPDATE SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "update-sub-bdd",
+      "name": "04. UPDATE subscription BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 400],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "check-impaye",
+              "leftValue": "={{ $('02. Parser changements').item.json.status }}",
+              "rightValue": "past_due",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "if-impaye",
+      "name": "05. IF impayé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE client_spaces SET statut = 'suspendu', updated_at = NOW() WHERE client_final_id = '\" + $('02. Parser changements').item.json.clientId + \"'::uuid AND statut = 'actif' RETURNING *;\" }}",
+        "options": {}
+      },
+      "id": "suspend-space",
+      "name": "06. Suspendre espace client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var d = $('02. Parser changements').item.json;\nvar titre = '';\nvar message = '';\nvar type = 'info';\n\nif (d.status === 'past_due' || d.status === 'unpaid') {\n  titre = 'Paiement impaye - Espace suspendu';\n  message = 'L''abonnement du client ' + d.clientId + ' est impaye. L''espace client a ete suspendu.';\n  type = 'warning';\n} else if (d.statusChanged) {\n  titre = 'Changement statut abonnement';\n  message = 'L''abonnement ' + d.subscriptionId + ' est passe de ' + (d.previousStatus || '?') + ' a ' + d.status + '.';\n} else if (d.planChanged) {\n  titre = 'Changement de plan';\n  message = 'Le client ' + d.clientId + ' a change de plan vers ' + (d.newPlanName || 'nouveau plan') + (d.newAmount ? ' (' + d.newAmount + ' EUR/mois)' : '') + '.';\n} else {\n  titre = 'Mise a jour abonnement';\n  message = 'L''abonnement ' + d.subscriptionId + ' a ete mis a jour.';\n}\n\nreturn [{\n  json: {\n    query: \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + d.tenantId.replace(/'/g, \"''\") + \"', '\" + titre.replace(/'/g, \"''\") + \"', '\" + message.replace(/'/g, \"''\") + \"', '\" + type + \"', false, NOW())\"\n  }\n}];"
+      },
+      "id": "prepare-notif",
+      "name": "07. Préparer notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "insert-notif",
+      "name": "08. INSERT notification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 500],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "01. Stripe Trigger": {
+      "main": [[{ "node": "02. Parser changements", "type": "main", "index": 0 }]]
+    },
+    "02. Parser changements": {
+      "main": [[{ "node": "03. Construire UPDATE SQL", "type": "main", "index": 0 }]]
+    },
+    "03. Construire UPDATE SQL": {
+      "main": [[{ "node": "04. UPDATE subscription BDD", "type": "main", "index": 0 }]]
+    },
+    "04. UPDATE subscription BDD": {
+      "main": [[{ "node": "05. IF impayé ?", "type": "main", "index": 0 }]]
+    },
+    "05. IF impayé ?": {
+      "main": [
+        [{ "node": "06. Suspendre espace client", "type": "main", "index": 0 }],
+        [{ "node": "07. Préparer notification", "type": "main", "index": 0 }]
+      ]
+    },
+    "06. Suspendre espace client": {
+      "main": [[{ "node": "07. Préparer notification", "type": "main", "index": 0 }]]
+    },
+    "07. Préparer notification": {
+      "main": [[{ "node": "08. INSERT notification", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null
+}
