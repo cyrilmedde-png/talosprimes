@@ -794,6 +794,24 @@ export async function devisRoutes(fastify: FastifyInstance) {
       const devis = await prisma.devis.findFirst({ where: { id: params.id, tenantId } });
       if (!devis) return reply.status(404).send({ success: false, error: 'Devis non trouvé' });
 
+      // Appel n8n si la requête ne vient pas de n8n
+      if (!fromN8n) {
+        const res = await n8nService.callWorkflowReturn<{ devis: unknown }>(
+          tenantId,
+          'devis_update',
+          { devisId: params.id, ...body }
+        );
+        if (res.success) {
+          return reply.status(200).send({
+            success: true,
+            message: 'Devis mis à jour via n8n',
+            data: res.data,
+          });
+        }
+        // Si n8n échoue, on continue avec Prisma directement
+        console.log(`[devis_update] n8n indisponible, fallback Prisma: ${res.error}`);
+      }
+
       const clientFinalId = body.clientFinalId || devis.clientFinalId;
       if (!clientFinalId) return reply.status(400).send({ success: false, error: 'Client requis' });
       const client = await prisma.clientFinal.findFirst({

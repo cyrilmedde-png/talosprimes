@@ -78,11 +78,13 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   devis_accept: 'devis-accepted',
   devis_convert_to_invoice: 'devis-convert-to-invoice',
   devis_convert_to_bdc: 'devis-convert-to-bdc',
+  devis_update: 'devis-update',
   devis_delete: 'devis-deleted',
   // Bons de commande
   bdc_list: 'bdc-list',
   bdc_get: 'bdc-get',
   bdc_create: 'bdc-created',
+  bdc_update: 'bdc-update',
   bdc_validate: 'bdc-validated',
   bdc_convert_to_invoice: 'bdc-convert-to-invoice',
   bdc_delete: 'bdc-deleted',

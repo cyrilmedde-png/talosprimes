@@ -1,0 +1,337 @@
+{
+  "name": "devis-update",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "devis-update",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\nif (!body.devisId) {\n  throw new Error('devisId is required');\n}\n\nvar montantHt = 0;\nvar lines = body.lines || [];\nif (lines.length > 0) {\n  for (var i = 0; i < lines.length; i++) {\n    var q = parseFloat(lines[i].quantite) || 1;\n    var p = parseFloat(lines[i].prixUnitaireHt || lines[i].prixUnitaireHT) || 0;\n    montantHt += q * p;\n  }\n  montantHt = Math.round(montantHt * 100) / 100;\n}\n\nvar tvaTaux = parseFloat(body.tvaTaux) || 20;\nvar montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  devisId: body.devisId,\n  clientFinalId: body.clientFinalId || null,\n  montantHt,\n  montantTtc,\n  tvaTaux,\n  dateDevis: body.dateDevis || null,\n  dateValidite: body.dateValidite || null,\n  description: body.description || null,\n  modePaiement: body.modePaiement || null,\n  hasNewLines: lines.length > 0,\n  lines: lines\n} }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "val-devis",
+              "leftValue": "={{ $json.devisId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed: tenantId and devisId required\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var d = $json;\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nvar setClauses = [];\nif (d.clientFinalId) setClauses.push('client_final_id = ' + esc(d.clientFinalId) + '::uuid');\nif (d.dateDevis) setClauses.push('date_devis = ' + esc(d.dateDevis));\nif (d.dateValidite) setClauses.push('date_validite = ' + esc(d.dateValidite));\nif (d.description !== undefined) setClauses.push('description = ' + esc(d.description));\nif (d.modePaiement !== undefined) setClauses.push('mode_paiement = ' + esc(d.modePaiement));\nsetClauses.push('tva_taux = ' + num(d.tvaTaux));\nif (d.hasNewLines) {\n  setClauses.push('montant_ht = ' + num(d.montantHt));\n  setClauses.push('montant_ttc = ' + num(d.montantTtc));\n}\nsetClauses.push('updated_at = NOW()');\n\nvar query = 'UPDATE devis SET ' + setClauses.join(', ') + ' WHERE id = ' + esc(d.devisId) + '::uuid AND tenant_id = ' + esc(d.tenantId) + '::uuid RETURNING *';\n\nreturn [{ json: { query, devisId: d.devisId, hasNewLines: d.hasNewLines, lines: d.lines } }];"
+      },
+      "id": "05. Build Update SQL",
+      "name": "05. Build Update SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "06. Update Devis",
+      "name": "06. Update Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        900,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var prev = $('05. Build Update SQL').first().json;\nvar devisId = prev.devisId;\nvar hasNewLines = prev.hasNewLines;\nvar lines = prev.lines || [];\n\nif (!hasNewLines || lines.length === 0) {\n  return [{ json: { devisId, skipped: true, query: 'SELECT 1' } }];\n}\n\n// Delete existing lines first\nvar deleteQuery = \"DELETE FROM devis_lines WHERE devis_id = '\" + devisId + \"'::uuid\";\n\nreturn [{ json: { devisId, skipped: false, deleteQuery, lines } }];"
+      },
+      "id": "07. Prepare Lines Delete",
+      "name": "07. Prepare Lines Delete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.skipped ? 'SELECT 1' : $json.deleteQuery }}"
+      },
+      "id": "08. Delete Old Lines",
+      "name": "08. Delete Old Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1300,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var prev = $('07. Prepare Lines Delete').first().json;\nvar devisId = prev.devisId;\nvar lines = prev.lines || [];\n\nif (prev.skipped || lines.length === 0) {\n  return [{ json: { devisId, query: 'SELECT 1' } }];\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nfunction num(v) { var n = parseFloat(v); return isNaN(n) ? '0' : String(n); }\n\nvar values = lines.map(function(line, idx) {\n  var q = num(line.quantite || 1);\n  var p = num(line.prixUnitaireHt || line.prixUnitaireHT || 0);\n  var t = num(parseFloat(q) * parseFloat(p));\n  return '(gen_random_uuid(), ' + esc(devisId) + '::uuid, ' + esc(line.codeArticle || null) + ', ' + esc(line.designation || '') + ', ' + q + ', ' + p + ', ' + t + ', ' + idx + ')';\n}).join(', ');\n\nvar query = 'INSERT INTO devis_lines (id, devis_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) VALUES ' + values + ' RETURNING *';\n\nreturn [{ json: { devisId, query } }];"
+      },
+      "id": "09. Prepare New Lines",
+      "name": "09. Prepare New Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "10. Insert New Lines",
+      "name": "10. Insert New Lines",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1700,
+        300
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var devis = $('06. Update Devis').first().json;\n\nreturn [{ json: {\n  id: devis.id,\n  tenant_id: devis.tenant_id,\n  client_final_id: devis.client_final_id,\n  numero_devis: devis.numero_devis,\n  date_devis: devis.date_devis,\n  date_validite: devis.date_validite,\n  montant_ht: devis.montant_ht,\n  montant_ttc: devis.montant_ttc,\n  tva_taux: devis.tva_taux,\n  description: devis.description,\n  mode_paiement: devis.mode_paiement,\n  statut: devis.statut,\n  created_at: devis.created_at,\n  updated_at: devis.updated_at\n} }];"
+      },
+      "id": "11. Format Response",
+      "name": "11. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "12. Respond",
+      "name": "12. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Build Update SQL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Build Update SQL": {
+      "main": [
+        [
+          {
+            "node": "06. Update Devis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Update Devis": {
+      "main": [
+        [
+          {
+            "node": "07. Prepare Lines Delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Prepare Lines Delete": {
+      "main": [
+        [
+          {
+            "node": "08. Delete Old Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Delete Old Lines": {
+      "main": [
+        [
+          {
+            "node": "09. Prepare New Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Prepare New Lines": {
+      "main": [
+        [
+          {
+            "node": "10. Insert New Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Insert New Lines": {
+      "main": [
+        [
+          {
+            "node": "11. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Format Response": {
+      "main": [
+        [
+          {
+            "node": "12. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
