@@ -102,47 +102,29 @@
     },
     {
       "parameters": {
-        "url": "https://api.stripe.com/v1/customers",
-        "method": "POST",
-        "authentication": "predefinedCredentialType",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/x-www-form-urlencoded"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "keypair",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "email",
-              "value": "={{ $('01. Préparer données onboarding').item.json.clientData.email }}"
-            },
-            {
-              "name": "name",
-              "value": "={{ $('01. Préparer données onboarding').item.json.clientData.nom || $('01. Préparer données onboarding').item.json.clientData.raisonSociale || $('01. Préparer données onboarding').item.json.clientData.email }}"
-            },
-            {
-              "name": "metadata[clientId]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
-            },
-            {
-              "name": "metadata[tenantId]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
-            }
-          ]
-        },
-        "options": {},
-        "genericAuthType": "stripeApi"
+        "resource": "customer",
+        "operation": "create",
+        "additionalFields": {
+          "email": "={{ $('01. Préparer données onboarding').item.json.clientData.email }}",
+          "name": "={{ $('01. Préparer données onboarding').item.json.clientData.nom || $('01. Préparer données onboarding').item.json.clientData.raisonSociale || $('01. Préparer données onboarding').item.json.clientData.email }}",
+          "metadata": {
+            "metadataProperties": [
+              {
+                "key": "clientId",
+                "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
+              },
+              {
+                "key": "tenantId",
+                "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
+              }
+            ]
+          }
+        }
       },
       "id": "stripe-create-customer",
       "name": "04. Stripe - Créer Customer",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
       "position": [
         1120,
         300
@@ -156,39 +138,24 @@
     },
     {
       "parameters": {
-        "url": "https://api.stripe.com/v1/products",
-        "method": "POST",
-        "authentication": "predefinedCredentialType",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/x-www-form-urlencoded"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "keypair",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "name",
-              "value": "={{ $('01. Préparer données onboarding').item.json.plan.nomPlan }}"
-            },
-            {
-              "name": "metadata[modules]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.plan.modulesInclus.join(',') }}"
-            }
-          ]
-        },
-        "options": {},
-        "genericAuthType": "stripeApi"
+        "resource": "product",
+        "operation": "create",
+        "name": "={{ $('01. Préparer données onboarding').item.json.plan.nomPlan }}",
+        "additionalFields": {
+          "metadata": {
+            "metadataProperties": [
+              {
+                "key": "modules",
+                "value": "={{ $('01. Préparer données onboarding').item.json.plan.modulesInclus.join(',') }}"
+              }
+            ]
+          }
+        }
       },
       "id": "stripe-create-product",
       "name": "05. Stripe - Créer Produit",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
       "position": [
         1340,
         300
@@ -202,51 +169,22 @@
     },
     {
       "parameters": {
-        "url": "https://api.stripe.com/v1/prices",
-        "method": "POST",
-        "authentication": "predefinedCredentialType",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/x-www-form-urlencoded"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "keypair",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "product",
-              "value": "={{ $json.id }}"
-            },
-            {
-              "name": "unit_amount",
-              "value": "={{ Math.round($('01. Préparer données onboarding').item.json.plan.montantMensuel * 100) }}"
-            },
-            {
-              "name": "currency",
-              "value": "eur"
-            },
-            {
-              "name": "recurring[interval]",
-              "value": "month"
-            },
-            {
-              "name": "recurring[interval_count]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.plan.dureeMois }}"
-            }
-          ]
-        },
-        "options": {},
-        "genericAuthType": "stripeApi"
+        "resource": "price",
+        "operation": "create",
+        "product": "={{ $json.id }}",
+        "currency": "eur",
+        "unitAmount": "={{ Math.round($('01. Préparer données onboarding').item.json.plan.montantMensuel * 100) }}",
+        "additionalFields": {
+          "recurring": {
+            "interval": "month",
+            "intervalCount": "={{ $('01. Préparer données onboarding').item.json.plan.dureeMois }}"
+          }
+        }
       },
       "id": "stripe-create-price",
       "name": "06. Stripe - Créer Prix",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
       "position": [
         1560,
         300
