@@ -974,6 +974,139 @@ export const apiClient = {
   // Landing Tarifs (public)
   landingTarifs: () =>
     authenticatedFetch<{ success: boolean; data: { plans: PlanWithModules[] } }>('/api/landing/tarifs'),
+
+  // Gestion d'Équipe
+  equipe: {
+    dashboard: () =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/equipe/dashboard'),
+    membres: {
+      list: (params?: { departement?: string; actif?: boolean; search?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.departement) qp.append('departement', params.departement);
+        if (params?.actif !== undefined) qp.append('actif', String(params.actif));
+        if (params?.search) qp.append('search', params.search);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/equipe/membres${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/equipe/membres/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/equipe/membres', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/equipe/membres/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/equipe/membres/${id}`, { method: 'DELETE' }),
+    },
+    absences: {
+      list: (params?: { membreId?: string; type?: string; statut?: string; dateFrom?: string; dateTo?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.type) qp.append('type', params.type);
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+        if (params?.dateTo) qp.append('dateTo', params.dateTo);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/equipe/absences${q ? `?${q}` : ''}`);
+      },
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/equipe/absences', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/equipe/absences/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/equipe/absences/${id}`, { method: 'DELETE' }),
+    },
+    pointages: {
+      list: (params?: { membreId?: string; dateFrom?: string; dateTo?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+        if (params?.dateTo) qp.append('dateTo', params.dateTo);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/equipe/pointages${q ? `?${q}` : ''}`);
+      },
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/equipe/pointages', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/equipe/pointages/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/equipe/pointages/${id}`, { method: 'DELETE' }),
+    },
+  },
+
+  // Gestion de Projets
+  projets: {
+    dashboard: () =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/projets/stats/dashboard'),
+    list: (params?: { statut?: string; clientId?: string; responsableId?: string; search?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.statut) qp.append('statut', params.statut);
+      if (params?.clientId) qp.append('clientId', params.clientId);
+      if (params?.responsableId) qp.append('responsableId', params.responsableId);
+      if (params?.search) qp.append('search', params.search);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/projets${q ? `?${q}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/projets/${id}`),
+    create: (data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/projets', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/projets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/projets/${id}`, { method: 'DELETE' }),
+    taches: {
+      list: (projetId: string, params?: { statut?: string; priorite?: string; assigneA?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.priorite) qp.append('priorite', params.priorite);
+        if (params?.assigneA) qp.append('assigneA', params.assigneA);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/projets/${projetId}/taches${q ? `?${q}` : ''}`);
+      },
+      create: (projetId: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/projets/${projetId}/taches`, { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/projets/taches/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/projets/taches/${id}`, { method: 'DELETE' }),
+    },
+  },
+
+  // BTP (Bâtiment & Travaux Publics)
+  btp: {
+    dashboard: () =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/btp/dashboard'),
+    chantiers: {
+      list: (params?: { statut?: string; clientId?: string; search?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.clientId) qp.append('clientId', params.clientId);
+        if (params?.search) qp.append('search', params.search);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/chantiers${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/chantiers/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/btp/chantiers', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/chantiers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/btp/chantiers/${id}`, { method: 'DELETE' }),
+    },
+    situations: {
+      list: (chantierId: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/chantiers/${chantierId}/situations`),
+      create: (chantierId: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/chantiers/${chantierId}/situations`, { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/situations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/btp/situations/${id}`, { method: 'DELETE' }),
+      valider: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/situations/${id}/valider`, { method: 'POST' }),
+    },
+  },
 };
 
 // Types pour les factures

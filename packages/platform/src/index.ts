@@ -30,6 +30,9 @@ import { comptabiliteRoutes } from './api/routes/comptabilite.routes.js';
 import { clientSpacesRoutes } from './api/routes/client-spaces.routes.js';
 import { plansRoutes } from './api/routes/plans.routes.js';
 import { clientModulesRoutes } from './api/routes/client-modules.routes.js';
+import { equipeRoutes } from './api/routes/equipe.routes.js';
+import { projetsRoutes } from './api/routes/projets.routes.js';
+import { btpRoutes } from './api/routes/btp.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -248,6 +251,21 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes modules clients
 await fastify.register(async (fastify) => {
   await fastify.register(clientModulesRoutes, { prefix: '/api/client-modules' });
+});
+
+// Enregistrer les routes gestion d'équipe
+await fastify.register(async (fastify) => {
+  await fastify.register(equipeRoutes, { prefix: '/api/equipe' });
+});
+
+// Enregistrer les routes gestion de projets
+await fastify.register(async (fastify) => {
+  await fastify.register(projetsRoutes, { prefix: '/api/projets' });
+});
+
+// Enregistrer les routes BTP
+await fastify.register(async (fastify) => {
+  await fastify.register(btpRoutes, { prefix: '/api/btp' });
 });
 
 // Route de test

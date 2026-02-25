@@ -273,6 +273,16 @@ model Tenant {
   immobilisations       Immobilisation[]
   comptaIaLogs          ComptaIaLog[]
   clientSpaces          ClientSpace[]
+  // Gestion d'équipe
+  equipeMembers         EquipeMember[]
+  equipeAbsences        EquipeAbsence[]
+  equipePointages       EquipePointage[]
+  // Gestion de projet
+  projets               Projet[]
+  projetTaches          ProjetTache[]
+  // BTP
+  btpChantiers          BtpChantier[]
+  btpSituations         BtpSituation[]
 
   @@index([emailContact])
   @@index([statut])
@@ -298,7 +308,8 @@ model User {
   createdAt         DateTime    @default(now()) @map("created_at")
 
   // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  equipeMembers  EquipeMember[]
 
   @@unique([tenantId, email])
   @@index([email])
@@ -333,6 +344,8 @@ model ClientFinal {
   proformas      Proforma[]
   clientSpaces   ClientSpace[]
   clientModules  ClientModule[]
+  projets        Projet[]
+  btpChantiers   BtpChantier[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1415,5 +1428,278 @@ model ComptaIaLog {
   @@index([action])
   @@index([createdAt])
   @@map("compta_ia_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GESTION D'ÉQUIPE
+// ═══════════════════════════════════════════════════════════════
+
+enum EquipeContratType {
+  cdi
+  cdd
+  interim
+  stage
+  alternance
+  freelance
+}
+
+enum AbsenceType {
+  conge_paye
+  rtt
+  maladie
+  sans_solde
+  maternite
+  paternite
+  formation
+  autre
+}
+
+enum AbsenceStatut {
+  en_attente
+  approuvee
+  refusee
+}
+
+model EquipeMember {
+  id            String            @id @default(uuid()) @db.Uuid
+  tenantId      String            @map("tenant_id") @db.Uuid
+  userId        String?           @map("user_id") @db.Uuid
+  nom           String
+  prenom        String
+  email         String
+  telephone     String?
+  poste         String?
+  departement   String?
+  contratType   EquipeContratType @default(cdi) @map("contrat_type")
+  dateEmbauche  DateTime?         @map("date_embauche") @db.Date
+  dateFinContrat DateTime?        @map("date_fin_contrat") @db.Date
+  salaireBase   Decimal?          @map("salaire_base") @db.Decimal(10, 2)
+  manager       String?           @map("manager") @db.Uuid
+  actif         Boolean           @default(true)
+  notes         String?           @db.Text
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  absences  EquipeAbsence[]
+  pointages EquipePointage[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([departement])
+  @@index([actif])
+  @@map("equipe_members")
+}
+
+model EquipeAbsence {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  memberId    String        @map("member_id") @db.Uuid
+  type        AbsenceType   @default(conge_paye)
+  dateDebut   DateTime      @map("date_debut") @db.Date
+  dateFin     DateTime      @map("date_fin") @db.Date
+  motif       String?       @db.Text
+  statut      AbsenceStatut @default(en_attente)
+  validePar   String?       @map("valide_par") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([statut])
+  @@index([dateDebut])
+  @@map("equipe_absences")
+}
+
+model EquipePointage {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  memberId    String   @map("member_id") @db.Uuid
+  date        DateTime @db.Date
+  heureArrivee String? @map("heure_arrivee")
+  heureDepart  String? @map("heure_depart")
+  heuresPause  Decimal @default(0) @map("heures_pause") @db.Decimal(4, 2)
+  heuresTravaillees Decimal? @map("heures_travaillees") @db.Decimal(5, 2)
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, memberId, date])
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([date])
+  @@map("equipe_pointages")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GESTION DE PROJET
+// ═══════════════════════════════════════════════════════════════
+
+enum ProjetStatut {
+  brouillon
+  en_cours
+  en_pause
+  termine
+  annule
+}
+
+enum TachePriorite {
+  basse
+  normale
+  haute
+  urgente
+}
+
+enum TacheStatut {
+  a_faire
+  en_cours
+  en_revue
+  terminee
+}
+
+model Projet {
+  id            String       @id @default(uuid()) @db.Uuid
+  tenantId      String       @map("tenant_id") @db.Uuid
+  nom           String
+  description   String?      @db.Text
+  clientId      String?      @map("client_id") @db.Uuid
+  responsableId String?      @map("responsable_id") @db.Uuid
+  statut        ProjetStatut @default(brouillon)
+  dateDebut     DateTime?    @map("date_debut") @db.Date
+  dateFin       DateTime?    @map("date_fin") @db.Date
+  budgetPrevu   Decimal?     @map("budget_prevu") @db.Decimal(12, 2)
+  budgetConsomme Decimal?    @map("budget_consomme") @db.Decimal(12, 2)
+  progression   Int          @default(0)
+  couleur       String?
+  tags          String[]     @default([])
+  notes         String?      @db.Text
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client      ClientFinal?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  taches      ProjetTache[]
+
+  @@index([tenantId])
+  @@index([statut])
+  @@index([clientId])
+  @@map("projets")
+}
+
+model ProjetTache {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  projetId      String        @map("projet_id") @db.Uuid
+  titre         String
+  description   String?       @db.Text
+  assigneA      String?       @map("assigne_a") @db.Uuid
+  priorite      TachePriorite @default(normale)
+  statut        TacheStatut   @default(a_faire)
+  dateEcheance  DateTime?     @map("date_echeance") @db.Date
+  heuresEstimees Decimal?     @map("heures_estimees") @db.Decimal(6, 2)
+  heuresReelles  Decimal?     @map("heures_reelles") @db.Decimal(6, 2)
+  ordre         Int           @default(0)
+  parentId      String?       @map("parent_id") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projet  Projet      @relation(fields: [projetId], references: [id], onDelete: Cascade)
+  parent  ProjetTache? @relation("SousTaches", fields: [parentId], references: [id])
+  sousTaches ProjetTache[] @relation("SousTaches")
+
+  @@index([tenantId])
+  @@index([projetId])
+  @@index([statut])
+  @@index([assigneA])
+  @@map("projet_taches")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BTP (Bâtiment & Travaux Publics)
+// ═══════════════════════════════════════════════════════════════
+
+enum ChantierStatut {
+  planifie
+  en_preparation
+  en_cours
+  suspendu
+  termine
+  cloture
+}
+
+enum SituationType {
+  situation_travaux
+  dg_demarrage
+  retenue_garantie
+  avenant
+}
+
+model BtpChantier {
+  id              String         @id @default(uuid()) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  reference       String
+  nom             String
+  description     String?        @db.Text
+  clientId        String?        @map("client_id") @db.Uuid
+  adresseChantier String?        @map("adresse_chantier") @db.Text
+  codePostal      String?        @map("code_postal")
+  ville           String?
+  responsableId   String?        @map("responsable_id") @db.Uuid
+  statut          ChantierStatut @default(planifie)
+  dateDebut       DateTime?      @map("date_debut") @db.Date
+  dateFinPrevue   DateTime?      @map("date_fin_prevue") @db.Date
+  dateFinReelle   DateTime?      @map("date_fin_reelle") @db.Date
+  montantMarche   Decimal?       @map("montant_marche") @db.Decimal(12, 2)
+  montantFacture  Decimal?       @map("montant_facture") @db.Decimal(12, 2)
+  tauxAvancement  Int            @default(0) @map("taux_avancement")
+  lotPrincipal    String?        @map("lot_principal")
+  notes           String?        @db.Text
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client     ClientFinal?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  situations BtpSituation[]
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@index([statut])
+  @@index([clientId])
+  @@map("btp_chantiers")
+}
+
+model BtpSituation {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  chantierId    String        @map("chantier_id") @db.Uuid
+  numero        Int
+  type          SituationType @default(situation_travaux)
+  dateDebut     DateTime      @map("date_debut") @db.Date
+  dateFin       DateTime      @map("date_fin") @db.Date
+  montantHt     Decimal       @map("montant_ht") @db.Decimal(12, 2)
+  montantTva    Decimal       @default(0) @map("montant_tva") @db.Decimal(12, 2)
+  montantTtc    Decimal       @map("montant_ttc") @db.Decimal(12, 2)
+  tauxAvancement Int          @default(0) @map("taux_avancement")
+  cumulAnterieur Decimal      @default(0) @map("cumul_anterieur") @db.Decimal(12, 2)
+  retenue       Decimal       @default(0) @map("retenue") @db.Decimal(12, 2)
+  observations  String?       @db.Text
+  valide        Boolean       @default(false)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chantier BtpChantier @relation(fields: [chantierId], references: [id], onDelete: Cascade)
+
+  @@unique([chantierId, numero])
+  @@index([tenantId])
+  @@index([chantierId])
+  @@map("btp_situations")
 }
 

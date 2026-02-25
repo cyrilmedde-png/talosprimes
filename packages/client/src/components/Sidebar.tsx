@@ -88,6 +88,37 @@ const allNavGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Gestion d\'Équipe',
+    icon: UsersIcon,
+    requiredModules: ['gestion_equipe'],
+    items: [
+      { name: 'Dashboard', href: '/equipe', icon: UsersIcon },
+      { name: 'Membres', href: '/equipe/membres', icon: UserPlusIcon },
+      { name: 'Absences', href: '/equipe/absences', icon: ClipboardDocumentListIcon },
+      { name: 'Pointage', href: '/equipe/pointage', icon: DocumentCheckIcon },
+    ],
+  },
+  {
+    label: 'Projets',
+    icon: ClipboardDocumentListIcon,
+    requiredModules: ['gestion_projet'],
+    items: [
+      { name: 'Dashboard', href: '/projets', icon: ClipboardDocumentListIcon },
+      { name: 'Mes Projets', href: '/projets/liste', icon: DocumentTextIcon },
+      { name: 'Tâches', href: '/projets/taches', icon: DocumentCheckIcon },
+    ],
+  },
+  {
+    label: 'BTP',
+    icon: WrenchScrewdriverIcon,
+    requiredModules: ['btp'],
+    items: [
+      { name: 'Dashboard', href: '/btp', icon: WrenchScrewdriverIcon },
+      { name: 'Chantiers', href: '/btp/chantiers', icon: DocumentTextIcon },
+      { name: 'Situations', href: '/btp/situations', icon: DocumentDuplicateIcon },
+    ],
+  },
+  {
     label: 'Administration',
     icon: WrenchScrewdriverIcon,
     requiredModules: [],
