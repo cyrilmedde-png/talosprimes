@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var items = $input.all();\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { leads: [] } }];\n}\nvar leads = items.map(function(item) { return {\n  var lead = item.json;\n  return { id: lead.id, tenantId: lead.tenant_id, nom: lead.nom, prenom: lead.prenom, email: lead.email, telephone: lead.telephone, statut: lead.statut, source: lead.source, notes: lead.notes ?? null, dateContact: lead.date_contact ?? null, createdAt: lead.created_at, updatedAt: lead.updated_at };\n}; });\nreturn [{ json: { leads } }];"
+        "jsCode": "var items = $input.all();\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { leads: [] } }];\n}\nvar leads = items.map(function(item) {\n  var lead = item.json;\n  return { id: lead.id, tenantId: lead.tenant_id, nom: lead.nom, prenom: lead.prenom, email: lead.email, telephone: lead.telephone, statut: lead.statut, source: lead.source, notes: lead.notes ?? null, dateContact: lead.date_contact ?? null, createdAt: lead.created_at, updatedAt: lead.updated_at };\n});\nreturn [{ json: { leads } }];"
       },
       "id": "Code_Format",
       "name": "Formater réponse",

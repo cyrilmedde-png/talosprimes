@@ -153,6 +153,7 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   compta_tva: 'compta-tva',
   compta_lettrage: 'compta-lettrage',
   compta_cloture: 'compta-cloture',
+  compta_exercices_list: 'compta-exercices-list',
   compta_dashboard: 'compta-dashboard',
   compta_ia_agent: 'compta-ia-agent',
   // Espaces clients

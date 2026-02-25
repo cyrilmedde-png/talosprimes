@@ -1,0 +1,135 @@
+{
+  "name": "compta-exercices-list",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta-exercices-list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_ExercicesList",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar payload = (raw && typeof raw === 'object' && 'body' in raw) ? raw.body : raw;\nvar tenantId = payload.tenantId || '';\nif (!tenantId) throw new Error('tenantId requis');\nreturn [{ json: { tenantId: tenantId } }];"
+      },
+      "id": "Code_Parse",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "value2": "",
+              "operation": "notEqual"
+            }
+          ]
+        }
+      },
+      "id": "If_Valide",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [740, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'Données manquantes' }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "Respond_Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 480]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \nvar tid = $('02. Parser').first().json.tenantId;\n'SELECT id, tenant_id, code, date_debut, date_fin, cloture, date_cloture, resultat_net, created_at, updated_at FROM exercices_comptables WHERE tenant_id = \\'' + tid + '\\' ORDER BY date_debut DESC';\n}}",
+        "options": {}
+      },
+      "id": "Postgres_List",
+      "name": "05. Query Exercices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 300],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $input.all();\nvar exercices = [];\nif (items && items.length > 0 && items[0].json && items[0].json.id) {\n  for (var i = 0; i < items.length; i++) {\n    var e = items[i].json;\n    exercices.push({\n      id: e.id,\n      tenantId: e.tenant_id,\n      code: e.code,\n      dateDebut: e.date_debut,\n      dateFin: e.date_fin,\n      cloture: e.cloture || false,\n      dateCloture: e.date_cloture || null,\n      resultatNet: e.resultat_net ? parseFloat(e.resultat_net) : null,\n      createdAt: e.created_at,\n      updatedAt: e.updated_at\n    });\n  }\n}\nreturn [{ json: { success: true, data: { exercices: exercices } } }];"
+      },
+      "id": "Code_Format",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "Respond_Success",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [{ "node": "02. Parser", "type": "main", "index": 0 }]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [{ "node": "03. Valide ?", "type": "main", "index": 0 }]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. Query Exercices", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Query Exercices": {
+      "main": [
+        [{ "node": "06. Format Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "06. Format Response": {
+      "main": [
+        [{ "node": "07. Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}

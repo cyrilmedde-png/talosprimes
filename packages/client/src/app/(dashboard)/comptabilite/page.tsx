@@ -12,6 +12,7 @@ import {
   SparklesIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
 type DashboardData = {
@@ -360,6 +361,7 @@ export default function ComptabilitePage() {
           { name: 'Compte de Résultat', href: '/comptabilite/compte-resultat', icon: ArrowTrendingUpIcon, color: 'text-emerald-400' },
           { name: 'TVA', href: '/comptabilite/tva', icon: CurrencyEuroIcon, color: 'text-red-400' },
           { name: 'Agent IA', href: '/comptabilite/ia', icon: SparklesIcon, color: 'text-yellow-400' },
+          { name: 'Clôture', href: '/comptabilite/cloture', icon: LockClosedIcon, color: 'text-orange-400' },
         ].map((link) => (
           <a
             key={link.name}

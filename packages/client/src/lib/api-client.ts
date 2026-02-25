@@ -728,6 +728,9 @@ export const apiClient = {
     // Agent IA Comptable
     iaAgent: (data: { action: string; data?: Record<string, unknown>; question?: string; dateFrom?: string; dateTo?: string }) =>
       authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/ia-agent', { method: 'POST', body: JSON.stringify(data) }),
+    // Exercices
+    exercices: () =>
+      authenticatedFetch<{ success: boolean; data: { exercices: Array<{ id: string; tenantId: string; code: string; dateDebut: string; dateFin: string; cloture: boolean; dateCloture: string | null; resultatNet: number | null }> } }>('/api/comptabilite/exercices'),
     // Clôture
     cloture: (data: { exerciceId: string; confirme?: boolean }) =>
       authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/cloture', { method: 'POST', body: JSON.stringify(data) }),

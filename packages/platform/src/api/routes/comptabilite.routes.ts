@@ -222,6 +222,22 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // GET /api/comptabilite/exercices - Liste des exercices comptables
+  fastify.get('/exercices', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
+    try {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
+
+      const result = await n8nService.callWorkflowReturn(tenantId, 'compta_exercices_list', {});
+      return reply.send(result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
+    }
+  });
+
   // POST /api/comptabilite/cloture - Clôture d'exercice
   fastify.post('/cloture', {
     preHandler: [n8nOrAuthMiddleware],
