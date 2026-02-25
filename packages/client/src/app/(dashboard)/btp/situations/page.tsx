@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
-  ChartBarIcon,
   FunnelIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
