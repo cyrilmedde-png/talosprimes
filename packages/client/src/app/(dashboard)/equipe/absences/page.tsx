@@ -102,45 +102,45 @@ export default function AbsencesPage(): JSX.Element {
   ): Record<string, string> => {
     switch (statut) {
       case 'Approuvé':
-        return { bg: 'bg-green-100', text: 'text-green-800' };
+        return { bg: 'bg-green-500/20', text: 'text-green-400' };
       case 'Rejeté':
-        return { bg: 'bg-red-100', text: 'text-red-800' };
+        return { bg: 'bg-red-500/20', text: 'text-red-400' };
       case 'En attente':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-800' };
+        return { bg: 'bg-yellow-500/20', text: 'text-yellow-400' };
       default:
-        return { bg: 'bg-gray-100', text: 'text-gray-800' };
+        return { bg: 'bg-gray-500/20', text: 'text-gray-300' };
     }
   };
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Absences</h1>
-        <p className="mt-2 text-gray-600">Gestion des absences de l'équipe</p>
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Absences</h1>
+        <p className="mt-2 text-sm text-gray-400">Gestion des absences de l'équipe</p>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+        <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
           {error}
         </div>
       )}
 
       {/* Filters */}
-      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="space-y-4 bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md mb-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* Type Filter */}
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value as AbsenceType | '')}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="bg-gray-800 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Tous les types</option>
             {absenceTypes.map((type) => (
@@ -154,7 +154,7 @@ export default function AbsencesPage(): JSX.Element {
           <select
             value={selectedStatut}
             onChange={(e) => setSelectedStatut(e.target.value as AbsenceStatut | '')}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="bg-gray-800 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Tous les statuts</option>
             {absenceStatuts.map((statut) => (
@@ -167,29 +167,29 @@ export default function AbsencesPage(): JSX.Element {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto bg-gray-800 rounded-xl border border-gray-700">
         <table className="w-full">
-          <thead className="border-b border-gray-200 bg-gray-50">
+          <thead className="bg-gray-700/50">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Membre
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Type
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Date début
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Date fin
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Motif
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Statut
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Actions
               </th>
             </tr>
@@ -205,20 +205,20 @@ export default function AbsencesPage(): JSX.Element {
               filteredAbsences.map((absence) => {
                 const badgeColor = getStatutBadgeColor(absence.statut);
                 return (
-                  <tr key={absence.id} className="border-b border-gray-200">
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                  <tr key={absence.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                    <td className="px-6 py-4 text-sm text-white">
                       {absence.membre}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-white">
                       {absence.type}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-white">
                       {new Date(absence.dateDebut).toLocaleDateString('fr-FR')}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-white">
                       {new Date(absence.dateFin).toLocaleDateString('fr-FR')}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-6 py-4 text-sm text-gray-300">
                       {absence.motif}
                     </td>
                     <td className="px-6 py-4 text-sm">
@@ -233,14 +233,14 @@ export default function AbsencesPage(): JSX.Element {
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleApprove(absence.id)}
-                            className="text-green-600 transition-colors hover:text-green-800"
+                            className="text-green-400 transition-colors hover:text-green-300"
                             title="Approuver"
                           >
                             <CheckCircleIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleReject(absence.id)}
-                            className="text-red-600 transition-colors hover:text-red-800"
+                            className="text-red-400 transition-colors hover:text-red-300"
                             title="Rejeter"
                           >
                             <XCircleIcon className="h-5 w-5" />
@@ -248,7 +248,7 @@ export default function AbsencesPage(): JSX.Element {
                         </div>
                       )}
                       {absence.statut !== 'En attente' && (
-                        <span className="text-gray-400">
+                        <span className="text-gray-500">
                           <ExclamationTriangleIcon className="h-5 w-5" />
                         </span>
                       )}
@@ -262,7 +262,7 @@ export default function AbsencesPage(): JSX.Element {
       </div>
 
       {/* Summary */}
-      <div className="text-sm text-gray-600">
+      <div className="mt-4 text-sm text-gray-400">
         Affichage de {filteredAbsences.length} sur {absences.length} absences
       </div>
     </div>

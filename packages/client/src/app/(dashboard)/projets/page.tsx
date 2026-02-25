@@ -98,28 +98,25 @@ export default function ProjetsDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Tableau de Bord Projets</h1>
-          <p className="text-gray-600 mt-2">Bienvenue sur votre tableau de bord projets</p>
+          <h1 className="text-3xl font-bold text-white">Tableau de Bord Projets</h1>
+          <p className="mt-2 text-sm text-gray-400">Bienvenue sur votre tableau de bord projets</p>
         </div>
 
         {/* Error State */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">Erreur: {error}</p>
+          <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
+            <p>Erreur: {error}</p>
           </div>
         )}
 
         {/* Loading State */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="relative w-8 h-8">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-spin" />
-            </div>
-            <span className="ml-3 text-gray-600">Chargement des statistiques...</span>
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
           </div>
         ) : (
           <>
@@ -130,15 +127,12 @@ export default function ProjetsDashboard() {
                 return (
                   <div
                     key={index}
-                    className="bg-white rounded-lg shadow p-6 border-l-4"
-                    style={{
-                      borderLeftColor: card.color.replace('bg-', ''),
-                    }}
+                    className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md"
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-gray-500 text-sm font-medium">{card.title}</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-2">{card.value}</p>
+                        <p className="text-xs sm:text-sm font-medium text-gray-400">{card.title}</p>
+                        <p className="text-2xl sm:text-3xl font-bold text-white mt-2">{card.value}</p>
                       </div>
                       <div className={`${card.color} p-3 rounded-lg`}>
                         <Icon className="w-6 h-6 text-white" />
@@ -150,8 +144,8 @@ export default function ProjetsDashboard() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions Rapides</h2>
+            <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
+              <h2 className="text-lg font-semibold text-white mb-4">Actions Rapides</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {quickActions.map((action, index) => {
                   const Icon = action.icon;
@@ -159,13 +153,13 @@ export default function ProjetsDashboard() {
                     <Link
                       key={index}
                       href={action.href}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                      className="p-4 border border-gray-700/30 rounded-lg hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
                     >
                       <div className="flex items-center space-x-3">
-                        <Icon className="w-5 h-5 text-blue-600" />
+                        <Icon className="w-5 h-5 text-indigo-400" />
                         <div>
-                          <p className="font-medium text-gray-900">{action.title}</p>
-                          <p className="text-sm text-gray-500">{action.description}</p>
+                          <p className="font-medium text-white">{action.title}</p>
+                          <p className="text-sm text-gray-400">{action.description}</p>
                         </div>
                       </div>
                     </Link>

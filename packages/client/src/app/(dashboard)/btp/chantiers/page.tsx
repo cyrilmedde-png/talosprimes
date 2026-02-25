@@ -29,12 +29,12 @@ interface LoadingState {
 type StatusKey = 'planifie' | 'en_preparation' | 'en_cours' | 'suspendu' | 'termine' | 'cloture';
 
 const statusColors: Record<StatusKey, string> = {
-  planifie: 'bg-gray-100 text-gray-800',
-  en_preparation: 'bg-blue-100 text-blue-800',
-  en_cours: 'bg-green-100 text-green-800',
-  suspendu: 'bg-yellow-100 text-yellow-800',
-  termine: 'bg-purple-100 text-purple-800',
-  cloture: 'bg-gray-100 text-gray-800',
+  planifie: 'bg-gray-500/20 text-gray-400',
+  en_preparation: 'bg-blue-500/20 text-blue-400',
+  en_cours: 'bg-green-500/20 text-green-400',
+  suspendu: 'bg-yellow-500/20 text-yellow-400',
+  termine: 'bg-purple-500/20 text-purple-400',
+  cloture: 'bg-gray-500/20 text-gray-400',
 };
 
 const statusLabels: Record<StatusKey, string> = {
@@ -100,59 +100,57 @@ export default function ChantiersPage() {
 
   if (loading.isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin">
-          <ChartBarIcon className="h-8 w-8 text-blue-600" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
       </div>
     );
   }
 
   if (loading.error) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">{loading.error}</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
+          <p>{loading.error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Chantiers</h1>
-        <p className="mt-2 text-gray-600">Gestion de tous les chantiers BTP</p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Chantiers</h1>
+        <p className="mt-2 text-sm text-gray-400">Gestion de tous les chantiers BTP</p>
       </div>
 
       {/* Search and Filter */}
-      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="mb-8 rounded-lg bg-gray-800/20 border border-gray-700/30 p-4 backdrop-blur-md">
         {/* Search Bar */}
-        <div className="relative">
+        <div className="relative mb-4">
           <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
           <input
             type="text"
             placeholder="Rechercher par référence, nom, client ou adresse..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 py-2 pl-10 pr-4"
           />
         </div>
 
         {/* Status Filter */}
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <FunnelIcon className="h-4 w-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Statut</span>
+            <FunnelIcon className="h-4 w-4 text-gray-400" />
+            <span className="text-sm font-medium text-gray-300">Statut</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedStatus('all')}
               className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 selectedStatus === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
               }`}
             >
               Tous
@@ -163,8 +161,8 @@ export default function ChantiersPage() {
                 onClick={() => setSelectedStatus(status)}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   selectedStatus === status
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
                 }`}
               >
                 {statusLabels[status]}
@@ -176,7 +174,7 @@ export default function ChantiersPage() {
 
       {/* Chantiers Grid */}
       <div>
-        <p className="mb-4 text-sm text-gray-600">
+        <p className="mb-4 text-sm text-gray-400">
           {filteredChantiers.length} chantier(s) trouvé(s)
         </p>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -184,7 +182,7 @@ export default function ChantiersPage() {
             filteredChantiers.map((chantier) => (
               <div
                 key={chantier.id}
-                className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
+                className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 shadow-lg hover:bg-gray-800/30 transition-colors backdrop-blur-md"
               >
                 {/* Reference and Status */}
                 <div className="mb-4 flex items-start justify-between">
@@ -192,7 +190,7 @@ export default function ChantiersPage() {
                     <p className="text-xs font-semibold text-gray-500 uppercase">
                       {chantier.reference}
                     </p>
-                    <h3 className="mt-1 text-lg font-bold text-gray-900">
+                    <h3 className="mt-1 text-lg font-bold text-white">
                       {chantier.nom}
                     </h3>
                   </div>
@@ -206,23 +204,23 @@ export default function ChantiersPage() {
                 </div>
 
                 {/* Client and Address */}
-                <div className="mb-4 space-y-2 border-t border-gray-100 pt-4">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-900">Client:</span>{' '}
+                <div className="mb-4 space-y-2 border-t border-gray-700/30 pt-4">
+                  <p className="text-sm text-gray-300">
+                    <span className="font-medium text-white">Client:</span>{' '}
                     {chantier.client}
                   </p>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-900">Adresse:</span>{' '}
+                  <p className="text-sm text-gray-300">
+                    <span className="font-medium text-white">Adresse:</span>{' '}
                     {chantier.adresse}
                   </p>
                 </div>
 
                 {/* Montant Marché */}
-                <div className="mb-4 rounded-lg bg-blue-50 p-3">
-                  <p className="text-xs font-medium text-gray-600">
+                <div className="mb-4 rounded-lg bg-indigo-500/20 p-3 border border-indigo-500/30">
+                  <p className="text-xs font-medium text-gray-400">
                     Montant marché
                   </p>
-                  <p className="mt-1 text-xl font-bold text-blue-900">
+                  <p className="mt-1 text-xl font-bold text-indigo-300">
                     {(chantier.montantMarche / 1000).toLocaleString('fr-FR', {
                       minimumFractionDigits: 0,
                       maximumFractionDigits: 0,
@@ -234,23 +232,23 @@ export default function ChantiersPage() {
                 {/* Taux Avancement */}
                 <div className="mb-4">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-medium text-gray-600">
+                    <p className="text-xs font-medium text-gray-400">
                       Taux avancement
                     </p>
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-white">
                       {chantier.tauxAvancement}%
                     </span>
                   </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-700">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600"
+                      className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600"
                       style={{ width: `${chantier.tauxAvancement}%` }}
                     />
                   </div>
                 </div>
 
                 {/* Dates */}
-                <div className="border-t border-gray-100 pt-4">
+                <div className="border-t border-gray-700/30 pt-4">
                   <p className="text-xs text-gray-500">
                     {chantier.dateDebut} au {chantier.dateFin}
                   </p>
@@ -258,8 +256,8 @@ export default function ChantiersPage() {
               </div>
             ))
           ) : (
-            <div className="col-span-full rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12 text-center">
-              <p className="text-gray-600">Aucun chantier trouvé</p>
+            <div className="col-span-full rounded-lg border border-dashed border-gray-700/30 bg-gray-800/20 py-12 text-center backdrop-blur-md">
+              <p className="text-gray-500">Aucun chantier trouvé</p>
             </div>
           )}
         </div>

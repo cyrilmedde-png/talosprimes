@@ -54,19 +54,17 @@ export default function BtpDashboard() {
 
   if (loading.isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin">
-          <ChartBarIcon className="h-8 w-8 text-blue-600" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
       </div>
     );
   }
 
   if (loading.error) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">{loading.error}</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
+          <p>{loading.error}</p>
         </div>
       </div>
     );
@@ -77,15 +75,13 @@ export default function BtpDashboard() {
       title: 'Total Chantiers',
       value: stats.totalChantiers,
       icon: BuildingOffice2Icon,
-      color: 'bg-blue-50 text-blue-700',
-      iconColor: 'text-blue-600',
+      color: 'text-indigo-400',
     },
     {
       title: 'En Cours',
       value: stats.enCoursCount,
       icon: ArrowTrendingUpIcon,
-      color: 'bg-green-50 text-green-700',
-      iconColor: 'text-green-600',
+      color: 'text-green-400',
     },
     {
       title: 'Montant Marché Total',
@@ -94,43 +90,41 @@ export default function BtpDashboard() {
         maximumFractionDigits: 0,
       })}k`,
       icon: CurrencyEuroIcon,
-      color: 'bg-purple-50 text-purple-700',
-      iconColor: 'text-purple-600',
+      color: 'text-purple-400',
     },
     {
       title: 'Taux Avancement Moyen',
       value: `${stats.tauxAvancementMoyen.toFixed(1)}%`,
       icon: ChartBarIcon,
-      color: 'bg-orange-50 text-orange-700',
-      iconColor: 'text-orange-600',
+      color: 'text-orange-400',
     },
   ];
 
   return (
-    <div className="space-y-8">
+    <div>
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">BTP Dashboard</h1>
-        <p className="mt-2 text-gray-600">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">BTP Dashboard</h1>
+        <p className="mt-2 text-sm text-gray-400">
           Vue d'ensemble de vos chantiers et situations
         </p>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => {
           const IconComponent = card.icon;
           return (
             <div
               key={card.title}
-              className={`rounded-lg border border-gray-200 p-6 ${card.color}`}
+              className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium opacity-75">{card.title}</p>
-                  <p className="mt-2 text-2xl font-bold">{card.value}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-400">{card.title}</p>
+                  <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">{card.value}</p>
                 </div>
-                <IconComponent className={`h-12 w-12 ${card.iconColor}`} />
+                <IconComponent className={`h-12 w-12 ${card.color}`} />
               </div>
             </div>
           );
@@ -139,33 +133,33 @@ export default function BtpDashboard() {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900">Accès rapide</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <h2 className="text-2xl font-bold text-white mb-4">Accès rapide</h2>
+        <div className="grid gap-4 md:grid-cols-3">
           <Link
             href="/dashboard/btp/chantiers"
-            className="rounded-lg border-2 border-blue-600 p-6 text-center hover:bg-blue-50"
+            className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 text-center hover:bg-gray-800/40 transition-colors backdrop-blur-md"
           >
-            <BuildingOffice2Icon className="mx-auto h-8 w-8 text-blue-600" />
-            <p className="mt-2 font-semibold text-blue-600">Chantiers</p>
-            <p className="mt-1 text-sm text-gray-600">Gérer les chantiers</p>
+            <BuildingOffice2Icon className="mx-auto h-8 w-8 text-indigo-400" />
+            <p className="mt-2 font-semibold text-white">Chantiers</p>
+            <p className="mt-1 text-sm text-gray-400">Gérer les chantiers</p>
           </Link>
 
           <Link
             href="/dashboard/btp/situations"
-            className="rounded-lg border-2 border-green-600 p-6 text-center hover:bg-green-50"
+            className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 text-center hover:bg-gray-800/40 transition-colors backdrop-blur-md"
           >
-            <ChartBarIcon className="mx-auto h-8 w-8 text-green-600" />
-            <p className="mt-2 font-semibold text-green-600">Situations</p>
-            <p className="mt-1 text-sm text-gray-600">Consulter les situations</p>
+            <ChartBarIcon className="mx-auto h-8 w-8 text-green-400" />
+            <p className="mt-2 font-semibold text-white">Situations</p>
+            <p className="mt-1 text-sm text-gray-400">Consulter les situations</p>
           </Link>
 
           <Link
             href="/dashboard/btp/chantiers"
-            className="rounded-lg border-2 border-purple-600 p-6 text-center hover:bg-purple-50"
+            className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 text-center hover:bg-gray-800/40 transition-colors backdrop-blur-md"
           >
-            <CurrencyEuroIcon className="mx-auto h-8 w-8 text-purple-600" />
-            <p className="mt-2 font-semibold text-purple-600">Finances</p>
-            <p className="mt-1 text-sm text-gray-600">Suivi budgétaire</p>
+            <CurrencyEuroIcon className="mx-auto h-8 w-8 text-purple-400" />
+            <p className="mt-2 font-semibold text-white">Finances</p>
+            <p className="mt-1 text-sm text-gray-400">Suivi budgétaire</p>
           </Link>
         </div>
       </div>

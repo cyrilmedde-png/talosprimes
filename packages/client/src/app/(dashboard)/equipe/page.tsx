@@ -48,130 +48,130 @@ export default function EquipeDashboard(): JSX.Element {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Équipe</h1>
-        <p className="mt-2 text-gray-600">
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Équipe</h1>
+        <p className="mt-2 text-sm text-gray-400">
           Gestion de l'équipe, absences et pointages
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+        <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
           {error}
         </div>
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         {/* Total Membres */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Membres</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">
+              <p className="text-xs sm:text-sm font-medium text-gray-400">Total Membres</p>
+              <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                 {stats.totalMembres}
               </p>
             </div>
-            <div className="rounded-lg bg-blue-100 p-3">
-              <UsersIcon className="h-6 w-6 text-blue-600" />
+            <div className="rounded-lg bg-blue-500/20 p-3">
+              <UsersIcon className="h-6 w-6 text-blue-400" />
             </div>
           </div>
         </div>
 
         {/* Absences en cours */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-xs sm:text-sm font-medium text-gray-400">
                 Absences en cours
               </p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">
+              <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                 {stats.absencesEnCours}
               </p>
             </div>
-            <div className="rounded-lg bg-red-100 p-3">
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+            <div className="rounded-lg bg-red-500/20 p-3">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
             </div>
           </div>
         </div>
 
         {/* Pointages Aujourd'hui */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-xs sm:text-sm font-medium text-gray-400">
                 Pointages aujourd'hui
               </p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">
+              <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                 {stats.pointagesAujourdhui}
               </p>
             </div>
-            <div className="rounded-lg bg-green-100 p-3">
-              <ClockIcon className="h-6 w-6 text-green-600" />
+            <div className="rounded-lg bg-green-500/20 p-3">
+              <ClockIcon className="h-6 w-6 text-green-400" />
             </div>
           </div>
         </div>
 
         {/* Taux de présence */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">
+              <p className="text-xs sm:text-sm font-medium text-gray-400">
                 Taux de présence
               </p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">
+              <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
                 {stats.tauxPresence}%
               </p>
             </div>
-            <div className="rounded-lg bg-purple-100 p-3">
-              <CheckCircleIcon className="h-6 w-6 text-purple-600" />
+            <div className="rounded-lg bg-purple-500/20 p-3">
+              <CheckCircleIcon className="h-6 w-6 text-purple-400" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">Actions rapides</h2>
+      <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
+        <h2 className="text-lg font-semibold text-white">Actions rapides</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
           <Link
             href="/equipe/membres"
-            className="flex items-center space-x-3 rounded-lg border border-gray-200 p-4 transition-colors hover:border-blue-500 hover:bg-blue-50"
+            className="flex items-center space-x-3 rounded-lg border border-gray-700/30 bg-gray-800/30 p-4 transition-colors hover:border-blue-500/50 hover:bg-blue-900/20"
           >
-            <UsersIcon className="h-6 w-6 text-blue-600" />
+            <UsersIcon className="h-6 w-6 text-blue-400" />
             <div>
-              <p className="font-medium text-gray-900">Membres</p>
-              <p className="text-sm text-gray-600">Gérer les membres</p>
+              <p className="font-medium text-white">Membres</p>
+              <p className="text-sm text-gray-400">Gérer les membres</p>
             </div>
           </Link>
 
           <Link
             href="/equipe/absences"
-            className="flex items-center space-x-3 rounded-lg border border-gray-200 p-4 transition-colors hover:border-red-500 hover:bg-red-50"
+            className="flex items-center space-x-3 rounded-lg border border-gray-700/30 bg-gray-800/30 p-4 transition-colors hover:border-red-500/50 hover:bg-red-900/20"
           >
-            <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+            <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
             <div>
-              <p className="font-medium text-gray-900">Absences</p>
-              <p className="text-sm text-gray-600">Gérer les absences</p>
+              <p className="font-medium text-white">Absences</p>
+              <p className="text-sm text-gray-400">Gérer les absences</p>
             </div>
           </Link>
 
           <Link
             href="/equipe/pointage"
-            className="flex items-center space-x-3 rounded-lg border border-gray-200 p-4 transition-colors hover:border-green-500 hover:bg-green-50"
+            className="flex items-center space-x-3 rounded-lg border border-gray-700/30 bg-gray-800/30 p-4 transition-colors hover:border-green-500/50 hover:bg-green-900/20"
           >
-            <ClockIcon className="h-6 w-6 text-green-600" />
+            <ClockIcon className="h-6 w-6 text-green-400" />
             <div>
-              <p className="font-medium text-gray-900">Pointage</p>
-              <p className="text-sm text-gray-600">Gérer les pointages</p>
+              <p className="font-medium text-white">Pointage</p>
+              <p className="text-sm text-gray-400">Gérer les pointages</p>
             </div>
           </Link>
         </div>

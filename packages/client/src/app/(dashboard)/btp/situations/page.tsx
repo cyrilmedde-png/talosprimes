@@ -106,46 +106,44 @@ export default function SituationsPage() {
 
   if (loading.isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin">
-          <ChartBarIcon className="h-8 w-8 text-blue-600" />
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
       </div>
     );
   }
 
   if (loading.error) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">{loading.error}</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
+          <p>{loading.error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Situations</h1>
-        <p className="mt-2 text-gray-600">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white">Situations</h1>
+        <p className="mt-2 text-sm text-gray-400">
           Suivi des situations de travaux et de facturation
         </p>
       </div>
 
       {/* Filter Section */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <div className="mb-8 rounded-lg bg-gray-800/20 border border-gray-700/30 p-4 backdrop-blur-md">
         <div className="flex items-center gap-2 mb-3">
-          <FunnelIcon className="h-4 w-4 text-gray-600" />
-          <span className="text-sm font-medium text-gray-700">
+          <FunnelIcon className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-medium text-gray-300">
             Filtrer par chantier
           </span>
         </div>
         <select
           value={selectedChantier}
           onChange={(e) => setSelectedChantier(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:outline-none md:w-64"
+          className="w-full md:w-64 bg-gray-800 border border-gray-700 text-white rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="all">Tous les chantiers</option>
           {chantiers.map((c) => (
@@ -157,41 +155,41 @@ export default function SituationsPage() {
       </div>
 
       {/* Results Count */}
-      <p className="text-sm text-gray-600">
+      <p className="mb-4 text-sm text-gray-400">
         {filteredSituations.length} situation(s) trouvée(s)
       </p>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg bg-gray-800 border border-gray-700 shadow-lg">
         {filteredSituations.length > 0 ? (
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <tr className="bg-gray-700/50">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                   Chantier
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                   N°
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                   Dates
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase">
                   Montant HT
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase">
                   Montant TTC
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase">
                   Taux
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase">
                   Statut
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase">
                   Action
                 </th>
               </tr>
@@ -200,25 +198,25 @@ export default function SituationsPage() {
               {filteredSituations.map((situation) => (
                 <tr
                   key={situation.id}
-                  className="border-b border-gray-200 hover:bg-gray-50"
+                  className="border-b border-gray-700 hover:bg-gray-700/50"
                 >
                   <td className="px-6 py-4">
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-white">
                         {situation.chantierReference}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-300">
                         {situation.chantierNom}
                       </p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 text-sm font-medium text-white">
                     {situation.numero}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
+                  <td className="px-6 py-4 text-sm text-gray-300">
                     {typeLabels[situation.type] || situation.type}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-gray-300">
                     {situation.dateEmission}
                     {situation.dateValidation && (
                       <>
@@ -229,7 +227,7 @@ export default function SituationsPage() {
                       </>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 text-right text-sm font-medium text-white">
                     {(situation.montantHT / 100).toLocaleString('fr-FR', {
                       style: 'currency',
                       currency: 'EUR',
@@ -237,7 +235,7 @@ export default function SituationsPage() {
                       maximumFractionDigits: 2,
                     })}
                   </td>
-                  <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 text-right text-sm font-medium text-white">
                     {(situation.montantTTC / 100).toLocaleString('fr-FR', {
                       style: 'currency',
                       currency: 'EUR',
@@ -245,15 +243,15 @@ export default function SituationsPage() {
                       maximumFractionDigits: 2,
                     })}
                   </td>
-                  <td className="px-6 py-4 text-center text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 text-center text-sm font-medium text-white">
                     {situation.tauxAvancement}%
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
                         situation.valide
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-yellow-500/20 text-yellow-400'
                       }`}
                     >
                       {situation.valide ? (
@@ -271,7 +269,7 @@ export default function SituationsPage() {
                       <button
                         onClick={() => handleValidate(situation.id)}
                         disabled={validatingId === situation.id}
-                        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {validatingId === situation.id && (
                           <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -286,7 +284,7 @@ export default function SituationsPage() {
           </table>
         ) : (
           <div className="py-12 text-center">
-            <p className="text-gray-600">Aucune situation trouvée</p>
+            <p className="text-gray-500">Aucune situation trouvée</p>
           </div>
         )}
       </div>

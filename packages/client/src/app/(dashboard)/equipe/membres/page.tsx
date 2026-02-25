@@ -79,24 +79,24 @@ export default function MembresPage(): JSX.Element {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="mb-8 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Membres</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="text-3xl font-bold text-white">Membres</h1>
+          <p className="mt-2 text-sm text-gray-400">
             Gestion des membres de l'équipe
           </p>
         </div>
         <Link
           href="/equipe/membres/new"
-          className="flex items-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+          className="flex items-center space-x-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
           <span>Ajouter un membre</span>
@@ -104,13 +104,13 @@ export default function MembresPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+        <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
           {error}
         </div>
       )}
 
       {/* Filters */}
-      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="space-y-4 bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md mb-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* Search */}
           <div className="relative">
@@ -120,7 +120,7 @@ export default function MembresPage(): JSX.Element {
               placeholder="Rechercher par nom ou email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
@@ -128,7 +128,7 @@ export default function MembresPage(): JSX.Element {
           <select
             value={selectedDepartement}
             onChange={(e) => setSelectedDepartement(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="bg-gray-800 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Tous les départements</option>
             {departements.map((dept) => (
@@ -141,32 +141,32 @@ export default function MembresPage(): JSX.Element {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto bg-gray-800 rounded-xl border border-gray-700">
         <table className="w-full">
-          <thead className="border-b border-gray-200 bg-gray-50">
+          <thead className="bg-gray-700/50">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Nom
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Prénom
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Email
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Poste
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Département
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Contrat
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Statut
               </th>
-              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Actions
               </th>
             </tr>
@@ -180,31 +180,31 @@ export default function MembresPage(): JSX.Element {
               </tr>
             ) : (
               filteredMembres.map((membre) => (
-                <tr key={membre.id} className="border-b border-gray-200">
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                <tr key={membre.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                  <td className="px-6 py-4 text-sm text-white">
                     {membre.nom}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-white">
                     {membre.prenom}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-gray-300">
                     {membre.email}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-white">
                     {membre.poste}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-white">
                     {membre.departement}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-4 text-sm text-white">
                     {membre.contrat}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span
                       className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                         membre.statut === 'Actif'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-gray-500/20 text-gray-300'
                       }`}
                     >
                       {membre.statut}
@@ -212,10 +212,10 @@ export default function MembresPage(): JSX.Element {
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <div className="flex space-x-2">
-                      <button className="text-blue-600 transition-colors hover:text-blue-800">
+                      <button className="text-indigo-400 transition-colors hover:text-indigo-300">
                         <PencilSquareIcon className="h-5 w-5" />
                       </button>
-                      <button className="text-red-600 transition-colors hover:text-red-800">
+                      <button className="text-red-400 transition-colors hover:text-red-300">
                         <TrashIcon className="h-5 w-5" />
                       </button>
                     </div>
@@ -228,7 +228,7 @@ export default function MembresPage(): JSX.Element {
       </div>
 
       {/* Summary */}
-      <div className="text-sm text-gray-600">
+      <div className="mt-4 text-sm text-gray-400">
         Affichage de {filteredMembres.length} sur {membres.length} membres
       </div>
     </div>
