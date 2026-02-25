@@ -1,0 +1,55 @@
+{
+  "name": "Equipe - Absences List (equipe-absences-list)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "equipe-absences-list", "responseMode": "responseNode", "options": {}},
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nlet query = 'SELECT ea.id, ea.tenant_id, ea.member_id, ea.type, ea.date_debut, ea.date_fin, ea.motif, ea.statut, ea.created_at, ea.updated_at, em.nom, em.prenom FROM equipe_absences ea LEFT JOIN equipe_members em ON ea.member_id = em.id WHERE ea.tenant_id = \\'' + esc(tenantId) + '\\'';\n\nif (data.membreId) {\n  query += ' AND ea.member_id = \\'' + esc(data.membreId) + '\\'';\n}\nif (data.type) {\n  query += ' AND ea.type = \\'' + esc(data.type) + '\\'';\n}\nif (data.statut) {\n  query += ' AND ea.statut = \\'' + esc(data.statut) + '\\'';\n}\nif (data.dateFrom) {\n  query += ' AND ea.date_debut >= \\'' + esc(data.dateFrom) + '\\'';\n}\nif (data.dateTo) {\n  query += ' AND ea.date_fin <= \\'' + esc(data.dateTo) + '\\'';\n}\n\nquery += ' ORDER BY ea.date_debut DESC';\n\nreturn [{json: {query: query}}];"},
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"},
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.queryResults || [];\nconst items = rows.map(row => ({\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  type: row.type,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  motif: row.motif,\n  statut: row.statut,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at,\n  memberNom: row.nom,\n  memberPrenom: row.prenom\n}));\n\nreturn [{json: {success: true, data: {items: items}}}];"},
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ $json }}"},
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]},
+    "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]},
+    "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]},
+    "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}

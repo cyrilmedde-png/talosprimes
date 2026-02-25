@@ -1,0 +1,117 @@
+{
+  "name": "BTP - Situations List (btp-situations-list)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "btp-situations-list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json; var body = raw.body || raw; var data = body.data || body; var tenantId = String(body.tenantId || data.tenantId || ''); var chantierId = String(body.chantierId || data.chantierId || ''); var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; if (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis'); if (!chantierId || !UUID_RE.test(chantierId)) throw new Error('Chantier ID requis et doit être un UUID valide'); function esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); } var query = \"SELECT s.id, s.tenant_id, s.chantier_id, s.numero, s.type, s.date_debut, s.date_fin, s.montant_ht, s.montant_tva, s.montant_ttc, s.taux_avancement, s.cumul_anterieur, s.retenue, s.observations, s.valide, s.created_at, s.updated_at, c.reference, c.nom FROM btp_situations s JOIN btp_chantiers c ON s.chantier_id = c.id WHERE s.chantier_id = '\" + esc(chantierId) + \"' AND s.tenant_id = '\" + esc(tenantId) + \"' ORDER BY s.numero DESC\"; return [{json: {query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.first().json; return [{json: {success: true, data: rows, count: rows.length}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

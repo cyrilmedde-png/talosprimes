@@ -1,0 +1,117 @@
+{
+  "name": "BTP - Chantier Update (btp-chantier-update)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "btp-chantier-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json; var body = raw.body || raw; var data = body.data || body; var tenantId = String(body.tenantId || data.tenantId || ''); var id = String(body.id || data.id || ''); var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; if (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis'); if (!id || !UUID_RE.test(id)) throw new Error('ID requis et doit être un UUID valide'); function esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); } var updates = []; if (body.reference !== undefined || data.reference !== undefined) { updates.push(\"reference = '\" + esc(body.reference || data.reference) + \"'\"); } if (body.nom !== undefined || data.nom !== undefined) { updates.push(\"nom = '\" + esc(body.nom || data.nom) + \"'\"); } if (body.description !== undefined || data.description !== undefined) { updates.push(\"description = '\" + esc(body.description || data.description) + \"'\"); } if (body.clientId !== undefined || data.clientId !== undefined) { var cid = body.clientId || data.clientId; updates.push(\"client_id = \" + (cid ? \"'\" + esc(cid) + \"'\" : 'NULL')); } if (body.adresseChantier !== undefined || data.adresseChantier !== undefined) { updates.push(\"adresse_chantier = '\" + esc(body.adresseChantier || data.adresseChantier) + \"'\"); } if (body.codePostal !== undefined || data.codePostal !== undefined) { updates.push(\"code_postal = '\" + esc(body.codePostal || data.codePostal) + \"'\"); } if (body.ville !== undefined || data.ville !== undefined) { updates.push(\"ville = '\" + esc(body.ville || data.ville) + \"'\"); } if (body.responsableId !== undefined || data.responsableId !== undefined) { var rid = body.responsableId || data.responsableId; updates.push(\"responsable_id = \" + (rid ? \"'\" + esc(rid) + \"'\" : 'NULL')); } if (body.statut !== undefined || data.statut !== undefined) { updates.push(\"statut = '\" + esc(body.statut || data.statut) + \"'\"); } if (body.dateDebut !== undefined || data.dateDebut !== undefined) { var dd = body.dateDebut || data.dateDebut; updates.push(\"date_debut = \" + (dd ? \"'\" + dd + \"'\" : 'NULL')); } if (body.dateFinPrevue !== undefined || data.dateFinPrevue !== undefined) { var dfp = body.dateFinPrevue || data.dateFinPrevue; updates.push(\"date_fin_prevue = \" + (dfp ? \"'\" + dfp + \"'\" : 'NULL')); } if (body.dateFinReelle !== undefined || data.dateFinReelle !== undefined) { var dfr = body.dateFinReelle || data.dateFinReelle; updates.push(\"date_fin_reelle = \" + (dfr ? \"'\" + dfr + \"'\" : 'NULL')); } if (body.montantMarche !== undefined || data.montantMarche !== undefined) { updates.push(\"montant_marche = \" + (body.montantMarche || data.montantMarche || 0)); } if (body.montantFacture !== undefined || data.montantFacture !== undefined) { updates.push(\"montant_facture = \" + (body.montantFacture || data.montantFacture || 0)); } if (body.tauxAvancement !== undefined || data.tauxAvancement !== undefined) { updates.push(\"taux_avancement = \" + (body.tauxAvancement || data.tauxAvancement || 0)); } if (body.lotPrincipal !== undefined || data.lotPrincipal !== undefined) { updates.push(\"lot_principal = '\" + esc(body.lotPrincipal || data.lotPrincipal) + \"'\"); } if (body.notes !== undefined || data.notes !== undefined) { updates.push(\"notes = '\" + esc(body.notes || data.notes) + \"'\"); } updates.push('updated_at = NOW()'); var query = 'UPDATE btp_chantiers SET ' + updates.join(', ') + \" WHERE id = '\" + esc(id) + \"' AND tenant_id = '\" + esc(tenantId) + \"' RETURNING *\"; return [{json: {query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.first().json; var chantier = rows.length > 0 ? rows[0] : null; if (!chantier) { return [{json: {success: false, error: 'Chantier non trouvé ou non mis à jour'}}]; } return [{json: {success: true, data: chantier}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

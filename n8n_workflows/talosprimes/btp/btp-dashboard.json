@@ -1,0 +1,117 @@
+{
+  "name": "BTP - Dashboard (btp-dashboard)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "btp-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json; var body = raw.body || raw; var data = body.data || body; var tenantId = String(body.tenantId || data.tenantId || ''); var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; if (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis'); function esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); } var query = \"SELECT COUNT(*) as total_chantiers, COUNT(CASE WHEN statut = 'planifie' THEN 1 END) as statut_planifie, COUNT(CASE WHEN statut = 'en_preparation' THEN 1 END) as statut_en_preparation, COUNT(CASE WHEN statut = 'en_cours' THEN 1 END) as statut_en_cours, COUNT(CASE WHEN statut = 'suspendu' THEN 1 END) as statut_suspendu, COUNT(CASE WHEN statut = 'termine' THEN 1 END) as statut_termine, COUNT(CASE WHEN statut = 'cloture' THEN 1 END) as statut_cloture, COALESCE(SUM(montant_marche), 0) as total_montant_marche, COALESCE(AVG(taux_avancement), 0) as avg_taux_avancement FROM btp_chantiers WHERE tenant_id = '\" + esc(tenantId) + \"'\"; return [{json: {query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.first().json; var dashboard = rows.length > 0 ? rows[0] : {}; return [{json: {success: true, data: dashboard}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "Projets - Get (projet-get)",
+  "nodes": [
+    {"parameters": {"httpMethod": "POST", "path": "projet-get", "responseMode": "responseNode", "options": {}}, "id": "Webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [300, 300]},
+    {"parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis');\nif (!data.id || !UUID_RE.test(String(data.id))) throw new Error('ID requis');\nfunction esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); }\n\nvar query = \"SELECT p.*, (SELECT COUNT(*) FROM projet_taches WHERE projet_id = p.id) as taches_count FROM projets p WHERE p.id = '\" + esc(data.id) + \"' AND p.tenant_id = '\" + esc(tenantId) + \"'\";\nreturn [{json: {query}}];"}, "id": "Parser", "name": "Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [520, 300]},
+    {"parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"}, "id": "Postgres", "name": "Postgres", "type": "n8n-nodes-base.postgres", "typeVersion": 2.4, "position": [740, 300], "alwaysOutputData": true, "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}},
+    {"parameters": {"jsCode": "var rows = $input.first().json;\nif (!rows || rows.length === 0) return [{json: {success: false, error: 'Projet non trouvé'}}];\nreturn [{json: {success: true, data: rows[0]}}];"}, "id": "Format", "name": "Format", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [960, 300]},
+    {"parameters": {"respondWith": "json", "responseBody": "={{ $json }}"}, "id": "Respond", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1180, 300]}
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]},
+    "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]},
+    "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]},
+    "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}

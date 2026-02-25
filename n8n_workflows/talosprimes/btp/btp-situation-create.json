@@ -1,0 +1,117 @@
+{
+  "name": "BTP - Situation Create (btp-situation-create)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "btp-situation-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json; var body = raw.body || raw; var data = body.data || body; var tenantId = String(body.tenantId || data.tenantId || ''); var chantierId = String(body.chantierId || data.chantierId || ''); var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; if (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis'); if (!chantierId || !UUID_RE.test(chantierId)) throw new Error('Chantier ID requis et doit être un UUID valide'); function esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); } var type = esc(body.type || data.type || 'situation_travaux'); var dateDebut = body.dateDebut || data.dateDebut || null; var dateFin = body.dateFin || data.dateFin || null; var montantHt = body.montantHt || data.montantHt || 0; var montantTva = body.montantTva || data.montantTva || 0; var montantTtc = body.montantTtc || data.montantTtc || 0; var tauxAvancement = body.tauxAvancement || data.tauxAvancement || 0; var cumulAnterieur = body.cumulAnterieur || data.cumulAnterieur || 0; var retenue = body.retenue || data.retenue || 0; var observations = esc(body.observations || data.observations || ''); var valide = body.valide || data.valide || false; var query = \"INSERT INTO btp_situations (id, tenant_id, chantier_id, numero, type, date_debut, date_fin, montant_ht, montant_tva, montant_ttc, taux_avancement, cumul_anterieur, retenue, observations, valide, created_at, updated_at) VALUES (gen_random_uuid(), '\" + esc(tenantId) + \"', '\" + esc(chantierId) + \"', (SELECT COALESCE(MAX(numero), 0) + 1 FROM btp_situations WHERE chantier_id = '\" + esc(chantierId) + \"'), '\" + type + \"', \" + (dateDebut ? \"'\" + dateDebut + \"'\" : 'NULL') + \", \" + (dateFin ? \"'\" + dateFin + \"'\" : 'NULL') + \", \" + montantHt + \", \" + montantTva + \", \" + montantTtc + \", \" + tauxAvancement + \", \" + cumulAnterieur + \", \" + retenue + \", '\" + observations + \"', \" + (valide ? 'true' : 'false') + \", NOW(), NOW()) RETURNING *\"; return [{json: {query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.first().json; var situation = rows.length > 0 ? rows[0] : null; if (!situation) { return [{json: {success: false, error: 'Erreur lors de la création'}}]; } return [{json: {success: true, data: situation}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

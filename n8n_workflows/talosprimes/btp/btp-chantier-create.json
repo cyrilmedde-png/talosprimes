@@ -1,0 +1,117 @@
+{
+  "name": "BTP - Chantier Create (btp-chantier-create)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "btp-chantier-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json; var body = raw.body || raw; var data = body.data || body; var tenantId = String(body.tenantId || data.tenantId || ''); var reference = String(body.reference || data.reference || ''); var nom = String(body.nom || data.nom || ''); var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; if (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis'); if (!reference) throw new Error('Reference requis'); if (!nom) throw new Error('Nom requis'); function esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); } var id = 'gen_random_uuid()'; var description = esc(body.description || data.description || ''); var clientId = esc(body.clientId || data.clientId || ''); var adresseChantier = esc(body.adresseChantier || data.adresseChantier || ''); var codePostal = esc(body.codePostal || data.codePostal || ''); var ville = esc(body.ville || data.ville || ''); var responsableId = esc(body.responsableId || data.responsableId || ''); var statut = esc(body.statut || data.statut || 'planifie'); var dateDebut = body.dateDebut || data.dateDebut || null; var dateFinPrevue = body.dateFinPrevue || data.dateFinPrevue || null; var dateFinReelle = body.dateFinReelle || data.dateFinReelle || null; var montantMarche = body.montantMarche || data.montantMarche || 0; var montantFacture = body.montantFacture || data.montantFacture || 0; var tauxAvancement = body.tauxAvancement || data.tauxAvancement || 0; var lotPrincipal = body.lotPrincipal || data.lotPrincipal || ''; var notes = esc(body.notes || data.notes || ''); var query = 'INSERT INTO btp_chantiers (id, tenant_id, reference, nom, description, client_id, adresse_chantier, code_postal, ville, responsable_id, statut, date_debut, date_fin_prevue, date_fin_reelle, montant_marche, montant_facture, taux_avancement, lot_principal, notes, created_at, updated_at) VALUES (gen_random_uuid(), \\'' + esc(tenantId) + '\\', \\'' + esc(reference) + '\\', \\'' + esc(nom) + '\\', \\'' + description + '\\', \\'' + clientId + '\\', \\'' + adresseChantier + '\\', \\'' + codePostal + '\\', \\'' + ville + '\\', \\'' + responsableId + '\\', \\'' + statut + '\\', ' + (dateDebut ? '\\'' + dateDebut + '\\'' : 'NULL') + ', ' + (dateFinPrevue ? '\\'' + dateFinPrevue + '\\'' : 'NULL') + ', ' + (dateFinReelle ? '\\'' + dateFinReelle + '\\'' : 'NULL') + ', ' + montantMarche + ', ' + montantFacture + ', ' + tauxAvancement + ', \\'' + esc(lotPrincipal) + '\\', \\'' + notes + '\\', NOW(), NOW()) RETURNING *'; return [{json: {query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.first().json; var chantier = rows.length > 0 ? rows[0] : null; if (!chantier) { return [{json: {success: false, error: 'Erreur lors de la création'}}]; } return [{json: {success: true, data: chantier}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

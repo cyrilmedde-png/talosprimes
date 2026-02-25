@@ -1,0 +1,55 @@
+{
+  "name": "Equipe - Dashboard (equipe-dashboard)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "equipe-dashboard", "responseMode": "responseNode", "options": {}},
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nconst query = `\nSELECT \n  (SELECT COUNT(*) FROM equipe_members WHERE tenant_id = '${esc(tenantId)}') as total_members,\n  (SELECT COUNT(*) FROM equipe_members WHERE tenant_id = '${esc(tenantId)}' AND actif = true) as active_members,\n  (SELECT COUNT(*) FROM equipe_absences WHERE tenant_id = '${esc(tenantId)}' AND DATE_TRUNC('month', date_debut) = DATE_TRUNC('month', NOW())) as absences_this_month,\n  (SELECT COALESCE(AVG(heures_travaillees), 0) FROM equipe_pointages WHERE tenant_id = '${esc(tenantId)}' AND DATE_TRUNC('month', date) = DATE_TRUNC('month', NOW())) as avg_hours_worked\n`;\n\nreturn [{json: {query: query}}];"},
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"},
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Failed to retrieve data'}}];\n}\nconst row = rows[0];\nconst dashboard = {\n  totalMembers: parseInt(row.total_members) || 0,\n  activeMembers: parseInt(row.active_members) || 0,\n  absencesThisMonth: parseInt(row.absences_this_month) || 0,\n  avgHoursWorked: parseFloat(row.avg_hours_worked) || 0\n};\n\nreturn [{json: {success: true, data: dashboard}}];"},
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ $json }}"},
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]},
+    "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]},
+    "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]},
+    "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}

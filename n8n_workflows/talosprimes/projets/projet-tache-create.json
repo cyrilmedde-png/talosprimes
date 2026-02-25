@@ -1,0 +1,18 @@
+{
+  "name": "Projets - Tâche Create (projet-tache-create)",
+  "nodes": [
+    {"parameters": {"httpMethod": "POST", "path": "projet-tache-create", "responseMode": "responseNode", "options": {}}, "id": "Webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [300, 300]},
+    {"parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!tenantId || !UUID_RE.test(tenantId)) throw new Error('Tenant ID requis');\nif (!data.projetId || !UUID_RE.test(String(data.projetId))) throw new Error('projetId requis');\nif (!data.titre) throw new Error('titre requis');\nfunction esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); }\n\nvar cols = ['tenant_id', 'projet_id', 'titre'];\nvar vals = [\"'\" + esc(tenantId) + \"'\", \"'\" + esc(data.projetId) + \"'\", \"'\" + esc(data.titre) + \"'\"];\nif (data.description) { cols.push('description'); vals.push(\"'\" + esc(data.description) + \"'\"); }\nif (data.assigneA) { cols.push('assigne_a'); vals.push(\"'\" + esc(data.assigneA) + \"'\"); }\nif (data.priorite) { cols.push('priorite'); vals.push(\"'\" + esc(data.priorite) + \"'\"); }\nif (data.statut) { cols.push('statut'); vals.push(\"'\" + esc(data.statut) + \"'\"); }\nif (data.dateEcheance) { cols.push('date_echeance'); vals.push(\"'\" + esc(data.dateEcheance) + \"'\"); }\nif (data.heuresEstimees !== undefined) { cols.push('heures_estimees'); vals.push(parseFloat(data.heuresEstimees)); }\nif (data.heuresReelles !== undefined) { cols.push('heures_reelles'); vals.push(parseFloat(data.heuresReelles)); }\nif (data.ordre !== undefined) { cols.push('ordre'); vals.push(parseFloat(data.ordre)); }\nif (data.parentId) { cols.push('parent_id'); vals.push(\"'\" + esc(data.parentId) + \"'\"); }\n\nvar query = \"INSERT INTO projet_taches (\" + cols.join(', ') + \") VALUES (\" + vals.join(', ') + \") RETURNING *\";\nreturn [{json: {query}}];"}, "id": "Parser", "name": "Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [520, 300]},
+    {"parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"}, "id": "Postgres", "name": "Postgres", "type": "n8n-nodes-base.postgres", "typeVersion": 2.4, "position": [740, 300], "alwaysOutputData": true, "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}},
+    {"parameters": {"jsCode": "var rows = $input.first().json;\nif (!rows || rows.length === 0) return [{json: {success: false, error: 'Création échouée'}}];\nreturn [{json: {success: true, data: rows[0]}}];"}, "id": "Format", "name": "Format", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [960, 300]},
+    {"parameters": {"respondWith": "json", "responseBody": "={{ $json }}"}, "id": "Respond", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1180, 300]}
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]},
+    "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]},
+    "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]},
+    "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}

@@ -1,0 +1,55 @@
+{
+  "name": "Equipe - Pointage Create (equipe-pointage-create)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "equipe-pointage-create", "responseMode": "responseNode", "options": {}},
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nconst fields = [];\nconst values = [];\nfields.push('tenant_id');\nvalues.push('\\'' + esc(tenantId) + '\\'');\n\nif (data.memberId) { fields.push('member_id'); values.push('\\'' + esc(data.memberId) + '\\''); }\nif (data.date) { fields.push('date'); values.push('\\'' + esc(data.date) + '\\''); }\nif (data.heureArrivee) { fields.push('heure_arrivee'); values.push('\\'' + esc(data.heureArrivee) + '\\''); }\nif (data.heureDepart) { fields.push('heure_depart'); values.push('\\'' + esc(data.heureDepart) + '\\''); }\nif (data.heuresPause !== undefined && data.heuresPause !== null) { fields.push('heures_pause'); values.push(data.heuresPause); }\nif (data.heuresTravaillees !== undefined && data.heuresTravaillees !== null) { fields.push('heures_travaillees'); values.push(data.heuresTravaillees); }\nif (data.note) { fields.push('note'); values.push('\\'' + esc(data.note) + '\\''); }\n\nconst query = 'INSERT INTO equipe_pointages (' + fields.join(', ') + ') VALUES (' + values.join(', ') + ') RETURNING id, tenant_id, member_id, date, heure_arrivee, heure_depart, heures_pause, heures_travaillees, note, created_at, updated_at';\n\nreturn [{json: {query: query}}];"},
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"},
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Failed to create'}}];\n}\nconst row = rows[0];\nconst item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  date: row.date,\n  heureArrivee: row.heure_arrivee,\n  heureDepart: row.heure_depart,\n  heuresPause: row.heures_pause,\n  heuresTravaillees: row.heures_travaillees,\n  note: row.note,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn [{json: {success: true, data: {item: item}}}];"},
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ $json }}"},
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]},
+    "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]},
+    "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]},
+    "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}

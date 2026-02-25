@@ -1,0 +1,55 @@
+{
+  "name": "Equipe - Membres List (equipe-membres-list)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "equipe-membres-list", "responseMode": "responseNode", "options": {}},
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nlet query = 'SELECT id, tenant_id, nom, prenom, email, poste, departement, contrat_type, date_embauche, salaire_base, manager, actif, user_id, created_at, updated_at FROM equipe_members WHERE tenant_id = \\'' + esc(tenantId) + '\\'';\n\nif (data.departement) {\n  query += ' AND departement = \\'' + esc(data.departement) + '\\'';\n}\nif (data.actif !== undefined && data.actif !== null) {\n  query += ' AND actif = ' + (data.actif === true || data.actif === 'true' ? 'true' : 'false');\n}\nif (data.search) {\n  const search = esc(data.search);\n  query += \" AND (nom ILIKE '%\" + search + \"%' OR prenom ILIKE '%\" + search + \"%' OR email ILIKE '%\" + search + \"%')\";\n}\n\nquery += ' ORDER BY nom, prenom ASC';\n\nreturn [{json: {query: query}}];"},
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"},
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.queryResults || [];\nconst items = rows.map(row => ({\n  id: row.id,\n  tenantId: row.tenant_id,\n  nom: row.nom,\n  prenom: row.prenom,\n  email: row.email,\n  poste: row.poste,\n  departement: row.departement,\n  contratType: row.contrat_type,\n  dateEmbauche: row.date_embauche,\n  salairesBase: row.salaire_base,\n  manager: row.manager,\n  actif: row.actif,\n  userId: row.user_id,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}));\n\nreturn [{json: {success: true, data: {items: items}}}];"},
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ $json }}"},
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]},
+    "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]},
+    "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]},
+    "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}
