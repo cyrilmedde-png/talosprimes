@@ -62,7 +62,9 @@ export default function TachesPage() {
         setLoading(true);
         setError(null);
         const response = await apiClient.projets.taches.list('');
-        setTaches(Array.isArray(response.data as unknown as Tache[]) ? (response.data as unknown as Tache[]) : []);
+        const raw = response.data as unknown as { success?: boolean; data?: Tache[] };
+        const tachesData = Array.isArray(raw?.data) ? raw.data : [];
+        setTaches(tachesData);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch tasks';
         setError(errorMessage);

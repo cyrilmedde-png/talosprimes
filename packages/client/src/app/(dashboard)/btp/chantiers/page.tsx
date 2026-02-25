@@ -60,8 +60,10 @@ export default function ChantiersPage() {
       try {
         setLoading({ isLoading: true, error: null });
         const response = await apiClient.btp.chantiers.list();
-        setChantiers(response.data as unknown as Chantier[]);
-        setFilteredChantiers(response.data as unknown as Chantier[]);
+        const raw = response.data as unknown as { success?: boolean; data?: Chantier[] };
+        const chantiersData = Array.isArray(raw?.data) ? raw.data : [];
+        setChantiers(chantiersData);
+        setFilteredChantiers(chantiersData);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to load chantiers';

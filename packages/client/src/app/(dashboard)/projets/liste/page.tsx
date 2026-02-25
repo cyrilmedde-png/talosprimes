@@ -57,7 +57,9 @@ export default function ProjetsList() {
         setLoading(true);
         setError(null);
         const response = await apiClient.projets.list();
-        setProjets(Array.isArray(response.data as unknown as Projet[]) ? (response.data as unknown as Projet[]) : []);
+        const raw = response.data as unknown as { success?: boolean; data?: Projet[] };
+        const projetsData = Array.isArray(raw?.data) ? raw.data : [];
+        setProjets(projetsData);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch projects';
         setError(errorMessage);

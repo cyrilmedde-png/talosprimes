@@ -37,7 +37,8 @@ export default function AbsencesPage(): JSX.Element {
       try {
         setLoading(true);
         const response = await apiClient.equipe.absences.list();
-        const absencesData = response.data as unknown as Absence[];
+        const raw = response.data as unknown as { success?: boolean; data?: { items?: Absence[] } };
+        const absencesData = raw?.data?.items ?? [];
         setAbsences(absencesData);
         setFilteredAbsences(absencesData);
         setError(null);

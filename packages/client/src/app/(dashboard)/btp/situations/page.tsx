@@ -58,15 +58,19 @@ export default function SituationsPage() {
           apiClient.btp.situations.list(''),
           apiClient.btp.chantiers.list(),
         ]);
-        setSituations(situationsRes.data as unknown as Situation[]);
-        setFilteredSituations(situationsRes.data as unknown as Situation[]);
-        setChantiers(chantiersRes.data as unknown as Chantier[]);
+        const rawSit = situationsRes.data as unknown as { success?: boolean; data?: Situation[] };
+        const sitData = Array.isArray(rawSit?.data) ? rawSit.data : [];
+        setSituations(sitData);
+        setFilteredSituations(sitData);
+        const rawCh = chantiersRes.data as unknown as { success?: boolean; data?: Chantier[] };
+        setChantiers(Array.isArray(rawCh?.data) ? rawCh.data : []);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to load data';
-        setLoading({ isLoading: false, error: errorMessage });
+        setLoading((prev) => ({ ...prev, isLoading: false, error: errorMessage }));
+        return;
       } finally {
-        setLoading({ isLoading: false, error: null });
+        setLoading((prev) => ({ ...prev, isLoading: false }));
       }
     };
 

@@ -32,7 +32,8 @@ export default function EquipeDashboard(): JSX.Element {
       try {
         setLoading(true);
         const response = await apiClient.equipe.dashboard();
-        setStats(response.data as unknown as DashboardStats);
+        const raw = response.data as unknown as { success?: boolean; data?: DashboardStats };
+        setStats(raw?.data ?? { totalMembres: 0, absencesEnCours: 0, pointagesAujourdhui: 0, tauxPresence: 0 });
         setError(null);
       } catch (err) {
         setError(

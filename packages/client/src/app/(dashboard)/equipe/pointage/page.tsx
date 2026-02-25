@@ -27,7 +27,8 @@ export default function PointagePage(): JSX.Element {
       try {
         setLoading(true);
         const response = await apiClient.equipe.pointages.list({ dateFrom: selectedDate });
-        setPointages(response.data as unknown as Pointage[]);
+        const raw = response.data as unknown as { success?: boolean; data?: { items?: Pointage[] } };
+        setPointages(raw?.data?.items ?? []);
         setError(null);
       } catch (err) {
         setError(

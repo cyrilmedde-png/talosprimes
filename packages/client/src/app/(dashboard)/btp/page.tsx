@@ -39,13 +39,20 @@ export default function BtpDashboard() {
       try {
         setLoading({ isLoading: true, error: null });
         const response = await apiClient.btp.dashboard();
-        setStats(response.data as unknown as BtpStats);
+        const raw = response.data as unknown as { success?: boolean; data?: BtpStats };
+        setStats(raw?.data ?? {
+          totalChantiers: 0,
+          enCoursCount: 0,
+          montantMarcheTotal: 0,
+          tauxAvancementMoyen: 0,
+        });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to load statistics';
-        setLoading({ isLoading: false, error: errorMessage });
+        setLoading((prev) => ({ ...prev, isLoading: false, error: errorMessage }));
+        return;
       } finally {
-        setLoading({ isLoading: false, error: null });
+        setLoading((prev) => ({ ...prev, isLoading: false }));
       }
     };
 
@@ -136,7 +143,7 @@ export default function BtpDashboard() {
         <h2 className="text-2xl font-bold text-white mb-4">Accès rapide</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Link
-            href="/dashboard/btp/chantiers"
+            href="/btp/chantiers"
             className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 text-center hover:bg-gray-800/40 transition-colors backdrop-blur-md"
           >
             <BuildingOffice2Icon className="mx-auto h-8 w-8 text-indigo-400" />
@@ -145,7 +152,7 @@ export default function BtpDashboard() {
           </Link>
 
           <Link
-            href="/dashboard/btp/situations"
+            href="/btp/situations"
             className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 text-center hover:bg-gray-800/40 transition-colors backdrop-blur-md"
           >
             <ChartBarIcon className="mx-auto h-8 w-8 text-green-400" />
@@ -154,7 +161,7 @@ export default function BtpDashboard() {
           </Link>
 
           <Link
-            href="/dashboard/btp/chantiers"
+            href="/btp/chantiers"
             className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 text-center hover:bg-gray-800/40 transition-colors backdrop-blur-md"
           >
             <CurrencyEuroIcon className="mx-auto h-8 w-8 text-purple-400" />

@@ -37,7 +37,8 @@ export default function ProjetsDashboard() {
         setLoading(true);
         setError(null);
         const response = await apiClient.projets.dashboard();
-        setStats(response.data);
+        const raw = response.data as unknown as { success?: boolean; dashboard?: Record<string, unknown> };
+        setStats(raw?.dashboard ?? null);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch statistics';
         setError(errorMessage);
