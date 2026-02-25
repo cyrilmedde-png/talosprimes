@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
@@ -12,7 +13,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as unknown as Record<string, unknown>,
+        payload: payload as Prisma.InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -27,7 +28,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as unknown as Record<string, unknown>,
+          donnees: donnees as Prisma.InputJsonValue,
         },
       });
     }
@@ -216,7 +217,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           leadId: body.leadId,
           channel: body.channel,
           status: 'en_cours',
-          questions: body.questions as unknown as Record<string, unknown>,
+          questions: questions as Prisma.InputJsonValue,
         },
         include: {
           lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
@@ -290,7 +291,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const updateData: Record<string, unknown> = {};
       if (body.status !== undefined) updateData.status = body.status;
       if (body.completedAt !== undefined) updateData.completedAt = body.completedAt ? new Date(body.completedAt) : null;
-      if (body.questions !== undefined) updateData.questions = body.questions as unknown as Record<string, unknown>;
+      if (body.questions !== undefined) updateData.questions = body.questions as Prisma.InputJsonValue;
 
       const updatedQuestionnaire = await prisma.questionnaire.update({
         where: { id: params.id },

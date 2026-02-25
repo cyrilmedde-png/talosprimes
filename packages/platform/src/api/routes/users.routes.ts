@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { z } from 'zod';
@@ -133,7 +134,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
-      const userData: Record<string, unknown> = {
+      const userData: Prisma.UserCreateInput = {
         tenantId,
         email: data.email,
         passwordHash,
