@@ -362,7 +362,7 @@ export const apiClient = {
     get: (id: string) =>
       authenticatedFetch<{ success: boolean; data: { invoice: Invoice } }>(`/api/invoices/${id}`),
     create: (data: {
-      clientFinalId: string;
+      clientFinalId?: string;
       type?: 'facture_entreprise' | 'facture_client_final' | 'facture_achat';
       montantHt: number;
       tvaTaux?: number;
