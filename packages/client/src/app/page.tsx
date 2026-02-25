@@ -129,6 +129,7 @@ export default function LandingPage() {
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-slate-500 text-sm hover:text-slate-900 transition">Fonctionnalités</a>
+            <Link href="/page/tarifs" className="text-slate-500 text-sm hover:text-slate-900 transition">Tarifs</Link>
             <a href="#testimonials" className="text-slate-500 text-sm hover:text-slate-900 transition">Témoignages</a>
             <a href="#contact" className="text-slate-500 text-sm hover:text-slate-900 transition">Contact</a>
             <Link href="/login" className="text-slate-500 text-sm hover:text-slate-900 transition">Connexion</Link>
@@ -149,6 +150,7 @@ export default function LandingPage() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-3 shadow-lg">
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Fonctionnalités</a>
+            <Link href="/page/tarifs" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Tarifs</Link>
             <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Témoignages</a>
             <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Contact</a>
             <div className="border-t border-slate-100 pt-3 space-y-2">
@@ -387,6 +389,7 @@ export default function LandingPage() {
               <h3 className="font-medium text-slate-300 text-xs mb-2">Produit</h3>
               <ul className="space-y-1.5 text-xs">
                 <li><a href="#features" className="hover:text-slate-200 transition">Fonctionnalités</a></li>
+                <li><Link href="/page/tarifs" className="hover:text-slate-200 transition">Tarifs</Link></li>
                 <li><a href="#testimonials" className="hover:text-slate-200 transition">Témoignages</a></li>
               </ul>
             </div>
