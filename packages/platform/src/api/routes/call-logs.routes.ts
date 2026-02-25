@@ -12,7 +12,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -27,7 +27,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as any,
+          donnees: { entiteType, entiteId, typeEvenement } as Record<string, unknown>,
         },
       });
     }
@@ -93,7 +93,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       const page = query.page ? parseInt(query.page, 10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ callLogs: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -175,7 +174,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         return reply.status(401).send({ success: false, error: 'Non authentifié' });
       }
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ stats: unknown }>(
           tenantId,
@@ -272,7 +270,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
 
       const params = paramsSchema.parse(request.params);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ callLog: unknown }>(
           tenantId,
@@ -387,9 +384,11 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'call_log_create', 'CallLog', 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'call_log_create', 'CallLog', 'unknown', { error: errorMessage } as Record<string, unknown>, 'erreur', errorMessage);
         }
-      } catch (_) {}
+      } catch {
+        // Error handling, continue
+      }
       if (error instanceof z.ZodError) {
         const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
         return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
@@ -451,9 +450,11 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'call_log_update', 'CallLog', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'call_log_update', 'CallLog', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage } as Record<string, unknown>, 'erreur', errorMessage);
         }
-      } catch (_) {}
+      } catch {
+        // Error handling, continue
+      }
       if (error instanceof z.ZodError) {
         const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
         return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
@@ -505,9 +506,11 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'call_log_delete', 'CallLog', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'call_log_delete', 'CallLog', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage } as Record<string, unknown>, 'erreur', errorMessage);
         }
-      } catch (_) {}
+      } catch {
+        // Error handling, continue
+      }
       if (error instanceof z.ZodError) {
         const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
         return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });

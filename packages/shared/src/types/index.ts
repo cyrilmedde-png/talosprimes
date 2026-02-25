@@ -152,7 +152,7 @@ export interface CallLog {
   calledNumber: string | null;
   duration: number;
   status: string;
-  conversationLog: any[];
+  conversationLog: unknown[];
   transcript: string | null;
   callerName: string | null;
   callerEmail: string | null;

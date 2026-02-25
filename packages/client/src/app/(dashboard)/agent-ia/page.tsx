@@ -77,10 +77,10 @@ export default function AgentIAPage() {
       try {
         const statsResponse = await apiClient.callLogs.stats();
         if (statsResponse.success && statsResponse.data) {
-          const statsData = statsResponse.data.stats || statsResponse.data;
+          const statsData = (statsResponse.data.stats || statsResponse.data) as unknown as DashboardStats;
           setStats(prev => ({ ...prev, ...statsData }));
           if (statsData.callsByDay && Array.isArray(statsData.callsByDay)) {
-            setCallsPerDay(statsData.callsByDay as CallsPerDay[]);
+            setCallsPerDay(statsData.callsByDay);
           }
         }
       } catch (statsErr) {
@@ -91,7 +91,8 @@ export default function AgentIAPage() {
       try {
         const callsResponse = await apiClient.callLogs.list();
         if (callsResponse.success && callsResponse.data) {
-          setCalls((callsResponse.data.callLogs || []).slice(0, 10) as Call[]);
+          const callLogs = (callsResponse.data as unknown as { callLogs?: Call[] }).callLogs || [];
+          setCalls(callLogs.slice(0, 10));
         }
       } catch (callsErr) {
         console.warn('[AgentIA] Appels indisponibles:', callsErr instanceof Error ? callsErr.message : callsErr);

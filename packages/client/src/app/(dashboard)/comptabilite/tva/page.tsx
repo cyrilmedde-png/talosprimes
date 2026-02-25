@@ -45,8 +45,9 @@ export default function TVAPage() {
       if (res.success && res.data) {
         setData(res.data);
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur de chargement');
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : 'Erreur de chargement';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

@@ -642,18 +642,18 @@ export const apiClient = {
       if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
       if (params?.dateTo) qp.append('dateTo', params.dateTo);
       const q = qp.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/dashboard${q ? `?${q}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/dashboard${q ? `?${q}` : ''}`);
     },
     // Initialisation (plan comptable + journaux + exercice)
     init: () =>
-      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/init', { method: 'POST' }),
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/init', { method: 'POST' }),
     // Plan comptable
     planComptable: (params?: { classe?: number; search?: string }) => {
       const qp = new URLSearchParams();
       if (params?.classe) qp.append('classe', params.classe.toString());
       if (params?.search) qp.append('search', params.search);
       const q = qp.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/plan-comptable${q ? `?${q}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/plan-comptable${q ? `?${q}` : ''}`);
     },
     // Écritures
     ecritures: {
@@ -666,12 +666,12 @@ export const apiClient = {
         if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
         if (params?.dateTo) qp.append('dateTo', params.dateTo);
         const q = qp.toString();
-        return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/ecritures${q ? `?${q}` : ''}`);
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/ecritures${q ? `?${q}` : ''}`);
       },
       get: (id: string) =>
-        authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/ecritures/${id}`),
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/ecritures/${id}`),
       create: (data: { journalCode: string; dateEcriture: string; libelle: string; lignes: { numeroCompte: string; libelleLigne: string; debit: number; credit: number }[] }) =>
-        authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/ecritures', { method: 'POST', body: JSON.stringify(data) }),
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/ecritures', { method: 'POST', body: JSON.stringify(data) }),
     },
     // Grand Livre
     grandLivre: (params?: { dateFrom?: string; dateTo?: string; compteFrom?: string; compteTo?: string }) => {
@@ -681,7 +681,7 @@ export const apiClient = {
       if (params?.compteFrom) qp.append('compteFrom', params.compteFrom);
       if (params?.compteTo) qp.append('compteTo', params.compteTo);
       const q = qp.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/grand-livre${q ? `?${q}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/grand-livre${q ? `?${q}` : ''}`);
     },
     // Balance
     balance: (params?: { dateFrom?: string; dateTo?: string }) => {
@@ -689,7 +689,7 @@ export const apiClient = {
       if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
       if (params?.dateTo) qp.append('dateTo', params.dateTo);
       const q = qp.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/balance${q ? `?${q}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/balance${q ? `?${q}` : ''}`);
     },
     // Bilan
     bilan: (params?: { dateFrom?: string; dateTo?: string }) => {
@@ -697,7 +697,7 @@ export const apiClient = {
       if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
       if (params?.dateTo) qp.append('dateTo', params.dateTo);
       const q = qp.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/bilan${q ? `?${q}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/bilan${q ? `?${q}` : ''}`);
     },
     // Compte de Résultat
     compteResultat: (params?: { dateFrom?: string; dateTo?: string }) => {
@@ -705,7 +705,7 @@ export const apiClient = {
       if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
       if (params?.dateTo) qp.append('dateTo', params.dateTo);
       const q = qp.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/compte-resultat${q ? `?${q}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/compte-resultat${q ? `?${q}` : ''}`);
     },
     // TVA
     tva: (params: { dateFrom: string; dateTo: string; typeDeclaration?: string }) => {
@@ -713,17 +713,17 @@ export const apiClient = {
       qp.append('dateFrom', params.dateFrom);
       qp.append('dateTo', params.dateTo);
       if (params.typeDeclaration) qp.append('typeDeclaration', params.typeDeclaration);
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/comptabilite/tva?${qp.toString()}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/tva?${qp.toString()}`);
     },
     // Agent IA Comptable
-    iaAgent: (data: { action: string; data?: any; question?: string; dateFrom?: string; dateTo?: string }) =>
-      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/ia-agent', { method: 'POST', body: JSON.stringify(data) }),
+    iaAgent: (data: { action: string; data?: Record<string, unknown>; question?: string; dateFrom?: string; dateTo?: string }) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/ia-agent', { method: 'POST', body: JSON.stringify(data) }),
     // Clôture
     cloture: (data: { exerciceId: string; confirme?: boolean }) =>
-      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/cloture', { method: 'POST', body: JSON.stringify(data) }),
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/cloture', { method: 'POST', body: JSON.stringify(data) }),
     // Lettrage
     lettrage: (data: { numeroCompte: string; ligneIds: string[] }) =>
-      authenticatedFetch<{ success: boolean; data: any }>('/api/comptabilite/lettrage', { method: 'POST', body: JSON.stringify(data) }),
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/lettrage', { method: 'POST', body: JSON.stringify(data) }),
   },
 
   // Logs
@@ -755,12 +755,12 @@ export const apiClient = {
       if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
       if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
       const query = queryParams.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/call-logs${query ? `?${query}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/call-logs${query ? `?${query}` : ''}`);
     },
     get: (id: string) =>
-      authenticatedFetch<{ success: boolean; data: any }>(`/api/call-logs/${id}`),
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/call-logs/${id}`),
     stats: () =>
-      authenticatedFetch<{ success: boolean; data: any }>('/api/call-logs/stats'),
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/call-logs/stats'),
     update: (id: string, data: { notes?: string; followUpDone?: boolean; status?: string }) =>
       authenticatedFetch<{ success: boolean }>(`/api/call-logs/${id}`, {
         method: 'PUT',
@@ -775,8 +775,8 @@ export const apiClient = {
   // Agent Téléphonique - Twilio Configuration
   twilioConfig: {
     get: () =>
-      authenticatedFetch<{ success: boolean; data: any }>('/api/twilio-config'),
-    update: (data: any) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/twilio-config'),
+    update: (data: Record<string, unknown>) =>
       authenticatedFetch<{ success: boolean }>('/api/twilio-config', {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -802,10 +802,10 @@ export const apiClient = {
       if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
       if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
       const query = queryParams.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/sms${query ? `?${query}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/sms${query ? `?${query}` : ''}`);
     },
     stats: () =>
-      authenticatedFetch<{ success: boolean; data: any }>('/api/sms/stats'),
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/sms/stats'),
     send: (data: { toNumber: string; body: string }) =>
       authenticatedFetch<{ success: boolean }>('/api/sms/send', {
         method: 'POST',
@@ -820,16 +820,16 @@ export const apiClient = {
       if (params?.status) queryParams.append('status', params.status);
       if (params?.channel) queryParams.append('channel', params.channel);
       const query = queryParams.toString();
-      return authenticatedFetch<{ success: boolean; data: any }>(`/api/questionnaires${query ? `?${query}` : ''}`);
+      return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/questionnaires${query ? `?${query}` : ''}`);
     },
     get: (id: string) =>
-      authenticatedFetch<{ success: boolean; data: any }>(`/api/questionnaires/${id}`),
-    create: (data: { leadId: string; questions: any[]; channel: string }) =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/questionnaires/${id}`),
+    create: (data: { leadId: string; questions: Record<string, unknown>[]; channel: string }) =>
       authenticatedFetch<{ success: boolean }>('/api/questionnaires', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    update: (id: string, data: any) =>
+    update: (id: string, data: Record<string, unknown>) =>
       authenticatedFetch<{ success: boolean }>(`/api/questionnaires/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),

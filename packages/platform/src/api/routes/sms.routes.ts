@@ -12,7 +12,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -27,7 +27,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as any,
+          donnees: { entiteType, entiteId, typeEvenement } as Record<string, unknown>,
         },
       });
     }
@@ -68,7 +68,6 @@ export async function smsRoutes(fastify: FastifyInstance) {
       const page = query.page ? parseInt(query.page, 10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ smsLogs: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -106,7 +105,7 @@ export async function smsRoutes(fastify: FastifyInstance) {
       if (query.startDate) where.createdAt = { gte: new Date(query.startDate) };
       if (query.endDate) {
         if (where.createdAt) {
-          (where.createdAt as any).lte = new Date(query.endDate);
+          (where.createdAt as Record<string, unknown>).lte = new Date(query.endDate);
         } else {
           where.createdAt = { lte: new Date(query.endDate) };
         }
@@ -144,7 +143,6 @@ export async function smsRoutes(fastify: FastifyInstance) {
         return reply.status(401).send({ success: false, error: 'Non authentifié' });
       }
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ totalSent: number; totalReceived: number; todayCount: number }>(
           tenantId,

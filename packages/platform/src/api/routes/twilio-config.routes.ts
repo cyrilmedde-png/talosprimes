@@ -13,7 +13,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -28,7 +28,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, typeEvenement } as any,
+          donnees: { entiteType, typeEvenement } as Record<string, unknown>,
         },
       });
     }
@@ -70,7 +70,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         return reply.status(401).send({ success: false, error: 'Non authentifié' });
       }
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
           tenantId,
@@ -100,8 +99,8 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         data: config,
       });
     } catch (error) {
-      const tenantId = (request as any).tenantId;
-      const fromN8n = (request as any).isN8nRequest === true;
+      const tenantId = (request as unknown as { tenantId: string }).tenantId;
+      const fromN8n = (request as unknown as { isN8nRequest?: boolean }).isN8nRequest === true;
       fastify.log.error(error, 'Erreur GET twilio config');
 
       if (fromN8n && tenantId) {
@@ -126,7 +125,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
 
       const body = updateTwilioConfigSchema.parse(request.body);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
           tenantId,
@@ -150,10 +148,10 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       }
       const config = await prisma.twilioConfig.upsert({
         where: { tenantId: tenantId! },
-        update: updateData as any,
+        update: updateData as Record<string, unknown>,
         create: {
           tenant: { connect: { id: tenantId! } },
-          ...updateData as any,
+          ...updateData as Record<string, unknown>,
         },
       });
 
@@ -164,13 +162,13 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         data: config,
       });
     } catch (error) {
-      const tenantId = (request as any).tenantId;
-      const fromN8n = (request as any).isN8nRequest === true;
+      const tenantId = (request as unknown as { tenantId: string }).tenantId;
+      const fromN8n = (request as unknown as { isN8nRequest?: boolean }).isN8nRequest === true;
       fastify.log.error(error, 'Erreur PUT twilio config');
 
       if (fromN8n && tenantId) {
-        const body = (request as any).body || {};
-        await logEvent(tenantId, 'twilio_config_update', 'twilio_config', tenantId, body, 'erreur', String(error));
+        const body = (request.body as Record<string, unknown>) || {};
+        await logEvent(tenantId, 'twilio_config_update', 'twilio_config', tenantId, body as Record<string, unknown>, 'erreur', String(error));
       }
 
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });
@@ -189,7 +187,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         return reply.status(401).send({ success: false, error: 'Non authentifié' });
       }
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
           tenantId,
@@ -214,8 +211,8 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         message: 'Test call triggered',
       });
     } catch (error) {
-      const tenantId = (request as any).tenantId;
-      const fromN8n = (request as any).isN8nRequest === true;
+      const tenantId = (request as unknown as { tenantId: string }).tenantId;
+      const fromN8n = (request as unknown as { isN8nRequest?: boolean }).isN8nRequest === true;
       fastify.log.error(error, 'Erreur test call twilio');
 
       if (fromN8n && tenantId) {
@@ -240,7 +237,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
 
       const body = outboundCallSchema.parse(request.body);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
           tenantId,
@@ -265,13 +261,13 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         message: 'Outbound call triggered',
       });
     } catch (error) {
-      const tenantId = (request as any).tenantId;
-      const fromN8n = (request as any).isN8nRequest === true;
+      const tenantId = (request as unknown as { tenantId: string }).tenantId;
+      const fromN8n = (request as unknown as { isN8nRequest?: boolean }).isN8nRequest === true;
       fastify.log.error(error, 'Erreur outbound call twilio');
 
       if (fromN8n && tenantId) {
-        const body = (request as any).body || {};
-        await logEvent(tenantId, 'twilio_outbound_call', 'twilio_config', tenantId, body, 'erreur', String(error));
+        const body = (request.body as Record<string, unknown>) || {};
+        await logEvent(tenantId, 'twilio_outbound_call', 'twilio_config', tenantId, body as Record<string, unknown>, 'erreur', String(error));
       }
 
       return reply.status(500).send({ success: false, error: 'Erreur serveur' });

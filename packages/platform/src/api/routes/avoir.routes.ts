@@ -14,7 +14,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -29,7 +29,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as any,
+          donnees: { entiteType, entiteId, typeEvenement } as Record<string, unknown>,
         },
       });
     }
@@ -83,7 +83,6 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       const page = query.page ? parseInt(query.page, 10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ avoir: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -157,7 +156,6 @@ export async function avoirRoutes(fastify: FastifyInstance) {
 
       const params = paramsSchema.parse(request.params);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ avoir: unknown }>(
           tenantId,
@@ -272,12 +270,12 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           description: avoir.description ?? undefined,
           statut: avoir.statut,
           motif: avoir.motif ?? undefined,
-          lines: avoir.lines.map((l: any) => ({
+          lines: avoir.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }) => ({
             codeArticle: l.codeArticle,
             designation: l.designation,
             quantite: l.quantite,
-            prixUnitaireHt: Number(l.prixUnitaireHt),
-            totalHt: Number(l.totalHt),
+            prixUnitaireHt: typeof l.prixUnitaireHt === 'object' && 'toNumber' in l.prixUnitaireHt ? l.prixUnitaireHt.toNumber() : Number(l.prixUnitaireHt),
+            totalHt: typeof l.totalHt === 'object' && 'toNumber' in l.totalHt ? l.totalHt.toNumber() : Number(l.totalHt),
           })),
           clientFinal: avoir.clientFinal ?? undefined,
           tenant: avoir.tenant ?? undefined,
@@ -540,7 +538,7 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'avoir_validate', 'Avoir', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'avoir_validate', 'Avoir', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -600,7 +598,7 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'avoir_delete', 'Avoir', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'avoir_delete', 'Avoir', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {

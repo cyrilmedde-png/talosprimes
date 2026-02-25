@@ -14,7 +14,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -29,7 +29,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as any,
+          donnees: { entiteType, entiteId, typeEvenement } as Record<string, unknown>,
         },
       });
     }
@@ -82,7 +82,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const page = query.page ? parseInt(query.page, 10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ bons: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -156,7 +155,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       const params = paramsSchema.parse(request.params);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ bon: unknown }>(
           tenantId,
@@ -272,12 +270,12 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           description: bon.description ?? undefined,
           modePaiement: bon.modePaiement ?? undefined,
           statut: bon.statut,
-          lines: bon.lines.map((l: any) => ({
+          lines: bon.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }) => ({
             codeArticle: l.codeArticle,
             designation: l.designation,
             quantite: l.quantite,
-            prixUnitaireHt: Number(l.prixUnitaireHt),
-            totalHt: Number(l.totalHt),
+            prixUnitaireHt: typeof l.prixUnitaireHt === 'object' && 'toNumber' in l.prixUnitaireHt ? l.prixUnitaireHt.toNumber() : Number(l.prixUnitaireHt),
+            totalHt: typeof l.totalHt === 'object' && 'toNumber' in l.totalHt ? l.totalHt.toNumber() : Number(l.totalHt),
           })),
           clientFinal: bon.clientFinal ?? undefined,
           tenant: bon.tenant ?? undefined,
@@ -505,7 +503,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'bdc_validate', 'BonCommande', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'bdc_validate', 'BonCommande', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -615,7 +613,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           statut: 'brouillon',
           ...(bon.lines.length > 0 ? {
             lines: {
-              create: bon.lines.map((l: any, i: number) => ({
+              create: bon.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }, i: number) => ({
                 codeArticle: l.codeArticle,
                 designation: l.designation,
                 quantite: l.quantite,
@@ -678,7 +676,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'bdc_convert_to_invoice', 'BonCommande', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'bdc_convert_to_invoice', 'BonCommande', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -743,7 +741,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'bdc_delete', 'BonCommande', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'bdc_delete', 'BonCommande', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {

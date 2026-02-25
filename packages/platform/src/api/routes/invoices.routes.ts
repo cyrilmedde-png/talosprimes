@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
@@ -16,7 +17,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -31,7 +32,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as any,
+          donnees: { entiteType, entiteId, typeEvenement } as Record<string, unknown>,
         },
       });
     }
@@ -212,7 +213,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         }
 
         if (queryParams.statut) {
-          (where as any).statut = queryParams.statut;
+          (where as Record<string, unknown>).statut = queryParams.statut;
         }
 
         if (queryParams.clientFinalId) {
@@ -220,12 +221,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         }
 
         if (queryParams.dateFrom || queryParams.dateTo) {
-          (where as any).dateFacture = {};
+          (where as Record<string, unknown>).dateFacture = {};
           if (queryParams.dateFrom) {
-            (where as any).dateFacture.gte = new Date(queryParams.dateFrom);
+            (where as Record<string, unknown>).dateFacture = { ...(where as Record<string, unknown>).dateFacture as Record<string, unknown>, gte: new Date(queryParams.dateFrom) };
           }
           if (queryParams.dateTo) {
-            (where as any).dateFacture.lte = new Date(queryParams.dateTo);
+            (where as Record<string, unknown>).dateFacture = { ...(where as Record<string, unknown>).dateFacture as Record<string, unknown>, lte: new Date(queryParams.dateTo) };
           }
         }
 
@@ -453,20 +454,20 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             description: invoice.description ?? undefined,
             modePaiement: invoice.modePaiement ?? undefined,
             statut: invoice.statut,
-            lines: invoice.lines.map((l: any) => ({
+            lines: invoice.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }) => ({
               codeArticle: l.codeArticle,
               designation: l.designation,
               quantite: l.quantite,
-              prixUnitaireHt: Number(l.prixUnitaireHt),
-              totalHt: Number(l.totalHt),
+              prixUnitaireHt: typeof l.prixUnitaireHt === 'object' && 'toNumber' in l.prixUnitaireHt ? l.prixUnitaireHt.toNumber() : Number(l.prixUnitaireHt),
+              totalHt: typeof l.totalHt === 'object' && 'toNumber' in l.totalHt ? l.totalHt.toNumber() : Number(l.totalHt),
             })),
             clientFinal: undefined,
             tenant: invoice.tenant ?? undefined,
             fournisseur: {
-              nom: (invoice as any).fournisseurNom ?? null,
-              siret: (invoice as any).fournisseurSiret ?? null,
-              tvaIntra: (invoice as any).fournisseurTvaIntra ?? null,
-              adresse: (invoice as any).fournisseurAdresse ?? null,
+              nom: typeof (invoice as Record<string, unknown>).fournisseurNom === 'string' ? (invoice as Record<string, unknown>).fournisseurNom as string : null,
+              siret: typeof (invoice as Record<string, unknown>).fournisseurSiret === 'string' ? (invoice as Record<string, unknown>).fournisseurSiret as string : null,
+              tvaIntra: typeof (invoice as Record<string, unknown>).fournisseurTvaIntra === 'string' ? (invoice as Record<string, unknown>).fournisseurTvaIntra as string : null,
+              adresse: typeof (invoice as Record<string, unknown>).fournisseurAdresse === 'string' ? (invoice as Record<string, unknown>).fournisseurAdresse as string : null,
             },
           };
           pdfBytes = await generateDocumentPdf(forPdf, 'facture_achat');
@@ -482,12 +483,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
             codeArticle: invoice.codeArticle ?? undefined,
             modePaiement: invoice.modePaiement ?? undefined,
             statut: invoice.statut,
-            lines: invoice.lines.map((l: any) => ({
+            lines: invoice.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }) => ({
               codeArticle: l.codeArticle,
               designation: l.designation,
               quantite: l.quantite,
-              prixUnitaireHt: Number(l.prixUnitaireHt),
-              totalHt: Number(l.totalHt),
+              prixUnitaireHt: typeof l.prixUnitaireHt === 'object' && 'toNumber' in l.prixUnitaireHt ? l.prixUnitaireHt.toNumber() : Number(l.prixUnitaireHt),
+              totalHt: typeof l.totalHt === 'object' && 'toNumber' in l.totalHt ? l.totalHt.toNumber() : Number(l.totalHt),
             })),
             clientFinal: invoice.clientFinal ?? undefined,
             tenant: invoice.tenant ?? undefined,
@@ -971,7 +972,7 @@ Règles :
           : new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
 
         // Transaction atomique : numérotation + création = pas de doublons
-        const invoice = await prisma.$transaction(async (tx: any) => {
+        const invoice = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           let numeroFacture = bodyWithoutTenantId.numeroFacture;
           if (!numeroFacture) {
             const year = new Date().getFullYear();
@@ -1218,7 +1219,7 @@ Règles :
         try {
           const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-            await logEvent(_tid, 'invoice_update', 'Invoice', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+            await logEvent(_tid, 'invoice_update', 'Invoice', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
           }
         } catch (_) {}
         if (error instanceof z.ZodError) {

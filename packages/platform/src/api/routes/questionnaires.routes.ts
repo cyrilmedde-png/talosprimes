@@ -12,7 +12,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as unknown as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -27,7 +27,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as any,
+          donnees: { entiteType, entiteId, typeEvenement } as unknown as Record<string, unknown>,
         },
       });
     }
@@ -73,7 +73,6 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const page = query.page ? parseInt(query.page, 10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ questionnaires: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -146,7 +145,6 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
 
       const params = paramsSchema.parse(request.params);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ questionnaire: unknown }>(
           tenantId,
@@ -218,7 +216,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           leadId: body.leadId,
           channel: body.channel,
           status: 'en_cours',
-          questions: body.questions as any,
+          questions: body.questions as unknown as Record<string, unknown>,
         },
         include: {
           lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
@@ -292,7 +290,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const updateData: Record<string, unknown> = {};
       if (body.status !== undefined) updateData.status = body.status;
       if (body.completedAt !== undefined) updateData.completedAt = body.completedAt ? new Date(body.completedAt) : null;
-      if (body.questions !== undefined) updateData.questions = body.questions as any;
+      if (body.questions !== undefined) updateData.questions = body.questions as unknown as Record<string, unknown>;
 
       const updatedQuestionnaire = await prisma.questionnaire.update({
         where: { id: params.id },

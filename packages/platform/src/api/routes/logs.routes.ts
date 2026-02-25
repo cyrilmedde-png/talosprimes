@@ -58,7 +58,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
         if (!res.success) {
           return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow logs_list indisponible' });
         }
-        const raw = res.data as any;
+        const raw = res.data as Record<string, unknown>;
         return reply.status(200).send({
           success: true,
           data: {
@@ -95,7 +95,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
       ]);
 
       const logsWithWorkflow = await Promise.all(
-        logs.map(async (log: any) => {
+        logs.map(async (log: typeof logs[0]) => {
           let workflow = 'other';
           if (WORKFLOW_EVENTS.leads.includes(log.typeEvenement)) {
             workflow = 'leads';

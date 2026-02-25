@@ -40,8 +40,9 @@ export default function SubscriptionModal({ isOpen, onClose, subscription, clien
         onSuccess?.();
         onClose();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors du renouvellement');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Erreur lors du renouvellement';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -64,8 +65,9 @@ export default function SubscriptionModal({ isOpen, onClose, subscription, clien
         onSuccess?.();
         onClose();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors de l\'annulation');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Erreur lors de l\'annulation';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -88,8 +90,9 @@ export default function SubscriptionModal({ isOpen, onClose, subscription, clien
         onSuccess?.();
         onClose();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors de la suspension');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Erreur lors de la suspension';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -107,8 +110,9 @@ export default function SubscriptionModal({ isOpen, onClose, subscription, clien
         onSuccess?.();
         onClose();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors de la réactivation');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Erreur lors de la réactivation';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -131,8 +135,9 @@ export default function SubscriptionModal({ isOpen, onClose, subscription, clien
         onSuccess?.();
         onClose();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors du changement de plan');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Erreur lors du changement de plan';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

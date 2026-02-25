@@ -72,7 +72,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       });
       
       // Transformer en objet clé-valeur pour faciliter l'accès
-      const contentMap = content.reduce((acc: any, item: any) => {
+      const contentMap = content.reduce((acc: Record<string, string>, item: typeof content[0]) => {
         acc[item.section] = item.contenu;
         return acc;
       }, {} as Record<string, string>);

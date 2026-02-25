@@ -78,8 +78,9 @@ export default function EcrituresPage() {
       if (res.success && res.data) {
         setData(res.data);
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur de chargement');
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : 'Erreur de chargement';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -116,8 +117,9 @@ export default function EcrituresPage() {
         });
         loadEcritures();
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur de création');
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : 'Erreur de création';
+      setError(errorMsg);
     }
   };
 
@@ -125,11 +127,12 @@ export default function EcrituresPage() {
     try {
       const res = await apiClient.comptabilite.ecritures.get(id);
       if (res.success && res.data) {
-        setDetailEcriture(res.data);
+        setDetailEcriture(res.data as unknown as Ecriture);
         setShowDetail(true);
       }
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : 'Erreur de chargement';
+      setError(errorMsg);
     }
   };
 
@@ -137,7 +140,7 @@ export default function EcrituresPage() {
     setForm(f => ({ ...f, lignes: [...f.lignes, { numeroCompte: '', libelleLigne: '', debit: 0, credit: 0 }] }));
   };
 
-  const updateLigne = (idx: number, field: string, value: any) => {
+  const updateLigne = (idx: number, field: string, value: unknown) => {
     setForm(f => ({
       ...f,
       lignes: f.lignes.map((l, i) => i === idx ? { ...l, [field]: value } : l),

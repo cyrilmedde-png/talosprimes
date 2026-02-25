@@ -14,7 +14,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as any,
+        payload: payload as Record<string, unknown>,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -29,7 +29,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as any,
+          donnees: { entiteType, entiteId, typeEvenement } as Record<string, unknown>,
         },
       });
     }
@@ -81,7 +81,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
       const page = query.page ? parseInt(query.page, 10) : 1;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ devis: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -155,7 +154,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
 
       const params = paramsSchema.parse(request.params);
 
-      // Appel frontend → tout passe par n8n, pas de fallback BDD
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ devis: unknown }>(
           tenantId,
@@ -271,12 +269,12 @@ export async function devisRoutes(fastify: FastifyInstance) {
           description: devis.description ?? undefined,
           modePaiement: devis.modePaiement ?? undefined,
           statut: devis.statut,
-          lines: devis.lines.map((l: any) => ({
+          lines: devis.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }) => ({
             codeArticle: l.codeArticle,
             designation: l.designation,
             quantite: l.quantite,
-            prixUnitaireHt: Number(l.prixUnitaireHt),
-            totalHt: Number(l.totalHt),
+            prixUnitaireHt: typeof l.prixUnitaireHt === 'object' && 'toNumber' in l.prixUnitaireHt ? l.prixUnitaireHt.toNumber() : Number(l.prixUnitaireHt),
+            totalHt: typeof l.totalHt === 'object' && 'toNumber' in l.totalHt ? l.totalHt.toNumber() : Number(l.totalHt),
           })),
           clientFinal: devis.clientFinal ?? undefined,
           tenant: devis.tenant ?? undefined,
@@ -473,7 +471,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'devis_send', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'devis_send', 'Devis', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -537,7 +535,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'devis_accept', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'devis_accept', 'Devis', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -612,7 +610,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
           statut: 'brouillon',
           ...(devis.lines.length > 0 ? {
             lines: {
-              create: devis.lines.map((l: any, i: number) => ({
+              create: devis.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }, i: number) => ({
                 codeArticle: l.codeArticle,
                 designation: l.designation,
                 quantite: l.quantite,
@@ -650,7 +648,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'devis_convert_to_invoice', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'devis_convert_to_invoice', 'Devis', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -723,7 +721,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
           statut: 'brouillon',
           ...(devis.lines.length > 0 ? {
             lines: {
-              create: devis.lines.map((l: any, i: number) => ({
+              create: devis.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: number | { toNumber(): number }; totalHt: number | { toNumber(): number } }, i: number) => ({
                 codeArticle: l.codeArticle,
                 designation: l.designation,
                 quantite: l.quantite,
@@ -753,7 +751,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'devis_convert_to_bdc', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'devis_convert_to_bdc', 'Devis', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
@@ -813,7 +811,7 @@ export async function devisRoutes(fastify: FastifyInstance) {
       try {
         const _tid = request.tenantId;
         if (request.isN8nRequest && _tid) {
-          await logEvent(_tid, 'devis_delete', 'Devis', (request.params as any)?.id || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
+          await logEvent(_tid, 'devis_delete', 'Devis', (request.params as Record<string, unknown>)?.id as string || 'unknown', { error: errorMessage }, 'erreur', errorMessage);
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {

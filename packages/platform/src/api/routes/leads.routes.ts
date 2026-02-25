@@ -425,7 +425,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Fallback local si non délégué à n8n
+      // Traitement local (n8n non configuré)
       const lead = await prisma.lead.findUnique({
         where: { id: params.id },
       });

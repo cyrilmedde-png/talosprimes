@@ -38,7 +38,7 @@ export default function ComptabilitePage() {
   const [success, setSuccess] = useState('');
   const [initializing, setInitializing] = useState(false);
   const [iaQuestion, setIaQuestion] = useState('');
-  const [iaResponse, setIaResponse] = useState<any>(null);
+  const [iaResponse, setIaResponse] = useState<Record<string, unknown> | string | null>(null);
   const [iaLoading, setIaLoading] = useState(false);
 
   const loadDashboard = useCallback(async () => {
@@ -52,7 +52,7 @@ export default function ComptabilitePage() {
       } else {
         setDashboard({ initialized: false });
       }
-    } catch (e: any) {
+    } catch {
       // Si pas initialisé, proposer l'initialisation
       setDashboard({ initialized: false });
     } finally {
@@ -73,10 +73,12 @@ export default function ComptabilitePage() {
         setDashboard(prev => ({ ...prev, initialized: true, kpis: res.data?.kpis || prev?.kpis }));
         await loadDashboard();
       } else {
-        setError((res as any).error || 'Erreur lors de l\'initialisation');
+        const errorMsg = (res as Record<string, unknown>)?.error || 'Erreur lors de l\'initialisation';
+        setError(typeof errorMsg === 'string' ? errorMsg : 'Erreur lors de l\'initialisation');
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur lors de l\'initialisation');
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : 'Erreur lors de l\'initialisation';
+      setError(errorMsg);
     } finally {
       setInitializing(false);
     }
@@ -91,8 +93,8 @@ export default function ComptabilitePage() {
       if (res.success && res.data) {
         setIaResponse(res.data);
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur IA');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erreur IA');
     } finally {
       setIaLoading(false);
     }
@@ -106,8 +108,9 @@ export default function ComptabilitePage() {
       if (res.success && res.data) {
         setIaResponse(res.data);
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur IA');
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : 'Erreur IA';
+      setError(errorMsg);
     } finally {
       setIaLoading(false);
     }

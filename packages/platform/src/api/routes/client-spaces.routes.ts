@@ -47,7 +47,7 @@ function normalizeClientSpaceFromN8n(row: Record<string, unknown>): Record<strin
 
 /**
  * Routes pour la gestion des espaces clients
- * Toutes les routes passent par n8n — pas de fallback Prisma
+ * Toutes les routes passent par n8n
  */
 export async function clientSpacesRoutes(fastify: FastifyInstance) {
 

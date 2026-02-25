@@ -52,7 +52,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          users: users.map((user: any) => ({
+          users: users.map((user: typeof users[0]) => ({
             id: user.id,
             email: user.email,
             role: user.role,
@@ -133,7 +133,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
-      const userData: any = {
+      const userData: Record<string, unknown> = {
         tenantId,
         email: data.email,
         passwordHash,
@@ -232,8 +232,8 @@ export async function usersRoutes(fastify: FastifyInstance) {
       }
 
       // Mettre à jour l'utilisateur
-      const updateData: any = {};
-      
+      const updateData: Record<string, unknown> = {};
+
       if (data.email) updateData.email = data.email;
       if (data.role) updateData.role = data.role;
       if (data.statut) updateData.statut = data.statut as 'actif' | 'inactif';

@@ -77,7 +77,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, traiter directement (fallback)
+        // Traitement direct (USE_N8N_COMMANDS=false)
         const subscription = await prisma.clientSubscription.findUnique({
           where: { id: body.subscriptionId },
           include: { clientFinal: true },
@@ -163,7 +163,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, traiter directement (fallback)
+        // Traitement direct (USE_N8N_COMMANDS=false)
         const updated = await prisma.clientSubscription.update({
           where: { id: body.subscriptionId },
           data: { statut: 'annule' },
@@ -232,7 +232,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, traiter directement (fallback)
+        // Traitement direct (USE_N8N_COMMANDS=false)
         const updated = await prisma.clientSubscription.update({
           where: { id: body.subscriptionId },
           data: {
@@ -305,7 +305,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, traiter directement (fallback)
+        // Traitement direct (USE_N8N_COMMANDS=false)
         const subscription = await prisma.clientSubscription.update({
           where: { id: body.subscriptionId },
           data: { statut: 'suspendu' },
@@ -509,7 +509,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         }
 
         if (queryParams.statut) {
-          (where as any).statut = queryParams.statut;
+          (where as Record<string, unknown>).statut = queryParams.statut;
         }
 
         const subscriptions = await prisma.clientSubscription.findMany({

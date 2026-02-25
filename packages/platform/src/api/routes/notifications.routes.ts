@@ -112,7 +112,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           if (!res.success) {
             return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow notifications_list indisponible' });
           }
-          const raw = res.data as any;
+          const raw = res.data as Record<string, unknown>;
           return reply.status(200).send({
             success: true,
             data: {

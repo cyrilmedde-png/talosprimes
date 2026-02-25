@@ -216,7 +216,7 @@ export class N8nService {
 
       // 2. Déterminer le chemin webhook :
       //    - Si WorkflowLink trouvé → utiliser workflowN8nId (résolu via aliases)
-      //    - Sinon → fallback sur WEBHOOK_PATH_ALIASES (permet aux tenants sans seed de fonctionner)
+      //    - Sinon → utiliser WEBHOOK_PATH_ALIASES (permet aux tenants sans seed de fonctionner)
       let webhookPath: string;
       if (workflowLink) {
         webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
@@ -226,7 +226,7 @@ export class N8nService {
           return { success: false, error: `Workflow non trouvé pour ${eventType}` };
         }
         webhookPath = aliasPath;
-        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), fallback sur alias: ${webhookPath}`);
+        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), résolution via alias: ${webhookPath}`);
       }
 
       const headers: Record<string, string> = {
@@ -311,7 +311,7 @@ export class N8nService {
         },
       });
 
-      // Déterminer le chemin webhook (avec fallback sur aliases si pas de WorkflowLink)
+      // Déterminer le chemin webhook (via aliases si pas de WorkflowLink)
       let webhookPath: string;
       if (workflowLink) {
         webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
@@ -322,7 +322,7 @@ export class N8nService {
           return { success: true, workflowId: undefined };
         }
         webhookPath = aliasPath;
-        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), fallback sur alias: ${webhookPath}`);
+        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), résolution via alias: ${webhookPath}`);
       }
 
       // Préparer le payload pour n8n — à plat + data wrapper pour compatibilité
@@ -457,7 +457,7 @@ export class N8nService {
         },
       });
 
-      return workflowLinks.map((link: any) => ({
+      return workflowLinks.map((link: typeof workflowLinks[0]) => ({
         id: link.workflowN8nId,
         name: link.workflowN8nNom,
       }));

@@ -13,8 +13,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
 
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_init', {});
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -31,8 +32,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
         dateFrom: query.dateFrom, dateTo: query.dateTo,
       });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -49,8 +51,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
         classe: query.classe ? parseInt(query.classe) : undefined, search: query.search,
       });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -72,8 +75,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
         dateTo: query.dateTo,
       });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -88,8 +92,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_ecriture_get', { ecritureId: id });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -101,11 +106,12 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
       if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
 
-      const body = request.body as any;
+      const body = request.body as Record<string, unknown>;
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_ecriture_create', { ...body });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -120,8 +126,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const query = request.query as { dateFrom?: string; dateTo?: string; compteFrom?: string; compteTo?: string };
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_grand_livre', { ...query });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -136,8 +143,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const query = request.query as { dateFrom?: string; dateTo?: string };
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_balance', { ...query });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -152,8 +160,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const query = request.query as { dateFrom?: string; dateTo?: string };
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_bilan', { ...query });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -168,8 +177,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const query = request.query as { dateFrom?: string; dateTo?: string };
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_compte_resultat', { ...query });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -187,8 +197,9 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       }
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_tva', { ...query });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -200,13 +211,14 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
       if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
 
-      const body = request.body as any;
+      const body = request.body as Record<string, unknown>;
       if (!body.action) return reply.status(400).send({ success: false, error: 'action requise' });
 
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_ia_agent', { ...body });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -218,13 +230,14 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
       if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
 
-      const body = request.body as any;
+      const body = request.body as Record<string, unknown>;
       if (!body.exerciceId) return reply.status(400).send({ success: false, error: 'exerciceId requis' });
 
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_cloture', { ...body });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 
@@ -236,15 +249,16 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
       if (!tenantId) return reply.status(401).send({ success: false, error: 'Non authentifié' });
 
-      const body = request.body as any;
+      const body = request.body as Record<string, unknown>;
       if (!body.numeroCompte || !body.ligneIds) {
         return reply.status(400).send({ success: false, error: 'numeroCompte et ligneIds requis' });
       }
 
       const result = await n8nService.callWorkflowReturn(tenantId, 'compta_lettrage', { ...body });
       return reply.send(result);
-    } catch (error: any) {
-      return reply.status(500).send({ success: false, error: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return reply.status(500).send({ success: false, error: message });
     }
   });
 }

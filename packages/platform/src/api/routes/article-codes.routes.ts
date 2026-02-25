@@ -57,7 +57,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
           return reply.status(401).send({ success: false, error: 'Non authentifié' });
         }
 
-        // Appel frontend → tout passe par n8n, pas de fallback BDD
         if (!fromN8n && tenantId) {
           const res = await n8nService.callWorkflowReturn<{ articles: unknown[] }>(
             tenantId,
@@ -121,7 +120,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
           return reply.status(403).send({ success: false, error: 'Accès refusé' });
         }
 
-        // Appel frontend → déléguer à n8n, pas de fallback
         if (!fromN8n) {
           const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
             tenantId,
@@ -207,7 +205,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ success: false, error: 'Code article non trouvé' });
         }
 
-        // Appel frontend → déléguer à n8n, pas de fallback
         if (!fromN8n) {
           if (!tenantId) return reply.status(401).send({ success: false, error: 'Tenant manquant' });
           const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
@@ -296,7 +293,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ success: false, error: 'Code article non trouvé' });
         }
 
-        // Appel frontend → déléguer à n8n, pas de fallback
         if (!fromN8n) {
           if (!tenantId) return reply.status(401).send({ success: false, error: 'Tenant manquant' });
           const res = await n8nService.callWorkflowReturn<{ success: boolean }>(

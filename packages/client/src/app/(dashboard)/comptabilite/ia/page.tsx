@@ -33,11 +33,11 @@ export default function IAComptablePage() {
       if (res.success && res.data) {
         const content = typeof res.data === 'string'
           ? res.data
-          : res.data.resultat || res.data.reponse || res.data.rapport || JSON.stringify(res.data, null, 2);
+          : (((res.data as unknown as Record<string, unknown>).resultat as string | undefined) || ((res.data as unknown as Record<string, unknown>).reponse as string | undefined) || ((res.data as unknown as Record<string, unknown>).rapport as string | undefined) || JSON.stringify(res.data, null, 2)) as string;
         setMessages(prev => [...prev, { role: 'assistant', content, timestamp: new Date() }]);
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
       setLoading(false);
     }
