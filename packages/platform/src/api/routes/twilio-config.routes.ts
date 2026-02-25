@@ -29,7 +29,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: donnees as Prisma.InputJsonValue,
+          donnees: { entiteType, typeEvenement } as Prisma.InputJsonValue,
         },
       });
     }

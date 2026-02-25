@@ -28,7 +28,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: donnees as Prisma.InputJsonValue,
+          donnees: { entiteType, entiteId, typeEvenement } as Prisma.InputJsonValue,
         },
       });
     }
@@ -217,7 +217,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           leadId: body.leadId,
           channel: body.channel,
           status: 'en_cours',
-          questions: questions as Prisma.InputJsonValue,
+          questions: body.questions as Prisma.InputJsonValue,
         },
         include: {
           lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
