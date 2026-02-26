@@ -110,6 +110,7 @@ export default function CMSPage() {
   const loadContent = async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       setContent(data);
       setEditingContent(data);
@@ -124,6 +125,7 @@ export default function CMSPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/testimonials/all`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       setTestimonials(data);
     } catch (error) {
@@ -137,6 +139,7 @@ export default function CMSPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/contact`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       setMessages(data);
     } catch (error) {
