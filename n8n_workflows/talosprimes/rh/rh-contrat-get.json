@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Not found'}}];\n}\nconst row = rows[0];\nreturn [{json: {success: true, data: {\n  id: row.id,\n  memberId: row.member_id,\n  membreNom: (row.membre_nom || '') + ' ' + (row.membre_prenom || ''),\n  type: row.type,\n  statut: row.statut,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  salaireBase: row.salaire_base,\n  poste: row.poste,\n  departement: row.departement,\n  avantages: row.avantages,\n  clauseParticuliere: row.clause_particuliere,\n  motifFin: row.motif_fin,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}}}];"
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Not found'}}];\n}\nconst row = rows[0];\nreturn [{json: {success: true, data: {\n  id: row.id,\n  memberId: row.member_id,\n  membreNom: (row.membre_nom || '') + ' ' + (row.membre_prenom || ''),\n  type: row.type,\n  statut: row.statut,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  salaireBase: Number(row.salaire_base || 0),\n  poste: row.poste,\n  departement: row.departement,\n  avantages: row.avantages,\n  clauseParticuliere: row.clause_particuliere,\n  motifFin: row.motif_fin,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}}}];"
       },
       "id": "Format",
       "name": "Format",

@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Not found'}}];\n}\nconst row = rows[0];\nreturn [{json: {success: true, data: {\n  id: row.id,\n  memberId: row.member_id,\n  membreNom: (row.membre_nom || '') + ' ' + (row.membre_prenom || ''),\n  mois: row.mois,\n  annee: row.annee,\n  salaireBase: row.salaire_base,\n  primes: row.primes,\n  deductions: row.deductions,\n  chargesPatronales: row.charges_patronales,\n  chargesSalariales: row.charges_salariales,\n  netAPayer: row.net_a_payer,\n  netImposable: row.net_imposable,\n  statut: row.statut,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}}}];"
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Not found'}}];\n}\nconst row = rows[0];\nreturn [{json: {success: true, data: {\n  id: row.id,\n  memberId: row.member_id,\n  membreNom: (row.membre_nom || '') + ' ' + (row.membre_prenom || ''),\n  mois: Number(row.mois || 0),\n  annee: Number(row.annee || 0),\n  salaireBase: Number(row.salaire_base || 0),\n  primes: Number(row.primes || 0),\n  deductions: Number(row.deductions || 0),\n  chargesPatronales: Number(row.charges_patronales || 0),\n  chargesSalariales: Number(row.charges_salariales || 0),\n  netAPayer: Number(row.net_a_payer || 0),\n  netImposable: Number(row.net_imposable || 0),\n  statut: row.statut,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}}}];"
       },
       "id": "Format",
       "name": "Format",

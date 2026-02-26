@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Failed to register member for formation' }}];\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  formationId: r.formation_id,\n  membreId: r.member_id,\n  dateInscription: r.date_inscription,\n  presence: r.presence,\n  noteFormation: r.note_formation,\n  commentaire: r.commentaire\n};\nreturn [{json: { success: true, data: result }}];"
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Failed to register member for formation' }}];\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  formationId: r.formation_id,\n  membreId: r.member_id,\n  dateInscription: r.date_inscription,\n  presence: r.presence,\n  noteFormation: Number(r.note_formation || 0),\n  commentaire: r.commentaire\n};\nreturn [{json: { success: true, data: result }}];"
       },
       "id": "Format",
       "name": "Format",
