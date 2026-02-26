@@ -12,7 +12,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -22,7 +25,10 @@
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 300]
+      "position": [
+        520,
+        300
+      ]
     },
     {
       "parameters": {
@@ -33,7 +39,10 @@
       "name": "Postgres",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [740, 300],
+      "position": [
+        740,
+        300
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -44,13 +53,16 @@
     },
     {
       "parameters": {
-        "jsCode": "var rows = $input.first().json;\nvar items = rows.map(function(row) {\n  return {\n    id: row.id,\n    tenantId: row.tenant_id,\n    memberId: row.member_id,\n    membreNom: row.membreNom,\n    type: row.type,\n    titre: row.titre,\n    description: row.description,\n    fichierUrl: row.fichier_url,\n    tailleFichier: row.taille_fichier,\n    createdAt: row.created_at,\n    updatedAt: row.updated_at\n  };\n});\n\nreturn {success: true, data: items};"
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nvar items = rows.map(function(row) {\n  return {\n    id: row.id,\n    tenantId: row.tenant_id,\n    memberId: row.member_id,\n    membreNom: row.membreNom,\n    type: row.type,\n    titre: row.titre,\n    description: row.description,\n    fichierUrl: row.fichier_url,\n    tailleFichier: row.taille_fichier,\n    createdAt: row.created_at,\n    updatedAt: row.updated_at\n  };\n});\n\nreturn [{json: {success: true, data: items}}];"
       },
       "id": "Format",
       "name": "Format",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 300]
+      "position": [
+        960,
+        300
+      ]
     },
     {
       "parameters": {
@@ -61,21 +73,56 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1180, 300]
+      "position": [
+        1180,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Parser", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parser": {
-      "main": [[{"node": "Postgres", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres": {
-      "main": [[{"node": "Format", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format": {
-      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,

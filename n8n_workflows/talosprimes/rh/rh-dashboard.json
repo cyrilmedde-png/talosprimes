@@ -1,15 +1,132 @@
 {
   "name": "RH - Dashboard (/rh/dashboard)",
   "nodes": [
-    {"parameters": {"httpMethod": "POST", "path": "rh/dashboard", "responseMode": "responseNode", "options": {}}, "id": "Webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [300, 300]},
-    {"parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar tid = esc(tenantId);\nvar query = \"SELECT (SELECT COUNT(*) FROM equipe_members WHERE tenant_id = '\" + tid + \"' AND actif = true) as effectif_total, (SELECT COUNT(*) FROM rh_contrats WHERE tenant_id = '\" + tid + \"' AND statut = 'actif') as contrats_actifs, (SELECT COUNT(*) FROM rh_conges WHERE tenant_id = '\" + tid + \"' AND statut = 'en_attente') as conges_en_attente, (SELECT COUNT(*) FROM rh_formations WHERE tenant_id = '\" + tid + \"' AND statut = 'en_cours') as formations_en_cours, (SELECT COUNT(*) FROM rh_evaluations WHERE tenant_id = '\" + tid + \"' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW())) as evaluations_ce_mois, (SELECT COALESCE(SUM(salaire_base), 0) FROM rh_contrats WHERE tenant_id = '\" + tid + \"' AND statut = 'actif') as masse_salariale, (SELECT COALESCE(COUNT(*) FILTER (WHERE statut = 'approuve' AND date_debut <= NOW() AND date_fin >= NOW()) * 100.0 / NULLIF((SELECT COUNT(*) FROM equipe_members WHERE tenant_id = '\" + tid + \"' AND actif = true), 0), 0) FROM rh_conges WHERE tenant_id = '\" + tid + \"') as taux_absenteisme\";\n\nreturn { query: query };"},
-    "id": "Parser", "name": "Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [520, 300]},
-    {"parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"}, "id": "Postgres", "name": "Postgres", "type": "n8n-nodes-base.postgres", "typeVersion": 2.4, "position": [740, 300], "alwaysOutputData": true, "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}},
-    {"parameters": {"jsCode": "var rows = $input.first().json.rows || [];\nif (rows.length === 0) {\n  return { success: false, error: 'Failed to fetch dashboard data' };\n}\nvar r = rows[0];\nvar result = {\n  effectifTotal: r.effectif_total || 0,\n  contratsActifs: r.contrats_actifs || 0,\n  congesEnAttente: r.conges_en_attente || 0,\n  formationsEnCours: r.formations_en_cours || 0,\n  evaluationsCeMois: r.evaluations_ce_mois || 0,\n  masseSalariale: r.masse_salariale || 0,\n  tauxAbsenteisme: Number(r.taux_absenteisme || 0).toFixed(2)\n};\nreturn { success: true, data: result };"},
-    "id": "Format", "name": "Format", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [960, 300]},
-    {"parameters": {"respondWith": "json", "responseBody": "={{ $json }}"}, "id": "Respond", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1180, 300]}
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rh/dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar tid = esc(tenantId);\nvar query = \"SELECT (SELECT COUNT(*) FROM equipe_members WHERE tenant_id = '\" + tid + \"' AND actif = true) as effectif_total, (SELECT COUNT(*) FROM rh_contrats WHERE tenant_id = '\" + tid + \"' AND statut = 'actif') as contrats_actifs, (SELECT COUNT(*) FROM rh_conges WHERE tenant_id = '\" + tid + \"' AND statut = 'en_attente') as conges_en_attente, (SELECT COUNT(*) FROM rh_formations WHERE tenant_id = '\" + tid + \"' AND statut = 'en_cours') as formations_en_cours, (SELECT COUNT(*) FROM rh_evaluations WHERE tenant_id = '\" + tid + \"' AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW())) as evaluations_ce_mois, (SELECT COALESCE(SUM(salaire_base), 0) FROM rh_contrats WHERE tenant_id = '\" + tid + \"' AND statut = 'actif') as masse_salariale, (SELECT COALESCE(COUNT(*) FILTER (WHERE statut = 'approuve' AND date_debut <= NOW() AND date_fin >= NOW()) * 100.0 / NULLIF((SELECT COUNT(*) FROM equipe_members WHERE tenant_id = '\" + tid + \"' AND actif = true), 0), 0) FROM rh_conges WHERE tenant_id = '\" + tid + \"') as taux_absenteisme\";\n\nreturn { query: query };"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        740,
+        300
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Failed to fetch dashboard data' }}];\n}\nvar r = rows[0];\nvar result = {\n  effectifTotal: r.effectif_total || 0,\n  contratsActifs: r.contrats_actifs || 0,\n  congesEnAttente: r.conges_en_attente || 0,\n  formationsEnCours: r.formations_en_cours || 0,\n  evaluationsCeMois: r.evaluations_ce_mois || 0,\n  masseSalariale: r.masse_salariale || 0,\n  tauxAbsenteisme: Number(r.taux_absenteisme || 0).toFixed(2)\n};\nreturn [{json: { success: true, data: result }}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        300
+      ]
+    }
   ],
-  "connections": {"Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]}, "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]}, "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]}, "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "active": true,
-  "settings": {"executionOrder": "v1"}
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

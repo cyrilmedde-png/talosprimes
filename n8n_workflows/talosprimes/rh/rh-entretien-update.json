@@ -1,15 +1,132 @@
 {
   "name": "RH - Entretien Update (/rh/entretien/update)",
   "nodes": [
-    {"parameters": {"httpMethod": "POST", "path": "rh/entretien/update", "responseMode": "responseNode", "options": {}}, "id": "Webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [300, 300]},
-    {"parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar id = data.id ? esc(String(data.id)) : null;\nif (!id) throw new Error('Missing id');\n\nvar updates = [];\nif (data.type !== undefined) updates.push(\"type = '\" + esc(String(data.type)) + \"'\");\nif (data.dateEntretien !== undefined) updates.push(\"date_entretien = '\" + esc(String(data.dateEntretien)) + \"'\");\nif (data.evaluateur !== undefined) updates.push(\"evaluateur = '\" + esc(String(data.evaluateur)) + \"'\");\nif (data.compteRendu !== undefined) updates.push(\"compte_rendu = '\" + esc(String(data.compteRendu)) + \"'\");\nif (data.objectifs !== undefined) updates.push(\"objectifs = '\" + esc(String(data.objectifs)) + \"'\");\nif (data.pointsForts !== undefined) updates.push(\"points_forts = '\" + esc(String(data.pointsForts)) + \"'\");\nif (data.axesAmelioration !== undefined) updates.push(\"axes_amelioration = '\" + esc(String(data.axesAmelioration)) + \"'\");\nif (data.statut !== undefined) updates.push(\"statut = '\" + esc(String(data.statut)) + \"'\");\n\nif (updates.length === 0) throw new Error('No fields to update');\n\nvar query = \"UPDATE rh_entretiens SET \" + updates.join(', ') + \", updated_at = NOW() WHERE id = '\" + id + \"' AND tenant_id = '\" + esc(tenantId) + \"' RETURNING *\";\n\nreturn { query: query };"},
-    "id": "Parser", "name": "Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [520, 300]},
-    {"parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"}, "id": "Postgres", "name": "Postgres", "type": "n8n-nodes-base.postgres", "typeVersion": 2.4, "position": [740, 300], "alwaysOutputData": true, "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}},
-    {"parameters": {"jsCode": "var rows = $input.first().json.rows || [];\nif (rows.length === 0) {\n  return { success: false, error: 'Entretien not found' };\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  membreId: r.member_id,\n  type: r.type,\n  dateEntretien: r.date_entretien,\n  evaluateur: r.evaluateur,\n  compteRendu: r.compte_rendu,\n  objectifs: r.objectifs,\n  pointsForts: r.points_forts,\n  axesAmelioration: r.axes_amelioration,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn { success: true, data: result };"},
-    "id": "Format", "name": "Format", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [960, 300]},
-    {"parameters": {"respondWith": "json", "responseBody": "={{ $json }}"}, "id": "Respond", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1180, 300]}
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rh/entretien/update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar id = data.id ? esc(String(data.id)) : null;\nif (!id) throw new Error('Missing id');\n\nvar updates = [];\nif (data.type !== undefined) updates.push(\"type = '\" + esc(String(data.type)) + \"'\");\nif (data.dateEntretien !== undefined) updates.push(\"date_entretien = '\" + esc(String(data.dateEntretien)) + \"'\");\nif (data.evaluateur !== undefined) updates.push(\"evaluateur = '\" + esc(String(data.evaluateur)) + \"'\");\nif (data.compteRendu !== undefined) updates.push(\"compte_rendu = '\" + esc(String(data.compteRendu)) + \"'\");\nif (data.objectifs !== undefined) updates.push(\"objectifs = '\" + esc(String(data.objectifs)) + \"'\");\nif (data.pointsForts !== undefined) updates.push(\"points_forts = '\" + esc(String(data.pointsForts)) + \"'\");\nif (data.axesAmelioration !== undefined) updates.push(\"axes_amelioration = '\" + esc(String(data.axesAmelioration)) + \"'\");\nif (data.statut !== undefined) updates.push(\"statut = '\" + esc(String(data.statut)) + \"'\");\n\nif (updates.length === 0) throw new Error('No fields to update');\n\nvar query = \"UPDATE rh_entretiens SET \" + updates.join(', ') + \", updated_at = NOW() WHERE id = '\" + id + \"' AND tenant_id = '\" + esc(tenantId) + \"' RETURNING *\";\n\nreturn { query: query };"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        740,
+        300
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Entretien not found' }}];\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  membreId: r.member_id,\n  type: r.type,\n  dateEntretien: r.date_entretien,\n  evaluateur: r.evaluateur,\n  compteRendu: r.compte_rendu,\n  objectifs: r.objectifs,\n  pointsForts: r.points_forts,\n  axesAmelioration: r.axes_amelioration,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn [{json: { success: true, data: result }}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        300
+      ]
+    }
   ],
-  "connections": {"Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]}, "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]}, "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]}, "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "active": true,
-  "settings": {"executionOrder": "v1"}
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "RH - Congé Rejeter (/rh/conge/rejeter)",
+  "name": "RH - Cong\u00e9 Rejeter (/rh/conge/rejeter)",
   "nodes": [
     {
       "parameters": {
@@ -12,7 +12,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [
+        300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -22,7 +25,10 @@
       "name": "Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [520, 300]
+      "position": [
+        520,
+        300
+      ]
     },
     {
       "parameters": {
@@ -33,7 +39,10 @@
       "name": "Postgres",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [740, 300],
+      "position": [
+        740,
+        300
+      ],
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -44,13 +53,16 @@
     },
     {
       "parameters": {
-        "jsCode": "var rows = $input.first().json;\n\nif (!rows || rows.length === 0) {\n  return {success: false, message: 'Not found'};\n}\n\nvar row = rows[0];\nvar item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  type: row.type,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  joursPris: row.jours_pris,\n  motif: row.motif,\n  statut: row.statut,\n  approuvePar: row.approuve_par,\n  dateReponse: row.date_reponse,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn {success: true, data: item};"
+        "jsCode": "const rows = $input.first().json.queryResults || [];\n\nif (!rows || rows.length === 0) {\n  return [{json: {success: false, message: 'Not found'}}];\n}\n\nvar row = rows[0];\nvar item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  type: row.type,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  joursPris: row.jours_pris,\n  motif: row.motif,\n  statut: row.statut,\n  approuvePar: row.approuve_par,\n  dateReponse: row.date_reponse,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn [{json: {success: true, data: item}}];"
       },
       "id": "Format",
       "name": "Format",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 300]
+      "position": [
+        960,
+        300
+      ]
     },
     {
       "parameters": {
@@ -61,21 +73,56 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1180, 300]
+      "position": [
+        1180,
+        300
+      ]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Parser", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parser": {
-      "main": [[{"node": "Postgres", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Postgres": {
-      "main": [[{"node": "Format", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format": {
-      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
