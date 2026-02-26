@@ -12,13 +12,20 @@ import {
 
 interface Membre {
   id: string;
+  tenantId: string;
   nom: string;
   prenom: string;
   email: string;
   poste: string;
   departement: string;
-  contrat: string;
-  statut: string;
+  contratType: string;
+  dateEmbauche: string;
+  salairesBase: number;
+  manager: string;
+  actif: boolean;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function MembresPage(): JSX.Element {
@@ -198,17 +205,17 @@ export default function MembresPage(): JSX.Element {
                     {membre.departement}
                   </td>
                   <td className="px-6 py-4 text-sm text-white">
-                    {membre.contrat}
+                    {membre.contratType}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span
                       className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                        membre.statut === 'Actif'
+                        membre.actif
                           ? 'bg-green-500/20 text-green-400'
                           : 'bg-gray-500/20 text-gray-300'
                       }`}
                     >
-                      {membre.statut}
+                      {membre.actif ? 'Actif' : 'Inactif'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">

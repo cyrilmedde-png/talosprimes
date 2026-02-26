@@ -40,7 +40,9 @@ export default function BtpDashboard() {
         setLoading({ isLoading: true, error: null });
         const response = await apiClient.btp.dashboard();
         const raw = response.data as unknown as { success: boolean; data: BtpStats };
-        setStats(raw.data);
+        if (raw.data) {
+          setStats(raw.data);
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to load statistics';

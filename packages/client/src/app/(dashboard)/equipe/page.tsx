@@ -11,18 +11,18 @@ import {
 } from '@heroicons/react/24/outline';
 
 interface DashboardStats {
-  totalMembres: number;
-  absencesEnCours: number;
-  pointagesAujourdhui: number;
-  tauxPresence: number;
+  totalMembers: number;
+  activeMembers: number;
+  absencesThisMonth: number;
+  avgHoursWorked: number;
 }
 
 export default function EquipeDashboard(): JSX.Element {
   const [stats, setStats] = useState<DashboardStats>({
-    totalMembres: 0,
-    absencesEnCours: 0,
-    pointagesAujourdhui: 0,
-    tauxPresence: 0,
+    totalMembers: 0,
+    activeMembers: 0,
+    absencesThisMonth: 0,
+    avgHoursWorked: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,13 +72,13 @@ export default function EquipeDashboard(): JSX.Element {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        {/* Total Membres */}
+        {/* Total Members */}
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-400">Total Membres</p>
               <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
-                {stats.totalMembres}
+                {stats.totalMembers}
               </p>
             </div>
             <div className="rounded-lg bg-blue-500/20 p-3">
@@ -87,15 +87,32 @@ export default function EquipeDashboard(): JSX.Element {
           </div>
         </div>
 
-        {/* Absences en cours */}
+        {/* Active Members */}
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-400">
-                Absences en cours
+                Membres Actifs
               </p>
               <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
-                {stats.absencesEnCours}
+                {stats.activeMembers}
+              </p>
+            </div>
+            <div className="rounded-lg bg-green-500/20 p-3">
+              <CheckCircleIcon className="h-6 w-6 text-green-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Absences This Month */}
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium text-gray-400">
+                Absences ce mois
+              </p>
+              <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
+                {stats.absencesThisMonth}
               </p>
             </div>
             <div className="rounded-lg bg-red-500/20 p-3">
@@ -104,36 +121,19 @@ export default function EquipeDashboard(): JSX.Element {
           </div>
         </div>
 
-        {/* Pointages Aujourd'hui */}
+        {/* Average Hours Worked */}
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs sm:text-sm font-medium text-gray-400">
-                Pointages aujourd'hui
+                Heures moyennes
               </p>
               <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
-                {stats.pointagesAujourdhui}
-              </p>
-            </div>
-            <div className="rounded-lg bg-green-500/20 p-3">
-              <ClockIcon className="h-6 w-6 text-green-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Taux de présence */}
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-3 sm:p-6 backdrop-blur-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-400">
-                Taux de présence
-              </p>
-              <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
-                {stats.tauxPresence}%
+                {stats.avgHoursWorked.toFixed(1)}h
               </p>
             </div>
             <div className="rounded-lg bg-purple-500/20 p-3">
-              <CheckCircleIcon className="h-6 w-6 text-purple-400" />
+              <ClockIcon className="h-6 w-6 text-purple-400" />
             </div>
           </div>
         </div>

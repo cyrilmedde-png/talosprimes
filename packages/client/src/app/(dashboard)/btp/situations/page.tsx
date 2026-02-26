@@ -59,9 +59,8 @@ export default function SituationsPage() {
           apiClient.btp.chantiers.list(),
         ]);
         const rawSit = situationsRes.data as unknown as { success: boolean; data: Situation[] };
-        const sitData = rawSit.data;
-        setSituations(sitData);
-        setFilteredSituations(sitData);
+        setSituations(rawSit.data);
+        setFilteredSituations(rawSit.data);
         const rawCh = chantiersRes.data as unknown as { success: boolean; data: Chantier[] };
         setChantiers(rawCh.data);
       } catch (error) {

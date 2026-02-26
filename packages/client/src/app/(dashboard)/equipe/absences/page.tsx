@@ -10,12 +10,16 @@ import {
 
 interface Absence {
   id: string;
-  membre: string;
+  tenantId: string;
+  membreId: string;
+  membreNom: string;
   type: string;
   dateDebut: string;
   dateFin: string;
   motif: string;
   statut: string;
+  approuvePar: string;
+  createdAt: string;
 }
 
 type AbsenceType = 'Congé' | 'Maladie' | 'Autre';
@@ -208,7 +212,7 @@ export default function AbsencesPage(): JSX.Element {
                 return (
                   <tr key={absence.id} className="border-b border-gray-700 hover:bg-gray-700/50">
                     <td className="px-6 py-4 text-sm text-white">
-                      {absence.membre}
+                      {absence.membreNom}
                     </td>
                     <td className="px-6 py-4 text-sm text-white">
                       {absence.type}

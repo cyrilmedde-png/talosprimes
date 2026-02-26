@@ -6,12 +6,15 @@ import { PlusIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 interface Pointage {
   id: string;
-  membre: string;
+  tenantId: string;
+  membreId: string;
+  membreNom: string;
   date: string;
-  arrivee: string;
-  depart: string;
-  pause: number;
+  heureArrivee: string;
+  heureDepart: string;
   heuresTravaillees: number;
+  statut: string;
+  createdAt: string;
 }
 
 export default function PointagePage(): JSX.Element {
@@ -123,7 +126,7 @@ export default function PointagePage(): JSX.Element {
               pointages.map((pointage) => (
                 <tr key={pointage.id} className="border-b border-gray-700 hover:bg-gray-700/50">
                   <td className="px-6 py-4 text-sm text-white">
-                    {pointage.membre}
+                    {pointage.membreNom}
                   </td>
                   <td className="px-6 py-4 text-sm text-white">
                     {new Date(pointage.date).toLocaleDateString('fr-FR')}
@@ -131,17 +134,17 @@ export default function PointagePage(): JSX.Element {
                   <td className="px-6 py-4 text-sm text-white">
                     <div className="flex items-center space-x-2">
                       <ClockIcon className="h-4 w-4 text-gray-400" />
-                      <span>{formatTime(pointage.arrivee)}</span>
+                      <span>{formatTime(pointage.heureArrivee)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-white">
                     <div className="flex items-center space-x-2">
                       <ClockIcon className="h-4 w-4 text-gray-400" />
-                      <span>{formatTime(pointage.depart)}</span>
+                      <span>{formatTime(pointage.heureDepart)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-white">
-                    {pointage.pause}
+                    0
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center space-x-1 rounded-lg bg-indigo-500/20 px-3 py-1 text-sm font-semibold text-indigo-400">
@@ -174,9 +177,9 @@ export default function PointagePage(): JSX.Element {
           </p>
         </div>
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-4 backdrop-blur-md">
-          <p className="text-xs sm:text-sm font-medium text-gray-400">Pause totale</p>
+          <p className="text-xs sm:text-sm font-medium text-gray-400">Validés</p>
           <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
-            {pointages.reduce((acc, p) => acc + p.pause, 0)} min
+            {pointages.filter((p) => p.statut === 'valide').length}
           </p>
         </div>
       </div>
