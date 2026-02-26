@@ -9,6 +9,9 @@ import {
   CalendarIcon,
   CurrencyEuroIcon,
   UserGroupIcon,
+  PencilIcon,
+  TrashIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 
 interface Projet {
@@ -43,6 +46,17 @@ const STATUT_LABELS: Record<Projet['statut'], string> = {
   annule: 'Annulé',
 };
 
+interface ProjetFormData {
+  nom: string;
+  description: string;
+  client: string;
+  statut: Projet['statut'];
+  budget: number;
+  dateDebut: string;
+  dateFin: string;
+  [key: string]: string | number | boolean | null;
+}
+
 export default function ProjetsList() {
   const [projets, setProjets] = useState<Projet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,24 +64,37 @@ export default function ProjetsList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatut, setSelectedStatut] = useState<Projet['statut'] | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingProjet, setEditingProjet] = useState<Projet | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<ProjetFormData>({
+    nom: '',
+    description: '',
+    client: '',
+    statut: 'brouillon' as Projet['statut'],
+    budget: 0,
+    dateDebut: '',
+    dateFin: '',
+  });
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiClient.projets.list();
+      const raw = response.data as unknown as { success: boolean; data: Projet[] };
+      setProjets(raw.data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch projects';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProjets = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await apiClient.projets.list();
-        const raw = response.data as unknown as { success: boolean; data: Projet[] };
-        setProjets(raw.data);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch projects';
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProjets();
+    fetchData();
   }, []);
 
   const filteredProjets = projets.filter((projet) => {
@@ -89,13 +116,83 @@ export default function ProjetsList() {
     return new Date(date).toLocaleDateString('fr-FR');
   };
 
+  const openCreateModal = () => {
+    setEditingProjet(null);
+    setFormData({
+      nom: '',
+      description: '',
+      client: '',
+      statut: 'brouillon',
+      budget: 0,
+      dateDebut: '',
+      dateFin: '',
+    });
+    setShowModal(true);
+  };
+
+  const openEditModal = (projet: Projet) => {
+    setEditingProjet(projet);
+    setFormData({
+      nom: projet.nom,
+      description: projet.description,
+      client: projet.client,
+      statut: projet.statut,
+      budget: projet.budget,
+      dateDebut: projet.dateDebut,
+      dateFin: projet.dateFin,
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      if (editingProjet) {
+        await apiClient.projets.update(editingProjet.id, formData);
+      } else {
+        await apiClient.projets.create(formData);
+      }
+      setShowModal(false);
+      await fetchData();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save project';
+      setError(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      setDeletingId(id);
+      setError(null);
+      await apiClient.projets.delete(id);
+      await fetchData();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete project';
+      setError(errorMessage);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Projets</h1>
-          <p className="mt-2 text-sm text-gray-400">Gérez tous vos projets en un seul endroit</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Projets</h1>
+            <p className="mt-2 text-sm text-gray-400">Gérez tous vos projets en un seul endroit</p>
+          </div>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors"
+          >
+            <PlusIcon className="w-5 h-5" />
+            Nouveau Projet
+          </button>
         </div>
 
         {/* Error State */}
@@ -224,14 +321,35 @@ export default function ProjetsList() {
                             {formatDate(projet.dateFin)}
                           </span>
                         </div>
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : projet.id)}
-                          className="text-indigo-400 hover:text-indigo-300"
-                        >
-                          <ChevronDownIcon
-                            className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                          />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEditModal(projet)}
+                            className="text-blue-400 hover:text-blue-300 transition-colors p-1"
+                            title="Modifier"
+                          >
+                            <PencilIcon className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
+                                handleDelete(projet.id);
+                              }
+                            }}
+                            disabled={deletingId === projet.id}
+                            className="text-red-400 hover:text-red-300 transition-colors p-1 disabled:opacity-50"
+                            title="Supprimer"
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => setExpandedId(isExpanded ? null : projet.id)}
+                            className="text-indigo-400 hover:text-indigo-300"
+                          >
+                            <ChevronDownIcon
+                              className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Expanded Details */}
@@ -259,6 +377,111 @@ export default function ProjetsList() {
           </>
         )}
       </div>
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-white mb-6">
+                {editingProjet ? 'Modifier Projet' : 'Créer Projet'}
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Nom</label>
+                  <input
+                    type="text"
+                    value={formData.nom}
+                    onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Nom du projet"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Description du projet"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Client</label>
+                  <input
+                    type="text"
+                    value={formData.client}
+                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Nom du client"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Statut</label>
+                  <select
+                    value={formData.statut}
+                    onChange={(e) => setFormData({ ...formData, statut: e.target.value as Projet['statut'] })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="brouillon">Brouillon</option>
+                    <option value="planifie">Planifié</option>
+                    <option value="en_cours">En Cours</option>
+                    <option value="en_pause">En Pause</option>
+                    <option value="termine">Terminé</option>
+                    <option value="annule">Annulé</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Budget (€)</label>
+                  <input
+                    type="number"
+                    value={formData.budget}
+                    onChange={(e) => setFormData({ ...formData, budget: parseFloat(e.target.value) })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="0"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Date Début</label>
+                  <input
+                    type="date"
+                    value={formData.dateDebut}
+                    onChange={(e) => setFormData({ ...formData, dateDebut: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">Date Fin</label>
+                  <input
+                    type="date"
+                    value={formData.dateFin}
+                    onChange={(e) => setFormData({ ...formData, dateFin: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md disabled:opacity-50 transition-colors"
+                >
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,78 +9,64 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 
-interface Membre {
+interface Contrat {
   id: string;
   tenantId: string;
-  nom: string;
-  prenom: string;
-  email: string;
+  membreId: string;
+  membreNom: string;
+  type: 'CDI' | 'CDD' | 'Interim' | 'Stage';
+  dateDebut: string;
+  dateFin: string;
+  salaireBase: number;
   poste: string;
   departement: string;
-  contratType: string;
-  dateEmbauche: string;
-  salairesBase: number;
-  manager: string;
-  actif: boolean;
-  userId: string;
+  statut: 'actif' | 'termine' | 'suspendu';
   createdAt: string;
-  updatedAt: string;
 }
 
-interface MembreFormData {
-  nom: string;
-  prenom: string;
-  email: string;
+interface ContratFormData {
+  membreId: string;
+  type: string;
+  dateDebut: string;
+  dateFin: string;
+  salaireBase: number;
   poste: string;
   departement: string;
-  contratType: string;
-  dateEmbauche: string;
-  salairesBase: number;
-  manager: string;
-  actif: boolean;
   [key: string]: string | number | boolean | null;
 }
 
-const contratTypes = ['CDI', 'CDD', 'Intérim', 'Stage', 'Alternance'];
+const contratTypes = ['CDI', 'CDD', 'Interim', 'Stage'];
+const statutOptions = ['actif', 'termine', 'suspendu'];
 
-export default function MembresPage(): JSX.Element {
-  const [membres, setMembres] = useState<Membre[]>([]);
-  const [filteredMembres, setFilteredMembres] = useState<Membre[]>([]);
+export default function ContratsPage(): JSX.Element {
+  const [contrats, setContrats] = useState<Contrat[]>([]);
+  const [filteredContrats, setFilteredContrats] = useState<Contrat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDepartement, setSelectedDepartement] = useState('');
-  const [departements, setDepartements] = useState<string[]>([]);
+  const [selectedType, setSelectedType] = useState('');
+  const [selectedStatut, setSelectedStatut] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingMembre, setEditingMembre] = useState<Membre | null>(null);
+  const [editingContrat, setEditingContrat] = useState<Contrat | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<MembreFormData>({
-    nom: '',
-    prenom: '',
-    email: '',
+  const [formData, setFormData] = useState<ContratFormData>({
+    membreId: '',
+    type: 'CDI',
+    dateDebut: '',
+    dateFin: '',
+    salaireBase: 0,
     poste: '',
     departement: '',
-    contratType: 'CDI',
-    dateEmbauche: '',
-    salairesBase: 0,
-    manager: '',
-    actif: true,
   });
 
-  const fetchMembres = async (): Promise<void> => {
+  const fetchContrats = async (): Promise<void> => {
     try {
       setLoading(true);
-      const response = await apiClient.equipe.membres.list();
-      const raw = response.data as unknown as { success: boolean; data: { items: Membre[] } };
-      const membresData = raw.data.items;
-      setMembres(membresData);
-      setFilteredMembres(membresData);
-
-      const uniqueDepts = Array.from(
-        new Set(membresData.map((m) => m.departement))
-      ).sort();
-      setDepartements(uniqueDepts);
+      const response = await apiClient.rh.contrats.list();
+      const raw = response.data as unknown as { success: boolean; data: Contrat[] };
+      setContrats(raw.data);
+      setFilteredContrats(raw.data);
       setError(null);
     } catch (err) {
       setError(
@@ -92,60 +78,53 @@ export default function MembresPage(): JSX.Element {
   };
 
   useEffect(() => {
-    fetchMembres();
+    fetchContrats();
   }, []);
 
   useEffect(() => {
-    let filtered = membres;
+    let filtered = contrats;
 
     if (searchTerm) {
-      filtered = filtered.filter(
-        (m) =>
-          m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.email.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter((c) =>
+        c.membreNom.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    if (selectedDepartement) {
-      filtered = filtered.filter(
-        (m) => m.departement === selectedDepartement
-      );
+    if (selectedType) {
+      filtered = filtered.filter((c) => c.type === selectedType);
     }
 
-    setFilteredMembres(filtered);
-  }, [searchTerm, selectedDepartement, membres]);
+    if (selectedStatut) {
+      filtered = filtered.filter((c) => c.statut === selectedStatut);
+    }
+
+    setFilteredContrats(filtered);
+  }, [searchTerm, selectedType, selectedStatut, contrats]);
 
   const handleCreate = (): void => {
-    setEditingMembre(null);
+    setEditingContrat(null);
     setFormData({
-      nom: '',
-      prenom: '',
-      email: '',
+      membreId: '',
+      type: 'CDI',
+      dateDebut: '',
+      dateFin: '',
+      salaireBase: 0,
       poste: '',
       departement: '',
-      contratType: 'CDI',
-      dateEmbauche: '',
-      salairesBase: 0,
-      manager: '',
-      actif: true,
     });
     setShowModal(true);
   };
 
-  const handleEdit = (membre: Membre): void => {
-    setEditingMembre(membre);
+  const handleEdit = (contrat: Contrat): void => {
+    setEditingContrat(contrat);
     setFormData({
-      nom: membre.nom,
-      prenom: membre.prenom,
-      email: membre.email,
-      poste: membre.poste,
-      departement: membre.departement,
-      contratType: membre.contratType,
-      dateEmbauche: membre.dateEmbauche,
-      salairesBase: membre.salairesBase,
-      manager: membre.manager,
-      actif: membre.actif,
+      membreId: contrat.membreId,
+      type: contrat.type,
+      dateDebut: contrat.dateDebut,
+      dateFin: contrat.dateFin,
+      salaireBase: contrat.salaireBase,
+      poste: contrat.poste,
+      departement: contrat.departement,
     });
     setShowModal(true);
   };
@@ -153,13 +132,13 @@ export default function MembresPage(): JSX.Element {
   const handleSave = async (): Promise<void> => {
     setSaving(true);
     try {
-      if (editingMembre) {
-        await apiClient.equipe.membres.update(editingMembre.id, formData);
+      if (editingContrat) {
+        await apiClient.rh.contrats.update(editingContrat.id, formData);
       } else {
-        await apiClient.equipe.membres.create(formData);
+        await apiClient.rh.contrats.create(formData);
       }
       setShowModal(false);
-      await fetchMembres();
+      await fetchContrats();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
@@ -168,15 +147,43 @@ export default function MembresPage(): JSX.Element {
   };
 
   const handleDelete = async (id: string): Promise<void> => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce membre ?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce contrat ?')) return;
     setDeletingId(id);
     try {
-      await apiClient.equipe.membres.delete(id);
-      await fetchMembres();
+      await apiClient.rh.contrats.delete(id);
+      await fetchContrats();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la suppression');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const getTypeBadgeColor = (type: string): string => {
+    switch (type) {
+      case 'CDI':
+        return 'bg-green-500/20 text-green-400';
+      case 'CDD':
+        return 'bg-blue-500/20 text-blue-400';
+      case 'Interim':
+        return 'bg-amber-500/20 text-amber-400';
+      case 'Stage':
+        return 'bg-purple-500/20 text-purple-400';
+      default:
+        return 'bg-gray-500/20 text-gray-400';
+    }
+  };
+
+  const getStatutBadgeColor = (statut: string): string => {
+    switch (statut) {
+      case 'actif':
+        return 'bg-green-500/20 text-green-400';
+      case 'termine':
+        return 'bg-gray-500/20 text-gray-400';
+      case 'suspendu':
+        return 'bg-red-500/20 text-red-400';
+      default:
+        return 'bg-gray-500/20 text-gray-400';
     }
   };
 
@@ -192,9 +199,9 @@ export default function MembresPage(): JSX.Element {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Membres</h1>
+          <h1 className="text-3xl font-bold text-white">Contrats de travail</h1>
           <p className="mt-2 text-sm text-gray-400">
-            Gestion des membres de l'équipe
+            Gestion des contrats de travail
           </p>
         </div>
         <button
@@ -202,7 +209,7 @@ export default function MembresPage(): JSX.Element {
           className="flex items-center space-x-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
-          <span>Ajouter un membre</span>
+          <span>Nouveau contrat</span>
         </button>
       </div>
 
@@ -214,29 +221,43 @@ export default function MembresPage(): JSX.Element {
 
       {/* Filters */}
       <div className="space-y-4 bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md mb-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* Search */}
           <div className="relative">
             <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher par nom ou email..."
+              placeholder="Rechercher par nom..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
-          {/* Department Filter */}
+          {/* Type Filter */}
           <select
-            value={selectedDepartement}
-            onChange={(e) => setSelectedDepartement(e.target.value)}
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
             className="bg-gray-800 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">Tous les départements</option>
-            {departements.map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
+            <option value="">Tous les types</option>
+            {contratTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+
+          {/* Statut Filter */}
+          <select
+            value={selectedStatut}
+            onChange={(e) => setSelectedStatut(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Tous les statuts</option>
+            {statutOptions.map((statut) => (
+              <option key={statut} value={statut}>
+                {statut.charAt(0).toUpperCase() + statut.slice(1)}
               </option>
             ))}
           </select>
@@ -249,13 +270,10 @@ export default function MembresPage(): JSX.Element {
           <thead className="bg-gray-700/50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
-                Nom
+                Membre
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
-                Prénom
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
-                Email
+                Type
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Poste
@@ -264,7 +282,13 @@ export default function MembresPage(): JSX.Element {
                 Département
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
-                Contrat
+                Salaire
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
+                Début
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
+                Fin
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase">
                 Statut
@@ -275,56 +299,58 @@ export default function MembresPage(): JSX.Element {
             </tr>
           </thead>
           <tbody>
-            {filteredMembres.length === 0 ? (
+            {filteredContrats.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                  Aucun membre trouvé
+                <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                  Aucun contrat trouvé
                 </td>
               </tr>
             ) : (
-              filteredMembres.map((membre) => (
-                <tr key={membre.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+              filteredContrats.map((contrat) => (
+                <tr key={contrat.id} className="border-b border-gray-700 hover:bg-gray-700/50">
                   <td className="px-6 py-4 text-sm text-white">
-                    {membre.nom}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-white">
-                    {membre.prenom}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">
-                    {membre.email}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-white">
-                    {membre.poste}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-white">
-                    {membre.departement}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-white">
-                    {membre.contratType}
+                    {contrat.membreNom}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                        membre.actif
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-gray-500/20 text-gray-300'
-                      }`}
-                    >
-                      {membre.actif ? 'Actif' : 'Inactif'}
+                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getTypeBadgeColor(contrat.type)}`}>
+                      {contrat.type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-white">
+                    {contrat.poste}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-white">
+                    {contrat.departement}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-white">
+                    {contrat.salaireBase.toLocaleString('fr-FR', {
+                      style: 'currency',
+                      currency: 'EUR',
+                    })}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-300">
+                    {new Date(contrat.dateDebut).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-300">
+                    {new Date(contrat.dateFin).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatutBadgeColor(contrat.statut)}`}>
+                      {contrat.statut.charAt(0).toUpperCase() + contrat.statut.slice(1)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => handleEdit(membre)}
+                        onClick={() => handleEdit(contrat)}
                         className="text-indigo-400 transition-colors hover:text-indigo-300"
                         title="Modifier"
                       >
                         <PencilSquareIcon className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(membre.id)}
-                        disabled={deletingId === membre.id}
+                        onClick={() => handleDelete(contrat.id)}
+                        disabled={deletingId === contrat.id}
                         className="text-red-400 transition-colors hover:text-red-300 disabled:opacity-50"
                         title="Supprimer"
                       >
@@ -341,7 +367,7 @@ export default function MembresPage(): JSX.Element {
 
       {/* Summary */}
       <div className="mt-4 text-sm text-gray-400">
-        Affichage de {filteredMembres.length} sur {membres.length} membres
+        Affichage de {filteredContrats.length} sur {contrats.length} contrats
       </div>
 
       {/* Create/Edit Modal */}
@@ -350,79 +376,22 @@ export default function MembresPage(): JSX.Element {
           <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-xl font-bold text-white mb-6">
-                {editingMembre ? 'Modifier le membre' : 'Ajouter un membre'}
+                {editingContrat ? 'Modifier le contrat' : 'Nouveau contrat'}
               </h2>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">
-                      Nom
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.nom}
-                      onChange={(e) =>
-                        setFormData({ ...formData, nom: e.target.value })
-                      }
-                      className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">
-                      Prénom
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.prenom}
-                      onChange={(e) =>
-                        setFormData({ ...formData, prenom: e.target.value })
-                      }
-                      className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">
-                    Email
+                    Membre
                   </label>
                   <input
-                    type="email"
-                    value={formData.email}
+                    type="text"
+                    value={formData.membreId}
                     onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
+                      setFormData({ ...formData, membreId: e.target.value })
                     }
                     className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="ID du membre"
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">
-                      Poste
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.poste}
-                      onChange={(e) =>
-                        setFormData({ ...formData, poste: e.target.value })
-                      }
-                      className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-1">
-                      Département
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.departement}
-                      onChange={(e) =>
-                        setFormData({ ...formData, departement: e.target.value })
-                      }
-                      className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
                 </div>
 
                 <div>
@@ -430,9 +399,9 @@ export default function MembresPage(): JSX.Element {
                     Type de contrat
                   </label>
                   <select
-                    value={formData.contratType}
+                    value={formData.type}
                     onChange={(e) =>
-                      setFormData({ ...formData, contratType: e.target.value })
+                      setFormData({ ...formData, type: e.target.value })
                     }
                     className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
@@ -447,29 +416,26 @@ export default function MembresPage(): JSX.Element {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">
-                      Date d'embauche
+                      Date de début
                     </label>
                     <input
                       type="date"
-                      value={formData.dateEmbauche}
+                      value={formData.dateDebut}
                       onChange={(e) =>
-                        setFormData({ ...formData, dateEmbauche: e.target.value })
+                        setFormData({ ...formData, dateDebut: e.target.value })
                       }
                       className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">
-                      Salaire de base
+                      Date de fin
                     </label>
                     <input
-                      type="number"
-                      value={formData.salairesBase}
+                      type="date"
+                      value={formData.dateFin}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          salairesBase: parseFloat(e.target.value),
-                        })
+                        setFormData({ ...formData, dateFin: e.target.value })
                       }
                       className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
@@ -478,34 +444,47 @@ export default function MembresPage(): JSX.Element {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">
-                    Manager
+                    Salaire de base (€)
                   </label>
                   <input
-                    type="text"
-                    value={formData.manager}
+                    type="number"
+                    value={formData.salaireBase}
                     onChange={(e) =>
-                      setFormData({ ...formData, manager: e.target.value })
+                      setFormData({
+                        ...formData,
+                        salaireBase: parseFloat(e.target.value),
+                      })
                     }
                     className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="actif"
-                    checked={formData.actif}
-                    onChange={(e) =>
-                      setFormData({ ...formData, actif: e.target.checked })
-                    }
-                    className="w-4 h-4 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <label
-                    htmlFor="actif"
-                    className="text-sm font-medium text-gray-400"
-                  >
-                    Actif
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Poste
                   </label>
+                  <input
+                    type="text"
+                    value={formData.poste}
+                    onChange={(e) =>
+                      setFormData({ ...formData, poste: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Département
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.departement}
+                    onChange={(e) =>
+                      setFormData({ ...formData, departement: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
                 </div>
               </div>
 

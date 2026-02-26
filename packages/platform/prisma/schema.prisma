@@ -283,6 +283,15 @@ model Tenant {
   // BTP
   btpChantiers          BtpChantier[]
   btpSituations         BtpSituation[]
+  // Ressources Humaines
+  rhContrats            RhContrat[]
+  rhBulletinsPaie       RhBulletinPaie[]
+  rhConges              RhConge[]
+  rhDocuments           RhDocument[]
+  rhEntretiens          RhEntretien[]
+  rhFormations          RhFormation[]
+  rhInscriptions        RhInscriptionFormation[]
+  rhEvaluations         RhEvaluation[]
 
   @@index([emailContact])
   @@index([statut])
@@ -1484,6 +1493,14 @@ model EquipeMember {
   user      User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   absences  EquipeAbsence[]
   pointages EquipePointage[]
+  // Relations RH
+  rhContrats      RhContrat[]
+  rhBulletinsPaie RhBulletinPaie[]
+  rhConges        RhConge[]
+  rhDocuments     RhDocument[]
+  rhEntretiens    RhEntretien[]
+  rhInscriptions  RhInscriptionFormation[]
+  rhEvaluations   RhEvaluation[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1701,5 +1718,306 @@ model BtpSituation {
   @@index([tenantId])
   @@index([chantierId])
   @@map("btp_situations")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESSOURCES HUMAINES (RH)
+// ═══════════════════════════════════════════════════════════════
+
+enum RhContratType {
+  cdi
+  cdd
+  interim
+  stage
+  alternance
+  freelance
+}
+
+enum RhContratStatut {
+  actif
+  termine
+  suspendu
+  rompu
+}
+
+enum RhCongeType {
+  cp
+  rtt
+  maladie
+  sans_solde
+  maternite
+  paternite
+  formation
+  autre
+}
+
+enum RhCongeStatut {
+  en_attente
+  approuve
+  rejete
+}
+
+enum RhDocumentType {
+  contrat
+  avenant
+  attestation
+  certificat
+  fiche_poste
+  reglement_interieur
+  autre
+}
+
+enum RhEntretienType {
+  annuel
+  professionnel
+  recadrage
+  fin_periode_essai
+}
+
+enum RhEntretienStatut {
+  planifie
+  realise
+  annule
+}
+
+enum RhFormationStatut {
+  planifiee
+  en_cours
+  terminee
+  annulee
+}
+
+enum RhBulletinStatut {
+  brouillon
+  valide
+  paye
+}
+
+enum RhEvaluationStatut {
+  brouillon
+  soumise
+  validee
+}
+
+enum RhEvaluationPeriode {
+  T1
+  T2
+  T3
+  T4
+  annuel
+}
+
+// --- Contrats de travail ---
+
+model RhContrat {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @map("tenant_id") @db.Uuid
+  memberId      String          @map("member_id") @db.Uuid
+  type          RhContratType   @default(cdi)
+  statut        RhContratStatut @default(actif)
+  dateDebut     DateTime        @map("date_debut") @db.Date
+  dateFin       DateTime?       @map("date_fin") @db.Date
+  salaireBase   Decimal         @map("salaire_base") @db.Decimal(10, 2)
+  poste         String
+  departement   String?
+  avantages     String?         @db.Text
+  clauseParticuliere String?    @map("clause_particuliere") @db.Text
+  motifFin      String?         @map("motif_fin") @db.Text
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([statut])
+  @@index([type])
+  @@map("rh_contrats")
+}
+
+// --- Bulletins de paie ---
+
+model RhBulletinPaie {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  memberId      String           @map("member_id") @db.Uuid
+  mois          Int
+  annee         Int              @map("annee")
+  salaireBase   Decimal          @map("salaire_base") @db.Decimal(10, 2)
+  primes        Decimal          @default(0) @db.Decimal(10, 2)
+  deductions    Decimal          @default(0) @db.Decimal(10, 2)
+  chargesPatronales Decimal      @default(0) @map("charges_patronales") @db.Decimal(10, 2)
+  chargesSalariales Decimal      @default(0) @map("charges_salariales") @db.Decimal(10, 2)
+  netAPayer     Decimal          @map("net_a_payer") @db.Decimal(10, 2)
+  netImposable  Decimal?         @map("net_imposable") @db.Decimal(10, 2)
+  statut        RhBulletinStatut @default(brouillon)
+  commentaire   String?          @db.Text
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, memberId, mois, annee])
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([annee, mois])
+  @@map("rh_bulletins_paie")
+}
+
+// --- Congés ---
+
+model RhConge {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  memberId    String        @map("member_id") @db.Uuid
+  type        RhCongeType   @default(cp)
+  dateDebut   DateTime      @map("date_debut") @db.Date
+  dateFin     DateTime      @map("date_fin") @db.Date
+  joursPris   Decimal?      @map("jours_pris") @db.Decimal(4, 1)
+  motif       String?       @db.Text
+  statut      RhCongeStatut @default(en_attente)
+  approuvePar String?       @map("approuve_par") @db.Uuid
+  dateReponse DateTime?     @map("date_reponse")
+  commentaire String?       @db.Text
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([statut])
+  @@index([dateDebut])
+  @@map("rh_conges")
+}
+
+// --- Documents RH ---
+
+model RhDocument {
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @map("tenant_id") @db.Uuid
+  memberId    String         @map("member_id") @db.Uuid
+  type        RhDocumentType @default(autre)
+  titre       String
+  description String?        @db.Text
+  fichierUrl  String?        @map("fichier_url")
+  tailleFichier Int?         @map("taille_fichier")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([type])
+  @@map("rh_documents")
+}
+
+// --- Entretiens ---
+
+model RhEntretien {
+  id            String             @id @default(uuid()) @db.Uuid
+  tenantId      String             @map("tenant_id") @db.Uuid
+  memberId      String             @map("member_id") @db.Uuid
+  type          RhEntretienType    @default(annuel)
+  dateEntretien DateTime           @map("date_entretien") @db.Date
+  evaluateur    String
+  compteRendu   String?            @map("compte_rendu") @db.Text
+  objectifs     String?            @db.Text
+  pointsForts   String?            @map("points_forts") @db.Text
+  axesAmelioration String?         @map("axes_amelioration") @db.Text
+  statut        RhEntretienStatut  @default(planifie)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([type])
+  @@index([dateEntretien])
+  @@map("rh_entretiens")
+}
+
+// --- Formations ---
+
+model RhFormation {
+  id              String             @id @default(uuid()) @db.Uuid
+  tenantId        String             @map("tenant_id") @db.Uuid
+  titre           String
+  description     String?            @db.Text
+  formateur       String
+  organisme       String?
+  dateDebut       DateTime           @map("date_debut") @db.Date
+  dateFin         DateTime           @map("date_fin") @db.Date
+  cout            Decimal            @default(0) @db.Decimal(10, 2)
+  maxParticipants Int                @default(20) @map("max_participants")
+  lieu            String?
+  statut          RhFormationStatut  @default(planifiee)
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  tenant        Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inscriptions  RhInscriptionFormation[]
+
+  @@index([tenantId])
+  @@index([statut])
+  @@index([dateDebut])
+  @@map("rh_formations")
+}
+
+model RhInscriptionFormation {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  formationId  String   @map("formation_id") @db.Uuid
+  memberId     String   @map("member_id") @db.Uuid
+  dateInscription DateTime @default(now()) @map("date_inscription")
+  presence     Boolean  @default(false)
+  noteFormation Decimal? @map("note_formation") @db.Decimal(4, 2)
+  commentaire  String?  @db.Text
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  formation RhFormation   @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  member    EquipeMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([formationId, memberId])
+  @@index([tenantId])
+  @@index([formationId])
+  @@index([memberId])
+  @@map("rh_inscriptions_formations")
+}
+
+// --- Évaluations ---
+
+model RhEvaluation {
+  id               String               @id @default(uuid()) @db.Uuid
+  tenantId         String               @map("tenant_id") @db.Uuid
+  memberId         String               @map("member_id") @db.Uuid
+  evaluateurId     String               @map("evaluateur_id") @db.Uuid
+  periode          RhEvaluationPeriode  @default(annuel)
+  annee            Int
+  noteGlobale      Decimal              @map("note_globale") @db.Decimal(4, 2)
+  commentaires     String?              @db.Text
+  objectifsAtteints String?             @map("objectifs_atteints") @db.Text
+  objectifsFuturs  String?              @map("objectifs_futurs") @db.Text
+  competences      String?              @db.Text
+  statut           RhEvaluationStatut   @default(brouillon)
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member  EquipeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, memberId, periode, annee])
+  @@index([tenantId])
+  @@index([memberId])
+  @@index([evaluateurId])
+  @@index([annee])
+  @@map("rh_evaluations")
 }
 

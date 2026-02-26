@@ -26,8 +26,30 @@ interface QuickAction {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 
+interface ProjetsDashboardStats {
+  totalProjets: number;
+  byStatut: {
+    brouillon: number;
+    planifie: number;
+    enCours: number;
+    enPause: number;
+    termine: number;
+    annule: number;
+  };
+  budget: {
+    total: number;
+    utilise: number;
+  };
+  avgProgression: number;
+}
+
 export default function ProjetsDashboard() {
-  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const [stats, setStats] = useState<ProjetsDashboardStats>({
+    totalProjets: 0,
+    byStatut: { brouillon: 0, planifie: 0, enCours: 0, enPause: 0, termine: 0, annule: 0 },
+    budget: { total: 0, utilise: 0 },
+    avgProgression: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,10 +59,8 @@ export default function ProjetsDashboard() {
         setLoading(true);
         setError(null);
         const response = await apiClient.projets.dashboard();
-        const raw = response.data as unknown as { success: boolean; dashboard: Record<string, unknown> };
-        if (raw.dashboard) {
-          setStats(raw.dashboard);
-        }
+        const raw = response.data as unknown as { success: boolean; dashboard: ProjetsDashboardStats };
+        setStats(raw.dashboard);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch statistics';
         setError(errorMessage);
@@ -55,25 +75,25 @@ export default function ProjetsDashboard() {
   const statCards: StatCard[] = [
     {
       title: 'Total Projets',
-      value: String(stats?.totalProjets ?? 0),
+      value: String(stats.totalProjets),
       icon: ArrowTrendingUpIcon,
       color: 'bg-blue-500',
     },
     {
       title: 'En Cours',
-      value: String(stats?.enCours ?? 0),
+      value: String(stats.byStatut.enCours),
       icon: ClockIcon,
       color: 'bg-amber-500',
     },
     {
       title: 'Terminés',
-      value: String(stats?.termines ?? 0),
+      value: String(stats.byStatut.termine),
       icon: CheckCircleIcon,
       color: 'bg-green-500',
     },
     {
       title: 'Budget Total',
-      value: `€${Number(stats?.budgetTotal ?? 0).toLocaleString('fr-FR')}`,
+      value: `€${stats.budget.total.toLocaleString('fr-FR')}`,
       icon: CurrencyEuroIcon,
       color: 'bg-purple-500',
     },

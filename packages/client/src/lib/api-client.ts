@@ -1107,6 +1107,147 @@ export const apiClient = {
         authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/situations/${id}/valider`, { method: 'POST' }),
     },
   },
+
+  // Ressources Humaines
+  rh: {
+    dashboard: () =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/dashboard'),
+    contrats: {
+      list: (params?: { membreId?: string; type?: string; statut?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.type) qp.append('type', params.type);
+        if (params?.statut) qp.append('statut', params.statut);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/contrats${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/contrats/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/contrats', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/contrats/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/rh/contrats/${id}`, { method: 'DELETE' }),
+    },
+    paie: {
+      list: (params?: { membreId?: string; mois?: string; annee?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.mois) qp.append('mois', params.mois);
+        if (params?.annee) qp.append('annee', params.annee);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/paie${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/paie/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/paie', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/paie/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/rh/paie/${id}`, { method: 'DELETE' }),
+    },
+    conges: {
+      list: (params?: { membreId?: string; type?: string; statut?: string; dateFrom?: string; dateTo?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.type) qp.append('type', params.type);
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+        if (params?.dateTo) qp.append('dateTo', params.dateTo);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/conges${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/conges/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/conges', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/conges/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/rh/conges/${id}`, { method: 'DELETE' }),
+      approuver: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/conges/${id}/approuver`, { method: 'POST' }),
+      rejeter: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/conges/${id}/rejeter`, { method: 'POST' }),
+    },
+    documents: {
+      list: (params?: { membreId?: string; type?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.type) qp.append('type', params.type);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/documents${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/documents/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/documents', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/rh/documents/${id}`, { method: 'DELETE' }),
+    },
+    entretiens: {
+      list: (params?: { membreId?: string; type?: string; dateFrom?: string; dateTo?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.type) qp.append('type', params.type);
+        if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+        if (params?.dateTo) qp.append('dateTo', params.dateTo);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/entretiens${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/entretiens/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/entretiens', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/entretiens/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/rh/entretiens/${id}`, { method: 'DELETE' }),
+    },
+    formations: {
+      list: (params?: { membreId?: string; statut?: string; dateFrom?: string; dateTo?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.dateFrom) qp.append('dateFrom', params.dateFrom);
+        if (params?.dateTo) qp.append('dateTo', params.dateTo);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/formations${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/formations/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/formations', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/formations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/rh/formations/${id}`, { method: 'DELETE' }),
+      inscrire: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/formations/${id}/inscrire`, { method: 'POST', body: JSON.stringify(data) }),
+    },
+    evaluations: {
+      list: (params?: { membreId?: string; periode?: string; annee?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.membreId) qp.append('membreId', params.membreId);
+        if (params?.periode) qp.append('periode', params.periode);
+        if (params?.annee) qp.append('annee', params.annee);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/evaluations${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/evaluations/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/rh/evaluations', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/rh/evaluations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/rh/evaluations/${id}`, { method: 'DELETE' }),
+    },
+  },
 };
 
 // Types pour les factures

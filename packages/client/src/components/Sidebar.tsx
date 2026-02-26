@@ -27,6 +27,9 @@ import {
   Bars3Icon,
   XMarkIcon,
   LockClosedIcon,
+  AcademicCapIcon,
+  CalendarIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -140,6 +143,21 @@ const allNavGroups: NavGroup[] = [
       { name: 'SMS', href: '/agent-ia/sms', icon: ChatBubbleLeftIcon },
       { name: 'Questionnaires', href: '/agent-ia/questionnaires', icon: QuestionIcon },
       { name: 'Configuration', href: '/agent-ia/configuration', icon: SettingsIcon },
+    ],
+  },
+  {
+    label: 'Ressources Humaines',
+    icon: UsersIcon,
+    requiredModules: ['gestion_rh'],
+    items: [
+      { name: 'Dashboard', href: '/rh', icon: HomeIcon },
+      { name: 'Contrats', href: '/rh/contrats', icon: DocumentTextIcon },
+      { name: 'Paie', href: '/rh/paie', icon: BanknotesIcon },
+      { name: 'Congés', href: '/rh/conges', icon: CalendarIcon },
+      { name: 'Documents', href: '/rh/documents', icon: DocumentDuplicateIcon },
+      { name: 'Entretiens', href: '/rh/entretiens', icon: ChatBubbleLeftIcon },
+      { name: 'Formations', href: '/rh/formations', icon: AcademicCapIcon },
+      { name: 'Évaluations', href: '/rh/evaluations', icon: CheckCircleIcon },
     ],
   },
 ];

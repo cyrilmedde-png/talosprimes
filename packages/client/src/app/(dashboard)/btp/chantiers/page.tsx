@@ -5,6 +5,9 @@ import { apiClient } from '@/lib/api-client';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 
 interface Chantier {
@@ -45,6 +48,31 @@ const statusLabels: Record<StatusKey, string> = {
   cloture: 'Clôturé',
 };
 
+interface FormData {
+  reference: string;
+  nom: string;
+  client: string;
+  adresse: string;
+  statut: StatusKey;
+  montantMarche: number;
+  tauxAvancement: number;
+  dateDebut: string;
+  dateFin: string;
+  [key: string]: string | number | boolean | null;
+}
+
+const defaultFormData: FormData = {
+  reference: '',
+  nom: '',
+  client: '',
+  adresse: '',
+  statut: 'planifie',
+  montantMarche: 0,
+  tauxAvancement: 0,
+  dateDebut: '',
+  dateFin: '',
+};
+
 export default function ChantiersPage() {
   const [chantiers, setChantiers] = useState<Chantier[]>([]);
   const [filteredChantiers, setFilteredChantiers] = useState<Chantier[]>([]);
@@ -54,24 +82,29 @@ export default function ChantiersPage() {
     isLoading: true,
     error: null,
   });
+  const [showModal, setShowModal] = useState(false);
+  const [editingChantier, setEditingChantier] = useState<Chantier | null>(null);
+  const [formData, setFormData] = useState<FormData>(defaultFormData);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchChantiers = async () => {
+    try {
+      setLoading({ isLoading: true, error: null });
+      const response = await apiClient.btp.chantiers.list();
+      const raw = response.data as unknown as { success: boolean; data: Chantier[] };
+      setChantiers(raw.data);
+      setFilteredChantiers(raw.data);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load chantiers';
+      setLoading({ isLoading: false, error: errorMessage });
+    } finally {
+      setLoading((prev) => ({ ...prev, isLoading: false }));
+    }
+  };
 
   useEffect(() => {
-    const fetchChantiers = async () => {
-      try {
-        setLoading({ isLoading: true, error: null });
-        const response = await apiClient.btp.chantiers.list();
-        const raw = response.data as unknown as { success: boolean; data: Chantier[] };
-        setChantiers(raw.data);
-        setFilteredChantiers(raw.data);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to load chantiers';
-        setLoading({ isLoading: false, error: errorMessage });
-      } finally {
-        setLoading({ isLoading: false, error: null });
-      }
-    };
-
     fetchChantiers();
   }, []);
 
@@ -98,6 +131,68 @@ export default function ChantiersPage() {
     setFilteredChantiers(filtered);
   }, [searchQuery, selectedStatus, chantiers]);
 
+  const handleOpenModal = (chantier: Chantier | null = null) => {
+    if (chantier) {
+      setEditingChantier(chantier);
+      setFormData({
+        reference: chantier.reference,
+        nom: chantier.nom,
+        client: chantier.client,
+        adresse: chantier.adresse,
+        statut: chantier.statut,
+        montantMarche: chantier.montantMarche,
+        tauxAvancement: chantier.tauxAvancement,
+        dateDebut: chantier.dateDebut,
+        dateFin: chantier.dateFin,
+      });
+    } else {
+      setEditingChantier(null);
+      setFormData(defaultFormData);
+    }
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingChantier(null);
+    setFormData(defaultFormData);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      if (editingChantier) {
+        await apiClient.btp.chantiers.update(editingChantier.id, formData);
+      } else {
+        await apiClient.btp.chantiers.create(formData);
+      }
+      await fetchChantiers();
+      handleCloseModal();
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to save chantier';
+      setLoading((prev) => ({ ...prev, error: errorMessage }));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this chantier?')) {
+      try {
+        setDeletingId(id);
+        await apiClient.btp.chantiers.delete(id);
+        await fetchChantiers();
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to delete chantier';
+        setLoading((prev) => ({ ...prev, error: errorMessage }));
+      } finally {
+        setDeletingId(null);
+      }
+    }
+  };
+
   if (loading.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -118,10 +213,19 @@ export default function ChantiersPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">Chantiers</h1>
-        <p className="mt-2 text-sm text-gray-400">Gestion de tous les chantiers BTP</p>
+      {/* Header with Create Button */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Chantiers</h1>
+          <p className="mt-2 text-sm text-gray-400">Gestion de tous les chantiers BTP</p>
+        </div>
+        <button
+          onClick={() => handleOpenModal()}
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 font-medium transition-colors"
+        >
+          <PlusIcon className="h-5 w-5" />
+          Nouveau Chantier
+        </button>
       </div>
 
       {/* Search and Filter */}
@@ -182,10 +286,33 @@ export default function ChantiersPage() {
             filteredChantiers.map((chantier) => (
               <div
                 key={chantier.id}
-                className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 shadow-lg hover:bg-gray-800/30 transition-colors backdrop-blur-md"
+                className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-6 shadow-lg hover:bg-gray-800/30 transition-colors backdrop-blur-md relative"
               >
+                {/* Edit/Delete buttons */}
+                <div className="absolute top-4 right-4 flex gap-2">
+                  <button
+                    onClick={() => handleOpenModal(chantier)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <PencilSquareIcon className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(chantier.id)}
+                    disabled={deletingId === chantier.id}
+                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                    title="Delete"
+                  >
+                    {deletingId === chantier.id ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                    ) : (
+                      <TrashIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+
                 {/* Reference and Status */}
-                <div className="mb-4 flex items-start justify-between">
+                <div className="mb-4 flex items-start justify-between pr-20">
                   <div>
                     <p className="text-xs font-semibold text-gray-500 uppercase">
                       {chantier.reference}
@@ -262,6 +389,188 @@ export default function ChantiersPage() {
           )}
         </div>
       </div>
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-white mb-6">
+                {editingChantier ? 'Modifier Chantier' : 'Créer un Nouveau Chantier'}
+              </h2>
+
+              <div className="space-y-4">
+                {/* Reference */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Référence
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.reference}
+                    onChange={(e) =>
+                      setFormData({ ...formData, reference: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Nom */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Nom
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nom}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nom: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Client */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Client
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.client}
+                    onChange={(e) =>
+                      setFormData({ ...formData, client: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Adresse */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Adresse
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.adresse}
+                    onChange={(e) =>
+                      setFormData({ ...formData, adresse: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Statut */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Statut
+                  </label>
+                  <select
+                    value={formData.statut}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        statut: e.target.value as StatusKey,
+                      })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {(Object.keys(statusLabels) as StatusKey[]).map((status) => (
+                      <option key={status} value={status}>
+                        {statusLabels[status]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Montant Marché */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Montant Marché (€)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.montantMarche}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        montantMarche: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Taux Avancement */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Taux Avancement (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.tauxAvancement}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        tauxAvancement: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Date Début */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Date Début
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dateDebut}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dateDebut: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Date Fin */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-1">
+                    Date Fin
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dateFin}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dateFin: e.target.value })
+                    }
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md disabled:opacity-50 transition-colors"
+                >
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

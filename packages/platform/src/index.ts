@@ -33,6 +33,7 @@ import { clientModulesRoutes } from './api/routes/client-modules.routes.js';
 import { equipeRoutes } from './api/routes/equipe.routes.js';
 import { projetsRoutes } from './api/routes/projets.routes.js';
 import { btpRoutes } from './api/routes/btp.routes.js';
+import { rhRoutes } from './api/routes/rh.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -266,6 +267,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes BTP
 await fastify.register(async (fastify) => {
   await fastify.register(btpRoutes, { prefix: '/api/btp' });
+});
+
+// Enregistrer les routes Ressources Humaines
+await fastify.register(async (fastify) => {
+  await fastify.register(rhRoutes, { prefix: '/api/rh' });
 });
 
 // Route de test
