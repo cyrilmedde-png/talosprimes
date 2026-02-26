@@ -58,6 +58,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             'clients', 'leads', 'facturation', 'devis', 'bons_commande',
             'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
             'articles', 'logs', 'notifications',
+            'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
           ];
         }
 
@@ -167,6 +168,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           'clients', 'leads', 'facturation', 'devis', 'bons_commande',
           'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
           'articles', 'logs', 'notifications',
+          'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
         ];
       }
 
@@ -237,6 +239,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             'clients', 'leads', 'facturation', 'devis', 'bons_commande',
             'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
             'articles', 'logs', 'notifications',
+            'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
           ];
         }
 
