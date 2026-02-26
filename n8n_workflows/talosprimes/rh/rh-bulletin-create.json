@@ -1,0 +1,85 @@
+{
+  "name": "RH - Bulletin Create (/rh/bulletin/create)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rh/bulletin/create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar id = require('crypto').randomUUID();\nvar now = new Date().toISOString();\nvar memberId = data.memberId || '';\nvar mois = data.mois || 1;\nvar annee = data.annee || new Date().getFullYear();\nvar salaireBase = data.salaireBase || 0;\nvar primes = data.primes || 0;\nvar deductions = data.deductions || 0;\nvar chargesPatronales = data.chargesPatronales || 0;\nvar chargesSalariales = data.chargesSalariales || 0;\nvar netAPayer = data.netAPayer || 0;\nvar netImposable = data.netImposable || 0;\nvar statut = data.statut || 'brouillon';\nvar commentaire = data.commentaire || '';\n\nvar query = \"INSERT INTO rh_bulletins_paie (id, tenant_id, member_id, mois, annee, salaire_base, primes, deductions, charges_patronales, charges_salariales, net_a_payer, net_imposable, statut, commentaire, created_at, updated_at) VALUES ('\" + esc(id) + \"', '\" + esc(tenantId) + \"', '\" + esc(memberId) + \"', \" + mois + \", \" + annee + \", \" + salaireBase + \", \" + primes + \", \" + deductions + \", \" + chargesPatronales + \", \" + chargesSalariales + \", \" + netAPayer + \", \" + netImposable + \", '\" + esc(statut) + \"', '\" + esc(commentaire) + \"', '\" + esc(now) + \"', '\" + esc(now) + \"') RETURNING *;\";\n\nreturn [{json: {query: query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Creation failed'}}];\n}\nconst row = rows[0];\nreturn [{json: {success: true, data: {\n  id: row.id,\n  memberId: row.member_id,\n  mois: row.mois,\n  annee: row.annee,\n  salaireBase: row.salaire_base,\n  primes: row.primes,\n  deductions: row.deductions,\n  chargesPatronales: row.charges_patronales,\n  chargesSalariales: row.charges_salariales,\n  netAPayer: row.net_a_payer,\n  netImposable: row.net_imposable,\n  statut: row.statut,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parser", "type": "main", "index": 0}]]
+    },
+    "Parser": {
+      "main": [[{"node": "Postgres", "type": "main", "index": 0}]]
+    },
+    "Postgres": {
+      "main": [[{"node": "Format", "type": "main", "index": 0}]]
+    },
+    "Format": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

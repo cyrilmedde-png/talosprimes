@@ -1,0 +1,85 @@
+{
+  "name": "RH - Congé Rejeter (/rh/conge/rejeter)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rh/conge/rejeter",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || '');\nvar userId = String(data.userId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nif (!id || !userId) {\n  throw new Error('id and userId are required');\n}\n\nvar query = 'UPDATE rh_conges SET statut = \\'rejete\\', approuve_par = \\'' + esc(userId) + '\\', date_reponse = NOW() WHERE id = \\'' + esc(id) + '\\' AND tenant_id = \\'' + esc(tenantId) + '\\' RETURNING *';\n\nreturn {query: query};"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.first().json;\n\nif (!rows || rows.length === 0) {\n  return {success: false, message: 'Not found'};\n}\n\nvar row = rows[0];\nvar item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  type: row.type,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  joursPris: row.jours_pris,\n  motif: row.motif,\n  statut: row.statut,\n  approuvePar: row.approuve_par,\n  dateReponse: row.date_reponse,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn {success: true, data: item};"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parser", "type": "main", "index": 0}]]
+    },
+    "Parser": {
+      "main": [[{"node": "Postgres", "type": "main", "index": 0}]]
+    },
+    "Postgres": {
+      "main": [[{"node": "Format", "type": "main", "index": 0}]]
+    },
+    "Format": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

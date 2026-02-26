@@ -1,0 +1,15 @@
+{
+  "name": "RH - Formation Inscrire (/rh/formation/inscrire)",
+  "nodes": [
+    {"parameters": {"httpMethod": "POST", "path": "rh/formation/inscrire", "responseMode": "responseNode", "options": {}}, "id": "Webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [300, 300]},
+    {"parameters": {"jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar formationId = data.id ? esc(String(data.id)) : null;\nvar membreId = data.membreId ? esc(String(data.membreId)) : null;\n\nif (!formationId) throw new Error('Missing formation id');\nif (!membreId) throw new Error('Missing membreId');\n\nvar query = \"INSERT INTO rh_inscriptions_formations (tenant_id, formation_id, member_id, date_inscription) VALUES ('\" + esc(tenantId) + \"', '\" + formationId + \"', '\" + membreId + \"', NOW()) RETURNING *\";\n\nreturn { query: query };"},
+    "id": "Parser", "name": "Parser", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [520, 300]},
+    {"parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"}, "id": "Postgres", "name": "Postgres", "type": "n8n-nodes-base.postgres", "typeVersion": 2.4, "position": [740, 300], "alwaysOutputData": true, "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}},
+    {"parameters": {"jsCode": "var rows = $input.first().json.rows || [];\nif (rows.length === 0) {\n  return { success: false, error: 'Failed to register member for formation' };\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  formationId: r.formation_id,\n  membreId: r.member_id,\n  dateInscription: r.date_inscription,\n  presence: r.presence,\n  noteFormation: r.note_formation,\n  commentaire: r.commentaire\n};\nreturn { success: true, data: result };"},
+    "id": "Format", "name": "Format", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [960, 300]},
+    {"parameters": {"respondWith": "json", "responseBody": "={{ $json }}"}, "id": "Respond", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1, "position": [1180, 300]}
+  ],
+  "connections": {"Webhook": {"main": [[{"node": "Parser", "type": "main", "index": 0}]]}, "Parser": {"main": [[{"node": "Postgres", "type": "main", "index": 0}]]}, "Postgres": {"main": [[{"node": "Format", "type": "main", "index": 0}]]}, "Format": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}},
+  "active": true,
+  "settings": {"executionOrder": "v1"}
+}

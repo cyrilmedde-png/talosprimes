@@ -1,0 +1,85 @@
+{
+  "name": "RH - Bulletin Update (/rh/bulletin/update)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rh/bulletin/update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\nif (!uuidRegex.test(id)) {\n  throw new Error('Invalid id');\n}\n\nvar now = new Date().toISOString();\nvar setParts = [\"updated_at = '\" + esc(now) + \"'\"];\n\nif (data.memberId !== undefined) setParts.push(\"member_id = '\" + esc(data.memberId) + \"'\");\nif (data.mois !== undefined) setParts.push(\"mois = \" + parseInt(data.mois));\nif (data.annee !== undefined) setParts.push(\"annee = \" + parseInt(data.annee));\nif (data.salaireBase !== undefined) setParts.push(\"salaire_base = \" + (data.salaireBase || 0));\nif (data.primes !== undefined) setParts.push(\"primes = \" + (data.primes || 0));\nif (data.deductions !== undefined) setParts.push(\"deductions = \" + (data.deductions || 0));\nif (data.chargesPatronales !== undefined) setParts.push(\"charges_patronales = \" + (data.chargesPatronales || 0));\nif (data.chargesSalariales !== undefined) setParts.push(\"charges_salariales = \" + (data.chargesSalariales || 0));\nif (data.netAPayer !== undefined) setParts.push(\"net_a_payer = \" + (data.netAPayer || 0));\nif (data.netImposable !== undefined) setParts.push(\"net_imposable = \" + (data.netImposable || 0));\nif (data.statut !== undefined) setParts.push(\"statut = '\" + esc(data.statut) + \"'\");\nif (data.commentaire !== undefined) setParts.push(\"commentaire = '\" + esc(data.commentaire) + \"'\");\n\nvar query = \"UPDATE rh_bulletins_paie SET \" + setParts.join(', ') + \" WHERE tenant_id = '\" + esc(tenantId) + \"' AND id = '\" + esc(id) + \"' RETURNING *;\";\n\nreturn [{json: {query: query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Not found'}}];\n}\nconst row = rows[0];\nreturn [{json: {success: true, data: {\n  id: row.id,\n  memberId: row.member_id,\n  mois: row.mois,\n  annee: row.annee,\n  salaireBase: row.salaire_base,\n  primes: row.primes,\n  deductions: row.deductions,\n  chargesPatronales: row.charges_patronales,\n  chargesSalariales: row.charges_salariales,\n  netAPayer: row.net_a_payer,\n  netImposable: row.net_imposable,\n  statut: row.statut,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parser", "type": "main", "index": 0}]]
+    },
+    "Parser": {
+      "main": [[{"node": "Postgres", "type": "main", "index": 0}]]
+    },
+    "Postgres": {
+      "main": [[{"node": "Format", "type": "main", "index": 0}]]
+    },
+    "Format": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
