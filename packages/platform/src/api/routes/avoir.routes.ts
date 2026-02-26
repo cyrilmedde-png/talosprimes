@@ -95,9 +95,6 @@ export async function avoirRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow avoir_list indisponible' });
-        }
         const raw = res.data as { avoirs?: unknown[]; avoir?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
         const avoir = Array.isArray(raw.avoirs) ? raw.avoirs : (Array.isArray(raw.avoir) ? raw.avoir : []);
         return reply.status(200).send({
@@ -163,9 +160,6 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           'avoir_get',
           { avoirId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow avoir_get indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -338,9 +332,6 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           'avoir_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
 
         // Auto-init compta si plan comptable vide
         try {
@@ -496,9 +487,6 @@ export async function avoirRoutes(fastify: FastifyInstance) {
           'avoir_validate',
           { avoirId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         // Comptabilisation automatique avoir à la validation (async, non-bloquant)
         try {
           n8nService.triggerWorkflow(tenantId, 'compta_auto_avoir', {
@@ -573,14 +561,11 @@ export async function avoirRoutes(fastify: FastifyInstance) {
       if (avoir.statut === 'annulee') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un avoir déjà annulé' });
 
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+        await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
           'avoir_delete',
           { avoirId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Avoir supprimé via n8n',

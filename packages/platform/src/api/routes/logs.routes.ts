@@ -55,9 +55,6 @@ export async function logsRoutes(fastify: FastifyInstance) {
             statutExecution: query.statutExecution,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow logs_list indisponible' });
-        }
         const raw = res.data as Record<string, unknown>;
         return reply.status(200).send({
           success: true,
@@ -160,9 +157,6 @@ export async function logsRoutes(fastify: FastifyInstance) {
           'logs_stats',
           { workflow }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow logs_stats indisponible' });
-        }
         return reply.status(200).send({ success: true, data: res.data });
       }
 

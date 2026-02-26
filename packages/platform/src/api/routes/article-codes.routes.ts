@@ -63,9 +63,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
             'article_codes_list',
             {}
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow article_codes_list indisponible' });
-          }
           const raw = res.data as { articles?: unknown[] };
           const articles = Array.isArray(raw.articles)
             ? raw.articles.map((art) => normalizeArticleCodeFromN8n(art as Record<string, unknown>))
@@ -126,9 +123,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
             'article_code_create',
             { ...body, tenantId }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow article_code_create indisponible' });
-          }
 
           return reply.status(201).send({
             success: true,
@@ -215,9 +209,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
               ...body,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow article_code_update indisponible' });
-          }
 
           return reply.status(200).send({
             success: true,
@@ -302,9 +293,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
               articleCodeId: params.id,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow article_code_delete indisponible' });
-          }
 
           return reply.status(200).send({
             success: true,

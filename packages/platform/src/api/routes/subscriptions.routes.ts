@@ -67,9 +67,6 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
             'subscription_renewal',
             { subscriptionId: body.subscriptionId }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(200).send({
             success: true,
             message: 'Abonnement renouvelé via n8n',
@@ -153,9 +150,6 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
               cancelAtPeriodEnd: body.cancelAtPeriodEnd,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(200).send({
             success: true,
             message: 'Abonnement annulé via n8n',
@@ -222,9 +216,6 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
               nouveauPlan: body.nouveauPlan,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(200).send({
             success: true,
             message: 'Abonnement mis à jour via n8n',
@@ -295,9 +286,6 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
               reason: body.reason,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(200).send({
             success: true,
             message: 'Abonnement suspendu via n8n',

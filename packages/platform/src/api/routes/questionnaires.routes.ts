@@ -85,9 +85,6 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
             channel: query.channel,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow questionnaire_list indisponible' });
-        }
         const raw = res.data as { questionnaires?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
         const questionnaires = Array.isArray(raw.questionnaires) ? raw.questionnaires : [];
         return reply.status(200).send({
@@ -152,9 +149,6 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           'questionnaire_get',
           { id: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow questionnaire_get indisponible' });
-        }
         return reply.status(200).send({ success: true, data: res.data });
       }
 
@@ -202,10 +196,6 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
             channel: body.channel,
           }
         );
-        if (!res.success) {
-          await logEvent(tenantId, 'questionnaire_create', 'questionnaire', body.leadId, body, 'erreur', res.error);
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur création questionnaire' });
-        }
         await logEvent(tenantId, 'questionnaire_create', 'questionnaire', body.leadId, body);
         return reply.status(201).send({ success: true, data: res.data });
       }
@@ -271,10 +261,6 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
             completedAt: body.completedAt,
           }
         );
-        if (!res.success) {
-          await logEvent(tenantId, 'questionnaire_update', 'questionnaire', params.id, body, 'erreur', res.error);
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur mise à jour questionnaire' });
-        }
         await logEvent(tenantId, 'questionnaire_update', 'questionnaire', params.id, body);
         return reply.status(200).send({ success: true, data: res.data });
       }
@@ -337,15 +323,11 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
 
       // Appel depuis frontend → déclenche n8n
       if (!fromN8n && tenantId) {
-        const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+        await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
           'questionnaire_delete',
           { id: params.id }
         );
-        if (!res.success) {
-          await logEvent(tenantId, 'questionnaire_delete', 'questionnaire', params.id, {}, 'erreur', res.error);
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur suppression questionnaire' });
-        }
         await logEvent(tenantId, 'questionnaire_delete', 'questionnaire', params.id, {});
         return reply.status(200).send({ success: true, message: 'Questionnaire supprimé' });
       }

@@ -77,9 +77,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_config_get',
           {}
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow twilio_config_get indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -132,9 +129,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_config_update',
           body
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow twilio_config_update indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -194,9 +188,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_test_call',
           {}
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow twilio_test_call indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Test call triggered',
@@ -244,9 +235,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_outbound_call',
           body
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow twilio_outbound_call indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Outbound call triggered',

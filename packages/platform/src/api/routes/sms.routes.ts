@@ -81,9 +81,6 @@ export async function smsRoutes(fastify: FastifyInstance) {
             endDate: query.endDate,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow sms_list indisponible' });
-        }
         const raw = res.data as { smsLogs?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
         const smsLogs = Array.isArray(raw.smsLogs) ? raw.smsLogs : [];
         return reply.status(200).send({
@@ -150,9 +147,6 @@ export async function smsRoutes(fastify: FastifyInstance) {
           'sms_stats',
           {}
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow sms_stats indisponible' });
-        }
         return reply.status(200).send({ success: true, data: res.data });
       }
 
@@ -200,10 +194,6 @@ export async function smsRoutes(fastify: FastifyInstance) {
             body: body.body,
           }
         );
-        if (!res.success) {
-          await logEvent(tenantId, 'sms_send', 'sms', `${body.toNumber}`, { toNumber: body.toNumber, body: body.body }, 'erreur', res.error);
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur envoi SMS' });
-        }
         await logEvent(tenantId, 'sms_send', 'sms', res.data?.twilioSid || `${body.toNumber}`, { toNumber: body.toNumber, body: body.body, twilioSid: res.data?.twilioSid });
         return reply.status(200).send({ success: true, data: res.data });
       }
@@ -256,10 +246,6 @@ export async function smsRoutes(fastify: FastifyInstance) {
             twilioSid: body.twilioSid,
           }
         );
-        if (!res.success) {
-          await logEvent(tenantId, 'sms_log_create', 'smsLog', `${body.fromNumber}_${body.toNumber}`, body, 'erreur', res.error);
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur création log SMS' });
-        }
         await logEvent(tenantId, 'sms_log_create', 'smsLog', body.twilioSid || `${body.fromNumber}_${body.toNumber}`, body);
         return reply.status(201).send({ success: true, data: res.data });
       }

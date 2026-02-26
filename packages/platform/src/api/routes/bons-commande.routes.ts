@@ -102,9 +102,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow bdc_list indisponible' });
-        }
         const raw = res.data as { bons?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
         const bons = Array.isArray(raw.bons) ? raw.bons : [];
         return reply.status(200).send({
@@ -170,9 +167,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_get',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow bdc_get indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -349,9 +343,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
 
         // Si un devisId est fourni, passer le devis en 'commandee' automatiquement
         if (body.devisId) {
@@ -486,9 +477,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_validate',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Bon validé via n8n',
@@ -560,9 +548,6 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_convert_to_invoice',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
 
         // Auto-init compta si plan comptable vide (BdC→facture)
         try {
@@ -656,12 +641,8 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         const nbComptes = await prisma.planComptable.count({ where: { tenantId } });
         if (nbComptes === 0) {
           fastify.log.info('Plan comptable vide pour tenant %s, lancement auto-init compta (BdC callback)...', tenantId);
-          const initRes = await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
-          if (initRes.success) {
-            fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
-          } else {
-            fastify.log.warn('Auto-init compta échouée pour tenant %s: %s', tenantId, initRes.error);
-          }
+          await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
+          fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
         }
       } catch (initErr) {
         fastify.log.warn(initErr, 'Impossible de vérifier/initialiser la comptabilité');
@@ -725,15 +706,11 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           'bdc_update',
           { bdcId: params.id, ...body }
         );
-        if (res.success) {
-          return reply.status(200).send({
-            success: true,
-            message: 'Bon de commande mis à jour via n8n',
-            data: res.data,
-          });
-        }
-        // Si n8n échoue, on continue avec Prisma directement
-        console.log(`[bdc_update] n8n indisponible, fallback Prisma: ${res.error}`);
+        return reply.status(200).send({
+          success: true,
+          message: 'Bon de commande mis à jour via n8n',
+          data: res.data,
+        });
       }
 
       const clientFinalId = body.clientFinalId || bon.clientFinalId;
@@ -832,14 +809,11 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
 
       // Si appel depuis frontend, déléguer à n8n
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+        await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
           'bdc_delete',
           { bdcId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Bon de commande supprimé via n8n',

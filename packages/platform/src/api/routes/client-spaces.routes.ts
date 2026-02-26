@@ -71,9 +71,6 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
             'client_space_create',
             body
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow client_space_create indisponible' });
-          }
           return reply.status(201).send({ success: true, data: res.data });
         }
 
@@ -119,9 +116,6 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
             'client_space_list',
             { status: query.status || '' }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow client_space_list indisponible' });
-          }
           const raw = res.data as { spaces?: unknown[] };
           const spaces = Array.isArray(raw.spaces)
             ? raw.spaces.map((s) => normalizeClientSpaceFromN8n(s as Record<string, unknown>))
@@ -169,9 +163,6 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
             'client_space_get',
             { clientSpaceId: id }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow client_space_get indisponible' });
-          }
           const raw = res.data as { space?: Record<string, unknown> };
           const space = raw.space ? normalizeClientSpaceFromN8n(raw.space) : null;
           if (!space) {
@@ -222,9 +213,6 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
               validatedByUserId: request.userId || '',
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow client_space_validate indisponible' });
-          }
           return reply.status(200).send({ success: true, data: res.data });
         }
 
@@ -256,9 +244,6 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
             'client_space_resend_email',
             { clientSpaceId: id }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow client_space_resend_email indisponible' });
-          }
           return reply.status(200).send({ success: true, data: res.data });
         }
 

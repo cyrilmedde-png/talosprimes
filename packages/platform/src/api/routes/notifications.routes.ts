@@ -40,9 +40,6 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
               donnees: body.donnees || {},
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow notification_create indisponible' });
-          }
           return reply.status(201).send({ success: true, data: res.data });
         }
 
@@ -109,9 +106,6 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
               offset: parseInt(offset, 10),
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow notifications_list indisponible' });
-          }
           const raw = res.data as Record<string, unknown>;
           return reply.status(200).send({
             success: true,
@@ -178,14 +172,11 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
 
         // Appel frontend → passe par n8n
         if (!fromN8n && tenantId) {
-          const res = await n8nService.callWorkflowReturn<unknown>(
+          await n8nService.callWorkflowReturn<unknown>(
             tenantId,
             'notification_read',
             { id, lu }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow notification_read indisponible' });
-          }
           return reply.status(200).send({ success: true, message: 'Notification mise à jour' });
         }
 
@@ -239,14 +230,11 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
 
         // Appel frontend → passe par n8n
         if (!fromN8n && tenantId) {
-          const res = await n8nService.callWorkflowReturn<unknown>(
+          await n8nService.callWorkflowReturn<unknown>(
             tenantId,
             'notification_delete',
             { id }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow notification_delete indisponible' });
-          }
           return reply.status(200).send({ success: true, message: 'Notification supprimée' });
         }
 

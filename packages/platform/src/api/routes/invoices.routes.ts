@@ -182,9 +182,6 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               dateTo: queryParams.dateTo,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n lors de la liste des factures' });
-          }
           const raw = res.data as { invoices?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
           const invoices = Array.isArray(raw.invoices)
             ? raw.invoices.map((inv) => normalizeInvoiceFromN8n(inv as Record<string, unknown>))
@@ -308,9 +305,6 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
               invoiceId: params.id,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(200).send({
             success: true,
             data: res.data,
@@ -830,9 +824,6 @@ Règles :
             pending.finally(() => createInvoicePending.delete(dedupeKey));
           }
           const res = await pending;
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
 
           // Après création via n8n, insérer les lignes d'articles en base
           if (body.lines && body.lines.length > 0) {
@@ -901,12 +892,8 @@ Règles :
             const nbComptes = await prisma.planComptable.count({ where: { tenantId } });
             if (nbComptes === 0) {
               fastify.log.info('Plan comptable vide pour tenant %s, lancement auto-init compta...', tenantId);
-              const initRes = await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
-              if (initRes.success) {
-                fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
-              } else {
-                fastify.log.warn('Auto-init compta échouée pour tenant %s: %s', tenantId, initRes.error);
-              }
+              await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
+              fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
             }
           } catch (initErr) {
             fastify.log.warn(initErr, 'Impossible de vérifier/initialiser la comptabilité');
@@ -1074,12 +1061,8 @@ Règles :
           const nbComptes = await prisma.planComptable.count({ where: { tenantId } });
           if (nbComptes === 0) {
             fastify.log.info('Plan comptable vide pour tenant %s, lancement auto-init compta...', tenantId);
-            const initRes = await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
-            if (initRes.success) {
-              fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
-            } else {
-              fastify.log.warn('Auto-init compta échouée pour tenant %s: %s', tenantId, initRes.error);
-            }
+            await n8nService.callWorkflowReturn(tenantId, 'compta_init', { tenantId });
+            fastify.log.info('Auto-init compta réussie pour tenant %s', tenantId);
           }
         } catch (initErr) {
           fastify.log.warn(initErr, 'Impossible de vérifier/initialiser la comptabilité');
@@ -1175,9 +1158,6 @@ Règles :
               ...body,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(200).send({
             success: true,
             message: 'Facture mise à jour via n8n',
@@ -1437,10 +1417,6 @@ Règles :
             datePaiement: body.datePaiement || new Date().toISOString().split('T')[0],
           },
         );
-
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
 
         // Émettre événement
         await eventService.emit(tenantId, 'invoice_paid', 'Invoice', params.id, {

@@ -95,7 +95,7 @@
       "id": "pg-list",
       "name": "06. SELECT article_codes",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2,
       "position": [
         1080,
         300

@@ -95,9 +95,6 @@ export async function proformaRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow proforma_list indisponible' });
-        }
         const raw = res.data as { proforma?: unknown[]; proformas?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
         const proforma = Array.isArray(raw.proformas) ? raw.proformas : (Array.isArray(raw.proforma) ? raw.proforma : []);
         return reply.status(200).send({
@@ -163,9 +160,6 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_get',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow proforma_get indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -339,9 +333,6 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
 
         return reply.status(201).send({
           success: true,
@@ -447,9 +438,6 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_send',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Proforma envoyé via n8n',
@@ -512,9 +500,6 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_accept',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Proforma accepté via n8n',
@@ -582,9 +567,6 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           'proforma_convert_to_invoice',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(201).send({
           success: true,
           message: 'Facture créée via n8n',
@@ -686,14 +668,11 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       if (proforma.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un proforma déjà facturé' });
 
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+        await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
           'proforma_delete',
           { proformaId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Proforma supprimé via n8n',

@@ -82,7 +82,7 @@
       "id": "pg-check",
       "name": "05. Verifier existence",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2,
       "position": [
         860,
         300
@@ -160,7 +160,7 @@
       "id": "pg-delete",
       "name": "09. Executer DELETE",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2,
       "position": [
         1520,
         300

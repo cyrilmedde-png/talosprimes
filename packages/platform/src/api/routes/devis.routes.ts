@@ -102,9 +102,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
             clientFinalId: query.clientFinalId,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow devis_list indisponible' });
-        }
         const raw = res.data as { devis?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
         const devis = Array.isArray(raw.devis) ? raw.devis : [];
         return reply.status(200).send({
@@ -170,9 +167,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_get',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow devis_get indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -345,9 +339,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
 
         return reply.status(201).send({
           success: true,
@@ -456,9 +447,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_send',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Devis envoyé via n8n',
@@ -520,9 +508,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_accept',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Devis accepté via n8n',
@@ -589,9 +574,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_convert_to_invoice',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(201).send({
           success: true,
           message: 'Facture créée via n8n',
@@ -701,9 +683,6 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_convert_to_bdc',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(201).send({
           success: true,
           message: 'Bon de commande créé via n8n',
@@ -801,15 +780,11 @@ export async function devisRoutes(fastify: FastifyInstance) {
           'devis_update',
           { devisId: params.id, ...body }
         );
-        if (res.success) {
-          return reply.status(200).send({
-            success: true,
-            message: 'Devis mis à jour via n8n',
-            data: res.data,
-          });
-        }
-        // Si n8n échoue, on continue avec Prisma directement
-        console.log(`[devis_update] n8n indisponible, fallback Prisma: ${res.error}`);
+        return reply.status(200).send({
+          success: true,
+          message: 'Devis mis à jour via n8n',
+          data: res.data,
+        });
       }
 
       const clientFinalId = body.clientFinalId || devis.clientFinalId;
@@ -904,14 +879,11 @@ export async function devisRoutes(fastify: FastifyInstance) {
       if (devis.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un devis déjà facturé' });
 
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+        await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
           'devis_delete',
           { devisId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Devis supprimé via n8n',

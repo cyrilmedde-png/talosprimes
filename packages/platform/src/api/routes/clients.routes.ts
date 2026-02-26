@@ -354,9 +354,6 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             'client_create',
             bodyWithoutTenantId
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(201).send({
             success: true,
             message: 'Client créé via n8n',
@@ -626,9 +623,6 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             'client_delete',
             { id: params.id }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(200).send({
             success: true,
             message: 'Client supprimé via n8n',
@@ -1000,13 +994,6 @@ export async function clientsRoutes(fastify: FastifyInstance) {
               avecStripe: body.avecStripe || false, // Indicateur pour créer l'abonnement Stripe
             }
           );
-
-          if (!res.success) {
-            return reply.status(502).send({
-              success: false,
-              error: res.error || 'Erreur n8n lors de la création de l\'espace client',
-            });
-          }
 
           return reply.status(201).send({
             success: true,

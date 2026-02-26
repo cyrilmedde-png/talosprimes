@@ -109,9 +109,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
             direction: query.direction,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow call_log_list indisponible' });
-        }
         const raw = res.data as { callLogs?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
         const callLogs = Array.isArray(raw.callLogs) ? raw.callLogs : [];
         return reply.status(200).send({
@@ -181,9 +178,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
           'call_log_stats',
           {}
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow call_log_stats indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -277,9 +271,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
           'call_log_get',
           { callLogId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n — workflow call_log_get indisponible' });
-        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -334,9 +325,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
           'call_log_create',
           { ...bodyWithoutTenantId, tenantId }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
 
         return reply.status(201).send({
           success: true,
@@ -422,9 +410,6 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
           'call_log_update',
           { callLogId: params.id, ...body }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Call log mis à jour via n8n',
@@ -482,14 +467,11 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       if (!callLog) return reply.status(404).send({ success: false, error: 'Non trouvé' });
 
       if (!fromN8n) {
-        const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+        await n8nService.callWorkflowReturn<{ success: boolean }>(
           tenantId,
           'call_log_delete',
           { callLogId: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(200).send({
           success: true,
           message: 'Call log supprimé via n8n',
