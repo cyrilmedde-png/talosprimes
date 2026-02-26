@@ -218,9 +218,6 @@ export async function clientsRoutes(fastify: FastifyInstance) {
               leadId: body.leadId,
             }
           );
-          if (!res.success) {
-            return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-          }
           return reply.status(201).send({
             success: true,
             message: 'Client créé avec succès depuis le lead via n8n',

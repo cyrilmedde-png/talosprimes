@@ -70,9 +70,6 @@ export async function leadsRoutes(fastify: FastifyInstance) {
             ...data,
           }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.status(201).send({
           success: true,
           message: 'Lead créé via n8n',
@@ -223,10 +220,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'leads_list',
           { source, statut, limit: limit ?? '100' }
         );
-        if (!result.success) {
-          return reply.status(502).send({ success: false, error: result.error || 'Erreur n8n' });
-        }
-        return reply.send({ success: true, data: { leads: result.data?.leads ?? [] } });
+        return reply.send({ success: true, data: { leads: result.data } });
       }
       
       const where: Record<string, unknown> = {};
@@ -291,9 +285,6 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'lead_get',
           { id: params.id }
         );
-        if (!result.success) {
-          return reply.status(502).send({ success: false, error: result.error || 'Erreur n8n' });
-        }
         if (!result.data?.lead) {
           return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
         }
@@ -347,9 +338,6 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'lead_update_status',
           { id: params.id, statut }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.send({
           success: true,
           message: 'Statut mis à jour (n8n)',
@@ -411,14 +399,11 @@ export async function leadsRoutes(fastify: FastifyInstance) {
 
       // Si on délègue les écritures à n8n (full no‑code) - pas si appel venant de n8n
       if (!fromN8n && request.tenantId && env.USE_N8N_COMMANDS) {
-        const res = await n8nService.callWorkflowReturn(
+        await n8nService.callWorkflowReturn(
           request.tenantId,
           'lead_delete',
           { id: params.id }
         );
-        if (!res.success) {
-          return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
         return reply.send({
           success: true,
           message: 'Lead supprimé (n8n)',
@@ -497,10 +482,6 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         { id: params.id }
       );
 
-      if (!res.success) {
-        return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-      }
-
       return reply.send({
         success: true,
         message: 'Questionnaire envoyé avec succès',
@@ -553,10 +534,6 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         }
       );
 
-      if (!res.success) {
-        return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-      }
-
       return reply.send({
         success: true,
         message: 'Email d\'entretien envoyé avec succès',
@@ -602,10 +579,6 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         'lead_confirmation',
         { id: params.id }
       );
-
-      if (!res.success) {
-        return reply.status(502).send({ success: false, error: res.error || 'Erreur n8n' });
-      }
 
       return reply.send({
         success: true,

@@ -282,62 +282,57 @@ export class N8nService {
     payload: Record<string, unknown>
   ): Promise<{ success: boolean; data?: T; error?: string }> {
     if (!this.apiUrl) {
-      return { success: false, error: 'n8n non configuré' };
+      throw new Error('n8n non configuré');
     }
 
-    try {
-      // 1. Chercher un WorkflowLink en DB pour ce tenant + event type
-      const workflowLink = await prisma.workflowLink.findFirst({
-        where: {
-          tenantId,
-          typeEvenement: eventType,
-          statut: 'actif',
-        },
-      });
+    // 1. Chercher un WorkflowLink en DB pour ce tenant + event type
+    const workflowLink = await prisma.workflowLink.findFirst({
+      where: {
+        tenantId,
+        typeEvenement: eventType,
+        statut: 'actif',
+      },
+    });
 
-      // 2. Déterminer le chemin webhook :
-      //    - Si WorkflowLink trouvé → utiliser workflowN8nId (résolu via aliases)
-      //    - Sinon → utiliser WEBHOOK_PATH_ALIASES (permet aux tenants sans seed de fonctionner)
-      let webhookPath: string;
-      if (workflowLink) {
-        webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
-      } else {
-        const aliasPath = WEBHOOK_PATH_ALIASES[eventType];
-        if (!aliasPath) {
-          return { success: false, error: `Workflow non trouvé pour ${eventType}` };
-        }
-        webhookPath = aliasPath;
-        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), résolution via alias: ${webhookPath}`);
+    // 2. Déterminer le chemin webhook :
+    //    - Si WorkflowLink trouvé → utiliser workflowN8nId (résolu via aliases)
+    //    - Sinon → utiliser WEBHOOK_PATH_ALIASES (permet aux tenants sans seed de fonctionner)
+    let webhookPath: string;
+    if (workflowLink) {
+      webhookPath = this.getWebhookPath(workflowLink.workflowN8nId);
+    } else {
+      const aliasPath = WEBHOOK_PATH_ALIASES[eventType];
+      if (!aliasPath) {
+        throw new Error(`Workflow non trouvé pour ${eventType}`);
       }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      const response = await fetch(`${this.apiUrl}/webhook/${webhookPath}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          event: eventType,
-          tenantId,
-          timestamp: new Date().toISOString(),
-          ...payload,     // champs à plat pour les nouveaux workflows
-          data: payload,   // wrapper data pour les anciens workflows
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        return { success: false, error: `n8n API error: ${response.status} - ${errorText}` };
-      }
-
-      const rawData = await response.json().catch(() => ({}));
-      // Convertir les clés snake_case (PostgreSQL) en camelCase (frontend)
-      const data = transformKeys(rawData) as T;
-      return { success: true, data };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      return { success: false, error: errorMessage };
+      webhookPath = aliasPath;
+      console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), résolution via alias: ${webhookPath}`);
     }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const response = await fetch(`${this.apiUrl}/webhook/${webhookPath}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        event: eventType,
+        tenantId,
+        timestamp: new Date().toISOString(),
+        ...payload,     // champs à plat pour les nouveaux workflows
+        data: payload,   // wrapper data pour les anciens workflows
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`n8n API error: ${response.status} - ${errorText}`);
+    }
+
+    const rawData = await response.json().catch(() => ({}));
+    // Convertir les clés snake_case (PostgreSQL) en camelCase (frontend)
+    const data = transformKeys(rawData) as T;
+    return { success: true, data };
   }
   /**
    * Génère les headers d'authentification pour les requêtes n8n API REST
