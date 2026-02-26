@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Formation not found' }}];\n}\nreturn [{json: { success: true, message: 'Formation deleted' }}];"
+        "jsCode": "var row = $input.first().json;\nif (!row || !row.id) {\n  return [{json: { success: false, error: 'Formation not found' }}];\n}\nreturn [{json: { success: true, message: 'Formation deleted' }}];"
       },
       "id": "Format",
       "name": "Format",

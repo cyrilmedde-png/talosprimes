@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nvar formatted = rows.map(function(r) {\n  return {\n    id: r.id,\n    tenantId: r.tenant_id,\n    membreId: r.member_id,\n    membreNom: r.membreNom || '',\n    evaluateurId: r.evaluateur_id,\n    evaluateurNom: r.evaluateurNom || '',\n    periode: r.periode,\n    annee: r.annee,\n    noteGlobale: Number(r.note_globale || 0),\n    commentaires: r.commentaires,\n    objectifsAtteints: r.objectifs_atteints,\n    objectifsFuturs: r.objectifs_futurs,\n    competences: r.competences,\n    statut: r.statut,\n    createdAt: r.created_at,\n    updatedAt: r.updated_at\n  };\n});\nreturn [{json: { success: true, data: formatted }}];"
+        "jsCode": "var rows = $input.all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\nvar formatted = rows.map(function(r) {\n  return {\n    id: r.id,\n    tenantId: r.tenant_id,\n    membreId: r.member_id,\n    membreNom: r.membreNom || '',\n    evaluateurId: r.evaluateur_id,\n    evaluateurNom: r.evaluateurNom || '',\n    periode: r.periode,\n    annee: r.annee,\n    noteGlobale: Number(r.note_globale || 0),\n    commentaires: r.commentaires,\n    objectifsAtteints: r.objectifs_atteints,\n    objectifsFuturs: r.objectifs_futurs,\n    competences: r.competences,\n    statut: r.statut,\n    createdAt: r.created_at,\n    updatedAt: r.updated_at\n  };\n});\nreturn [{json: { success: true, data: formatted }}];"
       },
       "id": "Format",
       "name": "Format",

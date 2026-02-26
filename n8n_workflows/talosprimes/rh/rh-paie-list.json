@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nconst items = rows.map(row => ({\n  id: row.id,\n  memberId: row.member_id,\n  membreNom: (row.membre_nom || '') + ' ' + (row.membre_prenom || ''),\n  mois: row.mois,\n  annee: row.annee,\n  salaireBase: Number(row.salaire_base || 0),\n  primes: Number(row.primes || 0),\n  deductions: Number(row.deductions || 0),\n  chargesPatronales: Number(row.charges_patronales || 0),\n  chargesSalariales: Number(row.charges_salariales || 0),\n  netAPayer: Number(row.net_a_payer || 0),\n  netImposable: Number(row.net_imposable || 0),\n  statut: row.statut,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}));\nreturn [{json: {success: true, data: items}}];"
+        "jsCode": "var rows = $input.all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\nconst items = rows.map(row => ({\n  id: row.id,\n  memberId: row.member_id,\n  membreNom: (row.membre_nom || '') + ' ' + (row.membre_prenom || ''),\n  mois: row.mois,\n  annee: row.annee,\n  salaireBase: Number(row.salaire_base || 0),\n  primes: Number(row.primes || 0),\n  deductions: Number(row.deductions || 0),\n  chargesPatronales: Number(row.charges_patronales || 0),\n  chargesSalariales: Number(row.charges_salariales || 0),\n  netAPayer: Number(row.net_a_payer || 0),\n  netImposable: Number(row.net_imposable || 0),\n  statut: row.statut,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n}));\nreturn [{json: {success: true, data: items}}];"
       },
       "id": "Format",
       "name": "Format",

@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Formation not found' }}];\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  titre: r.titre,\n  description: r.description,\n  formateur: r.formateur,\n  organisme: r.organisme,\n  dateDebut: r.date_debut,\n  dateFin: r.date_fin,\n  cout: Number(r.cout || 0),\n  maxParticipants: Number(r.max_participants || 0),\n  lieu: r.lieu,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn [{json: { success: true, data: result }}];"
+        "jsCode": "var r = $input.first().json;\nif (!r || !r.id) {\n  return [{json: { success: false, error: 'Formation not found' }}];\n}\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  titre: r.titre,\n  description: r.description,\n  formateur: r.formateur,\n  organisme: r.organisme,\n  dateDebut: r.date_debut,\n  dateFin: r.date_fin,\n  cout: Number(r.cout || 0),\n  maxParticipants: Number(r.max_participants || 0),\n  lieu: r.lieu,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn [{json: { success: true, data: result }}];"
       },
       "id": "Format",
       "name": "Format",

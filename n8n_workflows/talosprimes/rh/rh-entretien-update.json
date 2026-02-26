@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Entretien not found' }}];\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  membreId: r.member_id,\n  type: r.type,\n  dateEntretien: r.date_entretien,\n  evaluateur: r.evaluateur,\n  compteRendu: r.compte_rendu,\n  objectifs: r.objectifs,\n  pointsForts: r.points_forts,\n  axesAmelioration: r.axes_amelioration,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn [{json: { success: true, data: result }}];"
+        "jsCode": "var r = $input.first().json;\nif (!r || !r.id) {\n  return [{json: { success: false, error: 'Entretien not found' }}];\n}\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  membreId: r.member_id,\n  type: r.type,\n  dateEntretien: r.date_entretien,\n  evaluateur: r.evaluateur,\n  compteRendu: r.compte_rendu,\n  objectifs: r.objectifs,\n  pointsForts: r.points_forts,\n  axesAmelioration: r.axes_amelioration,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn [{json: { success: true, data: result }}];"
       },
       "id": "Format",
       "name": "Format",

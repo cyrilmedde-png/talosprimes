@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Failed to create evaluation' }}];\n}\nvar r = rows[0];\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  membreId: r.member_id,\n  evaluateurId: r.evaluateur_id,\n  periode: r.periode,\n  annee: r.annee,\n  noteGlobale: Number(r.note_globale || 0),\n  commentaires: r.commentaires,\n  objectifsAtteints: r.objectifs_atteints,\n  objectifsFuturs: r.objectifs_futurs,\n  competences: r.competences,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn [{json: { success: true, data: result }}];"
+        "jsCode": "var r = $input.first().json;\nif (!r || !r.id) {\n  return [{json: { success: false, error: 'Failed to create evaluation' }}];\n}\nvar result = {\n  id: r.id,\n  tenantId: r.tenant_id,\n  membreId: r.member_id,\n  evaluateurId: r.evaluateur_id,\n  periode: r.periode,\n  annee: r.annee,\n  noteGlobale: Number(r.note_globale || 0),\n  commentaires: r.commentaires,\n  objectifsAtteints: r.objectifs_atteints,\n  objectifsFuturs: r.objectifs_futurs,\n  competences: r.competences,\n  statut: r.statut,\n  createdAt: r.created_at,\n  updatedAt: r.updated_at\n};\nreturn [{json: { success: true, data: result }}];"
       },
       "id": "Format",
       "name": "Format",

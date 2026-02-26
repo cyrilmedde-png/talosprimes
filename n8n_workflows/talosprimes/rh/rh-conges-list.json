@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nvar items = rows.map(function(row) {\n  return {\n    id: row.id,\n    tenantId: row.tenant_id,\n    memberId: row.member_id,\n    membreNom: row.membreNom,\n    type: row.type,\n    dateDebut: row.date_debut,\n    dateFin: row.date_fin,\n    joursPris: Number(row.jours_pris || 0),\n    motif: row.motif,\n    statut: row.statut,\n    approuvePar: row.approuve_par,\n    dateReponse: row.date_reponse,\n    commentaire: row.commentaire,\n    createdAt: row.created_at,\n    updatedAt: row.updated_at\n  };\n});\n\nreturn [{json: {success: true, data: items}}];"
+        "jsCode": "var rows = $input.all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\nvar items = rows.map(function(row) {\n  return {\n    id: row.id,\n    tenantId: row.tenant_id,\n    memberId: row.member_id,\n    membreNom: row.membreNom,\n    type: row.type,\n    dateDebut: row.date_debut,\n    dateFin: row.date_fin,\n    joursPris: Number(row.jours_pris || 0),\n    motif: row.motif,\n    statut: row.statut,\n    approuvePar: row.approuve_par,\n    dateReponse: row.date_reponse,\n    commentaire: row.commentaire,\n    createdAt: row.created_at,\n    updatedAt: row.updated_at\n  };\n});\n\nreturn [{json: {success: true, data: items}}];"
       },
       "id": "Format",
       "name": "Format",

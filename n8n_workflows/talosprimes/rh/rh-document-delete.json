@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\n\nif (!rows || rows.length === 0) {\n  return [{json: {success: false, message: 'Not found or already deleted'}}];\n}\n\nreturn [{json: {success: true, message: 'Supprim\u00e9'}}];"
+        "jsCode": "var row = $input.first().json;\nif (!row || !row.id) {\n  return [{json: {success: false, message: 'Not found or already deleted'}}];\n}\n\nreturn [{json: {success: true, message: 'Supprim\u00e9'}}];"
       },
       "id": "Format",
       "name": "Format",

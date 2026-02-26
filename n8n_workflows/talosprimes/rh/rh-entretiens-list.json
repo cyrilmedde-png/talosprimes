@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nvar formatted = rows.map(function(r) {\n  return {\n    id: r.id,\n    tenantId: r.tenant_id,\n    membreId: r.member_id,\n    membreNom: r.membreNom || '',\n    type: r.type,\n    dateEntretien: r.date_entretien,\n    evaluateur: r.evaluateur,\n    compteRendu: r.compte_rendu,\n    objectifs: r.objectifs,\n    pointsForts: r.points_forts,\n    axesAmelioration: r.axes_amelioration,\n    statut: r.statut,\n    createdAt: r.created_at,\n    updatedAt: r.updated_at\n  };\n});\nreturn [{json: { success: true, data: formatted }}];"
+        "jsCode": "var rows = $input.all().map(function(i) { return i.json; }).filter(function(i) { return i.id; });\nvar formatted = rows.map(function(r) {\n  return {\n    id: r.id,\n    tenantId: r.tenant_id,\n    membreId: r.member_id,\n    membreNom: r.membreNom || '',\n    type: r.type,\n    dateEntretien: r.date_entretien,\n    evaluateur: r.evaluateur,\n    compteRendu: r.compte_rendu,\n    objectifs: r.objectifs,\n    pointsForts: r.points_forts,\n    axesAmelioration: r.axes_amelioration,\n    statut: r.statut,\n    createdAt: r.created_at,\n    updatedAt: r.updated_at\n  };\n});\nreturn [{json: { success: true, data: formatted }}];"
       },
       "id": "Format",
       "name": "Format",

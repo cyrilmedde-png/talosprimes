@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: { success: false, error: 'Failed to fetch dashboard data' }}];\n}\nvar r = rows[0];\nvar result = {\n  effectifTotal: Number(r.effectif_total || 0),\n  contratsActifs: Number(r.contrats_actifs || 0),\n  congesEnAttente: Number(r.conges_en_attente || 0),\n  formationsEnCours: Number(r.formations_en_cours || 0),\n  evaluationsCeMois: Number(r.evaluations_ce_mois || 0),\n  masseSalariale: Number(r.masse_salariale || 0),\n  tauxAbsenteisme: Number(r.taux_absenteisme || 0)\n};\nreturn [{json: { success: true, data: result }}];"
+        "jsCode": "var r = $input.first().json;\nvar result = {\n  effectifTotal: Number(r.effectif_total || 0),\n  contratsActifs: Number(r.contrats_actifs || 0),\n  congesEnAttente: Number(r.conges_en_attente || 0),\n  formationsEnCours: Number(r.formations_en_cours || 0),\n  evaluationsCeMois: Number(r.evaluations_ce_mois || 0),\n  masseSalariale: Number(r.masse_salariale || 0),\n  tauxAbsenteisme: Number(r.taux_absenteisme || 0)\n};\nreturn [{json: { success: true, data: result }}];"
       },
       "id": "Format",
       "name": "Format",

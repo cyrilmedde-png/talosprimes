@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json.queryResults || [];\n\nif (!rows || rows.length === 0) {\n  return [{json: {success: false, message: 'Not found'}}];\n}\n\nvar row = rows[0];\nvar item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  type: row.type,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  joursPris: Number(row.jours_pris || 0),\n  motif: row.motif,\n  statut: row.statut,\n  approuvePar: row.approuve_par,\n  dateReponse: row.date_reponse,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn [{json: {success: true, data: item}}];"
+        "jsCode": "var row = $input.first().json;\nif (!row || !row.id) {\n  return [{json: {success: false, message: 'Not found'}}];\n}\n\nvar item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  type: row.type,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  joursPris: Number(row.jours_pris || 0),\n  motif: row.motif,\n  statut: row.statut,\n  approuvePar: row.approuve_par,\n  dateReponse: row.date_reponse,\n  commentaire: row.commentaire,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn [{json: {success: true, data: item}}];"
       },
       "id": "Format",
       "name": "Format",
