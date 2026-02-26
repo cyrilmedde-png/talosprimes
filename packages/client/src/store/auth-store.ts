@@ -8,7 +8,7 @@ const ALL_MODULES = [
   'clients', 'leads', 'facturation', 'devis', 'bons_commande',
   'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
   'articles', 'logs', 'notifications',
-  'gestion_equipe', 'gestion_projet', 'btp',
+  'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
 ];
 
 interface AuthState {
