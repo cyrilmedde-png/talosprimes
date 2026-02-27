@@ -117,7 +117,7 @@ async function main() {
     update: {},
     create: {
       tenantId: tenant.id,
-      phoneNumber: '+33123456789',
+      phoneNumber: '+33978467508',
       agentName: 'Sophie',
       companyName: tenant.nomEntreprise,
       niche: 'plomberie',
