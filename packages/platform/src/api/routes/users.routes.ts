@@ -125,7 +125,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
         tenantId: string;
         email: string;
         passwordHash: string;
-        role: string;
+        role: 'super_admin' | 'admin' | 'collaborateur' | 'lecture_seule';
         statut: string;
         nom?: string | null;
         prenom?: string | null;
@@ -137,7 +137,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
         tenantId,
         email: data.email,
         passwordHash,
-        role: data.role,
+        role: data.role as 'super_admin' | 'admin' | 'collaborateur' | 'lecture_seule',
         statut: 'actif',
       };
       

@@ -3,7 +3,7 @@ import { n8nService } from './n8n.service.js';
 import { logger } from '../config/logger.js';
 
 // Type local (en attendant que shared soit buildé)
-type EventExecutionStatus = 'succes' | 'erreur' | 'en_attente' | 'ignore';
+type EventExecutionStatus = 'succes' | 'erreur' | 'en_attente';
 
 /**
  * Service pour émettre des événements métiers.
@@ -62,8 +62,8 @@ export class EventService {
 
       if (result.success && !result.workflowId) {
         // Pas de workflow configuré pour cet événement — c'est attendu,
-        // on marque comme « ignoré » (pas comme succès, car rien n'a été exécuté).
-        await this.updateEventStatus(eventLogId, 'ignore', undefined, undefined);
+        // on laisse le statut en 'en_attente' (rien n'a été exécuté).
+        return;
       } else {
         // Workflow trouvé et déclenché (succès ou erreur).
         // workflowN8nDeclenche = true dans les deux cas car on a TENTÉ l'exécution.
@@ -106,7 +106,7 @@ export class EventService {
           statutExecution: status,
           workflowN8nId,
           // true dès qu'un workflow a été déclenché (succès OU erreur),
-          // false uniquement quand aucun workflow n'a été tenté (ignore, en_attente)
+          // false uniquement quand aucun workflow n'a été tenté (en_attente)
           workflowN8nDeclenche: status === 'succes' || status === 'erreur',
           messageErreur: errorMessage,
         },
