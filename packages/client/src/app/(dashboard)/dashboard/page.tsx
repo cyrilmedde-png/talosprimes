@@ -18,18 +18,28 @@ import {
 
 interface CallLog {
   id: string;
+  callerPhone?: string;
   caller_phone?: string;
   callerName?: string;
+  caller_name?: string;
   direction?: string;
   status?: string;
   duration?: number;
+  actionTaken?: string;
   action_taken?: string;
   sentiment?: string;
+  urgencyLevel?: string;
   urgency_level?: string;
   notes?: string;
-  created_at?: string;
   createdAt?: string;
+  created_at?: string;
 }
+
+// Getters robustes : camelCase (Prisma) OU snake_case (n8n SQL)
+const getCallDate = (c: CallLog) => c.createdAt || c.created_at || '';
+const getCallerName = (c: CallLog) => c.callerName || c.caller_name || '';
+const getCallerPhone = (c: CallLog) => c.callerPhone || c.caller_phone || '';
+const getAction = (c: CallLog) => c.actionTaken || c.action_taken || '';
 
 interface Lead {
   id: string;
@@ -135,7 +145,7 @@ export default function DashboardPage() {
 
   // Stats calculés
   const todayCalls = callLogs.filter((c) => {
-    const d = new Date(c.created_at || c.createdAt || '');
+    const d = new Date(getCallDate(c));
     const today = new Date();
     return d.toDateString() === today.toDateString();
   }).length;
@@ -274,15 +284,15 @@ export default function DashboardPage() {
                   <tr key={call.id} className="hover:bg-gray-800/20">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-white">
-                        {call.callerName || call.caller_phone || '-'}
+                        {getCallerName(call) || getCallerPhone(call) || '-'}
                       </div>
-                      {call.callerName && call.caller_phone && (
-                        <div className="text-xs text-gray-400">{call.caller_phone}</div>
+                      {getCallerName(call) && getCallerPhone(call) && (
+                        <div className="text-xs text-gray-400">{getCallerPhone(call)}</div>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300">
-                        {actionLabels[call.action_taken || ''] || call.action_taken || '-'}
+                        {actionLabels[getAction(call)] || getAction(call) || '-'}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
@@ -297,7 +307,7 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
-                      {formatDate(call.created_at || call.createdAt)}
+                      {formatDate(getCallDate(call))}
                     </td>
                   </tr>
                 ))}
@@ -316,7 +326,7 @@ export default function DashboardPage() {
               <h3 className="text-lg font-medium text-white">Derniers leads</h3>
             </div>
             <Link
-              href="/agent-ia/leads"
+              href="/onboarding"
               className="text-sm text-amber-400 hover:text-amber-300"
             >
               Voir tout →
