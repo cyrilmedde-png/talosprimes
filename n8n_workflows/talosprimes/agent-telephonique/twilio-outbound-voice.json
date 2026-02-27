@@ -1,0 +1,823 @@
+{
+  "name": "twilio-outbound-voice",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "twilio-outbound-voice",
+        "responseMode": "responseNode",
+        "httpMethod": "POST",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "01. Webhook Twilio",
+      "name": "01. Webhook Twilio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Twilio webhook payload (form-urlencoded) avec validation anti-injection\nvar data = $input.first().json;\nvar body = data.body || data;\n\n// Regex de validation pour les champs Twilio\nvar CALLSID_RE = /^CA[0-9a-f]{32}$/i;\nvar PHONE_RE = /^\\+?[0-9]{6,15}$/;\n\n// Nettoyer : ne garder que les caractères attendus\nfunction sanitizePhone(p) { return String(p || '').replace(/[^+0-9]/g, '').substring(0, 16); }\nfunction sanitizeCallSid(s) { return String(s || '').replace(/[^a-zA-Z0-9]/g, '').substring(0, 34); }\nfunction sanitizeText(t) { return String(t || '').replace(/'/g, \"''\").substring(0, 2000); }\n\nvar callSid = sanitizeCallSid(body.CallSid);\nvar from = sanitizePhone(body.From);\nvar to = sanitizePhone(body.To);\nvar called = sanitizePhone(body.Called);\nvar callStatus = String(body.CallStatus || '').replace(/[^a-z-]/gi, '').substring(0, 30);\nvar speechResult = sanitizeText(body.SpeechResult);\nvar digits = String(body.Digits || '').replace(/[^0-9*#]/g, '').substring(0, 20);\nvar isCallback = !!speechResult || !!digits;\n\n// Detection repondeur (MachineDetection)\nvar answeredBy = String(body.AnsweredBy || '').replace(/[^a-z_-]/gi, '').substring(0, 30);\nvar isMachine = answeredBy === 'machine_start' || answeredBy === 'machine_end_beep' || answeredBy === 'machine_end_silence' || answeredBy === 'machine_end_other';\n\nreturn [{json: {\n  callSid,\n  from,\n  to,\n  called,\n  callStatus,\n  speechResult,\n  digits,\n  isCallback,\n  answeredBy,\n  isMachine\n}}];"
+      },
+      "id": "02. Parser Twilio",
+      "name": "02. Parser Twilio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "7e6c6ac2-d2e7-43a0-a1d5-258f94c0310c",
+              "leftValue": "={{ $json.isCallback }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Is Callback?",
+      "name": "03. Is Callback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT cl.id as call_log_id, cl.tenant_id, cl.notes as reason, cl.called_number, cl.caller_phone, tc.agent_name, tc.company_name, tc.niche, tc.phone_number, tc.business_hours, tc.system_prompt_addon, tc.knowledge_base, tc.dispatch_delay, tc.base_price, tc.human_contact FROM call_logs cl JOIN twilio_configs tc ON tc.tenant_id = cl.tenant_id WHERE cl.call_sid = '\" + $('02. Parser Twilio').first().json.callSid + \"' LIMIT 1\" }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "04. Get Call Context",
+      "name": "04. Get Call Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        700,
+        450
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Premier contact : le destinataire vient de décrocher\n// Construire le message d'accueil adapté à la raison de l'appel\nvar context = $input.first().json;\nvar parser = $('02. Parser Twilio').first().json;\n\nif (!context || !context.tenant_id) {\n  throw new Error('Get Call Context: aucune donnee trouvee pour CallSid ' + parser.callSid + '. Verifier que le call_log a ete cree par twilio-outbound-call.');\n}\n\nvar agentName = context.agent_name || 'Lea';\nvar companyName = context.company_name || 'TalosPrimes';\nvar reason = (context.reason || '').toLowerCase().replace(/^appel sortant: /i, '');\n\n// Message d'accueil dynamique selon la raison\nvar welcomeMessage = '';\nif (reason.includes('rappel')) {\n  welcomeMessage = 'Bonjour, ici ' + agentName + ' de ' + companyName + '. Vous nous avez contacte et avez demande a etre rappele. Comment puis-je vous aider ?';\n} else if (reason.includes('suivi_lead') || reason.includes('suivi lead')) {\n  welcomeMessage = 'Bonjour, ici ' + agentName + ' de ' + companyName + '. Je vous appelle suite a votre inscription sur notre plateforme. Avez-vous quelques minutes pour que je vous presente nos services ?';\n} else if (reason.includes('relance_devis') || reason.includes('relance devis')) {\n  welcomeMessage = 'Bonjour, ici ' + agentName + ' de ' + companyName + '. Je vous contacte au sujet du devis que nous vous avons envoye. Avez-vous eu le temps de le consulter ?';\n} else if (reason.includes('suivi_client') || reason.includes('suivi client')) {\n  welcomeMessage = 'Bonjour, ici ' + agentName + ' de ' + companyName + '. Je vous appelle pour prendre de vos nouvelles et verifier que tout se passe bien avec nos services.';\n} else {\n  welcomeMessage = 'Bonjour, ici ' + agentName + ' de ' + companyName + '. ' + (reason || 'Je vous appelle pour discuter avec vous.');\n}\n\n// Si repondeur detecte\nif (parser.isMachine) {\n  welcomeMessage = 'Bonjour, ici ' + agentName + ' de ' + companyName + '. Nous avons essaye de vous joindre. N hesitez pas a nous rappeler au ' + (context.phone_number || '') + '. Merci et bonne journee.';\n}\n\nvar twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<Response>';\n\nif (parser.isMachine) {\n  // Repondeur : laisser un message et raccrocher\n  twiml += '\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">' + welcomeMessage + '</Say>';\n  twiml += '\\n  <Hangup/>';\n} else {\n  // Humain : message + ecoute\n  twiml += '\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">' + welcomeMessage + '</Say>';\n  twiml += '\\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"3\" timeout=\"15\" action=\"https://n8n.talosprimes.com/webhook/twilio-outbound-voice\" method=\"POST\"/>';\n  twiml += '\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Je n\\'ai pas entendu de reponse. N hesitez pas a nous rappeler. Bonne journee !</Say>';\n}\n\ntwiml += '\\n</Response>';\n\nreturn [{ json: { twiml, callSid: parser.callSid, isMachine: parser.isMachine } }];"
+      },
+      "id": "05. Welcome TwiML",
+      "name": "05. Welcome TwiML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.twiml }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "05b. Respond Welcome",
+      "name": "05b. Respond Welcome",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Callback avec SpeechResult\nvar prev = $('02. Parser Twilio').first().json;\nvar speechResult = prev.speechResult;\nvar callSid = prev.callSid;\nvar from = prev.from;\nvar to = prev.to;\nvar called = prev.called;\n\nif (!speechResult || speechResult.trim() === '') {\n  return [{json: { callSid, from, to, called, speechResult: '', hasText: false }}];\n}\n\nreturn [{json: { callSid, from, to, called, speechResult: speechResult.trim(), hasText: true }}];"
+      },
+      "id": "06. Extract Speech",
+      "name": "06. Extract Speech",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "e98da725-c807-4c0c-9c14-f309f75f7221",
+              "leftValue": "={{ $json.hasText }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "07. Has Text?",
+      "name": "07. Has Text?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pas de texte détecté, on relance l ecoute\nvar twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<Response>\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Excusez-moi, je n\\'ai pas bien compris. Pouvez-vous repeter ?</Say>\\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"3\" timeout=\"15\" action=\"https://n8n.talosprimes.com/webhook/twilio-outbound-voice\" method=\"POST\"/>\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Merci pour votre temps. Bonne journee !</Say>\\n</Response>';\n\nreturn [{ json: { twiml } }];"
+      },
+      "id": "08. No Text TwiML",
+      "name": "08. No Text TwiML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.twiml }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "09. Respond No Text",
+      "name": "09. Respond No Text",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT cl.id as call_log_id, cl.tenant_id, cl.notes as reason, cl.called_number, tc.agent_name, tc.company_name, tc.niche, tc.phone_number, tc.business_hours, tc.system_prompt_addon, tc.dispatch_delay, tc.base_price, tc.human_contact, cf.id as client_id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale FROM call_logs cl JOIN twilio_configs tc ON tc.tenant_id = cl.tenant_id LEFT JOIN client_finals cf ON cf.telephone LIKE '%' || RIGHT('\" + $('02. Parser Twilio').first().json.called + \"', 9) || '%' WHERE cl.call_sid = '\" + $('02. Parser Twilio').first().json.callSid + \"' LIMIT 1\" }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "11. Get Session",
+      "name": "11. Get Session",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1100,
+        250
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT categorie, titre, contenu, mots_cles FROM agent_knowledge_entries WHERE tenant_id = '\" + ($('11. Get Session').first().json.tenant_id || '') + \"' AND actif = true ORDER BY categorie ASC, ordre ASC, created_at DESC\" }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "11b. Load Knowledge",
+      "name": "11b. Load Knowledge",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1150,
+        330
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT notes FROM call_logs WHERE call_sid = '\" + $('02. Parser Twilio').first().json.callSid + \"' AND notes IS NOT NULL ORDER BY created_at ASC LIMIT 10\" }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "20. Load History",
+      "name": "20. Load History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        1200,
+        400
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire le prompt SORTANT — C'EST L'AGENT QUI APPELLE\nvar session = $('11. Get Session').first().json;\nif (!session || !session.tenant_id) throw new Error('Get Session: tenant_id manquant pour appel sortant. Verifier que le call_log et twilio_config existent pour ce CallSid.');\n\nvar speech = $('06. Extract Speech').first().json;\nvar speechResult = speech.speechResult;\nvar callSid = speech.callSid;\nvar called = speech.called || speech.to;\nvar tenantId = session.tenant_id;\nvar agentName = session.agent_name || 'Lea';\nvar companyName = session.company_name || 'TalosPrimes';\nvar niche = session.niche || 'talosprimes';\nvar reason = (session.reason || '').replace(/^Appel sortant: /i, '');\n\n// Info client (le destinataire de l'appel)\nvar clientName = session.nom || '';\nvar clientPrenom = session.prenom || '';\nvar clientEmail = session.email || '';\nvar clientId = session.client_id || '';\n\nvar clientInfo = '';\nif (clientName) {\n  clientInfo = 'DESTINATAIRE IDENTIFIE: ' + clientPrenom + ' ' + clientName;\n  if (clientEmail) clientInfo += ' (email: ' + clientEmail + ')';\n  clientInfo += '. ID: ' + clientId;\n  clientInfo += '\\nCe client est dans notre base. Salue-le par son prenom.';\n} else {\n  clientInfo = 'DESTINATAIRE NON IDENTIFIE dans notre base. Numero appele: ' + called;\n  clientInfo += '\\nC est probablement un prospect ou un lead.';\n}\n\n// Historique de conversation\nvar conversationHistory = '';\nvar historyItems = $('20. Load History').all();\nvar exchanges = [];\nfor (var i = 0; i < historyItems.length; i++) {\n  var item = historyItems[i];\n  var notes = '';\n  if (item && item.json && item.json.notes) {\n    notes = String(item.json.notes);\n  } else if (item && item.notes) {\n    notes = String(item.notes);\n  }\n  if (!notes) continue;\n  var qMatch = notes.match(/Q: (.+?) - R: /);\n  var rMatch = notes.match(/R: (.+)$/);\n  if (qMatch && rMatch) {\n    exchanges.push('Destinataire: ' + qMatch[1] + '\\n' + agentName + ': ' + rMatch[1]);\n  }\n}\nif (exchanges.length > 0) {\n  conversationHistory = '\\n--- HISTORIQUE DE LA CONVERSATION ---\\n' + exchanges.join('\\n') + '\\n--- FIN HISTORIQUE ---\\n';\n}\n\n// FAQ depuis la base de connaissances\nvar faqContext = '';\nvar knowledgeItems = $('11b. Load Knowledge').all();\nvar byCategorie = {};\nvar hasRealData = false;\nfor (var i = 0; i < knowledgeItems.length; i++) {\n  var row = knowledgeItems[i];\n  var data = (row && row.json) ? row.json : row;\n  if (!data || !data.contenu) continue;\n  hasRealData = true;\n  var cat = data.categorie || 'autre';\n  if (!byCategorie[cat]) byCategorie[cat] = [];\n  byCategorie[cat].push(data);\n}\nif (!hasRealData) throw new Error('Load Knowledge: aucune donnee retournee pour le tenant ' + tenantId + '. Verifier agent_knowledge_entries.');\nvar catLabels = {\n  'info_entreprise': 'INFORMATIONS ENTREPRISE',\n  'services': 'MODULES ET SERVICES',\n  'tarifs': 'TARIFICATION',\n  'faq': 'FAQ',\n  'politiques': 'POLITIQUES',\n  'actions': 'ACTIONS POSSIBLES',\n  'autre': 'AUTRE'\n};\nvar sections = [];\nvar catOrder = ['info_entreprise', 'services', 'tarifs', 'faq', 'politiques', 'actions', 'autre'];\nfor (var j = 0; j < catOrder.length; j++) {\n  var c = catOrder[j];\n  if (byCategorie[c] && byCategorie[c].length > 0) {\n    var lines = [];\n    for (var k = 0; k < byCategorie[c].length; k++) {\n      var entry = byCategorie[c][k];\n      lines.push('- ' + (entry.titre || '') + ': ' + (entry.contenu || ''));\n    }\n    sections.push(catLabels[c] + ':\\n' + lines.join('\\n'));\n  }\n}\nfaqContext = sections.join('\\n\\n');\nif (!faqContext) throw new Error('Load Knowledge: faqContext vide apres construction pour tenant ' + tenantId);\n\n// ===== PROMPT SORTANT — DIFFERENT DE L'ENTRANT =====\nvar systemPrompt = ''\n+ '=== IDENTITE ===\\n'\n+ 'Tu es ' + agentName + ', assistante virtuelle de ' + companyName + '.\\n'\n+ 'C est TOI qui appelles le client/prospect. Tu as initie cet appel.\\n'\n+ 'Tu es chaleureuse, professionnelle, efficace. Tu parles comme une vraie personne au telephone.\\n'\n+ 'Tu vouvoies TOUJOURS.\\n\\n'\n\n+ '=== RAISON DE L APPEL ===\\n'\n+ reason + '\\n\\n'\n\n+ '=== CONTEXTE ===\\n'\n+ clientInfo + '\\n'\n+ conversationHistory + '\\n'\n\n+ '=== BASE DE CONNAISSANCES ===\\n'\n+ faqContext + '\\n\\n'\n\n+ '=== TES CAPACITES (OUTILS) ===\\n'\n+ 'Tu disposes de VRAIS outils pour agir directement. Utilise-les des que pertinent:\\n'\n+ '- create_lead: Enregistrer un nouveau prospect (nom + telephone minimum)\\n'\n+ '- search_client: Chercher un client existant par nom ou telephone\\n'\n+ '- create_client: Creer un compte client complet (email obligatoire)\\n'\n+ '- create_invoice: Creer une facture/devis pour un client\\n'\n+ '- create_bon_commande: Creer un bon de commande\\n'\n+ '- list_recent_leads: Consulter les derniers prospects\\n'\n+ '- list_clients: Consulter la liste des clients\\n'\n+ '- list_invoices: Consulter les factures\\n'\n+ '- update_lead: Modifier un prospect (statut, notes, etc.)\\n'\n+ '- update_client: Modifier un client\\n'\n+ '- update_invoice_status: Changer le statut d une facture\\n\\n'\n\n+ '=== REGLES CONVERSATION SORTANTE ===\\n'\n+ '1. Tu MENES la conversation — c est toi qui appelles, guide l echange vers l objectif\\n'\n+ '2. Sois professionnel mais chaleureux — le client ne s attendait peut-etre pas a cet appel\\n'\n+ '3. Respecte le temps du client — va a l essentiel, ne babille pas\\n'\n+ '4. Si le client dit qu il n est pas disponible → propose de rappeler plus tard\\n'\n+ '5. Maximum 3 phrases par reponse, courtes et naturelles\\n'\n+ '6. JAMAIS de listes, de formatage, de markdown — tu PARLES\\n'\n+ '7. UNE seule question a la fois, attends la reponse\\n'\n+ '8. Ne repete JAMAIS la meme question\\n'\n+ '9. Utilise les outils PROACTIVEMENT — ne demande pas la permission\\n'\n+ '10. Finis TOUJOURS par une action concrete\\n\\n'\n\n+ '=== OBJECTIFS SELON LA RAISON ===\\n'\n+ '- rappel: Le client avait demande a etre rappele. Reponds a sa demande initiale.\\n'\n+ '- suivi_lead / suivi lead: Qualifier le prospect, repondre a ses questions, proposer un RDV ou une demo.\\n'\n+ '- relance_devis / relance devis: Verifier si le devis a ete recu, repondre aux objections, essayer de closer.\\n'\n+ '- suivi_client / suivi client: Verifier la satisfaction, proposer des services complementaires, traiter les problemes.\\n'\n+ '- Autre: Suis les instructions de la raison de l appel.\\n\\n'\n\n+ '=== GESTION DES REFUS ===\\n'\n+ '- Si le client ne veut pas parler: \"Je comprends, pas de souci. Quand serait un meilleur moment pour vous rappeler ?\"\\n'\n+ '- Si le client refuse categoriquement: \"Tres bien, je respecte votre choix. N hesitez pas a nous contacter si vous changez d avis. Bonne journee !\"\\n'\n+ '- Ne sois JAMAIS insistant ou agressif\\n';\n\n// Tools disponibles — identiques a l'entrant\nvar tools = [\n  {\n    type: \"function\",\n    function: {\n      name: \"create_lead\",\n      description: \"Enregistrer un nouveau prospect dans le CRM.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          nom: { type: \"string\", description: \"Nom de famille du prospect\" },\n          prenom: { type: \"string\", description: \"Prenom du prospect\" },\n          email: { type: \"string\", description: \"Adresse email si fournie\" },\n          telephone: { type: \"string\", description: \"Numero de telephone\" },\n          notes: { type: \"string\", description: \"Resume du besoin exprime\" }\n        },\n        required: [\"nom\", \"telephone\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"search_client\",\n      description: \"Rechercher un client existant par nom, prenom, telephone ou email.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          query: { type: \"string\", description: \"Nom, prenom, telephone ou email a rechercher\" }\n        },\n        required: [\"query\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"create_client\",\n      description: \"Creer un compte client complet dans la plateforme.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          nom: { type: \"string\", description: \"Nom de famille\" },\n          prenom: { type: \"string\", description: \"Prenom\" },\n          email: { type: \"string\", description: \"Email obligatoire\" },\n          telephone: { type: \"string\", description: \"Telephone\" },\n          type: { type: \"string\", enum: [\"b2b\", \"b2c\"], description: \"Type de client\" },\n          raison_sociale: { type: \"string\", description: \"Nom de l entreprise (si b2b)\" }\n        },\n        required: [\"email\", \"nom\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"create_invoice\",\n      description: \"Creer une facture ou un devis pour un client existant.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          client_name_or_phone: { type: \"string\", description: \"Nom ou telephone du client\" },\n          montant_ht: { type: \"number\", description: \"Montant hors taxes en euros\" },\n          tva_taux: { type: \"number\", description: \"Taux de TVA (defaut: 20)\" },\n          description: { type: \"string\", description: \"Description de la prestation\" }\n        },\n        required: [\"client_name_or_phone\", \"montant_ht\", \"description\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"create_bon_commande\",\n      description: \"Creer un bon de commande pour un client.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          client_name_or_phone: { type: \"string\", description: \"Nom ou telephone du client\" },\n          montant_ht: { type: \"number\", description: \"Montant hors taxes\" },\n          tva_taux: { type: \"number\", description: \"Taux de TVA (defaut: 20)\" },\n          description: { type: \"string\", description: \"Description de la commande\" }\n        },\n        required: [\"client_name_or_phone\", \"montant_ht\", \"description\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"list_recent_leads\",\n      description: \"Consulter les derniers prospects enregistres.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          limit: { type: \"number\", description: \"Nombre de resultats (max 20)\" },\n          statut: { type: \"string\", enum: [\"nouveau\", \"contacte\", \"converti\", \"abandonne\"], description: \"Filtrer par statut\" }\n        }\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"list_clients\",\n      description: \"Consulter la liste des clients.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          limit: { type: \"number\", description: \"Nombre de resultats (max 50)\" },\n          statut: { type: \"string\", enum: [\"actif\", \"inactif\", \"suspendu\"], description: \"Filtrer par statut\" },\n          type: { type: \"string\", enum: [\"b2b\", \"b2c\"], description: \"Filtrer par type\" }\n        }\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"list_invoices\",\n      description: \"Consulter les factures existantes.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          limit: { type: \"number\", description: \"Nombre de resultats (max 50)\" },\n          statut: { type: \"string\", enum: [\"brouillon\", \"envoyee\", \"payee\", \"en_retard\", \"annulee\"], description: \"Filtrer par statut\" }\n        }\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"update_lead\",\n      description: \"Modifier les informations d un prospect existant.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          lead_id_or_phone: { type: \"string\", description: \"ID ou telephone du prospect\" },\n          statut: { type: \"string\", enum: [\"nouveau\", \"contacte\", \"converti\", \"abandonne\"] },\n          notes: { type: \"string\", description: \"Notes a ajouter\" },\n          nom: { type: \"string\" },\n          email: { type: \"string\" }\n        },\n        required: [\"lead_id_or_phone\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"update_client\",\n      description: \"Modifier les informations d un client.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          client_id_or_name: { type: \"string\", description: \"ID ou nom du client\" },\n          nom: { type: \"string\" },\n          email: { type: \"string\" },\n          telephone: { type: \"string\" },\n          statut: { type: \"string\", enum: [\"actif\", \"inactif\", \"suspendu\"] }\n        },\n        required: [\"client_id_or_name\"]\n      }\n    }\n  },\n  {\n    type: \"function\",\n    function: {\n      name: \"update_invoice_status\",\n      description: \"Changer le statut d une facture.\",\n      parameters: {\n        type: \"object\",\n        properties: {\n          invoice_id_or_number: { type: \"string\", description: \"ID ou numero de facture\" },\n          statut: { type: \"string\", enum: [\"brouillon\", \"envoyee\", \"payee\", \"en_retard\", \"annulee\"] }\n        },\n        required: [\"invoice_id_or_number\", \"statut\"]\n      }\n    }\n  }\n];\n\nreturn [{ json: {\n  systemPrompt: systemPrompt,\n  tools: JSON.stringify(tools),\n  speechResult: speechResult,\n  callSid: callSid,\n  called: called,\n  isAdmin: false,\n  clientName: clientName,\n  clientPrenom: clientPrenom,\n  clientEmail: clientEmail,\n  clientId: clientId,\n  tenantId: tenantId,\n  reason: reason\n} }];"
+      },
+      "id": "12. Build Prompt",
+      "name": "12. Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{role:'system',content:$json.systemPrompt},{role:'user',content:$json.speechResult}], tools: JSON.parse($json.tools), max_tokens: 250, temperature: 0.5 }) }}"
+      },
+      "id": "13. OpenAI Chat",
+      "name": "13. OpenAI Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAi account",
+          "id": "nSSLzITn7UjPcRBc"
+        }
+      },
+      "position": [
+        1600,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire TwiML à partir de la réponse IA — VERSION SORTANTE\nvar input = $input.first().json;\nif (!input) throw new Error('Build TwiML: aucune donnee en entree.');\n\nvar aiReply = input.aiReply;\nif (!aiReply) throw new Error('Build TwiML: aiReply manquant.');\n\n// Nettoyer pour TTS\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#{1,6}\\s/g, '')\n  .replace(/[\\[\\]]/g, '')\n  .replace(/\\\\n/g, ' ')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .trim();\n\n// Détecter intentions\nvar speech = (input.speechResult || '').toLowerCase();\nvar isGoodbye = speech.includes('au revoir') || speech.includes('merci au revoir') ||\n                  speech.includes('bonne journée') || speech.includes('à bientôt') ||\n                  speech.includes(\"c est tout\") || speech.includes('terminé') ||\n                  speech.includes('non merci') || speech.includes('pas intéressé');\n\nvar isProspect = speech.includes('intéress') || speech.includes('tarif') || speech.includes('prix') ||\n                   speech.includes('abonnement') || speech.includes('essai') || speech.includes('demo') ||\n                   speech.includes('souscrire') || speech.includes('inscription') || speech.includes('devis') ||\n                   (input.toolUsed === 'create_lead');\n\nvar needsEscalation = speech.includes('bug') || speech.includes('erreur') || speech.includes('bloqué') ||\n                        speech.includes('marche pas') || speech.includes('fonctionne pas') ||\n                        speech.includes('données perdues') || speech.includes('impossible') ||\n                        speech.includes('urgent') || speech.includes('grave');\n\nvar twiml = '';\nif (isGoodbye) {\n  twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<Response>\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">' + aiReply + '</Say>\\n  <Hangup/>\\n</Response>';\n} else {\n  twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<Response>\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">' + aiReply + '</Say>\\n  <Gather input=\"speech\" language=\"fr-FR\" speechTimeout=\"3\" timeout=\"15\" action=\"https://n8n.talosprimes.com/webhook/twilio-outbound-voice\" method=\"POST\"/>\\n  <Say voice=\"Polly.Lea-Neural\" language=\"fr-FR\">Merci pour votre temps. Bonne journee !</Say>\\n</Response>';\n}\n\nreturn [{ json: {\n  twiml,\n  callSid: input.callSid,\n  called: input.called,\n  speechResult: input.speechResult,\n  aiReply: aiReply.substring(0, 500),\n  isAdmin: input.isAdmin,\n  isGoodbye,\n  isProspect,\n  needsEscalation,\n  clientName: input.clientName || '',\n  toolUsed: input.toolUsed || '',\n  tenantId: input.tenantId || '',\n  reason: input.reason || ''\n} }];"
+      },
+      "id": "14. Build TwiML Response",
+      "name": "14. Build TwiML Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() { var d = $('14. Build TwiML Response').first().json; if (!d.tenantId) throw new Error('Log Call: tenantId manquant'); var safe = function(s) { return String(s || '').replace(/'/g, \"''\").substring(0, 500); }; var notes = safe('CallSid:' + d.callSid + ' [SORTANT]' + (d.isProspect ? ' [PROSPECT]' : '') + (d.needsEscalation ? ' [ESCALADE]' : '') + ' - Q: ' + (d.speechResult || '') + ' - R: ' + (d.aiReply || '')); var urgency = d.needsEscalation ? 'URGENT' : 'STANDARD'; var sentiment = d.isProspect ? 'POSITIF' : 'NEUTRE'; var action = d.isProspect ? 'DEVIS' : (d.needsEscalation ? 'TRANSFERT' : 'INFO'); return \"INSERT INTO call_logs (id, tenant_id, call_sid, caller_phone, called_number, direction, status, notes, urgency_level, sentiment, action_taken, niche, created_at, updated_at) VALUES (gen_random_uuid(), '\" + d.tenantId + \"', '\" + safe(d.callSid) + \"', '\" + safe(d.called) + \"', '\" + safe(d.called) + \"', 'sortant', 'completed', '\" + notes + \"', '\" + urgency + \"', '\" + sentiment + \"', '\" + action + \"', 'talosprimes', NOW(), NOW()) RETURNING id\"; })() }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "15. Log Call",
+      "name": "15. Log Call",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        3200,
+        450
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('14. Build TwiML Response').first().json.twiml }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "16. Respond TwiML",
+      "name": "16. Respond TwiML",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "6e0850b0-34ba-45a4-bcfe-eb4782a997bb",
+              "leftValue": "={{ $json.isProspect || $json.needsEscalation }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "19. Need Action?",
+      "name": "19. Need Action?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() { var d = $('14. Build TwiML Response').first().json; if (!d.tenantId) throw new Error('Notify Admin: tenantId manquant'); var safe = function(s) { return String(s || '').replace(/'/g, \"''\").substring(0, 500); }; var type = d.isProspect ? 'lead' : 'alerte'; var titre = d.isProspect ? 'Prospect detecte (appel sortant)' : 'Escalade agent vocal (appel sortant)'; var msg = safe((d.isProspect ? 'Prospect' : 'Escalade') + ' - Appel sortant vers: ' + d.called + ' - Raison: ' + d.reason + ' - ' + (d.speechResult || '')); return \"INSERT INTO notifications (id, tenant_id, type, titre, message, lu, created_at) VALUES (gen_random_uuid(), '\" + d.tenantId + \"', '\" + type + \"', '\" + titre + \"', '\" + msg + \"', false, NOW()) RETURNING id\"; })() }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "18. Notify Admin",
+      "name": "18. Notify Admin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        3400,
+        650
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse la réponse OpenAI — IDENTIQUE au workflow entrant\nvar openaiResponse = $input.first().json;\nvar prev = $('12. Build Prompt').first().json;\nif (!prev || !prev.systemPrompt) throw new Error('Build Prompt: donnees manquantes.');\nvar message = openaiResponse.choices?.[0]?.message;\nvar finishReason = openaiResponse.choices?.[0]?.finish_reason;\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nvar PHONE_RE = /^\\+?[0-9]{6,15}$/;\nvar EMAIL_RE = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n\nfunction sanitizePhone(p) { return String(p || '').replace(/[^+0-9]/g, '').substring(0, 16); }\nfunction validateNum(n, min, max) { var v = parseFloat(n); return (Number.isFinite(v) && v >= min && v <= max) ? v : 0; }\nfunction safe(s, maxLen) { return String(s || '').substring(0, maxLen || 500); }\n\nif (finishReason === 'tool_calls' && message?.tool_calls?.length > 0) {\n  var toolCall = message.tool_calls[0];\n  var toolName = toolCall.function.name;\n  var toolArgs = JSON.parse(toolCall.function.arguments || '{}');\n  var toolCallId = toolCall.id;\n  var tenantId = prev.tenantId || '';\n\n  var ALLOWED_TOOLS = ['create_lead', 'search_client', 'create_client', 'create_invoice', 'create_bon_commande', 'list_recent_leads', 'update_lead', 'delete_lead', 'update_client', 'delete_client', 'list_clients', 'list_invoices', 'update_invoice_status', 'delete_invoice'];\n  if (!ALLOWED_TOOLS.includes(toolName)) throw new Error('Tool non autorise: ' + toolName);\n\n  var sqlQuery = '';\n  var sqlParams = [];\n\n  if (toolName === 'create_lead') {\n    var nom = safe(toolArgs.nom, 100);\n    var prenom = safe(toolArgs.prenom, 100);\n    var email = toolArgs.email && EMAIL_RE.test(toolArgs.email) ? safe(toolArgs.email, 255) : '';\n    var tel = sanitizePhone(toolArgs.telephone || prev.called);\n    var notes = safe(toolArgs.notes, 500);\n    if (!tel) throw new Error('Telephone requis pour create_lead');\n    sqlQuery = \"INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, statut, notes, created_at, updated_at) SELECT gen_random_uuid(), COALESCE(NULLIF('\" + tenantId + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), '\" + nom.replace(/'/g, \"''\") + \"', '\" + prenom.replace(/'/g, \"''\") + \"', '\" + email.replace(/'/g, \"''\") + \"', '\" + tel + \"', 'telephone_ia', 'nouveau', '\" + notes.replace(/'/g, \"''\") + \"', NOW(), NOW() WHERE NOT EXISTS (SELECT 1 FROM leads WHERE telephone LIKE '%' || RIGHT('\" + tel + \"', 9) || '%' AND statut != 'abandonne') RETURNING id, nom, prenom, telephone\";\n  } else if (toolName === 'search_client') {\n    var q = safe(toolArgs.query, 100).replace(/'/g, \"''\");\n    if (!q) throw new Error('Query requis pour search_client');\n    sqlQuery = \"SELECT id, nom, prenom, email, telephone, raison_sociale, type, statut FROM client_finals WHERE nom ILIKE '%\" + q + \"%' OR prenom ILIKE '%\" + q + \"%' OR telephone LIKE '%\" + q + \"%' OR email ILIKE '%\" + q + \"%' LIMIT 5\";\n  } else if (toolName === 'create_client') {\n    var email = toolArgs.email && EMAIL_RE.test(toolArgs.email) ? safe(toolArgs.email, 255) : '';\n    if (!email) throw new Error('Email valide requis pour create_client');\n    var type = ['b2b', 'b2c'].includes(toolArgs.type) ? toolArgs.type : 'b2c';\n    sqlQuery = \"INSERT INTO client_finals (id, tenant_id, type, nom, prenom, email, telephone, raison_sociale, statut, created_at, updated_at) VALUES (gen_random_uuid(), COALESCE(NULLIF('\" + tenantId + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), '\" + type + \"', '\" + safe(toolArgs.nom, 100).replace(/'/g, \"''\") + \"', '\" + safe(toolArgs.prenom, 100).replace(/'/g, \"''\") + \"', '\" + email.replace(/'/g, \"''\") + \"', '\" + sanitizePhone(toolArgs.telephone) + \"', '\" + safe(toolArgs.raison_sociale, 255).replace(/'/g, \"''\") + \"', 'actif', NOW(), NOW()) RETURNING id, nom, prenom, email\";\n  } else if (toolName === 'create_invoice') {\n    var ht = validateNum(toolArgs.montant_ht, 0, 999999);\n    var tva = validateNum(toolArgs.tva_taux || 20, 0, 100);\n    var ttc = ht * (1 + tva / 100);\n    var clientQ = safe(toolArgs.client_name_or_phone, 100).replace(/'/g, \"''\");\n    if (!clientQ || ht <= 0) throw new Error('Client et montant requis pour create_invoice');\n    var numFacture = 'FA-' + Date.now();\n    sqlQuery = \"INSERT INTO invoices (id, tenant_id, type, client_final_id, numero_facture, date_facture, date_echeance, montant_ht, montant_ttc, tva_taux, description, statut, created_at, updated_at) SELECT gen_random_uuid(), COALESCE(NULLIF('\" + tenantId + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), 'facture_client_final', (SELECT id FROM client_finals WHERE nom ILIKE '%\" + clientQ + \"%' OR telephone LIKE '%\" + clientQ + \"%' LIMIT 1), '\" + numFacture + \"', NOW(), NOW() + INTERVAL '30 days', \" + ht + \", \" + parseFloat(ttc.toFixed(2)) + \", \" + tva + \", '\" + safe(toolArgs.description, 500).replace(/'/g, \"''\") + \"', 'brouillon', NOW(), NOW() RETURNING id, numero_facture, montant_ht, montant_ttc, statut\";\n  } else if (toolName === 'create_bon_commande') {\n    var ht = validateNum(toolArgs.montant_ht, 0, 999999);\n    var tva = validateNum(toolArgs.tva_taux || 20, 0, 100);\n    var ttc = ht * (1 + tva / 100);\n    var clientQ = safe(toolArgs.client_name_or_phone, 100).replace(/'/g, \"''\");\n    if (!clientQ || ht <= 0) throw new Error('Client et montant requis pour create_bon_commande');\n    var numBdc = 'BDC-' + Date.now();\n    sqlQuery = \"INSERT INTO bons_commande (id, tenant_id, client_final_id, numero_bdc, date_bdc, montant_ht, montant_ttc, tva_taux, description, statut, created_at, updated_at) SELECT gen_random_uuid(), COALESCE(NULLIF('\" + tenantId + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), (SELECT id FROM client_finals WHERE nom ILIKE '%\" + clientQ + \"%' OR telephone LIKE '%\" + clientQ + \"%' LIMIT 1), '\" + numBdc + \"', NOW(), \" + ht + \", \" + parseFloat(ttc.toFixed(2)) + \", \" + tva + \", '\" + safe(toolArgs.description, 500).replace(/'/g, \"''\") + \"', 'brouillon', NOW(), NOW() RETURNING id, numero_bdc, montant_ht, montant_ttc, statut\";\n  } else if (toolName === 'list_recent_leads') {\n    var limit = Math.min(Math.max(parseInt(toolArgs.limit) || 5, 1), 20);\n    var statut = ['nouveau', 'contacte', 'converti', 'abandonne'].includes(toolArgs.statut) ? toolArgs.statut : null;\n    if (statut) {\n      sqlQuery = \"SELECT id, nom, prenom, telephone, email, statut, source, created_at FROM leads WHERE statut = '\" + statut + \"' ORDER BY created_at DESC LIMIT \" + limit;\n    } else {\n      sqlQuery = \"SELECT id, nom, prenom, telephone, email, statut, source, created_at FROM leads ORDER BY created_at DESC LIMIT \" + limit;\n    }\n  } else if (toolName === 'update_lead') {\n    var q = safe(toolArgs.lead_id_or_phone, 100).replace(/'/g, \"''\");\n    if (!q) throw new Error('ID ou telephone requis pour update_lead');\n    var sets = [];\n    if (toolArgs.statut && ['nouveau', 'contacte', 'converti', 'abandonne'].includes(toolArgs.statut)) sets.push(\"statut = '\" + toolArgs.statut + \"'\");\n    if (toolArgs.notes) sets.push(\"notes = '\" + safe(toolArgs.notes, 500).replace(/'/g, \"''\") + \"'\");\n    if (toolArgs.nom) sets.push(\"nom = '\" + safe(toolArgs.nom, 100).replace(/'/g, \"''\") + \"'\");\n    if (toolArgs.email && EMAIL_RE.test(toolArgs.email)) sets.push(\"email = '\" + safe(toolArgs.email, 255).replace(/'/g, \"''\") + \"'\");\n    if (sets.length === 0) throw new Error('Aucune modification specifiee');\n    sets.push('updated_at = NOW()');\n    sqlQuery = \"UPDATE leads SET \" + sets.join(', ') + \" WHERE (id::text = '\" + q + \"' OR telephone LIKE '%' || RIGHT('\" + q + \"', 9) || '%') RETURNING id, nom, prenom, telephone, statut\";\n  } else if (toolName === 'update_client') {\n    var q = safe(toolArgs.client_id_or_name, 100).replace(/'/g, \"''\");\n    if (!q) throw new Error('ID ou nom requis pour update_client');\n    var sets = [];\n    if (toolArgs.nom) sets.push(\"nom = '\" + safe(toolArgs.nom, 100).replace(/'/g, \"''\") + \"'\");\n    if (toolArgs.email && EMAIL_RE.test(toolArgs.email)) sets.push(\"email = '\" + safe(toolArgs.email, 255).replace(/'/g, \"''\") + \"'\");\n    if (toolArgs.telephone) sets.push(\"telephone = '\" + sanitizePhone(toolArgs.telephone) + \"'\");\n    if (toolArgs.statut && ['actif', 'inactif', 'suspendu'].includes(toolArgs.statut)) sets.push(\"statut = '\" + toolArgs.statut + \"'\");\n    if (sets.length === 0) throw new Error('Aucune modification specifiee');\n    sets.push('updated_at = NOW()');\n    sqlQuery = \"UPDATE client_finals SET \" + sets.join(', ') + \" WHERE (id::text = '\" + q + \"' OR nom ILIKE '%\" + q + \"%' OR telephone LIKE '%' || RIGHT('\" + q + \"', 9) || '%') RETURNING id, nom, prenom, email, telephone, statut\";\n  } else if (toolName === 'list_clients') {\n    var limit = Math.min(Math.max(parseInt(toolArgs.limit) || 10, 1), 50);\n    var statut = ['actif', 'inactif', 'suspendu'].includes(toolArgs.statut) ? toolArgs.statut : null;\n    var type = ['b2b', 'b2c'].includes(toolArgs.type) ? toolArgs.type : null;\n    var where = [];\n    if (statut) where.push(\"statut = '\" + statut + \"'\");\n    if (type) where.push(\"type = '\" + type + \"'\");\n    sqlQuery = \"SELECT id, nom, prenom, email, telephone, type, statut, raison_sociale, created_at FROM client_finals\" + (where.length ? ' WHERE ' + where.join(' AND ') : '') + \" ORDER BY created_at DESC LIMIT \" + limit;\n  } else if (toolName === 'list_invoices') {\n    var limit = Math.min(Math.max(parseInt(toolArgs.limit) || 10, 1), 50);\n    var statut = ['brouillon', 'envoyee', 'payee', 'en_retard', 'annulee'].includes(toolArgs.statut) ? toolArgs.statut : null;\n    if (statut) {\n      sqlQuery = \"SELECT i.id, i.numero_facture, i.statut, i.montant_ht, i.montant_ttc, i.date_facture, cf.nom as client_nom FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id WHERE i.statut = '\" + statut + \"' ORDER BY i.created_at DESC LIMIT \" + limit;\n    } else {\n      sqlQuery = \"SELECT i.id, i.numero_facture, i.statut, i.montant_ht, i.montant_ttc, i.date_facture, cf.nom as client_nom FROM invoices i LEFT JOIN client_finals cf ON i.client_final_id = cf.id ORDER BY i.created_at DESC LIMIT \" + limit;\n    }\n  } else if (toolName === 'update_invoice_status') {\n    var q = safe(toolArgs.invoice_id_or_number, 100).replace(/'/g, \"''\");\n    var statut = toolArgs.statut;\n    if (!q || !['brouillon', 'envoyee', 'payee', 'en_retard', 'annulee'].includes(statut)) throw new Error('ID/numero et statut valide requis');\n    sqlQuery = \"UPDATE invoices SET statut = '\" + statut + \"', updated_at = NOW() WHERE (id::text = '\" + q + \"' OR numero_facture = '\" + q + \"') RETURNING id, numero_facture, statut, montant_ttc\";\n  } else if (toolName === 'delete_lead') {\n    var q = safe(toolArgs.lead_id_or_phone, 100).replace(/'/g, \"''\");\n    sqlQuery = \"DELETE FROM leads WHERE (id::text = '\" + q + \"' OR telephone LIKE '%' || RIGHT('\" + q + \"', 9) || '%') RETURNING id, nom, telephone\";\n  } else if (toolName === 'delete_client') {\n    var q = safe(toolArgs.client_id_or_name, 100).replace(/'/g, \"''\");\n    sqlQuery = \"DELETE FROM client_finals WHERE (id::text = '\" + q + \"' OR nom ILIKE '%\" + q + \"%') RETURNING id, nom, email\";\n  } else if (toolName === 'delete_invoice') {\n    var q = safe(toolArgs.invoice_id_or_number, 100).replace(/'/g, \"''\");\n    sqlQuery = \"DELETE FROM invoices WHERE (id::text = '\" + q + \"' OR numero_facture = '\" + q + \"') AND statut = 'brouillon' RETURNING id, numero_facture, montant_ttc\";\n  }\n\n  return [{ json: {\n    hasToolCall: true,\n    toolCallId,\n    toolName,\n    toolArgs: JSON.stringify(toolArgs),\n    sqlQuery,\n    messages: JSON.stringify([\n      {role: 'system', content: prev.systemPrompt},\n      {role: 'user', content: prev.speechResult},\n      message\n    ]),\n    tools: prev.tools,\n    callSid: prev.callSid,\n    called: prev.called,\n    speechResult: prev.speechResult,\n    isAdmin: prev.isAdmin,\n    clientName: prev.clientName || '',\n    clientEmail: prev.clientEmail || '',\n    tenantId: prev.tenantId || '',\n    reason: prev.reason || ''\n  } }];\n} else {\n  var aiReply = message?.content;\n  if (!aiReply) throw new Error('OpenAI Chat: pas de contenu dans la reponse directe.');\n\n  return [{ json: {\n    hasToolCall: false,\n    aiReply,\n    callSid: prev.callSid,\n    called: prev.called,\n    speechResult: prev.speechResult,\n    isAdmin: prev.isAdmin,\n    clientName: prev.clientName || '',\n    clientEmail: prev.clientEmail || '',\n    tenantId: prev.tenantId || '',\n    reason: prev.reason || ''\n  } }];\n}"
+      },
+      "id": "21. Parse Response",
+      "name": "21. Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "f420da73-33d1-4132-b70f-cdb037d1913d",
+              "leftValue": "={{ $json.hasToolCall }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "22. Has Tool Call?",
+      "name": "22. Has Tool Call?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sqlQuery }}",
+        "options": {
+          "alwaysOutputData": true
+        }
+      },
+      "id": "23. Execute Tool SQL",
+      "name": "23. Execute Tool SQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        2200,
+        150
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire le body pour le 2e appel OpenAI avec le resultat du tool\nvar prev = $('21. Parse Response').first().json;\nvar toolResult = $input.first().json;\nvar messages = JSON.parse(prev.messages);\nvar tools = JSON.parse(prev.tools);\n\nmessages.push({\n  role: 'tool',\n  tool_call_id: prev.toolCallId,\n  content: JSON.stringify(toolResult)\n});\n\nreturn [{ json: {\n  jsonBody: JSON.stringify({\n    model: 'gpt-4o-mini',\n    messages,\n    max_tokens: 200,\n    temperature: 0.5\n  }),\n  callSid: prev.callSid,\n  called: prev.called,\n  speechResult: prev.speechResult,\n  isAdmin: prev.isAdmin,\n  clientName: prev.clientName || '',\n  clientEmail: prev.clientEmail || '',\n  toolUsed: prev.toolName,\n  tenantId: prev.tenantId || '',\n  reason: prev.reason || ''\n} }];"
+      },
+      "id": "24. Build Tool Body",
+      "name": "24. Build Tool Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jsonBody }}"
+      },
+      "id": "25. OpenAI Tool Result",
+      "name": "25. OpenAI Tool Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "credentials": {
+        "openAiApi": {
+          "name": "OpenAi account",
+          "id": "nSSLzITn7UjPcRBc"
+        }
+      },
+      "position": [
+        2600,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire la reponse finale apres tool call\nvar openaiResponse = $input.first().json;\nvar prev = $('24. Build Tool Body').first().json;\nif (!prev) throw new Error('Build Tool Body: donnees manquantes.');\n\nvar aiReply = openaiResponse.choices?.[0]?.message?.content;\nif (!aiReply) throw new Error('OpenAI Tool Result: pas de contenu dans la reponse.');\n\nreturn [{ json: {\n  aiReply,\n  callSid: prev.callSid,\n  called: prev.called,\n  speechResult: prev.speechResult,\n  isAdmin: prev.isAdmin,\n  clientName: prev.clientName || '',\n  clientEmail: prev.clientEmail || '',\n  toolUsed: prev.toolUsed || '',\n  tenantId: prev.tenantId || '',\n  reason: prev.reason || ''\n} }];"
+      },
+      "id": "26. Extract Final Reply",
+      "name": "26. Extract Final Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        150
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook Twilio": {
+      "main": [
+        [
+          {
+            "node": "02. Parser Twilio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser Twilio": {
+      "main": [
+        [
+          {
+            "node": "03. Is Callback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Is Callback?": {
+      "main": [
+        [
+          {
+            "node": "06. Extract Speech",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Get Call Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Get Call Context": {
+      "main": [
+        [
+          {
+            "node": "05. Welcome TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Welcome TwiML": {
+      "main": [
+        [
+          {
+            "node": "05b. Respond Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Extract Speech": {
+      "main": [
+        [
+          {
+            "node": "07. Has Text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Has Text?": {
+      "main": [
+        [
+          {
+            "node": "11. Get Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08. No Text TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. No Text TwiML": {
+      "main": [
+        [
+          {
+            "node": "09. Respond No Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Get Session": {
+      "main": [
+        [
+          {
+            "node": "11b. Load Knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11b. Load Knowledge": {
+      "main": [
+        [
+          {
+            "node": "20. Load History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20. Load History": {
+      "main": [
+        [
+          {
+            "node": "12. Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "13. OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. OpenAI Chat": {
+      "main": [
+        [
+          {
+            "node": "21. Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "21. Parse Response": {
+      "main": [
+        [
+          {
+            "node": "22. Has Tool Call?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "22. Has Tool Call?": {
+      "main": [
+        [
+          {
+            "node": "23. Execute Tool SQL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "14. Build TwiML Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "23. Execute Tool SQL": {
+      "main": [
+        [
+          {
+            "node": "24. Build Tool Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24. Build Tool Body": {
+      "main": [
+        [
+          {
+            "node": "25. OpenAI Tool Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "25. OpenAI Tool Result": {
+      "main": [
+        [
+          {
+            "node": "26. Extract Final Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "26. Extract Final Reply": {
+      "main": [
+        [
+          {
+            "node": "14. Build TwiML Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Build TwiML Response": {
+      "main": [
+        [
+          {
+            "node": "15. Log Call",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "16. Respond TwiML",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "19. Need Action?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19. Need Action?": {
+      "main": [
+        [
+          {
+            "node": "18. Notify Admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

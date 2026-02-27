@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nif (!body.to) {\n  throw new Error('to (phone number) is required');\n}\n\nif (!body.reason) {\n  throw new Error('reason is required');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  to: body.to,\n  reason: body.reason\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nif (!body.to) {\n  throw new Error('to (phone number) is required');\n}\n\nif (!body.reason) {\n  throw new Error('reason is required');\n}\n\n// Valider le format E.164\nvar PHONE_RE = /^\\+?[1-9]\\d{1,14}$/;\nvar to = String(body.to).replace(/[^+0-9]/g, '');\nif (!PHONE_RE.test(to)) {\n  throw new Error('Numero de telephone invalide: ' + to);\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  to: to,\n  reason: String(body.reason).substring(0, 500)\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -120,9 +120,10 @@
             {
               "id": "b4c7dffb-24a8-4dd8-9101-57c895e04752",
               "leftValue": "={{ $json.canProceed }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "notEmpty"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -142,7 +143,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO call_logs (tenant_id, caller_phone, direction, status, notes, urgency_level, sentiment, action_taken, created_at, updated_at) VALUES ('\" + $json.tenantId + \"', '\" + $json.to + \"', 'sortant', 'initiated', 'Appel sortant: ' || '\" + $json.reason + \"', 'STANDARD', 'NEUTRE', 'APPEL', NOW(), NOW()) RETURNING id, tenant_id, caller_phone, direction, status, notes, created_at\" }}"
+        "query": "={{ \"INSERT INTO call_logs (id, tenant_id, caller_phone, called_number, direction, status, notes, urgency_level, sentiment, action_taken, niche, created_at, updated_at) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.fromNumber + \"', '\" + $json.to + \"', 'sortant', 'initiated', '\" + String($json.reason || '').replace(/'/g, \"''\").substring(0, 500) + \"', 'STANDARD', 'NEUTRE', 'INFO', 'talosprimes', NOW(), NOW()) RETURNING id, tenant_id, caller_phone, called_number, direction, status, notes, created_at\" }}"
       },
       "id": "08. Create Call Log",
       "name": "08. Create Call Log",
@@ -162,14 +163,114 @@
     },
     {
       "parameters": {
-        "jsCode": "var callLog = $input.all();\nvar params = $('06. Check Config').first().json;\n\nif (callLog.length === 0) {\n  return [{ json: {\n    success: false,\n    error: 'Erreur lors de la création du log d appel'\n  } }];\n}\n\nreturn [{ json: {\n  success: true,\n  message: 'Outbound call initiated successfully',\n  data: {\n    callLogId: callLog[0].json.id,\n    to: params.to,\n    from: params.fromNumber,\n    reason: params.reason,\n    agentName: params.agentName,\n    companyName: params.companyName,\n    status: 'initiated'\n  }\n} }];"
+        "jsCode": "// Préparer l'appel Twilio REST API\nvar callLog = $input.all();\nvar params = $('06. Check Config').first().json;\n\nif (callLog.length === 0 || !callLog[0].json.id) {\n  throw new Error('Erreur lors de la creation du log d appel');\n}\n\nvar callLogId = callLog[0].json.id;\n\n// Les credentials Twilio doivent etre dans les variables d environnement n8n\n// TWILIO_ACCOUNT_SID et TWILIO_AUTH_TOKEN\nvar accountSid = $env.TWILIO_ACCOUNT_SID;\nvar authToken = $env.TWILIO_AUTH_TOKEN;\n\nif (!accountSid || !authToken) {\n  throw new Error('TWILIO_ACCOUNT_SID et TWILIO_AUTH_TOKEN doivent etre configures dans les variables d environnement n8n');\n}\n\n// URL du webhook de conversation sortante\nvar voiceWebhookUrl = 'https://n8n.talosprimes.com/webhook/twilio-outbound-voice';\n\nreturn [{ json: {\n  accountSid: accountSid,\n  authToken: authToken,\n  to: params.to,\n  from: params.fromNumber,\n  voiceWebhookUrl: voiceWebhookUrl,\n  callLogId: callLogId,\n  tenantId: params.tenantId,\n  reason: params.reason,\n  agentName: params.agentName,\n  companyName: params.companyName\n} }];"
       },
-      "id": "09. Format Response",
-      "name": "09. Format Response",
+      "id": "09. Prepare Twilio Call",
+      "name": "09. Prepare Twilio Call",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         1500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $json.accountSid + '/Calls.json' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.to }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $json.from }}"
+            },
+            {
+              "name": "Url",
+              "value": "={{ $json.voiceWebhookUrl }}"
+            },
+            {
+              "name": "Method",
+              "value": "POST"
+            },
+            {
+              "name": "MachineDetection",
+              "value": "DetectMessageEnd"
+            },
+            {
+              "name": "MachineDetectionTimeout",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10. Twilio Create Call",
+      "name": "10. Twilio Create Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBasicAuth": {
+          "name": "Twilio API",
+          "id": "twilioBasicAuth"
+        }
+      },
+      "position": [
+        1700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire le CallSid de la reponse Twilio\nvar twilioResponse = $input.first().json;\nvar prev = $('09. Prepare Twilio Call').first().json;\n\nif (!twilioResponse || !twilioResponse.sid) {\n  throw new Error('Twilio n a pas retourne de CallSid. Reponse: ' + JSON.stringify(twilioResponse).substring(0, 500));\n}\n\nvar callSid = twilioResponse.sid;\n\nreturn [{ json: {\n  callSid: callSid,\n  callLogId: prev.callLogId,\n  tenantId: prev.tenantId,\n  to: prev.to,\n  from: prev.from,\n  reason: prev.reason,\n  agentName: prev.agentName,\n  companyName: prev.companyName,\n  twilioStatus: twilioResponse.status\n} }];"
+      },
+      "id": "11. Extract CallSid",
+      "name": "11. Extract CallSid",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE call_logs SET call_sid = '\" + $json.callSid + \"', status = 'ringing', updated_at = NOW() WHERE id = '\" + $json.callLogId + \"' RETURNING id, call_sid, status\" }}"
+      },
+      "id": "12. Update Call Log with SID",
+      "name": "12. Update Call Log with SID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [
+        2100,
+        350
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var prev = $('11. Extract CallSid').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: 'Appel sortant initie avec succes',\n  data: {\n    callLogId: prev.callLogId,\n    callSid: prev.callSid,\n    to: prev.to,\n    from: prev.from,\n    reason: prev.reason,\n    agentName: prev.agentName,\n    companyName: prev.companyName,\n    status: 'ringing'\n  }\n} }];"
+      },
+      "id": "13. Format Response",
+      "name": "13. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
         350
       ]
     },
@@ -180,12 +281,12 @@
         },
         "responseBody": "={{ $json }}"
       },
-      "id": "10. Respond",
-      "name": "10. Respond",
+      "id": "14. Respond",
+      "name": "14. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1700,
+        2500,
         350
       ]
     },
@@ -196,8 +297,8 @@
         },
         "responseBody": "={{ {  success: false, error: $json.error || 'Configuration Twilio invalide'  } }}"
       },
-      "id": "11. Respond Config Error",
-      "name": "11. Respond Config Error",
+      "id": "15. Respond Config Error",
+      "name": "15. Respond Config Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
@@ -280,7 +381,7 @@
         ],
         [
           {
-            "node": "11. Respond Config Error",
+            "node": "15. Respond Config Error",
             "type": "main",
             "index": 0
           }
@@ -291,18 +392,62 @@
       "main": [
         [
           {
-            "node": "09. Format Response",
+            "node": "09. Prepare Twilio Call",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "09. Format Response": {
+    "09. Prepare Twilio Call": {
       "main": [
         [
           {
-            "node": "10. Respond",
+            "node": "10. Twilio Create Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Twilio Create Call": {
+      "main": [
+        [
+          {
+            "node": "11. Extract CallSid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Extract CallSid": {
+      "main": [
+        [
+          {
+            "node": "12. Update Call Log with SID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Update Call Log with SID": {
+      "main": [
+        [
+          {
+            "node": "13. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Format Response": {
+      "main": [
+        [
+          {
+            "node": "14. Respond",
             "type": "main",
             "index": 0
           }

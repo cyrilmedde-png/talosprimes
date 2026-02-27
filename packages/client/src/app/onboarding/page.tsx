@@ -38,6 +38,9 @@ export default function OnboardingPage() {
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
   const [showEntretienModal, setShowEntretienModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callingInProgress, setCallingInProgress] = useState(false);
+  const [callData, setCallData] = useState({ to: '', reason: 'suivi_lead', reasonText: '' });
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [entretienData, setEntretienData] = useState({
     dateEntretien: '',
@@ -209,6 +212,31 @@ export default function OnboardingPage() {
     }
   };
 
+  const handleOutboundCall = async () => {
+    const phone = callData.to.replace(/[^+0-9]/g, '');
+    if (!phone) {
+      setError('Numéro de téléphone requis');
+      return;
+    }
+    const reason = callData.reason === 'autre' ? callData.reasonText : callData.reason;
+    if (!reason) {
+      setError('Raison de l\'appel requise');
+      return;
+    }
+    try {
+      setCallingInProgress(true);
+      setError(null);
+      await apiClient.twilioConfig.outboundCall({ to: phone, reason });
+      setShowCallModal(false);
+      setCallData({ to: '', reason: 'suivi_lead', reasonText: '' });
+      setSelectedLead(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du lancement de l\'appel');
+    } finally {
+      setCallingInProgress(false);
+    }
+  };
+
   // Filtrage par recherche
   const filteredLeads = leads.filter((lead) => {
     if (!searchQuery) return true;
@@ -274,6 +302,17 @@ export default function OnboardingPage() {
         title="Planifier entretien"
       >
         <PhoneIcon className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => {
+          setSelectedLead(lead);
+          setCallData({ to: lead.telephone, reason: 'suivi_lead', reasonText: '' });
+          setShowCallModal(true);
+        }}
+        className="text-amber-400 hover:text-amber-300"
+        title="Appeler avec l'Agent IA"
+      >
+        <SparklesIcon className="h-5 w-5" />
       </button>
       <button
         onClick={() => {
@@ -875,6 +914,116 @@ export default function OnboardingPage() {
                     heureEntretien: '',
                     typeEntretien: 'téléphonique',
                   });
+                }}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Appel Sortant IA */}
+      {showCallModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <SparklesIcon className="h-6 w-6 text-amber-400" />
+                Appel sortant IA
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCallModal(false);
+                  setSelectedLead(null);
+                  setCallData({ to: '', reason: 'suivi_lead', reasonText: '' });
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {selectedLead && (
+                <p className="text-gray-300">
+                  Appeler{' '}
+                  <strong>
+                    {selectedLead.prenom} {selectedLead.nom}
+                  </strong>{' '}
+                  avec l&apos;Agent IA
+                </p>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Numéro de téléphone *
+                </label>
+                <input
+                  type="tel"
+                  value={callData.to}
+                  onChange={(e) => setCallData({ ...callData, to: e.target.value })}
+                  placeholder="+33612345678"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Raison de l&apos;appel *
+                </label>
+                <select
+                  value={callData.reason}
+                  onChange={(e) => setCallData({ ...callData, reason: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="suivi_lead">Suivi lead</option>
+                  <option value="rappel">Rappel demandé</option>
+                  <option value="relance_devis">Relance devis</option>
+                  <option value="suivi_client">Suivi client</option>
+                  <option value="autre">Autre</option>
+                </select>
+              </div>
+              {callData.reason === 'autre' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Précisez *
+                  </label>
+                  <textarea
+                    value={callData.reasonText}
+                    onChange={(e) => setCallData({ ...callData, reasonText: e.target.value })}
+                    rows={2}
+                    placeholder="Décrivez la raison de l'appel..."
+                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              )}
+              <p className="text-sm text-gray-400">
+                L&apos;agent IA va appeler ce numéro et mener la conversation selon la raison
+                sélectionnée.
+              </p>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleOutboundCall}
+                disabled={callingInProgress}
+                className="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-600 text-white rounded-md transition-colors flex items-center justify-center gap-2"
+              >
+                {callingInProgress ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Lancement...
+                  </>
+                ) : (
+                  <>
+                    <PhoneIcon className="h-5 w-5" />
+                    Lancer l&apos;appel
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCallModal(false);
+                  setSelectedLead(null);
+                  setCallData({ to: '', reason: 'suivi_lead', reasonText: '' });
                 }}
                 className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
               >
