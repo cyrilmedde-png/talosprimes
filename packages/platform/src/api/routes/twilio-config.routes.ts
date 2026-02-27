@@ -39,12 +39,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
   }
 }
 
-const AVAILABLE_NICHES = ['plomberie', 'medical', 'immobilier', 'pompes_funebres', 'serrurier', 'electricien', 'veterinaire', 'restaurant'];
+const AVAILABLE_NICHES = ['talosprimes', 'plomberie', 'medical', 'immobilier', 'pompes_funebres', 'serrurier', 'electricien', 'veterinaire', 'restaurant'];
 
 const updateTwilioConfigSchema = z.object({
   agentName: z.string().optional(),
   companyName: z.string().optional(),
-  niche: z.enum(['plomberie', 'medical', 'immobilier', 'pompes_funebres', 'serrurier', 'electricien', 'veterinaire', 'restaurant']).optional(),
+  niche: z.enum(['talosprimes', 'plomberie', 'medical', 'immobilier', 'pompes_funebres', 'serrurier', 'electricien', 'veterinaire', 'restaurant']).optional(),
   businessHours: z.string().optional(),
   systemPromptAddon: z.string().optional(),
   knowledgeBase: z.string().optional(),
