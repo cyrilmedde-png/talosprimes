@@ -10,74 +10,16 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        250
-      ]
+      "position": [250, 250]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: body.id,\n  tenantId: body.tenantId,\n  accountSid: body.accountSid,\n  authToken: body.authToken,\n  phoneNumber: body.phoneNumber,\n  isActive: body.isActive !== undefined ? body.isActive : true\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = body.tenantId;\nif (!tenantId) {\n  throw new Error('Missing required field: tenantId');\n}\n\n// Mapping camelCase frontend → snake_case DB\nvar fieldMap = {\n  agentName: 'agent_name',\n  companyName: 'company_name',\n  niche: 'niche',\n  businessHours: 'business_hours',\n  systemPromptAddon: 'system_prompt_addon',\n  knowledgeBase: 'knowledge_base',\n  dispatchDelay: 'dispatch_delay',\n  basePrice: 'base_price',\n  humanContact: 'human_contact',\n  active: 'active'\n};\n\n// Extraire les données depuis body ou body.data\nvar data = body.data || body;\nvar setClauses = [];\n\nfor (var camelKey in fieldMap) {\n  if (data[camelKey] !== undefined) {\n    var dbCol = fieldMap[camelKey];\n    var val = data[camelKey];\n    if (typeof val === 'boolean') {\n      setClauses.push(dbCol + ' = ' + val);\n    } else if (typeof val === 'number') {\n      setClauses.push(dbCol + ' = ' + val);\n    } else {\n      // String — échapper les apostrophes\n      var escaped = String(val).replace(/'/g, \"''\");\n      setClauses.push(dbCol + \" = '\" + escaped + \"'\");\n    }\n  }\n}\n\nif (setClauses.length === 0) {\n  throw new Error('Aucun champ à mettre à jour');\n}\n\nsetClauses.push('updated_at = NOW()');\n\nvar query = 'UPDATE twilio_configs SET ' + setClauses.join(', ') + \" WHERE tenant_id = '\" + tenantId + \"' RETURNING *\";\n\nreturn [{ json: { tenantId, query } }];"
       },
-      "name": "Parser",
+      "name": "Build Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        450,
-        250
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
-          "conditions": [
-            {
-              "id": "b9d71dc8-96b7-40c0-96bd-0b4267f2b643",
-              "leftValue": "={{ $json.id }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
-            },
-            {
-              "id": "97ad0f92-a339-4f7d-8994-fa3e3e527907",
-              "leftValue": "={{ $json.tenantId }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "If",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        650,
-        250
-      ]
-    },
-    {
-      "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "={{ { success: false, error: 'Missing required fields: id, tenantId' } }}"
-      },
-      "name": "Respond Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        850,
-        150
-      ]
+      "position": [450, 250]
     },
     {
       "parameters": {
@@ -87,10 +29,7 @@
       "name": "Postgres Update",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        850,
-        250
-      ],
+      "position": [650, 250],
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
@@ -101,15 +40,12 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: {\n  configId: $json.id,\n  phoneNumber: $json.phoneNumber,\n  isActive: $json.isActive,\n  success: true,\n  message: 'Twilio config updated successfully'\n} }];"
+        "jsCode": "var results = $input.all();\nif (!results || results.length === 0 || !results[0].json.id) {\n  throw new Error('ERREUR: UPDATE n\\'a retourné aucun résultat — tenant_id introuvable');\n}\nvar row = results[0].json;\nreturn [{ json: {\n  id: row.id,\n  phoneNumber: row.phone_number,\n  agentName: row.agent_name,\n  companyName: row.company_name,\n  niche: row.niche,\n  businessHours: row.business_hours,\n  systemPromptAddon: row.system_prompt_addon,\n  knowledgeBase: row.knowledge_base,\n  dispatchDelay: row.dispatch_delay,\n  basePrice: row.base_price,\n  humanContact: row.human_contact,\n  active: row.active,\n  webhookUrl: row.webhook_url,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n} }];"
       },
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1050,
-        250
-      ]
+      "position": [850, 250]
     },
     {
       "parameters": {
@@ -118,104 +54,21 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1250,
-        250
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "var data = $input.first().json;\nvar setClauses = [];\nvar params = [];\nvar idx = 1;\n\nif (data.accountSid !== undefined) {\n  setClauses.push('account_sid = $' + idx);\n  params.push(data.accountSid);\n  idx++;\n}\n\nif (data.authToken !== undefined) {\n  setClauses.push('auth_token = $' + idx);\n  params.push(data.authToken);\n  idx++;\n}\n\nif (data.phoneNumber !== undefined) {\n  setClauses.push('phone_number = $' + idx);\n  params.push(data.phoneNumber);\n  idx++;\n}\n\nif (data.isActive !== undefined) {\n  setClauses.push('is_active = $' + idx);\n  params.push(!!data.isActive);\n  idx++;\n}\n\nsetClauses.push('updated_at = NOW()');\n\nvar whereParts = [];\nwhereParts.push('id = $' + idx);\nparams.push(data.id);\nidx++;\nwhereParts.push('tenant_id = $' + idx);\nparams.push(data.tenantId);\nidx++;\n\nvar query = 'UPDATE twilio_configs SET ' + setClauses.join(', ') + ' WHERE ' + whereParts.join(' AND ');\n\nreturn [{ json: { ...data, query, params } }];"
-      },
-      "id": "Build Update Query",
-      "name": "Build Update Query",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        650,
-        250
-      ]
+      "position": [1050, 250]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Parser",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+      "main": [[{ "node": "Build Update", "type": "main", "index": 0 }]]
     },
-    "Parser": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Build Update Query",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "node": "Respond Error",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "Build Update": {
+      "main": [[{ "node": "Postgres Update", "type": "main", "index": 0 }]]
     },
     "Postgres Update": {
-      "main": [
-        [
-          {
-            "node": "Format Response",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
     },
     "Format Response": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Build Update Query": {
-      "main": [
-        [
-          {
-            "node": "Postgres Update",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
