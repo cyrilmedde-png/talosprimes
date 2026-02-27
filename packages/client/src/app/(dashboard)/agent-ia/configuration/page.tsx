@@ -120,12 +120,25 @@ export default function ConfigurationPage() {
     });
   };
 
-  const handleToggle = () => {
-    if (!editing) return;
-    setFormData({
-      ...formData,
-      active: !formData.active,
-    });
+  const handleToggle = async () => {
+    const newActive = !formData.active;
+    setFormData({ ...formData, active: newActive });
+
+    // Si pas en mode édition, sauvegarder immédiatement le changement
+    if (!editing) {
+      try {
+        setSaving(true);
+        await apiClient.twilioConfig.update({ ...formData, active: newActive });
+        setSuccess(newActive ? 'Agent activé' : 'Agent désactivé');
+        setTimeout(() => setSuccess(null), 2000);
+        await loadData();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur lors du changement');
+        setFormData({ ...formData, active: !newActive }); // rollback
+      } finally {
+        setSaving(false);
+      }
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -551,10 +564,10 @@ export default function ConfigurationPage() {
                 <button
                   type="button"
                   onClick={handleToggle}
-                  disabled={!editing}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                  disabled={saving}
+                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors cursor-pointer ${
                     formData.active ? 'bg-green-600' : 'bg-gray-600'
-                  } ${!editing ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                  } ${saving ? 'opacity-60 cursor-wait' : ''}`}
                 >
                   <span
                     className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
