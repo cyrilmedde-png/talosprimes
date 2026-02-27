@@ -140,6 +140,7 @@ const allNavGroups: NavGroup[] = [
     requiredModules: ['agent_telephonique'],
     items: [
       { name: 'Dashboard', href: '/agent-ia', icon: SparklesIcon },
+      { name: 'Leads', href: '/agent-ia/leads', icon: UserPlusIcon },
       { name: 'Appels', href: '/agent-ia/appels', icon: PhoneIcon },
       { name: 'SMS', href: '/agent-ia/sms', icon: ChatBubbleLeftIcon },
       { name: 'Questionnaires', href: '/agent-ia/questionnaires', icon: QuestionIcon },
