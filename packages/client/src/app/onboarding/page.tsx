@@ -15,9 +15,10 @@ import {
   DocumentTextIcon,
   PhoneIcon,
   CheckCircleIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
-type LeadSource = 'formulaire_inscription' | 'admin' | 'all';
+type LeadSource = 'formulaire_inscription' | 'admin' | 'agent_ia' | 'all';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -59,7 +60,9 @@ export default function OnboardingPage() {
       setError(null);
       
       const params: { source?: string; statut?: string } = {};
-      if (filterSource !== 'all') {
+      if (filterSource === 'agent_ia') {
+        params.source = 'telephone_ia';
+      } else if (filterSource !== 'all') {
         params.source = filterSource;
       }
       // Exclure les leads convertis et abandonnés de la liste
@@ -212,6 +215,7 @@ export default function OnboardingPage() {
 
   const leadsInscrits = filteredLeads.filter(l => l.source === 'formulaire_inscription');
   const leadsAdmin = filteredLeads.filter(l => l.source === 'admin' || l.source === null);
+  const leadsAgentIA = filteredLeads.filter(l => l.source === 'telephone_ia' || l.source === 'telephone');
 
   if (loading) {
     return (
@@ -302,11 +306,21 @@ export default function OnboardingPage() {
           >
             Créés par admin
           </button>
+          <button
+            onClick={() => setFilterSource('agent_ia')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              filterSource === 'agent_ia'
+                ? 'bg-amber-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            Agent IA
+          </button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-400">Total Leads</h3>
@@ -327,6 +341,13 @@ export default function OnboardingPage() {
             <UserIcon className="h-6 w-6 text-yellow-400" />
           </div>
           <p className="mt-2 text-3xl font-bold text-white">{leadsAdmin.length}</p>
+        </div>
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-400">Agent IA</h3>
+            <SparklesIcon className="h-6 w-6 text-amber-400" />
+          </div>
+          <p className="mt-2 text-3xl font-bold text-white">{leadsAgentIA.length}</p>
         </div>
       </div>
 
@@ -439,7 +460,7 @@ export default function OnboardingPage() {
 
       {/* Liste des leads créés par admin */}
       {filterSource === 'all' || filterSource === 'admin' ? (
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md">
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md mb-6">
           <div className="px-6 py-4 border-b border-gray-700/30">
             <h3 className="text-lg font-medium text-white">Leads Créés par Admin</h3>
             <p className="mt-1 text-sm text-gray-400">Leads créés manuellement par un administrateur</p>
@@ -485,6 +506,136 @@ export default function OnboardingPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                           {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowQuestionnaireModal(true);
+                              }}
+                              className="text-blue-400 hover:text-blue-300"
+                              title="Envoyer questionnaire"
+                            >
+                              <DocumentTextIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowEntretienModal(true);
+                              }}
+                              className="text-green-400 hover:text-green-300"
+                              title="Planifier entretien"
+                            >
+                              <PhoneIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead);
+                                setShowConfirmationModal(true);
+                              }}
+                              className="text-purple-400 hover:text-purple-300"
+                              title="Confirmer conversion"
+                            >
+                              <CheckCircleIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(lead)}
+                              className="text-indigo-400 hover:text-indigo-300"
+                              title="Modifier"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(lead.id)}
+                              className="text-red-400 hover:text-red-300"
+                              title="Supprimer"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Liste des leads créés par l'Agent IA */}
+      {filterSource === 'all' || filterSource === 'agent_ia' ? (
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md mb-6">
+          <div className="px-6 py-4 border-b border-gray-700/30 flex items-center gap-3">
+            <SparklesIcon className="h-5 w-5 text-amber-400" />
+            <div>
+              <h3 className="text-lg font-medium text-white">Leads Agent IA</h3>
+              <p className="mt-1 text-sm text-gray-400">Leads créés automatiquement par l&apos;agent téléphonique Léa</p>
+            </div>
+          </div>
+          <div className="p-6">
+            {leadsAgentIA.length === 0 ? (
+              <div className="text-gray-500 text-center py-8">
+                <SparklesIcon className="mx-auto h-12 w-12 text-gray-600" />
+                <p className="mt-4 text-gray-400">Aucun lead créé par l&apos;agent IA pour le moment</p>
+                <p className="mt-1 text-sm text-gray-500">Les leads seront créés automatiquement lors des appels entrants</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700/30">
+                  <thead className="bg-gray-800/30">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Notes IA</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
+                    {leadsAgentIA.map((lead) => (
+                      <tr key={lead.id} className="hover:bg-gray-800/30">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                          <div className="flex items-center gap-2">
+                            <PhoneIcon className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                            {lead.prenom} {lead.nom}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-mono">
+                          {lead.telephone}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {lead.email && !lead.email.includes('@placeholder') ? lead.email : (
+                            <span className="text-gray-500 italic">Non renseigné</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate" title={lead.notes || ''}>
+                          {lead.notes || <span className="text-gray-500 italic">-</span>}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <select
+                            value={lead.statut}
+                            onChange={(e) => handleUpdateStatus(lead.id, e.target.value as typeof lead.statut)}
+                            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="nouveau">Nouveau</option>
+                            <option value="contacte">Contacté</option>
+                            <option value="converti">Converti</option>
+                            <option value="abandonne">Abandonné</option>
+                          </select>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          {new Date(lead.createdAt).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
