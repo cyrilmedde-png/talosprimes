@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { generateLegalContent } from '../../services/openai.service.js';
+import { n8nService } from '../../services/n8n.service.js';
 import { ApiError } from '../../utils/api-errors.js';
 
 // Templates pour génération IA
@@ -331,6 +332,81 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, message: 'Message supprimé' });
       } catch (error) {
         fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ===== CALLBACK IA (Rappel automatique depuis landing) =====
+
+  // POST /api/landing/callback - Demander un rappel IA (PUBLIC, rate limit strict)
+  fastify.post<{ Body: { nom?: string; telephone: string } }>(
+    '/api/landing/callback',
+    {
+      config: {
+        rateLimit: {
+          max: 2,
+          timeWindow: '5 minutes',
+        },
+      },
+    },
+    async (request, reply) => {
+      const { nom, telephone } = request.body || {};
+
+      if (!telephone || !/^\+?[0-9\s\-().]{6,20}$/.test(telephone.trim())) {
+        return ApiError.badRequest(reply, 'Numéro de téléphone invalide');
+      }
+
+      const cleanPhone = telephone.trim().replace(/[\s\-().]/g, '');
+
+      try {
+        // 1) Sauvegarder la demande comme message de contact
+        await prisma.contactMessage.create({
+          data: {
+            nom: nom?.trim() || 'Visiteur landing',
+            prenom: '',
+            email: '',
+            telephone: cleanPhone,
+            message: `Demande de rappel IA depuis la landing page`,
+          },
+        });
+
+        // 2) Trouver le tenant qui a une config Twilio active
+        const twilioConfig = await prisma.twilioConfig.findFirst({
+          where: { agentActif: true },
+          select: { tenantId: true },
+        });
+
+        if (!twilioConfig) {
+          fastify.log.warn('Callback landing: aucun tenant avec agent IA actif');
+          // On retourne quand même success pour ne pas bloquer le visiteur
+          return reply.status(200).send({
+            success: true,
+            message: 'Demande enregistrée. Un conseiller vous rappellera.',
+          });
+        }
+
+        // 3) Déclencher l'appel sortant via n8n
+        const callResult = await n8nService.callWorkflowReturn<Record<string, unknown>>(
+          twilioConfig.tenantId,
+          'twilio_outbound_call',
+          {
+            to: cleanPhone,
+            reason: 'landing_callback',
+            callerName: nom?.trim() || 'Visiteur',
+          }
+        );
+
+        if (!callResult.success) {
+          fastify.log.error({ callResult }, 'Callback landing: erreur n8n');
+        }
+
+        return reply.status(200).send({
+          success: true,
+          message: 'Rappel en cours. Léa vous appelle dans quelques instants.',
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur callback landing');
         return ApiError.internal(reply);
       }
     }
