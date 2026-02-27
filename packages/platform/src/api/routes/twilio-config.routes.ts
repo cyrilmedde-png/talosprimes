@@ -45,11 +45,11 @@ const updateTwilioConfigSchema = z.object({
   agentName: z.string().optional(),
   companyName: z.string().optional(),
   niche: z.enum(['plomberie', 'medical', 'immobilier', 'pompes_funebres', 'serrurier', 'electricien', 'veterinaire', 'restaurant']).optional(),
-  businessHours: z.record(z.any()).optional(),
+  businessHours: z.string().optional(),
   systemPromptAddon: z.string().optional(),
   knowledgeBase: z.string().optional(),
   dispatchDelay: z.number().optional(),
-  basePrice: z.number().optional(),
+  basePrice: z.string().optional(),
   humanContact: z.string().optional(),
   active: z.boolean().optional(),
 });
@@ -146,10 +146,6 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
 
       // Appel depuis n8n (callback) → mise à jour BDD directe
       const updateData: Record<string, unknown> = { ...body };
-      // basePrice est string dans Prisma, s'assurer de la conversion
-      if (updateData.basePrice !== undefined) {
-        updateData.basePrice = String(updateData.basePrice);
-      }
       const config = await prisma.twilioConfig.upsert({
         where: { tenantId: tenantId! },
         update: updateData as Record<string, unknown>,
