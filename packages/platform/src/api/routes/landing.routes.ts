@@ -373,7 +373,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
         // 2) Trouver le tenant qui a une config Twilio active
         const twilioConfig = await prisma.twilioConfig.findFirst({
-          where: { agentActif: true },
+          where: { active: true },
           select: { tenantId: true },
         });
 
