@@ -43,10 +43,10 @@
             {
               "id": "7e6c6ac2-d2e7-43a0-a1d5-258f94c0310c",
               "leftValue": "={{ $json.isCallback }}",
-              "rightValue": "",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "notEmpty"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -124,10 +124,10 @@
             {
               "id": "e98da725-c807-4c0c-9c14-f309f75f7221",
               "leftValue": "={{ $json.hasText }}",
-              "rightValue": "",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "notEmpty"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -197,7 +197,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT cf.id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale, cf.tenant_id FROM client_finals cf WHERE cf.telephone LIKE '%' || RIGHT('\" + $json.from + \"', 9) || '%' LIMIT 1\" }}",
+        "query": "={{ \"WITH tenant AS (SELECT tenant_id FROM twilio_configs WHERE phone_number LIKE '%' || RIGHT('\" + $('02. Parser Twilio').first().json.to + \"', 9) || '%' LIMIT 1) SELECT cf.id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale, t.tenant_id FROM tenant t LEFT JOIN client_finals cf ON cf.telephone LIKE '%' || RIGHT('\" + $('02. Parser Twilio').first().json.from + \"', 9) || '%' LIMIT 1\" }}",
         "options": {
           "alwaysOutputData": true
         }
@@ -296,7 +296,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO call_logs (\n  tenant_id, caller_phone, direction, status, notes, \n  urgency_level, sentiment, action_taken, created_at, updated_at\n) VALUES (\n  COALESCE(\n    (SELECT id FROM tenants LIMIT 1),\n    '00000000-0000-0000-0000-000000000000'\n  ),\n  '\" + $json.from + \"',\n  'entrant',\n  'completed',\n  '\" + 'CallSid:' + $json.callSid + ($json.isAdmin ? ' ADMIN' : '') + ($json.isProspect ? ' [PROSPECT]' : '') + ($json.needsEscalation ? ' [ESCALADE]' : '') + ' - Q: ' + ($json.speechResult || '').substring(0, 500) + ' - R: ' + ($json.aiReply || '').substring(0, 500) + \"',\n  '\" + $json.needsEscalation ? 'URGENT' : 'STANDARD' + \"',\n  '\" + $json.isProspect ? 'POSITIF' : 'NEUTRE' + \"',\n  'REPONDU',\n  NOW(),\n  NOW()\n) RETURNING id\" }}",
+        "query": "={{ (function() { var d = $('14. Build TwiML Response').first().json; var safe = function(s) { return String(s || '').replace(/'/g, \"''\").substring(0, 500); }; var notes = safe('CallSid:' + d.callSid + (d.isAdmin ? ' ADMIN' : '') + (d.isProspect ? ' [PROSPECT]' : '') + (d.needsEscalation ? ' [ESCALADE]' : '') + ' - Q: ' + (d.speechResult || '') + ' - R: ' + (d.aiReply || '')); var urgency = d.needsEscalation ? 'URGENT' : 'STANDARD'; var sentiment = d.isProspect ? 'POSITIF' : 'NEUTRE'; return \"INSERT INTO call_logs (tenant_id, caller_phone, direction, status, notes, urgency_level, sentiment, action_taken, created_at, updated_at) VALUES (COALESCE((SELECT id FROM tenants LIMIT 1), '00000000-0000-0000-0000-000000000000'), '\" + safe(d.from) + \"', 'entrant', 'completed', '\" + notes + \"', '\" + urgency + \"', '\" + sentiment + \"', 'REPONDU', NOW(), NOW()) RETURNING id\"; })() }}",
         "options": {
           "alwaysOutputData": true
         }
@@ -368,7 +368,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO notifications (\n  tenant_id, user_id, type, titre, message, lue, created_at\n) SELECT \n  t.id,\n  u.id,\n  '\" + $('14. Build TwiML Response').first().json.isProspect ? 'lead' : 'alerte' + \"',\n  '\" + $('14. Build TwiML Response').first().json.isProspect ? 'Nouveau prospect téléphonique' : 'Escalade agent vocal' + \"',\n  '\" + ($('14. Build TwiML Response').first().json.isProspect ? 'Prospect' : 'Escalade') + ' - Tel: ' + $('14. Build TwiML Response').first().json.from + ' - ' + ($('14. Build TwiML Response').first().json.speechResult || '').substring(0, 300) + \"',\n  false,\n  NOW()\nFROM tenants t\nJOIN users u ON u.tenant_id = t.id AND u.role = 'super_admin'\nLIMIT 1\nRETURNING id\" }}",
+        "query": "={{ (function() { var d = $('14. Build TwiML Response').first().json; var safe = function(s) { return String(s || '').replace(/'/g, \"''\").substring(0, 500); }; var type = d.isProspect ? 'lead' : 'alerte'; var titre = d.isProspect ? 'Nouveau prospect telephonique' : 'Escalade agent vocal'; var msg = safe((d.isProspect ? 'Prospect' : 'Escalade') + ' - Tel: ' + d.from + ' - ' + (d.speechResult || '')); return \"INSERT INTO notifications (tenant_id, user_id, type, titre, message, lue, created_at) SELECT t.id, u.id, '\" + type + \"', '\" + titre + \"', '\" + msg + \"', false, NOW() FROM tenants t JOIN users u ON u.tenant_id = t.id AND u.role = 'super_admin' LIMIT 1 RETURNING id\"; })() }}",
         "options": {
           "alwaysOutputData": true
         }
@@ -400,10 +400,10 @@
             {
               "id": "6e0850b0-34ba-45a4-bcfe-eb4782a997bb",
               "leftValue": "={{ $json.isProspect || $json.needsEscalation }}",
-              "rightValue": "",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "notEmpty"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -468,10 +468,10 @@
             {
               "id": "f420da73-33d1-4132-b70f-cdb037d1913d",
               "leftValue": "={{ $json.hasToolCall }}",
-              "rightValue": "",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "notEmpty"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
