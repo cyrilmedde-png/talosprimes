@@ -211,7 +211,9 @@ export async function leadsRoutes(fastify: FastifyInstance) {
           'leads_list',
           { source, statut, limit: limit ?? '100' }
         );
-        return reply.send({ success: true, data: { leads: result.data } });
+        const raw = result.data as { leads?: unknown[] };
+        const leads = Array.isArray(raw.leads) ? raw.leads : [];
+        return reply.send({ success: true, data: { leads } });
       }
       
       const where: Record<string, unknown> = {};
