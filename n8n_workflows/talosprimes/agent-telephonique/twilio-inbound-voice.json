@@ -197,7 +197,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"WITH tenant AS (SELECT tenant_id FROM twilio_configs WHERE phone_number LIKE '%' || RIGHT('\" + $('02. Parser Twilio').first().json.to + \"', 9) || '%' LIMIT 1) SELECT cf.id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale, t.tenant_id FROM tenant t LEFT JOIN client_finals cf ON cf.telephone LIKE '%' || RIGHT('\" + $('02. Parser Twilio').first().json.from + \"', 9) || '%' LIMIT 1\" }}",
+        "query": "={{ \"SELECT tc.tenant_id, cf.id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale FROM twilio_configs tc LEFT JOIN client_finals cf ON cf.telephone LIKE '%' || RIGHT('\" + $('02. Parser Twilio').first().json.from + \"', 9) || '%' WHERE tc.phone_number LIKE '%' || RIGHT('\" + $('02. Parser Twilio').first().json.to + \"', 9) || '%' LIMIT 1\" }}",
         "options": {
           "alwaysOutputData": true
         }
