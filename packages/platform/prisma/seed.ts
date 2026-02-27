@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { seedModules } from './seeds/01-modules';
 import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications, seedWorkflowLinksAgentTelephonique, seedWorkflowLinksClients, seedWorkflowLinksLeads, seedWorkflowLinksComptabilite } from './seeds/02-workflow-links';
 import { seedPlanComptable, seedJournauxComptables, seedExerciceComptable } from './seeds/04-plan-comptable';
+import { seedAgentKnowledge } from './seeds/05-agent-knowledge';
 import { runSeedLanding } from './seed-landing';
 
 const prisma = new PrismaClient();
@@ -257,6 +258,9 @@ async function main() {
   });
 
   console.log('✅ Agent Téléphonique — seed données OK');
+
+  // 9. Base de Connaissances Agent IA
+  await seedAgentKnowledge(prisma, tenant.id);
 
   console.log('\n🎉 Seed terminé avec succès !');
   console.log('\n📋 Résumé:');
