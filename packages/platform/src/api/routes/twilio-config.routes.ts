@@ -1,9 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
-import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
-import { env } from '../../config/env.js';
 import type { InputJsonValue } from '../../types/prisma-helpers.js';
 import { ApiError } from '../../utils/api-errors.js';
 
@@ -72,19 +70,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         return ApiError.unauthorized(reply);
       }
 
-      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
-        const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
-          tenantId,
-          'twilio_config_get',
-          {}
-        );
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
-      }
-
-      // Appel depuis n8n (callback) → lecture BDD directe
+      // Lecture directe BDD — pas de délégation n8n pour la config
       const config = await prisma.twilioConfig.findUnique({
         where: { tenantId },
       });
@@ -132,19 +118,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         throw error;
       }
 
-      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
-        const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
-          tenantId,
-          'twilio_config_update',
-          body
-        );
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
-      }
-
-      // Appel depuis n8n (callback) → mise à jour BDD directe
+      // Écriture directe BDD — pas de délégation n8n pour la config
       const updateData: Record<string, unknown> = { ...body };
       const config = await prisma.twilioConfig.upsert({
         where: { tenantId: tenantId! },
@@ -187,20 +161,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         return ApiError.unauthorized(reply);
       }
 
-      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
-        const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
-          tenantId,
-          'twilio_test_call',
-          {}
-        );
-        return reply.status(200).send({
-          success: true,
-          message: 'Test call triggered',
-          data: res.data,
-        });
-      }
-
-      // Appel depuis n8n (callback) → log directe
+      // Log directe — pas de délégation n8n pour test call
       await logEvent(tenantId!, 'twilio_test_call', 'twilio_config', tenantId!, {});
 
       return reply.status(200).send({
@@ -242,20 +203,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         throw error;
       }
 
-      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
-        const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
-          tenantId,
-          'twilio_outbound_call',
-          body
-        );
-        return reply.status(200).send({
-          success: true,
-          message: 'Outbound call triggered',
-          data: res.data,
-        });
-      }
-
-      // Appel depuis n8n (callback) → log directe
+      // Log directe — pas de délégation n8n pour outbound call
       await logEvent(tenantId!, 'twilio_outbound_call', 'twilio_config', tenantId!, body);
 
       return reply.status(200).send({
