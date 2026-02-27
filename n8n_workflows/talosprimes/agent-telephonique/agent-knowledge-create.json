@@ -1,0 +1,71 @@
+{
+  "name": "agent-knowledge-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "agent-knowledge-create",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.titre) throw new Error('titre is required');\nif (!body.contenu) throw new Error('contenu is required');\n\nvar categorie = body.categorie || 'faq';\nvar motsCles = body.motsCles || body.mots_cles || null;\nvar actif = body.actif !== undefined ? body.actif : true;\nvar ordre = parseInt(body.ordre) || 0;\n\nreturn [{ json: { tenantId: body.tenantId, titre: body.titre, contenu: body.contenu, categorie, motsCles, actif, ordre } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO agent_knowledge_entries (id, tenant_id, categorie, titre, contenu, mots_cles, actif, ordre, created_at, updated_at) VALUES (gen_random_uuid(), '\" + $('02. Parser').first().json.tenantId + \"', '\" + $('02. Parser').first().json.categorie + \"', '\" + $('02. Parser').first().json.titre.replace(/'/g, \"''\") + \"', '\" + $('02. Parser').first().json.contenu.replace(/'/g, \"''\") + \"', \" + ($('02. Parser').first().json.motsCles ? \"'\" + $('02. Parser').first().json.motsCles.replace(/'/g, \"''\") + \"'\" : \"NULL\") + \", \" + $('02. Parser').first().json.actif + \", \" + $('02. Parser').first().json.ordre + \", NOW(), NOW()) RETURNING id, tenant_id, categorie, titre, contenu, mots_cles, actif, ordre, created_at, updated_at\" }}"
+      },
+      "id": "03. Insert Query",
+      "name": "03. Insert Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [500, 200],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var result = $('03. Insert Query').first().json;\n\nreturn [{ json: { entry: {\n  id: result.id,\n  tenantId: result.tenant_id,\n  categorie: result.categorie,\n  titre: result.titre,\n  contenu: result.contenu,\n  motsCles: result.mots_cles || null,\n  actif: result.actif,\n  ordre: result.ordre || 0,\n  createdAt: result.created_at,\n  updatedAt: result.updated_at\n} } }];"
+      },
+      "id": "04. Format Response",
+      "name": "04. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "05. Respond",
+      "name": "05. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 200]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Insert Query", "type": "main", "index": 0 }]] },
+    "03. Insert Query": { "main": [[{ "node": "04. Format Response", "type": "main", "index": 0 }]] },
+    "04. Format Response": { "main": [[{ "node": "05. Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

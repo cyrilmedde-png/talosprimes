@@ -1,0 +1,60 @@
+{
+  "name": "agent-knowledge-delete",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "agent-knowledge-delete",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) throw new Error('tenantId is required');\nif (!body.id) throw new Error('id is required');\n\nreturn [{ json: { tenantId: body.tenantId, id: body.id } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"DELETE FROM agent_knowledge_entries WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND id = '\" + $('02. Parser').first().json.id + \"'\" }}"
+      },
+      "id": "03. Delete Query",
+      "name": "03. Delete Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [500, 200],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Entrée supprimée\" }"
+      },
+      "id": "04. Respond",
+      "name": "04. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 200]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Delete Query", "type": "main", "index": 0 }]] },
+    "03. Delete Query": { "main": [[{ "node": "04. Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

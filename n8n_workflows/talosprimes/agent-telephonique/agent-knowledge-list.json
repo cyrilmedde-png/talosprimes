@@ -1,0 +1,125 @@
+{
+  "name": "agent-knowledge-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "agent-knowledge-list",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nvar page = parseInt(body.page) || 1;\nvar limit = parseInt(body.limit) || 50;\nvar offset = (page - 1) * limit;\nvar categorie = body.categorie || null;\nvar actif = body.actif !== undefined && body.actif !== null ? body.actif : null;\nvar search = body.search || null;\n\nreturn [{ json: { tenantId: body.tenantId, page, limit, offset, categorie, actif, search } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId manquant\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT COUNT(*) as total FROM agent_knowledge_entries WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'\" + ($('02. Parser').first().json.categorie ? \" AND categorie = '\" + $('02. Parser').first().json.categorie + \"'\" : \"\") + ($('02. Parser').first().json.actif !== null ? \" AND actif = \" + ($('02. Parser').first().json.actif === true || $('02. Parser').first().json.actif === 'true' ? \"true\" : \"false\") : \"\") + ($('02. Parser').first().json.search ? \" AND (titre ILIKE '%\" + $('02. Parser').first().json.search + \"%' OR contenu ILIKE '%\" + $('02. Parser').first().json.search + \"%' OR mots_cles ILIKE '%\" + $('02. Parser').first().json.search + \"%')\" : \"\") }}"
+      },
+      "id": "05. Count Query",
+      "name": "05. Count Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [700, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, tenant_id, categorie, titre, contenu, mots_cles, actif, ordre, created_at, updated_at FROM agent_knowledge_entries WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'\" + ($('02. Parser').first().json.categorie ? \" AND categorie = '\" + $('02. Parser').first().json.categorie + \"'\" : \"\") + ($('02. Parser').first().json.actif !== null ? \" AND actif = \" + ($('02. Parser').first().json.actif === true || $('02. Parser').first().json.actif === 'true' ? \"true\" : \"false\") : \"\") + ($('02. Parser').first().json.search ? \" AND (titre ILIKE '%\" + $('02. Parser').first().json.search + \"%' OR contenu ILIKE '%\" + $('02. Parser').first().json.search + \"%' OR mots_cles ILIKE '%\" + $('02. Parser').first().json.search + \"%')\" : \"\") + \" ORDER BY ordre ASC, created_at DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
+      },
+      "id": "06. List Query",
+      "name": "06. List Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [900, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('06. List Query').all().map(function(item) { return item.json; }).filter(function(e) { return e.id; });\nvar countResult = $('05. Count Query').first().json;\nvar parser = $('02. Parser').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / parser.limit) || 1;\n\nvar entries = items.map(function(e) {\n  return {\n    id: e.id,\n    tenantId: e.tenant_id,\n    categorie: e.categorie,\n    titre: e.titre,\n    contenu: e.contenu,\n    motsCles: e.mots_cles || null,\n    actif: e.actif,\n    ordre: e.ordre || 0,\n    createdAt: e.created_at,\n    updatedAt: e.updated_at\n  };\n});\n\nreturn [{ json: { entries, total, page: parser.page, limit: parser.limit, totalPages } }];"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1300, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]] },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. Count Query", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Count Query": { "main": [[{ "node": "06. List Query", "type": "main", "index": 0 }]] },
+    "06. List Query": { "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]] },
+    "07. Format Response": { "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

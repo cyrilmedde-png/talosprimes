@@ -30,6 +30,7 @@ import {
   AcademicCapIcon,
   CalendarIcon,
   CheckCircleIcon,
+  BookOpenIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -142,6 +143,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Appels', href: '/agent-ia/appels', icon: PhoneIcon },
       { name: 'SMS', href: '/agent-ia/sms', icon: ChatBubbleLeftIcon },
       { name: 'Questionnaires', href: '/agent-ia/questionnaires', icon: QuestionIcon },
+      { name: 'Base Connaissances', href: '/agent-ia/base-connaissances', icon: BookOpenIcon },
       { name: 'Configuration', href: '/agent-ia/configuration', icon: SettingsIcon },
     ],
   },

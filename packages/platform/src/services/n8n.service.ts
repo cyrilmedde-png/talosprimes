@@ -240,6 +240,12 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   rh_evaluation_update: 'rh/evaluation/update',
   rh_evaluation_delete: 'rh/evaluation/delete',
   rh_dashboard: 'rh/dashboard',
+  // Agent IA - Base de connaissances
+  agent_knowledge_list: 'agent-knowledge-list',
+  agent_knowledge_get: 'agent-knowledge-get',
+  agent_knowledge_create: 'agent-knowledge-create',
+  agent_knowledge_update: 'agent-knowledge-update',
+  agent_knowledge_delete: 'agent-knowledge-delete',
 };
 
 /**

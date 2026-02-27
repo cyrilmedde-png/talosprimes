@@ -1248,6 +1248,28 @@ export const apiClient = {
         authenticatedFetch<{ success: boolean }>(`/api/rh/evaluations/${id}`, { method: 'DELETE' }),
     },
   },
+
+  // Agent IA - Base de Connaissances
+  agentKnowledge: {
+    list: (params?: { categorie?: string; actif?: string; search?: string; page?: string; limit?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.categorie) queryParams.append('categorie', params.categorie);
+      if (params?.actif) queryParams.append('actif', params.actif);
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.page) queryParams.append('page', params.page);
+      if (params?.limit) queryParams.append('limit', params.limit);
+      const query = queryParams.toString();
+      return authenticatedFetch<{ success: boolean; data: { entries: unknown[]; total: number; page: number; limit: number; totalPages: number } }>(`/api/agent-knowledge${query ? `?${query}` : ''}`);
+    },
+    get: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { entry: unknown } }>(`/api/agent-knowledge/${id}`),
+    create: (data: { titre: string; contenu: string; categorie?: string; motsCles?: string | null; actif?: boolean; ordre?: number }) =>
+      authenticatedFetch<{ success: boolean; data: { entry: unknown } }>('/api/agent-knowledge', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; data: { entry: unknown } }>(`/api/agent-knowledge/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/agent-knowledge/${id}`, { method: 'DELETE' }),
+  },
 };
 
 // Types pour les factures

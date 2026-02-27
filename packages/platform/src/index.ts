@@ -35,6 +35,7 @@ import { equipeRoutes } from './api/routes/equipe.routes.js';
 import { projetsRoutes } from './api/routes/projets.routes.js';
 import { btpRoutes } from './api/routes/btp.routes.js';
 import { rhRoutes } from './api/routes/rh.routes.js';
+import { agentKnowledgeRoutes } from './api/routes/agent-knowledge.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -312,6 +313,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes Ressources Humaines
 await fastify.register(async (fastify) => {
   await fastify.register(rhRoutes, { prefix: '/api/rh' });
+});
+
+// Enregistrer les routes Base de Connaissances Agent IA
+await fastify.register(async (fastify) => {
+  await fastify.register(agentKnowledgeRoutes, { prefix: '/api/agent-knowledge' });
 });
 
 // Route de test

@@ -292,6 +292,7 @@ model Tenant {
   rhFormations          RhFormation[]
   rhInscriptions        RhInscriptionFormation[]
   rhEvaluations         RhEvaluation[]
+  agentKnowledgeEntries AgentKnowledgeEntry[]
 
   @@index([emailContact])
   @@index([statut])
@@ -2019,5 +2020,37 @@ model RhEvaluation {
   @@index([evaluateurId])
   @@index([annee])
   @@map("rh_evaluations")
+}
+
+// --- Base de Connaissances Agent Téléphonique ---
+
+enum AgentKnowledgeCategory {
+  faq
+  info_entreprise
+  services
+  tarifs
+  politiques
+  actions
+  autre
+}
+
+model AgentKnowledgeEntry {
+  id        String                 @id @default(uuid()) @db.Uuid
+  tenantId  String                 @map("tenant_id") @db.Uuid
+  categorie AgentKnowledgeCategory @default(faq)
+  titre     String
+  contenu   String                 @db.Text
+  motsCles  String?                @map("mots_cles")
+  actif     Boolean                @default(true)
+  ordre     Int                    @default(0)
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, titre])
+  @@index([tenantId])
+  @@index([categorie])
+  @@map("agent_knowledge_entries")
 }
 
