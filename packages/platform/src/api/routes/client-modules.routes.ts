@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import type { InputJsonValue, TransactionClient } from '../../types/prisma-helpers.js';
+import { JsonNull } from '../../types/prisma-helpers.js';
 
 // Schemas de validation
 const clientIdSchema = z.object({
@@ -185,7 +186,7 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
         }
 
         // Transaction : désactiver les anciens, activer les nouveaux
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: TransactionClient) => {
           // Désactiver tous les modules existants
           await tx.clientModule.updateMany({
             where: { clientFinalId: clientId },
@@ -215,12 +216,12 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
                 module: { connect: { id: mod.id } },
                 actif: true,
                 limiteUsage: m.limiteUsage,
-                config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
+                config: m.config ? (m.config as InputJsonValue) : JsonNull,
               },
               update: {
                 actif: true,
                 limiteUsage: m.limiteUsage,
-                config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
+                config: m.config ? (m.config as InputJsonValue) : JsonNull,
                 usageActuel: 0,
               },
             });

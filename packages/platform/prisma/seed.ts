@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs';
 import { seedModules } from './seeds/01-modules';
 import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications, seedWorkflowLinksAgentTelephonique, seedWorkflowLinksClients, seedWorkflowLinksLeads, seedWorkflowLinksComptabilite } from './seeds/02-workflow-links';
 import { seedPlanComptable, seedJournauxComptables, seedExerciceComptable } from './seeds/04-plan-comptable';
-import { seedDemoTenant } from './seeds/05-demo-tenant';
 import { runSeedLanding } from './seed-landing';
 
 const prisma = new PrismaClient();
@@ -257,26 +256,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Agent Téléphonique — seed données démo');
-
-  // 9. Tenant démo + données démo (demo.talosprimes.com)
-  await seedDemoTenant(prisma);
-
-  // 10. Workflow links pour le tenant démo
-  const DEMO_TENANT_ID = 'de000000-0000-0000-0000-000000000001';
-  await seedWorkflowLinksFacturation(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksArticles(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksBdc(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksDevis(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksAvoir(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksProforma(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksLogs(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksNotifications(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksAgentTelephonique(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksClients(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksLeads(prisma, DEMO_TENANT_ID);
-  await seedWorkflowLinksComptabilite(prisma, DEMO_TENANT_ID);
-  console.log('  ✅ Workflow links démo OK');
+  console.log('✅ Agent Téléphonique — seed données OK');
 
   console.log('\n🎉 Seed terminé avec succès !');
   console.log('\n📋 Résumé:');
@@ -285,8 +265,6 @@ async function main() {
   console.log(`   - Rôle: ${user.role}`);
   console.log(`   - Mot de passe: 21052024_Aa!`);
   console.log('\n🔐 Vous pouvez maintenant vous connecter avec ces identifiants.');
-  console.log('\n🎭 Tenant démo: demo@talosprimes.com / demo2026');
-  console.log('   URL: https://demo.talosprimes.com');
 }
 
 main()

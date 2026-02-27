@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { n8nService } from '../../services/n8n.service.js';
 import { requireRole } from '../../middleware/auth.middleware.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 /**
  * Routes pour la gestion n8n (admin uniquement)
@@ -16,16 +17,21 @@ export async function n8nRoutes(fastify: FastifyInstance) {
       try {
         const result = await n8nService.testConnection();
 
-        reply.code(result.success ? 200 : 500).send({
-          success: result.success,
+        if (!result.success) {
+          // Erreur de configuration / connectivité → 502 (Bad Gateway)
+          return reply.status(502).send({
+            success: false,
+            error: 'n8n indisponible',
+            message: result.message,
+          });
+        }
+
+        return reply.status(200).send({
+          success: true,
           message: result.message,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Erreur inconnue';
-        reply.code(500).send({
-          error: 'Erreur serveur',
-          message,
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -40,13 +46,20 @@ export async function n8nRoutes(fastify: FastifyInstance) {
       try {
         const result = await n8nService.publishAllWorkflows();
 
-        reply.code(result.success ? 200 : 500).send(result);
+        if (!result.success) {
+          // Erreur config (pas de clé API) → 422, erreur n8n → 502
+          const statusCode = result.message.includes('non configuré') ? 422 : 502;
+          return reply.status(statusCode).send({
+            success: false,
+            error: 'Échec publication workflows',
+            message: result.message,
+            count: result.count,
+          });
+        }
+
+        return reply.status(200).send(result);
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Erreur inconnue';
-        reply.code(500).send({
-          success: false,
-          message: `Erreur serveur: ${message}`,
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -62,29 +75,18 @@ export async function n8nRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId;
 
         if (!tenantId) {
-          reply.code(401).send({
-            error: 'Non authentifié',
-            message: 'Tenant ID manquant',
-          });
-          return;
+          return ApiError.unauthorized(reply, 'Tenant ID manquant');
         }
 
         const workflows = await n8nService.listWorkflows(tenantId);
 
-        reply.code(200).send({
+        return reply.status(200).send({
           success: true,
-          data: {
-            workflows,
-          },
+          data: { workflows },
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Erreur inconnue';
-        reply.code(500).send({
-          error: 'Erreur serveur',
-          message,
-        });
+        return ApiError.internal(reply);
       }
     }
   );
 }
-

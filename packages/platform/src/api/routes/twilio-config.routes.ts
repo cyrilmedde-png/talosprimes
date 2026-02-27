@@ -1,10 +1,11 @@
-import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { env } from '../../config/env.js';
+import type { InputJsonValue } from '../../types/prisma-helpers.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -14,7 +15,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -29,12 +30,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, typeEvenement } as Prisma.InputJsonValue,
+          donnees: { entiteType, typeEvenement } as InputJsonValue,
         },
       });
     }
   } catch (e) {
-    console.error('[logEvent] Erreur logging:', e);
+    // Silent fail for logging errors
   }
 }
 
@@ -68,7 +69,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
@@ -89,7 +90,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       });
 
       if (!config) {
-        return reply.status(404).send({ success: false, error: 'Configuration Twilio non trouvée' });
+        return ApiError.notFound(reply, 'TwilioConfig');
       }
 
       return reply.status(200).send({
@@ -105,7 +106,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         await logEvent(tenantId, 'twilio_config_get', 'twilio_config', tenantId, {}, 'erreur', String(error));
       }
 
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -118,10 +119,18 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
-      const body = updateTwilioConfigSchema.parse(request.body);
+      let body;
+      try {
+        body = updateTwilioConfigSchema.parse(request.body);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return ApiError.validation(reply, error);
+        }
+        throw error;
+      }
 
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
@@ -166,7 +175,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         await logEvent(tenantId, 'twilio_config_update', 'twilio_config', tenantId, body as Record<string, unknown>, 'erreur', String(error));
       }
 
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -179,7 +188,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
@@ -211,7 +220,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         await logEvent(tenantId, 'twilio_test_call', 'twilio_config', tenantId, {}, 'erreur', String(error));
       }
 
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -224,10 +233,18 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
-      const body = outboundCallSchema.parse(request.body);
+      let body;
+      try {
+        body = outboundCallSchema.parse(request.body);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return ApiError.validation(reply, error);
+        }
+        throw error;
+      }
 
       if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
         const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
@@ -259,7 +276,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         await logEvent(tenantId, 'twilio_outbound_call', 'twilio_config', tenantId, body as Record<string, unknown>, 'erreur', String(error));
       }
 
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -272,7 +289,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       return reply.status(200).send({
@@ -283,7 +300,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur GET niches');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 }

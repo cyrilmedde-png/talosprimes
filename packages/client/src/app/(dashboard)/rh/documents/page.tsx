@@ -12,7 +12,6 @@ import {
   XMarkIcon,
   DocumentIcon,
 } from '@heroicons/react/24/outline';
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 interface DocumentRH {
   id: string;
@@ -53,7 +52,6 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function DocumentsPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [documents, setDocuments] = useState<DocumentRH[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,11 +167,6 @@ export default function DocumentsPage() {
   };
 
   const handleDelete = async (id: string): Promise<void> => {
-    if (isDemo) {
-      demoAlert();
-      return;
-    }
-
     try {
       setError(null);
       await apiClient.rh.documents.delete(id);

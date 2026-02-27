@@ -7,7 +7,6 @@ import type { Tenant, User, StatutJuridique } from '@talosprimes/shared';
 import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon, QueueListIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
 import { apiClient, type ArticleCode } from '@/lib/api-client';
 
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
   { value: 'SA', label: 'SA - Société Anonyme' },
   { value: 'SARL', label: 'SARL - Société à Responsabilité Limitée' },
@@ -48,7 +47,6 @@ type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'co
 
 function SettingsContent() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>('entreprise');
   const [loading, setLoading] = useState(true);
@@ -241,8 +239,6 @@ function SettingsContent() {
   };
 
   const handleDeleteArticle = async (id: string) => {
-    // demo-guard: handleDeleteArticle
-    if (isDemo) { demoAlert(); return; }
     if (!confirm('Supprimer ce code article ?')) return;
     try {
       setSaving(true);

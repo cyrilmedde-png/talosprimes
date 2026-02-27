@@ -12,7 +12,6 @@ import {
   XMarkIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 interface Entretien {
   id: string;
@@ -67,7 +66,6 @@ const STATUT_LABELS: Record<string, string> = {
 
 export default function EntretiensPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [entretiens, setEntretiens] = useState<Entretien[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -189,11 +187,6 @@ export default function EntretiensPage() {
   };
 
   const handleDelete = async (id: string): Promise<void> => {
-    if (isDemo) {
-      demoAlert();
-      return;
-    }
-
     try {
       setError(null);
       await apiClient.rh.entretiens.delete(id);

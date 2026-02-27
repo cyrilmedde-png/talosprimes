@@ -1,6 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
@@ -8,6 +7,8 @@ import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { generateInvoicePdf, generateDocumentPdf } from '../../services/pdf.service.js';
 import { sendEmail, isEmailSendConfigured } from '../../services/email-agent.service.js';
+import type { InputJsonValue, TransactionClient } from '../../types/prisma-helpers.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -17,7 +18,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -32,12 +33,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as Prisma.InputJsonValue,
+          donnees: { entiteType, entiteId, typeEvenement } as InputJsonValue,
         },
       });
     }
   } catch (e) {
-    console.error('[logEvent] Erreur logging:', e);
+    // Silent fail for logging errors
   }
 }
 
@@ -101,6 +102,16 @@ const paramsSchema = z.object({
   id: z.string().uuid('ID invalide'),
 });
 
+// Schema de validation pour les query params de listing
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  statut: z.enum(['brouillon', 'envoyee', 'payee', 'annulee', 'en_retard']).optional(),
+  clientFinalId: z.string().uuid().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+});
+
 // Schema de validation pour marquer comme payée
 const markPaidSchema = z.object({
   referencePayment: z.string().optional(),
@@ -155,27 +166,20 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
       try {
         const tenantId = request.tenantId;
         const fromN8n = request.isN8nRequest === true;
-        const queryParams = request.query as {
-          page?: string;
-          limit?: string;
-          statut?: string;
-          clientFinalId?: string;
-          dateFrom?: string;
-          dateTo?: string;
-        };
+        const queryParams = listQuerySchema.parse(request.query);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Si on délègue la lecture à n8n (full no-code views) — pas si c'est déjà n8n
-        if (!fromN8n && tenantId && env.USE_N8N_VIEWS) {
+        if (!fromN8n && tenantId) {
           const res = await n8nService.callWorkflowReturn<{ invoices: unknown[]; count: number; totalPages: number }>(
             tenantId,
             'invoices_list',
             {
-              page: queryParams.page ? parseInt(queryParams.page, 10) : 1,
-              limit: queryParams.limit ? parseInt(queryParams.limit, 10) : 20,
+              page: queryParams.page,
+              limit: queryParams.limit,
               statut: queryParams.statut,
               clientFinalId: queryParams.clientFinalId,
               dateFrom: queryParams.dateFrom,
@@ -199,9 +203,9 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Récupérer depuis la base de données (USE_N8N_VIEWS=false ou appel n8n)
-        const page = queryParams.page ? parseInt(queryParams.page, 10) : 1;
-        const limit = queryParams.limit ? parseInt(queryParams.limit, 10) : 20;
+        // Récupérer depuis la base de données (callback n8n)
+        const page = queryParams.page;
+        const limit = queryParams.limit;
         const skip = (page - 1) * limit;
 
         const where: Record<string, unknown> = { deletedAt: null };
@@ -272,10 +276,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des factures');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la récupération des factures',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -293,11 +294,11 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         const params = paramsSchema.parse(request.params);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Si on délègue la lecture à n8n — pas si c'est déjà n8n
-        if (!fromN8n && tenantId && env.USE_N8N_VIEWS) {
+        if (!fromN8n && tenantId) {
           const res = await n8nService.callWorkflowReturn<{ invoice: unknown }>(
             tenantId,
             'invoice_get',
@@ -311,7 +312,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Sinon, récupérer depuis la base de données
+        // Récupérer depuis la base de données (callback n8n)
         const invoiceWhere: Record<string, unknown> = { id: params.id };
         if (tenantId) {
           invoiceWhere.tenantId = tenantId;
@@ -345,7 +346,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         });
 
         if (!invoice) {
-          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+          return ApiError.notFound(reply, 'Invoice');
         }
 
         return reply.status(200).send({
@@ -354,18 +355,10 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de la récupération de la facture');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la récupération de la facture',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -383,7 +376,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         const params = paramsSchema.parse(request.params);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         const invoiceWhere: Record<string, unknown> = { id: params.id };
@@ -430,7 +423,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         });
 
         if (!invoice) {
-          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+          return ApiError.notFound(reply, 'Invoice');
         }
 
         // Utiliser le type facture_achat pour le PDF si applicable
@@ -497,12 +490,10 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           .send(Buffer.from(pdfBytes));
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+          return ApiError.validation(reply, error);
         }
-        console.error('=== ERREUR GENERATION PDF ===', error);
         fastify.log.error(error, 'Erreur génération PDF facture');
-        return reply.status(500).send({ success: false, error: 'Erreur lors de la génération du PDF' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -518,12 +509,12 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
       try {
         const tenantId = request.tenantId;
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         const body = scanDocumentSchema.parse(request.body);
@@ -532,10 +523,7 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
         fastify.log.info('Lancement OCR scan document pour tenant %s (fichier: %s, type: %s, taille base64: %d)', tenantId, body.fileName, body.mimeType, body.documentBase64.length);
 
         if (!env.OPENAI_API_KEY) {
-          return reply.status(500).send({
-            success: false,
-            error: 'OPENAI_API_KEY non configurée sur le serveur',
-          });
+          return ApiError.internal(reply, 'OPENAI_API_KEY non configurée sur le serveur');
         }
 
         // Déterminer le media type pour la data URI
@@ -714,18 +702,10 @@ Règles :
         }
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors du scan OCR du document');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors du scan OCR du document',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -749,12 +729,12 @@ Règles :
           : request.tenantId;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Vérifier que le client existe (sauf facture d'achat : pas de client)
@@ -766,10 +746,10 @@ Règles :
             },
           });
           if (!client) {
-            return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+            return ApiError.notFound(reply, 'Client');
           }
         } else if (body.type !== 'facture_achat') {
-          return reply.status(400).send({ success: false, error: 'clientFinalId requis pour ce type de facture' });
+          return ApiError.badRequest(reply, 'clientFinalId requis pour ce type de facture');
         }
 
         // Nettoyer le body : retirer tenantId s'il était dans le body
@@ -782,10 +762,7 @@ Règles :
         // Depuis le frontend : on appelle le workflow ; depuis n8n (callback) : on persiste en base.
         if (!fromN8n) {
           if (!env.USE_N8N_COMMANDS) {
-            return reply.status(503).send({
-              success: false,
-              error: 'Création de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-created.',
-            });
+            return ApiError.internal(reply, 'Création de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-created.');
           }
           // Idempotence : header X-Idempotency-Key ou check par montant/client (60s au lieu de 30s)
           const idempotencyKey = request.headers['x-idempotency-key'] as string | undefined;
@@ -959,7 +936,7 @@ Règles :
           : new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
 
         // Transaction atomique : numérotation + création = pas de doublons
-        const invoice = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const invoice = await prisma.$transaction(async (tx: TransactionClient) => {
           let numeroFacture = bodyWithoutTenantId.numeroFacture;
           if (!numeroFacture) {
             const year = new Date().getFullYear();
@@ -1091,18 +1068,10 @@ Règles :
           }
         } catch (_) {}
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de la création de la facture');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la création de la facture',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -1122,12 +1091,12 @@ Règles :
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Vérifier que la facture existe et appartient au tenant
@@ -1139,16 +1108,13 @@ Règles :
         });
 
         if (!invoice) {
-          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+          return ApiError.notFound(reply, 'Invoice');
         }
 
         // Application no-code : la mise à jour de facture passe uniquement par n8n.
         if (!fromN8n) {
           if (!env.USE_N8N_COMMANDS) {
-            return reply.status(503).send({
-              success: false,
-              error: 'Mise à jour de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-update.',
-            });
+            return ApiError.internal(reply, 'Mise à jour de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-update.');
           }
           const res = await n8nService.callWorkflowReturn<{ invoice: unknown }>(
             tenantId,
@@ -1203,18 +1169,10 @@ Règles :
           }
         } catch (_) {}
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de la mise à jour de la facture');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la mise à jour de la facture',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -1231,12 +1189,12 @@ Règles :
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Vérifier que la facture existe et appartient au tenant
@@ -1248,11 +1206,11 @@ Règles :
         });
 
         if (!invoice) {
-          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+          return ApiError.notFound(reply, 'Invoice');
         }
 
         if (invoice.statut === 'envoyee') {
-          return reply.status(400).send({ success: false, error: 'La facture est déjà envoyée' });
+          return ApiError.badRequest(reply, 'La facture est déjà envoyée');
         }
 
         // Mettre à jour le statut
@@ -1362,18 +1320,10 @@ Règles :
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de l\'envoi de la facture');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de l\'envoi de la facture',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -1391,20 +1341,17 @@ Règles :
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Passage obligatoire par n8n (marque payée + crée écriture comptable)
         if (!env.USE_N8N_COMMANDS) {
-          return reply.status(503).send({
-            success: false,
-            error: 'Marquage de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-paid.',
-          });
+          return ApiError.internal(reply, 'Marquage de facture uniquement via n8n. Activez USE_N8N_COMMANDS et le workflow invoice-paid.');
         }
 
         const res = await n8nService.callWorkflowReturn<{ success: boolean; invoice: unknown; comptabilisation: unknown }>(
@@ -1433,18 +1380,10 @@ Règles :
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors du marquage comme payée');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors du marquage comme payée',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -1461,7 +1400,7 @@ Règles :
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier que la facture existe et peut être convertie
@@ -1473,11 +1412,11 @@ Règles :
         });
 
         if (!invoice) {
-          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+          return ApiError.notFound(reply, 'Invoice');
         }
 
         if (invoice.statut === 'brouillon' || invoice.statut === 'annulee') {
-          return reply.status(400).send({ success: false, error: 'Impossible de créer un avoir pour une facture en brouillon ou annulée' });
+          return ApiError.badRequest(reply, 'Impossible de créer un avoir pour une facture en brouillon ou annulée');
         }
 
         // Générer le numéro d'avoir
@@ -1531,11 +1470,10 @@ Règles :
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur conversion facture vers avoir');
-        return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -1551,20 +1489,17 @@ Règles :
         const params = paramsSchema.parse(request.params);
         const tenantId = request.tenantId as string;
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
         const invoice = await prisma.invoice.findFirst({
           where: { id: params.id, tenantId },
         });
         if (!invoice) {
-          return reply.status(404).send({ success: false, error: 'Facture non trouvée' });
+          return ApiError.notFound(reply, 'Invoice');
         }
         const isProduction = process.env.NODE_ENV === 'production';
         if (invoice.statut !== 'brouillon' && isProduction) {
-          return reply.status(400).send({
-            success: false,
-            error: 'Seules les factures au statut Brouillon peuvent être supprimées.',
-          });
+          return ApiError.badRequest(reply, 'Seules les factures au statut Brouillon peuvent être supprimées.');
         }
         // Soft delete : on ne supprime jamais une facture, on la marque comme supprimée
         await prisma.invoice.update({
@@ -1574,11 +1509,10 @@ Règles :
         return reply.status(200).send({ success: true, message: 'Facture supprimée (archivée)' });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur suppression facture');
-        return reply.status(500).send({ success: false, error: 'Erreur lors de la suppression' });
+        return ApiError.internal(reply);
       }
     }
   );

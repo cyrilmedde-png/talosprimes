@@ -1,9 +1,10 @@
-import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import type { InputJsonValue } from '../../types/prisma-helpers.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -13,7 +14,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -28,12 +29,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as Prisma.InputJsonValue,
+          donnees: { entiteType, entiteId, typeEvenement } as InputJsonValue,
         },
       });
     }
   } catch (e) {
-    console.error('[logEvent] Erreur logging:', e);
+    // Silent fail for logging errors
   }
 }
 
@@ -57,6 +58,13 @@ const updateQuestionnaireSchema = z.object({
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  status: z.enum(['en_cours', 'complete', 'abandonne']).optional(),
+  channel: z.enum(['telephone', 'sms', 'web']).optional(),
+});
+
 export async function questionnairesRoutes(fastify: FastifyInstance) {
   // GET /api/questionnaires - Liste des questionnaires
   fastify.get('/', {
@@ -67,12 +75,12 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
-      const query = request.query as { page?: string; limit?: string; status?: string; channel?: string };
-      const page = query.page ? parseInt(query.page, 10) : 1;
-      const limit = query.limit ? parseInt(query.limit, 10) : 20;
+      const query = listQuerySchema.parse(request.query);
+      const page = query.page;
+      const limit = query.limit;
 
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ questionnaires: unknown[]; count: number; total: number; totalPages: number }>(
@@ -81,8 +89,8 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           {
             page,
             limit,
-            status: query.status,
-            channel: query.channel,
+            status: query.status || undefined,
+            channel: query.channel || undefined,
           }
         );
         const raw = res.data as { questionnaires?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
@@ -125,7 +133,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur liste questionnaires');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -138,7 +146,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const params = paramsSchema.parse(request.params);
@@ -161,13 +169,13 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       });
 
       if (!questionnaire) {
-        return reply.status(404).send({ success: false, error: 'Questionnaire non trouvé' });
+        return ApiError.notFound(reply, 'Questionnaire');
       }
 
       return reply.status(200).send({ success: true, data: questionnaire });
     } catch (error) {
       fastify.log.error(error, 'Erreur détail questionnaire');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -180,7 +188,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const body = createQuestionnaireSchema.parse(request.body);
@@ -207,7 +215,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
           leadId: body.leadId,
           channel: body.channel,
           status: 'en_cours',
-          questions: body.questions as Prisma.InputJsonValue,
+          questions: body.questions as InputJsonValue,
         },
         include: {
           lead: { select: { id: true, email: true, telephone: true, nom: true, prenom: true } },
@@ -224,13 +232,13 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
         if (tenantId) {
           await logEvent(tenantId, 'questionnaire_create', 'questionnaire', 'unknown', { error: errorMsg }, 'erreur', errorMsg);
         }
-        return reply.status(400).send({ success: false, error: 'Données invalides', details: error.errors });
+        return ApiError.validation(reply, error);
       }
       if (tenantId) {
         await logEvent(tenantId, 'questionnaire_create', 'questionnaire', 'unknown', {}, 'erreur', error instanceof Error ? error.message : 'Erreur inconnue');
       }
       fastify.log.error(error, 'Erreur création questionnaire');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -243,7 +251,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const params = paramsSchema.parse(request.params);
@@ -271,13 +279,13 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       });
 
       if (!questionnaire) {
-        return reply.status(404).send({ success: false, error: 'Questionnaire non trouvé' });
+        return ApiError.notFound(reply, 'Questionnaire');
       }
 
       const updateData: Record<string, unknown> = {};
       if (body.status !== undefined) updateData.status = body.status;
       if (body.completedAt !== undefined) updateData.completedAt = body.completedAt ? new Date(body.completedAt) : null;
-      if (body.questions !== undefined) updateData.questions = body.questions as Prisma.InputJsonValue;
+      if (body.questions !== undefined) updateData.questions = body.questions as InputJsonValue;
 
       const updatedQuestionnaire = await prisma.questionnaire.update({
         where: { id: params.id },
@@ -297,13 +305,13 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
         if (tenantId) {
           await logEvent(tenantId, 'questionnaire_update', 'questionnaire', 'unknown', { error: errorMsg }, 'erreur', errorMsg);
         }
-        return reply.status(400).send({ success: false, error: 'Données invalides', details: error.errors });
+        return ApiError.validation(reply, error);
       }
       if (tenantId) {
         await logEvent(tenantId, 'questionnaire_update', 'questionnaire', 'unknown', {}, 'erreur', error instanceof Error ? error.message : 'Erreur inconnue');
       }
       fastify.log.error(error, 'Erreur mise à jour questionnaire');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -316,7 +324,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const params = paramsSchema.parse(request.params);
@@ -338,7 +346,7 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
       });
 
       if (!questionnaire) {
-        return reply.status(404).send({ success: false, error: 'Questionnaire non trouvé' });
+        return ApiError.notFound(reply, 'Questionnaire');
       }
 
       await prisma.questionnaire.delete({
@@ -355,13 +363,13 @@ export async function questionnairesRoutes(fastify: FastifyInstance) {
         if (tenantId) {
           await logEvent(tenantId, 'questionnaire_delete', 'questionnaire', 'unknown', { error: errorMsg }, 'erreur', errorMsg);
         }
-        return reply.status(400).send({ success: false, error: 'Données invalides', details: error.errors });
+        return ApiError.validation(reply, error);
       }
       if (tenantId) {
         await logEvent(tenantId, 'questionnaire_delete', 'questionnaire', 'unknown', {}, 'erreur', error instanceof Error ? error.message : 'Erreur inconnue');
       }
       fastify.log.error(error, 'Erreur suppression questionnaire');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 }

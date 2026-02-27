@@ -1,6 +1,6 @@
 import { env } from '../config/env.js';
 import { prisma } from '../config/database.js';
-import { eventService } from './event.service.js';
+import { logger } from '../config/logger.js';
 
 /**
  * Convertit récursivement les clés snake_case en camelCase.
@@ -264,7 +264,7 @@ export class N8nService {
     this.password = env.N8N_PASSWORD;
 
     if (!this.apiUrl) {
-      console.warn('⚠️ N8N_API_URL non configuré - les workflows ne seront pas déclenchés');
+      logger.warn('N8N_API_URL non configuré - les workflows ne seront pas déclenchés');
     }
   }
 
@@ -306,7 +306,7 @@ export class N8nService {
         throw new Error(`Workflow non trouvé pour ${eventType}`);
       }
       webhookPath = aliasPath;
-      console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), résolution via alias: ${webhookPath}`);
+      logger.info({ eventType, tenantId, webhookPath }, '[n8n] Pas de WorkflowLink, résolution via alias');
     }
 
     const headers: Record<string, string> = {
@@ -322,6 +322,7 @@ export class N8nService {
         ...payload,     // champs à plat pour les nouveaux workflows
         data: payload,   // wrapper data pour les anciens workflows
       }),
+      signal: AbortSignal.timeout(30_000), // 30 s max
     });
 
     if (!response.ok) {
@@ -329,9 +330,15 @@ export class N8nService {
       throw new Error(`n8n API error: ${response.status} - ${errorText}`);
     }
 
-    const rawData = await response.json().catch(() => ({}));
+    let rawData: unknown;
+    try {
+      rawData = await response.json();
+    } catch {
+      logger.warn({ eventType, webhookPath }, '[n8n] Réponse non-JSON reçue du webhook');
+      return { success: false, data: {} as T, error: 'Réponse n8n invalide (non-JSON)' };
+    }
     // Convertir les clés snake_case (PostgreSQL) en camelCase (frontend)
-    const data = transformKeys(rawData) as T;
+    const data = transformKeys(rawData as Record<string, unknown>) as T;
     return { success: true, data };
   }
   /**
@@ -370,7 +377,7 @@ export class N8nService {
   ): Promise<{ success: boolean; workflowId?: string; error?: string }> {
     // Si n8n n'est pas configuré, on log juste l'événement
     if (!this.apiUrl) {
-      console.log(`[n8n] Événement non déclenché (n8n non configuré): ${eventType}`);
+      logger.info({ eventType }, '[n8n] Événement non déclenché (n8n non configuré)');
       return { success: false, error: 'n8n non configuré' };
     }
 
@@ -394,11 +401,11 @@ export class N8nService {
       } else {
         const aliasPath = WEBHOOK_PATH_ALIASES[eventType];
         if (!aliasPath) {
-          console.log(`[n8n] Aucun workflow actif trouvé pour l'événement: ${eventType} (tenant: ${tenantId})`);
+          logger.info({ eventType, tenantId }, '[n8n] Aucun workflow actif trouvé pour l\'événement');
           return { success: true, workflowId: undefined };
         }
         webhookPath = aliasPath;
-        console.log(`[n8n] Pas de WorkflowLink pour ${eventType} (tenant: ${tenantId}), résolution via alias: ${webhookPath}`);
+        logger.info({ eventType, tenantId, webhookPath }, '[n8n] Pas de WorkflowLink, résolution via alias');
       }
 
       // Préparer le payload pour n8n — à plat + data wrapper pour compatibilité
@@ -422,6 +429,7 @@ export class N8nService {
         method: 'POST',
         headers,
         body: JSON.stringify(n8nPayload),
+        signal: AbortSignal.timeout(30_000), // 30 s max pour éviter les requêtes bloquées
       });
 
       if (!response.ok) {
@@ -429,9 +437,10 @@ export class N8nService {
         throw new Error(`n8n API error: ${response.status} - ${errorText}`);
       }
 
+      // Consommer le body (nécessaire pour libérer la connexion)
       await response.json().catch(() => ({}));
 
-      console.log(`[n8n] Workflow déclenché avec succès: ${workflowLink?.workflowN8nNom ?? webhookPath} (${eventType})`);
+      logger.info({ workflowName: workflowLink?.workflowN8nNom ?? webhookPath, eventType }, '[n8n] Workflow déclenché avec succès');
 
       return {
         success: true,
@@ -439,28 +448,12 @@ export class N8nService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      console.error(`[n8n] Erreur lors du déclenchement du workflow (${eventType}):`, errorMessage);
+      logger.error({ error, eventType, tenantId }, '[n8n] Erreur lors du déclenchement du workflow');
 
-      // Mettre à jour le statut de l'événement en erreur
-      // On récupère le dernier EventLog pour cet événement
-      const eventLog = await prisma.eventLog.findFirst({
-        where: {
-          tenantId,
-          typeEvenement: eventType,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
-
-      if (eventLog) {
-        await eventService.updateEventStatus(
-          eventLog.id,
-          'erreur',
-          undefined,
-          errorMessage
-        );
-      }
+      // NOTE : la mise à jour du statut EventLog est maintenant gérée par
+      // EventService.processWorkflow() qui appelle cette méthode.
+      // On ne fait plus de findFirst ici pour éviter la race condition
+      // où deux appels concurrents pourraient mettre à jour le mauvais EventLog.
 
       return {
         success: false,
@@ -538,7 +531,7 @@ export class N8nService {
         name: link.workflowN8nNom,
       }));
     } catch (error) {
-      console.error('[n8n] Erreur lors de la récupération des workflows:', error);
+      logger.error({ error }, '[n8n] Erreur lors de la récupération des workflows');
       return [];
     }
   }
@@ -605,7 +598,7 @@ export class N8nService {
             successCount++;
           } else {
             errorCount++;
-            console.warn(`[n8n] Échec activation workflow ${wf.id} (${wf.name}): HTTP ${resp.status}`);
+            logger.warn({ workflowId: wf.id, workflowName: wf.name, status: resp.status }, '[n8n] Échec activation workflow');
           }
         } catch {
           errorCount++;
@@ -617,7 +610,7 @@ export class N8nService {
 
       // 3. Redémarrer n8n pour enregistrer les webhooks
       // Le restart est OBLIGATOIRE car l'API ne register pas les webhooks (bug #21614)
-      console.log('[n8n] Redémarrage de n8n pour enregistrer les webhooks...');
+      logger.info('[n8n] Redémarrage de n8n pour enregistrer les webhooks...');
 
       const { exec } = await import('child_process');
       const { promisify } = await import('util');
@@ -626,7 +619,7 @@ export class N8nService {
       try {
         await execAsync('docker restart n8n', { timeout: 30_000 });
       } catch (restartErr) {
-        console.error('[n8n] Erreur docker restart:', restartErr);
+        logger.error({ error: restartErr }, '[n8n] Erreur docker restart');
         return {
           success: false,
           message: `${totalActive}/${allWorkflows.length} workflows activés en DB mais docker restart échoué — webhooks non enregistrés`,

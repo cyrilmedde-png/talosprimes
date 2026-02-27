@@ -1,17 +1,19 @@
 import { prisma } from '../config/database.js';
 import { n8nService } from './n8n.service.js';
+import { logger } from '../config/logger.js';
 
 // Type local (en attendant que shared soit buildé)
-type EventExecutionStatus = 'succes' | 'erreur' | 'en_attente';
+type EventExecutionStatus = 'succes' | 'erreur' | 'en_attente' | 'ignore';
 
 /**
- * Service pour émettre des événements métiers
- * Ces événements seront traités par n8n (à implémenter)
+ * Service pour émettre des événements métiers.
+ * Ces événements sont loggés dans EventLog puis déclenchent un workflow n8n.
  */
 export class EventService {
   /**
-   * Émet un événement métier et le log dans EventLog
-   * TODO: Déclencher le workflow n8n correspondant
+   * Émet un événement métier et le log dans EventLog.
+   * Le workflow n8n est déclenché de manière asynchrone pour ne pas
+   * bloquer la requête HTTP appelante.
    */
   async emit(
     tenantId: string,
@@ -34,49 +36,62 @@ export class EventService {
         },
       });
 
-      // Déclencher le workflow n8n de manière asynchrone (ne pas bloquer)
-      // On utilise setImmediate pour exécuter après la transaction
-      setImmediate(async () => {
-        try {
-          const result = await n8nService.triggerWorkflow(tenantId, eventType, payload);
-          
-          // Mettre à jour le statut de l'événement
-          // Si aucun workflow n'est configuré (workflowId undefined), marquer comme succès sans workflow
-          if (result.success && !result.workflowId) {
-            // Pas de workflow configuré pour cet événement - cas normal
-            await this.updateEventStatus(
-              eventLog.id,
-              'succes',
-              undefined,
-              undefined
-            );
-          } else {
-            // Workflow trouvé et exécuté (succès ou erreur)
-            await this.updateEventStatus(
-              eventLog.id,
-              result.success ? 'succes' : 'erreur',
-              result.workflowId,
-              result.error
-            );
-          }
-        } catch (error) {
-          console.error('Erreur lors du déclenchement n8n:', error);
-          await this.updateEventStatus(
-            eventLog.id,
-            'erreur',
-            undefined,
-            error instanceof Error ? error.message : 'Erreur inconnue'
-          );
-        }
-      });
+      // Déclencher le workflow n8n de manière asynchrone.
+      // On utilise une IIFE avec .catch() pour garantir que les rejections
+      // de promesse ne crashent pas le process.
+      void this.processWorkflow(eventLog.id, tenantId, eventType, payload);
     } catch (error) {
       // Logger l'erreur mais ne pas faire échouer la transaction principale
-      console.error('Erreur lors de l\'émission de l\'événement:', error);
+      logger.error({ error }, "Erreur lors de l'émission de l'événement");
     }
   }
 
   /**
-   * Met à jour le statut d'exécution d'un événement
+   * Traite le déclenchement du workflow n8n pour un EventLog donné.
+   * Méthode séparée pour isoler l'async fire-and-forget et garantir
+   * qu'aucune rejection n'est perdue.
+   */
+  private async processWorkflow(
+    eventLogId: string,
+    tenantId: string,
+    eventType: string,
+    payload: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      const result = await n8nService.triggerWorkflow(tenantId, eventType, payload);
+
+      if (result.success && !result.workflowId) {
+        // Pas de workflow configuré pour cet événement — c'est attendu,
+        // on marque comme « ignoré » (pas comme succès, car rien n'a été exécuté).
+        await this.updateEventStatus(eventLogId, 'ignore', undefined, undefined);
+      } else {
+        // Workflow trouvé et déclenché (succès ou erreur).
+        // workflowN8nDeclenche = true dans les deux cas car on a TENTÉ l'exécution.
+        await this.updateEventStatus(
+          eventLogId,
+          result.success ? 'succes' : 'erreur',
+          result.workflowId,
+          result.error
+        );
+      }
+    } catch (error) {
+      logger.error({ error, eventLogId, eventType }, 'Erreur lors du déclenchement n8n');
+      try {
+        await this.updateEventStatus(
+          eventLogId,
+          'erreur',
+          undefined,
+          error instanceof Error ? error.message : 'Erreur inconnue'
+        );
+      } catch (updateError) {
+        // Double-catch : si même la mise à jour du statut échoue, on log sans crasher
+        logger.error({ updateError, eventLogId }, 'Impossible de mettre à jour le statut EventLog en erreur');
+      }
+    }
+  }
+
+  /**
+   * Met à jour le statut d'exécution d'un événement.
    */
   async updateEventStatus(
     eventLogId: string,
@@ -90,15 +105,16 @@ export class EventService {
         data: {
           statutExecution: status,
           workflowN8nId,
-          workflowN8nDeclenche: status === 'succes',
+          // true dès qu'un workflow a été déclenché (succès OU erreur),
+          // false uniquement quand aucun workflow n'a été tenté (ignore, en_attente)
+          workflowN8nDeclenche: status === 'succes' || status === 'erreur',
           messageErreur: errorMessage,
         },
       });
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut:', error);
+      logger.error({ error, eventLogId, status }, 'Erreur lors de la mise à jour du statut');
     }
   }
 }
 
 export const eventService = new EventService();
-

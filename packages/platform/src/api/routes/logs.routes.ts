@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { n8nService } from '../../services/n8n.service.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 const getLogsQuerySchema = z.object({
   typeEvenement: z.string().optional(),
@@ -37,7 +38,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const query = getLogsQuerySchema.parse(request.query);
@@ -129,10 +130,10 @@ export async function logsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ success: false, error: 'Paramètres invalides', details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur récupération logs');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -145,7 +146,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const { workflow } = request.query as { workflow?: string };
@@ -195,7 +196,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur récupération stats logs');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 }

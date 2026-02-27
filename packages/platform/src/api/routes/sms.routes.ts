@@ -1,9 +1,10 @@
-import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import type { InputJsonValue } from '../../types/prisma-helpers.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -13,7 +14,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -28,12 +29,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as Prisma.InputJsonValue,
+          donnees: { entiteType, entiteId, typeEvenement } as InputJsonValue,
         },
       });
     }
   } catch (e) {
-    console.error('[logEvent] Erreur logging:', e);
+    // Silent fail for logging errors
   }
 }
 
@@ -52,6 +53,14 @@ const createSmsLogSchema = z.object({
   twilioSid: z.string().optional().nullable(),
 });
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  direction: z.enum(['entrant', 'sortant']).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
 export async function smsRoutes(fastify: FastifyInstance) {
   // GET /api/sms - Liste des logs SMS
   fastify.get('/', {
@@ -62,12 +71,12 @@ export async function smsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
-      const query = request.query as { page?: string; limit?: string; direction?: string; startDate?: string; endDate?: string };
-      const page = query.page ? parseInt(query.page, 10) : 1;
-      const limit = query.limit ? parseInt(query.limit, 10) : 20;
+      const query = listQuerySchema.parse(request.query);
+      const page = query.page;
+      const limit = query.limit;
 
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ smsLogs: unknown[]; count: number; total: number; totalPages: number }>(
@@ -76,9 +85,9 @@ export async function smsRoutes(fastify: FastifyInstance) {
           {
             page,
             limit,
-            direction: query.direction,
-            startDate: query.startDate,
-            endDate: query.endDate,
+            direction: query.direction || undefined,
+            startDate: query.startDate || undefined,
+            endDate: query.endDate || undefined,
           }
         );
         const raw = res.data as { smsLogs?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
@@ -125,7 +134,7 @@ export async function smsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur liste SMS logs');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -138,7 +147,7 @@ export async function smsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && tenantId) {
@@ -166,20 +175,21 @@ export async function smsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur stats SMS');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
   // POST /api/sms/send - Envoyer un SMS via N8N → Twilio
   fastify.post('/send', {
     preHandler: [n8nOrAuthMiddleware],
+    config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
   }, async (request: FastifyRequest & { tenantId?: string; isN8nRequest?: boolean }, reply: FastifyReply) => {
     try {
       const tenantId = request.tenantId;
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const body = sendSmsSchema.parse(request.body);
@@ -207,13 +217,13 @@ export async function smsRoutes(fastify: FastifyInstance) {
         if (tenantId) {
           await logEvent(tenantId, 'sms_send', 'sms', 'unknown', { error: errorMsg }, 'erreur', errorMsg);
         }
-        return reply.status(400).send({ success: false, error: 'Données invalides', details: error.errors });
+        return ApiError.validation(reply, error);
       }
       if (tenantId) {
         await logEvent(tenantId, 'sms_send', 'sms', 'unknown', {}, 'erreur', error instanceof Error ? error.message : 'Erreur inconnue');
       }
       fastify.log.error(error, 'Erreur envoi SMS');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -226,7 +236,7 @@ export async function smsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const body = createSmsLogSchema.parse(request.body);
@@ -274,13 +284,13 @@ export async function smsRoutes(fastify: FastifyInstance) {
         if (tenantId) {
           await logEvent(tenantId, 'sms_log_create', 'smsLog', 'unknown', { error: errorMsg }, 'erreur', errorMsg);
         }
-        return reply.status(400).send({ success: false, error: 'Données invalides', details: error.errors });
+        return ApiError.validation(reply, error);
       }
       if (tenantId) {
         await logEvent(tenantId, 'sms_log_create', 'smsLog', 'unknown', {}, 'erreur', error instanceof Error ? error.message : 'Erreur inconnue');
       }
       fastify.log.error(error, 'Erreur création log SMS');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 }

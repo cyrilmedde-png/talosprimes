@@ -3,6 +3,17 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { n8nService } from '../../services/n8n.service.js';
+import { ApiError } from '../../utils/api-errors.js';
+
+const paramsSchema = z.object({
+  id: z.string().uuid('ID notification invalide'),
+});
+
+const listQuerySchema = z.object({
+  lu: z.enum(['true', 'false']).optional(),
+  limit: z.coerce.number().int().positive().max(200).default(50),
+  offset: z.coerce.number().int().nonnegative().default(0),
+});
 
 const createNotificationSchema = z.object({
   type: z.string().min(1),
@@ -25,7 +36,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
         const fromN8n = request.isN8nRequest === true;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Appel frontend → passe par n8n
@@ -60,17 +71,10 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          return reply.status(400).send({
-            success: false,
-            error: 'Données invalides',
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
-        console.error('Erreur création notification:', error);
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la création de la notification',
-        });
+        fastify.log.error(error, 'Erreur création notification');
+        return ApiError.internal(reply);
       }
     }
   );
@@ -85,14 +89,10 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
       try {
         const tenantId = request.tenantId;
         const fromN8n = request.isN8nRequest === true;
-        const { lu, limit = '50', offset = '0' } = request.query as {
-          lu?: string;
-          limit?: string;
-          offset?: string;
-        };
+        const { lu, limit, offset } = listQuerySchema.parse(request.query);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Appel frontend → passe par n8n
@@ -102,8 +102,8 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
             'notifications_list',
             {
               lu,
-              limit: parseInt(limit, 10),
-              offset: parseInt(offset, 10),
+              limit,
+              offset,
             }
           );
           const raw = res.data as Record<string, unknown>;
@@ -112,8 +112,8 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
             data: {
               notifications: raw.notifications || [],
               total: raw.total || 0,
-              limit: parseInt(limit, 10),
-              offset: parseInt(offset, 10),
+              limit,
+              offset,
             },
           });
         }
@@ -128,8 +128,8 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           prisma.notification.findMany({
             where,
             orderBy: { createdAt: 'desc' },
-            take: parseInt(limit, 10),
-            skip: parseInt(offset, 10),
+            take: limit,
+            skip: offset,
           }),
           prisma.notification.count({ where }),
         ]);
@@ -139,16 +139,13 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           data: {
             notifications,
             total,
-            limit: parseInt(limit, 10),
-            offset: parseInt(offset, 10),
+            limit,
+            offset,
           },
         });
       } catch (error) {
-        console.error('Erreur récupération notifications:', error);
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la récupération des notifications',
-        });
+        fastify.log.error(error, 'Erreur récupération notifications');
+        return ApiError.internal(reply);
       }
     }
   );
@@ -162,12 +159,12 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
       try {
         const tenantId = request.tenantId;
-        const { id } = request.params as { id: string };
+        const { id } = paramsSchema.parse(request.params);
         const { lu = true } = request.body as { lu?: boolean };
         const fromN8n = request.isN8nRequest === true;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Appel frontend → passe par n8n
@@ -192,10 +189,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
         });
 
         if (notification.count === 0) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Notification non trouvée',
-          });
+          return ApiError.notFound(reply, 'Notification');
         }
 
         return reply.send({
@@ -203,11 +197,8 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           message: 'Notification mise à jour',
         });
       } catch (error) {
-        console.error('Erreur mise à jour notification:', error);
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la mise à jour de la notification',
-        });
+        fastify.log.error(error, 'Erreur mise à jour notification');
+        return ApiError.internal(reply);
       }
     }
   );
@@ -221,11 +212,11 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
       try {
         const tenantId = request.tenantId;
-        const { id } = request.params as { id: string };
+        const { id } = paramsSchema.parse(request.params);
         const fromN8n = request.isN8nRequest === true;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Appel frontend → passe par n8n
@@ -247,10 +238,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
         });
 
         if (notification.count === 0) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Notification non trouvée',
-          });
+          return ApiError.notFound(reply, 'Notification');
         }
 
         return reply.send({
@@ -258,11 +246,8 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
           message: 'Notification supprimée',
         });
       } catch (error) {
-        console.error('Erreur suppression notification:', error);
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la suppression de la notification',
-        });
+        fastify.log.error(error, 'Erreur suppression notification');
+        return ApiError.internal(reply);
       }
     }
   );

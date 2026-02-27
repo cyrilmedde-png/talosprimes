@@ -5,6 +5,7 @@ import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 // Schema de validation pour le renouvellement
 const renewSubscriptionSchema = z.object({
@@ -52,12 +53,12 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId as string;
 
         if (!fromN8n && !tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Si on délègue à n8n
@@ -81,7 +82,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
 
         if (!subscription) {
-          return reply.status(404).send({ success: false, error: 'Abonnement non trouvé' });
+          return ApiError.notFound(reply, 'Abonnement');
         }
 
         // Calculer la nouvelle date de renouvellement
@@ -103,18 +104,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors du renouvellement');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors du renouvellement',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -131,12 +124,12 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Si on délègue à n8n
@@ -170,18 +163,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de l\'annulation');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de l\'annulation',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -198,12 +183,12 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Si on délègue à n8n
@@ -240,18 +225,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors du changement de plan');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors du changement de plan',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -268,12 +245,12 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Si on délègue à n8n
@@ -313,18 +290,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de la suspension');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la suspension',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -341,12 +310,12 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId as string;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits
         if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         const subscription = await prisma.clientSubscription.findUnique({
@@ -355,11 +324,11 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
 
         if (!subscription) {
-          return reply.status(404).send({ success: false, error: 'Abonnement non trouvé' });
+          return ApiError.notFound(reply, 'Abonnement');
         }
 
         if (subscription.statut !== 'suspendu') {
-          return reply.status(400).send({ success: false, error: 'L\'abonnement n\'est pas suspendu' });
+          return ApiError.badRequest(reply, 'L\'abonnement n\'est pas suspendu');
         }
 
         // Réactiver l'abonnement
@@ -394,18 +363,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de la réactivation');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la réactivation',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -423,7 +384,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         const fromN8n = request.isN8nRequest === true;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Construire le filtre avec isolation tenant conditionnelle
@@ -450,7 +411,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
 
         if (!subscription) {
-          return reply.status(404).send({ success: false, error: 'Abonnement non trouvé' });
+          return ApiError.notFound(reply, 'Abonnement');
         }
 
         return reply.status(200).send({
@@ -459,18 +420,10 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         fastify.log.error(error, 'Erreur lors de la récupération');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la récupération',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -488,7 +441,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         const queryParams = request.query as { statut?: string };
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         const where: Record<string, unknown> = {};
@@ -527,12 +480,8 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des abonnements');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la récupération des abonnements',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
 }
-

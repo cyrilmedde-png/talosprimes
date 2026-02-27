@@ -5,11 +5,9 @@ import { apiClient, Notification } from '@/lib/api-client';
 import { formatDistanceToNow, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const { isDemo, demoAlert } = useDemoGuard();
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
@@ -58,8 +56,6 @@ export default function NotificationsPage() {
   };
 
   const deleteNotification = async (id: string) => {
-    // demo-guard: deleteNotification
-    if (isDemo) { demoAlert(); return; }
     try {
       await apiClient.notifications.delete(id);
       setNotifications(prev => prev.filter(n => n.id !== id));

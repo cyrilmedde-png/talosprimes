@@ -4,7 +4,8 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
-import { authMiddleware, requireRole, demoGuardMiddleware } from './middleware/auth.middleware.js';
+import { setLogger } from './config/logger.js';
+import { authMiddleware, requireRole } from './middleware/auth.middleware.js';
 import { authRoutes } from './api/routes/auth.routes.js';
 import { clientsRoutes } from './api/routes/clients.routes.js';
 import { subscriptionsRoutes } from './api/routes/subscriptions.routes.js';
@@ -37,6 +38,8 @@ import { rhRoutes } from './api/routes/rh.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
+  // Limite globale de taille du body (1 Mo par défaut – évite les attaques par payload surdimensionné)
+  bodyLimit: 1_048_576, // 1 Mo
   logger: {
     level: env.NODE_ENV === 'production' ? 'info' : 'debug',
     transport:
@@ -52,6 +55,9 @@ const fastify = Fastify({
   },
 });
 
+// Initialiser le logger partagé avec l'instance Fastify
+setLogger(fastify.log);
+
 // Déclarer les types pour TypeScript
 declare module 'fastify' {
   interface FastifyInstance {
@@ -60,16 +66,54 @@ declare module 'fastify' {
   }
 }
 
+// ── Error handler global ────────────────────────────────────────────
+fastify.setErrorHandler((error, request, reply) => {
+  request.log.error(error, 'Unhandled error');
+
+  // Erreur de validation Fastify (bodyLimit, schema, etc.)
+  if (error.validation) {
+    return reply.status(400).send({
+      success: false,
+      error: 'Validation échouée',
+      message: error.message,
+    });
+  }
+
+  // Rate limit dépassé
+  if (error.statusCode === 429) {
+    return reply.status(429).send({
+      success: false,
+      error: 'Trop de requêtes',
+      message: 'Veuillez réessayer plus tard',
+    });
+  }
+
+  // Payload trop grand
+  if (error.statusCode === 413) {
+    return reply.status(413).send({
+      success: false,
+      error: 'Payload trop volumineux',
+      message: 'La taille de la requête dépasse la limite autorisée',
+    });
+  }
+
+  const statusCode = error.statusCode ?? 500;
+  return reply.status(statusCode).send({
+    success: false,
+    error: statusCode >= 500 ? 'Erreur serveur' : 'Erreur',
+    message: statusCode >= 500 ? 'Une erreur interne est survenue' : error.message,
+  });
+});
+
 // Plugins de sécurité
 await fastify.register(helmet, {
   contentSecurityPolicy: false, // Désactivé car on gère CORS séparément
 });
 
-// CORS - Autoriser le domaine frontend + sous-domaine démo
+// CORS - Autoriser le domaine frontend
 const ALLOWED_ORIGINS = env.NODE_ENV === 'production'
   ? [
       env.CORS_ORIGIN || 'https://talosprimes.com',
-      'https://demo.talosprimes.com',
     ]
   : true;
 
@@ -130,10 +174,6 @@ fastify.get('/health', async (_request, reply) => {
 // Décorer Fastify avec les middlewares d'authentification
 fastify.decorate('authenticate', authMiddleware);
 fastify.decorate('requireRole', requireRole);
-
-// Hook global : bloquer les actions dangereuses en mode démo
-// S'exécute après l'auth (qui injecte request.tenantId)
-fastify.addHook('preHandler', demoGuardMiddleware);
 
 // Enregistrer les routes d'authentification
 await fastify.register(async (fastify) => {

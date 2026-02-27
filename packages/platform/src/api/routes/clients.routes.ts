@@ -5,6 +5,7 @@ import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware, n8nOnlyMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({
@@ -53,11 +54,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
 
         // Pour n8n sans tenantId, lister tous les clients (accès admin interne)
         if (!tenantId && !fromN8n) {
-          reply.code(401).send({
-            error: 'Non authentifié',
-            message: 'Tenant ID manquant',
-          });
-          return;
+          return ApiError.unauthorized(reply, 'Tenant ID manquant');
         }
 
         const whereClause: Record<string, unknown> = {};
@@ -96,10 +93,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des clients');
-        reply.code(500).send({
-          error: 'Erreur serveur',
-          message: 'Impossible de récupérer les clients',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -116,11 +110,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         const params = paramsSchema.parse(request.params);
 
         if (!tenantId) {
-          reply.code(401).send({
-            error: 'Non authentifié',
-            message: 'Tenant ID manquant',
-          });
-          return;
+          return ApiError.unauthorized(reply, 'Tenant ID manquant');
         }
 
         // Récupérer le client avec vérification du tenant
@@ -145,11 +135,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!client) {
-          reply.code(404).send({
-            error: 'Client introuvable',
-            message: 'Ce client n\'existe pas ou n\'appartient pas à votre entreprise',
-          });
-          return;
+          return ApiError.notFound(reply, 'Client');
         }
 
         reply.code(200).send({
@@ -160,19 +146,11 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          reply.code(400).send({
-            error: `Validation échouée : ${msgs}`,
-            message: error.errors.map((e) => e.message).join(', '),
-          });
-          return;
+          return ApiError.validation(reply, error);
         }
 
         fastify.log.error(error, 'Erreur lors de la récupération du client');
-        reply.code(500).send({
-          error: 'Erreur serveur',
-          message: 'Impossible de récupérer le client',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -194,18 +172,18 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         const fromN8n = isN8nInternalRequest(request);
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         const tenantId = request.tenantId;
         const body = request.body as { leadId: string };
 
         if (!tenantId) {
-          return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+          return ApiError.badRequest(reply, 'Tenant ID manquant');
         }
 
         if (!body.leadId) {
-          return reply.status(400).send({ success: false, error: 'Lead ID requis' });
+          return ApiError.badRequest(reply, 'Lead ID requis');
         }
 
         // Si on délègue les écritures à n8n (full no-code)
@@ -232,7 +210,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!lead) {
-          return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+          return ApiError.notFound(reply, 'Lead');
         }
 
         // Vérifier que le client n'existe pas déjà
@@ -244,7 +222,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (existingClient) {
-          return reply.status(409).send({ success: false, error: 'Un client avec cet email existe déjà' });
+          return ApiError.conflict(reply, 'Un client avec cet email existe déjà');
         }
 
         // Si le lead n'est pas déjà converti, le marquer comme converti
@@ -294,11 +272,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la création du client depuis le lead');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur serveur',
-          message: 'Impossible de créer le client depuis le lead',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -318,26 +292,22 @@ export async function clientsRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
         const fromN8n = isN8nInternalRequest(request);
-        
+
         // Valider les données (tenantId peut être dans le body si appel depuis n8n)
         const body = createClientSchema.parse(request.body);
-        
+
         // Récupérer le tenantId : depuis le body si appel n8n, sinon depuis request (JWT)
-        const tenantId = fromN8n 
+        const tenantId = fromN8n
           ? (body as { tenantId?: string }).tenantId || request.tenantId
           : request.tenantId;
 
         if (!tenantId) {
-          reply.code(401).send({
-            error: 'Non authentifié',
-            message: 'Tenant ID manquant',
-          });
-          return;
+          return ApiError.unauthorized(reply, 'Tenant ID manquant');
         }
 
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Nettoyer le body : retirer tenantId s'il était dans le body (on l'a déjà récupéré)
@@ -370,28 +340,16 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (existingClient) {
-          reply.code(409).send({
-            error: 'Client existant',
-            message: 'Un client avec cet email existe déjà',
-          });
-          return;
+          return ApiError.conflict(reply, 'Un client avec cet email existe déjà');
         }
 
         // Validation selon le type (B2B ou B2C)
         if (bodyWithoutTenantId.type === 'b2b' && !bodyWithoutTenantId.raisonSociale) {
-          reply.code(400).send({
-            error: 'Validation échouée',
-            message: 'La raison sociale est requise pour un client B2B',
-          });
-          return;
+          return ApiError.badRequest(reply, 'La raison sociale est requise pour un client B2B');
         }
 
         if (bodyWithoutTenantId.type === 'b2c' && (!bodyWithoutTenantId.nom || !bodyWithoutTenantId.prenom)) {
-          reply.code(400).send({
-            error: 'Validation échouée',
-            message: 'Le nom et prénom sont requis pour un client B2C',
-          });
-          return;
+          return ApiError.badRequest(reply, 'Le nom et prénom sont requis pour un client B2C');
         }
 
         // Créer le client
@@ -437,19 +395,11 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          reply.code(400).send({
-            error: `Validation échouée : ${msgs}`,
-            message: error.errors.map((e) => e.message).join(', '),
-          });
-          return;
+          return ApiError.validation(reply, error);
         }
 
         fastify.log.error(error, 'Erreur lors de la création du client');
-        reply.code(500).send({
-          error: 'Erreur serveur',
-          message: 'Impossible de créer le client',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -467,11 +417,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         const body = updateClientSchema.parse(request.body);
 
         if (!tenantId) {
-          reply.code(401).send({
-            error: 'Non authentifié',
-            message: 'Tenant ID manquant',
-          });
-          return;
+          return ApiError.unauthorized(reply, 'Tenant ID manquant');
         }
 
         // Vérifier que le client existe et appartient au tenant
@@ -483,11 +429,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!existingClient) {
-          reply.code(404).send({
-            error: 'Client introuvable',
-            message: 'Ce client n\'existe pas ou n\'appartient pas à votre entreprise',
-          });
-          return;
+          return ApiError.notFound(reply, 'Client');
         }
 
         // Vérifier l'unicité de l'email si modifié
@@ -501,11 +443,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           });
 
           if (emailExists) {
-            reply.code(409).send({
-              error: 'Email existant',
-              message: 'Un client avec cet email existe déjà',
-            });
-            return;
+            return ApiError.conflict(reply, 'Un client avec cet email existe déjà');
           }
         }
 
@@ -548,19 +486,11 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          reply.code(400).send({
-            error: `Validation échouée : ${msgs}`,
-            message: error.errors.map((e) => e.message).join(', '),
-          });
-          return;
+          return ApiError.validation(reply, error);
         }
 
         fastify.log.error(error, 'Erreur lors de la mise à jour du client');
-        reply.code(500).send({
-          error: 'Erreur serveur',
-          message: 'Impossible de mettre à jour le client',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -593,26 +523,18 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             select: { tenantId: true },
           });
           if (!clientForTenant) {
-            reply.code(404).send({
-              error: 'Client introuvable',
-              message: 'Ce client n\'existe pas',
-            });
-            return;
+            return ApiError.notFound(reply, 'Client');
           }
           tenantId = clientForTenant.tenantId;
         }
 
         if (!tenantId) {
-          reply.code(401).send({
-            error: 'Non authentifié',
-            message: 'Tenant ID manquant',
-          });
-          return;
+          return ApiError.unauthorized(reply, 'Tenant ID manquant');
         }
 
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Si on délègue les écritures à n8n (full no‑code)
@@ -639,11 +561,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!existingClient) {
-          reply.code(404).send({
-            error: 'Client introuvable',
-            message: 'Ce client n\'existe pas ou n\'appartient pas à votre entreprise',
-          });
-          return;
+          return ApiError.notFound(reply, 'Client');
         }
 
         // Suppression définitive (hard delete)
@@ -677,19 +595,11 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          reply.code(400).send({
-            error: `Validation échouée : ${msgs}`,
-            message: error.errors.map((e) => e.message).join(', '),
-          });
-          return;
+          return ApiError.validation(reply, error);
         }
 
         fastify.log.error(error, 'Erreur lors de la suppression du client');
-        reply.code(500).send({
-          error: 'Erreur serveur',
-          message: 'Impossible de supprimer le client',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -722,10 +632,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!client) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Client introuvable',
-          });
+          return ApiError.notFound(reply, 'Client');
         }
 
         // Vérifier si un tenant existe déjà pour ce client (par email)
@@ -817,11 +724,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la création des identifiants');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur serveur',
-          message: 'Impossible de créer les identifiants',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -853,10 +756,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!subscription) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Abonnement introuvable',
-          });
+          return ApiError.notFound(reply, 'Subscription');
         }
 
         // Récupérer l'utilisateur associé au tenant du client
@@ -867,10 +767,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!tenant) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Tenant introuvable',
-          });
+          return ApiError.notFound(reply, 'Tenant');
         }
 
         const user = await prisma.user.findFirst({
@@ -881,10 +778,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!user) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Utilisateur introuvable',
-          });
+          return ApiError.notFound(reply, 'User');
         }
 
         const tempPassword = subscription.temporaryPassword;
@@ -909,11 +803,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des identifiants');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur serveur',
-          message: 'Impossible de récupérer les identifiants',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -927,7 +817,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
       try {
         const tenantId = request.tenantId as string;
-        const params = request.params as { id: string };
+        const params = paramsSchema.parse(request.params);
         const body = request.body as {
           nomPlan?: string;
           montantMensuel?: number;
@@ -945,10 +835,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!client) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Client introuvable',
-          });
+          return ApiError.notFound(reply, 'Client');
         }
 
         // Vérifier si un abonnement existe déjà
@@ -959,10 +846,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (existingSubscription) {
-          return reply.status(400).send({
-            success: false,
-            error: 'Un abonnement existe déjà pour ce client',
-          });
+          return ApiError.badRequest(reply, 'Un abonnement existe déjà pour ce client');
         }
 
         // Plan par défaut ou personnalisé
@@ -1045,10 +929,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la création de l\'espace client');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la création de l\'espace client',
-        });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -1062,7 +943,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest & { tenantId?: string }, reply: FastifyReply) => {
       try {
         const tenantId = request.tenantId as string;
-        const params = request.params as { id: string };
+        const params = paramsSchema.parse(request.params);
 
         // Vérifier que le client existe et appartient au tenant
         const client = await prisma.clientFinal.findFirst({
@@ -1073,10 +954,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         if (!client) {
-          return reply.status(404).send({
-            success: false,
-            error: 'Client introuvable',
-          });
+          return ApiError.notFound(reply, 'Client');
         }
 
         // Récupérer l'abonnement
@@ -1094,10 +972,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération de l\'abonnement');
-        return reply.status(500).send({
-          success: false,
-          error: 'Erreur lors de la récupération de l\'abonnement',
-        });
+        return ApiError.internal(reply);
       }
     }
   );

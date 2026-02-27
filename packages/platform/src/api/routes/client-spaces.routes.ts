@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
@@ -61,7 +62,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         const fromN8n = request.isN8nRequest === true;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         if (!fromN8n && tenantId) {
@@ -78,7 +79,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         if (fromN8n) {
           const body = request.body as Record<string, unknown>;
           const tid = (body.tenantId ?? body.tenant_id) as string;
-          if (!tid) return reply.status(400).send({ success: false, error: 'tenantId requis' });
+          if (!tid) return ApiError.badRequest(reply, 'tenantId requis');
           const spaces = await prisma.clientSpace.findMany({
             where: { tenantId: tid },
             orderBy: { createdAt: 'desc' },
@@ -86,12 +87,13 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ success: true, data: { spaces } });
         }
 
-        return reply.status(400).send({ success: false, error: 'Requête invalide' });
+        return ApiError.badRequest(reply, 'Requête invalide');
       } catch (err) {
-        const msg = err instanceof z.ZodError
-          ? err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
-          : (err instanceof Error ? err.message : 'Erreur interne');
-        return reply.status(400).send({ success: false, error: msg });
+        if (err instanceof z.ZodError) {
+          return ApiError.validation(reply, err);
+        }
+        const msg = err instanceof Error ? err.message : 'Erreur interne';
+        return ApiError.internal(reply, msg);
       }
     }
   );
@@ -106,7 +108,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         const fromN8n = request.isN8nRequest === true;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         if (!fromN8n && tenantId) {
@@ -127,7 +129,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         if (fromN8n) {
           const body = request.body as Record<string, unknown>;
           const tid = (body.tenantId ?? body.tenant_id) as string;
-          if (!tid) return reply.status(400).send({ success: false, error: 'tenantId requis' });
+          if (!tid) return ApiError.badRequest(reply, 'tenantId requis');
           const spaces = await prisma.clientSpace.findMany({
             where: { tenantId: tid },
             orderBy: { createdAt: 'desc' },
@@ -135,10 +137,10 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ success: true, data: { spaces } });
         }
 
-        return reply.status(400).send({ success: false, error: 'Requête invalide' });
+        return ApiError.badRequest(reply, 'Requête invalide');
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erreur interne';
-        return reply.status(500).send({ success: false, error: msg });
+        return ApiError.internal(reply, msg);
       }
     }
   );
@@ -154,7 +156,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         const { id } = paramsSchema.parse(request.params);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         if (!fromN8n && tenantId) {
@@ -166,7 +168,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
           const raw = res.data as { space?: Record<string, unknown> };
           const space = raw.space ? normalizeClientSpaceFromN8n(raw.space) : null;
           if (!space) {
-            return reply.status(404).send({ success: false, error: 'Espace client introuvable' });
+            return ApiError.notFound(reply, 'Espace client');
           }
           return reply.status(200).send({ success: true, data: { space } });
         }
@@ -175,17 +177,17 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         if (fromN8n) {
           const body = request.body as Record<string, unknown>;
           const tid = (body.tenantId ?? body.tenant_id) as string;
-          if (!tid) return reply.status(400).send({ success: false, error: 'tenantId requis' });
+          if (!tid) return ApiError.badRequest(reply, 'tenantId requis');
           const space = await prisma.clientSpace.findFirst({
             where: { id, tenantId: tid },
           });
           return reply.status(200).send({ success: true, data: { space } });
         }
 
-        return reply.status(400).send({ success: false, error: 'Requête invalide' });
+        return ApiError.badRequest(reply, 'Requête invalide');
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erreur interne';
-        return reply.status(500).send({ success: false, error: msg });
+        return ApiError.internal(reply, msg);
       }
     }
   );
@@ -201,7 +203,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         const { id } = paramsSchema.parse(request.params);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         if (!fromN8n && tenantId) {
@@ -216,10 +218,10 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ success: true, data: res.data });
         }
 
-        return reply.status(400).send({ success: false, error: 'Requête invalide' });
+        return ApiError.badRequest(reply, 'Requête invalide');
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erreur interne';
-        return reply.status(500).send({ success: false, error: msg });
+        return ApiError.internal(reply, msg);
       }
     }
   );
@@ -235,7 +237,7 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
         const { id } = paramsSchema.parse(request.params);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         if (!fromN8n && tenantId) {
@@ -247,10 +249,10 @@ export async function clientSpacesRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ success: true, data: res.data });
         }
 
-        return reply.status(400).send({ success: false, error: 'Requête invalide' });
+        return ApiError.badRequest(reply, 'Requête invalide');
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erreur interne';
-        return reply.status(500).send({ success: false, error: msg });
+        return ApiError.internal(reply, msg);
       }
     }
   );

@@ -17,7 +17,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 const STATUT_LABELS: Record<string, string> = {
   brouillon: 'Brouillon',
   envoyee: 'Envoyée',
@@ -37,7 +36,6 @@ type LigneProforma = {
 
 export default function ProformaPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [proformasList, setProformasList] = useState<Proforma[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -205,8 +203,6 @@ export default function ProformaPage() {
   };
 
   const handleDelete = async (proforma: Proforma) => {
-    // demo-guard: handleDelete
-    if (isDemo) { demoAlert(); return; }
     if (!confirm(`Supprimer la proforma ${proforma.numeroProforma} ?`)) return;
     try {
       setActionLoading(proforma.id);

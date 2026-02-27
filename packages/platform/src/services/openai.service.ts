@@ -39,7 +39,8 @@ export async function generateLegalContent(params: GenerateLegalContentParams): 
     throw new Error('❌ OPENAI_API_KEY non configurée. Ajoutez OPENAI_API_KEY="sk-..." dans /var/www/talosprimes/packages/platform/.env puis redémarrez avec: pm2 restart platform');
   }
 
-  console.log('🤖 Génération IA démarrée pour:', pageType);
+  // Logger is not available here as this is a module-level function
+  // Logging deferred until the service is refactored with dependency injection
 
   // Prompts spécifiques par type de page
   const prompts: Record<string, string> = {
@@ -203,7 +204,8 @@ Format: Markdown avec titres ## et numérotation. Très détaillé et conforme R
 
     return generatedContent;
   } catch (error) {
-    console.error('❌ Erreur génération OpenAI:', error);
+    // Logger is not available here as this is a module-level function
+    // Error handling deferred until the service is refactored with dependency injection
     
     // Message d'erreur détaillé
     if (error instanceof Error) {

@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { z } from 'zod';
+import { ApiError } from '../../utils/api-errors.js';
 
 // Schéma de validation pour la mise à jour du tenant
 const updateTenantSchema = z.object({
@@ -35,10 +36,7 @@ export async function tenantRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
 
       if (!tenantId) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Non authentifié',
-        });
+        return ApiError.unauthorized(reply);
       }
 
       const tenant = await prisma.tenant.findUnique({
@@ -70,10 +68,7 @@ export async function tenantRoutes(fastify: FastifyInstance) {
       });
 
       if (!tenant) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Entreprise non trouvée',
-        });
+        return ApiError.notFound(reply, 'Entreprise');
       }
 
       return reply.send({
@@ -82,10 +77,7 @@ export async function tenantRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la récupération du profil',
-      });
+      return ApiError.internal(reply);
     }
   });
 
@@ -97,29 +89,19 @@ export async function tenantRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
 
       if (!tenantId) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Non authentifié',
-        });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier que l'utilisateur est admin ou super_admin
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        return ApiError.forbidden(reply);
       }
 
       // Valider les données
       const validationResult = updateTenantSchema.safeParse(request.body);
       
       if (!validationResult.success) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Données invalides',
-          details: validationResult.error.errors,
-        });
+        return ApiError.validation(reply, validationResult.error);
       }
 
       const data = validationResult.data;
@@ -177,11 +159,7 @@ export async function tenantRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la mise à jour du profil',
-      });
+      return ApiError.internal(reply);
     }
   });
 }
-

@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
 import { authMiddleware, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import type { InputJsonValue, TransactionClient } from '../../types/prisma-helpers.js';
+import { JsonNull } from '../../types/prisma-helpers.js';
 
 // Schemas de validation
 const planIdSchema = z.object({
@@ -338,7 +339,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
                       return {
                         module: { connect: { id: mod.id } },
                         limiteUsage: m.limiteUsage ?? null,
-                        config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
+                        config: m.config ? (m.config as InputJsonValue) : JsonNull,
                       };
                     })
                   ),
@@ -435,7 +436,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
         }
 
         // Transaction : supprimer les anciens, insérer les nouveaux
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx: TransactionClient) => {
           // Supprimer tous les plan_modules existants
           await tx.planModule.deleteMany({ where: { planId: id } });
 
@@ -451,7 +452,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
                 plan: { connect: { id } },
                 module: { connect: { id: mod.id } },
                 limiteUsage: m.limiteUsage ?? null,
-                config: m.config ? (m.config as Prisma.InputJsonValue) : Prisma.JsonNull,
+                config: m.config ? (m.config as InputJsonValue) : JsonNull,
               },
             });
           }

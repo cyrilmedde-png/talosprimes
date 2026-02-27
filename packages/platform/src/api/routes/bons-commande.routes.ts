@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
@@ -6,6 +5,8 @@ import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { generateDocumentPdf } from '../../services/pdf.service.js';
 import type { DocumentForPdf } from '../../services/pdf.service.js';
+import type { InputJsonValue, TransactionClient } from '../../types/prisma-helpers.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -15,7 +16,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -30,12 +31,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as Prisma.InputJsonValue,
+          donnees: { entiteType, entiteId, typeEvenement } as InputJsonValue,
         },
       });
     }
   } catch (e) {
-    console.error('[logEvent] Erreur logging:', e);
+    // Silent fail for logging errors
   }
 }
 
@@ -74,6 +75,13 @@ const updateSchema = z.object({
   lines: z.array(lineSchema).optional(),
 });
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  statut: z.enum(['brouillon', 'valide', 'facture', 'annule']).optional(),
+  clientFinalId: z.string().uuid().optional(),
+});
+
 export async function bonsCommandeRoutes(fastify: FastifyInstance) {
   // GET /api/bons-commande - Liste
   fastify.get('/', {
@@ -84,13 +92,14 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
-      const query = request.query as { page?: string; limit?: string; statut?: string; clientFinalId?: string };
-      const page = query.page ? parseInt(query.page, 10) : 1;
-      const limit = query.limit ? parseInt(query.limit, 10) : 20;
+      const query = listQuerySchema.parse(request.query);
+      const page = query.page;
+      const limit = query.limit;
 
+      // Déléguer à n8n
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ bons: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -98,8 +107,8 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           {
             page,
             limit,
-            statut: query.statut,
-            clientFinalId: query.clientFinalId,
+            statut: query.statut || undefined,
+            clientFinalId: query.clientFinalId || undefined,
           }
         );
         const raw = res.data as { bons?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
@@ -117,7 +126,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Appel depuis n8n (callback) → lecture BDD directe
+      // Lecture BDD directe (callback n8n)
       const skip = (page - 1) * limit;
       const where: Record<string, unknown> = { tenantId, deletedAt: null };
       if (query.statut) where.statut = query.statut as 'brouillon' | 'valide' | 'facture' | 'annule';
@@ -143,7 +152,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur liste bons de commande');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -156,7 +165,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const params = paramsSchema.parse(request.params);
@@ -173,7 +182,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Appel depuis n8n (callback) → lecture BDD directe
+      // Lecture BDD directe (callback n8n)
       const where: Record<string, unknown> = { id: params.id };
       if (tenantId) {
         where.tenantId = tenantId;
@@ -188,15 +197,14 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!bon) return reply.status(404).send({ success: false, error: 'Bon de commande non trouvé' });
+      if (!bon) return ApiError.notFound(reply, 'BonCommande');
       return reply.status(200).send({ success: true, data: { bon } });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur récupération bon de commande');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -213,7 +221,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         const params = paramsSchema.parse(request.params);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         const docWhere: Record<string, unknown> = { id: params.id };
@@ -260,7 +268,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         });
 
         if (!bon) {
-          return reply.status(404).send({ success: false, error: 'Bon de commande non trouvé' });
+          return ApiError.notFound(reply, 'BonCommande');
         }
 
         const forPdf: DocumentForPdf = {
@@ -293,12 +301,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
           .send(Buffer.from(pdfBytes));
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+          return ApiError.validation(reply, error);
         }
-        console.error('=== ERREUR GENERATION PDF BDC ===', error);
         fastify.log.error(error, 'Erreur génération PDF bon de commande');
-        return reply.status(500).send({ success: false, error: 'Erreur lors de la génération du PDF' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -317,19 +323,19 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         : request.tenantId;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       // Vérifier que le client existe et appartient au tenant
       const client = await prisma.clientFinal.findFirst({
         where: { id: body.clientFinalId, tenantId }
       });
-      if (!client) return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+      if (!client) return ApiError.notFound(reply, 'Client');
 
       // Application no-code : création passe par n8n si appel depuis frontend
       if (!fromN8n) {
@@ -438,11 +444,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur création bon de commande');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -457,18 +462,18 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       // Vérifier que le bon existe et appartient au tenant
       const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
-      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (bon.statut !== 'brouillon') return reply.status(400).send({ success: false, error: 'Seul un brouillon peut être validé' });
+      if (!bon) return ApiError.notFound(reply, 'BonCommande');
+      if (bon.statut !== 'brouillon') return ApiError.badRequest(reply, 'Seul un brouillon peut être validé');
 
       // Si appel depuis frontend, déléguer à n8n
       if (!fromN8n) {
@@ -504,11 +509,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur validation bon de commande');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -523,12 +527,12 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       // Vérifier que le bon existe et appartient au tenant
@@ -537,9 +541,9 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         include: { lines: { orderBy: { ordre: 'asc' } } },
       });
 
-      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
-      if (bon.statut === 'annule') return reply.status(400).send({ success: false, error: 'Bon annulé' });
+      if (!bon) return ApiError.notFound(reply, 'BonCommande');
+      if (bon.statut === 'facture') return ApiError.badRequest(reply, 'Déjà converti en facture');
+      if (bon.statut === 'annule') return ApiError.badRequest(reply, 'Bon annulé');
 
       // Si appel depuis frontend, déléguer à n8n
       if (!fromN8n) {
@@ -670,11 +674,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur conversion bon → facture');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -689,15 +692,15 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
-      if (!bon) return reply.status(404).send({ success: false, error: 'Bon de commande non trouvé' });
+      if (!bon) return ApiError.notFound(reply, 'BonCommande');
 
       // Appel n8n si la requête ne vient pas de n8n
       if (!fromN8n) {
@@ -714,11 +717,11 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       }
 
       const clientFinalId = body.clientFinalId || bon.clientFinalId;
-      if (!clientFinalId) return reply.status(400).send({ success: false, error: 'Client requis' });
+      if (!clientFinalId) return ApiError.badRequest(reply, 'Client requis');
       const client = await prisma.clientFinal.findFirst({
         where: { id: clientFinalId, tenantId }
       });
-      if (!client) return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+      if (!client) return ApiError.notFound(reply, 'Client');
 
       const tvaTaux = Number(body.tvaTaux ?? bon.tvaTaux ?? 20);
       const lines = body.lines ?? [];
@@ -727,7 +730,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         : Number(bon.montantHt);
       const montantTtc = Number((montantHt * (1 + tvaTaux / 100)).toFixed(2));
 
-      const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const updated = await prisma.$transaction(async (tx: TransactionClient) => {
         await tx.bonCommandeLine.deleteMany({ where: { bonCommandeId: params.id } });
 
         return tx.bonCommande.update({
@@ -775,11 +778,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur mise à jour bon de commande');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -794,18 +796,18 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       // Vérifier que le bon existe et appartient au tenant
       const bon = await prisma.bonCommande.findFirst({ where: { id: params.id, tenantId } });
-      if (!bon) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (bon.statut === 'facture') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un bon déjà facturé' });
+      if (!bon) return ApiError.notFound(reply, 'BonCommande');
+      if (bon.statut === 'facture') return ApiError.badRequest(reply, 'Impossible de supprimer un bon déjà facturé');
 
       // Si appel depuis frontend, déléguer à n8n
       if (!fromN8n) {
@@ -837,11 +839,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur suppression bon de commande');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 }

@@ -5,6 +5,7 @@ import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { isN8nInternalRequest, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { z } from 'zod';
+import { ApiError } from '../../utils/api-errors.js';
 
 type LeadRow = {
   id: string;
@@ -43,18 +44,14 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const fromN8n = isN8nInternalRequest(request);
       // Vérifier droits si pas n8n
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       // Valider les données
       const validationResult = createLeadSchema.safeParse(request.body);
       
       if (!validationResult.success) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Données invalides',
-          details: validationResult.error.errors,
-        });
+        return ApiError.validation(reply, validationResult.error);
       }
 
       const data = validationResult.data;
@@ -183,10 +180,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la création du lead',
-      });
+      return ApiError.internal(reply, 'Erreur lors de la création du lead');
     }
   });
 
@@ -203,10 +197,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const fromN8n = isN8nInternalRequest(request);
       // Vérifier que l'utilisateur est admin ou super_admin
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        return ApiError.forbidden(reply);
       }
 
       const query = request.query as { source?: string; statut?: string; limit?: string };
@@ -214,7 +205,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       
       // Si on utilise n8n pour les vues, déléguer au workflow
       // Déléguer à n8n seulement si ce n'est pas déjà n8n (évite boucle)
-      if (!fromN8n && request.tenantId && env.USE_N8N_VIEWS) {
+      if (!fromN8n && request.tenantId) {
         const result = await n8nService.callWorkflowReturn<{ leads: unknown[] }>(
           request.tenantId,
           'leads_list',
@@ -255,10 +246,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la récupération des leads',
-      });
+      return ApiError.internal(reply, 'Erreur lors de la récupération des leads');
     }
   });
 
@@ -269,24 +257,21 @@ export async function leadsRoutes(fastify: FastifyInstance) {
     try {
       const fromN8n = isN8nInternalRequest(request);
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        return ApiError.forbidden(reply);
       }
 
       const params = request.params as { id: string };
 
       // Déléguer à n8n si activé
       // Déléguer à n8n seulement si ce n'est pas déjà n8n (évite boucle)
-      if (!fromN8n && request.tenantId && env.USE_N8N_VIEWS) {
+      if (!fromN8n && request.tenantId) {
         const result = await n8nService.callWorkflowReturn<{ lead: unknown }>(
           request.tenantId,
           'lead_get',
           { id: params.id }
         );
         if (!result.data?.lead) {
-          return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+          return ApiError.notFound(reply, 'Lead');
         }
         return reply.send({ success: true, data: { lead: result.data.lead } });
       }
@@ -296,10 +281,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
 
       if (!lead) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Lead non trouvé',
-        });
+        return ApiError.notFound(reply, 'Lead');
       }
 
       return reply.send({
@@ -308,10 +290,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la récupération du lead',
-      });
+      return ApiError.internal(reply, 'Erreur lors de la récupération du lead');
     }
   });
 
@@ -323,7 +302,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const fromN8n = isN8nInternalRequest(request);
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         if (!fromN8n) {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
       }
 
@@ -371,10 +350,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la mise à jour du statut',
-      });
+      return ApiError.internal(reply, 'Erreur lors de la mise à jour du statut');
     }
   });
 
@@ -391,7 +367,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const fromN8n = isN8nInternalRequest(request);
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
         if (!fromN8n) {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
       }
 
@@ -416,10 +392,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
 
       if (!lead) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Lead non trouvé',
-        });
+        return ApiError.notFound(reply, 'Lead');
       }
 
       await prisma.lead.delete({
@@ -443,10 +416,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la suppression du lead',
-      });
+      return ApiError.internal(reply, 'Erreur lors de la suppression du lead');
     }
   });
 
@@ -456,14 +426,14 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const params = request.params as { id: string };
       const tenantId = request.tenantId as string | undefined;
 
       if (!tenantId) {
-        return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+        return ApiError.badRequest(reply, 'Tenant ID manquant');
       }
 
       // Vérifier que le lead existe
@@ -472,7 +442,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
 
       if (!lead) {
-        return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+        return ApiError.notFound(reply, 'Lead');
       }
 
       // Déclencher le workflow n8n
@@ -489,10 +459,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de l\'envoi du questionnaire',
-      });
+      return ApiError.internal(reply);
     }
   });
 
@@ -502,7 +469,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const params = request.params as { id: string };
@@ -510,7 +477,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const body = request.body as { dateEntretien?: string; heureEntretien?: string; typeEntretien?: string };
 
       if (!tenantId) {
-        return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+        return ApiError.badRequest(reply, 'Tenant ID manquant');
       }
 
       // Vérifier que le lead existe
@@ -519,7 +486,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
 
       if (!lead) {
-        return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+        return ApiError.notFound(reply, 'Lead');
       }
 
       // Déclencher le workflow n8n
@@ -541,10 +508,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de l\'envoi de l\'email d\'entretien',
-      });
+      return ApiError.internal(reply);
     }
   });
 
@@ -554,14 +518,14 @@ export async function leadsRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const params = request.params as { id: string };
       const tenantId = request.tenantId as string | undefined;
 
       if (!tenantId) {
-        return reply.status(400).send({ success: false, error: 'Tenant ID manquant' });
+        return ApiError.badRequest(reply, 'Tenant ID manquant');
       }
 
       // Vérifier que le lead existe
@@ -570,7 +534,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
 
       if (!lead) {
-        return reply.status(404).send({ success: false, error: 'Lead non trouvé' });
+        return ApiError.notFound(reply, 'Lead');
       }
 
       // Déclencher le workflow n8n
@@ -587,10 +551,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la confirmation',
-      });
+      return ApiError.internal(reply);
     }
   });
 }

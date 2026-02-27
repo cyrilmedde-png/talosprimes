@@ -1,8 +1,7 @@
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database.js';
 import { generateLegalContent } from '../../services/openai.service.js';
-
-const prisma = new PrismaClient();
+import { ApiError } from '../../utils/api-errors.js';
 
 // Templates pour génération IA
 const legalTemplates = {
@@ -80,7 +79,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       return reply.send(contentMap);
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({ error: 'Erreur lors de la récupération du contenu' });
+      return ApiError.internal(reply, 'Erreur lors de la récupération du contenu');
     }
   });
 
@@ -104,7 +103,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send(updated);
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la mise à jour du contenu' });
+        return ApiError.internal(reply, 'Erreur lors de la mise à jour du contenu');
       }
     }
   );
@@ -121,7 +120,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       return reply.send(testimonials);
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({ error: 'Erreur lors de la récupération des témoignages' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -139,7 +138,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send(testimonials);
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la récupération des témoignages' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -171,7 +170,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.status(201).send(testimonial);
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la création du témoignage' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -205,7 +204,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send(testimonial);
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la mise à jour du témoignage' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -224,7 +223,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, message: 'Témoignage supprimé' });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la suppression du témoignage' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -247,7 +246,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
       // Validation basique
       if (!nom || !prenom || !email || !message) {
-        return reply.status(400).send({ error: 'Les champs nom, prénom, email et message sont requis' });
+        return ApiError.badRequest(reply, 'Les champs nom, prénom, email et message sont requis');
       }
 
       try {
@@ -271,7 +270,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de l\'envoi du message' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -290,7 +289,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send(messages);
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la récupération des messages' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -313,7 +312,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send(message);
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la mise à jour du message' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -332,7 +331,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, message: 'Message supprimé' });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la suppression du message' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -351,7 +350,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, data: { pages } });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la récupération des pages' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -370,7 +369,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, data: { pages } });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la récupération des pages' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -384,7 +383,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       try {
         const page = await prisma.cmsPage.findUnique({ where: { slug } });
         if (!page || !page.publie) {
-          return reply.status(404).send({ error: 'Page introuvable' });
+          return ApiError.notFound(reply, 'Page');
         }
 
         // Si c'est la page tarifs, inclure les plans actifs
@@ -406,7 +405,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, data: { page } });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -431,7 +430,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       const { slug, titre, contenu, metaTitle, metaDesc, publie, ordre } = request.body;
 
       if (!slug || !titre) {
-        return reply.status(400).send({ error: 'Slug et titre sont requis' });
+        return ApiError.badRequest(reply, 'Slug et titre sont requis');
       }
 
       try {
@@ -449,7 +448,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.status(201).send({ success: true, data: { page } });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la création de la page' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -489,7 +488,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, data: { page } });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la mise à jour de la page' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -507,7 +506,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, message: 'Page supprimée' });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur lors de la suppression' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -531,7 +530,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return reply.send({ success: true, data: { plans } });
       } catch (error) {
         fastify.log.error(error);
-        return reply.status(500).send({ error: 'Erreur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -565,7 +564,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
       // Vérifier que le pageId est valide
       if (!legalTemplates[pageId as keyof typeof legalTemplates]) {
-        return reply.status(400).send({ error: 'Page légale invalide' });
+        return ApiError.badRequest(reply, 'Page légale invalide');
       }
 
       try {
@@ -597,7 +596,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
         const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la génération du contenu';
-        return reply.status(500).send({ error: errorMessage });
+        return ApiError.internal(reply, errorMessage);
       }
     }
   );

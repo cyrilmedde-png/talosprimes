@@ -165,7 +165,7 @@ const allNavGroups: NavGroup[] = [
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clearAuth, modulesActifs, isDemo } = useAuthStore();
+  const { clearAuth, modulesActifs } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -190,23 +190,14 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
     setMobileOpen(false);
   }, [pathname]);
 
-  const DEMO_HIDDEN_PAGES = ['/settings', '/dashboard/cms', '/agent-ia/configuration'];
-
   const navGroups = useMemo(() => {
     return allNavGroups
       .filter((group) => {
         if (group.requiredModules.length === 0) return true;
         return group.requiredModules.some((mod) => modulesActifs.includes(mod));
       })
-      .map((group) => {
-        if (!isDemo) return group;
-        return {
-          ...group,
-          items: group.items.filter((item) => !DEMO_HIDDEN_PAGES.includes(item.href)),
-        };
-      })
       .filter((group) => group.items.length > 0);
-  }, [modulesActifs, isDemo]);
+  }, [modulesActifs]);
 
   const handleLogout = () => {
     clearTokens();
@@ -258,13 +249,6 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
             </button>
           )}
         </div>
-
-        {/* Badge démo */}
-        {isDemo && sidebarExpanded && (
-          <div className="mx-4 mb-3 px-2 py-1 bg-amber-500/20 border border-amber-500/40 rounded text-amber-400 text-xs text-center font-medium">
-            MODE DÉMO
-          </div>
-        )}
 
         <nav className="flex-1 px-2 space-y-1">
           {standaloneItems.map((item) => {

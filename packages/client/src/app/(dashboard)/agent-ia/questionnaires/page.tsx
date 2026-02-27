@@ -9,7 +9,6 @@ import {
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 interface Questionnaire {
   id: string;
@@ -27,7 +26,6 @@ interface Questionnaire {
 
 export default function QuestionnairesPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,8 +94,6 @@ export default function QuestionnairesPage() {
   };
 
   const handleDeleteQuestionnaire = async (id: string) => {
-    // demo-guard: handleDeleteQuestionnaire
-    if (isDemo) { demoAlert(); return; }
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce questionnaire ?')) {
       return;
     }

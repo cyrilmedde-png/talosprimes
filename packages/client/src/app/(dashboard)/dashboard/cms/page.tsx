@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { getAccessToken } from '@/lib/auth';
 import { Save, Trash2, Plus, Star, Eye, EyeOff, Mail, CheckCircle, FileText, CreditCard, Pencil, Globe, GripVertical } from 'lucide-react';
 
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 import { apiClient, type CmsPageData, type PlanWithModules } from '@/lib/api-client';
 // Types
 interface Testimonial {
@@ -52,8 +51,7 @@ interface LegalPage {
 
 export default function CMSPage() {
   const [activeTab, setActiveTab] = useState<TabType>('content');
-  const { isDemo, demoAlert } = useDemoGuard();
-  
+
   // Content
   const [content, setContent] = useState<Record<string, string>>({});
   const [editingContent, setEditingContent] = useState<Record<string, string>>({});
@@ -186,7 +184,7 @@ export default function CMSPage() {
   };
 
   const handleSavePage = async () => {
-    if (isDemo) { demoAlert(); return; }
+
     if (!pageForm.slug || !pageForm.titre) { alert('Slug et titre requis'); return; }
     setSavingPage(true);
     try {
@@ -207,7 +205,7 @@ export default function CMSPage() {
   };
 
   const handleDeletePage = async (id: string) => {
-    if (isDemo) { demoAlert(); return; }
+
     if (!confirm('Supprimer cette page ?')) return;
     try {
       await apiClient.cmsPages.delete(id);
@@ -218,7 +216,7 @@ export default function CMSPage() {
   };
 
   const handleTogglePublish = async (page: CmsPageData) => {
-    if (isDemo) { demoAlert(); return; }
+
     try {
       await apiClient.cmsPages.update(page.id, { publie: !page.publie });
       await loadCmsPages();
@@ -307,8 +305,8 @@ export default function CMSPage() {
 
   // Supprimer testimonial
   const deleteTestimonial = async (id: string) => {
-    // demo-guard: deleteTestimonial
-    if (isDemo) { demoAlert(); return; }
+
+
     if (!confirm('Supprimer ce témoignage ?')) return;
     
     try {
@@ -341,8 +339,8 @@ export default function CMSPage() {
 
   // Supprimer message
   const deleteMessage = async (id: string) => {
-    // demo-guard: deleteMessage
-    if (isDemo) { demoAlert(); return; }
+
+
     if (!confirm('Supprimer ce message ?')) return;
     
     try {

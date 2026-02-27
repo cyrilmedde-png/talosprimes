@@ -18,13 +18,11 @@ import {
   SparklesIcon,
   CreditCardIcon,
 } from '@heroicons/react/24/outline';
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 type CreateMode = 'from-lead' | 'direct';
 
 export default function ClientsPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [clients, setClients] = useState<ClientFinal[]>([]);
   const [leadsConvertis, setLeadsConvertis] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,8 +245,6 @@ export default function ClientsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    // demo-guard: handleDelete
-    if (isDemo) { demoAlert(); return; }
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) return;
     try {
       await apiClient.clients.delete(id);

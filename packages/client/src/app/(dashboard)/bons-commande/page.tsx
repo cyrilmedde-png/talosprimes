@@ -17,7 +17,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 const STATUT_LABELS: Record<string, string> = {
   brouillon: 'Brouillon',
   valide: 'Validé',
@@ -35,7 +34,6 @@ type LigneBdc = {
 
 export default function BonsCommandePage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [bons, setBons] = useState<BonCommande[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -244,8 +242,6 @@ export default function BonsCommandePage() {
   };
 
   const handleDelete = async (bon: BonCommande) => {
-    // demo-guard: handleDelete
-    if (isDemo) { demoAlert(); return; }
     if (!confirm(`Supprimer le bon ${bon.numeroBdc} ?`)) return;
     try {
       setActionLoading(bon.id);

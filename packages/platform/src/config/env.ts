@@ -67,6 +67,9 @@ const envSchema = z.object({
   GOOGLE_CALENDAR_CREDENTIALS_JSON: z.string().optional(),
   GOOGLE_CALENDAR_ID: z.string().optional(),
 
+  // Twilio (webhooks entrants + SMS)
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+
   // Qonto (agent : entrées/sorties)
   QONTO_API_SECRET: z.string().optional(),
   QONTO_ORG_ID: z.string().optional(),

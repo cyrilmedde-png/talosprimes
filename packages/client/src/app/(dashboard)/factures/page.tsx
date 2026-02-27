@@ -23,7 +23,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 const STATUT_LABELS: Record<string, string> = {
   brouillon: 'Brouillon',
   envoyee: 'Envoyée',
@@ -83,7 +82,6 @@ type LigneArticle = {
 
 export default function FacturesPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -379,8 +377,6 @@ export default function FacturesPage() {
 
   const allowDeleteAny = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production';
   const handleDelete = async (inv: Invoice) => {
-    // demo-guard: handleDelete
-    if (isDemo) { demoAlert(); return; }
     if (!allowDeleteAny && inv.statut !== 'brouillon') {
       alert('Seules les factures au statut Brouillon peuvent être supprimées.');
       return;

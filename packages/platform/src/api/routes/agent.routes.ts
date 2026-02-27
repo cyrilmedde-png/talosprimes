@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { chatAgent } from '../../services/agent.service.js';
 import { getAgentConfigForDisplay, saveAgentConfig } from '../../services/agent-config.service.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 const chatBodySchema = z.object({
   message: z.string().min(1, 'Le message ne peut pas être vide').max(8000),
@@ -53,13 +54,13 @@ export async function agentRoutes(fastify: FastifyInstance) {
       try {
         const tenantId = request.tenantId;
         if (!tenantId) {
-          return reply.code(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
         const config = await getAgentConfigForDisplay(tenantId);
         return reply.code(200).send({ success: true, data: config });
       } catch (err) {
         fastify.log.error(err, 'Erreur GET agent config');
-        return reply.code(500).send({ success: false, error: 'Erreur serveur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -74,11 +75,11 @@ export async function agentRoutes(fastify: FastifyInstance) {
       try {
         const tenantId = request.tenantId;
         if (!tenantId) {
-          return reply.code(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
         const parse = configPutSchema.safeParse(request.body);
         if (!parse.success) {
-          return reply.code(400).send({ success: false, error: 'Données invalides', details: parse.error.flatten() });
+          return ApiError.validation(reply, parse.error);
         }
         const patch = parse.data;
         if (patch.email && typeof patch.email.smtpFrom === 'string' && patch.email.smtpFrom === '') {
@@ -89,7 +90,7 @@ export async function agentRoutes(fastify: FastifyInstance) {
         return reply.code(200).send({ success: true, data: config });
       } catch (err) {
         fastify.log.error(err, 'Erreur PUT agent config');
-        return reply.code(500).send({ success: false, error: 'Erreur serveur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -108,11 +109,7 @@ export async function agentRoutes(fastify: FastifyInstance) {
       try {
         const parseResult = chatBodySchema.safeParse(request.body);
         if (!parseResult.success) {
-          return reply.code(400).send({
-            success: false,
-            error: 'Données invalides',
-            details: parseResult.error.flatten(),
-          });
+          return ApiError.validation(reply, parseResult.error);
         }
 
         const { message, history, tenantId: bodyTenantId } = parseResult.data;
@@ -123,21 +120,14 @@ export async function agentRoutes(fastify: FastifyInstance) {
         if (request.isN8nRequest) {
           tenantId = bodyTenantId ?? request.tenantId ?? '';
           if (!tenantId) {
-            return reply.code(400).send({
-              success: false,
-              error: 'tenantId requis dans le body pour les appels depuis n8n',
-            });
+            return ApiError.badRequest(reply, 'tenantId requis dans le body pour les appels depuis n8n');
           }
           userRole = 'admin';
         } else {
           tenantId = request.tenantId ?? '';
           const user = request.user;
           if (!tenantId || !user) {
-            return reply.code(401).send({
-              success: false,
-              error: 'Non authentifié',
-              message: 'Token invalide ou expiré',
-            });
+            return ApiError.unauthorized(reply, 'Token invalide ou expiré');
           }
           userRole = user.role;
         }
@@ -156,11 +146,7 @@ export async function agentRoutes(fastify: FastifyInstance) {
         });
       } catch (err) {
         fastify.log.error(err, 'Erreur agent chat');
-        return reply.code(500).send({
-          success: false,
-          error: 'Erreur serveur',
-          message: err instanceof Error ? err.message : 'Erreur inconnue',
-        });
+        return ApiError.internal(reply);
       }
     }
   );

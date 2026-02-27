@@ -16,13 +16,11 @@ import {
   PhoneIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 type LeadSource = 'formulaire_inscription' | 'admin' | 'all';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,8 +140,6 @@ export default function OnboardingPage() {
   };
 
   const handleDelete = async (leadId: string) => {
-    // demo-guard: handleDelete
-    if (isDemo) { demoAlert(); return; }
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce lead ?')) {
       return;
     }

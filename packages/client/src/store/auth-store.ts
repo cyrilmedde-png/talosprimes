@@ -15,10 +15,8 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   modulesActifs: string[];
-  isDemo: boolean;
   setUser: (user: User | null) => void;
   setModulesActifs: (modules: string[]) => void;
-  setDemo: (isDemo: boolean) => void;
   clearAuth: () => void;
   hasModule: (moduleCode: string) => boolean;
 }
@@ -27,10 +25,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   modulesActifs: ALL_MODULES,
-  isDemo: false,
   setUser: (user) => set({ user, isAuthenticated: !!user }),
   setModulesActifs: (modules) => set({ modulesActifs: modules.length > 0 ? modules : ALL_MODULES }),
-  setDemo: (isDemo) => set({ isDemo }),
-  clearAuth: () => set({ user: null, isAuthenticated: false, modulesActifs: ALL_MODULES, isDemo: false }),
+  clearAuth: () => set({ user: null, isAuthenticated: false, modulesActifs: ALL_MODULES }),
   hasModule: (moduleCode) => get().modulesActifs.includes(moduleCode),
 }));

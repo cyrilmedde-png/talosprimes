@@ -1,9 +1,10 @@
-import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import type { InputJsonValue } from '../../types/prisma-helpers.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -13,7 +14,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -28,12 +29,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as Prisma.InputJsonValue,
+          donnees: { entiteType, entiteId, typeEvenement } as InputJsonValue,
         },
       });
     }
   } catch (e) {
-    console.error('[logEvent] Erreur logging:', e);
+    // Silent fail for logging errors
   }
 }
 
@@ -68,6 +69,17 @@ const updateCallLogSchema = z.object({
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  urgencyLevel: z.enum(['CRITIQUE', 'URGENT', 'STANDARD', 'INFO']).optional(),
+  status: z.enum(['completed', 'failed', 'no-answer', 'busy']).optional(),
+  sentiment: z.enum(['POSITIF', 'NEUTRE', 'FRUSTRE', 'EN_DETRESSE']).optional(),
+  direction: z.enum(['entrant', 'sortant']).optional(),
+});
+
 export async function callLogsRoutes(fastify: FastifyInstance) {
   // GET /api/call-logs - Liste
   fastify.get('/', {
@@ -78,21 +90,12 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
-      const query = request.query as {
-        page?: string;
-        limit?: string;
-        dateFrom?: string;
-        dateTo?: string;
-        urgencyLevel?: string;
-        status?: string;
-        sentiment?: string;
-        direction?: string;
-      };
-      const page = query.page ? parseInt(query.page, 10) : 1;
-      const limit = query.limit ? parseInt(query.limit, 10) : 20;
+      const query = listQuerySchema.parse(request.query);
+      const page = query.page;
+      const limit = query.limit;
 
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ callLogs: unknown[]; count: number; total: number; totalPages: number }>(
@@ -101,12 +104,12 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
           {
             page,
             limit,
-            dateFrom: query.dateFrom,
-            dateTo: query.dateTo,
-            urgencyLevel: query.urgencyLevel,
-            status: query.status,
-            sentiment: query.sentiment,
-            direction: query.direction,
+            dateFrom: query.dateFrom || undefined,
+            dateTo: query.dateTo || undefined,
+            urgencyLevel: query.urgencyLevel || undefined,
+            status: query.status || undefined,
+            sentiment: query.sentiment || undefined,
+            direction: query.direction || undefined,
           }
         );
         const raw = res.data as { callLogs?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
@@ -156,7 +159,7 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur liste call logs');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -169,7 +172,7 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && tenantId) {
@@ -247,7 +250,7 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur statistiques call logs');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -260,7 +263,7 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const params = paramsSchema.parse(request.params);
@@ -285,15 +288,14 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
 
       const callLog = await prisma.callLog.findFirst({ where });
 
-      if (!callLog) return reply.status(404).send({ success: false, error: 'Call log non trouvé' });
+      if (!callLog) return ApiError.notFound(reply, 'Call log');
       return reply.status(200).send({ success: true, data: { callLog } });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur récupération call log');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -310,7 +312,7 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         : request.tenantId;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       // Application no-code : création passe par n8n si appel depuis frontend
@@ -379,11 +381,10 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         // Error handling, continue
       }
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur création call log');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -398,11 +399,11 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const callLog = await prisma.callLog.findFirst({ where: { id: params.id, tenantId } });
-      if (!callLog) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (!callLog) return ApiError.notFound(reply, 'Call log');
 
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ callLog: unknown }>(
@@ -442,11 +443,10 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         // Error handling, continue
       }
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur mise à jour call log');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -460,11 +460,11 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const callLog = await prisma.callLog.findFirst({ where: { id: params.id, tenantId } });
-      if (!callLog) return reply.status(404).send({ success: false, error: 'Non trouvé' });
+      if (!callLog) return ApiError.notFound(reply, 'Call log');
 
       if (!fromN8n) {
         await n8nService.callWorkflowReturn<{ success: boolean }>(
@@ -495,11 +495,10 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
         // Error handling, continue
       }
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur suppression call log');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 }

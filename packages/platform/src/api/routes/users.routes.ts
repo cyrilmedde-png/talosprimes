@@ -1,8 +1,8 @@
-import type { Prisma } from '@prisma/client';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { z } from 'zod';
 import { hashPassword } from '../../services/auth.service.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 // Schéma de validation pour la création d'un utilisateur
 const createUserSchema = z.object({
@@ -15,6 +15,11 @@ const createUserSchema = z.object({
   fonction: z.string().optional().nullable(),
   salaire: z.number().positive().optional().nullable(),
   dateEmbauche: z.string().datetime().optional().nullable(),
+});
+
+// Schéma de validation des paramètres URL
+const paramsSchema = z.object({
+  id: z.string().uuid('ID utilisateur invalide'),
 });
 
 // Schéma de validation pour la mise à jour d'un utilisateur
@@ -39,10 +44,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
 
       if (!tenantId) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Non authentifié',
-        });
+        return ApiError.unauthorized(reply);
       }
 
       const users = await prisma.user.findMany({
@@ -71,44 +73,32 @@ export async function usersRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la récupération des utilisateurs',
-      });
+      return ApiError.internal(reply);
     }
   });
 
   // Créer un utilisateur (nécessite authentification admin)
   fastify.post('/', {
     preHandler: [fastify.authenticate],
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const tenantId = request.tenantId;
 
       if (!tenantId) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Non authentifié',
-        });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier que l'utilisateur est admin ou super_admin
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        return ApiError.forbidden(reply);
       }
 
       // Valider les données
       const validationResult = createUserSchema.safeParse(request.body);
-      
+
       if (!validationResult.success) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Données invalides',
-          details: validationResult.error.errors,
-        });
+        return ApiError.validation(reply, validationResult.error);
       }
 
       const data = validationResult.data;
@@ -124,17 +114,26 @@ export async function usersRoutes(fastify: FastifyInstance) {
       });
 
       if (existingUser) {
-        return reply.status(409).send({
-          success: false,
-          error: 'Un utilisateur avec cet email existe déjà',
-        });
+        return ApiError.conflict(reply, 'Un utilisateur avec cet email existe déjà');
       }
 
       // Hasher le mot de passe
       const passwordHash = await hashPassword(data.password);
 
       // Créer l'utilisateur
-      const userData: Prisma.UserUncheckedCreateInput = {
+      const userData: {
+        tenantId: string;
+        email: string;
+        passwordHash: string;
+        role: string;
+        statut: string;
+        nom?: string | null;
+        prenom?: string | null;
+        telephone?: string | null;
+        fonction?: string | null;
+        salaire?: number | null;
+        dateEmbauche?: Date | null;
+      } = {
         tenantId,
         email: data.email,
         passwordHash,
@@ -174,10 +173,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la création de l\'utilisateur',
-      });
+      return ApiError.internal(reply);
     }
   });
 
@@ -187,32 +183,22 @@ export async function usersRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const tenantId = request.tenantId;
-      const params = request.params as { id: string };
+      const params = paramsSchema.parse(request.params);
 
       if (!tenantId) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Non authentifié',
-        });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier que l'utilisateur est admin ou super_admin
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        return ApiError.forbidden(reply);
       }
 
       // Valider les données
       const validationResult = updateUserSchema.safeParse(request.body);
-      
+
       if (!validationResult.success) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Données invalides',
-          details: validationResult.error.errors,
-        });
+        return ApiError.validation(reply, validationResult.error);
       }
 
       const data = validationResult.data;
@@ -226,10 +212,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       });
 
       if (!existingUser) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Utilisateur non trouvé',
-        });
+        return ApiError.notFound(reply, 'User');
       }
 
       // Mettre à jour l'utilisateur
@@ -271,10 +254,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la mise à jour de l\'utilisateur',
-      });
+      return ApiError.internal(reply);
     }
   });
 
@@ -284,21 +264,15 @@ export async function usersRoutes(fastify: FastifyInstance) {
   }, async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
     try {
       const tenantId = request.tenantId;
-      const params = request.params as { id: string };
+      const params = paramsSchema.parse(request.params);
 
       if (!tenantId) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Non authentifié',
-        });
+        return ApiError.unauthorized(reply);
       }
 
       // Vérifier que l'utilisateur est admin ou super_admin
       if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({
-          success: false,
-          error: 'Accès refusé',
-        });
+        return ApiError.forbidden(reply);
       }
 
       // Vérifier que l'utilisateur existe et appartient au tenant
@@ -310,19 +284,13 @@ export async function usersRoutes(fastify: FastifyInstance) {
       });
 
       if (!existingUser) {
-        return reply.status(404).send({
-          success: false,
-          error: 'Utilisateur non trouvé',
-        });
+        return ApiError.notFound(reply, 'User');
       }
 
       // Ne pas permettre la suppression de soi-même (si l'ID utilisateur est disponible)
       // Note: request.user pourrait ne pas avoir l'ID, donc on vérifie seulement si c'est le même email
       if (existingUser.email === (request.user as { email?: string })?.email) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Vous ne pouvez pas supprimer votre propre compte',
-        });
+        return ApiError.badRequest(reply, 'Vous ne pouvez pas supprimer votre propre compte');
       }
 
       // Supprimer l'utilisateur
@@ -336,10 +304,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Erreur lors de la suppression de l\'utilisateur',
-      });
+      return ApiError.internal(reply);
     }
   });
 }

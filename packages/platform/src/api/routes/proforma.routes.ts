@@ -1,4 +1,3 @@
-import type { Prisma } from '@prisma/client';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../config/database.js';
@@ -6,6 +5,8 @@ import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { generateDocumentPdf } from '../../services/pdf.service.js';
 import type { DocumentForPdf } from '../../services/pdf.service.js';
+import type { InputJsonValue } from '../../types/prisma-helpers.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -15,7 +16,7 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
         typeEvenement,
         entiteType,
         entiteId,
-        payload: payload as Prisma.InputJsonValue,
+        payload: payload as InputJsonValue,
         workflowN8nDeclenche: true,
         workflowN8nId: typeEvenement,
         statutExecution: statut,
@@ -30,12 +31,12 @@ async function logEvent(tenantId: string, typeEvenement: string, entiteType: str
           type: `${typeEvenement}_erreur`,
           titre: `Erreur: ${typeEvenement}`,
           message: messageErreur || `Erreur lors de ${typeEvenement}`,
-          donnees: { entiteType, entiteId, typeEvenement } as Prisma.InputJsonValue,
+          donnees: { entiteType, entiteId, typeEvenement } as InputJsonValue,
         },
       });
     }
   } catch (e) {
-    console.error('[logEvent] Erreur logging:', e);
+    // Silent fail for logging errors
   }
 }
 
@@ -67,6 +68,13 @@ const createSchema = z.object({
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  statut: z.enum(['brouillon', 'envoyee', 'acceptee', 'refusee', 'expiree', 'facturee']).optional(),
+  clientFinalId: z.string().uuid().optional(),
+});
+
 export async function proformaRoutes(fastify: FastifyInstance) {
   // GET /api/proforma - Liste
   fastify.get('/', {
@@ -77,13 +85,14 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
-      const query = request.query as { page?: string; limit?: string; statut?: string; clientFinalId?: string };
-      const page = query.page ? parseInt(query.page, 10) : 1;
-      const limit = query.limit ? parseInt(query.limit, 10) : 20;
+      const query = listQuerySchema.parse(request.query);
+      const page = query.page;
+      const limit = query.limit;
 
+      // Déléguer à n8n
       if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<{ proforma: unknown[]; count: number; total: number; totalPages: number }>(
           tenantId,
@@ -91,8 +100,8 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           {
             page,
             limit,
-            statut: query.statut,
-            clientFinalId: query.clientFinalId,
+            statut: query.statut || undefined,
+            clientFinalId: query.clientFinalId || undefined,
           }
         );
         const raw = res.data as { proforma?: unknown[]; proformas?: unknown[]; count?: number; total?: number; page?: number; limit?: number; totalPages?: number };
@@ -110,7 +119,7 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Appel depuis n8n (callback) → lecture BDD directe
+      // Lecture BDD directe (callback n8n)
       const skip = (page - 1) * limit;
       const where: Record<string, unknown> = { tenantId, deletedAt: null };
       if (query.statut) where.statut = query.statut as 'brouillon' | 'envoyee' | 'acceptee' | 'refusee' | 'expiree' | 'facturee';
@@ -136,7 +145,7 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       });
     } catch (error) {
       fastify.log.error(error, 'Erreur liste proforma');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -149,7 +158,7 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       const fromN8n = request.isN8nRequest === true;
 
       if (!tenantId && !fromN8n) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       const params = paramsSchema.parse(request.params);
@@ -166,7 +175,7 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Appel depuis n8n (callback) → lecture BDD directe
+      // Lecture BDD directe (callback n8n)
       const where: Record<string, unknown> = { id: params.id };
       if (tenantId) {
         where.tenantId = tenantId;
@@ -181,15 +190,14 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         },
       });
 
-      if (!proforma) return reply.status(404).send({ success: false, error: 'Proforma non trouvé' });
+      if (!proforma) return ApiError.notFound(reply, 'Proforma');
       return reply.status(200).send({ success: true, data: { proforma } });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur récupération proforma');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -206,7 +214,7 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         const params = paramsSchema.parse(request.params);
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         const docWhere: Record<string, unknown> = { id: params.id };
@@ -253,7 +261,7 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         });
 
         if (!proforma) {
-          return reply.status(404).send({ success: false, error: 'Proforma non trouvé' });
+          return ApiError.notFound(reply, 'Proforma');
         }
 
         const forPdf: DocumentForPdf = {
@@ -286,12 +294,10 @@ export async function proformaRoutes(fastify: FastifyInstance) {
           .send(Buffer.from(pdfBytes));
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+          return ApiError.validation(reply, error);
         }
-        console.error('=== ERREUR GENERATION PDF PROFORMA ===', error);
         fastify.log.error(error, 'Erreur génération PDF proforma');
-        return reply.status(500).send({ success: false, error: 'Erreur lors de la génération du PDF' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -309,17 +315,17 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         : request.tenantId;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const client = await prisma.clientFinal.findFirst({
         where: { id: body.clientFinalId, tenantId }
       });
-      if (!client) return reply.status(404).send({ success: false, error: 'Client non trouvé' });
+      if (!client) return ApiError.notFound(reply, 'Client');
 
       // Application no-code : création passe par n8n si appel depuis frontend
       if (!fromN8n) {
@@ -403,11 +409,10 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur création proforma');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -421,16 +426,16 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const proforma = await prisma.proforma.findFirst({ where: { id: params.id, tenantId } });
-      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (proforma.statut !== 'brouillon') return reply.status(400).send({ success: false, error: 'Seul un brouillon peut être envoyé' });
+      if (!proforma) return ApiError.notFound(reply, 'Proforma');
+      if (proforma.statut !== 'brouillon') return ApiError.badRequest(reply, 'Seul un brouillon peut être envoyé');
 
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ proforma: unknown }>(
@@ -465,11 +470,10 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur envoi proforma');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -483,16 +487,16 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const proforma = await prisma.proforma.findFirst({ where: { id: params.id, tenantId } });
-      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (proforma.statut !== 'envoyee') return reply.status(400).send({ success: false, error: 'Seul un proforma envoyé peut être accepté' });
+      if (!proforma) return ApiError.notFound(reply, 'Proforma');
+      if (proforma.statut !== 'envoyee') return ApiError.badRequest(reply, 'Seul un proforma envoyé peut être accepté');
 
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ proforma: unknown }>(
@@ -527,11 +531,10 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur acceptation proforma');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -545,11 +548,11 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const proforma = await prisma.proforma.findFirst({
@@ -557,9 +560,9 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         include: { lines: { orderBy: { ordre: 'asc' } } },
       });
 
-      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (proforma.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Déjà converti en facture' });
-      if (proforma.statut === 'refusee' || proforma.statut === 'expiree') return reply.status(400).send({ success: false, error: 'Proforma refusé ou expiré' });
+      if (!proforma) return ApiError.notFound(reply, 'Proforma');
+      if (proforma.statut === 'facturee') return ApiError.badRequest(reply, 'Déjà converti en facture');
+      if (proforma.statut === 'refusee' || proforma.statut === 'expiree') return ApiError.badRequest(reply, 'Proforma refusé ou expiré');
 
       if (!fromN8n) {
         const res = await n8nService.callWorkflowReturn<{ invoice: unknown; proforma: unknown }>(
@@ -638,11 +641,10 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur conversion proforma → facture');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 
@@ -656,16 +658,16 @@ export async function proformaRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId as string;
 
       if (!tenantId) {
-        return reply.status(401).send({ success: false, error: 'Non authentifié' });
+        return ApiError.unauthorized(reply);
       }
 
       if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-        return reply.status(403).send({ success: false, error: 'Accès refusé' });
+        return ApiError.forbidden(reply);
       }
 
       const proforma = await prisma.proforma.findFirst({ where: { id: params.id, tenantId } });
-      if (!proforma) return reply.status(404).send({ success: false, error: 'Non trouvé' });
-      if (proforma.statut === 'facturee') return reply.status(400).send({ success: false, error: 'Impossible de supprimer un proforma déjà facturé' });
+      if (!proforma) return ApiError.notFound(reply, 'Proforma');
+      if (proforma.statut === 'facturee') return ApiError.badRequest(reply, 'Impossible de supprimer un proforma déjà facturé');
 
       if (!fromN8n) {
         await n8nService.callWorkflowReturn<{ success: boolean }>(
@@ -696,11 +698,10 @@ export async function proformaRoutes(fastify: FastifyInstance) {
         }
       } catch (_) {}
       if (error instanceof z.ZodError) {
-        const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-        return reply.status(400).send({ success: false, error: `Validation échouée : ${msgs}`, details: error.errors });
+        return ApiError.validation(reply, error);
       }
       fastify.log.error(error, 'Erreur suppression proforma');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      return ApiError.internal(reply);
     }
   });
 }

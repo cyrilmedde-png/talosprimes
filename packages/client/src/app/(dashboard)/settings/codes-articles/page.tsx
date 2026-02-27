@@ -12,7 +12,6 @@ import {
   TagIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
-import { useDemoGuard } from '@/hooks/useDemoGuard';
 
 interface FormData {
   code: string;
@@ -32,7 +31,6 @@ const emptyForm: FormData = {
 
 export default function CodesArticlesPage() {
   const router = useRouter();
-  const { isDemo, demoAlert } = useDemoGuard();
   const [articles, setArticles] = useState<ArticleCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,8 +114,6 @@ export default function CodesArticlesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    // demo-guard: handleDelete
-    if (isDemo) { demoAlert(); return; }
     try {
       setError(null);
       await apiClient.articleCodes.delete(id);

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
+import { ApiError } from '../../utils/api-errors.js';
 
 const createSchema = z.object({
   code: z.string().min(1).max(20),
@@ -54,7 +55,7 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         const fromN8n = request.isN8nRequest === true;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         if (!fromN8n && tenantId) {
@@ -85,7 +86,7 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur récupération codes articles');
-        return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -109,12 +110,12 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
           : request.tenantId;
 
         if (!tenantId) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         if (!fromN8n) {
@@ -150,19 +151,14 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         // Unique constraint
         if ((error as { code?: string }).code === 'P2002') {
-          return reply.status(409).send({ success: false, error: 'Ce code article existe déjà' });
+          return ApiError.conflict(reply, 'Ce code article existe déjà');
         }
         fastify.log.error(error, 'Erreur création code article');
-        return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -182,12 +178,12 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Vérifier que le code article existe et appartient au tenant
@@ -196,11 +192,11 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
 
         if (!existing) {
-          return reply.status(404).send({ success: false, error: 'Code article non trouvé' });
+          return ApiError.notFound(reply, 'Code article');
         }
 
         if (!fromN8n) {
-          if (!tenantId) return reply.status(401).send({ success: false, error: 'Tenant manquant' });
+          if (!tenantId) return ApiError.unauthorized(reply, 'Tenant manquant');
           const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
             tenantId,
             'article_code_update',
@@ -237,18 +233,13 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
-          const msgs = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-          return reply.status(400).send({
-            success: false,
-            error: `Validation échouée : ${msgs}`,
-            details: error.errors,
-          });
+          return ApiError.validation(reply, error);
         }
         if ((error as { code?: string }).code === 'P2002') {
-          return reply.status(409).send({ success: false, error: 'Ce code article existe déjà' });
+          return ApiError.conflict(reply, 'Ce code article existe déjà');
         }
         fastify.log.error(error, 'Erreur modification code article');
-        return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+        return ApiError.internal(reply);
       }
     }
   );
@@ -267,12 +258,12 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         const tenantId = request.tenantId;
 
         if (!tenantId && !fromN8n) {
-          return reply.status(401).send({ success: false, error: 'Non authentifié' });
+          return ApiError.unauthorized(reply);
         }
 
         // Vérifier droits si pas n8n
         if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return reply.status(403).send({ success: false, error: 'Accès refusé' });
+          return ApiError.forbidden(reply);
         }
 
         // Vérifier que le code article existe et appartient au tenant
@@ -281,11 +272,11 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
 
         if (!existing) {
-          return reply.status(404).send({ success: false, error: 'Code article non trouvé' });
+          return ApiError.notFound(reply, 'Code article');
         }
 
         if (!fromN8n) {
-          if (!tenantId) return reply.status(401).send({ success: false, error: 'Tenant manquant' });
+          if (!tenantId) return ApiError.unauthorized(reply, 'Tenant manquant');
           const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
             tenantId,
             'article_code_delete',
@@ -310,7 +301,7 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur suppression code article');
-        return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+        return ApiError.internal(reply);
       }
     }
   );
