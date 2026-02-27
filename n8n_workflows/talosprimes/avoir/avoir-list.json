@@ -76,7 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM avoirs WHERE tenant_id = '\" + $json.tenantId + \"' AND numero_avoir IS NOT NULL AND date_avoir IS NOT NULL AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"1=1\") + \" AND \" + ($json.invoiceId ? \"invoice_id = '\" + $json.invoiceId + \"'\" : \"1=1\") }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM avoirs WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND numero_avoir IS NOT NULL AND date_avoir IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.invoiceId ? \"invoice_id = '\" + $('02. Parser').first().json.invoiceId + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",

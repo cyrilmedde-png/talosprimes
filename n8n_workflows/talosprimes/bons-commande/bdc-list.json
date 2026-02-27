@@ -76,7 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM bons_commande WHERE tenant_id = '\" + $json.tenantId + \"' AND numero_bdc IS NOT NULL AND date_bdc IS NOT NULL AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"statut NOT IN ('facture')\") + \" AND \" + ($json.clientFinalId ? \"client_final_id = '\" + $json.clientFinalId + \"'\" : \"1=1\") }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM bons_commande WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND numero_bdc IS NOT NULL AND date_bdc IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"statut NOT IN ('facture')\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -131,7 +131,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}"
+        "query": "={{ $('06b. Prepare Lines Query').first().json.query }}"
       },
       "id": "06c. Lines Query",
       "name": "06c. Lines Query",

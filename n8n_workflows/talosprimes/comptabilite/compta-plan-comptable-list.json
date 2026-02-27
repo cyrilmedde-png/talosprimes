@@ -76,7 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, numero_compte, libelle, classe, type, nature, compte_parent, actif, solde_debit, solde_credit FROM plan_comptable WHERE tenant_id = '\" + $json.tenantId + \"' AND actif = true AND \" + ($json.classe ? \"classe = '\" + $json.classe + \"'\" : \"1=1\") + \" AND \" + ($json.nature ? \"nature = '\" + $json.nature + \"'\" : \"1=1\") + \" AND ('\" + $json.search + \"' IS NULL OR (numero_compte ILIKE '%' || '\" + $json.search + \"' || '%' OR libelle ILIKE '%' || '\" + $json.search + \"' || '%')) ORDER BY numero_compte ASC;\" }}"
+        "query": "={{ \"SELECT id, numero_compte, libelle, classe, type, nature, compte_parent, actif, solde_debit, solde_credit FROM plan_comptable WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND actif = true AND \" + ($('02. Parser').first().json.classe ? \"classe = '\" + $('02. Parser').first().json.classe + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.nature ? \"nature = '\" + $('02. Parser').first().json.nature + \"'\" : \"1=1\") + \" AND ('\" + $('02. Parser').first().json.search + \"' IS NULL OR (numero_compte ILIKE '%' || '\" + $('02. Parser').first().json.search + \"' || '%' OR libelle ILIKE '%' || '\" + $('02. Parser').first().json.search + \"' || '%')) ORDER BY numero_compte ASC;\" }}"
       },
       "id": "05. Query",
       "name": "05. Query",

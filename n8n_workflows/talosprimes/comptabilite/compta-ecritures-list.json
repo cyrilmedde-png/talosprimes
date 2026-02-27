@@ -89,7 +89,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.countQuery }}"
+        "query": "={{ $('05. Build Queries').first().json.countQuery }}"
       },
       "id": "06. Count",
       "name": "06. Count",

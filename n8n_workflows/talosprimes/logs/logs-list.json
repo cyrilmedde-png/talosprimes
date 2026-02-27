@@ -78,7 +78,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = '\" + $json.tenantId + \"' AND \" + ($json.workflow ? \"workflow = '\" + $json.workflow + \"'\" : \"1=1\") + \" AND \" + ($json.typeEvenement ? \"type_evenement = '\" + $json.typeEvenement + \"'\" : \"1=1\") + \" AND \" + ($json.statutExecution ? \"statut_execution = '\" + $json.statutExecution + \"'\" : \"1=1\") }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND \" + ($('02. Parser').first().json.workflow ? \"workflow = '\" + $('02. Parser').first().json.workflow + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.typeEvenement ? \"type_evenement = '\" + $('02. Parser').first().json.typeEvenement + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.statutExecution ? \"statut_execution = '\" + $('02. Parser').first().json.statutExecution + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",

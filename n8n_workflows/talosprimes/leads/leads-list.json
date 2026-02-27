@@ -33,12 +33,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}"
+        "query": "={{ $('Parser filtres').first().json.query }}"
       },
       "id": "Postgres_Select",
       "name": "Postgres - SELECT leads",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2,
       "position": [
         740,
         300

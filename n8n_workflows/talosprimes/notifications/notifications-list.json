@@ -76,7 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.countQuery }}"
+        "query": "={{ $('02. Parser').first().json.countQuery }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",

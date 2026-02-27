@@ -27,12 +27,12 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}"
+        "query": "={{ $('Parser').first().json.query }}"
       },
       "id": "Postgres",
       "name": "Postgres",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2,
       "position": [740, 300],
       "alwaysOutputData": true,
       "credentials": {

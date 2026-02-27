@@ -76,7 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM proformas WHERE tenant_id = '\" + $json.tenantId + \"' AND numero_proforma IS NOT NULL AND date_proforma IS NOT NULL AND \" + ($json.statut ? \"statut = '\" + $json.statut + \"'\" : \"1=1\") + \" AND \" + ($json.clientFinalId ? \"client_final_id = '\" + $json.clientFinalId + \"'\" : \"1=1\") }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM proformas WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND numero_proforma IS NOT NULL AND date_proforma IS NOT NULL AND \" + ($('02. Parser').first().json.statut ? \"statut = '\" + $('02. Parser').first().json.statut + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.clientFinalId ? \"client_final_id = '\" + $('02. Parser').first().json.clientFinalId + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",

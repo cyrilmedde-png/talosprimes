@@ -89,7 +89,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.countQuery }}"
+        "query": "={{ $('05. Build SQL').first().json.countQuery }}"
       },
       "id": "06. Count Query",
       "name": "06. Count Query",
@@ -144,7 +144,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.hasIds ? 'SELECT id, invoice_id, numero_bdc, statut FROM bons_commande WHERE invoice_id IN (' + $json.idsList + ')' : 'SELECT null as id WHERE false' }}"
+        "query": "={{ $('08. Extract IDs').first().json.hasIds ? 'SELECT id, invoice_id, numero_bdc, statut FROM bons_commande WHERE invoice_id IN (' + $('08. Extract IDs').first().json.idsList + ')' : 'SELECT null as id WHERE false' }}"
       },
       "id": "09. Get BdC Links",
       "name": "09. Get BdC Links",

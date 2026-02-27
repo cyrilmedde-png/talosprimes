@@ -18,11 +18,11 @@
       "position": [520, 300]
     },
     {
-      "parameters": {"operation": "executeQuery", "query": "={{ $json.query }}"},
+      "parameters": {"operation": "executeQuery", "query": "={{ $('Parser').first().json.query }}"},
       "id": "Postgres",
       "name": "Postgres",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
+      "typeVersion": 2,
       "position": [740, 300],
       "alwaysOutputData": true,
       "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
