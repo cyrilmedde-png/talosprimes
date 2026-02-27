@@ -126,7 +126,7 @@ export async function usersRoutes(fastify: FastifyInstance) {
         email: string;
         passwordHash: string;
         role: 'super_admin' | 'admin' | 'collaborateur' | 'lecture_seule';
-        statut: string;
+        statut: 'actif' | 'inactif';
         nom?: string | null;
         prenom?: string | null;
         telephone?: string | null;
