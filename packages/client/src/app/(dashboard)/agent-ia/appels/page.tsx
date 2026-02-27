@@ -40,11 +40,6 @@ interface CallLog {
   created_at?: string;
 }
 
-// Helpers pour accéder aux champs (camelCase ou snake_case selon le retour API/n8n)
-function getField(call: CallLog, camel: string, snake: string): string {
-  return (call as Record<string, unknown>)[camel] as string || (call as Record<string, unknown>)[snake] as string || '';
-}
-
 export default function AppelsPage() {
   const router = useRouter();
   const [calls, setCalls] = useState<CallLog[]>([]);
