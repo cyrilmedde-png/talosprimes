@@ -114,7 +114,16 @@ async function main() {
   // Créer la config Twilio
   await prisma.twilioConfig.upsert({
     where: { tenantId: tenant.id },
-    update: {},
+    update: {
+      phoneNumber: '+33978467508',
+      agentName: 'Sophie',
+      companyName: tenant.nomEntreprise,
+      niche: 'plomberie',
+      businessHours: 'du lundi au samedi, de huit heures à vingt heures',
+      dispatchDelay: 15,
+      basePrice: 'quatre-vingt-neuf euros le déplacement',
+      humanContact: 'notre responsable technique',
+    },
     create: {
       tenantId: tenant.id,
       phoneNumber: '+33978467508',
