@@ -18,8 +18,10 @@ import {
   ChevronDown,
   Menu,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { Toast } from '@/components/Toast';
+import { CallbackBubble } from '@/components/CallbackBubble';
 
 interface Testimonial {
   id: string;
@@ -89,7 +91,7 @@ export default function LandingPage() {
       } else {
         setContactStatus('error');
         setToastType('error');
-        setToastMessage('Erreur lors de l\'envoi. Veuillez réessayer.');
+        setToastMessage("Erreur lors de l'envoi. Veuillez réessayer.");
         setShowToast(true);
       }
     } catch {
@@ -103,7 +105,10 @@ export default function LandingPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-slate-500 text-sm">Chargement...</div>
+        <div className="flex items-center gap-3 text-slate-400 text-sm">
+          <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+          Chargement...
+        </div>
       </div>
     );
   }
@@ -114,159 +119,188 @@ export default function LandingPage() {
   const ctaSectionLink = linkFor('cta_section_title') || '/inscription';
   const isExternal = (href: string) => href.startsWith('http') || href.startsWith('//');
   const CtaLink = ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
-    isExternal(href) ? <a href={href} className={className}>{children}</a> : <Link href={href} className={className}>{children}</Link>;
+    isExternal(href) ? (
+      <a href={href} className={className}>{children}</a>
+    ) : (
+      <Link href={href} className={className}>{children}</Link>
+    );
 
   return (
     <div className="min-h-screen bg-white text-slate-800 antialiased">
       {showToast && <Toast type={toastType} message={toastMessage} onClose={() => setShowToast(false)} />}
 
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200">
-        <nav className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-slate-900 font-medium">
-            <Workflow className="w-6 h-6 text-slate-700" strokeWidth={1.5} />
-            <span>{content.footer_company_name || 'TalosPrimes'}</span>
+      {/* ─── HEADER ─── */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-100">
+        <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 text-slate-900 font-semibold tracking-tight">
+            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+              <Workflow className="w-4.5 h-4.5 text-white" strokeWidth={2} />
+            </div>
+            <span className="text-lg">{content.footer_company_name || 'TalosPrimes'}</span>
           </Link>
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-slate-500 text-sm hover:text-slate-900 transition">Fonctionnalités</a>
-            <Link href="/page/tarifs" className="text-slate-500 text-sm hover:text-slate-900 transition">Tarifs</Link>
-            <a href="#testimonials" className="text-slate-500 text-sm hover:text-slate-900 transition">Témoignages</a>
-            <a href="#contact" className="text-slate-500 text-sm hover:text-slate-900 transition">Contact</a>
-            <Link href="/login" className="text-slate-500 text-sm hover:text-slate-900 transition">Connexion</Link>
-            <CtaLink href={primaryLink} className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
-              {content.hero_cta_primary || 'Essayer'}
+          <div className="hidden md:flex items-center gap-1">
+            <a href="#features" className="px-3 py-2 text-slate-500 text-sm hover:text-slate-900 rounded-lg hover:bg-slate-50 transition">Fonctionnalités</a>
+            <Link href="/page/tarifs" className="px-3 py-2 text-slate-500 text-sm hover:text-slate-900 rounded-lg hover:bg-slate-50 transition">Tarifs</Link>
+            <a href="#testimonials" className="px-3 py-2 text-slate-500 text-sm hover:text-slate-900 rounded-lg hover:bg-slate-50 transition">Témoignages</a>
+            <a href="#contact" className="px-3 py-2 text-slate-500 text-sm hover:text-slate-900 rounded-lg hover:bg-slate-50 transition">Contact</a>
+            <div className="w-px h-5 bg-slate-200 mx-2" />
+            <Link href="/login" className="px-3 py-2 text-slate-600 text-sm font-medium hover:text-slate-900 rounded-lg hover:bg-slate-50 transition">Connexion</Link>
+            <CtaLink href={primaryLink} className="ml-1 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition shadow-sm">
+              {content.hero_cta_primary || 'Essayer gratuitement'}
             </CtaLink>
           </div>
-          {/* Bouton hamburger mobile */}
+          {/* Hamburger mobile */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-slate-600 hover:text-slate-900 focus:outline-none"
+            className="md:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-50"
             aria-label="Menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </nav>
-        {/* Menu mobile déroulant */}
+        {/* Menu mobile */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-3 shadow-lg">
-            <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Fonctionnalités</a>
-            <Link href="/page/tarifs" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Tarifs</Link>
-            <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Témoignages</a>
-            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block text-slate-600 text-sm py-2 hover:text-slate-900 transition">Contact</a>
-            <div className="border-t border-slate-100 pt-3 space-y-2">
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block w-full text-center px-4 py-2.5 border border-slate-300 text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition">
+          <div className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-1 shadow-xl">
+            <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition">Fonctionnalités</a>
+            <Link href="/page/tarifs" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition">Tarifs</Link>
+            <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition">Témoignages</a>
+            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2.5 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition">Contact</a>
+            <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block w-full text-center px-4 py-2.5 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">
                 Connexion
               </Link>
-              <CtaLink href={primaryLink} className="block w-full text-center px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
-                {content.hero_cta_primary || 'Essayer'}
+              <CtaLink href={primaryLink} className="block w-full text-center px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition">
+                {content.hero_cta_primary || 'Essayer gratuitement'}
               </CtaLink>
             </div>
           </div>
         )}
       </header>
 
-      <section className="pt-24 pb-16 px-6 border-b border-slate-100">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight leading-tight mb-5">
+      {/* ─── HERO ─── */}
+      <section className="relative pt-32 pb-20 px-6 overflow-hidden">
+        {/* Fond subtil */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-50/80 to-white pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-br from-slate-100/60 via-transparent to-transparent rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-4xl mx-auto text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium mb-6">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            Agent IA vocal intégré
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold text-slate-900 tracking-tight leading-[1.1] mb-6">
             {content.hero_title || 'Automatisez votre gestion d\'entreprise'}
           </h1>
-          <p className="text-slate-600 text-base sm:text-lg max-w-xl mx-auto leading-relaxed mb-8">
+          <p className="text-slate-500 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
             {content.hero_subtitle || 'CRM, facturation et automatisation dans une seule plateforme.'}
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <CtaLink href={primaryLink} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition">
-              {content.hero_cta_primary || 'Essayer'}
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
+            <CtaLink href={primaryLink} className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition shadow-sm shadow-slate-900/10">
+              {content.hero_cta_primary || 'Essayer gratuitement'}
               <ArrowRight className="w-4 h-4" />
             </CtaLink>
-            <CtaLink href={secondaryLink} className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-slate-300 text-slate-600 text-sm font-medium rounded-md hover:bg-slate-50 transition">
+            <CtaLink href={secondaryLink} className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50 hover:border-slate-300 transition">
               {content.hero_cta_secondary || 'Découvrir'}
               <ChevronDown className="w-4 h-4" />
             </CtaLink>
           </div>
-          <div className="mt-14 pt-10 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg mx-auto">
-            <div>
-              <div className="text-xl font-medium text-slate-900">{content.stats_1_value || '95%'}</div>
-              <div className="text-xs text-slate-500 mt-1">{content.stats_1_label || 'Gain de temps'}</div>
-            </div>
-            <div>
-              <div className="text-xl font-medium text-slate-900">{content.stats_2_value || '24/7'}</div>
-              <div className="text-xs text-slate-500 mt-1">{content.stats_2_label || 'Automatisation'}</div>
-            </div>
-            <div>
-              <div className="text-xl font-medium text-slate-900">{content.stats_3_value || '100%'}</div>
-              <div className="text-xs text-slate-500 mt-1">{content.stats_3_label || 'Satisfaction'}</div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <section id="features" className="py-16 px-6 bg-slate-50/50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-medium text-slate-900 tracking-tight mb-2">Tout ce dont vous avez besoin</h2>
-            <p className="text-slate-600 text-sm max-w-md mx-auto">Une plateforme pour piloter et automatiser votre activité.</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-8 max-w-md mx-auto">
             {[
-              { icon: Users, title: content.feature_1_title || 'CRM intelligent', desc: content.feature_1_desc },
-              { icon: FileText, title: content.feature_2_title || 'Facturation automatisée', desc: content.feature_2_desc },
-              { icon: Zap, title: content.feature_3_title || 'Workflows n8n', desc: content.feature_3_desc },
-              { icon: TrendingUp, title: content.feature_4_title || 'Gestion d\'équipe', desc: content.feature_4_desc },
-              { icon: CheckCircle, title: content.feature_5_title || 'Modules adaptables', desc: content.feature_5_desc },
-              { icon: Shield, title: content.feature_6_title || 'Sécurité & conformité', desc: content.feature_6_desc },
+              { value: content.stats_1_value || '95%', label: content.stats_1_label || 'Gain de temps' },
+              { value: content.stats_2_value || '24/7', label: content.stats_2_label || 'Automatisation' },
+              { value: content.stats_3_value || '100%', label: content.stats_3_label || 'Satisfaction' },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <div className="text-2xl sm:text-3xl font-semibold text-slate-900">{stat.value}</div>
+                <div className="text-xs text-slate-400 mt-1 font-medium uppercase tracking-wider">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FEATURES ─── */}
+      <section id="features" className="py-20 px-6 bg-slate-50/60">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-semibold text-slate-900 tracking-tight mb-3">Tout ce dont vous avez besoin</h2>
+            <p className="text-slate-500 text-base max-w-lg mx-auto">Une plateforme complète pour piloter et automatiser votre activité au quotidien.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { icon: Users, title: content.feature_1_title || 'CRM intelligent', desc: content.feature_1_desc || 'Gérez vos contacts, leads et clients depuis une interface unique.' },
+              { icon: FileText, title: content.feature_2_title || 'Facturation automatisée', desc: content.feature_2_desc || 'Devis, factures et bons de commande générés automatiquement.' },
+              { icon: Zap, title: content.feature_3_title || 'Workflows n8n', desc: content.feature_3_desc || 'Automatisez vos processus métier sans écrire de code.' },
+              { icon: TrendingUp, title: content.feature_4_title || 'Gestion d\'équipe', desc: content.feature_4_desc || 'Attribuez des rôles et suivez la performance de chacun.' },
+              { icon: CheckCircle, title: content.feature_5_title || 'Modules adaptables', desc: content.feature_5_desc || 'Activez uniquement les modules dont vous avez besoin.' },
+              { icon: Shield, title: content.feature_6_title || 'Sécurité & conformité', desc: content.feature_6_desc || 'RGPD, chiffrement SSL et sauvegardes quotidiennes.' },
             ].map((item, i) => (
-              <div key={i} className="p-5 rounded-lg border border-slate-200 bg-white">
-                <div className="w-9 h-9 rounded-md bg-slate-100 flex items-center justify-center mb-3">
-                  <item.icon className="w-4 h-4 text-slate-600" strokeWidth={1.5} />
+              <div key={i} className="group p-6 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-sm transition">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-slate-900 flex items-center justify-center mb-4 transition">
+                  <item.icon className="w-5 h-5 text-slate-600 group-hover:text-white transition" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-base font-medium text-slate-900 mb-1.5">{item.title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">{item.desc}</p>
+                <h3 className="text-base font-semibold text-slate-900 mb-2">{item.title}</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="testimonials" className="py-16 px-6 bg-white border-t border-slate-100">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-medium text-slate-900 tracking-tight mb-2">Ils nous font confiance</h2>
-            <p className="text-slate-600 text-sm">Ce que nos clients disent de TalosPrimes.</p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {testimonials.map((t) => (
-              <div key={t.id} className="p-5 rounded-lg border border-slate-200 bg-slate-50/30">
-                <div className="flex gap-1 mb-2">
-                  {[...Array(t.note)].map((_, i) => (
-                    <Star key={i} className="w-3.5 h-3.5 text-slate-400 fill-slate-400" />
-                  ))}
-                </div>
-                <p className="text-slate-600 text-sm leading-relaxed mb-3">"{t.commentaire}"</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium text-xs">
-                    {t.avatar || `${t.prenom[0]}${t.nom[0]}`}
+      {/* ─── TESTIMONIALS ─── */}
+      {testimonials.length > 0 && (
+        <section id="testimonials" className="py-20 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-14">
+              <h2 className="text-3xl font-semibold text-slate-900 tracking-tight mb-3">Ils nous font confiance</h2>
+              <p className="text-slate-500 text-base">Ce que nos clients disent de TalosPrimes.</p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {testimonials.map((t) => (
+                <div key={t.id} className="p-6 rounded-xl border border-slate-200/80 bg-white hover:shadow-sm transition">
+                  <div className="flex gap-0.5 mb-3">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${i < t.note ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`}
+                      />
+                    ))}
                   </div>
-                  <div>
-                    <div className="font-medium text-slate-900 text-xs">{t.prenom} {t.nom}</div>
-                    {(t.poste || t.entreprise) && (
-                      <div className="text-xs text-slate-500">{[t.poste, t.entreprise].filter(Boolean).join(' · ')}</div>
-                    )}
+                  <p className="text-slate-600 text-sm leading-relaxed mb-4">&ldquo;{t.commentaire}&rdquo;</p>
+                  <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-xs">
+                      {t.avatar || `${t.prenom[0]}${t.nom[0]}`}
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900 text-sm">{t.prenom} {t.nom}</div>
+                      {(t.poste || t.entreprise) && (
+                        <div className="text-xs text-slate-400">{[t.poste, t.entreprise].filter(Boolean).join(' · ')}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <section id="contact" className="py-16 px-6 bg-slate-50/50">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-medium text-slate-900 tracking-tight mb-2">Contactez-nous</h2>
-            <p className="text-slate-600 text-sm">Une question ? Nous vous répondons.</p>
+      {/* ─── CONTACT ─── */}
+      <section id="contact" className="py-20 px-6 bg-slate-50/60">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-semibold text-slate-900 tracking-tight mb-3">Contactez-nous</h2>
+            <p className="text-slate-500 text-base">Une question ? Notre équipe vous répond rapidement.</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            <form onSubmit={handleContactSubmit} className="space-y-3">
+          <div className="grid md:grid-cols-5 gap-8">
+            {/* Form - 3 cols */}
+            <form onSubmit={handleContactSubmit} className="md:col-span-3 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <input
                   type="text"
@@ -274,7 +308,7 @@ export default function LandingPage() {
                   required
                   value={contactForm.prenom}
                   onChange={(e) => setContactForm({ ...contactForm, prenom: e.target.value })}
-                  className="px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                  className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
                 />
                 <input
                   type="text"
@@ -282,7 +316,7 @@ export default function LandingPage() {
                   required
                   value={contactForm.nom}
                   onChange={(e) => setContactForm({ ...contactForm, nom: e.target.value })}
-                  className="px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                  className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
                 />
               </div>
               <input
@@ -291,130 +325,158 @@ export default function LandingPage() {
                 required
                 value={contactForm.email}
                 onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
               />
-              <input
-                type="tel"
-                placeholder="Téléphone"
-                value={contactForm.telephone}
-                onChange={(e) => setContactForm({ ...contactForm, telephone: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
-              />
-              <input
-                type="text"
-                placeholder="Entreprise"
-                value={contactForm.entreprise}
-                onChange={(e) => setContactForm({ ...contactForm, entreprise: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400"
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="tel"
+                  placeholder="Téléphone"
+                  value={contactForm.telephone}
+                  onChange={(e) => setContactForm({ ...contactForm, telephone: e.target.value })}
+                  className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Entreprise"
+                  value={contactForm.entreprise}
+                  onChange={(e) => setContactForm({ ...contactForm, entreprise: e.target.value })}
+                  className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
+                />
+              </div>
               <textarea
-                placeholder="Message *"
+                placeholder="Votre message *"
                 required
                 rows={4}
                 value={contactForm.message}
                 onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 resize-none"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 resize-none bg-white"
               />
               <button
                 type="submit"
                 disabled={contactStatus === 'sending'}
-                className="w-full px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-md hover:bg-slate-800 transition disabled:opacity-50"
+                className="w-full px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition disabled:opacity-50 shadow-sm"
               >
                 {contactStatus === 'sending' ? (
                   <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Envoi...
                   </span>
                 ) : (
-                  'Envoyer'
+                  'Envoyer le message'
                 )}
               </button>
             </form>
-            <div className="space-y-3">
-              <div className="flex gap-3 p-3 rounded-md border border-slate-200">
-                <Mail className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+            {/* Info - 2 cols */}
+            <div className="md:col-span-2 space-y-3">
+              <div className="flex gap-4 p-4 rounded-xl border border-slate-200/80 bg-white">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  <Mail className="w-5 h-5 text-slate-500" />
+                </div>
                 <div>
-                  <div className="font-medium text-slate-900 text-xs">Email</div>
-                  <p className="text-slate-600 text-sm">{content.config_contact_email || 'contact@talosprimes.com'}</p>
+                  <div className="font-medium text-slate-900 text-sm">Email</div>
+                  <p className="text-slate-500 text-sm mt-0.5">{content.config_contact_email || 'contact@talosprimes.com'}</p>
                 </div>
               </div>
-              <div className="flex gap-3 p-3 rounded-md border border-slate-200">
-                <Phone className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+              <div className="flex gap-4 p-4 rounded-xl border border-slate-200/80 bg-white">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  <Phone className="w-5 h-5 text-slate-500" />
+                </div>
                 <div>
-                  <div className="font-medium text-slate-900 text-xs">Téléphone</div>
-                  <p className="text-slate-600 text-sm">{content.config_contact_phone || '+33 1 23 45 67 89'}</p>
+                  <div className="font-medium text-slate-900 text-sm">Téléphone</div>
+                  <p className="text-slate-500 text-sm mt-0.5">{content.config_contact_phone || '+33 1 23 45 67 89'}</p>
                 </div>
               </div>
-              <div className="flex gap-3 p-3 rounded-md border border-slate-200">
-                <MapPin className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-medium text-slate-900 text-xs">Adresse</div>
-                  <p className="text-slate-600 text-sm whitespace-pre-line">{content.config_contact_address || '123 Avenue de la Tech\n75001 Paris'}</p>
+              <div className="flex gap-4 p-4 rounded-xl border border-slate-200/80 bg-white">
+                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-slate-500" />
                 </div>
+                <div>
+                  <div className="font-medium text-slate-900 text-sm">Adresse</div>
+                  <p className="text-slate-500 text-sm mt-0.5 whitespace-pre-line">{content.config_contact_address || '123 Avenue de la Tech\n75001 Paris'}</p>
+                </div>
+              </div>
+              {/* Mini CTA rappel */}
+              <div className="p-4 rounded-xl bg-slate-900 text-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm font-medium">Rappel IA immédiat</span>
+                </div>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Cliquez sur la bulle en bas à droite pour être rappelé instantanément par notre agent IA.
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="py-12 px-6 bg-slate-900 text-white">
+      {/* ─── CTA FINAL ─── */}
+      <section className="py-16 px-6 bg-slate-900">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-xl font-medium text-white mb-3">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-white mb-4">
             {content.cta_section_title || 'Prêt à simplifier votre gestion ?'}
           </h2>
-          <p className="text-slate-400 text-sm mb-6">
-            {content.cta_section_subtitle || 'Rejoignez les entreprises qui automatisent leur quotidien.'}
+          <p className="text-slate-400 text-base mb-8 max-w-lg mx-auto">
+            {content.cta_section_subtitle || 'Rejoignez les entreprises qui automatisent leur quotidien avec TalosPrimes.'}
           </p>
-          <CtaLink href={ctaSectionLink} className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 text-sm font-medium rounded-md hover:bg-slate-100 transition">
-            Commencer
+          <CtaLink href={ctaSectionLink} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-100 transition shadow-sm">
+            Commencer gratuitement
             <ArrowRight className="w-4 h-4" />
           </CtaLink>
         </div>
       </section>
 
-      <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 py-10 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* ─── FOOTER ─── */}
+      <footer className="bg-slate-950 text-slate-400 py-12 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Workflow className="w-5 h-5 text-slate-500" />
-                <span className="font-medium text-slate-300">{content.footer_company_name || 'TalosPrimes'}</span>
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center">
+                  <Workflow className="w-4 h-4 text-slate-400" />
+                </div>
+                <span className="font-semibold text-slate-200">{content.footer_company_name || 'TalosPrimes'}</span>
               </div>
-              <p className="text-xs text-slate-500">{content.footer_company_desc || 'Plateforme de gestion.'}</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{content.footer_company_desc || 'Plateforme de gestion d\'entreprise automatisée.'}</p>
             </div>
             <div>
-              <h3 className="font-medium text-slate-300 text-xs mb-2">Produit</h3>
-              <ul className="space-y-1.5 text-xs">
+              <h3 className="font-semibold text-slate-300 text-xs uppercase tracking-wider mb-3">Produit</h3>
+              <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="hover:text-slate-200 transition">Fonctionnalités</a></li>
                 <li><Link href="/page/tarifs" className="hover:text-slate-200 transition">Tarifs</Link></li>
                 <li><a href="#testimonials" className="hover:text-slate-200 transition">Témoignages</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-medium text-slate-300 text-xs mb-2">Légal</h3>
-              <ul className="space-y-1.5 text-xs">
+              <h3 className="font-semibold text-slate-300 text-xs uppercase tracking-wider mb-3">Légal</h3>
+              <ul className="space-y-2 text-sm">
                 <li><Link href="/mentions-legales" className="hover:text-slate-200 transition">Mentions légales</Link></li>
                 <li><Link href="/cgu" className="hover:text-slate-200 transition">CGU</Link></li>
                 <li><Link href="/cgv" className="hover:text-slate-200 transition">CGV</Link></li>
-                <li><Link href="/confidentialite" className="hover:text-slate-200 transition">Confidentialité</Link></li>
+                <li><Link href="/confidentialite" className="hover:text-slate-200 transition">Confidentialité & RGPD</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-medium text-slate-300 text-xs mb-2">Support</h3>
-              <ul className="space-y-1.5 text-xs">
+              <h3 className="font-semibold text-slate-300 text-xs uppercase tracking-wider mb-3">Support</h3>
+              <ul className="space-y-2 text-sm">
                 <li><a href="#contact" className="hover:text-slate-200 transition">Contact</a></li>
                 <li><Link href="/login" className="hover:text-slate-200 transition">Connexion</Link></li>
               </ul>
             </div>
           </div>
-          <div className="pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
-            © {new Date().getFullYear()} {content.footer_company_name || 'TalosPrimes'}. Tous droits réservés.
+          <div className="pt-8 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+            <span>&copy; {new Date().getFullYear()} {content.footer_company_name || 'TalosPrimes'}. Tous droits réservés.</span>
+            <div className="flex gap-4">
+              <Link href="/mentions-legales" className="hover:text-slate-300 transition">Mentions légales</Link>
+              <Link href="/confidentialite" className="hover:text-slate-300 transition">Confidentialité</Link>
+              <Link href="/cgv" className="hover:text-slate-300 transition">CGV</Link>
+            </div>
           </div>
         </div>
       </footer>
+
+      {/* ─── BULLE RAPPEL IA ─── */}
+      <CallbackBubble />
     </div>
   );
 }
