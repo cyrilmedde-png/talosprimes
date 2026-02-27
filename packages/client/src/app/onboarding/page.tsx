@@ -18,14 +18,20 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 
-type LeadSource = 'formulaire_inscription' | 'admin' | 'agent_ia' | 'all';
+type TabId = 'inscrits' | 'admin' | 'agent_ia';
+
+const TABS: { id: TabId; label: string; icon: React.ElementType; color: string }[] = [
+  { id: 'inscrits', label: 'Leads Inscrits', icon: UserPlusIcon, color: 'green' },
+  { id: 'admin', label: 'Leads Admin', icon: UserIcon, color: 'indigo' },
+  { id: 'agent_ia', label: 'Leads Agent IA', icon: SparklesIcon, color: 'amber' },
+];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterSource, setFilterSource] = useState<LeadSource>('all');
+  const [activeTab, setActiveTab] = useState<TabId>('inscrits');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -52,26 +58,18 @@ export default function OnboardingPage() {
       return;
     }
     loadLeads();
-  }, [router, filterSource]);
+  }, [router]);
 
+  // Toujours charger TOUS les leads — le filtrage se fait côté client
   const loadLeads = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const params: { source?: string; statut?: string } = {};
-      if (filterSource === 'agent_ia') {
-        params.source = 'telephone_ia';
-      } else if (filterSource !== 'all') {
-        params.source = filterSource;
-      }
-      // Exclure les leads convertis et abandonnés de la liste
-      // On filtre côté client car l'API ne permet pas de filtrer par exclusion
-      
-      const response = await apiClient.leads.list(params);
+
+      const response = await apiClient.leads.list({});
       // Filtrer les leads convertis et abandonnés
       const leadsFiltered = (response.data.leads as Lead[]).filter(
-        lead => lead.statut !== 'converti' && lead.statut !== 'abandonne'
+        (lead) => lead.statut !== 'converti' && lead.statut !== 'abandonne'
       );
       setLeads(leadsFiltered);
     } catch (err) {
@@ -108,7 +106,10 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleUpdateStatus = async (leadId: string, newStatus: 'nouveau' | 'contacte' | 'converti' | 'abandonne') => {
+  const handleUpdateStatus = async (
+    leadId: string,
+    newStatus: 'nouveau' | 'contacte' | 'converti' | 'abandonne'
+  ) => {
     try {
       await apiClient.leads.updateStatus(leadId, newStatus);
       await loadLeads();
@@ -165,7 +166,7 @@ export default function OnboardingPage() {
       await loadLeads();
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi du questionnaire');
+      setError(err instanceof Error ? err.message : "Erreur lors de l'envoi du questionnaire");
     }
   };
 
@@ -180,11 +181,17 @@ export default function OnboardingPage() {
       });
       setShowEntretienModal(false);
       setSelectedLead(null);
-      setEntretienData({ dateEntretien: '', heureEntretien: '', typeEntretien: 'téléphonique' });
+      setEntretienData({
+        dateEntretien: '',
+        heureEntretien: '',
+        typeEntretien: 'téléphonique',
+      });
       await loadLeads();
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi de l\'email d\'entretien');
+      setError(
+        err instanceof Error ? err.message : "Erreur lors de l'envoi de l'email d'entretien"
+      );
     }
   };
 
@@ -202,7 +209,8 @@ export default function OnboardingPage() {
     }
   };
 
-  const filteredLeads = leads.filter(lead => {
+  // Filtrage par recherche
+  const filteredLeads = leads.filter((lead) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -213,9 +221,99 @@ export default function OnboardingPage() {
     );
   });
 
-  const leadsInscrits = filteredLeads.filter(l => l.source === 'formulaire_inscription');
-  const leadsAdmin = filteredLeads.filter(l => l.source === 'admin' || l.source === null);
-  const leadsAgentIA = filteredLeads.filter(l => l.source === 'telephone_ia' || l.source === 'telephone');
+  // Filtrage par source pour chaque onglet
+  const leadsInscrits = filteredLeads.filter((l) => l.source === 'formulaire_inscription');
+  const leadsAdmin = filteredLeads.filter((l) => l.source === 'admin' || l.source === null);
+  const leadsAgentIA = filteredLeads.filter(
+    (l) => l.source === 'telephone_ia' || l.source === 'telephone'
+  );
+
+  const getActiveLeads = (): Lead[] => {
+    switch (activeTab) {
+      case 'inscrits':
+        return leadsInscrits;
+      case 'admin':
+        return leadsAdmin;
+      case 'agent_ia':
+        return leadsAgentIA;
+    }
+  };
+
+  const getTabCount = (tabId: TabId): number => {
+    switch (tabId) {
+      case 'inscrits':
+        return leadsInscrits.length;
+      case 'admin':
+        return leadsAdmin.length;
+      case 'agent_ia':
+        return leadsAgentIA.length;
+    }
+  };
+
+  const activeLeads = getActiveLeads();
+
+  // Actions boutons pour chaque lead
+  const renderActions = (lead: Lead) => (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => {
+          setSelectedLead(lead);
+          setShowQuestionnaireModal(true);
+        }}
+        className="text-blue-400 hover:text-blue-300"
+        title="Envoyer questionnaire"
+      >
+        <DocumentTextIcon className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => {
+          setSelectedLead(lead);
+          setShowEntretienModal(true);
+        }}
+        className="text-green-400 hover:text-green-300"
+        title="Planifier entretien"
+      >
+        <PhoneIcon className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => {
+          setSelectedLead(lead);
+          setShowConfirmationModal(true);
+        }}
+        className="text-purple-400 hover:text-purple-300"
+        title="Confirmer conversion"
+      >
+        <CheckCircleIcon className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => handleEdit(lead)}
+        className="text-indigo-400 hover:text-indigo-300"
+        title="Modifier"
+      >
+        <PencilIcon className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => handleDelete(lead.id)}
+        className="text-red-400 hover:text-red-300"
+        title="Supprimer"
+      >
+        <TrashIcon className="h-5 w-5" />
+      </button>
+    </div>
+  );
+
+  const renderStatusSelect = (lead: Lead) => (
+    <select
+      value={lead.statut}
+      onChange={(e) => handleUpdateStatus(lead.id, e.target.value as typeof lead.statut)}
+      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    >
+      <option value="nouveau">Nouveau</option>
+      <option value="contacte">Contacté</option>
+      <option value="converti">Converti</option>
+      <option value="abandonne">Abandonné</option>
+    </select>
+  );
 
   if (loading) {
     return (
@@ -230,12 +328,11 @@ export default function OnboardingPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white">Onboarding</h1>
-          <p className="mt-2 text-sm text-gray-400">
-            Gestion des leads et inscriptions
-          </p>
+          <p className="mt-2 text-sm text-gray-400">Gestion des leads et inscriptions</p>
         </div>
         <button
           onClick={() => {
@@ -261,66 +358,8 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Filtres et recherche */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Rechercher un lead..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilterSource('all')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filterSource === 'all'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            Tous
-          </button>
-          <button
-            onClick={() => setFilterSource('formulaire_inscription')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filterSource === 'formulaire_inscription'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            Inscrits
-          </button>
-          <button
-            onClick={() => setFilterSource('admin')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filterSource === 'admin'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            Créés par admin
-          </button>
-          <button
-            onClick={() => setFilterSource('agent_ia')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filterSource === 'agent_ia'
-                ? 'bg-amber-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            Agent IA
-          </button>
-        </div>
-      </div>
-
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-400">Total Leads</h3>
@@ -337,7 +376,7 @@ export default function OnboardingPage() {
         </div>
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-400">Créés par admin</h3>
+            <h3 className="text-sm font-medium text-gray-400">Admin</h3>
             <UserIcon className="h-6 w-6 text-yellow-400" />
           </div>
           <p className="mt-2 text-3xl font-bold text-white">{leadsAdmin.length}</p>
@@ -351,349 +390,202 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Liste des leads inscrits */}
-      {filterSource === 'all' || filterSource === 'formulaire_inscription' ? (
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md mb-6">
-          <div className="px-6 py-4 border-b border-gray-700/30">
-            <h3 className="text-lg font-medium text-white">Leads Inscrits</h3>
-            <p className="mt-1 text-sm text-gray-400">Leads provenant du formulaire d'inscription</p>
+      {/* Recherche */}
+      <div className="mb-6">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
           </div>
-          <div className="p-6">
-            {leadsInscrits.length === 0 ? (
-              <div className="text-gray-500 text-center py-8">
+          <input
+            type="text"
+            placeholder="Rechercher un lead..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      {/* Onglets */}
+      <div className="border-b border-gray-700/30 mb-6">
+        <nav className="-mb-px flex gap-6">
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            const count = getTabCount(tab.id);
+            const borderColor = isActive
+              ? tab.color === 'green'
+                ? 'border-green-400'
+                : tab.color === 'indigo'
+                  ? 'border-indigo-400'
+                  : 'border-amber-400'
+              : 'border-transparent';
+            const textColor = isActive
+              ? 'text-white'
+              : 'text-gray-400 hover:text-gray-300';
+            const iconColor =
+              tab.color === 'green'
+                ? 'text-green-400'
+                : tab.color === 'indigo'
+                  ? 'text-indigo-400'
+                  : 'text-amber-400';
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 pb-3 px-1 border-b-2 text-sm font-medium transition-colors ${borderColor} ${textColor}`}
+              >
+                <Icon className={`h-5 w-5 ${isActive ? iconColor : 'text-gray-500'}`} />
+                {tab.label}
+                <span
+                  className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
+                    isActive
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-gray-800 text-gray-500'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Contenu de l'onglet actif */}
+      <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md">
+        {activeLeads.length === 0 ? (
+          <div className="text-gray-500 text-center py-12">
+            {activeTab === 'inscrits' && (
+              <>
                 <UserPlusIcon className="mx-auto h-12 w-12 text-gray-600" />
                 <p className="mt-4 text-gray-400">Aucun lead inscrit pour le moment</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-700/30">
-                  <thead className="bg-gray-800/30">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
-                    {leadsInscrits.map((lead) => (
-                      <tr key={lead.id} className="hover:bg-gray-800/30">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                          {lead.prenom} {lead.nom}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{lead.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{lead.telephone}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <select
-                            value={lead.statut}
-                            onChange={(e) => handleUpdateStatus(lead.id, e.target.value as typeof lead.statut)}
-                            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="nouveau">Nouveau</option>
-                            <option value="contacte">Contacté</option>
-                            <option value="converti">Converti</option>
-                            <option value="abandonne">Abandonné</option>
-                          </select>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowQuestionnaireModal(true);
-                              }}
-                              className="text-blue-400 hover:text-blue-300"
-                              title="Envoyer questionnaire"
-                            >
-                              <DocumentTextIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowEntretienModal(true);
-                              }}
-                              className="text-green-400 hover:text-green-300"
-                              title="Planifier entretien"
-                            >
-                              <PhoneIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowConfirmationModal(true);
-                              }}
-                              className="text-purple-400 hover:text-purple-300"
-                              title="Confirmer conversion"
-                            >
-                              <CheckCircleIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleEdit(lead)}
-                              className="text-indigo-400 hover:text-indigo-300"
-                              title="Modifier"
-                            >
-                              <PencilIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(lead.id)}
-                              className="text-red-400 hover:text-red-300"
-                              title="Supprimer"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              </>
             )}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Liste des leads créés par admin */}
-      {filterSource === 'all' || filterSource === 'admin' ? (
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md mb-6">
-          <div className="px-6 py-4 border-b border-gray-700/30">
-            <h3 className="text-lg font-medium text-white">Leads Créés par Admin</h3>
-            <p className="mt-1 text-sm text-gray-400">Leads créés manuellement par un administrateur</p>
-          </div>
-          <div className="p-6">
-            {leadsAdmin.length === 0 ? (
-              <div className="text-gray-500 text-center py-8">
+            {activeTab === 'admin' && (
+              <>
                 <UserIcon className="mx-auto h-12 w-12 text-gray-600" />
                 <p className="mt-4 text-gray-400">Aucun lead créé par admin pour le moment</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-700/30">
-                  <thead className="bg-gray-800/30">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
-                    {leadsAdmin.map((lead) => (
-                      <tr key={lead.id} className="hover:bg-gray-800/30">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                          {lead.prenom} {lead.nom}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{lead.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{lead.telephone}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <select
-                            value={lead.statut}
-                            onChange={(e) => handleUpdateStatus(lead.id, e.target.value as typeof lead.statut)}
-                            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="nouveau">Nouveau</option>
-                            <option value="contacte">Contacté</option>
-                            <option value="converti">Converti</option>
-                            <option value="abandonne">Abandonné</option>
-                          </select>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowQuestionnaireModal(true);
-                              }}
-                              className="text-blue-400 hover:text-blue-300"
-                              title="Envoyer questionnaire"
-                            >
-                              <DocumentTextIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowEntretienModal(true);
-                              }}
-                              className="text-green-400 hover:text-green-300"
-                              title="Planifier entretien"
-                            >
-                              <PhoneIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowConfirmationModal(true);
-                              }}
-                              className="text-purple-400 hover:text-purple-300"
-                              title="Confirmer conversion"
-                            >
-                              <CheckCircleIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleEdit(lead)}
-                              className="text-indigo-400 hover:text-indigo-300"
-                              title="Modifier"
-                            >
-                              <PencilIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(lead.id)}
-                              className="text-red-400 hover:text-red-300"
-                              title="Supprimer"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              </>
+            )}
+            {activeTab === 'agent_ia' && (
+              <>
+                <SparklesIcon className="mx-auto h-12 w-12 text-gray-600" />
+                <p className="mt-4 text-gray-400">
+                  Aucun lead créé par l&apos;agent IA pour le moment
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Les leads seront créés automatiquement lors des appels entrants
+                </p>
+              </>
             )}
           </div>
-        </div>
-      ) : null}
-
-      {/* Liste des leads créés par l'Agent IA */}
-      {filterSource === 'all' || filterSource === 'agent_ia' ? (
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md mb-6">
-          <div className="px-6 py-4 border-b border-gray-700/30 flex items-center gap-3">
-            <SparklesIcon className="h-5 w-5 text-amber-400" />
-            <div>
-              <h3 className="text-lg font-medium text-white">Leads Agent IA</h3>
-              <p className="mt-1 text-sm text-gray-400">Leads créés automatiquement par l&apos;agent téléphonique Léa</p>
-            </div>
-          </div>
-          <div className="p-6">
-            {leadsAgentIA.length === 0 ? (
-              <div className="text-gray-500 text-center py-8">
-                <SparklesIcon className="mx-auto h-12 w-12 text-gray-600" />
-                <p className="mt-4 text-gray-400">Aucun lead créé par l&apos;agent IA pour le moment</p>
-                <p className="mt-1 text-sm text-gray-500">Les leads seront créés automatiquement lors des appels entrants</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-700/30">
-                  <thead className="bg-gray-800/30">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Téléphone</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Notes IA</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
-                    {leadsAgentIA.map((lead) => (
-                      <tr key={lead.id} className="hover:bg-gray-800/30">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                          <div className="flex items-center gap-2">
-                            <PhoneIcon className="h-4 w-4 text-amber-400 flex-shrink-0" />
-                            {lead.prenom} {lead.nom}
-                          </div>
-                        </td>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-700/30">
+              <thead className="bg-gray-800/30">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                    Nom
+                  </th>
+                  {activeTab === 'agent_ia' ? (
+                    <>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        Téléphone
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        Notes IA
+                      </th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        Téléphone
+                      </th>
+                    </>
+                  )}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                    Statut
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-gray-800/20 divide-y divide-gray-700/30">
+                {activeLeads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-gray-800/30">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                      {activeTab === 'agent_ia' ? (
+                        <div className="flex items-center gap-2">
+                          <PhoneIcon className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                          {lead.prenom} {lead.nom}
+                        </div>
+                      ) : (
+                        <>
+                          {lead.prenom} {lead.nom}
+                        </>
+                      )}
+                    </td>
+                    {activeTab === 'agent_ia' ? (
+                      <>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-mono">
                           {lead.telephone}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {lead.email && !lead.email.includes('@placeholder') ? lead.email : (
+                          {lead.email && !lead.email.includes('@placeholder') ? (
+                            lead.email
+                          ) : (
                             <span className="text-gray-500 italic">Non renseigné</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate" title={lead.notes || ''}>
+                        <td
+                          className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate"
+                          title={lead.notes || ''}
+                        >
                           {lead.notes || <span className="text-gray-500 italic">-</span>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <select
-                            value={lead.statut}
-                            onChange={(e) => handleUpdateStatus(lead.id, e.target.value as typeof lead.statut)}
-                            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="nouveau">Nouveau</option>
-                            <option value="contacte">Contacté</option>
-                            <option value="converti">Converti</option>
-                            <option value="abandonne">Abandonné</option>
-                          </select>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {lead.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {new Date(lead.createdAt).toLocaleDateString('fr-FR', {
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {lead.telephone}
+                        </td>
+                      </>
+                    )}
+                    <td className="px-6 py-4 whitespace-nowrap">{renderStatusSelect(lead)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                      {activeTab === 'agent_ia'
+                        ? new Date(lead.createdAt).toLocaleDateString('fr-FR', {
                             day: '2-digit',
                             month: '2-digit',
                             year: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit',
-                          })}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowQuestionnaireModal(true);
-                              }}
-                              className="text-blue-400 hover:text-blue-300"
-                              title="Envoyer questionnaire"
-                            >
-                              <DocumentTextIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowEntretienModal(true);
-                              }}
-                              className="text-green-400 hover:text-green-300"
-                              title="Planifier entretien"
-                            >
-                              <PhoneIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedLead(lead);
-                                setShowConfirmationModal(true);
-                              }}
-                              className="text-purple-400 hover:text-purple-300"
-                              title="Confirmer conversion"
-                            >
-                              <CheckCircleIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleEdit(lead)}
-                              className="text-indigo-400 hover:text-indigo-300"
-                              title="Modifier"
-                            >
-                              <PencilIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(lead.id)}
-                              className="text-red-400 hover:text-red-300"
-                              title="Supprimer"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                          })
+                        : new Date(lead.createdAt).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{renderActions(lead)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      ) : null}
+        )}
+      </div>
 
       {/* Modal Créer */}
       {showCreateModal && (
@@ -737,7 +629,9 @@ export default function OnboardingPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Téléphone *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Téléphone *
+                </label>
                 <input
                   type="tel"
                   value={formData.telephone}
@@ -794,7 +688,12 @@ export default function OnboardingPage() {
                 <label className="block text-sm font-medium text-gray-300 mb-1">Statut</label>
                 <select
                   value={selectedLead.statut}
-                  onChange={(e) => setSelectedLead({ ...selectedLead, statut: e.target.value as typeof selectedLead.statut })}
+                  onChange={(e) =>
+                    setSelectedLead({
+                      ...selectedLead,
+                      statut: e.target.value as typeof selectedLead.statut,
+                    })
+                  }
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="nouveau">Nouveau</option>
@@ -852,10 +751,15 @@ export default function OnboardingPage() {
             </div>
             <div className="space-y-4">
               <p className="text-gray-300">
-                Êtes-vous sûr de vouloir envoyer le questionnaire à <strong>{selectedLead.prenom} {selectedLead.nom}</strong> ({selectedLead.email}) ?
+                Êtes-vous sûr de vouloir envoyer le questionnaire à{' '}
+                <strong>
+                  {selectedLead.prenom} {selectedLead.nom}
+                </strong>{' '}
+                ({selectedLead.email}) ?
               </p>
               <p className="text-sm text-gray-400">
-                Un email avec le lien du questionnaire sera envoyé et le statut sera mis à jour à "Contacté".
+                Un email avec le lien du questionnaire sera envoyé et le statut sera mis à jour à
+                &quot;Contacté&quot;.
               </p>
             </div>
             <div className="mt-6 flex gap-3">
@@ -889,7 +793,11 @@ export default function OnboardingPage() {
                 onClick={() => {
                   setShowEntretienModal(false);
                   setSelectedLead(null);
-                  setEntretienData({ dateEntretien: '', heureEntretien: '', typeEntretien: 'téléphonique' });
+                  setEntretienData({
+                    dateEntretien: '',
+                    heureEntretien: '',
+                    typeEntretien: 'téléphonique',
+                  });
                 }}
                 className="text-gray-400 hover:text-white"
               >
@@ -898,13 +806,21 @@ export default function OnboardingPage() {
             </div>
             <div className="space-y-4">
               <p className="text-gray-300">
-                Planifier un entretien avec <strong>{selectedLead.prenom} {selectedLead.nom}</strong> ({selectedLead.email})
+                Planifier un entretien avec{' '}
+                <strong>
+                  {selectedLead.prenom} {selectedLead.nom}
+                </strong>{' '}
+                ({selectedLead.email})
               </p>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Type d'entretien</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Type d&apos;entretien
+                </label>
                 <select
                   value={entretienData.typeEntretien}
-                  onChange={(e) => setEntretienData({ ...entretienData, typeEntretien: e.target.value })}
+                  onChange={(e) =>
+                    setEntretienData({ ...entretienData, typeEntretien: e.target.value })
+                  }
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="téléphonique">Téléphonique</option>
@@ -913,25 +829,34 @@ export default function OnboardingPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Date (optionnel)</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Date (optionnel)
+                </label>
                 <input
                   type="date"
                   value={entretienData.dateEntretien}
-                  onChange={(e) => setEntretienData({ ...entretienData, dateEntretien: e.target.value })}
+                  onChange={(e) =>
+                    setEntretienData({ ...entretienData, dateEntretien: e.target.value })
+                  }
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Heure (optionnel)</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Heure (optionnel)
+                </label>
                 <input
                   type="time"
                   value={entretienData.heureEntretien}
-                  onChange={(e) => setEntretienData({ ...entretienData, heureEntretien: e.target.value })}
+                  onChange={(e) =>
+                    setEntretienData({ ...entretienData, heureEntretien: e.target.value })
+                  }
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <p className="text-sm text-gray-400">
-                Si aucune date/heure n'est spécifiée, un lien de planification sera envoyé au lead.
+                Si aucune date/heure n&apos;est spécifiée, un lien de planification sera envoyé au
+                lead.
               </p>
             </div>
             <div className="mt-6 flex gap-3">
@@ -945,7 +870,11 @@ export default function OnboardingPage() {
                 onClick={() => {
                   setShowEntretienModal(false);
                   setSelectedLead(null);
-                  setEntretienData({ dateEntretien: '', heureEntretien: '', typeEntretien: 'téléphonique' });
+                  setEntretienData({
+                    dateEntretien: '',
+                    heureEntretien: '',
+                    typeEntretien: 'téléphonique',
+                  });
                 }}
                 className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
               >
@@ -974,10 +903,15 @@ export default function OnboardingPage() {
             </div>
             <div className="space-y-4">
               <p className="text-gray-300">
-                Êtes-vous sûr de vouloir confirmer la conversion de <strong>{selectedLead.prenom} {selectedLead.nom}</strong> ({selectedLead.email}) ?
+                Êtes-vous sûr de vouloir confirmer la conversion de{' '}
+                <strong>
+                  {selectedLead.prenom} {selectedLead.nom}
+                </strong>{' '}
+                ({selectedLead.email}) ?
               </p>
               <p className="text-sm text-gray-400">
-                Le statut sera mis à jour à "Converti" et un email de bienvenue sera envoyé au lead.
+                Le statut sera mis à jour à &quot;Converti&quot; et un email de bienvenue sera
+                envoyé au lead.
               </p>
             </div>
             <div className="mt-6 flex gap-3">

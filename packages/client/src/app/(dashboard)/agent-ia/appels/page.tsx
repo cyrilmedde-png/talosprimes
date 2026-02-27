@@ -10,40 +10,56 @@ import {
   CheckIcon,
 } from '@heroicons/react/24/outline';
 
-interface Call {
+// Interface alignée sur les champs Prisma retournés par l'API
+interface CallLog {
   id: string;
-  dateAppel: string;
-  appelant: string;
-  telephone: string;
-  duree: number;
-  urgence: 'CRITIQUE' | 'URGENT' | 'STANDARD' | 'INFO';
-  sentiment: 'POSITIF' | 'NEUTRE' | 'FRUSTRE' | 'EN_DETRESSE';
-  suivi: boolean;
-  direction: 'entrant' | 'sortant';
+  createdAt: string;
+  callerName?: string | null;
+  callerPhone?: string;
+  caller_phone?: string;
+  duration?: number;
+  urgencyLevel?: string;
+  urgency_level?: string;
+  sentiment?: string;
+  followUpRequired?: boolean;
+  follow_up_required?: boolean;
+  followUpDone?: boolean;
+  follow_up_done?: boolean;
+  direction?: string;
+  status?: string;
+  actionTaken?: string;
+  action_taken?: string;
+  callSid?: string;
+  call_sid?: string;
+  transcript?: string | null;
+  conversationLog?: unknown;
+  conversation_log?: unknown;
+  notes?: string | null;
+  callerEmail?: string | null;
+  niche?: string | null;
+  created_at?: string;
 }
 
-interface CallDetail extends Call {
-  transcription?: string;
-  conversation?: string;
-  notes?: string;
+// Helpers pour accéder aux champs (camelCase ou snake_case selon le retour API/n8n)
+function getField(call: CallLog, camel: string, snake: string): string {
+  return (call as Record<string, unknown>)[camel] as string || (call as Record<string, unknown>)[snake] as string || '';
 }
 
 export default function AppelsPage() {
   const router = useRouter();
-  const [calls, setCalls] = useState<Call[]>([]);
+  const [calls, setCalls] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCall, setSelectedCall] = useState<CallDetail | null>(null);
+  const [selectedCall, setSelectedCall] = useState<CallLog | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [updatingFollowup, setUpdatingFollowup] = useState(false);
 
-  // Filter states
-  const [filterUrgence, setFilterUrgence] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [filterSentiment, setFilterSentiment] = useState<string>('');
-  const [filterDirection, setFilterDirection] = useState<string>('');
-  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
-  const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [filterUrgence, setFilterUrgence] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterSentiment, setFilterSentiment] = useState('');
+  const [filterDirection, setFilterDirection] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -58,9 +74,8 @@ export default function AppelsPage() {
       setLoading(true);
       setError(null);
 
-      const filters: Record<string, any> = {};
-      if (filterUrgence) filters.urgence = filterUrgence;
-      if (filterStatus) filters.suivi = filterStatus === 'avec_suivi';
+      const filters: Record<string, string> = {};
+      if (filterUrgence) filters.urgencyLevel = filterUrgence;
       if (filterSentiment) filters.sentiment = filterSentiment;
       if (filterDirection) filters.direction = filterDirection;
       if (filterDateFrom) filters.dateFrom = filterDateFrom;
@@ -68,22 +83,20 @@ export default function AppelsPage() {
 
       const response = await apiClient.callLogs.list(filters);
       if (response.success && response.data) {
-        setCalls((response.data.callLogs || []) as Call[]);
+        const raw = response.data;
+        const logs = (raw.callLogs || raw.calls || []) as CallLog[];
+        setCalls(logs);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement';
-      setError(errorMessage);
-      if (errorMessage.includes('Session expirée')) {
-        router.push('/login');
-      }
+      const msg = err instanceof Error ? err.message : 'Erreur de chargement';
+      setError(msg);
+      if (msg.includes('Session expirée')) router.push('/login');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApplyFilters = () => {
-    loadCalls();
-  };
+  const handleApplyFilters = () => loadCalls();
 
   const handleClearFilters = () => {
     setFilterUrgence('');
@@ -94,11 +107,12 @@ export default function AppelsPage() {
     setFilterDateTo('');
   };
 
-  const handleRowClick = async (call: Call) => {
+  const handleRowClick = async (call: CallLog) => {
     try {
       const response = await apiClient.callLogs.get(call.id);
       if (response.success && response.data) {
-        setSelectedCall(response.data as unknown as CallDetail);
+        const detail = (response.data.callLog || response.data) as CallLog;
+        setSelectedCall(detail);
         setShowModal(true);
       }
     } catch (err) {
@@ -108,19 +122,12 @@ export default function AppelsPage() {
 
   const handleMarkFollowupDone = async () => {
     if (!selectedCall) return;
-
     try {
       setUpdatingFollowup(true);
-      const response = await apiClient.callLogs.update(selectedCall.id, {
-        followUpDone: true,
-      });
-
+      const response = await apiClient.callLogs.update(selectedCall.id, { followUpDone: true });
       if (response.success) {
-        setSelectedCall({ ...selectedCall, suivi: true });
-        // Update the calls list
-        setCalls(
-          calls.map((c) => (c.id === selectedCall.id ? { ...c, suivi: true } : c))
-        );
+        setSelectedCall({ ...selectedCall, followUpDone: true, follow_up_done: true });
+        setCalls(calls.map((c) => (c.id === selectedCall.id ? { ...c, followUpDone: true, follow_up_done: true } : c)));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de mise à jour');
@@ -129,42 +136,73 @@ export default function AppelsPage() {
     }
   };
 
+  // Getters robustes (camelCase ou snake_case)
+  const getDate = (c: CallLog) => c.createdAt || c.created_at || '';
+  const getName = (c: CallLog) => c.callerName || '';
+  const getPhone = (c: CallLog) => c.callerPhone || c.caller_phone || '';
+  const getDuration = (c: CallLog) => c.duration ?? 0;
+  const getUrgency = (c: CallLog) => c.urgencyLevel || c.urgency_level || '';
+  const getSentiment = (c: CallLog) => c.sentiment || '';
+  const getAction = (c: CallLog) => c.actionTaken || c.action_taken || '';
+  const getFollowUp = (c: CallLog) => c.followUpRequired || c.follow_up_required || false;
+  const getFollowUpDone = (c: CallLog) => c.followUpDone || c.follow_up_done || false;
+  const getTranscript = (c: CallLog) => c.transcript || '';
+  const getConversation = (c: CallLog) => {
+    const log = c.conversationLog || c.conversation_log;
+    return typeof log === 'string' ? log : log ? JSON.stringify(log, null, 2) : '';
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('fr-FR', {
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+  };
+
   const formatDuration = (seconds: number): string => {
+    if (!seconds || seconds <= 0) return '-';
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${minutes}m ${secs}s`;
+    return `${minutes}m ${secs.toString().padStart(2, '0')}s`;
   };
 
   const getUrgenceBadgeColor = (urgence: string): string => {
     switch (urgence) {
-      case 'CRITIQUE':
-        return 'bg-red-900/30 text-red-300 border-red-700/30';
-      case 'URGENT':
-        return 'bg-orange-900/30 text-orange-300 border-orange-700/30';
-      case 'STANDARD':
-        return 'bg-blue-900/30 text-blue-300 border-blue-700/30';
-      case 'INFO':
-        return 'bg-green-900/30 text-green-300 border-green-700/30';
-      default:
-        return 'bg-gray-900/30 text-gray-300 border-gray-700/30';
+      case 'CRITIQUE': return 'bg-red-900/30 text-red-300 border-red-700/30';
+      case 'URGENT': return 'bg-orange-900/30 text-orange-300 border-orange-700/30';
+      case 'STANDARD': return 'bg-blue-900/30 text-blue-300 border-blue-700/30';
+      case 'INFO': return 'bg-green-900/30 text-green-300 border-green-700/30';
+      default: return 'bg-gray-900/30 text-gray-300 border-gray-700/30';
     }
   };
 
   const getSentimentBadgeColor = (sentiment: string): string => {
     switch (sentiment) {
-      case 'POSITIF':
-        return 'bg-green-900/30 text-green-300 border-green-700/30';
-      case 'NEUTRE':
-        return 'bg-gray-900/30 text-gray-300 border-gray-700/30';
-      case 'FRUSTRE':
-        return 'bg-orange-900/30 text-orange-300 border-orange-700/30';
-      case 'EN_DETRESSE':
-        return 'bg-red-900/30 text-red-300 border-red-700/30';
-      default:
-        return 'bg-gray-900/30 text-gray-300 border-gray-700/30';
+      case 'POSITIF': return 'bg-green-900/30 text-green-300 border-green-700/30';
+      case 'NEUTRE': return 'bg-gray-900/30 text-gray-300 border-gray-700/30';
+      case 'FRUSTRE': return 'bg-orange-900/30 text-orange-300 border-orange-700/30';
+      case 'EN_DETRESSE': return 'bg-red-900/30 text-red-300 border-red-700/30';
+      default: return 'bg-gray-900/30 text-gray-300 border-gray-700/30';
     }
   };
+
+  const actionLabels: Record<string, string> = {
+    INFO: 'Information',
+    DEVIS: 'Devis',
+    RDV: 'Rendez-vous',
+    TRANSFERT: 'Transfert',
+    DISPATCH: 'Dispatch',
+  };
+
+  // Filtrage suivi côté client
+  const filteredCalls = calls.filter((c) => {
+    if (filterStatus === 'avec_suivi' && !getFollowUp(c)) return false;
+    if (filterStatus === 'sans_suivi' && getFollowUp(c)) return false;
+    return true;
+  });
 
   if (loading && calls.length === 0) {
     return (
@@ -183,7 +221,7 @@ export default function AppelsPage() {
         <div>
           <h1 className="text-3xl font-bold text-white">Journal des appels</h1>
           <p className="mt-2 text-sm text-gray-400">
-            Historique complet des appels gérés par l'Agent IA
+            Historique complet des appels gérés par l&apos;Agent IA
           </p>
         </div>
       </div>
@@ -191,10 +229,7 @@ export default function AppelsPage() {
       {error && (
         <div className="mb-4 bg-red-900/20 border border-red-700/30 text-red-300 px-4 py-3 rounded backdrop-blur-md">
           {error}
-          <button
-            onClick={() => setError(null)}
-            className="float-right text-red-400 hover:text-red-300"
-          >
+          <button onClick={() => setError(null)} className="float-right text-red-400 hover:text-red-300">
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
@@ -205,14 +240,8 @@ export default function AppelsPage() {
         <h3 className="text-lg font-semibold text-white mb-4">Filtrer</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Urgence
-            </label>
-            <select
-              value={filterUrgence}
-              onChange={(e) => setFilterUrgence(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500"
-            >
+            <label className="block text-sm font-medium text-gray-300 mb-2">Urgence</label>
+            <select value={filterUrgence} onChange={(e) => setFilterUrgence(e.target.value)} className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500">
               <option value="">Tous</option>
               <option value="CRITIQUE">Critique</option>
               <option value="URGENT">Urgent</option>
@@ -220,31 +249,17 @@ export default function AppelsPage() {
               <option value="INFO">Info</option>
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Statut
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500"
-            >
+            <label className="block text-sm font-medium text-gray-300 mb-2">Suivi</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500">
               <option value="">Tous</option>
               <option value="avec_suivi">Avec suivi</option>
               <option value="sans_suivi">Sans suivi</option>
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Sentiment
-            </label>
-            <select
-              value={filterSentiment}
-              onChange={(e) => setFilterSentiment(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500"
-            >
+            <label className="block text-sm font-medium text-gray-300 mb-2">Sentiment</label>
+            <select value={filterSentiment} onChange={(e) => setFilterSentiment(e.target.value)} className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500">
               <option value="">Tous</option>
               <option value="POSITIF">Positif</option>
               <option value="NEUTRE">Neutre</option>
@@ -252,58 +267,28 @@ export default function AppelsPage() {
               <option value="EN_DETRESSE">En détresse</option>
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Direction
-            </label>
-            <select
-              value={filterDirection}
-              onChange={(e) => setFilterDirection(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500"
-            >
+            <label className="block text-sm font-medium text-gray-300 mb-2">Direction</label>
+            <select value={filterDirection} onChange={(e) => setFilterDirection(e.target.value)} className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500">
               <option value="">Tous</option>
               <option value="entrant">Entrant</option>
               <option value="sortant">Sortant</option>
             </select>
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Du
-            </label>
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => setFilterDateFrom(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500"
-            />
+            <label className="block text-sm font-medium text-gray-300 mb-2">Du</label>
+            <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500" />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Au
-            </label>
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => setFilterDateTo(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500"
-            />
+            <label className="block text-sm font-medium text-gray-300 mb-2">Au</label>
+            <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm focus:outline-none focus:border-indigo-500" />
           </div>
         </div>
-
         <div className="flex gap-3 mt-4">
-          <button
-            onClick={handleApplyFilters}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors"
-          >
+          <button onClick={handleApplyFilters} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors">
             Appliquer les filtres
           </button>
-          <button
-            onClick={handleClearFilters}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"
-          >
+          <button onClick={handleClearFilters} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors">
             Réinitialiser
           </button>
         </div>
@@ -313,7 +298,7 @@ export default function AppelsPage() {
       <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md overflow-hidden">
         <div className="p-6 border-b border-gray-700/30">
           <h2 className="text-xl font-bold text-white">
-            Tous les appels ({calls.length})
+            Tous les appels ({filteredCalls.length})
           </h2>
         </div>
 
@@ -321,100 +306,71 @@ export default function AppelsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-900/50 border-b border-gray-700/30">
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Appelant
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Téléphone
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Durée
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Urgence
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Sentiment
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Suivi
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">
-                  Action
-                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Date</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Appelant</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Téléphone</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Durée</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Action</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Urgence</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Sentiment</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Suivi</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Détails</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/30">
-              {calls.length > 0 ? (
-                calls.map((call) => (
-                  <tr
-                    key={call.id}
-                    className="hover:bg-gray-700/20 transition-colors cursor-pointer"
-                    onClick={() => handleRowClick(call)}
-                  >
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      {new Date(call.dateAppel).toLocaleDateString('fr-FR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      {call.appelant}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      {call.telephone}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300">
-                      {formatDuration(call.duree)}
+              {filteredCalls.length > 0 ? (
+                filteredCalls.map((call) => (
+                  <tr key={call.id} className="hover:bg-gray-700/20 transition-colors cursor-pointer" onClick={() => handleRowClick(call)}>
+                    <td className="px-6 py-4 text-sm text-gray-300">{formatDate(getDate(call))}</td>
+                    <td className="px-6 py-4 text-sm text-white font-medium">{getName(call) || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-300 font-mono">{getPhone(call) || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-300">{formatDuration(getDuration(call))}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {getAction(call) ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300">
+                          {actionLabels[getAction(call)] || getAction(call)}
+                        </span>
+                      ) : '-'}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded-full border text-xs font-medium ${getUrgenceBadgeColor(
-                          call.urgence
-                        )}`}
-                      >
-                        {call.urgence}
-                      </span>
+                      {getUrgency(call) ? (
+                        <span className={`px-3 py-1 rounded-full border text-xs font-medium ${getUrgenceBadgeColor(getUrgency(call))}`}>
+                          {getUrgency(call)}
+                        </span>
+                      ) : '-'}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded-full border text-xs font-medium ${getSentimentBadgeColor(
-                          call.sentiment
-                        )}`}
-                      >
-                        {call.sentiment}
-                      </span>
+                      {getSentiment(call) ? (
+                        <span className={`px-3 py-1 rounded-full border text-xs font-medium ${getSentimentBadgeColor(getSentiment(call))}`}>
+                          {getSentiment(call)}
+                        </span>
+                      ) : '-'}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {call.suivi ? (
-                        <CheckIcon className="h-5 w-5 text-green-400" />
+                      {getFollowUp(call) ? (
+                        getFollowUpDone(call) ? (
+                          <CheckIcon className="h-5 w-5 text-green-400" />
+                        ) : (
+                          <div className="h-5 w-5 border-2 border-yellow-500 rounded" title="Suivi requis" />
+                        )
                       ) : (
-                        <div className="h-5 w-5 border-2 border-gray-600 rounded" />
+                        <span className="text-gray-600">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRowClick(call);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleRowClick(call); }}
                         className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
                       >
                         <EyeIcon className="h-4 w-4" />
-                        Détails
+                        Voir
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-gray-400">
+                  <td colSpan={9} className="px-6 py-12 text-center text-gray-400">
                     Aucun appel trouvé
                   </td>
                 </tr>
@@ -429,113 +385,86 @@ export default function AppelsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 border border-gray-700/50 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-700/30 flex justify-between items-center sticky top-0 bg-gray-800">
-              <h3 className="text-xl font-bold text-white">
-                Détails de l'appel
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-300"
-              >
+              <h3 className="text-xl font-bold text-white">Détails de l&apos;appel</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-300">
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Call Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Appelant</p>
-                  <p className="text-white font-medium">{selectedCall.appelant}</p>
+                  <p className="text-white font-medium">{getName(selectedCall) || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Téléphone</p>
-                  <p className="text-white font-medium">{selectedCall.telephone}</p>
+                  <p className="text-white font-medium font-mono">{getPhone(selectedCall)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Date</p>
-                  <p className="text-white font-medium">
-                    {new Date(selectedCall.dateAppel).toLocaleDateString(
-                      'fr-FR',
-                      {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      }
-                    )}
-                  </p>
+                  <p className="text-white font-medium">{formatDate(getDate(selectedCall))}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Durée</p>
-                  <p className="text-white font-medium">
-                    {formatDuration(selectedCall.duree)}
-                  </p>
+                  <p className="text-white font-medium">{formatDuration(getDuration(selectedCall))}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">Action</p>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300">
+                    {actionLabels[getAction(selectedCall)] || getAction(selectedCall) || '-'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">Direction</p>
+                  <p className="text-white font-medium capitalize">{selectedCall.direction || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Urgence</p>
-                  <span
-                    className={`px-3 py-1 rounded-full border text-xs font-medium inline-block ${getUrgenceBadgeColor(
-                      selectedCall.urgence
-                    )}`}
-                  >
-                    {selectedCall.urgence}
-                  </span>
+                  {getUrgency(selectedCall) ? (
+                    <span className={`px-3 py-1 rounded-full border text-xs font-medium inline-block ${getUrgenceBadgeColor(getUrgency(selectedCall))}`}>
+                      {getUrgency(selectedCall)}
+                    </span>
+                  ) : <span className="text-gray-500">-</span>}
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Sentiment</p>
-                  <span
-                    className={`px-3 py-1 rounded-full border text-xs font-medium inline-block ${getSentimentBadgeColor(
-                      selectedCall.sentiment
-                    )}`}
-                  >
-                    {selectedCall.sentiment}
-                  </span>
+                  {getSentiment(selectedCall) ? (
+                    <span className={`px-3 py-1 rounded-full border text-xs font-medium inline-block ${getSentimentBadgeColor(getSentiment(selectedCall))}`}>
+                      {getSentiment(selectedCall)}
+                    </span>
+                  ) : <span className="text-gray-500">-</span>}
                 </div>
               </div>
 
-              {/* Transcription */}
-              {selectedCall.transcription && (
+              {getTranscript(selectedCall) && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-300 mb-2">
-                    Transcription
-                  </h4>
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2">Transcription</h4>
                   <div className="bg-gray-900/30 border border-gray-700/30 rounded p-4 max-h-48 overflow-y-auto">
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">
-                      {selectedCall.transcription}
-                    </p>
+                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{getTranscript(selectedCall)}</p>
                   </div>
                 </div>
               )}
 
-              {/* Conversation */}
-              {selectedCall.conversation && (
+              {getConversation(selectedCall) && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-300 mb-2">
-                    Journal de conversation
-                  </h4>
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2">Journal de conversation</h4>
                   <div className="bg-gray-900/30 border border-gray-700/30 rounded p-4 max-h-48 overflow-y-auto">
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">
-                      {selectedCall.conversation}
-                    </p>
+                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{getConversation(selectedCall)}</p>
                   </div>
                 </div>
               )}
 
-              {/* Notes */}
               {selectedCall.notes && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-300 mb-2">
-                    Notes
-                  </h4>
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2">Notes</h4>
                   <div className="bg-gray-900/30 border border-gray-700/30 rounded p-4">
                     <p className="text-sm text-gray-300">{selectedCall.notes}</p>
                   </div>
                 </div>
               )}
 
-              {/* Action Button */}
-              {!selectedCall.suivi && (
+              {getFollowUp(selectedCall) && !getFollowUpDone(selectedCall) && (
                 <button
                   onClick={handleMarkFollowupDone}
                   disabled={updatingFollowup}
