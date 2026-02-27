@@ -13,27 +13,22 @@ import {
 interface TwilioConfig {
   id: string;
   niche: string;
-  nomAgent: string;
-  nomEntreprise: string;
-  horaires: string;
-  prixBase: string;
-  contactHumain: string;
-  promptAddon: string;
-  baseConnaissances: string;
-  delaiDispatch: number;
-  agentActif: boolean;
-  numeroTwilio?: string;
-}
-
-interface Niche {
-  id: string;
-  name: string;
+  agentName: string;
+  companyName: string;
+  businessHours: string;
+  basePrice: string;
+  humanContact: string;
+  systemPromptAddon: string;
+  knowledgeBase: string;
+  dispatchDelay: number;
+  active: boolean;
+  phoneNumber?: string;
 }
 
 export default function ConfigurationPage() {
   const router = useRouter();
   const [config, setConfig] = useState<TwilioConfig | null>(null);
-  const [niches, setNiches] = useState<Niche[]>([]);
+  const [niches, setNiches] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingCall, setTestingCall] = useState(false);
@@ -43,15 +38,15 @@ export default function ConfigurationPage() {
   // Form states
   const [formData, setFormData] = useState({
     niche: '',
-    nomAgent: '',
-    nomEntreprise: '',
-    horaires: '',
-    prixBase: '',
-    contactHumain: '',
-    promptAddon: '',
-    baseConnaissances: '',
-    delaiDispatch: 0,
-    agentActif: false,
+    agentName: '',
+    companyName: '',
+    businessHours: '',
+    basePrice: '',
+    humanContact: '',
+    systemPromptAddon: '',
+    knowledgeBase: '',
+    dispatchDelay: 0,
+    active: false,
   });
 
   useEffect(() => {
@@ -70,26 +65,27 @@ export default function ConfigurationPage() {
       // Load config
       const configResponse = await apiClient.twilioConfig.get();
       if (configResponse.success && configResponse.data) {
-        const configData = configResponse.data.config as TwilioConfig;
+        const configData = configResponse.data as unknown as TwilioConfig;
         setConfig(configData);
         setFormData({
           niche: configData.niche || '',
-          nomAgent: configData.nomAgent || '',
-          nomEntreprise: configData.nomEntreprise || '',
-          horaires: configData.horaires || '',
-          prixBase: configData.prixBase || '',
-          contactHumain: configData.contactHumain || '',
-          promptAddon: configData.promptAddon || '',
-          baseConnaissances: configData.baseConnaissances || '',
-          delaiDispatch: configData.delaiDispatch || 0,
-          agentActif: configData.agentActif || false,
+          agentName: configData.agentName || '',
+          companyName: configData.companyName || '',
+          businessHours: configData.businessHours || '',
+          basePrice: configData.basePrice || '',
+          humanContact: configData.humanContact || '',
+          systemPromptAddon: configData.systemPromptAddon || '',
+          knowledgeBase: configData.knowledgeBase || '',
+          dispatchDelay: configData.dispatchDelay || 0,
+          active: configData.active || false,
         });
       }
 
       // Load niches
       const nichesResponse = await apiClient.twilioConfig.niches();
       if (nichesResponse.success && nichesResponse.data) {
-        setNiches((nichesResponse.data.niches || []) as unknown as Niche[]);
+        const data = nichesResponse.data as unknown as { niches: string[] };
+        setNiches(data.niches || []);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement';
@@ -120,7 +116,7 @@ export default function ConfigurationPage() {
   const handleToggle = () => {
     setFormData({
       ...formData,
-      agentActif: !formData.agentActif,
+      active: !formData.active,
     });
   };
 
@@ -226,8 +222,8 @@ export default function ConfigurationPage() {
               >
                 <option value="">Sélectionner une niche</option>
                 {niches.map((niche) => (
-                  <option key={niche.id} value={niche.id}>
-                    {niche.name}
+                  <option key={niche} value={niche}>
+                    {niche.charAt(0).toUpperCase() + niche.slice(1).replace('_', ' ')}
                   </option>
                 ))}
               </select>
@@ -239,8 +235,8 @@ export default function ConfigurationPage() {
               </label>
               <input
                 type="text"
-                name="nomAgent"
-                value={formData.nomAgent}
+                name="agentName"
+                value={formData.agentName}
                 onChange={handleInputChange}
                 placeholder="Ex: Anna"
                 className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
@@ -253,8 +249,8 @@ export default function ConfigurationPage() {
               </label>
               <input
                 type="text"
-                name="nomEntreprise"
-                value={formData.nomEntreprise}
+                name="companyName"
+                value={formData.companyName}
                 onChange={handleInputChange}
                 placeholder="Ex: TalosPrimes"
                 className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
@@ -267,8 +263,8 @@ export default function ConfigurationPage() {
               </label>
               <input
                 type="text"
-                name="prixBase"
-                value={formData.prixBase}
+                name="basePrice"
+                value={formData.basePrice}
                 onChange={handleInputChange}
                 placeholder="Ex: 29.99€"
                 className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
@@ -281,8 +277,8 @@ export default function ConfigurationPage() {
               Horaires
             </label>
             <textarea
-              name="horaires"
-              value={formData.horaires}
+              name="businessHours"
+              value={formData.businessHours}
               onChange={handleInputChange}
               placeholder="Ex: Lun-Ven: 9h-18h, Sam: 10h-16h"
               rows={3}
@@ -296,8 +292,8 @@ export default function ConfigurationPage() {
             </label>
             <input
               type="text"
-              name="contactHumain"
-              value={formData.contactHumain}
+              name="humanContact"
+              value={formData.humanContact}
               onChange={handleInputChange}
               placeholder="Téléphone ou email pour passer à un humain"
               className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
@@ -314,8 +310,8 @@ export default function ConfigurationPage() {
               Prompt addon
             </label>
             <textarea
-              name="promptAddon"
-              value={formData.promptAddon}
+              name="systemPromptAddon"
+              value={formData.systemPromptAddon}
               onChange={handleInputChange}
               placeholder="Instructions supplémentaires pour le modèle IA..."
               rows={6}
@@ -328,8 +324,8 @@ export default function ConfigurationPage() {
               Base de connaissances
             </label>
             <textarea
-              name="baseConnaissances"
-              value={formData.baseConnaissances}
+              name="knowledgeBase"
+              value={formData.knowledgeBase}
               onChange={handleInputChange}
               placeholder="Contexte, informations clés, FAQ..."
               rows={6}
@@ -348,8 +344,8 @@ export default function ConfigurationPage() {
             </label>
             <input
               type="number"
-              name="delaiDispatch"
-              value={formData.delaiDispatch}
+              name="dispatchDelay"
+              value={formData.dispatchDelay}
               onChange={handleInputChange}
               placeholder="0"
               min="0"
@@ -366,20 +362,20 @@ export default function ConfigurationPage() {
                 type="button"
                 onClick={handleToggle}
                 className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                  formData.agentActif
+                  formData.active
                     ? 'bg-green-600'
                     : 'bg-gray-600'
                 }`}
               >
                 <span
                   className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                    formData.agentActif ? 'translate-x-7' : 'translate-x-1'
+                    formData.active ? 'translate-x-7' : 'translate-x-1'
                   }`}
                 />
               </button>
             </label>
             <p className="mt-2 text-xs text-gray-400">
-              {formData.agentActif
+              {formData.active
                 ? 'L\'agent IA est actif'
                 : 'L\'agent IA est désactivé'}
             </p>
@@ -427,12 +423,12 @@ export default function ConfigurationPage() {
               Numéro Twilio
             </h3>
             <p className="text-sm text-gray-400 mb-4">
-              {config?.numeroTwilio
+              {config?.phoneNumber
                 ? `Votre numéro Twilio assigné:`
                 : 'Aucun numéro Twilio assigné'}
             </p>
             <div className="px-4 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm font-mono">
-              {config?.numeroTwilio || 'Non configuré'}
+              {config?.phoneNumber || 'Non configuré'}
             </div>
           </div>
         </div>
