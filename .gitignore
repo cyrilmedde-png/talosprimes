@@ -30,7 +30,7 @@ out/
 Thumbs.db
 
 # Prisma
-packages/platform/prisma/migrations/
+# Les migrations DOIVENT être versionnées pour assurer la cohérence BDD/schéma
 
 # TypeScript
 *.tsbuildinfo
