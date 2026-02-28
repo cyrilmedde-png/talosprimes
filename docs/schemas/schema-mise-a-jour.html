@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalosPrimes — Schéma Mise à Jour Complète</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#1e293b,#0f172a);padding:28px 32px;border-bottom:3px solid #f59e0b}
+.header h1{font-size:32px;color:#fbbf24;display:flex;align-items:center;gap:12px}
+.header p{color:#94a3b8;margin-top:4px;font-size:15px}
+.header-stats{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap}
+.h-stat{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 20px;text-align:center;min-width:120px}
+.h-stat .n{font-size:28px;font-weight:800}
+.h-stat .l{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
+.h-stat.ok .n{color:#34d399}
+.h-stat.warn .n{color:#fbbf24}
+.h-stat.err .n{color:#f87171}
+.h-stat.info .n{color:#60a5fa}
+
+/* TABS */
+.tabs{display:flex;background:#1e293b;border-bottom:1px solid #334155;overflow-x:auto}
+.tab{padding:14px 28px;cursor:pointer;color:#94a3b8;font-weight:600;font-size:14px;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab:hover{color:#e2e8f0;background:#334155}
+.tab.active{color:#fbbf24;border-bottom-color:#fbbf24;background:transparent}
+.tab-panel{display:none;padding:24px 32px}
+.tab-panel.active{display:block}
+
+/* CHECKLIST */
+.checklist{max-width:900px}
+.check-section{margin-bottom:24px}
+.check-section h3{color:#60a5fa;font-size:16px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #334155}
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;margin-bottom:4px;transition:background .2s}
+.check-item:hover{background:#1e293b}
+.check-icon{font-size:20px;flex-shrink:0;width:24px;text-align:center}
+.check-text{flex:1}
+.check-text strong{color:#f1f5f9;font-size:14px}
+.check-text p{color:#94a3b8;font-size:12px;margin-top:2px}
+.check-tag{padding:2px 10px;border-radius:12px;font-size:10px;font-weight:700;flex-shrink:0}
+.tag-done{background:#065f4633;color:#34d399;border:1px solid #34d399}
+.tag-pending{background:#92400e33;color:#fbbf24;border:1px solid #fbbf24}
+.tag-error{background:#7f1d1d33;color:#f87171;border:1px solid #f87171}
+
+/* SQL BLOCK */
+.sql-block{background:#0d1117;border:1px solid #30363d;border-radius:10px;overflow:hidden;margin:16px 0;max-width:1000px}
+.sql-header{background:#161b22;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #30363d}
+.sql-header span{color:#7ee787;font-weight:600;font-size:13px}
+.sql-copy{background:#238636;color:white;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px}
+.sql-copy:hover{background:#2ea043}
+.sql-body{padding:16px;overflow-x:auto;max-height:500px;overflow-y:auto}
+.sql-body pre{color:#c9d1d9;font-family:'SF Mono','Fira Code',monospace;font-size:12px;line-height:1.6;white-space:pre}
+.sql-body .kw{color:#ff7b72}
+.sql-body .str{color:#a5d6ff}
+.sql-body .cm{color:#8b949e}
+.sql-body .fn{color:#d2a8ff}
+
+/* ER DIAGRAM */
+.er-container{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}
+.er-group{margin-bottom:32px}
+.er-group h3{color:#fbbf24;font-size:18px;margin-bottom:16px;padding:8px 16px;background:#1e293b;border-radius:8px;display:inline-block}
+.er-card{background:#1e293b;border-radius:12px;width:300px;overflow:hidden;border:1px solid #334155;transition:all .3s}
+.er-card:hover{border-color:#60a5fa;box-shadow:0 0 20px rgba(96,165,250,.15)}
+.er-card.new{border-color:#fbbf24;box-shadow:0 0 15px rgba(251,191,36,.1)}
+.er-card.new .er-title{background:linear-gradient(90deg,#92400e,#1e293b)}
+.er-title{padding:10px 14px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+.er-title .badge{margin-left:auto;font-size:9px;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-new{background:#fbbf2433;color:#fbbf24}
+.badge-mod{background:#60a5fa33;color:#60a5fa}
+.badge-ok{background:#34d39933;color:#34d399}
+.er-fields{padding:8px 14px 12px}
+.er-f{display:flex;align-items:center;padding:3px 0;font-size:12px;font-family:monospace}
+.er-f .n{flex:1;color:#e2e8f0}
+.er-f .t{color:#64748b;font-size:11px}
+.er-pk{color:#fbbf24;font-weight:700;margin-right:4px;font-size:10px}
+.er-fk{color:#a78bfa;font-weight:700;margin-right:4px;font-size:10px}
+.er-uq{color:#34d399;font-size:10px;margin-right:4px}
+
+/* RELATIONS SVG */
+.er-rels{margin-top:16px;background:#0f172a;border:1px solid #334155;border-radius:12px;padding:20px;overflow-x:auto}
+.rel-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px}
+.rel-from,.rel-to{background:#1e293b;padding:4px 12px;border-radius:6px;font-family:monospace;font-weight:600}
+.rel-from{color:#60a5fa;border:1px solid #60a5fa44}
+.rel-to{color:#a78bfa;border:1px solid #a78bfa44}
+.rel-arrow{color:#fbbf24;font-size:16px}
+.rel-type{color:#64748b;font-size:11px;font-style:italic}
+
+/* VERIFICATION */
+.verif-block{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px 20px;margin:12px 0;max-width:700px}
+.verif-block h4{color:#60a5fa;margin-bottom:8px;font-size:14px}
+.verif-block code{display:block;background:#0d1117;padding:10px;border-radius:6px;font-size:12px;color:#c9d1d9;overflow-x:auto;white-space:pre}
+
+/* FLOW */
+.flow{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0;align-items:center}
+.flow-step{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:12px 18px;min-width:160px;text-align:center}
+.flow-step.done{border-color:#34d399}
+.flow-step.pending{border-color:#fbbf24}
+.flow-step .num{font-size:20px;font-weight:800;color:#60a5fa}
+.flow-step.done .num{color:#34d399}
+.flow-step.pending .num{color:#fbbf24}
+.flow-step .txt{font-size:12px;color:#94a3b8;margin-top:4px}
+.flow-arrow{color:#475569;font-size:24px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔄 TalosPrimes — Plan de Mise à Jour</h1>
+  <p>État complet du système Plans & Modules • Base de données, API, Frontend</p>
+  <div class="header-stats">
+    <div class="h-stat ok"><div class="n">35</div><div class="l">Tables BDD</div></div>
+    <div class="h-stat ok"><div class="n">3</div><div class="l">Plans créés</div></div>
+    <div class="h-stat warn"><div class="n">2/3</div><div class="l">Plan↔Modules</div></div>
+    <div class="h-stat ok"><div class="n">16</div><div class="l">Modules</div></div>
+    <div class="h-stat ok"><div class="n">14</div><div class="l">API Routes</div></div>
+    <div class="h-stat ok"><div class="n">3</div><div class="l">Onglets UI</div></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('checklist')">✅ Checklist</div>
+  <div class="tab" onclick="showTab('schema')">🗄️ Schéma BDD</div>
+  <div class="tab" onclick="showTab('relations')">🔗 Relations</div>
+  <div class="tab" onclick="showTab('sql')">💾 SQL à exécuter</div>
+  <div class="tab" onclick="showTab('verif')">🔍 Vérification</div>
+</div>
+
+<!-- TAB 1: CHECKLIST -->
+<div class="tab-panel active" id="checklist">
+  <h2 style="color:#fbbf24;margin-bottom:20px">État de la mise à jour</h2>
+
+  <div class="flow">
+    <div class="flow-step done"><div class="num">1</div><div class="txt">Schema Prisma</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step done"><div class="num">2</div><div class="txt">db push</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step done"><div class="num">3</div><div class="txt">API Routes</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step done"><div class="num">4</div><div class="txt">Frontend</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step done"><div class="num">5</div><div class="txt">Seed Plans</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step pending"><div class="num">6</div><div class="txt">Seed Modules</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step pending"><div class="num">7</div><div class="txt">Build VPS</div></div>
+  </div>
+
+  <div class="check-section">
+    <h3>📐 Schema Prisma (schema.prisma)</h3>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>Model Plan</strong><p>id, code, nom, prixMensuel, prixAnnuel, stripeProductId, stripePriceId*, essaiJours, ordreAffichage, actif, couleur</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>Model PlanModule</strong><p>planId ↔ moduleId, limiteUsage, config (JsonB) • Unique: planId+moduleId</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>Model ClientModule</strong><p>clientFinalId ↔ moduleId, actif, limiteUsage, usageActuel, config, activatedAt, expiresAt</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>ModuleMetier enrichi</strong><p>Ajout ordreAffichage (Int), actif (Boolean), relations planModules[] et clientModules[]</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>ClientSubscription.planId</strong><p>Ajout FK vers Plan (optionnel, onDelete: SetNull)</p></div><span class="check-tag tag-done">OK</span></div>
+  </div>
+
+  <div class="check-section">
+    <h3>🗃️ Base de Données (Supabase PostgreSQL)</h3>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>prisma db push</strong><p>Tables plans, plan_modules, client_modules créées</p></div><span class="check-tag tag-done">Synced</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>3 Plans insérés</strong><p>Starter (29€), Pro (59€), Enterprise (129€)</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>16 Modules mis à jour</strong><p>ordreAffichage et actif renseignés pour tous</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>Pro ↔ 12 modules</strong><p>Tous les modules sauf agent_telephonique, SMS limité à 100</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">⚠️</div><div class="check-text"><strong>Starter ↔ 8 modules</strong><p>facturation, devis, bdc, avoirs, proformas, articles, dashboard, notifications</p></div><span class="check-tag tag-pending">SQL à lancer</span></div>
+    <div class="check-item"><div class="check-icon">⚠️</div><div class="check-text"><strong>Enterprise ↔ 13 modules</strong><p>Tout illimité + Agent IA</p></div><span class="check-tag tag-pending">SQL à lancer</span></div>
+  </div>
+
+  <div class="check-section">
+    <h3>⚡ API Platform (Fastify :3001)</h3>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>plans.routes.ts — 10 routes</strong><p>GET /, /all, /:id, /by-code/:code, /modules, /modules/all • POST / • PUT /:id, /:id/modules • DELETE /:id</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>client-modules.routes.ts — 4 routes</strong><p>GET /:clientId, /stats • POST /:clientId/activate • PATCH /:clientId/toggle</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>index.ts — routes enregistrées</strong><p>plansRoutes prefix /api/plans • clientModulesRoutes prefix /api/client-modules</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>TypeScript — 0 erreurs</strong><p>Prisma.InputJsonValue cast, Prisma.JsonNull, connect pattern, statut 'actif' uniquement</p></div><span class="check-tag tag-done">Fixed</span></div>
+    <div class="check-item"><div class="check-icon">⚠️</div><div class="check-text"><strong>Build VPS platform</strong><p>Commit 5d7652d0 poussé — redéployer pour compiler</p></div><span class="check-tag tag-pending">Redéployer</span></div>
+  </div>
+
+  <div class="check-section">
+    <h3>🖥️ Frontend Client (Next.js :3000)</h3>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>Page /plans avec 3 onglets</strong><p>Plans (cards expandables), Modules (catalogue groupé), Attribution (sélection client)</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>Sidebar — lien Administration</strong><p>"Plans & Modules" avec BanknotesIcon</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>API Client — méthodes ajoutées</strong><p>apiClient.plans.* (10 méthodes) + apiClient.clientModules.* (4 méthodes)</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>TypeScript — 0 erreurs frontend</strong><p>Imports nettoyés, interfaces ajoutées</p></div><span class="check-tag tag-done">OK</span></div>
+  </div>
+
+  <div class="check-section">
+    <h3>🔧 n8n Workflows</h3>
+    <div class="check-item"><div class="check-icon">✅</div><div class="check-text"><strong>6 workflows actifs</strong><p>Onboarding, Checkout, Sub Created/Updated/Deleted, Trial Ending</p></div><span class="check-tag tag-done">OK</span></div>
+    <div class="check-item"><div class="check-icon">💡</div><div class="check-text"><strong>Intégrer POST /api/client-modules/:clientId/activate</strong><p>À ajouter dans le workflow onboarding après création du client</p></div><span class="check-tag tag-pending">À faire</span></div>
+  </div>
+</div>
+
+<!-- TAB 2: SCHEMA BDD -->
+<div class="tab-panel" id="schema">
+  <h2 style="color:#fbbf24;margin-bottom:8px">Architecture Base de Données</h2>
+  <p style="color:#94a3b8;margin-bottom:24px">Les cartes bordées en <span style="color:#fbbf24">jaune</span> sont les nouveaux modèles ajoutés</p>
+
+  <div class="er-group">
+    <h3>💎 Système Plans & Modules (NOUVEAU)</h3>
+    <div class="er-container">
+      <div class="er-card new">
+        <div class="er-title" style="background:linear-gradient(90deg,#7c3aed33,#1e293b)">💎 Plan <span class="badge badge-new">NOUVEAU</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="er-uq">UQ</span><span class="n">code</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">nom</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">description</span><span class="t">Text?</span></div>
+          <div class="er-f"><span class="n">prixMensuel</span><span class="t">Decimal(10,2)</span></div>
+          <div class="er-f"><span class="n">prixAnnuel</span><span class="t">Decimal(10,2)?</span></div>
+          <div class="er-f"><span class="n">stripeProductId</span><span class="t">String?</span></div>
+          <div class="er-f"><span class="n">stripePriceIdMensuel</span><span class="t">String?</span></div>
+          <div class="er-f"><span class="n">stripePriceIdAnnuel</span><span class="t">String?</span></div>
+          <div class="er-f"><span class="n">essaiJours</span><span class="t">Int =0</span></div>
+          <div class="er-f"><span class="n">ordreAffichage</span><span class="t">Int =0</span></div>
+          <div class="er-f"><span class="n">actif</span><span class="t">Boolean =true</span></div>
+          <div class="er-f"><span class="n">couleur</span><span class="t">String?</span></div>
+        </div>
+      </div>
+
+      <div class="er-card new">
+        <div class="er-title" style="background:linear-gradient(90deg,#7c3aed33,#1e293b)">🔗 PlanModule <span class="badge badge-new">NOUVEAU</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n">planId</span><span class="t">→ Plan</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n">moduleId</span><span class="t">→ ModuleMetier</span></div>
+          <div class="er-f"><span class="n">limiteUsage</span><span class="t">Int?</span></div>
+          <div class="er-f"><span class="n">config</span><span class="t">JsonB?</span></div>
+          <div class="er-f"><span class="er-uq">UQ</span><span class="n" style="color:#94a3b8">planId + moduleId</span><span class="t"></span></div>
+        </div>
+      </div>
+
+      <div class="er-card new">
+        <div class="er-title" style="background:linear-gradient(90deg,#7c3aed33,#1e293b)">✅ ClientModule <span class="badge badge-new">NOUVEAU</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n">clientFinalId</span><span class="t">→ ClientFinal</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n">moduleId</span><span class="t">→ ModuleMetier</span></div>
+          <div class="er-f"><span class="n">actif</span><span class="t">Boolean =true</span></div>
+          <div class="er-f"><span class="n">limiteUsage</span><span class="t">Int?</span></div>
+          <div class="er-f"><span class="n">usageActuel</span><span class="t">Int =0</span></div>
+          <div class="er-f"><span class="n">config</span><span class="t">JsonB?</span></div>
+          <div class="er-f"><span class="n">activatedAt</span><span class="t">DateTime</span></div>
+          <div class="er-f"><span class="n">expiresAt</span><span class="t">DateTime?</span></div>
+          <div class="er-f"><span class="er-uq">UQ</span><span class="n" style="color:#94a3b8">clientFinalId + moduleId</span><span class="t"></span></div>
+        </div>
+      </div>
+
+      <div class="er-card">
+        <div class="er-title" style="background:linear-gradient(90deg,#1d4ed833,#1e293b)">🧩 ModuleMetier <span class="badge badge-mod">MODIFIÉ</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="er-uq">UQ</span><span class="n">code</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">nomAffiche</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">description</span><span class="t">Text?</span></div>
+          <div class="er-f"><span class="n">categorie</span><span class="t">String?</span></div>
+          <div class="er-f"><span class="n">icone</span><span class="t">String?</span></div>
+          <div class="er-f"><span class="n">prixParMois</span><span class="t">Decimal(10,2)</span></div>
+          <div class="er-f"><span class="n" style="color:#fbbf24">ordreAffichage</span><span class="t" style="color:#fbbf24">Int =0 ★</span></div>
+          <div class="er-f"><span class="n" style="color:#fbbf24">actif</span><span class="t" style="color:#fbbf24">Boolean =true ★</span></div>
+        </div>
+      </div>
+
+      <div class="er-card">
+        <div class="er-title" style="background:linear-gradient(90deg,#1d4ed833,#1e293b)">📋 ClientSubscription <span class="badge badge-mod">MODIFIÉ</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n">clientFinalId</span><span class="t">→ ClientFinal</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n" style="color:#fbbf24">planId</span><span class="t" style="color:#fbbf24">→ Plan? ★</span></div>
+          <div class="er-f"><span class="n">nomPlan</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">montantMensuel</span><span class="t">Decimal(10,2)</span></div>
+          <div class="er-f"><span class="n">statut</span><span class="t">SubscriptionStatus</span></div>
+          <div class="er-f"><span class="n">idAbonnementStripe</span><span class="t">String?</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="er-group">
+    <h3>🏢 Core</h3>
+    <div class="er-container">
+      <div class="er-card">
+        <div class="er-title" style="background:linear-gradient(90deg,#1d4ed833,#1e293b)">🏢 Tenant <span class="badge badge-ok">OK</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="n">nomEntreprise</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">siret / siren</span><span class="t">String?</span></div>
+          <div class="er-f"><span class="n">emailContact</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">metier</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">statut</span><span class="t">TenantStatus</span></div>
+          <div class="er-f" style="color:#64748b;font-size:11px;padding-top:4px">→ User[], ClientFinal[], Invoice[], Devis[], Lead[]...</div>
+        </div>
+      </div>
+      <div class="er-card">
+        <div class="er-title" style="background:linear-gradient(90deg,#1d4ed833,#1e293b)">👤 User <span class="badge badge-ok">OK</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n">tenantId</span><span class="t">→ Tenant</span></div>
+          <div class="er-f"><span class="n">email</span><span class="t">String</span></div>
+          <div class="er-f"><span class="n">role</span><span class="t">UserRole</span></div>
+          <div class="er-f"><span class="n">nom / prenom</span><span class="t">String?</span></div>
+        </div>
+      </div>
+      <div class="er-card">
+        <div class="er-title" style="background:linear-gradient(90deg,#1d4ed833,#1e293b)">👥 ClientFinal <span class="badge badge-ok">OK</span></div>
+        <div class="er-fields">
+          <div class="er-f"><span class="er-pk">PK</span><span class="n">id</span><span class="t">UUID</span></div>
+          <div class="er-f"><span class="er-fk">FK</span><span class="n">tenantId</span><span class="t">→ Tenant</span></div>
+          <div class="er-f"><span class="n">type</span><span class="t">b2b | b2c</span></div>
+          <div class="er-f"><span class="n">email</span><span class="t">String</span></div>
+          <div class="er-f" style="color:#64748b;font-size:11px;padding-top:4px">→ ClientSubscription[], ClientModule[], Invoice[]...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="er-group">
+    <h3>📊 Données existantes dans les plans</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:900px">
+      <div style="background:#1e293b;border:1px solid #3b82f6;border-radius:10px;padding:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:14px;height:14px;border-radius:50%;background:#3b82f6"></div><strong style="font-size:16px">Starter</strong><span style="color:#94a3b8;font-size:13px;margin-left:auto">29€/mois</span></div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.8">
+          ✅ facturation • ✅ devis • ✅ bons_commande<br>
+          ✅ avoirs • ✅ proformas • ✅ articles<br>
+          ✅ dashboard <span style="color:#64748b">(basique)</span> • ✅ notifications<br>
+          <div style="margin-top:6px;color:#fbbf24;font-weight:600">⚠️ Plan_modules NON insérés — SQL requis</div>
+        </div>
+      </div>
+      <div style="background:#1e293b;border:1px solid #a855f7;border-radius:10px;padding:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:14px;height:14px;border-radius:50%;background:#a855f7"></div><strong style="font-size:16px">Pro</strong><span style="color:#94a3b8;font-size:13px;margin-left:auto">59€/mois</span></div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.8">
+          ✅ Tout Starter + comptabilité + clients<br>
+          ✅ leads + sms <span style="color:#fbbf24">(100/mois)</span><br>
+          ✅ dashboard <span style="color:#64748b">(avancé)</span><br>
+          <div style="margin-top:6px;color:#34d399;font-weight:600">✅ 12 plan_modules insérés</div>
+        </div>
+      </div>
+      <div style="background:#1e293b;border:1px solid #f97316;border-radius:10px;padding:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:14px;height:14px;border-radius:50%;background:#f97316"></div><strong style="font-size:16px">Enterprise</strong><span style="color:#94a3b8;font-size:13px;margin-left:auto">129€/mois</span></div>
+        <div style="font-size:12px;color:#94a3b8;line-height:1.8">
+          ✅ Tout Pro + agent_telephonique<br>
+          ✅ sms <span style="color:#64748b">(illimité, appels inclus)</span><br>
+          ✅ dashboard <span style="color:#64748b">(premium)</span><br>
+          <div style="margin-top:6px;color:#fbbf24;font-weight:600">⚠️ Plan_modules NON insérés — SQL requis</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3: RELATIONS -->
+<div class="tab-panel" id="relations">
+  <h2 style="color:#fbbf24;margin-bottom:20px">Relations entre les modèles</h2>
+
+  <div class="er-rels">
+    <h3 style="color:#60a5fa;margin-bottom:16px;font-size:16px">🔗 Nouvelles relations (Plans & Modules)</h3>
+    <div class="rel-row"><span class="rel-from">Plan</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">PlanModule</span><span class="rel-type">planId → plan.id (CASCADE)</span></div>
+    <div class="rel-row"><span class="rel-from">ModuleMetier</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">PlanModule</span><span class="rel-type">moduleId → module.id (CASCADE)</span></div>
+    <div class="rel-row"><span class="rel-from">ClientFinal</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">ClientModule</span><span class="rel-type">clientFinalId → clientFinal.id (CASCADE)</span></div>
+    <div class="rel-row"><span class="rel-from">ModuleMetier</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">ClientModule</span><span class="rel-type">moduleId → module.id (CASCADE)</span></div>
+    <div class="rel-row"><span class="rel-from">Plan</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">ClientSubscription</span><span class="rel-type">planId → plan.id (SET NULL)</span></div>
+  </div>
+
+  <div class="er-rels" style="margin-top:20px">
+    <h3 style="color:#60a5fa;margin-bottom:16px;font-size:16px">📋 Flux d'attribution des modules</h3>
+    <div style="background:#0d1117;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;line-height:2;color:#c9d1d9">
+<span style="color:#fbbf24">1.</span> Client souscrit à un <span style="color:#a78bfa">Plan</span> (ex: "pro")<br>
+<span style="color:#fbbf24">2.</span> n8n appelle <span style="color:#7ee787">POST /api/client-modules/:clientId/activate</span> { planCode: "pro" }<br>
+<span style="color:#fbbf24">3.</span> API récupère les <span style="color:#a78bfa">PlanModule[]</span> du plan "pro" (12 modules)<br>
+<span style="color:#fbbf24">4.</span> API crée/active les <span style="color:#a78bfa">ClientModule[]</span> correspondants<br>
+<span style="color:#fbbf24">5.</span> API met à jour <span style="color:#a78bfa">ClientSubscription.planId</span> → plan.id<br>
+<span style="color:#fbbf24">6.</span> Frontend affiche les modules actifs du client dans l'onglet Attribution
+    </div>
+  </div>
+
+  <div class="er-rels" style="margin-top:20px">
+    <h3 style="color:#60a5fa;margin-bottom:16px;font-size:16px">🏗️ Relations existantes (résumé)</h3>
+    <div class="rel-row"><span class="rel-from">Tenant</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">User</span><span class="rel-type">CASCADE</span></div>
+    <div class="rel-row"><span class="rel-from">Tenant</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">ClientFinal</span><span class="rel-type">CASCADE</span></div>
+    <div class="rel-row"><span class="rel-from">Tenant</span><span class="rel-arrow">1 ←→ 1</span><span class="rel-to">Subscription</span><span class="rel-type">CASCADE</span></div>
+    <div class="rel-row"><span class="rel-from">ClientFinal</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">ClientSubscription</span><span class="rel-type">CASCADE</span></div>
+    <div class="rel-row"><span class="rel-from">ClientFinal</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">Invoice / Devis / BdC / Avoir</span><span class="rel-type">SET NULL</span></div>
+    <div class="rel-row"><span class="rel-from">Invoice</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">InvoiceLine</span><span class="rel-type">CASCADE</span></div>
+    <div class="rel-row"><span class="rel-from">Tenant</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">ExerciceComptable → EcritureComptable → LigneEcriture</span><span class="rel-type">CASCADE</span></div>
+    <div class="rel-row"><span class="rel-from">Tenant</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">Lead → CallLog → SmsLog</span><span class="rel-type">CASCADE</span></div>
+    <div class="rel-row"><span class="rel-from">ModuleMetier</span><span class="rel-arrow">1 ←→ N</span><span class="rel-to">WorkflowLink</span><span class="rel-type">CASCADE</span></div>
+  </div>
+</div>
+
+<!-- TAB 4: SQL -->
+<div class="tab-panel" id="sql">
+  <h2 style="color:#fbbf24;margin-bottom:8px">SQL à exécuter sur le VPS</h2>
+  <p style="color:#94a3b8;margin-bottom:20px">Copier et lancer avec : <code style="background:#1e293b;padding:2px 8px;border-radius:4px">psql "postgresql://postgres:***@db.prspvpaaeuxxhombqeuc.supabase.co:5432/postgres"</code></p>
+
+  <div class="sql-block">
+    <div class="sql-header"><span>🔧 Rattrapage Starter + Enterprise (plan_modules manquants)</span><button class="sql-copy" onclick="copySQL()">Copier</button></div>
+    <div class="sql-body"><pre id="sqlContent"><span class="cm">-- =============================================</span>
+<span class="cm">-- RATTRAPAGE: Associations plan_modules</span>
+<span class="cm">-- Starter (8 modules) + Enterprise (13 modules)</span>
+<span class="cm">-- Pro est déjà OK (12 modules)</span>
+<span class="cm">-- =============================================</span>
+
+<span class="cm">-- Plan Starter : 8 modules de base</span>
+<span class="kw">INSERT INTO</span> plan_modules (id, plan_id, module_id, limite_usage, config)
+<span class="kw">SELECT</span> <span class="fn">gen_random_uuid</span>(), p.id, m.id, v.limite::<span class="kw">integer</span>, v.config::<span class="kw">jsonb</span>
+<span class="kw">FROM</span> plans p
+<span class="kw">CROSS JOIN</span> (<span class="kw">VALUES</span>
+  (<span class="str">'facturation'</span>, <span class="kw">NULL</span>::<span class="kw">integer</span>, <span class="kw">NULL</span>::<span class="kw">text</span>),
+  (<span class="str">'devis'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'bons_commande'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'avoirs'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'proformas'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'articles'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'dashboard'</span>, <span class="kw">NULL</span>, <span class="str">'{"niveau": "basique"}'</span>),
+  (<span class="str">'notifications'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>)
+) <span class="kw">AS</span> v(module_code, limite, config)
+<span class="kw">JOIN</span> module_metiers m <span class="kw">ON</span> m.code = v.module_code
+<span class="kw">WHERE</span> p.code = <span class="str">'starter'</span>
+<span class="kw">ON CONFLICT</span> (plan_id, module_id) <span class="kw">DO UPDATE SET</span>
+  limite_usage = EXCLUDED.limite_usage,
+  config = EXCLUDED.config;
+
+<span class="cm">-- Plan Enterprise : 13 modules (tout illimité + Agent IA)</span>
+<span class="kw">INSERT INTO</span> plan_modules (id, plan_id, module_id, limite_usage, config)
+<span class="kw">SELECT</span> <span class="fn">gen_random_uuid</span>(), p.id, m.id, v.limite::<span class="kw">integer</span>, v.config::<span class="kw">jsonb</span>
+<span class="kw">FROM</span> plans p
+<span class="kw">CROSS JOIN</span> (<span class="kw">VALUES</span>
+  (<span class="str">'facturation'</span>, <span class="kw">NULL</span>::<span class="kw">integer</span>, <span class="kw">NULL</span>::<span class="kw">text</span>),
+  (<span class="str">'devis'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'bons_commande'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'avoirs'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'proformas'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'articles'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'dashboard'</span>, <span class="kw">NULL</span>, <span class="str">'{"niveau": "premium"}'</span>),
+  (<span class="str">'notifications'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'comptabilite'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'clients'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'leads'</span>, <span class="kw">NULL</span>, <span class="kw">NULL</span>),
+  (<span class="str">'sms'</span>, <span class="kw">NULL</span>, <span class="str">'{"sms_par_mois": null, "appels_inclus": true}'</span>),
+  (<span class="str">'agent_telephonique'</span>, <span class="kw">NULL</span>, <span class="str">'{"vocal": true, "chat": true}'</span>)
+) <span class="kw">AS</span> v(module_code, limite, config)
+<span class="kw">JOIN</span> module_metiers m <span class="kw">ON</span> m.code = v.module_code
+<span class="kw">WHERE</span> p.code = <span class="str">'enterprise'</span>
+<span class="kw">ON CONFLICT</span> (plan_id, module_id) <span class="kw">DO UPDATE SET</span>
+  limite_usage = EXCLUDED.limite_usage,
+  config = EXCLUDED.config;
+
+<span class="cm">-- Vérification finale</span>
+<span class="kw">SELECT</span> p.nom <span class="kw">AS</span> plan, <span class="fn">COUNT</span>(pm.id) <span class="kw">AS</span> nb_modules
+<span class="kw">FROM</span> plans p
+<span class="kw">LEFT JOIN</span> plan_modules pm <span class="kw">ON</span> pm.plan_id = p.id
+<span class="kw">GROUP BY</span> p.nom, p.ordre_affichage
+<span class="kw">ORDER BY</span> p.ordre_affichage;</pre></div>
+  </div>
+
+  <div style="margin-top:20px;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px">
+    <h3 style="color:#60a5fa;margin-bottom:10px">📋 Commande complète à lancer sur le VPS :</h3>
+    <code style="display:block;background:#0d1117;padding:12px;border-radius:6px;font-size:13px;color:#c9d1d9;white-space:pre-wrap">psql "postgresql://postgres:d5XuJwhM7nV1b9yn@db.prspvpaaeuxxhombqeuc.supabase.co:5432/postgres" << 'EOSQL'
+
+-- Rattrapage Starter
+INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
+SELECT gen_random_uuid(), p.id, m.id, v.limite::integer, v.config::jsonb
+FROM plans p CROSS JOIN (VALUES
+  ('facturation', NULL::integer, NULL::text),('devis', NULL, NULL),
+  ('bons_commande', NULL, NULL),('avoirs', NULL, NULL),
+  ('proformas', NULL, NULL),('articles', NULL, NULL),
+  ('dashboard', NULL, '{"niveau": "basique"}'),('notifications', NULL, NULL)
+) AS v(module_code, limite, config)
+JOIN module_metiers m ON m.code = v.module_code WHERE p.code = 'starter'
+ON CONFLICT (plan_id, module_id) DO UPDATE SET limite_usage = EXCLUDED.limite_usage, config = EXCLUDED.config;
+
+-- Rattrapage Enterprise
+INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
+SELECT gen_random_uuid(), p.id, m.id, v.limite::integer, v.config::jsonb
+FROM plans p CROSS JOIN (VALUES
+  ('facturation', NULL::integer, NULL::text),('devis', NULL, NULL),
+  ('bons_commande', NULL, NULL),('avoirs', NULL, NULL),
+  ('proformas', NULL, NULL),('articles', NULL, NULL),
+  ('dashboard', NULL, '{"niveau": "premium"}'),('notifications', NULL, NULL),
+  ('comptabilite', NULL, NULL),('clients', NULL, NULL),('leads', NULL, NULL),
+  ('sms', NULL, '{"sms_par_mois": null, "appels_inclus": true}'),
+  ('agent_telephonique', NULL, '{"vocal": true, "chat": true}')
+) AS v(module_code, limite, config)
+JOIN module_metiers m ON m.code = v.module_code WHERE p.code = 'enterprise'
+ON CONFLICT (plan_id, module_id) DO UPDATE SET limite_usage = EXCLUDED.limite_usage, config = EXCLUDED.config;
+
+-- Vérification
+SELECT p.nom, COUNT(pm.id) as nb_modules FROM plans p LEFT JOIN plan_modules pm ON pm.plan_id = p.id GROUP BY p.nom, p.ordre_affichage ORDER BY p.ordre_affichage;
+EOSQL</code>
+  </div>
+
+  <div style="margin-top:16px;background:#065f4622;border:1px solid #34d399;border-radius:10px;padding:16px">
+    <h4 style="color:#34d399;margin-bottom:8px">✅ Résultat attendu :</h4>
+    <code style="display:block;background:#0d1117;padding:10px;border-radius:6px;font-size:13px;color:#c9d1d9">    nom     | nb_modules
+------------+------------
+ Starter    |          8
+ Pro        |         12
+ Enterprise |         13</code>
+  </div>
+</div>
+
+<!-- TAB 5: VERIFICATION -->
+<div class="tab-panel" id="verif">
+  <h2 style="color:#fbbf24;margin-bottom:20px">Requêtes de vérification</h2>
+
+  <div class="verif-block">
+    <h4>1. Vérifier les 3 plans</h4>
+    <code>SELECT code, nom, prix_mensuel, prix_annuel, essai_jours, actif, couleur
+FROM plans ORDER BY ordre_affichage;</code>
+  </div>
+
+  <div class="verif-block">
+    <h4>2. Vérifier les 16 modules</h4>
+    <code>SELECT code, "nom_affiché", categorie, prix_par_mois, ordre_affichage, actif
+FROM module_metiers WHERE actif = true ORDER BY ordre_affichage;</code>
+  </div>
+
+  <div class="verif-block">
+    <h4>3. Vérifier les associations plan ↔ modules</h4>
+    <code>SELECT p.nom AS plan, p.couleur, m.code AS module, pm.limite_usage,
+       pm.config
+FROM plan_modules pm
+JOIN plans p ON p.id = pm.plan_id
+JOIN module_metiers m ON m.id = pm.module_id
+ORDER BY p.ordre_affichage, m.ordre_affichage;</code>
+  </div>
+
+  <div class="verif-block">
+    <h4>4. Comptage par plan</h4>
+    <code>SELECT p.nom, p.prix_mensuel, COUNT(pm.id) AS nb_modules
+FROM plans p
+LEFT JOIN plan_modules pm ON pm.plan_id = p.id
+GROUP BY p.nom, p.prix_mensuel, p.ordre_affichage
+ORDER BY p.ordre_affichage;</code>
+  </div>
+
+  <div class="verif-block">
+    <h4>5. Vérifier les API routes (curl depuis le VPS)</h4>
+    <code># Liste des plans
+curl -s http://localhost:3001/api/plans | jq '.data.plans | length'
+# Devrait retourner: 3
+
+# Catalogue modules
+curl -s http://localhost:3001/api/plans/modules | jq '.data.modules | length'
+# Devrait retourner: 16 (ou le nb de modules actifs)
+
+# Plan par code
+curl -s http://localhost:3001/api/plans/by-code/pro | jq '.data.plan.planModules | length'
+# Devrait retourner: 12</code>
+  </div>
+
+  <div class="verif-block">
+    <h4>6. Vérifier le build TypeScript</h4>
+    <code># Sur le VPS
+cd /var/www/talosprimes/packages/platform
+npx tsc --noEmit 2>&1 | tail -5
+# Devrait afficher: aucune erreur (exit 0)</code>
+  </div>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function copySQL() {
+  const el = document.getElementById('sqlContent');
+  const text = el.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.sql-copy');
+    btn.textContent = 'Copié ✓';
+    setTimeout(() => btn.textContent = 'Copier', 2000);
+  });
+}
+</script>
+
+</body>
+</html>

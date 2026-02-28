@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture Onboarding & Abonnements Stripe - TalosPrimes</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 40px 20px; }
+  h1 { text-align: center; font-size: 28px; margin-bottom: 8px; color: #f8fafc; }
+  .subtitle { text-align: center; color: #94a3b8; margin-bottom: 40px; font-size: 14px; }
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  /* Legend */
+  .legend { display: flex; gap: 24px; justify-content: center; margin-bottom: 32px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+  /* Main flow section */
+  .section { margin-bottom: 48px; }
+  .section-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-left: 16px; border-left: 4px solid; }
+
+  /* Flow diagram */
+  .flow { display: flex; flex-direction: column; gap: 12px; }
+  .flow-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .arrow { color: #475569; font-size: 20px; flex-shrink: 0; }
+  .arrow-down { text-align: center; color: #475569; font-size: 20px; padding: 4px 0; }
+
+  /* Nodes */
+  .node { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; min-width: 180px; text-align: center; border: 1px solid; position: relative; }
+  .node-webhook { background: #1e1b4b; border-color: #4338ca; color: #a5b4fc; }
+  .node-code { background: #172554; border-color: #1d4ed8; color: #93c5fd; }
+  .node-stripe { background: #4c1d95; border-color: #7c3aed; color: #c4b5fd; }
+  .node-postgres { background: #064e3b; border-color: #059669; color: #6ee7b7; }
+  .node-if { background: #78350f; border-color: #d97706; color: #fcd34d; }
+  .node-merge { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+  .node-respond { background: #831843; border-color: #db2777; color: #f9a8d4; }
+  .node-trigger { background: #5b21b6; border-color: #8b5cf6; color: #ddd6fe; box-shadow: 0 0 12px rgba(139, 92, 246, 0.3); }
+  .node-notification { background: #713f12; border-color: #ca8a04; color: #fde68a; }
+  .node-email { background: #164e63; border-color: #0891b2; color: #67e8f9; }
+  .node-sms { background: #134e4a; border-color: #14b8a6; color: #5eead4; }
+
+  .node-label { font-size: 10px; color: #64748b; display: block; margin-top: 2px; }
+
+  /* Workflow cards */
+  .workflows-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .workflows-grid { grid-template-columns: 1fr; } }
+
+  .workflow-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; }
+  .workflow-card h3 { font-size: 16px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .workflow-card .trigger-badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #5b21b6; color: #ddd6fe; }
+  .workflow-card .description { color: #94a3b8; font-size: 13px; margin-bottom: 16px; }
+  .workflow-card .steps { list-style: none; }
+  .workflow-card .steps li { padding: 6px 0; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; border-bottom: 1px solid #1e293b; }
+  .workflow-card .steps li:last-child { border-bottom: none; }
+  .step-num { background: #334155; color: #94a3b8; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+  .step-type { font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-left: auto; flex-shrink: 0; }
+  .type-stripe { background: #4c1d95; color: #c4b5fd; }
+  .type-pg { background: #064e3b; color: #6ee7b7; }
+  .type-code { background: #172554; color: #93c5fd; }
+  .type-email { background: #164e63; color: #67e8f9; }
+  .type-sms { background: #134e4a; color: #5eead4; }
+  .type-webhook { background: #1e1b4b; color: #a5b4fc; }
+  .type-notify { background: #713f12; color: #fde68a; }
+
+  /* Connection lines */
+  .connection-section { margin-top: 32px; padding: 24px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; }
+  .connection-section h3 { margin-bottom: 16px; font-size: 16px; }
+  .connection-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .connection-table th { text-align: left; padding: 8px 12px; background: #0f172a; color: #94a3b8; font-weight: 600; }
+  .connection-table td { padding: 8px 12px; border-top: 1px solid #334155; }
+  .connection-table .file-path { color: #67e8f9; font-family: monospace; font-size: 12px; }
+  .connection-table .db-table { color: #6ee7b7; font-family: monospace; font-size: 12px; }
+
+  /* Full width card */
+  .full-width { grid-column: 1 / -1; }
+
+  .badge-new { background: #166534; color: #86efac; font-size: 10px; padding: 2px 8px; border-radius: 8px; margin-left: 8px; }
+  .badge-existing { background: #1e3a5f; color: #93c5fd; font-size: 10px; padding: 2px 8px; border-radius: 8px; margin-left: 8px; }
+
+  /* Main flow visual */
+  .main-flow-visual { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 32px; overflow-x: auto; }
+  .flow-chain { display: flex; align-items: center; gap: 4px; min-width: max-content; padding: 8px 0; }
+  .flow-chain .node { min-width: 140px; font-size: 11px; padding: 8px 10px; }
+  .flow-chain .arrow { font-size: 16px; }
+
+  .branch-container { display: flex; flex-direction: column; gap: 16px; padding: 16px 0; }
+  .branch { display: flex; align-items: center; gap: 4px; }
+  .branch-label { font-size: 11px; color: #fcd34d; min-width: 80px; text-align: right; padding-right: 8px; }
+
+  .parallel-box { border: 1px dashed #475569; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .parallel-label { font-size: 11px; color: #94a3b8; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Architecture Onboarding & Abonnements Stripe</h1>
+  <p class="subtitle">TalosPrimes — Flux complet avec sub-workflows et triggers Stripe natifs</p>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#4338ca"></div> Webhook</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div> Code</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div> Stripe Natif</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6;box-shadow:0 0 8px rgba(139,92,246,0.4)"></div> Stripe Trigger</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#059669"></div> PostgreSQL</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div> Condition IF</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ca8a04"></div> Notification</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div> Email</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#14b8a6"></div> SMS Twilio</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#db2777"></div> Réponse Webhook</div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- WORKFLOW PRINCIPAL : ONBOARDING -->
+  <!-- ============================================= -->
+  <div class="section">
+    <h2 class="section-title" style="border-color: #4338ca;">1. Workflow Principal — client-onboarding <span class="badge-existing">existant</span></h2>
+
+    <div class="main-flow-visual">
+      <p style="font-size:12px; color:#94a3b8; margin-bottom:16px;">Le client choisit sa formule → le backend appelle le webhook → Stripe crée le checkout → le client paie</p>
+
+      <!-- Row 1: Webhook → Prepare → Validate → IF Stripe -->
+      <div class="flow-chain">
+        <div class="node node-webhook">Webhook<br><span class="node-label">POST /client-onboarding</span></div>
+        <div class="arrow">→</div>
+        <div class="node node-code">01. Préparer données<br><span class="node-label">Parse payload</span></div>
+        <div class="arrow">→</div>
+        <div class="node node-if">02. Validation<br><span class="node-label">clientId + tenantId</span></div>
+        <div class="arrow">→</div>
+        <div class="node node-code">09a. Générer MDP<br><span class="node-label">12 chars aléatoire</span></div>
+        <div class="arrow">→</div>
+        <div class="node node-if">03. IF Stripe ?<br><span class="node-label">avecStripe == true</span></div>
+      </div>
+
+      <!-- Branch: Stripe OUI -->
+      <div class="branch-container">
+        <div class="branch">
+          <div class="branch-label">✅ Stripe OUI</div>
+          <div class="arrow">→</div>
+          <div class="node node-stripe">04. Créer Customer<br><span class="node-label">n8n-nodes-base.stripe</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-stripe">05. Créer Produit<br><span class="node-label">n8n-nodes-base.stripe</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-stripe">06. Créer Prix<br><span class="node-label">n8n-nodes-base.stripe</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-code">06b. URLs Checkout<br><span class="node-label">success/cancel URLs</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-stripe">07. Session Checkout<br><span class="node-label">httpRequest (pas natif)</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-code">08. IDs Stripe<br><span class="node-label">customerId + checkoutUrl</span></div>
+        </div>
+
+        <div class="branch">
+          <div class="branch-label">❌ Stripe NON</div>
+          <div class="arrow">→</div>
+          <div class="node node-merge" style="min-width:100px">Merge</div>
+          <div class="arrow" style="color:#64748b; font-size:12px">← rejoint le flux principal</div>
+        </div>
+      </div>
+
+      <!-- Row 3: SQL + Espace client -->
+      <div class="flow-chain">
+        <div class="node node-merge">09b. Merge MDP</div>
+        <div class="arrow">→</div>
+        <div class="node node-code">09. SQL Abonnement<br><span class="node-label">Prépare INSERT</span></div>
+        <div class="arrow">→</div>
+        <div class="node node-postgres">10. INSERT<br><span class="node-label">client_subscriptions</span></div>
+        <div class="arrow">→</div>
+        <div class="node node-merge">10-merge</div>
+        <div class="arrow">→</div>
+        <div class="node node-code">10a. Après abo</div>
+        <div class="arrow">→</div>
+        <div class="node node-code">10b. Préparer espace</div>
+        <div class="arrow">→</div>
+        <div class="node node-code">10c. SQL espace</div>
+        <div class="arrow">→</div>
+        <div class="node node-postgres">10d. INSERT<br><span class="node-label">client_spaces</span></div>
+      </div>
+
+      <!-- Row 4: Response + Notification -->
+      <div class="flow-chain" style="margin-top: 8px;">
+        <div class="node node-code">11. Formater réponse</div>
+        <div class="arrow">→</div>
+        <div class="node node-notification">11b. Notification</div>
+        <div class="arrow">→</div>
+        <div class="node node-code">12. SQL Notif</div>
+        <div class="arrow">→</div>
+        <div class="node node-postgres">12. INSERT<br><span class="node-label">notifications</span></div>
+        <div class="arrow">→</div>
+        <div class="node node-respond">13. Répondre<br><span class="node-label">JSON + checkoutUrl</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- SUB-WORKFLOWS STRIPE TRIGGERS -->
+  <!-- ============================================= -->
+  <div class="section">
+    <h2 class="section-title" style="border-color: #8b5cf6;">2. Sub-Workflows — Triggers Stripe <span class="badge-new">nouveau</span></h2>
+
+    <div class="workflows-grid">
+
+      <!-- WF 1: Checkout Completed -->
+      <div class="workflow-card">
+        <h3>
+          stripe-checkout-completed
+          <span class="trigger-badge">checkout.session.completed</span>
+        </h3>
+        <p class="description">Déclenché quand le client finalise son paiement. Confirme et active l'abonnement.</p>
+        <ul class="steps">
+          <li><span class="step-num">1</span> Stripe Trigger — checkout.session.completed <span class="step-type type-stripe">Trigger</span></li>
+          <li><span class="step-num">2</span> Parser les données session (customer, subscription, metadata) <span class="step-type type-code">Code</span></li>
+          <li><span class="step-num">3</span> SELECT client_subscriptions WHERE id_client_stripe <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">4</span> UPDATE client_subscriptions SET statut='actif', id_abonnement_stripe, payment_status='paid' <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">5</span> UPDATE client_spaces SET statut='actif' <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">6</span> INSERT notification admin "Paiement confirmé" <span class="step-type type-notify">Notif</span></li>
+          <li><span class="step-num">7</span> Email de confirmation au client <span class="step-type type-email">Email</span></li>
+        </ul>
+      </div>
+
+      <!-- WF 2: Subscription Created -->
+      <div class="workflow-card">
+        <h3>
+          stripe-subscription-created
+          <span class="trigger-badge">customer.subscription.created</span>
+        </h3>
+        <p class="description">Enregistre les détails complets de l'abonnement Stripe en base de données.</p>
+        <ul class="steps">
+          <li><span class="step-num">1</span> Stripe Trigger — customer.subscription.created <span class="step-type type-stripe">Trigger</span></li>
+          <li><span class="step-num">2</span> Parser subscription (id, current_period_start/end, plan) <span class="step-type type-code">Code</span></li>
+          <li><span class="step-num">3</span> Extraire clientId et tenantId depuis metadata <span class="step-type type-code">Code</span></li>
+          <li><span class="step-num">4</span> UPDATE client_subscriptions SET id_abonnement_stripe, date_debut, date_prochain_renouvellement <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">5</span> INSERT notification "Abonnement Stripe créé" <span class="step-type type-notify">Notif</span></li>
+        </ul>
+      </div>
+
+      <!-- WF 3: Subscription Updated -->
+      <div class="workflow-card">
+        <h3>
+          stripe-subscription-updated
+          <span class="trigger-badge">customer.subscription.updated</span>
+        </h3>
+        <p class="description">Gère les changements : upgrade/downgrade de plan, changement de statut, montant modifié.</p>
+        <ul class="steps">
+          <li><span class="step-num">1</span> Stripe Trigger — customer.subscription.updated <span class="step-type type-stripe">Trigger</span></li>
+          <li><span class="step-num">2</span> Parser les changements (previous_attributes vs current) <span class="step-type type-code">Code</span></li>
+          <li><span class="step-num">3</span> IF statut changé ? (active→past_due, canceled, etc.) <span class="step-type type-code">IF</span></li>
+          <li><span class="step-num">4</span> UPDATE client_subscriptions (statut, montant, dates renouvellement) <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">5</span> IF impayé → UPDATE client_spaces SET statut='suspendu' <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">6</span> INSERT notification selon le type de changement <span class="step-type type-notify">Notif</span></li>
+          <li><span class="step-num">7</span> Email au client si changement de plan ou problème paiement <span class="step-type type-email">Email</span></li>
+        </ul>
+      </div>
+
+      <!-- WF 4: Trial Will End -->
+      <div class="workflow-card">
+        <h3>
+          stripe-trial-ending
+          <span class="trigger-badge">customer.subscription.trial_will_end</span>
+        </h3>
+        <p class="description">Avertit le client 3 jours avant la fin de son essai/période. Propose le renouvellement.</p>
+        <ul class="steps">
+          <li><span class="step-num">1</span> Stripe Trigger — customer.subscription.trial_will_end <span class="step-type type-stripe">Trigger</span></li>
+          <li><span class="step-num">2</span> Parser subscription + customer metadata <span class="step-type type-code">Code</span></li>
+          <li><span class="step-num">3</span> SELECT clients_finaux WHERE id = clientId (récupérer email, tel) <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">4</span> Préparer le message de renouvellement + lien portail Stripe <span class="step-type type-code">Code</span></li>
+          <li><span class="step-num">5</span> Envoyer email "Votre abonnement arrive à échéance" <span class="step-type type-email">Email</span></li>
+          <li><span class="step-num">6</span> Envoyer SMS rappel via Twilio <span class="step-type type-sms">Twilio</span></li>
+          <li><span class="step-num">7</span> INSERT notification admin + client <span class="step-type type-notify">Notif</span></li>
+        </ul>
+      </div>
+
+      <!-- WF 5: Subscription Deleted -->
+      <div class="workflow-card">
+        <h3>
+          stripe-subscription-deleted
+          <span class="trigger-badge">customer.subscription.deleted</span>
+        </h3>
+        <p class="description">Gère l'annulation/suppression d'un abonnement. Désactive l'espace client.</p>
+        <ul class="steps">
+          <li><span class="step-num">1</span> Stripe Trigger — customer.subscription.deleted <span class="step-type type-stripe">Trigger</span></li>
+          <li><span class="step-num">2</span> Parser subscription + metadata (clientId, tenantId) <span class="step-type type-code">Code</span></li>
+          <li><span class="step-num">3</span> UPDATE client_subscriptions SET statut='annule', date_fin=NOW() <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">4</span> UPDATE client_spaces SET statut='inactif' <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">5</span> SELECT clients_finaux pour récupérer email + tel <span class="step-type type-pg">Postgres</span></li>
+          <li><span class="step-num">6</span> Email au client "Abonnement résilié" + lien réactivation <span class="step-type type-email">Email</span></li>
+          <li><span class="step-num">7</span> SMS notification résiliation <span class="step-type type-sms">Twilio</span></li>
+          <li><span class="step-num">8</span> INSERT notification admin "Client X a résilié" <span class="step-type type-notify">Notif</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- TABLES BDD IMPACTÉES -->
+  <!-- ============================================= -->
+  <div class="section">
+    <h2 class="section-title" style="border-color: #059669;">3. Tables BDD impactées</h2>
+
+    <div class="connection-section">
+      <table class="connection-table">
+        <thead>
+          <tr>
+            <th>Table</th>
+            <th>Colonnes clés</th>
+            <th>Utilisée par</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="db-table">client_subscriptions</td>
+            <td>id, client_final_id, statut, id_client_stripe, id_abonnement_stripe, nom_plan, montant_mensuel, date_debut, date_prochain_renouvellement, temporary_password</td>
+            <td>Onboarding, Checkout Completed, Subscription Created/Updated/Deleted</td>
+          </tr>
+          <tr>
+            <td class="db-table">client_spaces</td>
+            <td>id, tenant_id, client_final_id, token, statut, date_expiration</td>
+            <td>Onboarding, Checkout Completed, Subscription Updated/Deleted</td>
+          </tr>
+          <tr>
+            <td class="db-table">clients_finaux</td>
+            <td>id, email, nom, prenom, telephone, raison_sociale</td>
+            <td>Trial Ending, Subscription Deleted (pour récupérer contacts)</td>
+          </tr>
+          <tr>
+            <td class="db-table">notifications</td>
+            <td>id, tenant_id, titre, message, type, lu</td>
+            <td>Tous les workflows (notification admin)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- FICHIERS ET CREDENTIALS -->
+  <!-- ============================================= -->
+  <div class="section">
+    <h2 class="section-title" style="border-color: #d97706;">4. Fichiers & Credentials</h2>
+
+    <div class="connection-section">
+      <table class="connection-table">
+        <thead>
+          <tr>
+            <th>Workflow</th>
+            <th>Fichier</th>
+            <th>Credentials</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>client-onboarding</td>
+            <td class="file-path">n8n_workflows/.../client-onboarding.json</td>
+            <td>Stripe API (hTgbVXtv3dG8wSJ4) + Supabase PG (OGqj65ZoFRileCck)</td>
+            <td><span class="badge-existing">existant</span></td>
+          </tr>
+          <tr>
+            <td>stripe-checkout-completed</td>
+            <td class="file-path">n8n_workflows/.../stripe-checkout-completed.json</td>
+            <td>Stripe API + Supabase PG + Email (SMTP)</td>
+            <td><span class="badge-new">à créer</span></td>
+          </tr>
+          <tr>
+            <td>stripe-subscription-created</td>
+            <td class="file-path">n8n_workflows/.../stripe-subscription-created.json</td>
+            <td>Stripe API + Supabase PG</td>
+            <td><span class="badge-new">à créer</span></td>
+          </tr>
+          <tr>
+            <td>stripe-subscription-updated</td>
+            <td class="file-path">n8n_workflows/.../stripe-subscription-updated.json</td>
+            <td>Stripe API + Supabase PG + Email (SMTP)</td>
+            <td><span class="badge-new">à créer</span></td>
+          </tr>
+          <tr>
+            <td>stripe-trial-ending</td>
+            <td class="file-path">n8n_workflows/.../stripe-trial-ending.json</td>
+            <td>Stripe API + Supabase PG + Email + Twilio</td>
+            <td><span class="badge-new">à créer</span></td>
+          </tr>
+          <tr>
+            <td>stripe-subscription-deleted</td>
+            <td class="file-path">n8n_workflows/.../stripe-subscription-deleted.json</td>
+            <td>Stripe API + Supabase PG + Email + Twilio</td>
+            <td><span class="badge-new">à créer</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- FLUX LIFECYCLE -->
+  <!-- ============================================= -->
+  <div class="section">
+    <h2 class="section-title" style="border-color: #db2777;">5. Cycle de vie complet d'un abonnement</h2>
+
+    <div class="main-flow-visual">
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Step 1 -->
+        <div class="flow-chain">
+          <div class="node node-webhook" style="background:#0f172a; min-width:200px;">👤 Client choisit sa formule<br><span class="node-label">Frontend → API → Webhook</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-stripe" style="min-width:220px;">client-onboarding<br><span class="node-label">Crée Customer + Product + Price + Checkout</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-respond" style="min-width:180px;">↩️ checkoutUrl<br><span class="node-label">Redirige vers Stripe</span></div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="flow-chain">
+          <div class="node node-webhook" style="background:#0f172a; min-width:200px;">💳 Client paie<br><span class="node-label">Stripe Checkout Page</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-trigger" style="min-width:220px;">stripe-checkout-completed<br><span class="node-label">Active abonnement + espace</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-email" style="min-width:180px;">📧 Email confirmation<br><span class="node-label">Bienvenue + identifiants</span></div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="flow-chain">
+          <div class="node node-trigger" style="min-width:200px;">stripe-subscription-created<br><span class="node-label">Enregistre IDs Stripe en BDD</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-postgres" style="min-width:220px;">Sync BDD ↔ Stripe<br><span class="node-label">id_abonnement_stripe, dates</span></div>
+        </div>
+
+        <!-- Step 4: Running -->
+        <div class="flow-chain">
+          <div class="node" style="background:#1a2e05; border-color:#65a30d; color:#a3e635; min-width:200px;">🟢 Abonnement actif<br><span class="node-label">Le client utilise la plateforme</span></div>
+          <div class="arrow" style="color:#65a30d;">⟳</div>
+          <div class="node node-trigger" style="min-width:220px;">stripe-subscription-updated<br><span class="node-label">Si changement plan / impayé</span></div>
+        </div>
+
+        <!-- Step 5: Trial ending -->
+        <div class="flow-chain">
+          <div class="node node-trigger" style="min-width:200px;">stripe-trial-ending<br><span class="node-label">3 jours avant échéance</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-email" style="min-width:130px;">📧 Email</div>
+          <div class="arrow">+</div>
+          <div class="node node-sms" style="min-width:130px;">📱 SMS</div>
+          <div class="arrow">→</div>
+          <div class="node" style="background:#1a2e05; border-color:#65a30d; color:#a3e635; min-width:180px;">🔄 Client renouvelle<br><span class="node-label">OU</span></div>
+        </div>
+
+        <!-- Step 6: Deleted -->
+        <div class="flow-chain">
+          <div class="node" style="background:#450a0a; border-color:#dc2626; color:#fca5a5; min-width:200px;">❌ Client résilie<br><span class="node-label">Annulation via Stripe</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-trigger" style="min-width:220px;">stripe-subscription-deleted<br><span class="node-label">Désactive espace + notifie</span></div>
+          <div class="arrow">→</div>
+          <div class="node node-postgres" style="min-width:180px;">statut = 'inactif'<br><span class="node-label">client_spaces + subscriptions</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

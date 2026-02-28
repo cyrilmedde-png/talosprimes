@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TalosPrimes — Schéma Prisma Complet</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #1e293b, #334155); padding: 24px 32px; border-bottom: 2px solid #3b82f6; }
+  .header h1 { font-size: 28px; color: #60a5fa; }
+  .header p { color: #94a3b8; margin-top: 4px; }
+  .stats { display: flex; gap: 24px; margin-top: 12px; flex-wrap: wrap; }
+  .stat { background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 8px 16px; }
+  .stat .num { font-size: 24px; font-weight: 700; color: #60a5fa; }
+  .stat .label { font-size: 12px; color: #94a3b8; }
+
+  .filters { padding: 16px 32px; background: #1e293b; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .filters label { color: #94a3b8; font-size: 13px; margin-right: 8px; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid #475569; background: transparent; color: #cbd5e1; cursor: pointer; font-size: 13px; transition: all .2s; }
+  .filter-btn:hover, .filter-btn.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+
+  .container { display: flex; flex-wrap: wrap; gap: 20px; padding: 24px 32px; justify-content: flex-start; }
+
+  .model-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; width: 340px; overflow: hidden; transition: all .3s; }
+  .model-card:hover { border-color: #60a5fa; box-shadow: 0 0 20px rgba(96,165,250,.15); }
+  .model-card.hidden { display: none; }
+
+  .model-header { padding: 12px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .model-header .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .model-header h3 { font-size: 15px; color: #f1f5f9; flex: 1; }
+  .model-header .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+  .model-body { padding: 0 16px 14px; }
+  .model-body.collapsed { display: none; }
+
+  .field { display: flex; align-items: center; padding: 4px 0; font-size: 13px; border-bottom: 1px solid #1e293b22; }
+  .field:last-child { border-bottom: none; }
+  .field-name { flex: 1; color: #e2e8f0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; }
+  .field-type { color: #94a3b8; font-size: 11px; font-family: monospace; }
+  .field-pk { color: #fbbf24; font-size: 10px; margin-right: 4px; font-weight: 700; }
+  .field-fk { color: #a78bfa; font-size: 10px; margin-right: 4px; font-weight: 700; }
+  .field-unique { color: #34d399; font-size: 10px; margin-right: 4px; }
+  .field-opt { color: #64748b; font-size: 10px; margin-left: 4px; }
+
+  .relations { margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; }
+  .rel { font-size: 11px; color: #94a3b8; padding: 2px 0; }
+  .rel span { color: #a78bfa; }
+
+  /* Category colors */
+  .cat-core .model-header { background: linear-gradient(90deg, #1e3a5f, #1e293b); }
+  .cat-core .icon { background: #1d4ed8; }
+  .cat-core .badge { background: #1d4ed833; color: #60a5fa; }
+
+  .cat-billing .model-header { background: linear-gradient(90deg, #1e3b2e, #1e293b); }
+  .cat-billing .icon { background: #059669; }
+  .cat-billing .badge { background: #05966933; color: #34d399; }
+
+  .cat-plans .model-header { background: linear-gradient(90deg, #3b1e5f, #1e293b); }
+  .cat-plans .icon { background: #7c3aed; }
+  .cat-plans .badge { background: #7c3aed33; color: #a78bfa; }
+
+  .cat-compta .model-header { background: linear-gradient(90deg, #5f3a1e, #1e293b); }
+  .cat-compta .icon { background: #d97706; }
+  .cat-compta .badge { background: #d9770633; color: #fbbf24; }
+
+  .cat-agent .model-header { background: linear-gradient(90deg, #5f1e3a, #1e293b); }
+  .cat-agent .icon { background: #dc2626; }
+  .cat-agent .badge { background: #dc262633; color: #f87171; }
+
+  .cat-misc .model-header { background: linear-gradient(90deg, #374151, #1e293b); }
+  .cat-misc .icon { background: #6b7280; }
+  .cat-misc .badge { background: #6b728033; color: #9ca3af; }
+
+  .legend { padding: 16px 32px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🗄️ TalosPrimes — Schéma Base de Données</h1>
+  <p>Prisma Schema complet • PostgreSQL Supabase</p>
+  <div class="stats">
+    <div class="stat"><div class="num">35</div><div class="label">Models</div></div>
+    <div class="stat"><div class="num">18</div><div class="label">Enums</div></div>
+    <div class="stat"><div class="num">6</div><div class="label">Catégories</div></div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div> Core (Tenant, User, Client)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#059669"></div> Facturation</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div> Plans & Modules</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div> Comptabilité</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div> Agent IA & Téléphonie</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div> Divers</div>
+  <div class="legend-item" style="margin-left:auto"><span style="color:#fbbf24;font-weight:700">PK</span> Clé primaire</div>
+  <div class="legend-item"><span style="color:#a78bfa;font-weight:700">FK</span> Clé étrangère</div>
+  <div class="legend-item"><span style="color:#34d399">UQ</span> Unique</div>
+</div>
+
+<div class="filters">
+  <label>Filtrer :</label>
+  <button class="filter-btn active" onclick="filterCards('all')">Tout (35)</button>
+  <button class="filter-btn" onclick="filterCards('core')">Core (4)</button>
+  <button class="filter-btn" onclick="filterCards('billing')">Facturation (14)</button>
+  <button class="filter-btn" onclick="filterCards('plans')">Plans & Modules (4)</button>
+  <button class="filter-btn" onclick="filterCards('compta')">Comptabilité (10)</button>
+  <button class="filter-btn" onclick="filterCards('agent')">Agent IA (5)</button>
+  <button class="filter-btn" onclick="filterCards('misc')">Divers (4)</button>
+  <button class="filter-btn" onclick="toggleAll()" id="toggleBtn" style="margin-left:auto;border-color:#60a5fa;color:#60a5fa">Replier tout</button>
+</div>
+
+<div class="container" id="container"></div>
+
+<script>
+const models = [
+  // ===== CORE =====
+  { name: "Tenant", table: "tenants", cat: "core", icon: "🏢", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "nomEntreprise", t: "String" },
+    { n: "siret", t: "String?" },
+    { n: "siren", t: "String?" },
+    { n: "codeAPE", t: "String?" },
+    { n: "statutJuridique", t: "StatutJuridique?" },
+    { n: "adressePostale", t: "Text?" },
+    { n: "codePostal", t: "String?" },
+    { n: "ville", t: "String?" },
+    { n: "pays", t: "String", def: "FR" },
+    { n: "telephone", t: "String?" },
+    { n: "emailContact", t: "String", uq: true },
+    { n: "tvaIntracom", t: "String?" },
+    { n: "devise", t: "String", def: "EUR" },
+    { n: "metier", t: "String" },
+    { n: "statut", t: "TenantStatus", def: "actif" },
+  ], rels: ["→ User[]","→ Subscription?","→ ClientFinal[]","→ Invoice[]","→ Devis[]","→ BonCommande[]","→ Avoir[]","→ Proforma[]","→ Lead[]","→ ClientSpace[]","→ ExerciceComptable[]","→ CallLog[]"] },
+
+  { name: "User", table: "users", cat: "core", icon: "👤", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "email", t: "String" },
+    { n: "passwordHash", t: "String" },
+    { n: "role", t: "UserRole", def: "collaborateur" },
+    { n: "nom", t: "String?" },
+    { n: "prenom", t: "String?" },
+    { n: "statut", t: "UserStatus", def: "actif" },
+  ], rels: ["← Tenant (tenantId)"], uqs: ["tenantId + email"] },
+
+  { name: "ClientFinal", table: "client_finals", cat: "core", icon: "👥", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "type", t: "ClientFinalType" },
+    { n: "raisonSociale", t: "String?" },
+    { n: "nom", t: "String?" },
+    { n: "prenom", t: "String?" },
+    { n: "email", t: "String" },
+    { n: "telephone", t: "String?" },
+    { n: "tags", t: "String[]" },
+    { n: "statut", t: "ClientFinalStatus", def: "actif" },
+  ], rels: ["← Tenant","→ ClientSubscription[]","→ Invoice[]","→ Devis[]","→ ClientModule[]","→ ClientSpace[]"] },
+
+  { name: "ClientSpace", table: "client_spaces", cat: "core", icon: "🏠", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "clientFinalId", t: "UUID", fk: "ClientFinal" },
+    { n: "tenantSlug", t: "String" },
+    { n: "status", t: "ClientSpaceStatus", def: "en_creation" },
+    { n: "modulesActives", t: "String[]" },
+  ], rels: ["← Tenant","← ClientFinal"] },
+
+  // ===== PLANS & MODULES =====
+  { name: "Plan", table: "plans", cat: "plans", icon: "💎", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "code", t: "String", uq: true },
+    { n: "nom", t: "String" },
+    { n: "description", t: "Text?" },
+    { n: "prixMensuel", t: "Decimal(10,2)" },
+    { n: "prixAnnuel", t: "Decimal(10,2)?" },
+    { n: "stripeProductId", t: "String?" },
+    { n: "stripePriceIdMensuel", t: "String?" },
+    { n: "stripePriceIdAnnuel", t: "String?" },
+    { n: "essaiJours", t: "Int", def: "0" },
+    { n: "ordreAffichage", t: "Int", def: "0" },
+    { n: "actif", t: "Boolean", def: "true" },
+    { n: "couleur", t: "String?" },
+  ], rels: ["→ PlanModule[]","→ ClientSubscription[]"] },
+
+  { name: "ModuleMetier", table: "module_metiers", cat: "plans", icon: "🧩", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "code", t: "String", uq: true },
+    { n: "nomAffiche", t: "String" },
+    { n: "description", t: "Text?" },
+    { n: "categorie", t: "String?" },
+    { n: "icone", t: "String?" },
+    { n: "prixParMois", t: "Decimal(10,2)" },
+    { n: "ordreAffichage", t: "Int", def: "0" },
+    { n: "actif", t: "Boolean", def: "true" },
+  ], rels: ["→ PlanModule[]","→ ClientModule[]","→ WorkflowLink[]"] },
+
+  { name: "PlanModule", table: "plan_modules", cat: "plans", icon: "🔗", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "planId", t: "UUID", fk: "Plan" },
+    { n: "moduleId", t: "UUID", fk: "ModuleMetier" },
+    { n: "limiteUsage", t: "Int?" },
+    { n: "config", t: "JsonB?" },
+  ], rels: ["← Plan","← ModuleMetier"], uqs: ["planId + moduleId"] },
+
+  { name: "ClientModule", table: "client_modules", cat: "plans", icon: "✅", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "clientFinalId", t: "UUID", fk: "ClientFinal" },
+    { n: "moduleId", t: "UUID", fk: "ModuleMetier" },
+    { n: "actif", t: "Boolean", def: "true" },
+    { n: "limiteUsage", t: "Int?" },
+    { n: "usageActuel", t: "Int", def: "0" },
+    { n: "config", t: "JsonB?" },
+    { n: "activatedAt", t: "DateTime" },
+    { n: "expiresAt", t: "DateTime?" },
+  ], rels: ["← ClientFinal","← ModuleMetier"], uqs: ["clientFinalId + moduleId"] },
+
+  // ===== BILLING =====
+  { name: "Subscription", table: "subscriptions", cat: "billing", icon: "💳", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant", uq: true },
+    { n: "modulesActives", t: "String[]" },
+    { n: "montantMensuelActuel", t: "Decimal(10,2)" },
+    { n: "dateDebut", t: "DateTime" },
+    { n: "fournisseurPaiement", t: "PaymentProvider" },
+    { n: "statusPaiement", t: "PaymentStatus", def: "ok" },
+  ], rels: ["← Tenant"] },
+
+  { name: "ClientSubscription", table: "client_subscriptions", cat: "billing", icon: "📋", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "clientFinalId", t: "UUID", fk: "ClientFinal" },
+    { n: "planId", t: "UUID?", fk: "Plan" },
+    { n: "nomPlan", t: "String" },
+    { n: "montantMensuel", t: "Decimal(10,2)" },
+    { n: "statut", t: "SubscriptionStatus", def: "actif" },
+    { n: "idAbonnementStripe", t: "String?" },
+    { n: "idClientStripe", t: "String?" },
+  ], rels: ["← ClientFinal","← Plan?"] },
+
+  { name: "Invoice", table: "invoices", cat: "billing", icon: "🧾", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "type", t: "InvoiceType" },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "clientFinalId", t: "UUID?", fk: "ClientFinal" },
+    { n: "numeroFacture", t: "String", uq: true },
+    { n: "montantHt", t: "Decimal(10,2)" },
+    { n: "montantTtc", t: "Decimal(10,2)" },
+    { n: "statut", t: "InvoiceStatus", def: "brouillon" },
+  ], rels: ["← Tenant","← ClientFinal?","→ InvoiceLine[]"] },
+
+  { name: "InvoiceLine", table: "invoice_lines", cat: "billing", icon: "📝", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "invoiceId", t: "UUID", fk: "Invoice" },
+    { n: "designation", t: "String" },
+    { n: "quantite", t: "Int", def: "1" },
+    { n: "prixUnitaireHt", t: "Decimal(10,2)" },
+    { n: "totalHt", t: "Decimal(10,2)" },
+  ], rels: ["← Invoice"] },
+
+  { name: "Devis", table: "devis", cat: "billing", icon: "📄", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "clientFinalId", t: "UUID?", fk: "ClientFinal" },
+    { n: "numeroDevis", t: "String", uq: true },
+    { n: "montantHt/Ttc", t: "Decimal(10,2)" },
+    { n: "statut", t: "DevisStatus" },
+  ], rels: ["← Tenant","← ClientFinal?","→ DevisLine[]","→ BonCommande[]"] },
+
+  { name: "DevisLine", table: "devis_lines", cat: "billing", icon: "📝", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "devisId", t: "UUID", fk: "Devis" },
+    { n: "designation", t: "String" },
+    { n: "quantite", t: "Int" },
+    { n: "prixUnitaireHt", t: "Decimal" },
+    { n: "totalHt", t: "Decimal" },
+  ], rels: ["← Devis"] },
+
+  { name: "BonCommande", table: "bons_commande", cat: "billing", icon: "📦", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "clientFinalId", t: "UUID?", fk: "ClientFinal" },
+    { n: "numeroBdc", t: "String", uq: true },
+    { n: "montantHt/Ttc", t: "Decimal(10,2)" },
+    { n: "statut", t: "BonCommandeStatus" },
+  ], rels: ["← Tenant","← ClientFinal?","→ BonCommandeLine[]","← Devis?"] },
+
+  { name: "BonCommandeLine", table: "bon_commande_lines", cat: "billing", icon: "📝", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "bonCommandeId", t: "UUID", fk: "BonCommande" },
+    { n: "designation", t: "String" },
+    { n: "quantite/prix/total", t: "..." },
+  ], rels: ["← BonCommande"] },
+
+  { name: "Avoir", table: "avoirs", cat: "billing", icon: "↩️", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "clientFinalId", t: "UUID?", fk: "ClientFinal" },
+    { n: "invoiceId", t: "UUID?", fk: "Invoice" },
+    { n: "numeroAvoir", t: "String", uq: true },
+    { n: "montantHt/Ttc", t: "Decimal" },
+    { n: "statut", t: "AvoirStatus" },
+  ], rels: ["← Tenant","← Invoice?","→ AvoirLine[]"] },
+
+  { name: "AvoirLine", table: "avoir_lines", cat: "billing", icon: "📝", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "avoirId", t: "UUID", fk: "Avoir" },
+    { n: "designation/quantite/prix", t: "..." },
+  ], rels: ["← Avoir"] },
+
+  { name: "Proforma", table: "proformas", cat: "billing", icon: "📑", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "clientFinalId", t: "UUID?", fk: "ClientFinal" },
+    { n: "numeroProforma", t: "String", uq: true },
+    { n: "montantHt/Ttc", t: "Decimal" },
+    { n: "statut", t: "ProformaStatus" },
+  ], rels: ["← Tenant","→ ProformaLine[]"] },
+
+  { name: "ProformaLine", table: "proforma_lines", cat: "billing", icon: "📝", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "proformaId", t: "UUID", fk: "Proforma" },
+    { n: "designation/quantite/prix", t: "..." },
+  ], rels: ["← Proforma"] },
+
+  { name: "ArticleCode", table: "article_codes", cat: "billing", icon: "🏷️", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "code", t: "String" },
+    { n: "designation", t: "String" },
+    { n: "prixUnitaireHt", t: "Decimal?" },
+    { n: "tvaTaux", t: "Decimal?" },
+    { n: "actif", t: "Boolean", def: "true" },
+  ], rels: ["← Tenant"], uqs: ["tenantId + code"] },
+
+  // ===== COMPTABILITÉ =====
+  { name: "ExerciceComptable", table: "exercices_comptables", cat: "compta", icon: "📅", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "code", t: "String" },
+    { n: "dateDebut", t: "Date" },
+    { n: "dateFin", t: "Date" },
+    { n: "cloture", t: "Boolean", def: "false" },
+    { n: "resultatNet", t: "Decimal(15,2)?" },
+  ], rels: ["← Tenant","→ EcritureComptable[]"] },
+
+  { name: "PlanComptable", table: "plan_comptable", cat: "compta", icon: "📊", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "numeroCompte", t: "String" },
+    { n: "libelle", t: "String" },
+    { n: "classe", t: "Int (1-7)" },
+    { n: "nature", t: "CompteNature" },
+    { n: "type", t: "CompteType", def: "general" },
+  ], rels: ["← Tenant"], uqs: ["tenantId + numeroCompte"] },
+
+  { name: "JournalComptable", table: "journaux_comptables", cat: "compta", icon: "📖", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "code", t: "String" },
+    { n: "libelle", t: "String" },
+    { n: "type", t: "JournalType (VE/AC/BQ/OD/AN)" },
+  ], rels: ["← Tenant","→ EcritureComptable[]"] },
+
+  { name: "EcritureComptable", table: "ecritures_comptables", cat: "compta", icon: "✍️", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "exerciceId", t: "UUID", fk: "Exercice" },
+    { n: "journalCode", t: "String", fk: "Journal" },
+    { n: "numeroPiece", t: "String" },
+    { n: "dateEcriture", t: "Date" },
+    { n: "statut", t: "EcritureStatut" },
+  ], rels: ["← Tenant","← Exercice","← Journal","→ LigneEcriture[]"] },
+
+  { name: "LigneEcriture", table: "lignes_ecritures", cat: "compta", icon: "📝", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "ecritureId", t: "UUID", fk: "Ecriture" },
+    { n: "numeroCompte", t: "String" },
+    { n: "debit", t: "Decimal(15,2)" },
+    { n: "credit", t: "Decimal(15,2)" },
+    { n: "lettrage", t: "String?" },
+  ], rels: ["← EcritureComptable"] },
+
+  { name: "Lettrage", table: "lettrages", cat: "compta", icon: "🔤", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "codeLettrage", t: "String" },
+    { n: "numeroCompte", t: "String" },
+    { n: "montant", t: "Decimal(15,2)" },
+  ], rels: ["← Tenant"] },
+
+  { name: "DeclarationTva", table: "declarations_tva", cat: "compta", icon: "🏛️", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "dateDebut/Fin", t: "Date" },
+    { n: "tvaCollectée/Déductible/Due", t: "Decimal" },
+    { n: "statut", t: "DeclarationTvaStatut" },
+  ], rels: ["← Tenant"] },
+
+  { name: "Immobilisation", table: "immobilisations", cat: "compta", icon: "🏗️", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "designation", t: "String" },
+    { n: "valeurAcquisition", t: "Decimal(15,2)" },
+    { n: "dureeAmortissement", t: "Int (mois)" },
+    { n: "vnc", t: "Decimal(15,2)" },
+    { n: "statut", t: "ImmobilisationStatut" },
+  ], rels: ["← Tenant","→ Amortissement[]"] },
+
+  { name: "Amortissement", table: "amortissements", cat: "compta", icon: "📉", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "immobilisationId", t: "UUID", fk: "Immobilisation" },
+    { n: "dateAmortissement", t: "Date" },
+    { n: "montant", t: "Decimal(15,2)" },
+    { n: "vncApres", t: "Decimal(15,2)" },
+  ], rels: ["← Immobilisation"] },
+
+  { name: "BalanceCompte", table: "balance_comptes", cat: "compta", icon: "⚖️", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID" },
+    { n: "exerciceId", t: "UUID" },
+    { n: "numeroCompte", t: "String" },
+    { n: "totalDebit/Credit", t: "Decimal" },
+    { n: "solde", t: "Decimal" },
+  ], rels: [] },
+
+  // ===== AGENT IA =====
+  { name: "TwilioConfig", table: "twilio_configs", cat: "agent", icon: "📞", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant", uq: true },
+    { n: "phoneNumber", t: "String?" },
+    { n: "agentName", t: "String", def: "Sophie" },
+    { n: "niche", t: "String", def: "plomberie" },
+    { n: "active", t: "Boolean", def: "false" },
+  ], rels: ["← Tenant"] },
+
+  { name: "CallLog", table: "call_logs", cat: "agent", icon: "📱", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "callSid", t: "String?", uq: true },
+    { n: "direction", t: "CallDirection" },
+    { n: "callerPhone", t: "String?" },
+    { n: "duration", t: "Int (sec)" },
+    { n: "urgencyLevel", t: "UrgencyLevel" },
+    { n: "sentiment", t: "CallSentiment" },
+  ], rels: ["← Tenant","← Lead?","→ SmsLog[]"] },
+
+  { name: "SmsLog", table: "sms_logs", cat: "agent", icon: "💬", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "callLogId", t: "UUID?", fk: "CallLog" },
+    { n: "fromNumber", t: "String" },
+    { n: "toNumber", t: "String" },
+    { n: "body", t: "Text" },
+    { n: "status", t: "String" },
+  ], rels: ["← Tenant","← CallLog?"] },
+
+  { name: "Questionnaire", table: "questionnaires", cat: "agent", icon: "❓", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "leadId", t: "UUID", fk: "Lead" },
+    { n: "questions", t: "Json" },
+    { n: "status", t: "QuestionnaireStatus" },
+    { n: "channel", t: "QuestionnaireChannel" },
+  ], rels: ["← Tenant","← Lead"] },
+
+  { name: "Lead", table: "leads", cat: "agent", icon: "🎯", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID?", fk: "Tenant" },
+    { n: "nom/prenom", t: "String" },
+    { n: "email", t: "String", uq: true },
+    { n: "telephone", t: "String" },
+    { n: "statut", t: "LeadStatus" },
+    { n: "source", t: "String?" },
+  ], rels: ["← Tenant?","→ CallLog[]","→ Questionnaire[]"] },
+
+  // ===== MISC =====
+  { name: "WorkflowLink", table: "workflow_links", cat: "misc", icon: "⚡", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "moduleMetierId", t: "UUID", fk: "ModuleMetier" },
+    { n: "typeEvenement", t: "String" },
+    { n: "workflowN8nId", t: "String" },
+    { n: "statut", t: "WorkflowStatus" },
+  ], rels: ["← Tenant","← ModuleMetier"] },
+
+  { name: "EventLog", table: "event_logs", cat: "misc", icon: "📋", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "typeEvenement", t: "String" },
+    { n: "entiteType/Id", t: "String/UUID" },
+    { n: "payload", t: "Json" },
+    { n: "statutExecution", t: "EventExecutionStatus" },
+  ], rels: ["← Tenant"] },
+
+  { name: "Notification", table: "notifications", cat: "misc", icon: "🔔", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "tenantId", t: "UUID", fk: "Tenant" },
+    { n: "type", t: "String" },
+    { n: "titre", t: "String" },
+    { n: "message", t: "Text" },
+    { n: "lu", t: "Boolean", def: "false" },
+  ], rels: ["← Tenant"] },
+
+  { name: "Testimonial", table: "testimonials", cat: "misc", icon: "⭐", fields: [
+    { n: "id", t: "UUID", pk: true },
+    { n: "nom/prenom", t: "String" },
+    { n: "entreprise", t: "String?" },
+    { n: "note", t: "Int (1-5)" },
+    { n: "commentaire", t: "Text" },
+    { n: "affiche", t: "Boolean", def: "true" },
+  ], rels: [] },
+];
+
+let allExpanded = true;
+
+function renderCards() {
+  const container = document.getElementById('container');
+  container.innerHTML = '';
+
+  models.forEach((m, i) => {
+    const card = document.createElement('div');
+    card.className = `model-card cat-${m.cat}`;
+    card.dataset.cat = m.cat;
+
+    let fieldsHtml = m.fields.map(f => {
+      let badges = '';
+      if (f.pk) badges += '<span class="field-pk">PK</span>';
+      if (f.fk) badges += '<span class="field-fk">FK</span>';
+      if (f.uq) badges += '<span class="field-unique">UQ</span>';
+      let opt = f.def ? `<span class="field-opt">=${f.def}</span>` : '';
+      return `<div class="field">${badges}<span class="field-name">${f.n}</span><span class="field-type">${f.t}</span>${opt}</div>`;
+    }).join('');
+
+    let relsHtml = '';
+    if (m.rels && m.rels.length > 0) {
+      relsHtml = `<div class="relations">${m.rels.map(r => `<div class="rel"><span>${r}</span></div>`).join('')}</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="model-header" onclick="toggleCard(this)">
+        <div class="icon">${m.icon}</div>
+        <h3>${m.name}</h3>
+        <span class="badge">${m.table}</span>
+      </div>
+      <div class="model-body">
+        ${fieldsHtml}
+        ${relsHtml}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function toggleCard(header) {
+  header.nextElementSibling.classList.toggle('collapsed');
+}
+
+function filterCards(cat) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.model-card').forEach(c => {
+    c.classList.toggle('hidden', cat !== 'all' && c.dataset.cat !== cat);
+  });
+}
+
+function toggleAll() {
+  allExpanded = !allExpanded;
+  document.querySelectorAll('.model-body').forEach(b => {
+    b.classList.toggle('collapsed', !allExpanded);
+  });
+  document.getElementById('toggleBtn').textContent = allExpanded ? 'Replier tout' : 'Déplier tout';
+}
+
+renderCards();
+</script>
+</body>
+</html>
