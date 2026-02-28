@@ -78,7 +78,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, tenant_id, phone_number, agent_name, company_name, niche, active FROM twilio_configs WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
+        "query": "={{ \"SELECT id, tenant_id, phone_number, account_sid, auth_token, agent_name, company_name, niche, active FROM twilio_configs WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "id": "05. Get Twilio Config",
       "name": "05. Get Twilio Config",
@@ -98,7 +98,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var results = $input.all();\nvar config = results.length > 0 ? results[0].json : null;\nvar to = $('02. Parser').first().json.to;\nvar reason = $('02. Parser').first().json.reason;\nvar tenantId = $('02. Parser').first().json.tenantId;\n\nif (!config) {\n  return [{ json: {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant',\n    canProceed: false\n  } }];\n}\n\nif (!config.active) {\n  return [{ json: {\n    success: false,\n    error: 'La configuration Twilio est désactivée',\n    canProceed: false\n  } }];\n}\n\nreturn [{ json: {\n  tenantId: tenantId,\n  to: to,\n  reason: reason,\n  fromNumber: config.phone_number,\n  agentName: config.agent_name,\n  companyName: config.company_name,\n  canProceed: true\n} }];"
+        "jsCode": "var results = $input.all();\nvar config = results.length > 0 ? results[0].json : null;\nvar to = $('02. Parser').first().json.to;\nvar reason = $('02. Parser').first().json.reason;\nvar tenantId = $('02. Parser').first().json.tenantId;\n\nif (!config) {\n  return [{ json: {\n    success: false,\n    error: 'Aucune configuration Twilio trouvée pour ce tenant',\n    canProceed: false\n  } }];\n}\n\nif (!config.active) {\n  return [{ json: {\n    success: false,\n    error: 'La configuration Twilio est désactivée',\n    canProceed: false\n  } }];\n}\n\nif (!config.account_sid || !config.auth_token) {\n  return [{ json: {\n    success: false,\n    error: 'account_sid et auth_token doivent etre renseignes dans twilio_configs',\n    canProceed: false\n  } }];\n}\n\nreturn [{ json: {\n  tenantId: tenantId,\n  to: to,\n  reason: reason,\n  fromNumber: config.phone_number,\n  accountSid: config.account_sid,\n  authToken: config.auth_token,\n  agentName: config.agent_name,\n  companyName: config.company_name,\n  canProceed: true\n} }];"
       },
       "id": "06. Check Config",
       "name": "06. Check Config",
@@ -163,7 +163,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer l'appel Twilio REST API\nvar callLog = $input.all();\nvar params = $('06. Check Config').first().json;\n\nif (callLog.length === 0 || !callLog[0].json.id) {\n  throw new Error('Erreur lors de la creation du log d appel');\n}\n\nvar callLogId = callLog[0].json.id;\n\n// Les credentials Twilio doivent etre dans les variables d environnement n8n\n// TWILIO_ACCOUNT_SID et TWILIO_AUTH_TOKEN\nvar accountSid = $env.TWILIO_ACCOUNT_SID;\nvar authToken = $env.TWILIO_AUTH_TOKEN;\n\nif (!accountSid || !authToken) {\n  throw new Error('TWILIO_ACCOUNT_SID et TWILIO_AUTH_TOKEN doivent etre configures dans les variables d environnement n8n');\n}\n\n// URL du webhook de conversation sortante\nvar voiceWebhookUrl = 'https://n8n.talosprimes.com/webhook/twilio-outbound-voice';\n\nreturn [{ json: {\n  accountSid: accountSid,\n  authToken: authToken,\n  to: params.to,\n  from: params.fromNumber,\n  voiceWebhookUrl: voiceWebhookUrl,\n  callLogId: callLogId,\n  tenantId: params.tenantId,\n  reason: params.reason,\n  agentName: params.agentName,\n  companyName: params.companyName\n} }];"
+        "jsCode": "// Préparer l'appel Twilio REST API\nvar callLog = $input.all();\nvar params = $('06. Check Config').first().json;\n\nif (callLog.length === 0 || !callLog[0].json.id) {\n  throw new Error('Erreur lors de la creation du log d appel');\n}\n\nvar callLogId = callLog[0].json.id;\n\n// Credentials Twilio depuis la BDD (twilio_configs.account_sid / auth_token)\nvar accountSid = params.accountSid;\nvar authToken = params.authToken;\n\nif (!accountSid || !authToken) {\n  throw new Error('account_sid et auth_token doivent etre renseignes dans twilio_configs');\n}\n\n// URL du webhook de conversation sortante\nvar voiceWebhookUrl = 'https://n8n.talosprimes.com/webhook/twilio-outbound-voice';\n\nreturn [{ json: {\n  accountSid: accountSid,\n  authToken: authToken,\n  to: params.to,\n  from: params.fromNumber,\n  voiceWebhookUrl: voiceWebhookUrl,\n  callLogId: callLogId,\n  tenantId: params.tenantId,\n  reason: params.reason,\n  agentName: params.agentName,\n  companyName: params.companyName\n} }];"
       },
       "id": "09. Prepare Twilio Call",
       "name": "09. Prepare Twilio Call",

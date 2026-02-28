@@ -52,6 +52,8 @@ const updateTwilioConfigSchema = z.object({
   basePrice: z.string().optional(),
   humanContact: z.string().optional(),
   active: z.boolean().optional(),
+  accountSid: z.string().optional(),
+  authToken: z.string().optional(),
 });
 
 const outboundCallSchema = z.object({

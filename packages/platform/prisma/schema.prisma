@@ -1051,6 +1051,8 @@ model TwilioConfig {
   id                String   @id @default(uuid()) @db.Uuid
   tenantId          String   @unique @map("tenant_id") @db.Uuid
   phoneNumber       String?  @map("phone_number") // Numéro Twilio attribué (+33...)
+  accountSid        String?  @map("account_sid") // Twilio Account SID
+  authToken         String?  @map("auth_token") // Twilio Auth Token
   agentName         String   @default("Sophie") @map("agent_name")
   companyName       String?  @map("company_name") // Nom affiché par l'agent
   niche             String   @default("plomberie") // Clé vers niches-config

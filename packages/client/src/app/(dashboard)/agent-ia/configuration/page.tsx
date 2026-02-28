@@ -27,6 +27,8 @@ interface TwilioConfig {
   knowledgeBase: string;
   dispatchDelay: number;
   active: boolean;
+  accountSid?: string;
+  authToken?: string;
   phoneNumber?: string;
   webhookUrl?: string;
   createdAt?: string;
@@ -56,6 +58,8 @@ export default function ConfigurationPage() {
     knowledgeBase: '',
     dispatchDelay: 0,
     active: false,
+    accountSid: '',
+    authToken: '',
   });
 
   useEffect(() => {
@@ -86,6 +90,8 @@ export default function ConfigurationPage() {
           knowledgeBase: configData.knowledgeBase || '',
           dispatchDelay: configData.dispatchDelay || 0,
           active: configData.active || false,
+          accountSid: configData.accountSid || '',
+          authToken: configData.authToken || '',
         });
       }
 
@@ -177,6 +183,8 @@ export default function ConfigurationPage() {
         knowledgeBase: config.knowledgeBase || '',
         dispatchDelay: config.dispatchDelay || 0,
         active: config.active || false,
+        accountSid: config.accountSid || '',
+        authToken: config.authToken || '',
       });
     }
     setEditing(false);
@@ -346,6 +354,54 @@ export default function ConfigurationPage() {
               </div>
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              Twilio Account SID
+            </label>
+            {editing ? (
+              <input
+                type="text"
+                name="accountSid"
+                value={formData.accountSid}
+                onChange={handleInputChange}
+                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm font-mono focus:outline-none focus:border-indigo-500"
+              />
+            ) : (
+              <div className="px-4 py-2 bg-gray-900/30 border border-gray-800/50 rounded text-sm font-mono">
+                {formData.accountSid ? (
+                  <span className="text-gray-300">{formData.accountSid.substring(0, 8)}...{formData.accountSid.substring(formData.accountSid.length - 4)}</span>
+                ) : (
+                  <span className="text-red-400 italic">Non configuré</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              Twilio Auth Token
+            </label>
+            {editing ? (
+              <input
+                type="password"
+                name="authToken"
+                value={formData.authToken}
+                onChange={handleInputChange}
+                placeholder="Votre Auth Token Twilio"
+                className="w-full px-4 py-2 bg-gray-900/50 border border-gray-700/50 rounded text-white text-sm font-mono focus:outline-none focus:border-indigo-500"
+              />
+            ) : (
+              <div className="px-4 py-2 bg-gray-900/30 border border-gray-800/50 rounded text-sm font-mono">
+                {formData.authToken ? (
+                  <span className="text-gray-300">••••••••••••••••</span>
+                ) : (
+                  <span className="text-red-400 italic">Non configuré</span>
+                )}
+              </div>
+            )}
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">
