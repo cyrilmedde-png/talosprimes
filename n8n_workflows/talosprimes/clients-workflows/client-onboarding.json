@@ -9,82 +9,32 @@
         "options": {}
       },
       "id": "webhook-onboarding",
-      "name": "Webhook - Onboarding Client",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        240,
-        400
-      ],
+      "position": [240, 400],
       "webhookId": "client-onboarding"
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour l'onboarding\n// Le webhook reçoit les données dans body ou directement\nvar raw = $input.item.json;\nvar payload = raw?.body || raw?.json || raw;\n\n// Le backend envoie : { event, tenantId, timestamp, data: { client: {...}, plan: {...}, avecStripe } }\nvar tenantId = payload.tenantId || payload.data?.tenantId;\nvar clientData = payload.data?.client || payload.client || payload.data || {};\nvar clientId = clientData.id || clientData.clientId;\n\n// Plan : utiliser celui du payload si présent, sinon valeurs par défaut\nvar planFromPayload = payload.data?.plan || payload.plan || {};\nvar plan = {\n  nomPlan: planFromPayload.nomPlan || \"Plan Starter\",\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || [\"gestion_clients\", \"facturation\", \"suivi\"],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\n// Option Stripe\nvar avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\n// Validation\nif (!tenantId || !clientId) {\n  throw new Error(`Données manquantes : tenantId=${tenantId ? 'OK' : 'MANQUANT'}, clientId=${clientId ? 'OK' : 'MANQUANT'}`);\n}\n\n// Calculer les dates\nvar dateDebut = new Date();\nvar dateProchainRenouvellement = new Date();\ndateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);\n\nreturn [{\n  json: {\n    tenantId,\n    clientId,\n    clientData,\n    plan,\n    avecStripe,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateProchainRenouvellement.toISOString(),\n    statut: \"actif\"\n  }\n}];"
+        "jsCode": "var raw = $input.item.json;\nvar payload = raw.body || raw.json || raw;\nvar tenantId = payload.tenantId || payload.data?.tenantId;\nvar clientData = payload.data?.client || payload.client || payload.data || {};\nvar clientId = clientData.id || clientData.clientId;\nvar planFromPayload = payload.data?.plan || payload.plan || {};\nvar avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\nif (!tenantId) throw new Error('tenantId manquant');\nif (!clientId) throw new Error('clientId manquant');\n\nvar plan = {\n  nomPlan: planFromPayload.nomPlan || 'Plan Starter',\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || ['gestion_clients', 'facturation', 'suivi'],\n  dureeMois: planFromPayload.dureeMois || 1,\n  priceId: planFromPayload.priceId || planFromPayload.stripePriceId || null\n};\n\nif (avecStripe && !plan.priceId) throw new Error('priceId Stripe requis quand avecStripe=true');\n\nvar chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\nvar password = '';\nfor (var i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));\n\nvar dateDebut = new Date();\nvar dateFin = new Date();\ndateFin.setMonth(dateFin.getMonth() + plan.dureeMois);\n\nreturn [{\n  json: {\n    tenantId: String(tenantId),\n    clientId: String(clientId),\n    clientData: clientData,\n    plan: plan,\n    avecStripe: avecStripe,\n    plainPassword: password,\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateFin.toISOString()\n  }\n}];"
       },
-      "id": "prepare-data",
-      "name": "01. Préparer données onboarding",
+      "id": "parse-validate",
+      "name": "02. Parser + Valider",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        460,
-        400
-      ]
+      "position": [460, 400]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
+          "options": { "caseSensitive": true, "leftValue": "" },
           "conditions": [
             {
-              "id": "f4e82151-88ed-4632-82f4-fa0b58774d96",
-              "leftValue": "={{ $json.clientId }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
-            },
-            {
-              "id": "cd394766-f314-44e0-b08e-13d1ad269589",
-              "leftValue": "={{ $json.tenantId }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "validate-data",
-      "name": "02. Validation données",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        680,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
-          "conditions": [
-            {
-              "id": "b1d309ac-93d1-498e-b9ac-099d8f7e5cc3",
+              "id": "check-stripe",
               "leftValue": "={{ String($json.avecStripe || '') }}",
               "rightValue": "true",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
+              "operator": { "type": "string", "operation": "equals" }
             }
           ],
           "combinator": "and"
@@ -92,122 +42,34 @@
         "options": {}
       },
       "id": "if-stripe",
-      "name": "03. IF - Stripe activé ?",
+      "name": "03. IF Stripe ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        900,
-        400
-      ]
+      "position": [680, 400]
     },
     {
       "parameters": {
         "resource": "customer",
         "operation": "create",
         "additionalFields": {
-          "email": "={{ $('01. Préparer données onboarding').item.json.clientData.email }}",
-          "name": "={{ $('01. Préparer données onboarding').item.json.clientData.nom || $('01. Préparer données onboarding').item.json.clientData.raisonSociale || $('01. Préparer données onboarding').item.json.clientData.email }}",
+          "email": "={{ $('02. Parser + Valider').item.json.clientData.email }}",
+          "name": "={{ $('02. Parser + Valider').item.json.clientData.nom || $('02. Parser + Valider').item.json.clientData.raisonSociale || $('02. Parser + Valider').item.json.clientData.email }}",
           "metadata": {
             "metadataProperties": [
-              {
-                "key": "clientId",
-                "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
-              },
-              {
-                "key": "tenantId",
-                "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
-              }
+              { "key": "clientId", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
+              { "key": "tenantId", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" }
             ]
           }
         }
       },
-      "id": "stripe-create-customer",
+      "id": "stripe-customer",
       "name": "04. Stripe - Créer Customer",
       "type": "n8n-nodes-base.stripe",
       "typeVersion": 1,
-      "position": [
-        1120,
-        300
-      ],
+      "position": [900, 300],
       "credentials": {
-        "stripeApi": {
-          "id": "hTgbVXtv3dG8wSJ4",
-          "name": "Stripe API"
-        }
+        "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
       }
-    },
-    {
-      "parameters": {
-        "resource": "product",
-        "operation": "create",
-        "name": "={{ $('01. Préparer données onboarding').item.json.plan.nomPlan }}",
-        "additionalFields": {
-          "metadata": {
-            "metadataProperties": [
-              {
-                "key": "modules",
-                "value": "={{ $('01. Préparer données onboarding').item.json.plan.modulesInclus.join(',') }}"
-              }
-            ]
-          }
-        }
-      },
-      "id": "stripe-create-product",
-      "name": "05. Stripe - Créer Produit",
-      "type": "n8n-nodes-base.stripe",
-      "typeVersion": 1,
-      "position": [
-        1340,
-        300
-      ],
-      "credentials": {
-        "stripeApi": {
-          "id": "hTgbVXtv3dG8wSJ4",
-          "name": "Stripe API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "price",
-        "operation": "create",
-        "product": "={{ $json.id }}",
-        "currency": "eur",
-        "unitAmount": "={{ Math.round($('01. Préparer données onboarding').item.json.plan.montantMensuel * 100) }}",
-        "additionalFields": {
-          "recurring": {
-            "interval": "month",
-            "intervalCount": "={{ $('01. Préparer données onboarding').item.json.plan.dureeMois }}"
-          }
-        }
-      },
-      "id": "stripe-create-price",
-      "name": "06. Stripe - Créer Prix",
-      "type": "n8n-nodes-base.stripe",
-      "typeVersion": 1,
-      "position": [
-        1560,
-        300
-      ],
-      "credentials": {
-        "stripeApi": {
-          "id": "hTgbVXtv3dG8wSJ4",
-          "name": "Stripe API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Préparer les URLs de redirection pour Stripe Checkout\nvar prepareData = $('01. Préparer données onboarding').item.json;\nvar baseUrl = 'https://talosprimes.com';\nvar clientId = prepareData.clientId;\n\n// URLs de redirection après paiement\nvar successUrl = `${baseUrl}/clients?checkout=success&clientId=${clientId}&session_id={CHECKOUT_SESSION_ID}`;\nvar cancelUrl = `${baseUrl}/clients?checkout=cancelled&clientId=${clientId}`;\n\nreturn [{\n  json: {\n    ...prepareData,\n    checkoutSuccessUrl: successUrl,\n    checkoutCancelUrl: cancelUrl\n  }\n}];"
-      },
-      "id": "prepare-checkout-urls",
-      "name": "06b. Préparer URLs Checkout",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1560,
-        380
-      ]
     },
     {
       "parameters": {
@@ -217,631 +79,210 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/x-www-form-urlencoded"
-            }
+            { "name": "Content-Type", "value": "application/x-www-form-urlencoded" }
           ]
         },
         "sendBody": true,
         "specifyBody": "keypair",
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "customer",
-              "value": "={{ $('04. Stripe - Créer Customer').item.json.id }}"
-            },
-            {
-              "name": "mode",
-              "value": "subscription"
-            },
-            {
-              "name": "line_items[0][price]",
-              "value": "={{ $('06. Stripe - Créer Prix').item.json.id }}"
-            },
-            {
-              "name": "line_items[0][quantity]",
-              "value": "1"
-            },
-            {
-              "name": "success_url",
-              "value": "={{ $('06b. Préparer URLs Checkout').item.json.checkoutSuccessUrl }}"
-            },
-            {
-              "name": "cancel_url",
-              "value": "={{ $('06b. Préparer URLs Checkout').item.json.checkoutCancelUrl }}"
-            },
-            {
-              "name": "metadata[clientId]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
-            },
-            {
-              "name": "metadata[tenantId]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
-            },
-            {
-              "name": "metadata[planName]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.plan.nomPlan }}"
-            },
-            {
-              "name": "subscription_data[metadata][clientId]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.clientId }}"
-            },
-            {
-              "name": "subscription_data[metadata][tenantId]",
-              "value": "={{ $('01. Préparer données onboarding').item.json.tenantId }}"
-            },
-            {
-              "name": "payment_method_types[]",
-              "value": "card"
-            }
+            { "name": "customer", "value": "={{ $json.id }}" },
+            { "name": "mode", "value": "subscription" },
+            { "name": "line_items[0][price]", "value": "={{ $('02. Parser + Valider').item.json.plan.priceId }}" },
+            { "name": "line_items[0][quantity]", "value": "1" },
+            { "name": "success_url", "value": "={{ 'https://talosprimes.com/clients?checkout=success&clientId=' + $('02. Parser + Valider').item.json.clientId + '&session_id={CHECKOUT_SESSION_ID}' }}" },
+            { "name": "cancel_url", "value": "={{ 'https://talosprimes.com/clients?checkout=cancelled&clientId=' + $('02. Parser + Valider').item.json.clientId }}" },
+            { "name": "metadata[clientId]", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
+            { "name": "metadata[tenantId]", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" },
+            { "name": "metadata[planName]", "value": "={{ $('02. Parser + Valider').item.json.plan.nomPlan }}" },
+            { "name": "subscription_data[metadata][clientId]", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
+            { "name": "subscription_data[metadata][tenantId]", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" },
+            { "name": "payment_method_types[]", "value": "card" }
           ]
         },
         "options": {},
         "genericAuthType": "stripeApi"
       },
-      "id": "stripe-create-checkout",
-      "name": "07. Stripe - Créer Session Checkout",
+      "id": "stripe-checkout",
+      "name": "05. Stripe - Checkout Session",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1780,
-        380
-      ],
+      "position": [1120, 300],
       "credentials": {
-        "stripeApi": {
-          "id": "hTgbVXtv3dG8wSJ4",
-          "name": "Stripe API"
-        }
+        "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données avec les IDs Stripe et l'URL de checkout\nvar customerId = $('04. Stripe - Créer Customer').item.json.id;\nvar checkoutSession = $('07. Stripe - Créer Session Checkout').item.json;\nvar checkoutUrl = checkoutSession.url;\nvar prepareData = $('01. Préparer données onboarding').item.json;\n\nreturn [{\n  json: {\n    ...prepareData,\n    idClientStripe: customerId,\n    idSessionCheckoutStripe: checkoutSession.id,\n    checkoutUrl: checkoutUrl\n  }\n}];"
+        "jsCode": "var data = $('02. Parser + Valider').first().json;\nvar checkoutSession = $('05. Stripe - Checkout Session').first().json;\nvar customerId = $('04. Stripe - Créer Customer').first().json.id;\n\nreturn [{\n  json: {\n    ...data,\n    idClientStripe: customerId,\n    idSessionCheckoutStripe: checkoutSession.id,\n    checkoutUrl: checkoutSession.url,\n    statutAbonnement: 'en_attente_paiement'\n  }\n}];"
       },
-      "id": "prepare-with-stripe",
-      "name": "08. Préparer avec IDs Stripe",
+      "id": "merge-stripe",
+      "name": "06. Combiner données Stripe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2000,
-        380
-      ]
+      "position": [1340, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données après création de l'abonnement\n// Le Merge combine les données de deux sources :\n// - Input 0 : résultat de la requête PostgreSQL (abonnement créé)\n// - Input 1 : données conservées de 09c (toutes les infos)\n\nvar allItems = $input.all();\n\n// Trouver l'abonnement (résultat PostgreSQL)\nvar subscriptionItem = allItems.find(function(item) { return item.json[0]?.id || item.json.id; }) || allItems[0];\nvar subscriptionData = subscriptionItem.json[0] || subscriptionItem.json;\n\n// Trouver les données conservées (clientId, tenantId, plainPassword, etc.)\nvar dataItem = allItems.find(function(item) { return item.json.clientId && item.json.tenantId; }) || allItems[1] || {};\nvar savedData = dataItem.json || {};\n\n// Combiner toutes les données\nvar combinedData = {\n  ...savedData,\n  subscriptionData: subscriptionData,\n  subscriptionId: subscriptionData.id\n};\n\nreturn [{\n  json: combinedData\n}];"
+        "jsCode": "var data = $('02. Parser + Valider').first().json;\n\nreturn [{\n  json: {\n    ...data,\n    idClientStripe: null,\n    idSessionCheckoutStripe: null,\n    checkoutUrl: null,\n    statutAbonnement: 'actif'\n  }\n}];"
       },
-      "id": "prepare-after-subscription",
-      "name": "10a. Préparer après abonnement",
+      "id": "no-stripe",
+      "name": "06b. Sans Stripe (actif direct)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1780,
-        500
-      ]
+      "position": [900, 500]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les modules inclus pour la requête SQL paramétrisée\nvar inputItems = $input.all();\n\n// Trouver les données principales\nvar mainData = inputItems.find(function(item) { return item.json.plan || item.json.clientId; }) || inputItems[0] || {};\nvar passwordData = inputItems.find(function(item) { return item.json.plainPassword; }) || {};\n\nvar data = {\n  ...mainData.json,\n  ...passwordData.json\n};\n\nvar modules = data.plan?.modulesInclus || data.modulesInclus || [];\n// Pour PG: passer comme array literal {mod1,mod2}\nvar modulesLiteral = '{' + modules.map(function(m) { return String(m); }).join(',') + '}';\n\nvar query = `INSERT INTO client_subscriptions (\n  id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement,\n  montant_mensuel, modules_inclus, statut, id_client_stripe,\n  id_abonnement_stripe, temporary_password, updated_at\n) VALUES (\n  gen_random_uuid(), '${data.clientId}'::uuid, '${String(data.plan.nomPlan)}', '${data.dateDebut}'::timestamptz, '${data.dateProchainRenouvellement}'::timestamptz,\n  ${data.plan.montantMensuel}, '${modulesLiteral}'::text[], 'actif', ${data.idClientStripe ? \"'\" + data.idClientStripe + \"'\" : 'NULL'}, ${data.idAbonnementStripe ? \"'\" + data.idAbonnementStripe + \"'\" : 'NULL'}, ${data.plainPassword ? \"'\" + data.plainPassword.replace(/'/g, \"''\") + \"'\" : 'NULL'}, NOW()\n) RETURNING *;`;\n\nreturn [{\n  json: {\n    query,\n    allData: data\n  }\n}];"
+        "jsCode": "var d = $input.first().json;\nvar modules = d.plan.modulesInclus || [];\nvar modulesLiteral = '{' + modules.map(function(m) { return String(m); }).join(',') + '}';\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar query = 'INSERT INTO client_subscriptions (id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement, montant_mensuel, modules_inclus, statut, id_client_stripe, id_abonnement_stripe, temporary_password, updated_at) VALUES (gen_random_uuid(), ' + esc(d.clientId) + '::uuid, ' + esc(d.plan.nomPlan) + ', ' + esc(d.dateDebut) + '::timestamptz, ' + esc(d.dateProchainRenouvellement) + '::timestamptz, ' + d.plan.montantMensuel + ', ' + esc(modulesLiteral) + '::text[], ' + esc(d.statutAbonnement) + ', ' + (d.idClientStripe ? esc(d.idClientStripe) : 'NULL') + ', ' + (d.idSessionCheckoutStripe ? esc(d.idSessionCheckoutStripe) : 'NULL') + ', ' + esc(d.plainPassword) + ', NOW()) ON CONFLICT (client_final_id) DO UPDATE SET nom_plan = EXCLUDED.nom_plan, montant_mensuel = EXCLUDED.montant_mensuel, modules_inclus = EXCLUDED.modules_inclus, statut = EXCLUDED.statut, id_client_stripe = COALESCE(EXCLUDED.id_client_stripe, client_subscriptions.id_client_stripe), temporary_password = COALESCE(EXCLUDED.temporary_password, client_subscriptions.temporary_password), updated_at = NOW() RETURNING *';\n\nreturn [{ json: { query: query, allData: d } }];"
       },
-      "id": "prepare-sql",
-      "name": "09. Préparer requête SQL",
+      "id": "build-sql-sub",
+      "name": "07. Build SQL abonnement",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1120,
-        500
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Conserver toutes les données de préparation pour les nœuds suivants\n// Car après l'exécution SQL, ces données seront perdues\nvar allData = $input.item.json.allData || $input.item.json;\n\nreturn {\n  json: allData\n};"
-      },
-      "id": "keep-data",
-      "name": "09c. Conserver données",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1340,
-        600
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}"
-      },
-      "id": "create-subscription",
-      "name": "10. Créer abonnement client",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [
-        1340,
-        400
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
-      },
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "options": {}
-      },
-      "id": "merge-subscription-data",
-      "name": "10-merge. Combiner abonnement et données",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [
-        1560,
-        500
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Générer un mot de passe sécurisé aléatoire et l'ajouter aux données\nvar generatePassword = function() {\n  var length = 12;\n  var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\n  var password = '';\n  for (var i = 0; i < length; i++) {\n    password += charset.charAt(Math.floor(Math.random() * charset.length));\n  }\n  return password;\n};\n\nvar prepareData = $input.item.json;\nvar clientData = prepareData.clientData || {};\n\n// Générer le mot de passe\nvar plainPassword = generatePassword();\n\n// Nom du tenant (basé sur le nom du client)\nvar tenantName = clientData.raisonSociale || `${clientData.nom || ''} ${clientData.prenom || ''}`.trim() || clientData.email || 'Client';\n\n// Retourner toutes les données avec le mot de passe ajouté\nreturn [{\n  json: {\n    ...prepareData,\n    tenantName: tenantName,\n    clientEmail: clientData.email || '',\n    plainPassword: plainPassword,\n    clientNom: clientData.nom || '',\n    clientPrenom: clientData.prenom || '',\n    clientRaisonSociale: clientData.raisonSociale || null\n  }\n}];"
-      },
-      "id": "generate-password",
-      "name": "09a. Générer mot de passe",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        900,
-        600
-      ]
-    },
-    {
-      "parameters": {
-        "mode": "append",
-        "options": {}
-      },
-      "id": "merge-password",
-      "name": "09b. Merge - Ajouter mot de passe",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [
-        1120,
-        500
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Préparer les données pour créer l'espace client (dossier VPS + enregistrement BDD)\n// La création du Tenant+User est reportée à la validation admin\nvar data = $input.item.json;\n\nvar clientId = data.clientId || data.subscriptionData?.client_final_id;\nvar tenantId = data.tenantId;\nvar nom = data.clientNom || data.clientData?.nom || '';\nvar prenom = data.clientPrenom || data.clientData?.prenom || '';\nvar raisonSociale = data.clientRaisonSociale || data.clientData?.raisonSociale || '';\nvar modulesInclus = data.plan?.modulesInclus || data.subscriptionData?.modules_inclus || [];\n\nif (!clientId || !tenantId) {\n  throw new Error('Données manquantes pour créer espace client: clientId ou tenantId');\n}\n\nreturn [{\n  json: {\n    tenantId,\n    clientFinalId: clientId,\n    raisonSociale,\n    nom,\n    prenom,\n    modulesInclus\n  }\n}];"
-      },
-      "id": "prepare-client-space",
-      "name": "10b. Préparer création espace client",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2000,
-        500
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "var data = $input.first().json;\nvar clientFinalId = data.clientFinalId;\nvar tenantId = data.tenantId;\nvar raisonSociale = data.raisonSociale || '';\nvar nom = data.nom || '';\nvar prenom = data.prenom || '';\nvar modulesInclus = data.modulesInclus || [];\n\nvar rawName = raisonSociale || ((nom + ' ' + prenom).trim()) || 'client';\nvar slug = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);\nvar tenantSlug = slug + '-' + clientFinalId.substring(0, 8);\nvar folderPath = '/var/www/talosprimes/clients/' + tenantSlug;\nvar token = '';\nvar chars = 'abcdefghijklmnopqrstuvwxyz0123456789';\nfor (var i = 0; i < 32; i++) { token += chars.charAt(Math.floor(Math.random() * chars.length)); }\nvar dateExpiration = new Date(Date.now() + 30*24*60*60*1000).toISOString();\n\nfunction esc(v) { return v == null ? '' : String(v).replace(/'/g, \"''\"); }\nvar query = \"INSERT INTO client_spaces (id, tenant_id, client_final_id, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), '\" + esc(tenantId) + \"'::uuid, '\" + esc(clientFinalId) + \"'::uuid, '\" + esc(token) + \"', 'en_attente', '\" + esc(dateExpiration) + \"'::timestamptz, NOW()) RETURNING *\";\n\nreturn [{ json: { query: query, tenantSlug: tenantSlug, folderPath: folderPath, modules: modulesInclus } }];"
-      },
-      "id": "create-client-space-sql",
-      "name": "10c. Préparer INSERT espace client",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2220,
-        500
-      ]
+      "position": [1340, 500]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "options": {}
+        "options": { "queryBatching": "independently" }
       },
-      "id": "create-client-space-pg",
-      "name": "10d. INSERT client_spaces",
+      "id": "insert-sub",
+      "name": "08. INSERT abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        2440,
-        400
-      ],
+      "position": [1560, 500],
       "credentials": {
-        "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
       },
       "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la réponse de succès\n// Récupérer la réponse INSERT de client_spaces (10d)\nvar pgResult = $input.item.json;\nvar spaceRecord = pgResult[0] || pgResult || {};\n\n// Récupérer les métadonnées du slug depuis 10c\nvar spaceMetadata = $('10c. Préparer INSERT espace client').first().json || {};\n\n// Récupérer les données depuis 10a via le contexte du workflow\nvar prepareData = $('10a. Préparer après abonnement').first().json || {};\n\n// Données client depuis prepareData\nvar clientData = prepareData.clientData || {};\n\n// Vérifier si Stripe est activé\nvar avecStripe = prepareData.idClientStripe || prepareData.idSessionCheckoutStripe || prepareData.checkoutUrl || prepareData.avecStripe;\nvar stripe = avecStripe && prepareData.checkoutUrl ? {\n  customerId: prepareData.idClientStripe,\n  checkoutSessionId: prepareData.idSessionCheckoutStripe,\n  checkoutUrl: prepareData.checkoutUrl,\n  requiresPayment: true\n} : null;\n\nreturn [{\n  json: {\n    success: true,\n    message: stripe && stripe.checkoutUrl \n      ? \"Espace client créé — en attente de validation admin. Redirection vers le paiement...\" \n      : \"Espace client créé — en attente de validation par l'administrateur. Les identifiants seront envoyés après validation.\",\n    client: clientData,\n    subscription: prepareData.subscriptionData || null,\n    modulesActives: prepareData.subscriptionData?.modules_inclus || prepareData.plan?.modulesInclus || [],\n    clientSpace: {\n      id: spaceRecord.id || null,\n      tenantSlug: spaceMetadata.tenantSlug || null,\n      status: 'en_attente_validation',\n      folderPath: spaceMetadata.folderPath || null,\n      modules: spaceMetadata.modules || []\n    },\n    credentials: null,\n    stripe: stripe\n  }\n}];"
+        "jsCode": "var d = $('07. Build SQL abonnement').first().json.allData;\nvar cd = d.clientData || {};\nvar rawName = cd.raisonSociale || ((cd.nom || '') + ' ' + (cd.prenom || '')).trim() || 'client';\nvar slug = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);\nvar tenantSlug = slug + '-' + d.clientId.substring(0, 8);\nvar folderPath = '/var/www/talosprimes/clients/' + tenantSlug;\n\nvar chars = 'abcdefghijklmnopqrstuvwxyz0123456789';\nvar token = '';\nfor (var i = 0; i < 32; i++) token += chars.charAt(Math.floor(Math.random() * chars.length));\nvar dateExpiration = new Date(Date.now() + 30*24*60*60*1000).toISOString();\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar query = 'INSERT INTO client_spaces (id, tenant_id, client_final_id, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), ' + esc(d.tenantId) + '::uuid, ' + esc(d.clientId) + '::uuid, ' + esc(token) + ', ' + esc('en_attente') + ', ' + esc(dateExpiration) + '::timestamptz, NOW()) ON CONFLICT (client_final_id) DO UPDATE SET token = EXCLUDED.token, date_expiration = EXCLUDED.date_expiration, statut = EXCLUDED.statut RETURNING *';\n\nreturn [{ json: { query: query, tenantSlug: tenantSlug, folderPath: folderPath, modules: d.plan.modulesInclus || [] } }];"
+      },
+      "id": "build-sql-space",
+      "name": "09. Build SQL espace client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": { "queryBatching": "independently" }
+      },
+      "id": "insert-space",
+      "name": "10. INSERT client_space",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 500],
+      "credentials": {
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var d = $('07. Build SQL abonnement').first().json.allData;\nvar spaceData = $('09. Build SQL espace client').first().json;\nvar spaceRecord = $('10. INSERT client_space').first().json;\nvar space = spaceRecord[0] || spaceRecord;\n\nvar isStripe = d.checkoutUrl ? true : false;\n\nvar response = {\n  success: true,\n  message: isStripe\n    ? 'Onboarding initié — redirection vers le paiement Stripe'\n    : 'Onboarding terminé — espace client actif',\n  client: d.clientData,\n  subscription: { statut: d.statutAbonnement, plan: d.plan.nomPlan, montant: d.plan.montantMensuel },\n  clientSpace: {\n    id: space.id || null,\n    tenantSlug: spaceData.tenantSlug,\n    statut: isStripe ? 'en_attente' : 'actif',\n    modules: spaceData.modules\n  },\n  stripe: isStripe ? {\n    customerId: d.idClientStripe,\n    checkoutUrl: d.checkoutUrl,\n    requiresPayment: true\n  } : null\n};\n\nreturn [{ json: response }];"
       },
       "id": "format-response",
       "name": "11. Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2660,
-        500
-      ]
+      "position": [2220, 500]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer le body JSON pour la notification\nvar responseData = $input.item.json;\nvar subscription = responseData.subscription;\nvar client = responseData.client || {};\nvar clientSpace = responseData.clientSpace || {};\n\nvar tenantId, clientId;\ntry {\n  var prepareData = $('10a. Préparer après abonnement').first().json || {};\n  tenantId = prepareData.tenantId;\n  clientId = prepareData.clientId;\n} catch (e) {\n  tenantId = clientSpace.tenantSlug;\n  clientId = client.id;\n}\n\nvar clientName = client.prenom || client.nom || client.raisonSociale || 'le client';\nvar titreStripe = responseData.stripe ? ' (Stripe)' : '';\nvar messageStripe = responseData.stripe ? ' - Abonnement Stripe créé' : '';\n\nreturn [{\n  json: {\n    type: 'client_onboarding',\n    titre: `Espace client en attente de validation${titreStripe}`,\n    message: `L'espace client pour ${clientName} a été créé et attend votre validation. Les identifiants seront envoyés après validation${messageStripe}`,\n    donnees: {\n      tenantId: tenantId,\n      clientId: clientId,\n      clientSpaceId: clientSpace.id || null,\n      subscriptionId: subscription?.id || subscription?.[0]?.id\n    }\n  }\n}];"
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
       },
-      "id": "prepare-notification",
-      "name": "11b. Préparer notification",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2660,
-        650
-      ]
+      "id": "respond-webhook",
+      "name": "12. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 400]
     },
     {
       "parameters": {
-        "jsCode": "var d = $input.item.json;\nvar query = `INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '${d.donnees?.tenantId || d.tenantId || '00000000-0000-0000-0000-000000000001'}', '${(d.titre || 'Notification').replace(/'/g, \"''\")}', '${(d.message || '').replace(/'/g, \"''\")}', '${d.type || \"info\"}', false, NOW())`;\nreturn [{json:{query}}];"
+        "jsCode": "var d = $('07. Build SQL abonnement').first().json.allData;\nvar cd = d.clientData || {};\nvar clientName = cd.prenom || cd.nom || cd.raisonSociale || 'le client';\nvar stripeInfo = d.checkoutUrl ? ' (Stripe - en attente de paiement)' : ' (sans Stripe - actif)';\n\nfunction esc(v) { return String(v || '').replace(/'/g, \"''\"); }\n\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', 'Nouvel onboarding\" + esc(stripeInfo) + \"', 'Espace client créé pour \" + esc(clientName) + \". Plan: \" + esc(d.plan.nomPlan) + \" (\" + d.plan.montantMensuel + \" EUR/mois)\" + esc(stripeInfo) + \"', 'info', false, NOW())\";\n\nreturn [{ json: { query: query } }];"
       },
-      "name": "12. Créer notification - Construire SQL",
+      "id": "build-notif",
+      "name": "13. Build notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2880,
-        650
-      ],
-      "id": "12. Créer notification - Construire SQL"
+      "position": [2440, 600]
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $json.query }}",
-        "alwaysOutputData": true,
-        "options": {
-          "queryBatching": "independently"
-        }
+        "options": { "queryBatching": "independently" }
       },
-      "name": "12. Créer notification - INSERT notification",
+      "id": "insert-notif",
+      "name": "14. INSERT notification",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        3100,
-        650
-      ],
-      "id": "create-notification-pg",
+      "position": [2660, 600],
       "credentials": {
-        "postgres": {
-          "name": "Supabase Postgres",
-          "id": "OGqj65ZoFRileCck"
-        }
+        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
       },
       "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $('11. Formater réponse').first().json }}",
-        "options": {}
-      },
-      "id": "respond-webhook",
-      "name": "13. Répondre au webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        3100,
-        500
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"Données invalides: clientId ou tenantId manquant\" }",
-        "options": {}
-      },
-      "id": "respond-error",
-      "name": "Répondre erreur",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        680,
-        600
-      ]
     }
   ],
   "connections": {
-    "Webhook - Onboarding Client": {
-      "main": [
-        [
-          {
-            "node": "01. Préparer données onboarding",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser + Valider", "type": "main", "index": 0 }]]
     },
-    "01. Préparer données onboarding": {
-      "main": [
-        [
-          {
-            "node": "02. Validation données",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "02. Parser + Valider": {
+      "main": [[{ "node": "03. IF Stripe ?", "type": "main", "index": 0 }]]
     },
-    "02. Validation données": {
+    "03. IF Stripe ?": {
       "main": [
-        [
-          {
-            "node": "09a. Générer mot de passe",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Répondre erreur",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "09a. Générer mot de passe": {
-      "main": [
-        [
-          {
-            "node": "03. IF - Stripe activé ?",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "09b. Merge - Ajouter mot de passe",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "03. IF - Stripe activé ?": {
-      "main": [
-        [
-          {
-            "node": "04. Stripe - Créer Customer",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "09b. Merge - Ajouter mot de passe",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "04. Stripe - Créer Customer", "type": "main", "index": 0 }],
+        [{ "node": "06b. Sans Stripe (actif direct)", "type": "main", "index": 0 }]
       ]
     },
     "04. Stripe - Créer Customer": {
-      "main": [
-        [
-          {
-            "node": "05. Stripe - Créer Produit",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "05. Stripe - Checkout Session", "type": "main", "index": 0 }]]
     },
-    "05. Stripe - Créer Produit": {
-      "main": [
-        [
-          {
-            "node": "06. Stripe - Créer Prix",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "05. Stripe - Checkout Session": {
+      "main": [[{ "node": "06. Combiner données Stripe", "type": "main", "index": 0 }]]
     },
-    "06. Stripe - Créer Prix": {
-      "main": [
-        [
-          {
-            "node": "06b. Préparer URLs Checkout",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06. Combiner données Stripe": {
+      "main": [[{ "node": "07. Build SQL abonnement", "type": "main", "index": 0 }]]
     },
-    "06b. Préparer URLs Checkout": {
-      "main": [
-        [
-          {
-            "node": "07. Stripe - Créer Session Checkout",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "06b. Sans Stripe (actif direct)": {
+      "main": [[{ "node": "07. Build SQL abonnement", "type": "main", "index": 0 }]]
     },
-    "07. Stripe - Créer Session Checkout": {
-      "main": [
-        [
-          {
-            "node": "08. Préparer avec IDs Stripe",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "07. Build SQL abonnement": {
+      "main": [[{ "node": "08. INSERT abonnement", "type": "main", "index": 0 }]]
     },
-    "08. Préparer avec IDs Stripe": {
-      "main": [
-        [
-          {
-            "node": "09b. Merge - Ajouter mot de passe",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "08. INSERT abonnement": {
+      "main": [[{ "node": "09. Build SQL espace client", "type": "main", "index": 0 }]]
     },
-    "09b. Merge - Ajouter mot de passe": {
-      "main": [
-        [
-          {
-            "node": "09. Préparer requête SQL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "09. Build SQL espace client": {
+      "main": [[{ "node": "10. INSERT client_space", "type": "main", "index": 0 }]]
     },
-    "09. Préparer requête SQL": {
-      "main": [
-        [
-          {
-            "node": "10. Créer abonnement client",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "09c. Conserver données",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10. Créer abonnement client": {
-      "main": [
-        [
-          {
-            "node": "10-merge. Combiner abonnement et données",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "09c. Conserver données": {
-      "main": [
-        [
-          {
-            "node": "10-merge. Combiner abonnement et données",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "10-merge. Combiner abonnement et données": {
-      "main": [
-        [
-          {
-            "node": "10a. Préparer après abonnement",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10a. Préparer après abonnement": {
-      "main": [
-        [
-          {
-            "node": "10b. Préparer création espace client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10b. Préparer création espace client": {
-      "main": [
-        [
-          {
-            "node": "10c. Préparer INSERT espace client",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10c. Préparer INSERT espace client": {
-      "main": [
-        [
-          {
-            "node": "10d. INSERT client_spaces",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10d. INSERT client_spaces": {
-      "main": [
-        [
-          {
-            "node": "11. Formater réponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "10. INSERT client_space": {
+      "main": [[{ "node": "11. Formater réponse", "type": "main", "index": 0 }]]
     },
     "11. Formater réponse": {
       "main": [
         [
-          {
-            "node": "11b. Préparer notification",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "12. Respond", "type": "main", "index": 0 },
+          { "node": "13. Build notification", "type": "main", "index": 0 }
         ]
       ]
     },
-    "11b. Préparer notification": {
-      "main": [
-        [
-          {
-            "node": "12. Créer notification - Construire SQL",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "12. Créer notification - Construire SQL": {
-      "main": [
-        [
-          {
-            "node": "12. Créer notification - INSERT notification",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "12. Créer notification - INSERT notification": {
-      "main": [
-        [
-          {
-            "node": "13. Répondre au webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "13. Build notification": {
+      "main": [[{ "node": "14. INSERT notification", "type": "main", "index": 0 }]]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },

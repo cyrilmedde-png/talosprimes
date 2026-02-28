@@ -30,7 +30,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT email, nom, prenom, raison_sociale, telephone FROM clients_finaux WHERE id = '\" + $json.clientId + \"'::uuid LIMIT 1;\" }}",
+        "query": "={{ \"SELECT email, nom, prenom, raison_sociale, telephone FROM client_finals WHERE id = '\" + $json.clientId + \"'::uuid LIMIT 1;\" }}",
         "options": {}
       },
       "id": "get-client",

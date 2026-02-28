@@ -33,7 +33,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"UPDATE client_finals SET\n  nom = COALESCE(NULLIF('\" + $json.nom + \"', ''), nom),\n  prenom = COALESCE(NULLIF('\" + $json.prenom + \"', ''), prenom),\n  email = COALESCE(NULLIF('\" + $json.email + \"', ''), email),\n  telephone = COALESCE(NULLIF('\" + $json.telephone + \"', ''), telephone),\n  raison_sociale = COALESCE(NULLIF('\" + $json.raisonSociale + \"', ''), raison_sociale),\n  adresse = COALESCE(NULLIF('\" + $json.adresse + \"', ''), adresse),\n  updated_at = NOW()\nWHERE id = '\" + $json.id + \"'::uuid\nAND tenant_id = '\" + $json.tenantId + \"'::uuid\nRETURNING id, tenant_id, nom, prenom, email, telephone, type, raison_sociale, adresse, statut, created_at, updated_at\" }}",
+        "query": "={{ \"UPDATE client_finals SET\n  nom = COALESCE(NULLIF('\" + $json.nom + \"', ''), nom),\n  prenom = COALESCE(NULLIF('\" + $json.prenom + \"', ''), prenom),\n  email = COALESCE(NULLIF('\" + $json.email + \"', ''), email),\n  telephone = COALESCE(NULLIF('\" + $json.telephone + \"', ''), telephone),\n  raison_sociale = COALESCE(NULLIF('\" + $json.raisonSociale + \"', ''), raison_sociale),\n  adresse = COALESCE(NULLIF('\" + $json.adresse + \"', ''), adresse),\n  type = COALESCE(NULLIF('\" + $json.type + \"', ''), type),\n  statut = COALESCE(NULLIF('\" + $json.statut + \"', ''), statut),\n  tags = CASE WHEN '\" + $json.tags + \"' = '' THEN tags ELSE '\" + $json.tags + \"'::jsonb END,\n  updated_at = NOW()\nWHERE id = '\" + $json.id + \"'::uuid\nAND tenant_id = '\" + $json.tenantId + \"'::uuid\nRETURNING id, tenant_id, nom, prenom, email, telephone, type, raison_sociale, adresse, tags, statut, created_at, updated_at\" }}",
         "options": {
           "queryBatching": "independently"
         }
@@ -109,5 +109,5 @@
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "_comment": "Converted from HTTP Request to Postgres Direct on 2026-02-21. type and statut removed from UPDATE SET to avoid enum COALESCE mismatch. Tested OK."
+  "_comment": "Converted from HTTP Request to Postgres Direct. type, statut and tags now properly updated."
 }

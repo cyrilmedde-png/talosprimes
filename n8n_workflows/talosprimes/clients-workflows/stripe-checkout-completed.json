@@ -121,7 +121,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT cs.temporary_password, cf.email, cf.nom, cf.prenom, cf.raison_sociale, cf.telephone FROM client_subscriptions cs JOIN clients_finaux cf ON cs.client_final_id = cf.id WHERE cf.id = '\" + $('02. Parser données session').item.json.clientId + \"'::uuid AND cs.temporary_password IS NOT NULL ORDER BY cs.created_at DESC LIMIT 1;\" }}",
+        "query": "={{ \"SELECT cs.temporary_password, cf.email, cf.nom, cf.prenom, cf.raison_sociale, cf.telephone FROM client_subscriptions cs JOIN client_finals cf ON cs.client_final_id = cf.id WHERE cf.id = '\" + $('02. Parser données session').item.json.clientId + \"'::uuid AND cs.temporary_password IS NOT NULL ORDER BY cs.created_at DESC LIMIT 1;\" }}",
         "options": {}
       },
       "id": "get-credentials",
