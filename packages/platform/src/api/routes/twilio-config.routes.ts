@@ -78,6 +78,10 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_config_get',
           {}
         );
+        if (!res.success) {
+          fastify.log.error({ error: res.error, tenantId }, 'Erreur n8n twilio_config_get');
+          return reply.status(500).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -138,6 +142,10 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_config_update',
           body
         );
+        if (!res.success) {
+          fastify.log.error({ error: res.error, tenantId }, 'Erreur n8n twilio_config_update');
+          return reply.status(500).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
         return reply.status(200).send({
           success: true,
           data: res.data,
@@ -193,6 +201,10 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_test_call',
           {}
         );
+        if (!res.success) {
+          fastify.log.error({ error: res.error, tenantId }, 'Erreur n8n twilio_test_call');
+          return reply.status(500).send({ success: false, error: res.error || 'Erreur n8n' });
+        }
         return reply.status(200).send({
           success: true,
           message: 'Test call triggered',
@@ -249,6 +261,13 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
           'twilio_outbound_call',
           body
         );
+        if (!res.success) {
+          fastify.log.error({ error: res.error, tenantId }, 'Erreur n8n outbound call');
+          return reply.status(500).send({
+            success: false,
+            error: res.error || 'Erreur lors du lancement de l\'appel sortant via n8n',
+          });
+        }
         return reply.status(200).send({
           success: true,
           message: 'Outbound call triggered',
