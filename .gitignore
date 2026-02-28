@@ -39,3 +39,5 @@ Thumbs.db
 .turbo/
 .vercel
 .pnpm-store/
+.git_backup/
+_a_supprimer/

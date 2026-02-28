@@ -1,6 +1,0 @@
-fix: ajouter created_at et updated_at dans l'INSERT du workflow devis-created
-
-L'INSERT SQL ne fournissait pas created_at/updated_at, ce qui causait
-une erreur NOT NULL constraint sur la colonne updated_at.
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
