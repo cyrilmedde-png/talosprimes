@@ -19,6 +19,8 @@ interface CallLog {
   callerName?: string | null;
   callerPhone?: string;
   caller_phone?: string;
+  calledNumber?: string;
+  called_number?: string;
   duration?: number;
   urgencyLevel?: string;
   urgency_level?: string;
@@ -161,10 +163,17 @@ export default function AppelsPage() {
     }
   };
 
-  // Getters robustes (camelCase ou snake_case)
+  // Getters robustes (camelCase ou snake_case) — direction-aware
   const getDate = (c: CallLog) => c.createdAt || c.created_at || '';
-  const getName = (c: CallLog) => c.callerName || '';
-  const getPhone = (c: CallLog) => c.callerPhone || c.caller_phone || '';
+  const isOutbound = (c: CallLog) => c.direction === 'sortant';
+  const getCalledNumber = (c: CallLog) => c.calledNumber || c.called_number || '';
+  const getCallerPhone = (c: CallLog) => c.callerPhone || c.caller_phone || '';
+  // Pour sortant : afficher le numéro appelé (client), pour entrant : le numéro appelant
+  const getPhone = (c: CallLog) => isOutbound(c) ? (getCalledNumber(c) || getCallerPhone(c)) : (getCallerPhone(c) || getCalledNumber(c));
+  const getName = (c: CallLog) => {
+    if (isOutbound(c)) return c.callerName || 'Appel sortant';
+    return c.callerName || '';
+  };
   const getDuration = (c: CallLog) => c.duration ?? 0;
   const getUrgency = (c: CallLog) => c.urgencyLevel || c.urgency_level || '';
   const getSentiment = (c: CallLog) => c.sentiment || '';
@@ -357,7 +366,14 @@ export default function AppelsPage() {
                 filteredCalls.map((call) => (
                   <tr key={call.id} className="hover:bg-gray-700/20 transition-colors cursor-pointer" onClick={() => handleRowClick(call)}>
                     <td className="px-6 py-4 text-sm text-gray-300">{formatDate(getDate(call))}</td>
-                    <td className="px-6 py-4 text-sm text-white font-medium">{getName(call) || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-white font-medium">
+                      <div className="flex items-center gap-2">
+                        {isOutbound(call) && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-700/30 shrink-0">SORTANT</span>
+                        )}
+                        {getName(call) || '-'}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-300 font-mono">{getPhone(call) || '-'}</td>
                     <td className="px-6 py-4 text-sm text-gray-300">{formatDuration(getDuration(call))}</td>
                     <td className="px-6 py-4 text-sm">
@@ -528,12 +544,12 @@ export default function AppelsPage() {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">Appelant</p>
+                  <p className="text-sm text-gray-400 mb-1">{isOutbound(selectedCall) ? 'Destinataire' : 'Appelant'}</p>
                   <p className="text-white font-medium">{getName(selectedCall) || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">Téléphone</p>
-                  <p className="text-white font-medium font-mono">{getPhone(selectedCall)}</p>
+                  <p className="text-sm text-gray-400 mb-1">{isOutbound(selectedCall) ? 'Numéro appelé' : 'Téléphone'}</p>
+                  <p className="text-white font-medium font-mono">{getPhone(selectedCall) || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Date</p>

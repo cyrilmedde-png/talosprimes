@@ -242,7 +242,8 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         throw error;
       }
 
-      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
+      // Appels sortants : TOUJOURS via n8n (indépendant de USE_N8N_COMMANDS)
+      if (!fromN8n && tenantId) {
         const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
           tenantId,
           'twilio_outbound_call',
