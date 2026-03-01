@@ -618,22 +618,20 @@ log_step "1/$TOTAL_STEPS - Recuperation du code depuis GitHub"
 PREVIOUS_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 log_info "Commit actuel: ${PREVIOUS_COMMIT:0:8}"
 
-if ! git pull origin main 2>&1; then
-  if [ -n "$(git status --porcelain)" ]; then
-    log_warn "Modifications locales detectees (seraient ecrasees par le merge)"
-    log_info "Reinitialisation des fichiers suivants pour synchroniser avec origin/main..."
-    git status --short
-    git reset --hard HEAD
-    log_ok "Reinitialisation effectuee"
-    if ! git pull origin main 2>&1; then
-      log_err "Impossible de recuperer le code apres reset"
-      exit 1
-    fi
-  else
-    log_err "Impossible de recuperer le code"
+# Toujours fetch d'abord pour avoir les refs a jour
+git fetch origin 2>&1 || true
+
+# Strategie : on force le VPS a correspondre exactement a origin/main
+# Le VPS ne doit JAMAIS avoir de commits locaux qui divergent
+if ! git pull --rebase origin main 2>&1; then
+  log_warn "Pull --rebase echoue, reset force sur origin/main..."
+  git reset --hard origin/main 2>&1
+  if [ $? -ne 0 ]; then
+    log_err "Impossible de recuperer le code (reset --hard origin/main echoue)"
     log_info "Verifiez votre connexion et vos droits GitHub"
     exit 1
   fi
+  log_ok "Reset force sur origin/main effectue"
 fi
 
 NEW_COMMIT=$(git rev-parse HEAD)
