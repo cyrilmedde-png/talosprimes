@@ -56,6 +56,8 @@ export default function ClientsPage() {
     modulesInclus: ['gestion_clients', 'facturation', 'suivi'] as string[],
     dureeMois: 1,
     avecStripe: false, // Option pour activer/désactiver Stripe
+    avecSousDomaine: false, // Option pour créer un sous-domaine
+    sousDomaine: '', // ex: "client-dupont" → client-dupont.talosprimes.com
   });
   const [formData, setFormData] = useState({
     type: 'b2c' as 'b2b' | 'b2c',
@@ -299,6 +301,8 @@ export default function ClientsPage() {
         modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
         dureeMois: 1,
         avecStripe: false,
+        avecSousDomaine: false,
+        sousDomaine: '',
       });
       await loadClients();
     } catch (err) {
@@ -314,6 +318,8 @@ export default function ClientsPage() {
       modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
       dureeMois: 1,
       avecStripe: false,
+      avecSousDomaine: false,
+      sousDomaine: '',
     });
     setShowOnboardingModal(true);
   };
@@ -1178,6 +1184,63 @@ export default function ClientsPage() {
                 </label>
               </div>
 
+              <div className="border-t border-gray-700 pt-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={onboardingData.avecSousDomaine}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setOnboardingData({
+                        ...onboardingData,
+                        avecSousDomaine: checked,
+                        sousDomaine: checked && !onboardingData.sousDomaine
+                          ? (selectedClient?.raisonSociale || selectedClient?.nom || '')
+                              .toLowerCase()
+                              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                              .replace(/[^a-z0-9-]/g, '-')
+                              .replace(/-+/g, '-')
+                              .replace(/^-|-$/g, '')
+                          : onboardingData.sousDomaine,
+                      });
+                    }}
+                    className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-300">Créer un sous-domaine</span>
+                    <p className="text-xs text-gray-400">Crée automatiquement un espace accessible via sous-domaine.talosprimes.com</p>
+                  </div>
+                </label>
+                {onboardingData.avecSousDomaine && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Sous-domaine <span className="text-red-400">*</span>
+                    </label>
+                    <div className="flex items-center gap-0">
+                      <input
+                        type="text"
+                        value={onboardingData.sousDomaine}
+                        onChange={(e) => setOnboardingData({
+                          ...onboardingData,
+                          sousDomaine: e.target.value
+                            .toLowerCase()
+                            .replace(/[^a-z0-9-]/g, '-')
+                            .replace(/-+/g, '-'),
+                        })}
+                        className="flex-1 bg-gray-700 border border-gray-600 rounded-l px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="nom-client"
+                      />
+                      <span className="bg-gray-600 border border-gray-600 border-l-0 rounded-r px-3 py-2 text-gray-400 text-sm">
+                        .talosprimes.com
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      L'espace sera accessible à : <span className="text-indigo-400">{onboardingData.sousDomaine || '...'}.talosprimes.com</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-2 pt-4">
                 <button
                   onClick={() => {
@@ -1190,7 +1253,7 @@ export default function ClientsPage() {
                 </button>
                 <button
                   onClick={handleCreateOnboarding}
-                  disabled={!onboardingData.nomPlan || onboardingData.modulesInclus.length === 0}
+                  disabled={!onboardingData.nomPlan || onboardingData.modulesInclus.length === 0 || (onboardingData.avecSousDomaine && !onboardingData.sousDomaine)}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md"
                 >
                   Créer l'espace client

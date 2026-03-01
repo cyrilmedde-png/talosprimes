@@ -138,7 +138,7 @@ export const apiClient = {
       method: 'DELETE',
     }),
     
-    createOnboarding: (id: string, data: { nomPlan?: string; montantMensuel?: number; modulesInclus?: string[]; dureeMois?: number; avecStripe?: boolean }) =>
+    createOnboarding: (id: string, data: { nomPlan?: string; montantMensuel?: number; modulesInclus?: string[]; dureeMois?: number; avecStripe?: boolean; avecSousDomaine?: boolean; sousDomaine?: string }) =>
       authenticatedFetch<{ 
         success: boolean; 
         message: string; 

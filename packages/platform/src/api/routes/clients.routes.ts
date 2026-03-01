@@ -1,11 +1,16 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { exec } from 'node:child_process';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { prisma } from '../../config/database.js';
 import { eventService } from '../../services/event.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware, n8nOnlyMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Schema de validation pour créer un client
 const createClientSchema = z.object({
@@ -841,6 +846,8 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           modulesInclus?: string[];
           dureeMois?: number;
           avecStripe?: boolean;
+          avecSousDomaine?: boolean;
+          sousDomaine?: string;
         };
 
         // Vérifier que le client existe et appartient au tenant
@@ -893,6 +900,8 @@ export async function clientsRoutes(fastify: FastifyInstance) {
               },
               plan, // Inclure les paramètres du plan dans le payload
               avecStripe: body.avecStripe || false, // Indicateur pour créer l'abonnement Stripe
+              avecSousDomaine: body.avecSousDomaine || false,
+              sousDomaine: body.sousDomaine || '',
             }
           );
 
@@ -922,26 +931,70 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Créer l'espace client (ClientSpace) si sous-domaine demandé
+        let clientSpace = null;
+        if (body.avecSousDomaine && body.sousDomaine) {
+          const slug = body.sousDomaine
+            .toLowerCase()
+            .replace(/[^a-z0-9-]/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+
+          // Vérifier l'unicité du slug
+          const existingSpace = await prisma.clientSpace.findFirst({
+            where: { tenantSlug: slug },
+          });
+          if (existingSpace) {
+            throw new Error(`Le sous-domaine "${slug}" est déjà utilisé`);
+          }
+
+          clientSpace = await prisma.clientSpace.create({
+            data: {
+              tenantId,
+              clientFinalId: client.id,
+              tenantSlug: slug,
+              status: 'en_creation',
+              modulesActives: plan.modulesInclus,
+            },
+          });
+
+          // Lancer la création du vhost nginx en arrière-plan (fire-and-forget)
+          const scriptPath = resolve(__dirname, '../../../../..', 'scripts/setup-subdomain.sh');
+          exec(`bash "${scriptPath}" "${slug}"`, (error, stdout, stderr) => {
+            if (error) {
+              fastify.log.warn({ slug, error: error.message, stderr }, 'setup-subdomain.sh echoue (non bloquant)');
+            } else {
+              fastify.log.info({ slug, stdout: stdout.trim() }, 'Sous-domaine configure');
+            }
+          });
+        }
+
         // Créer une notification
+        const subdomainInfo = clientSpace ? ` (sous-domaine: ${clientSpace.tenantSlug}.talosprimes.com)` : '';
         await prisma.notification.create({
           data: {
             tenantId,
             type: 'client_onboarding',
             titre: 'Espace client créé',
-            message: `L'espace client et l'abonnement "${plan.nomPlan}" ont été créés avec succès pour ${client.nom || client.raisonSociale || client.email}`,
+            message: `L'espace client et l'abonnement "${plan.nomPlan}" ont été créés avec succès pour ${client.nom || client.raisonSociale || client.email}${subdomainInfo}`,
             donnees: {
               clientId: client.id,
               subscriptionId: subscription.id,
+              clientSpaceId: clientSpace?.id || null,
+              sousDomaine: clientSpace?.tenantSlug || null,
             },
           },
         });
 
         return reply.status(201).send({
           success: true,
-          message: 'Espace client créé avec succès',
+          message: clientSpace
+            ? `Espace client créé avec sous-domaine ${clientSpace.tenantSlug}.talosprimes.com`
+            : 'Espace client créé avec succès',
           data: {
             subscription,
             plan,
+            clientSpace,
           },
         });
       } catch (error) {
