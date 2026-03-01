@@ -420,34 +420,71 @@ export default function CMSPage() {
     }
   };
 
-  const contentSections = [
-    { key: 'hero_title', label: 'Titre Hero' },
-    { key: 'hero_subtitle', label: 'Sous-titre Hero' },
-    { key: 'hero_cta_primary', label: 'CTA Principal' },
-    { key: 'hero_cta_secondary', label: 'CTA Secondaire' },
-    { key: 'feature_1_title', label: 'Feature 1 - Titre' },
-    { key: 'feature_1_desc', label: 'Feature 1 - Description' },
-    { key: 'feature_2_title', label: 'Feature 2 - Titre' },
-    { key: 'feature_2_desc', label: 'Feature 2 - Description' },
-    { key: 'feature_3_title', label: 'Feature 3 - Titre' },
-    { key: 'feature_3_desc', label: 'Feature 3 - Description' },
-    { key: 'feature_4_title', label: 'Feature 4 - Titre' },
-    { key: 'feature_4_desc', label: 'Feature 4 - Description' },
-    { key: 'feature_5_title', label: 'Feature 5 - Titre' },
-    { key: 'feature_5_desc', label: 'Feature 5 - Description' },
-    { key: 'feature_6_title', label: 'Feature 6 - Titre' },
-    { key: 'feature_6_desc', label: 'Feature 6 - Description' },
-    { key: 'stats_1_value', label: 'Stat 1 - Valeur' },
-    { key: 'stats_1_label', label: 'Stat 1 - Label' },
-    { key: 'stats_2_value', label: 'Stat 2 - Valeur' },
-    { key: 'stats_2_label', label: 'Stat 2 - Label' },
-    { key: 'stats_3_value', label: 'Stat 3 - Valeur' },
-    { key: 'stats_3_label', label: 'Stat 3 - Label' },
-    { key: 'cta_section_title', label: 'Section CTA - Titre' },
-    { key: 'cta_section_subtitle', label: 'Section CTA - Sous-titre' },
-    { key: 'footer_company_name', label: 'Footer - Nom entreprise' },
-    { key: 'footer_company_desc', label: 'Footer - Description' },
+  // Contenu organisé par blocs thématiques
+  const contentGroups = [
+    {
+      id: 'hero',
+      title: '🎯 Section Hero',
+      desc: 'Titre principal, sous-titre et boutons d\'action',
+      fields: [
+        { key: 'hero_title', label: 'Titre', type: 'textarea' as const, rows: 2 },
+        { key: 'hero_subtitle', label: 'Sous-titre', type: 'textarea' as const, rows: 2 },
+        { key: 'hero_cta_primary', label: 'Bouton principal', type: 'input' as const },
+        { key: 'hero_cta_secondary', label: 'Bouton secondaire', type: 'input' as const },
+      ],
+    },
+    {
+      id: 'stats',
+      title: '📊 Statistiques',
+      desc: 'Les 3 chiffres clés affichés sous le hero',
+      fields: [
+        { key: 'stats_1_value', label: 'Stat 1 — Valeur', type: 'input' as const },
+        { key: 'stats_1_label', label: 'Stat 1 — Label', type: 'input' as const },
+        { key: 'stats_2_value', label: 'Stat 2 — Valeur', type: 'input' as const },
+        { key: 'stats_2_label', label: 'Stat 2 — Label', type: 'input' as const },
+        { key: 'stats_3_value', label: 'Stat 3 — Valeur', type: 'input' as const },
+        { key: 'stats_3_label', label: 'Stat 3 — Label', type: 'input' as const },
+      ],
+    },
+    {
+      id: 'features',
+      title: '✨ Fonctionnalités',
+      desc: 'Les 6 blocs de fonctionnalités',
+      fields: [
+        { key: 'feature_1_title', label: 'Feature 1 — Titre', type: 'input' as const },
+        { key: 'feature_1_desc', label: 'Feature 1 — Description', type: 'textarea' as const, rows: 2 },
+        { key: 'feature_2_title', label: 'Feature 2 — Titre', type: 'input' as const },
+        { key: 'feature_2_desc', label: 'Feature 2 — Description', type: 'textarea' as const, rows: 2 },
+        { key: 'feature_3_title', label: 'Feature 3 — Titre', type: 'input' as const },
+        { key: 'feature_3_desc', label: 'Feature 3 — Description', type: 'textarea' as const, rows: 2 },
+        { key: 'feature_4_title', label: 'Feature 4 — Titre', type: 'input' as const },
+        { key: 'feature_4_desc', label: 'Feature 4 — Description', type: 'textarea' as const, rows: 2 },
+        { key: 'feature_5_title', label: 'Feature 5 — Titre', type: 'input' as const },
+        { key: 'feature_5_desc', label: 'Feature 5 — Description', type: 'textarea' as const, rows: 2 },
+        { key: 'feature_6_title', label: 'Feature 6 — Titre', type: 'input' as const },
+        { key: 'feature_6_desc', label: 'Feature 6 — Description', type: 'textarea' as const, rows: 2 },
+      ],
+    },
+    {
+      id: 'cta',
+      title: '🚀 Section CTA finale',
+      desc: 'Le bloc d\'appel à l\'action en bas de page',
+      fields: [
+        { key: 'cta_section_title', label: 'Titre', type: 'textarea' as const, rows: 2 },
+        { key: 'cta_section_subtitle', label: 'Sous-titre', type: 'textarea' as const, rows: 2 },
+      ],
+    },
+    {
+      id: 'footer',
+      title: '📝 Footer',
+      desc: 'Nom et description dans le pied de page',
+      fields: [
+        { key: 'footer_company_name', label: 'Nom entreprise', type: 'input' as const },
+        { key: 'footer_company_desc', label: 'Description', type: 'textarea' as const, rows: 2 },
+      ],
+    },
   ];
+
 
   const legalPages: LegalPage[] = [
     {
@@ -602,104 +639,123 @@ export default function CMSPage() {
         </button>
       </div>
 
-      {/* Content Tab */}
+      {/* Content Tab — organisé par blocs */}
       {activeTab === 'content' && (
-        <div className="space-y-4">
-          {contentSections.map((section) => {
-            const actifKey = `${section.key}_actif`;
-            const lienKey = `${section.key}_lien`;
-            const isActive = (editingContent[actifKey] ?? 'true') === 'true';
-            return (
-              <div key={section.key} className="bg-gray-800/20 backdrop-blur-md p-6 rounded-lg shadow-lg border border-gray-700/30">
-                <label className="block text-sm font-semibold text-gray-300 mb-2">{section.label}</label>
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {section.label.includes('Description') ? (
-                    <textarea
-                      value={editingContent[section.key] || ''}
-                      onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
-                      rows={3}
-                      className="flex-1 min-w-[200px] px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={editingContent[section.key] || ''}
-                      onChange={(e) => setEditingContent({ ...editingContent, [section.key]: e.target.value })}
-                      className="flex-1 min-w-[200px] px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
-                    />
-                  )}
-                  <button
-                    onClick={() => saveContent(section.key)}
-                    disabled={savingContent === section.key || editingContent[section.key] === content[section.key]}
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    {savingContent === section.key ? 'Sauvegarde...' : 'Sauvegarder'}
-                  </button>
-                </div>
-                <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-700/50">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isActive}
-                      onChange={async (e) => {
-                        const value = e.target.checked ? 'true' : 'false';
-                        setEditingContent((prev) => ({ ...prev, [actifKey]: value }));
-                        setContent((prev) => ({ ...prev, [actifKey]: value }));
-                        try {
-                          const token = getAccessToken();
-                          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${actifKey}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({ contenu: value }),
-                          });
-                        } catch (err) {
-                          console.error(err);
-                          alert('Erreur lors de la sauvegarde');
-                        }
-                      }}
-                      className="w-5 h-5 rounded border-gray-600 bg-gray-700/50 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-800"
-                    />
-                    <span className="text-sm text-gray-400">Afficher</span>
-                  </label>
-                  <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                    <span className="text-sm text-gray-400 whitespace-nowrap">Lien (URL)</span>
-                    <input
-                      type="text"
-                      value={editingContent[lienKey] || ''}
-                      onChange={(e) => setEditingContent({ ...editingContent, [lienKey]: e.target.value })}
-                      placeholder="/page ou https://..."
-                      className="flex-1 px-3 py-1.5 bg-gray-700/50 border border-gray-600 text-white text-sm rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-500"
-                    />
-                    <button
-                      onClick={async () => {
-                        setSavingContent(lienKey);
-                        try {
-                          const token = getAccessToken();
-                          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${lienKey}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({ contenu: editingContent[lienKey] || '' }),
-                          });
-                          setContent({ ...content, [lienKey]: editingContent[lienKey] || '' });
-                          alert('Lien sauvegardé');
-                        } catch (err) {
-                          console.error(err);
-                          alert('Erreur');
-                        } finally {
-                          setSavingContent(null);
-                        }
-                      }}
-                      disabled={savingContent === lienKey}
-                      className="px-4 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-500 transition disabled:opacity-50"
-                    >
-                      Sauvegarder le lien
-                    </button>
-                  </div>
-                </div>
+        <div className="space-y-8">
+          {contentGroups.map((group) => (
+            <div key={group.id} className="bg-gray-800/20 backdrop-blur-md rounded-xl shadow-lg border border-gray-700/30 overflow-hidden">
+              {/* En-tête du bloc */}
+              <div className="bg-gray-700/30 px-6 py-4 border-b border-gray-600/30">
+                <h3 className="text-lg font-bold text-white">{group.title}</h3>
+                <p className="text-sm text-gray-400 mt-0.5">{group.desc}</p>
               </div>
-            );
-          })}
+
+              {/* Champs du bloc */}
+              <div className="p-6 space-y-4">
+                {group.fields.map((field) => {
+                  const actifKey = `${field.key}_actif`;
+                  const lienKey = `${field.key}_lien`;
+                  const isActive = (editingContent[actifKey] ?? 'true') === 'true';
+                  const hasChanged = editingContent[field.key] !== content[field.key];
+
+                  return (
+                    <div key={field.key} className="space-y-2">
+                      <label className="block text-sm font-semibold text-gray-300">{field.label}</label>
+                      <div className="flex gap-2 items-start">
+                        {field.type === 'textarea' ? (
+                          <textarea
+                            value={editingContent[field.key] || ''}
+                            onChange={(e) => setEditingContent({ ...editingContent, [field.key]: e.target.value })}
+                            rows={field.rows || 3}
+                            className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400 resize-y"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={editingContent[field.key] || ''}
+                            onChange={(e) => setEditingContent({ ...editingContent, [field.key]: e.target.value })}
+                            className="flex-1 px-4 py-2 bg-gray-700/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
+                          />
+                        )}
+                        <button
+                          onClick={() => saveContent(field.key)}
+                          disabled={savingContent === field.key || !hasChanged}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shrink-0"
+                        >
+                          <Save className="w-4 h-4" />
+                          {savingContent === field.key ? '...' : 'Sauvegarder'}
+                        </button>
+                      </div>
+
+                      {/* Ligne options : Afficher + Lien */}
+                      <div className="flex flex-wrap items-center gap-4 pt-1">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isActive}
+                            onChange={async (e) => {
+                              const value = e.target.checked ? 'true' : 'false';
+                              setEditingContent((prev) => ({ ...prev, [actifKey]: value }));
+                              setContent((prev) => ({ ...prev, [actifKey]: value }));
+                              try {
+                                const token = getAccessToken();
+                                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${actifKey}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({ contenu: value }),
+                                });
+                              } catch (err) {
+                                console.error(err);
+                                alert('Erreur lors de la sauvegarde');
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-700/50 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-800"
+                          />
+                          <span className="text-xs text-gray-400">Afficher</span>
+                        </label>
+                        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                          <span className="text-xs text-gray-500">Lien</span>
+                          <input
+                            type="text"
+                            value={editingContent[lienKey] || ''}
+                            onChange={(e) => setEditingContent({ ...editingContent, [lienKey]: e.target.value })}
+                            placeholder="/page ou https://..."
+                            className="flex-1 px-3 py-1 bg-gray-700/50 border border-gray-600 text-white text-xs rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-500"
+                          />
+                          <button
+                            onClick={async () => {
+                              setSavingContent(lienKey);
+                              try {
+                                const token = getAccessToken();
+                                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content/${lienKey}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({ contenu: editingContent[lienKey] || '' }),
+                                });
+                                setContent({ ...content, [lienKey]: editingContent[lienKey] || '' });
+                              } catch (err) {
+                                console.error(err);
+                                alert('Erreur');
+                              } finally {
+                                setSavingContent(null);
+                              }
+                            }}
+                            disabled={savingContent === lienKey}
+                            className="px-3 py-1 bg-gray-600 text-white text-xs rounded-lg hover:bg-gray-500 transition disabled:opacity-50"
+                          >
+                            OK
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Séparateur entre champs */}
+                      <div className="border-b border-gray-700/30 pt-1" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
