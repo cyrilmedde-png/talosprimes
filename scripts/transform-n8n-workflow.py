@@ -152,9 +152,18 @@ def fix_postgres_node(node, parser_node_name):
             skip_json_replace = True
 
     # ---- Replace $json. with explicit Parser reference ----
+    # IMPORTANT: Ne PAS remplacer quand la query est une simple expression
+    # comme "={{ $json.query }}" ou "={{ $json.someField }}" — dans ces cas,
+    # $json référence la sortie du nœud PRÉCÉDENT (ex: Build SQL), pas le Parser.
+    # On ne remplace que quand $json. est intégré dans du SQL brut.
     if '$json.' in query and parser_node_name and not skip_json_replace:
-        explicit_ref = f"$('{parser_node_name}').first().json."
-        query = query.replace('$json.', explicit_ref)
+        # Détecter si c'est une simple expression $json (référence au nœud précédent)
+        simple_expr = re.match(r'^=\{\{\s*\$json\.\w+\s*\}\}$', query.strip())
+        # Détecter si $json est déjà qualifié avec $('...').first().json
+        already_qualified = "$('".lower() in query.lower() and '.first().json.' in query
+        if not simple_expr and not already_qualified:
+            explicit_ref = f"$('{parser_node_name}').first().json."
+            query = query.replace('$json.', explicit_ref)
 
     # Fix $('NodeName').first().field -> .first().json.field in Postgres expressions
     query = re.sub(
