@@ -17,6 +17,13 @@ import {
   CheckCircleIcon,
   SparklesIcon,
   CreditCardIcon,
+  ArrowPathIcon,
+  PauseIcon,
+  PlayIcon,
+  NoSymbolIcon,
+  EnvelopeIcon,
+  CheckBadgeIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 
 type CreateMode = 'from-lead' | 'direct';
@@ -36,6 +43,13 @@ export default function ClientsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [creatingFromLead, setCreatingFromLead] = useState(false);
   const [clientSubscriptions, setClientSubscriptions] = useState<Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null>>({});
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionDetail, setSubscriptionDetail] = useState<{
+    subscription: { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string; dateDebut: string; dateProchainRenouvellement: string; idAbonnementStripe?: string; idClientStripe?: string };
+    space: { id: string; status: string; tenantSlug?: string; clientTenantId?: string; modulesActives?: string[] } | null;
+  } | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
   const [onboardingData, setOnboardingData] = useState({
     nomPlan: 'Plan Starter',
     montantMensuel: 29.99,
@@ -306,19 +320,72 @@ export default function ClientsPage() {
 
   const handleManageSubscription = async (client: ClientFinal) => {
     try {
-      // Récupérer l'abonnement complet
-      const response = await apiClient.subscriptions.list();
-      const subscription = response.data.subscriptions.find(s => s.clientFinalId === client.id);
-      
-      if (subscription) {
-        // TODO: Implémenter le modal de visualisation d'abonnement
-        console.log('Subscription:', subscription);
-        setError('Fonctionnalité en cours de développement');
-      } else {
+      setSubscriptionLoading(true);
+      setSelectedClient(client);
+
+      // Fetch abonnement + espaces en parallèle
+      const [subResponse, spacesResponse] = await Promise.all([
+        apiClient.clients.getSubscription(client.id),
+        apiClient.clientSpaces.list(),
+      ]);
+
+      const subscription = subResponse.data.subscription;
+      if (!subscription) {
         setError('Abonnement non trouvé');
+        setSubscriptionLoading(false);
+        return;
       }
+
+      // Trouver l'espace client associé
+      const spaces = (spacesResponse.data as { clientSpaces?: Array<{ id: string; clientFinalId?: string; status: string; tenantSlug?: string; clientTenantId?: string; modulesActives?: string[] }> }).clientSpaces || [];
+      const space = spaces.find((s: { clientFinalId?: string }) => s.clientFinalId === client.id) || null;
+
+      setSubscriptionDetail({ subscription, space });
+      setShowSubscriptionModal(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la récupération de l\'abonnement');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const handleSubscriptionAction = async (action: 'renew' | 'suspend' | 'reactivate' | 'cancel') => {
+    if (!subscriptionDetail?.subscription) return;
+    const subId = subscriptionDetail.subscription.id;
+    const labels = { renew: 'renouveler', suspend: 'suspendre', reactivate: 'réactiver', cancel: 'annuler' };
+
+    if (action !== 'renew' && !confirm(`Êtes-vous sûr de vouloir ${labels[action]} cet abonnement ?`)) return;
+
+    try {
+      if (action === 'renew') await apiClient.subscriptions.renew(subId);
+      else if (action === 'suspend') await apiClient.subscriptions.suspend(subId);
+      else if (action === 'reactivate') await apiClient.subscriptions.reactivate(subId);
+      else if (action === 'cancel') await apiClient.subscriptions.cancel(subId);
+
+      // Recharger les données du modal
+      if (selectedClient) await handleManageSubscription(selectedClient);
+      await loadClients();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Erreur lors de l'action ${labels[action]}`);
+    }
+  };
+
+  const handleValidateSpace = async (spaceId: string) => {
+    try {
+      await apiClient.clientSpaces.validate(spaceId);
+      if (selectedClient) await handleManageSubscription(selectedClient);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la validation');
+    }
+  };
+
+  const handleResendEmail = async (spaceId: string) => {
+    try {
+      await apiClient.clientSpaces.resendEmail(spaceId);
+      setError(null);
+      alert('Identifiants renvoyés avec succès');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi');
     }
   };
 
@@ -533,8 +600,13 @@ export default function ClientsPage() {
                                   onClick={() => handleManageSubscription(client)}
                                   className="text-green-400 hover:text-green-300"
                                   title={`Gérer l'abonnement: ${clientSubscriptions[client.id]?.nomPlan}`}
+                                  disabled={subscriptionLoading}
                                 >
-                                  <CreditCardIcon className="h-5 w-5" />
+                                  {subscriptionLoading && selectedClient?.id === client.id ? (
+                                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                                  ) : (
+                                    <CreditCardIcon className="h-5 w-5" />
+                                  )}
                                 </button>
                               )}
                               <button
@@ -613,6 +685,29 @@ export default function ClientsPage() {
                           </td>
                           <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
+                              {!clientSubscriptions[client.id] && (
+                                <button
+                                  onClick={() => handleOpenOnboarding(client)}
+                                  className="text-green-400 hover:text-green-300"
+                                  title="Créer espace client"
+                                >
+                                  <SparklesIcon className="h-5 w-5" />
+                                </button>
+                              )}
+                              {clientSubscriptions[client.id] && (
+                                <button
+                                  onClick={() => handleManageSubscription(client)}
+                                  className="text-green-400 hover:text-green-300"
+                                  title={`Gérer l'abonnement: ${clientSubscriptions[client.id]?.nomPlan}`}
+                                  disabled={subscriptionLoading}
+                                >
+                                  {subscriptionLoading && selectedClient?.id === client.id ? (
+                                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                                  ) : (
+                                    <CreditCardIcon className="h-5 w-5" />
+                                  )}
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleEdit(client)}
                                 className="text-indigo-400 hover:text-indigo-300"
@@ -1101,6 +1196,209 @@ export default function ClientsPage() {
                   Créer l'espace client
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Gérer l'abonnement */}
+      {showSubscriptionModal && selectedClient && subscriptionDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 sm:p-6 max-w-3xl w-full mx-2 sm:mx-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-start sm:items-center mb-6 gap-2">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-white">Gérer l'abonnement</h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  {selectedClient.type === 'b2b'
+                    ? selectedClient.raisonSociale
+                    : `${selectedClient.prenom} ${selectedClient.nom}`}
+                  {' '}&mdash; {selectedClient.email}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSubscriptionModal(false);
+                  setSubscriptionDetail(null);
+                  setSelectedClient(null);
+                }}
+                className="text-gray-400 hover:text-white flex-shrink-0"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Section 1 : Abonnement */}
+            <div className="bg-gray-700/30 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CreditCardIcon className="h-5 w-5 text-indigo-400" />
+                <h3 className="text-md font-semibold text-white">Abonnement</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-400">Plan</p>
+                  <p className="text-white font-medium">{subscriptionDetail.subscription.nomPlan}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Montant mensuel</p>
+                  <p className="text-white font-medium">{subscriptionDetail.subscription.montantMensuel} €/mois</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Statut</p>
+                  <span className={`inline-block px-2 py-1 text-xs rounded mt-1 ${
+                    subscriptionDetail.subscription.statut === 'actif'
+                      ? 'bg-green-900/30 text-green-400'
+                      : subscriptionDetail.subscription.statut === 'suspendu'
+                      ? 'bg-yellow-900/30 text-yellow-400'
+                      : subscriptionDetail.subscription.statut === 'annule'
+                      ? 'bg-red-900/30 text-red-400'
+                      : 'bg-gray-900/30 text-gray-400'
+                  }`}>
+                    {subscriptionDetail.subscription.statut}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Prochain renouvellement</p>
+                  <p className="text-white text-sm">
+                    {new Date(subscriptionDetail.subscription.dateProchainRenouvellement).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+              </div>
+              {subscriptionDetail.subscription.modulesInclus && subscriptionDetail.subscription.modulesInclus.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2">Modules inclus</p>
+                  <div className="flex flex-wrap gap-2">
+                    {subscriptionDetail.subscription.modulesInclus.map((mod) => (
+                      <span key={mod} className="px-2 py-1 bg-indigo-900/30 text-indigo-300 text-xs rounded capitalize">
+                        {mod.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {subscriptionDetail.subscription.idAbonnementStripe && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400">Stripe</p>
+                  <p className="text-gray-300 text-xs font-mono">{subscriptionDetail.subscription.idAbonnementStripe}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Section 2 : Espace client */}
+            <div className="bg-gray-700/30 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <GlobeAltIcon className="h-5 w-5 text-green-400" />
+                <h3 className="text-md font-semibold text-white">Espace client</h3>
+              </div>
+              {subscriptionDetail.space ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <p className="text-xs text-gray-400">Statut</p>
+                      <span className={`inline-block px-2 py-1 text-xs rounded mt-1 ${
+                        subscriptionDetail.space.status === 'actif'
+                          ? 'bg-green-900/30 text-green-400'
+                          : subscriptionDetail.space.status === 'en_attente_validation'
+                          ? 'bg-yellow-900/30 text-yellow-400'
+                          : subscriptionDetail.space.status === 'en_creation'
+                          ? 'bg-blue-900/30 text-blue-400'
+                          : subscriptionDetail.space.status === 'suspendu'
+                          ? 'bg-orange-900/30 text-orange-400'
+                          : 'bg-red-900/30 text-red-400'
+                      }`}>
+                        {subscriptionDetail.space.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    {subscriptionDetail.space.tenantSlug && (
+                      <div>
+                        <p className="text-xs text-gray-400">Slug</p>
+                        <p className="text-gray-300 text-sm font-mono">{subscriptionDetail.space.tenantSlug}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {subscriptionDetail.space.status === 'en_attente_validation' && (
+                      <button
+                        onClick={() => handleValidateSpace(subscriptionDetail.space!.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md transition-colors"
+                      >
+                        <CheckBadgeIcon className="h-4 w-4" />
+                        Valider l'espace
+                      </button>
+                    )}
+                    {(subscriptionDetail.space.status === 'actif' || subscriptionDetail.space.status === 'en_attente_validation') && (
+                      <button
+                        onClick={() => handleResendEmail(subscriptionDetail.space!.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-md transition-colors"
+                      >
+                        <EnvelopeIcon className="h-4 w-4" />
+                        Renvoyer identifiants
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-gray-400 text-sm">Aucun espace client créé</p>
+              )}
+            </div>
+
+            {/* Section 3 : Actions abonnement */}
+            <div className="bg-gray-700/30 rounded-lg p-4">
+              <h3 className="text-md font-semibold text-white mb-3">Actions</h3>
+              <div className="flex flex-wrap gap-2">
+                {subscriptionDetail.subscription.statut === 'actif' && (
+                  <>
+                    <button
+                      onClick={() => handleSubscriptionAction('renew')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md transition-colors"
+                    >
+                      <ArrowPathIcon className="h-4 w-4" />
+                      Renouveler
+                    </button>
+                    <button
+                      onClick={() => handleSubscriptionAction('suspend')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-md transition-colors"
+                    >
+                      <PauseIcon className="h-4 w-4" />
+                      Suspendre
+                    </button>
+                  </>
+                )}
+                {subscriptionDetail.subscription.statut === 'suspendu' && (
+                  <button
+                    onClick={() => handleSubscriptionAction('reactivate')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md transition-colors"
+                  >
+                    <PlayIcon className="h-4 w-4" />
+                    Réactiver
+                  </button>
+                )}
+                {subscriptionDetail.subscription.statut !== 'annule' && (
+                  <button
+                    onClick={() => handleSubscriptionAction('cancel')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors"
+                  >
+                    <NoSymbolIcon className="h-4 w-4" />
+                    Annuler
+                  </button>
+                )}
+                {subscriptionDetail.subscription.statut === 'annule' && (
+                  <p className="text-gray-400 text-sm">Cet abonnement est annulé.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Fermer */}
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => {
+                  setShowSubscriptionModal(false);
+                  setSubscriptionDetail(null);
+                  setSelectedClient(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md"
+              >
+                Fermer
+              </button>
             </div>
           </div>
         </div>
