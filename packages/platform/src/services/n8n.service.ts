@@ -344,6 +344,10 @@ export class N8nService {
       logger.warn({ eventType, webhookPath }, '[n8n] Réponse non-JSON reçue du webhook');
       return { success: false, data: {} as T, error: 'Réponse n8n invalide (non-JSON)' };
     }
+    // respondWith: "allIncomingItems" retourne un tableau — dé-wrapper si un seul élément
+    if (Array.isArray(rawData) && rawData.length === 1) {
+      rawData = rawData[0];
+    }
     // Convertir les clés snake_case (PostgreSQL) en camelCase (frontend)
     const data = transformKeys(rawData as Record<string, unknown>) as T;
     return { success: true, data };
