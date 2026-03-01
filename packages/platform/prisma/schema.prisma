@@ -52,6 +52,7 @@ enum SubscriptionStatus {
   annule
   en_retard
   suspendu
+  en_attente_paiement
 }
 
 enum PaymentStatus {
