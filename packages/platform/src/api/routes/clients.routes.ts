@@ -897,7 +897,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
               dateProchainRenouvellement,
               montantMensuel: plan.montantMensuel,
               modulesInclus: plan.modulesInclus,
-              statut: body.avecStripe ? 'en_attente' : 'actif',
+              statut: body.avecStripe ? 'suspendu' : 'actif',
             },
           });
 
