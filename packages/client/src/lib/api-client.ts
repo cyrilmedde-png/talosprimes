@@ -139,14 +139,16 @@ export const apiClient = {
     }),
     
     createOnboarding: (id: string, data: { nomPlan?: string; montantMensuel?: number; modulesInclus?: string[]; dureeMois?: number; avecStripe?: boolean; avecSousDomaine?: boolean; sousDomaine?: string }) =>
-      authenticatedFetch<{ 
-        success: boolean; 
-        message: string; 
-        data?: { 
-          subscription: unknown; 
-          plan: unknown; 
-          client: unknown;
-          modulesActives: string[];
+      authenticatedFetch<{
+        success: boolean;
+        message: string;
+        data?: {
+          subscription: unknown;
+          plan: unknown;
+          clientSpace?: unknown;
+          modulesActives?: string[];
+          checkoutUrl?: string;
+          requiresPayment?: boolean;
           credentials?: {
             tenantId: string;
             userId: string;
@@ -154,12 +156,12 @@ export const apiClient = {
             password: string;
           };
           stripe?: {
-            customerId: string;
-            checkoutSessionId: string;
-            checkoutUrl: string;
-            requiresPayment: boolean;
+            customerId?: string;
+            checkoutSessionId?: string;
+            checkoutUrl?: string;
+            checkout_url?: string;
           } | null;
-        } 
+        }
       }>(`/api/clients/${id}/onboarding`, {
         method: 'POST',
         body: JSON.stringify(data),

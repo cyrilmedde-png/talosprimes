@@ -287,9 +287,15 @@ export default function ClientsPage() {
       const response = await apiClient.clients.createOnboarding(selectedClient.id, onboardingData);
       
       // Si Stripe est activé et qu'on a une URL de checkout, rediriger vers Stripe
-      if (response.data?.stripe?.checkoutUrl) {
-        window.location.href = response.data.stripe.checkoutUrl;
-        return; // La redirection se fait, on ne ferme pas le modal pour l'instant
+      const checkoutUrl = response.data?.checkoutUrl
+        || response.data?.stripe?.checkoutUrl
+        || response.data?.stripe?.checkout_url;
+      if (checkoutUrl) {
+        window.open(checkoutUrl, '_blank');
+        setShowOnboardingModal(false);
+        setSelectedClient(null);
+        await loadClients();
+        return;
       }
       
       // Sinon, comportement normal

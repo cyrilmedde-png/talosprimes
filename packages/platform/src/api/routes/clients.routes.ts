@@ -929,10 +929,11 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             });
           }
 
-          // 3. Si Stripe demandé, appeler n8n — si ça échoue, la transaction rollback tout
+          // 3. Si Stripe demandé, appeler n8n pour créer la session de paiement
+          // L'abonnement reste 'suspendu' jusqu'au webhook stripe-checkout-completed
           let stripeData = null;
           if (body.avecStripe && tenantId && env.USE_N8N_COMMANDS) {
-            const stripeRes = await n8nService.callWorkflowReturn<{ stripe: unknown }>(
+            const stripeRes = await n8nService.callWorkflowReturn<{ checkoutUrl?: string; stripe?: unknown }>(
               tenantId,
               'client_onboarding',
               {
@@ -952,15 +953,34 @@ export async function clientsRoutes(fastify: FastifyInstance) {
               }
             );
             stripeData = stripeRes.data;
-
-            // Stripe OK → passer l'abonnement en actif
-            await tx.clientSubscription.update({
-              where: { id: subscription.id },
-              data: { statut: 'actif' },
-            });
+            // NE PAS mettre en 'actif' ici — le webhook stripe-checkout-completed le fera après paiement
           }
 
-          // 4. Notification
+          // 4. Activer les ClientModule en base (contrôle d'accès réel)
+          for (const moduleCode of plan.modulesInclus) {
+            const mod = await tx.moduleMetier.findUnique({ where: { code: moduleCode } });
+            if (mod) {
+              await tx.clientModule.upsert({
+                where: {
+                  clientFinalId_moduleId: {
+                    clientFinalId: client.id,
+                    moduleId: mod.id,
+                  },
+                },
+                create: {
+                  clientFinal: { connect: { id: client.id } },
+                  module: { connect: { id: mod.id } },
+                  actif: true,
+                },
+                update: {
+                  actif: true,
+                  usageActuel: 0,
+                },
+              });
+            }
+          }
+
+          // 5. Notification
           const subdomainInfo = clientSpace ? ` (sous-domaine: ${clientSpace.tenantSlug}.talosprimes.com)` : '';
           await tx.notification.create({
             data: {
@@ -992,6 +1012,11 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Extraire le checkoutUrl de la réponse n8n si Stripe
+        const checkoutUrl = result.stripeData?.checkoutUrl
+          || (result.stripeData as Record<string, unknown>)?.checkout_url
+          || null;
+
         return reply.status(201).send({
           success: true,
           message: result.clientSpace
@@ -1002,6 +1027,8 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             plan,
             clientSpace: result.clientSpace,
             ...(result.stripeData ? { stripe: result.stripeData } : {}),
+            ...(checkoutUrl ? { checkoutUrl } : {}),
+            requiresPayment: !!body.avecStripe,
           },
         });
       } catch (error) {
