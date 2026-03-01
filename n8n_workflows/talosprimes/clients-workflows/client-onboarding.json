@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var raw = $input.item.json;\nvar payload = raw.body || raw.json || raw;\nvar tenantId = payload.tenantId || payload.data?.tenantId;\nvar clientData = payload.data?.client || payload.client || payload.data || {};\nvar clientId = clientData.id || clientData.clientId;\nvar planFromPayload = payload.data?.plan || payload.plan || {};\nvar avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\n\nif (!tenantId) throw new Error('tenantId manquant');\nif (!clientId) throw new Error('clientId manquant');\n\nvar plan = {\n  nomPlan: planFromPayload.nomPlan || 'Plan Starter',\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || ['facturation', 'comptabilite', 'agent_ia'],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\nvar chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\nvar password = '';\nfor (var i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));\n\nvar dateDebut = new Date();\nvar dateFin = new Date();\ndateFin.setMonth(dateFin.getMonth() + plan.dureeMois);\n\nreturn [{\n  json: {\n    tenantId: String(tenantId),\n    clientId: String(clientId),\n    clientData: clientData,\n    plan: plan,\n    avecStripe: avecStripe,\n    plainPassword: password,\n    unitAmount: Math.round(plan.montantMensuel * 100),\n    dateDebut: dateDebut.toISOString(),\n    dateProchainRenouvellement: dateFin.toISOString()\n  }\n}];"
+        "jsCode": "var raw = $input.item.json;\nvar payload = raw.body || raw.json || raw;\nvar tenantId = payload.tenantId || payload.data?.tenantId;\nvar clientData = payload.data?.client || payload.client || payload.data || {};\nvar clientId = clientData.id || clientData.clientId;\nvar planFromPayload = payload.data?.plan || payload.plan || {};\nvar avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\nvar subscriptionId = payload.data?.subscriptionId || payload.subscriptionId || null;\n\nif (!tenantId) throw new Error('tenantId manquant');\nif (!clientId) throw new Error('clientId manquant');\nif (!subscriptionId) throw new Error('subscriptionId manquant — l\\'abonnement doit être créé par le backend avant d\\'appeler ce workflow');\n\nvar plan = {\n  nomPlan: planFromPayload.nomPlan || 'Plan Starter',\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || ['facturation', 'comptabilite', 'agent_ia'],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\nvar chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\nvar password = '';\nfor (var i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));\n\nreturn [{\n  json: {\n    tenantId: String(tenantId),\n    clientId: String(clientId),\n    subscriptionId: String(subscriptionId),\n    clientData: clientData,\n    plan: plan,\n    avecStripe: avecStripe,\n    plainPassword: password,\n    unitAmount: Math.round(plan.montantMensuel * 100)\n  }\n}];"
       },
       "id": "parse-validate",
       "name": "02. Parser + Valider",
@@ -98,8 +98,10 @@
             { "name": "metadata[clientId]", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
             { "name": "metadata[tenantId]", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" },
             { "name": "metadata[planName]", "value": "={{ $('02. Parser + Valider').item.json.plan.nomPlan }}" },
+            { "name": "metadata[subscriptionId]", "value": "={{ $('02. Parser + Valider').item.json.subscriptionId }}" },
             { "name": "subscription_data[metadata][clientId]", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
             { "name": "subscription_data[metadata][tenantId]", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" },
+            { "name": "subscription_data[metadata][subscriptionId]", "value": "={{ $('02. Parser + Valider').item.json.subscriptionId }}" },
             { "name": "payment_method_types[]", "value": "card" }
           ]
         },
@@ -137,10 +139,10 @@
     },
     {
       "parameters": {
-        "jsCode": "var d = $input.first().json;\nvar modules = d.plan.modulesInclus || [];\nvar modulesLiteral = '{' + modules.map(function(m) { return String(m); }).join(',') + '}';\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar query = 'INSERT INTO client_subscriptions (id, client_final_id, nom_plan, date_debut, date_prochain_renouvellement, montant_mensuel, modules_inclus, statut, id_client_stripe, id_abonnement_stripe, temporary_password, updated_at) VALUES (gen_random_uuid(), ' + esc(d.clientId) + '::uuid, ' + esc(d.plan.nomPlan) + ', ' + esc(d.dateDebut) + '::timestamptz, ' + esc(d.dateProchainRenouvellement) + '::timestamptz, ' + d.plan.montantMensuel + ', ' + esc(modulesLiteral) + '::text[], ' + esc(d.statutAbonnement) + ', ' + (d.idClientStripe ? esc(d.idClientStripe) : 'NULL') + ', ' + (d.idSessionCheckoutStripe ? esc(d.idSessionCheckoutStripe) : 'NULL') + ', ' + esc(d.plainPassword) + ', NOW()) ON CONFLICT (client_final_id) DO UPDATE SET nom_plan = EXCLUDED.nom_plan, montant_mensuel = EXCLUDED.montant_mensuel, modules_inclus = EXCLUDED.modules_inclus, statut = EXCLUDED.statut, id_client_stripe = COALESCE(EXCLUDED.id_client_stripe, client_subscriptions.id_client_stripe), temporary_password = COALESCE(EXCLUDED.temporary_password, client_subscriptions.temporary_password), updated_at = NOW() RETURNING *';\n\nreturn [{ json: { query: query, allData: d } }];"
+        "jsCode": "var d = $input.first().json;\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\n// L'abonnement a déjà été créé par le backend (clients.routes.ts).\n// Ici on UPDATE avec les infos Stripe (customerId, sessionId, password temporaire).\nvar query = 'UPDATE client_subscriptions SET '\n  + 'statut = ' + esc(d.statutAbonnement) + ', '\n  + 'id_client_stripe = ' + (d.idClientStripe ? esc(d.idClientStripe) : 'NULL') + ', '\n  + 'id_abonnement_stripe = ' + (d.idSessionCheckoutStripe ? esc(d.idSessionCheckoutStripe) : 'NULL') + ', '\n  + 'temporary_password = ' + esc(d.plainPassword) + ', '\n  + 'updated_at = NOW() '\n  + 'WHERE id = ' + esc(d.subscriptionId) + '::uuid '\n  + 'RETURNING *';\n\nreturn [{ json: { query: query, allData: d } }];"
       },
       "id": "build-sql-sub",
-      "name": "07. Build SQL abonnement",
+      "name": "07. Build SQL abonnement (UPDATE)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1340, 500]
@@ -152,7 +154,7 @@
         "options": { "queryBatching": "independently" }
       },
       "id": "insert-sub",
-      "name": "08. INSERT abonnement",
+      "name": "08. UPDATE abonnement",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1560, 500],
@@ -163,39 +165,13 @@
     },
     {
       "parameters": {
-        "jsCode": "var d = $('07. Build SQL abonnement').first().json.allData;\nvar cd = d.clientData || {};\nvar rawName = cd.raisonSociale || ((cd.nom || '') + ' ' + (cd.prenom || '')).trim() || 'client';\nvar slug = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);\nvar tenantSlug = slug + '-' + d.clientId.substring(0, 8);\nvar folderPath = '/var/www/talosprimes/clients/' + tenantSlug;\n\nvar chars = 'abcdefghijklmnopqrstuvwxyz0123456789';\nvar token = '';\nfor (var i = 0; i < 32; i++) token += chars.charAt(Math.floor(Math.random() * chars.length));\nvar dateExpiration = new Date(Date.now() + 30*24*60*60*1000).toISOString();\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nvar query = 'INSERT INTO client_spaces (id, tenant_id, client_final_id, token, statut, date_expiration, created_at) VALUES (gen_random_uuid(), ' + esc(d.tenantId) + '::uuid, ' + esc(d.clientId) + '::uuid, ' + esc(token) + ', ' + esc('en_attente') + ', ' + esc(dateExpiration) + '::timestamptz, NOW()) ON CONFLICT (client_final_id) DO UPDATE SET token = EXCLUDED.token, date_expiration = EXCLUDED.date_expiration, statut = EXCLUDED.statut RETURNING *';\n\nreturn [{ json: { query: query, tenantSlug: tenantSlug, folderPath: folderPath, modules: d.plan.modulesInclus || [] } }];"
+        "jsCode": "var d = $('07. Build SQL abonnement (UPDATE)').first().json.allData;\nvar isStripe = d.checkoutUrl ? true : false;\n\nvar response = {\n  success: true,\n  message: isStripe\n    ? 'Onboarding initié — redirection vers le paiement Stripe'\n    : 'Onboarding terminé — espace client actif',\n  client: d.clientData,\n  subscription: { statut: d.statutAbonnement, plan: d.plan.nomPlan, montant: d.plan.montantMensuel },\n  stripeData: isStripe ? {\n    customerId: d.idClientStripe,\n    checkoutUrl: d.checkoutUrl,\n    requiresPayment: true\n  } : null,\n  checkoutUrl: d.checkoutUrl || null\n};\n\nreturn [{ json: response }];"
       },
-      "id": "build-sql-space",
-      "name": "09. Build SQL espace client",
+      "id": "format-response",
+      "name": "09. Formater réponse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1780, 500]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.query }}",
-        "options": { "queryBatching": "independently" }
-      },
-      "id": "insert-space",
-      "name": "10. INSERT client_space",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [2000, 500],
-      "credentials": {
-        "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
-      },
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "jsCode": "var d = $('07. Build SQL abonnement').first().json.allData;\nvar spaceData = $('09. Build SQL espace client').first().json;\nvar spaceRecord = $('10. INSERT client_space').first().json;\nvar space = spaceRecord[0] || spaceRecord;\n\nvar isStripe = d.checkoutUrl ? true : false;\n\nvar response = {\n  success: true,\n  message: isStripe\n    ? 'Onboarding initié — redirection vers le paiement Stripe'\n    : 'Onboarding terminé — espace client actif',\n  client: d.clientData,\n  subscription: { statut: d.statutAbonnement, plan: d.plan.nomPlan, montant: d.plan.montantMensuel },\n  clientSpace: {\n    id: space.id || null,\n    tenantSlug: spaceData.tenantSlug,\n    statut: isStripe ? 'en_attente' : 'actif',\n    modules: spaceData.modules\n  },\n  stripe: isStripe ? {\n    customerId: d.idClientStripe,\n    checkoutUrl: d.checkoutUrl,\n    requiresPayment: true\n  } : null\n};\n\nreturn [{ json: response }];"
-      },
-      "id": "format-response",
-      "name": "11. Formater réponse",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2220, 500]
     },
     {
       "parameters": {
@@ -204,20 +180,20 @@
         "options": {}
       },
       "id": "respond-webhook",
-      "name": "12. Respond",
+      "name": "10. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2440, 400]
+      "position": [2000, 400]
     },
     {
       "parameters": {
-        "jsCode": "var d = $('07. Build SQL abonnement').first().json.allData;\nvar cd = d.clientData || {};\nvar clientName = cd.prenom || cd.nom || cd.raisonSociale || 'le client';\nvar stripeInfo = d.checkoutUrl ? ' (Stripe - en attente de paiement)' : ' (sans Stripe - actif)';\n\nfunction esc(v) { return String(v || '').replace(/'/g, \"''\"); }\n\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', 'Nouvel onboarding\" + esc(stripeInfo) + \"', 'Espace client créé pour \" + esc(clientName) + \". Plan: \" + esc(d.plan.nomPlan) + \" (\" + d.plan.montantMensuel + \" EUR/mois)\" + esc(stripeInfo) + \"', 'info', false, NOW())\";\n\nreturn [{ json: { query: query } }];"
+        "jsCode": "var d = $('07. Build SQL abonnement (UPDATE)').first().json.allData;\nvar cd = d.clientData || {};\nvar clientName = cd.prenom || cd.nom || cd.raisonSociale || 'le client';\nvar stripeInfo = d.checkoutUrl ? ' (Stripe - en attente de paiement)' : ' (sans Stripe - actif)';\n\nfunction esc(v) { return String(v || '').replace(/'/g, \"''\"); }\n\nvar query = \"INSERT INTO notifications (id, tenant_id, titre, message, type, lu, created_at) VALUES (gen_random_uuid(), '\" + esc(d.tenantId) + \"', 'Nouvel onboarding\" + esc(stripeInfo) + \"', 'Espace client créé pour \" + esc(clientName) + \". Plan: \" + esc(d.plan.nomPlan) + \" (\" + d.plan.montantMensuel + \" EUR/mois)\" + esc(stripeInfo) + \"', 'info', false, NOW())\";\n\nreturn [{ json: { query: query } }];"
       },
       "id": "build-notif",
-      "name": "13. Build notification",
+      "name": "11. Build notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2440, 600]
+      "position": [2000, 600]
     },
     {
       "parameters": {
@@ -226,10 +202,10 @@
         "options": { "queryBatching": "independently" }
       },
       "id": "insert-notif",
-      "name": "14. INSERT notification",
+      "name": "12. INSERT notification",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2660, 600],
+      "position": [2220, 600],
       "credentials": {
         "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
       },
@@ -256,33 +232,27 @@
       "main": [[{ "node": "06. Combiner données Stripe", "type": "main", "index": 0 }]]
     },
     "06. Combiner données Stripe": {
-      "main": [[{ "node": "07. Build SQL abonnement", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "07. Build SQL abonnement (UPDATE)", "type": "main", "index": 0 }]]
     },
     "06b. Sans Stripe (actif direct)": {
-      "main": [[{ "node": "07. Build SQL abonnement", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "07. Build SQL abonnement (UPDATE)", "type": "main", "index": 0 }]]
     },
-    "07. Build SQL abonnement": {
-      "main": [[{ "node": "08. INSERT abonnement", "type": "main", "index": 0 }]]
+    "07. Build SQL abonnement (UPDATE)": {
+      "main": [[{ "node": "08. UPDATE abonnement", "type": "main", "index": 0 }]]
     },
-    "08. INSERT abonnement": {
-      "main": [[{ "node": "09. Build SQL espace client", "type": "main", "index": 0 }]]
+    "08. UPDATE abonnement": {
+      "main": [[{ "node": "09. Formater réponse", "type": "main", "index": 0 }]]
     },
-    "09. Build SQL espace client": {
-      "main": [[{ "node": "10. INSERT client_space", "type": "main", "index": 0 }]]
-    },
-    "10. INSERT client_space": {
-      "main": [[{ "node": "11. Formater réponse", "type": "main", "index": 0 }]]
-    },
-    "11. Formater réponse": {
+    "09. Formater réponse": {
       "main": [
         [
-          { "node": "12. Respond", "type": "main", "index": 0 },
-          { "node": "13. Build notification", "type": "main", "index": 0 }
+          { "node": "10. Respond", "type": "main", "index": 0 },
+          { "node": "11. Build notification", "type": "main", "index": 0 }
         ]
       ]
     },
-    "13. Build notification": {
-      "main": [[{ "node": "14. INSERT notification", "type": "main", "index": 0 }]]
+    "11. Build notification": {
+      "main": [[{ "node": "12. INSERT notification", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
