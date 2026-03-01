@@ -65,10 +65,12 @@ export interface Lead {
   prenom: string;
   email: string;
   telephone: string;
-  statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne';
+  statut: 'nouveau' | 'contacte' | 'qualifie' | 'converti' | 'abandonne';
   source: string | null;
   notes: string | null;
   dateContact: string | null;
+  dateEntretien: string | null;
+  typeEntretien: string | null;
   createdAt: string;
   updatedAt: string;
 }

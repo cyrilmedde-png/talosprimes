@@ -15,6 +15,8 @@ type LeadRow = {
   telephone: string;
   statut: string;
   source: string;
+  dateEntretien: Date | null;
+  typeEntretien: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -241,6 +243,8 @@ export async function leadsRoutes(fastify: FastifyInstance) {
             telephone: lead.telephone,
             statut: lead.statut,
             source: lead.source,
+            dateEntretien: lead.dateEntretien?.toISOString() ?? null,
+            typeEntretien: lead.typeEntretien ?? null,
             createdAt: lead.createdAt.toISOString(),
             updatedAt: lead.updatedAt.toISOString(),
           })),
@@ -309,7 +313,7 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       }
 
       const params = request.params as { id: string };
-      const body = request.body as { statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne' };
+      const body = request.body as { statut: 'nouveau' | 'contacte' | 'qualifie' | 'converti' | 'abandonne' };
       const { statut } = body;
 
       // Délégation éventuelle à n8n (full no‑code) - pas si appel venant de n8n
@@ -490,6 +494,22 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       if (!lead) {
         return ApiError.notFound(reply, 'Lead');
       }
+
+      // Sauvegarder dateEntretien et typeEntretien dans la DB
+      const updateData: Record<string, unknown> = {
+        typeEntretien: body.typeEntretien || 'téléphonique',
+      };
+      if (body.dateEntretien) {
+        // Combiner date + heure si fournie
+        const dateStr = body.heureEntretien
+          ? `${body.dateEntretien}T${body.heureEntretien}:00`
+          : `${body.dateEntretien}T09:00:00`;
+        updateData.dateEntretien = new Date(dateStr);
+      }
+      await prisma.lead.update({
+        where: { id: params.id },
+        data: updateData,
+      });
 
       // Déclencher le workflow n8n
       const res = await n8nService.callWorkflowReturn<{ success: boolean; message: string }>(

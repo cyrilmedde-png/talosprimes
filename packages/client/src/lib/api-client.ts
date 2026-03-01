@@ -237,7 +237,7 @@ export const apiClient = {
       body: JSON.stringify(data),
     }),
     
-    updateStatus: (id: string, statut: 'nouveau' | 'contacte' | 'converti' | 'abandonne') => 
+    updateStatus: (id: string, statut: 'nouveau' | 'contacte' | 'qualifie' | 'converti' | 'abandonne') =>
       authenticatedFetch<{ success: boolean; data: { lead: unknown } }>(`/api/leads/${id}/statut`, {
         method: 'PATCH',
         body: JSON.stringify({ statut }),

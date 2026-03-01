@@ -93,6 +93,7 @@ enum EventExecutionStatus {
 enum LeadStatus {
   nouveau
   contacte
+  qualifie
   converti
   abandonne
 }
@@ -905,8 +906,10 @@ model Lead {
   statut      LeadStatus @default(nouveau)
   source      String?    @default("formulaire_inscription")
   notes       String?    @db.Text
-  dateContact DateTime?  @map("date_contact") @db.Timestamptz(6)
-  createdAt   DateTime   @default(now()) @map("created_at")
+  dateContact   DateTime?  @map("date_contact") @db.Timestamptz(6)
+  dateEntretien DateTime?  @map("date_entretien") @db.Timestamptz(6)
+  typeEntretien String?    @map("type_entretien") // telephonique, visioconference, physique
+  createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
   // Relations

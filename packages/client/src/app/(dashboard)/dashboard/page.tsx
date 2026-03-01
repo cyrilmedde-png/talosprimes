@@ -14,6 +14,9 @@ import {
   SparklesIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
+  CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 interface CallLog {
@@ -49,8 +52,26 @@ interface Lead {
   telephone: string;
   statut: string;
   source: string;
+  dateEntretien: string | null;
+  typeEntretien: string | null;
   createdAt: string;
 }
+
+const statutColors: Record<string, string> = {
+  nouveau: 'bg-blue-500/20 text-blue-300',
+  contacte: 'bg-yellow-500/20 text-yellow-300',
+  qualifie: 'bg-purple-500/20 text-purple-300',
+  converti: 'bg-green-500/20 text-green-300',
+  abandonne: 'bg-red-500/20 text-red-300',
+};
+
+const statutLabels: Record<string, string> = {
+  nouveau: 'Nouveau',
+  contacte: 'Contacté',
+  qualifie: 'Qualifié',
+  converti: 'Converti',
+  abandonne: 'Abandonné',
+};
 
 const actionLabels: Record<string, string> = {
   INFO: 'Information',
@@ -73,6 +94,9 @@ export default function DashboardPage() {
   const [clients, setClients] = useState<ClientFinal[]>([]);
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [entretiens, setEntretiens] = useState<Lead[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,13 +132,22 @@ export default function DashboardPage() {
         }
 
         try {
-          const leadsData = await apiClient.leads.list({ limit: '10' });
+          const leadsData = await apiClient.leads.list({ limit: '50' });
           const rawLeads = (leadsData.data?.leads || leadsData.data || []) as Lead[];
           // Filtrer les statuts terminaux — ne montrer que les leads actifs dans le tunnel
           const activeLeads = rawLeads.filter(
             (l) => l.statut !== 'converti' && l.statut !== 'abandonne'
           );
           setLeads(activeLeads.slice(0, 5));
+
+          // Entretiens planifiés (leads avec dateEntretien)
+          const leadsWithEntretien = rawLeads.filter(
+            (l) => l.dateEntretien && new Date(l.dateEntretien) >= new Date(new Date().setHours(0, 0, 0, 0))
+          );
+          leadsWithEntretien.sort((a, b) =>
+            new Date(a.dateEntretien!).getTime() - new Date(b.dateEntretien!).getTime()
+          );
+          setEntretiens(leadsWithEntretien);
         } catch {
           // leads pas encore dispo — pas grave
         }
@@ -365,13 +398,8 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        lead.statut === 'nouveau' ? 'bg-blue-500/20 text-blue-300' :
-                        lead.statut === 'contacte' ? 'bg-yellow-500/20 text-yellow-300' :
-                        lead.statut === 'converti' ? 'bg-green-500/20 text-green-300' :
-                        'bg-red-500/20 text-red-300'
-                      }`}>
-                        {lead.statut}
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statutColors[lead.statut] || 'bg-gray-500/20 text-gray-300'}`}>
+                        {statutLabels[lead.statut] || lead.statut}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
@@ -384,6 +412,153 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Calendrier entretiens + Prochains RDV */}
+      {hasAgentIA && entretiens.length > 0 && (() => {
+        const year = calendarMonth.getFullYear();
+        const month = calendarMonth.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Lundi = 0
+        const today = new Date();
+
+        // Jours avec entretiens
+        const entretiensThisMonth = entretiens.filter((e) => {
+          const d = new Date(e.dateEntretien!);
+          return d.getMonth() === month && d.getFullYear() === year;
+        });
+        const daysWithEntretien = new Set(
+          entretiensThisMonth.map((e) => new Date(e.dateEntretien!).getDate())
+        );
+
+        // Entretiens du jour sélectionné
+        const selectedEntretiens = selectedDay
+          ? entretiensThisMonth.filter((e) => new Date(e.dateEntretien!).getDate() === selectedDay)
+          : [];
+
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Mini calendrier */}
+            <div className="bg-gray-800/20 backdrop-blur-md shadow-lg rounded-lg border border-gray-700/30">
+              <div className="px-4 py-4 border-b border-gray-700/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarDaysIcon className="h-5 w-5 text-purple-400" />
+                  <h3 className="text-lg font-medium text-white">Calendrier entretiens</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCalendarMonth(new Date(year, month - 1, 1))}
+                    className="p-1 rounded hover:bg-gray-700/50 text-gray-400 hover:text-white"
+                  >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                  </button>
+                  <span className="text-sm text-gray-300 min-w-[120px] text-center">
+                    {monthNames[month]} {year}
+                  </span>
+                  <button
+                    onClick={() => setCalendarMonth(new Date(year, month + 1, 1))}
+                    className="p-1 rounded hover:bg-gray-700/50 text-gray-400 hover:text-white"
+                  >
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4">
+                {/* En-tête jours */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'].map((d) => (
+                    <div key={d} className="text-center text-xs text-gray-500 font-medium py-1">{d}</div>
+                  ))}
+                </div>
+                {/* Grille jours */}
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: startOffset }).map((_, i) => (
+                    <div key={`empty-${i}`} className="h-8" />
+                  ))}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+                    const hasEntretien = daysWithEntretien.has(day);
+                    const isSelected = selectedDay === day;
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => setSelectedDay(isSelected ? null : day)}
+                        className={`h-8 rounded text-sm relative flex items-center justify-center transition-colors ${
+                          isSelected ? 'bg-purple-600 text-white' :
+                          isToday ? 'bg-gray-700 text-white font-bold' :
+                          'text-gray-400 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        {day}
+                        {hasEntretien && (
+                          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-purple-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Détail jour sélectionné */}
+                {selectedDay && selectedEntretiens.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-700/30">
+                    <p className="text-xs text-gray-400 mb-2">{selectedDay} {monthNames[month]}</p>
+                    {selectedEntretiens.map((e) => (
+                      <div key={e.id} className="flex items-center gap-2 py-1">
+                        <span className="w-2 h-2 rounded-full bg-purple-400 flex-shrink-0" />
+                        <span className="text-sm text-white">{e.prenom} {e.nom}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(e.dateEntretien!).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="text-xs text-purple-300">{e.typeEntretien || 'tél.'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Prochains entretiens */}
+            <div className="bg-gray-800/20 backdrop-blur-md shadow-lg rounded-lg border border-gray-700/30">
+              <div className="px-4 py-4 border-b border-gray-700/30 flex items-center gap-2">
+                <ClockIcon className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-medium text-white">Prochains entretiens</h3>
+              </div>
+              <div className="divide-y divide-gray-700/30">
+                {entretiens.slice(0, 5).map((e) => {
+                  const d = new Date(e.dateEntretien!);
+                  return (
+                    <div key={e.id} className="px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-white font-medium">{e.prenom} {e.nom}</p>
+                        <p className="text-xs text-gray-400">{e.telephone}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-300">
+                          {d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        </p>
+                        <p className="text-xs text-purple-300">
+                          {d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          {' · '}{e.typeEntretien || 'téléphonique'}
+                        </p>
+                      </div>
+                      <span className={`ml-3 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statutColors[e.statut] || 'bg-gray-500/20 text-gray-300'}`}>
+                        {statutLabels[e.statut] || e.statut}
+                      </span>
+                    </div>
+                  );
+                })}
+                {entretiens.length === 0 && (
+                  <div className="px-4 py-8 text-center text-gray-400 text-sm">
+                    Aucun entretien planifié
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Clients List */}
       <div className="bg-gray-800/20 backdrop-blur-md shadow-lg rounded-lg border border-gray-700/30">
