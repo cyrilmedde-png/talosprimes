@@ -254,6 +254,17 @@ export default function ClientsPage() {
     }
   };
 
+  const handleAbandonLead = async (leadId: string, leadName: string) => {
+    if (!confirm(`Abandonner le lead "${leadName}" ? Il sera retiré du tunnel.`)) return;
+    try {
+      await apiClient.leads.updateStatus(leadId, 'abandonne');
+      // Recharger le tunnel immédiatement
+      await loadLeadsConvertis();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'abandon du lead');
+    }
+  };
+
   const handleCreateOnboarding = async () => {
     if (!selectedClient) return;
     try {
@@ -653,7 +664,9 @@ export default function ClientsPage() {
                   {filteredLeads.map((lead) => (
                     <div
                       key={lead.id}
-                      className="bg-gray-700/30 border border-gray-600/30 rounded p-4 hover:bg-gray-700/50 cursor-pointer transition-colors"
+                      className={`bg-gray-700/30 border rounded p-4 hover:bg-gray-700/50 cursor-pointer transition-colors ${
+                        selectedLead?.id === lead.id ? 'border-green-500/50' : 'border-gray-600/30'
+                      }`}
                       onClick={() => setSelectedLead(lead)}
                     >
                       <div className="flex justify-between items-center">
@@ -662,9 +675,21 @@ export default function ClientsPage() {
                           <p className="text-gray-400 text-sm">{lead.email}</p>
                           <p className="text-gray-400 text-sm">{lead.telephone}</p>
                         </div>
-                        {selectedLead?.id === lead.id && (
-                          <CheckCircleIcon className="h-6 w-6 text-green-400" />
-                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAbandonLead(lead.id, `${lead.prenom} ${lead.nom}`);
+                            }}
+                            className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-900/20 transition-colors"
+                            title="Abandonner ce lead"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                          {selectedLead?.id === lead.id && (
+                            <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
