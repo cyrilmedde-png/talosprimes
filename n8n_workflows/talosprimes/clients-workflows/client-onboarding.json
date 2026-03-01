@@ -51,8 +51,8 @@
       "parameters": {
         "resource": "customer",
         "operation": "create",
+        "email": "={{ $('02. Parser + Valider').item.json.clientData.email }}",
         "additionalFields": {
-          "email": "={{ $('02. Parser + Valider').item.json.clientData.email }}",
           "name": "={{ $('02. Parser + Valider').item.json.clientData.nom || $('02. Parser + Valider').item.json.clientData.raisonSociale || $('02. Parser + Valider').item.json.clientData.email }}",
           "metadata": {
             "metadataProperties": [
