@@ -49,23 +49,32 @@
     },
     {
       "parameters": {
-        "resource": "customer",
-        "operation": "create",
-        "email": "={{ $('02. Parser + Valider').item.json.clientData.email }}",
-        "additionalFields": {
-          "name": "={{ $('02. Parser + Valider').item.json.clientData.nom || $('02. Parser + Valider').item.json.clientData.raisonSociale || $('02. Parser + Valider').item.json.clientData.email }}",
-          "metadata": {
-            "metadataProperties": [
-              { "key": "clientId", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
-              { "key": "tenantId", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" }
-            ]
-          }
-        }
+        "url": "https://api.stripe.com/v1/customers",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/x-www-form-urlencoded" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "email", "value": "={{ $('02. Parser + Valider').item.json.clientData.email }}" },
+            { "name": "name", "value": "={{ $('02. Parser + Valider').item.json.clientData.nom || $('02. Parser + Valider').item.json.clientData.raisonSociale || $('02. Parser + Valider').item.json.clientData.email }}" },
+            { "name": "metadata[clientId]", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
+            { "name": "metadata[tenantId]", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" }
+          ]
+        },
+        "options": {},
+        "genericAuthType": "stripeApi"
       },
       "id": "stripe-customer",
       "name": "04. Stripe - Créer Customer",
-      "type": "n8n-nodes-base.stripe",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [900, 300],
       "credentials": {
         "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
