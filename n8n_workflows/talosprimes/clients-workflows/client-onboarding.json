@@ -51,9 +51,9 @@
       "parameters": {
         "resource": "customer",
         "operation": "create",
+        "name": "={{ $('02. Parser + Valider').item.json.customerName }}",
         "email": "={{ $('02. Parser + Valider').item.json.clientData.email }}",
         "additionalFields": {
-          "name": "={{ $('02. Parser + Valider').item.json.customerName }}",
           "metadata": {
             "metadataProperties": [
               { "key": "clientId", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
