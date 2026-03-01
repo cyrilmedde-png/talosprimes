@@ -50,14 +50,17 @@ export default function ClientsPage() {
   } | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
+  // Modules disponibles chargés depuis l'API
+  const [availableModules, setAvailableModules] = useState<{ code: string; nomAffiche: string; categorie?: string | null }[]>([]);
+
   const [onboardingData, setOnboardingData] = useState({
     nomPlan: 'Plan Starter',
     montantMensuel: 29.99,
-    modulesInclus: ['facturation', 'comptabilite', 'agent_ia'] as string[],
+    modulesInclus: [] as string[],
     dureeMois: 1,
-    avecStripe: false, // Option pour activer/désactiver Stripe
-    avecSousDomaine: false, // Option pour créer un sous-domaine
-    sousDomaine: '', // ex: "client-dupont" → client-dupont.talosprimes.com
+    avecStripe: false,
+    avecSousDomaine: false,
+    sousDomaine: '',
   });
   const [formData, setFormData] = useState({
     type: 'b2c' as 'b2b' | 'b2c',
@@ -76,6 +79,12 @@ export default function ClientsPage() {
       return;
     }
     loadClients();
+    // Charger les modules disponibles
+    apiClient.plans.modules().then((res) => {
+      if (res.data?.modules) {
+        setAvailableModules(res.data.modules);
+      }
+    }).catch(() => { /* silently fail */ });
   }, [router]);
 
   // Gérer le retour de Stripe Checkout
@@ -304,7 +313,7 @@ export default function ClientsPage() {
       setOnboardingData({
         nomPlan: 'Plan Starter',
         montantMensuel: 29.99,
-        modulesInclus: ['facturation', 'comptabilite', 'agent_ia'],
+        modulesInclus: availableModules.map(m => m.code),
         dureeMois: 1,
         avecStripe: false,
         avecSousDomaine: false,
@@ -1146,29 +1155,56 @@ export default function ClientsPage() {
                   Modules à activer
                 </label>
                 <div className="space-y-2">
-                  {['facturation', 'comptabilite', 'agent_ia'].map((module) => (
-                    <label key={module} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={onboardingData.modulesInclus.includes(module)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setOnboardingData({
-                              ...onboardingData,
-                              modulesInclus: [...onboardingData.modulesInclus, module],
-                            });
-                          } else {
-                            setOnboardingData({
-                              ...onboardingData,
-                              modulesInclus: onboardingData.modulesInclus.filter(m => m !== module),
-                            });
-                          }
-                        }}
-                        className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm text-gray-300 capitalize">{module.replace('_', ' ')}</span>
-                    </label>
-                  ))}
+                  {availableModules.length > 0 ? (
+                    <>
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          type="button"
+                          onClick={() => setOnboardingData({ ...onboardingData, modulesInclus: availableModules.map(m => m.code) })}
+                          className="text-xs text-indigo-400 hover:text-indigo-300"
+                        >
+                          Tout sélectionner
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOnboardingData({ ...onboardingData, modulesInclus: [] })}
+                          className="text-xs text-gray-400 hover:text-gray-300"
+                        >
+                          Tout désélectionner
+                        </button>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {availableModules.map((module) => (
+                          <label key={module.code} className="flex items-center gap-2 cursor-pointer py-1">
+                            <input
+                              type="checkbox"
+                              checked={onboardingData.modulesInclus.includes(module.code)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setOnboardingData({
+                                    ...onboardingData,
+                                    modulesInclus: [...onboardingData.modulesInclus, module.code],
+                                  });
+                                } else {
+                                  setOnboardingData({
+                                    ...onboardingData,
+                                    modulesInclus: onboardingData.modulesInclus.filter(m => m !== module.code),
+                                  });
+                                }
+                              }}
+                              className="rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-sm text-gray-300">{module.nomAffiche}</span>
+                            {module.categorie && (
+                              <span className="text-xs text-gray-500">({module.categorie})</span>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500">Chargement des modules...</p>
+                  )}
                 </div>
                 <p className="mt-2 text-xs text-gray-400">
                   Modules sélectionnés : {onboardingData.modulesInclus.length}
