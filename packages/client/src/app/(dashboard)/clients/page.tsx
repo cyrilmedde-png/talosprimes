@@ -53,7 +53,7 @@ export default function ClientsPage() {
   const [onboardingData, setOnboardingData] = useState({
     nomPlan: 'Plan Starter',
     montantMensuel: 29.99,
-    modulesInclus: ['gestion_clients', 'facturation', 'suivi'] as string[],
+    modulesInclus: ['facturation', 'comptabilite', 'agent_ia'] as string[],
     dureeMois: 1,
     avecStripe: false, // Option pour activer/désactiver Stripe
     avecSousDomaine: false, // Option pour créer un sous-domaine
@@ -298,7 +298,7 @@ export default function ClientsPage() {
       setOnboardingData({
         nomPlan: 'Plan Starter',
         montantMensuel: 29.99,
-        modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
+        modulesInclus: ['facturation', 'comptabilite', 'agent_ia'],
         dureeMois: 1,
         avecStripe: false,
         avecSousDomaine: false,
@@ -315,7 +315,7 @@ export default function ClientsPage() {
     setOnboardingData({
       nomPlan: 'Plan Starter',
       montantMensuel: 29.99,
-      modulesInclus: ['gestion_clients', 'facturation', 'suivi'],
+      modulesInclus: ['facturation', 'comptabilite', 'agent_ia'],
       dureeMois: 1,
       avecStripe: false,
       avecSousDomaine: false,
@@ -1140,7 +1140,7 @@ export default function ClientsPage() {
                   Modules à activer
                 </label>
                 <div className="space-y-2">
-                  {['gestion_clients', 'facturation', 'suivi', 'rapports', 'crm', 'marketing', 'support'].map((module) => (
+                  {['facturation', 'comptabilite', 'agent_ia'].map((module) => (
                     <label key={module} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"

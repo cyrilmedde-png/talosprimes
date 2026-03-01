@@ -877,43 +877,12 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         const plan = {
           nomPlan: body.nomPlan || 'Plan Starter',
           montantMensuel: body.montantMensuel || 29.99,
-          modulesInclus: body.modulesInclus || ['gestion_clients', 'facturation', 'suivi'],
+          modulesInclus: body.modulesInclus || ['facturation', 'comptabilite', 'agent_ia'],
           dureeMois: body.dureeMois || 1,
         };
 
-        // Si on délègue les écritures à n8n (full no-code)
-        if (tenantId && env.USE_N8N_COMMANDS) {
-          // Déclencher le workflow n8n client.onboarding avec les données du plan
-          const res = await n8nService.callWorkflowReturn<{ subscription: unknown; plan: unknown }>(
-            tenantId,
-            'client_onboarding',
-            {
-              client: {
-                id: client.id,
-                tenantId,
-                type: client.type,
-                email: client.email,
-                nom: client.nom,
-                prenom: client.prenom,
-                raisonSociale: client.raisonSociale,
-                telephone: client.telephone,
-              },
-              plan, // Inclure les paramètres du plan dans le payload
-              avecStripe: body.avecStripe || false, // Indicateur pour créer l'abonnement Stripe
-              avecSousDomaine: body.avecSousDomaine || false,
-              sousDomaine: body.sousDomaine || '',
-            }
-          );
-
-          return reply.status(201).send({
-            success: true,
-            message: 'Espace client créé avec succès via n8n',
-            data: res.data,
-          });
-        }
-
-        // Création directe en base (USE_N8N_COMMANDS=false)
-        // Calculer les dates
+        // Création de l'abonnement + espace client en base directement
+        // (n8n est utilisé uniquement pour Stripe si demandé)
         const dateDebut = new Date();
         const dateProchainRenouvellement = new Date();
         dateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);
@@ -986,6 +955,36 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Si Stripe demandé, déléguer à n8n pour créer le customer + abonnement Stripe
+        let stripeData = null;
+        if (body.avecStripe && tenantId && env.USE_N8N_COMMANDS) {
+          try {
+            const stripeRes = await n8nService.callWorkflowReturn<{ stripe: unknown }>(
+              tenantId,
+              'client_onboarding',
+              {
+                client: {
+                  id: client.id,
+                  tenantId,
+                  type: client.type,
+                  email: client.email,
+                  nom: client.nom,
+                  prenom: client.prenom,
+                  raisonSociale: client.raisonSociale,
+                  telephone: client.telephone,
+                },
+                plan,
+                subscriptionId: subscription.id,
+                avecStripe: true,
+                avecSousDomaine: false, // déjà géré ci-dessus
+              }
+            );
+            stripeData = stripeRes.data;
+          } catch (stripeErr) {
+            fastify.log.warn(stripeErr, 'Stripe via n8n echoue (non bloquant) — abonnement cree sans Stripe');
+          }
+        }
+
         return reply.status(201).send({
           success: true,
           message: clientSpace
@@ -995,6 +994,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             subscription,
             plan,
             clientSpace,
+            ...(stripeData ? { stripe: stripeData } : {}),
           },
         });
       } catch (error) {
