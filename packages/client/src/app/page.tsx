@@ -34,28 +34,38 @@ interface Testimonial {
 type LandingContent = Record<string, string>;
 
 // ─── Data fetching côté serveur (ISR: revalidate toutes les 5 min) ───
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3001';
+// Server Components s'exécutent UNIQUEMENT côté serveur → on utilise l'URL interne
+// pour éviter de passer par DNS/nginx (plus rapide + plus fiable).
+const SERVER_API = process.env.INTERNAL_API_URL || 'http://localhost:3001';
 
 async function getLandingContent(): Promise<LandingContent> {
   try {
-    const res = await fetch(`${API_URL}/api/landing/content`, {
+    const res = await fetch(`${SERVER_API}/api/landing/content`, {
       next: { revalidate: 300 }, // 5 min ISR
     });
-    if (!res.ok) return {};
+    if (!res.ok) {
+      console.error(`[SSR] landing/content failed: ${res.status} ${res.statusText}`);
+      return {};
+    }
     return res.json();
-  } catch {
+  } catch (err) {
+    console.error('[SSR] landing/content error:', err);
     return {};
   }
 }
 
 async function getTestimonials(): Promise<Testimonial[]> {
   try {
-    const res = await fetch(`${API_URL}/api/landing/testimonials`, {
+    const res = await fetch(`${SERVER_API}/api/landing/testimonials`, {
       next: { revalidate: 300 },
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error(`[SSR] landing/testimonials failed: ${res.status} ${res.statusText}`);
+      return [];
+    }
     return res.json();
-  } catch {
+  } catch (err) {
+    console.error('[SSR] landing/testimonials error:', err);
     return [];
   }
 }
