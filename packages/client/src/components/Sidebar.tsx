@@ -87,6 +87,7 @@ const allNavGroups: NavGroup[] = [
     icon: UsersIcon,
     requiredModules: ['clients', 'leads'],
     items: [
+      { name: 'Leads', href: '/leads', icon: UserPlusIcon },
       { name: 'Clients', href: '/clients', icon: UsersIcon },
       { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
     ],

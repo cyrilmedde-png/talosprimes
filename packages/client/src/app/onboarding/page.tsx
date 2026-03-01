@@ -111,7 +111,7 @@ export default function OnboardingPage() {
 
   const handleUpdateStatus = async (
     leadId: string,
-    newStatus: 'nouveau' | 'contacte' | 'converti' | 'abandonne'
+    newStatus: 'nouveau' | 'contacte' | 'qualifie' | 'converti' | 'abandonne'
   ) => {
     try {
       await apiClient.leads.updateStatus(leadId, newStatus);
@@ -349,6 +349,7 @@ export default function OnboardingPage() {
     >
       <option value="nouveau">Nouveau</option>
       <option value="contacte">Contacté</option>
+      <option value="qualifie">Qualifié</option>
       <option value="converti">Converti</option>
       <option value="abandonne">Abandonné</option>
     </select>
