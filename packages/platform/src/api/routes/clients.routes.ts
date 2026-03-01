@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import type { TransactionClient } from '../../types/prisma-helpers.js';
 import { exec } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -881,84 +882,55 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           dureeMois: body.dureeMois || 1,
         };
 
-        // Création de l'abonnement + espace client en base directement
-        // (n8n est utilisé uniquement pour Stripe si demandé)
-        const dateDebut = new Date();
-        const dateProchainRenouvellement = new Date();
-        dateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);
+        // Tout dans une transaction Prisma : si quoi que ce soit échoue, tout est rollback
+        const result = await prisma.$transaction(async (tx: TransactionClient) => {
+          const dateDebut = new Date();
+          const dateProchainRenouvellement = new Date();
+          dateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);
 
-        // Créer l'abonnement
-        const subscription = await prisma.clientSubscription.create({
-          data: {
-            clientFinalId: client.id,
-            nomPlan: plan.nomPlan,
-            dateDebut,
-            dateProchainRenouvellement,
-            montantMensuel: plan.montantMensuel,
-            modulesInclus: plan.modulesInclus,
-            statut: 'actif',
-          },
-        });
-
-        // Créer l'espace client (ClientSpace) si sous-domaine demandé
-        let clientSpace = null;
-        if (body.avecSousDomaine && body.sousDomaine) {
-          const slug = body.sousDomaine
-            .toLowerCase()
-            .replace(/[^a-z0-9-]/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '');
-
-          // Vérifier l'unicité du slug
-          const existingSpace = await prisma.clientSpace.findFirst({
-            where: { tenantSlug: slug },
+          // 1. Créer l'abonnement (statut en_attente si Stripe demandé, actif sinon)
+          const subscription = await tx.clientSubscription.create({
+            data: {
+              clientFinalId: client.id,
+              nomPlan: plan.nomPlan,
+              dateDebut,
+              dateProchainRenouvellement,
+              montantMensuel: plan.montantMensuel,
+              modulesInclus: plan.modulesInclus,
+              statut: body.avecStripe ? 'en_attente' : 'actif',
+            },
           });
-          if (existingSpace) {
-            throw new Error(`Le sous-domaine "${slug}" est déjà utilisé`);
+
+          // 2. Créer l'espace client (ClientSpace) si sous-domaine demandé
+          let clientSpace = null;
+          if (body.avecSousDomaine && body.sousDomaine) {
+            const slug = body.sousDomaine
+              .toLowerCase()
+              .replace(/[^a-z0-9-]/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '');
+
+            const existingSpace = await tx.clientSpace.findFirst({
+              where: { tenantSlug: slug },
+            });
+            if (existingSpace) {
+              throw new Error(`Le sous-domaine "${slug}" est déjà utilisé`);
+            }
+
+            clientSpace = await tx.clientSpace.create({
+              data: {
+                tenantId,
+                clientFinalId: client.id,
+                tenantSlug: slug,
+                status: 'en_creation',
+                modulesActives: plan.modulesInclus,
+              },
+            });
           }
 
-          clientSpace = await prisma.clientSpace.create({
-            data: {
-              tenantId,
-              clientFinalId: client.id,
-              tenantSlug: slug,
-              status: 'en_creation',
-              modulesActives: plan.modulesInclus,
-            },
-          });
-
-          // Lancer la création du vhost nginx en arrière-plan (fire-and-forget)
-          const scriptPath = resolve(__dirname, '../../../../..', 'scripts/setup-subdomain.sh');
-          exec(`bash "${scriptPath}" "${slug}"`, (error, stdout, stderr) => {
-            if (error) {
-              fastify.log.warn({ slug, error: error.message, stderr }, 'setup-subdomain.sh echoue (non bloquant)');
-            } else {
-              fastify.log.info({ slug, stdout: stdout.trim() }, 'Sous-domaine configure');
-            }
-          });
-        }
-
-        // Créer une notification
-        const subdomainInfo = clientSpace ? ` (sous-domaine: ${clientSpace.tenantSlug}.talosprimes.com)` : '';
-        await prisma.notification.create({
-          data: {
-            tenantId,
-            type: 'client_onboarding',
-            titre: 'Espace client créé',
-            message: `L'espace client et l'abonnement "${plan.nomPlan}" ont été créés avec succès pour ${client.nom || client.raisonSociale || client.email}${subdomainInfo}`,
-            donnees: {
-              clientId: client.id,
-              subscriptionId: subscription.id,
-              clientSpaceId: clientSpace?.id || null,
-              sousDomaine: clientSpace?.tenantSlug || null,
-            },
-          },
-        });
-
-        // Si Stripe demandé, déléguer à n8n pour créer le customer + abonnement Stripe
-        let stripeData = null;
-        if (body.avecStripe && tenantId && env.USE_N8N_COMMANDS) {
-          try {
+          // 3. Si Stripe demandé, appeler n8n — si ça échoue, la transaction rollback tout
+          let stripeData = null;
+          if (body.avecStripe && tenantId && env.USE_N8N_COMMANDS) {
             const stripeRes = await n8nService.callWorkflowReturn<{ stripe: unknown }>(
               tenantId,
               'client_onboarding',
@@ -976,25 +948,59 @@ export async function clientsRoutes(fastify: FastifyInstance) {
                 plan,
                 subscriptionId: subscription.id,
                 avecStripe: true,
-                avecSousDomaine: false, // déjà géré ci-dessus
               }
             );
             stripeData = stripeRes.data;
-          } catch (stripeErr) {
-            fastify.log.warn(stripeErr, 'Stripe via n8n echoue (non bloquant) — abonnement cree sans Stripe');
+
+            // Stripe OK → passer l'abonnement en actif
+            await tx.clientSubscription.update({
+              where: { id: subscription.id },
+              data: { statut: 'actif' },
+            });
           }
+
+          // 4. Notification
+          const subdomainInfo = clientSpace ? ` (sous-domaine: ${clientSpace.tenantSlug}.talosprimes.com)` : '';
+          await tx.notification.create({
+            data: {
+              tenantId,
+              type: 'client_onboarding',
+              titre: 'Espace client créé',
+              message: `L'espace client et l'abonnement "${plan.nomPlan}" ont été créés avec succès pour ${client.nom || client.raisonSociale || client.email}${subdomainInfo}`,
+              donnees: {
+                clientId: client.id,
+                subscriptionId: subscription.id,
+                clientSpaceId: clientSpace?.id || null,
+                sousDomaine: clientSpace?.tenantSlug || null,
+              },
+            },
+          });
+
+          return { subscription, clientSpace, stripeData };
+        });
+
+        // 5. Hors transaction : lancer le vhost nginx (fire-and-forget, non critique)
+        if (result.clientSpace) {
+          const scriptPath = resolve(__dirname, '../../../../..', 'scripts/setup-subdomain.sh');
+          exec(`bash "${scriptPath}" "${result.clientSpace.tenantSlug}"`, (error, stdout, stderr) => {
+            if (error) {
+              fastify.log.warn({ slug: result.clientSpace!.tenantSlug, error: error.message, stderr }, 'setup-subdomain.sh echoue (non bloquant)');
+            } else {
+              fastify.log.info({ slug: result.clientSpace!.tenantSlug, stdout: stdout.trim() }, 'Sous-domaine configure');
+            }
+          });
         }
 
         return reply.status(201).send({
           success: true,
-          message: clientSpace
-            ? `Espace client créé avec sous-domaine ${clientSpace.tenantSlug}.talosprimes.com`
+          message: result.clientSpace
+            ? `Espace client créé avec sous-domaine ${result.clientSpace.tenantSlug}.talosprimes.com`
             : 'Espace client créé avec succès',
           data: {
-            subscription,
+            subscription: result.subscription,
             plan,
-            clientSpace,
-            ...(stripeData ? { stripe: stripeData } : {}),
+            clientSpace: result.clientSpace,
+            ...(result.stripeData ? { stripe: result.stripeData } : {}),
           },
         });
       } catch (error) {
