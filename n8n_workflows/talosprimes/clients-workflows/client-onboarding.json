@@ -75,11 +75,12 @@
       "parameters": {
         "url": "https://api.stripe.com/v1/checkout/sessions",
         "method": "POST",
-        "authentication": "predefinedCredentialType",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            { "name": "Content-Type", "value": "application/x-www-form-urlencoded" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.STRIPE_SECRET_KEY }}" }
           ]
         },
         "sendBody": true,
@@ -105,17 +106,13 @@
             { "name": "payment_method_types[]", "value": "card" }
           ]
         },
-        "options": {},
-        "genericAuthType": "stripeApi"
+        "options": {}
       },
       "id": "stripe-checkout",
       "name": "05. Stripe - Checkout Session",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 300],
-      "credentials": {
-        "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }
-      }
+      "position": [1120, 300]
     },
     {
       "parameters": {
