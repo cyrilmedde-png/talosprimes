@@ -922,6 +922,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
                 tenantId,
                 clientFinalId: client.id,
                 tenantSlug: slug,
+                folderPath: `/var/www/client-spaces/${slug}`,
                 status: 'en_creation',
                 modulesActives: plan.modulesInclus,
               },

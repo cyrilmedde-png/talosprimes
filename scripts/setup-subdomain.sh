@@ -5,14 +5,14 @@
 # =============================================================================
 # Usage: ./scripts/setup-subdomain.sh <slug>
 #
-# Cree un vhost nginx pour <slug>.talosprimes.com qui pointe vers le frontend
-# et obtient un certificat SSL via certbot.
+# 1. Cree le dossier client : /var/www/client-spaces/<slug>/
+# 2. Cree un vhost nginx pour <slug>.talosprimes.com
+# 3. Obtient un certificat SSL via certbot
 #
 # Prerequis:
 #   - nginx installe et actif
 #   - certbot installe
 #   - DNS *.talosprimes.com pointe vers ce serveur (wildcard A record)
-#     OU le record A specifique <slug>.talosprimes.com existe
 # =============================================================================
 
 set -e
@@ -20,6 +20,7 @@ set -e
 # --- Config ---
 DOMAIN="talosprimes.com"
 FRONTEND_PORT=3001
+CLIENT_SPACES_DIR="/var/www/client-spaces"
 NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
 NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
 CERTBOT_EMAIL="contact@talosprimes.com"
@@ -52,30 +53,65 @@ if [ -z "$SLUG" ]; then
 fi
 
 SUBDOMAIN="${SLUG}.${DOMAIN}"
+CLIENT_DIR="${CLIENT_SPACES_DIR}/${SLUG}"
 VHOST_FILE="${NGINX_SITES_AVAILABLE}/${SUBDOMAIN}"
 
-log_info "Creation du sous-domaine: $SUBDOMAIN"
+log_info "=== Configuration espace client: $SLUG ==="
+log_info "Sous-domaine: $SUBDOMAIN"
+log_info "Dossier: $CLIENT_DIR"
 
-# --- Verifier si deja configure ---
+# =============================================================================
+# 1. Creer le dossier client
+# =============================================================================
+
+log_info "Creation du dossier client..."
+
+mkdir -p "$CLIENT_SPACES_DIR"
+mkdir -p "$CLIENT_DIR"
+mkdir -p "$CLIENT_DIR/documents"
+mkdir -p "$CLIENT_DIR/factures"
+mkdir -p "$CLIENT_DIR/uploads"
+mkdir -p "$CLIENT_DIR/config"
+
+# Fichier de config client
+cat > "$CLIENT_DIR/config/info.json" << CONFIG_JSON
+{
+  "slug": "${SLUG}",
+  "subdomain": "${SUBDOMAIN}",
+  "createdAt": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
+  "status": "actif"
+}
+CONFIG_JSON
+
+# Permissions : www-data pour que le backend puisse ecrire
+chown -R www-data:www-data "$CLIENT_DIR" 2>/dev/null || true
+chmod -R 755 "$CLIENT_DIR"
+
+log_ok "Dossier client cree: $CLIENT_DIR"
+
+# =============================================================================
+# 2. Creer le vhost nginx
+# =============================================================================
+
 if [ -f "$VHOST_FILE" ]; then
   log_info "Le vhost $SUBDOMAIN existe deja"
-  # Verifier si le lien symbolique existe aussi
   if [ -L "${NGINX_SITES_ENABLED}/${SUBDOMAIN}" ]; then
     log_ok "Sous-domaine $SUBDOMAIN deja actif — rien a faire"
+    echo "$CLIENT_DIR"
     exit 0
   fi
-  # Activer le site existant
   ln -sf "$VHOST_FILE" "${NGINX_SITES_ENABLED}/${SUBDOMAIN}"
   nginx -t 2>&1 && systemctl reload nginx
   log_ok "Sous-domaine $SUBDOMAIN reactive"
+  echo "$CLIENT_DIR"
   exit 0
 fi
 
-# --- Creer le vhost nginx (HTTP d'abord pour certbot) ---
 log_info "Creation du vhost nginx..."
 
 cat > "$VHOST_FILE" << NGINX_CONF
 # Vhost auto-genere pour espace client: $SUBDOMAIN
+# Dossier client: $CLIENT_DIR
 # Date: $(date '+%Y-%m-%d %H:%M:%S')
 
 server {
@@ -83,7 +119,13 @@ server {
     listen [::]:80;
     server_name ${SUBDOMAIN};
 
-    # Redirect vers HTTPS (sera mis a jour par certbot)
+    # Fichiers statiques du client (factures, documents, uploads)
+    location /files/ {
+        alias ${CLIENT_DIR}/;
+        autoindex off;
+    }
+
+    # Tout le reste vers le frontend Next.js
     location / {
         proxy_pass http://127.0.0.1:${FRONTEND_PORT};
         proxy_http_version 1.1;
@@ -94,6 +136,7 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header X-Client-Subdomain ${SLUG};
+        proxy_set_header X-Client-Dir ${CLIENT_DIR};
         proxy_cache_bypass \$http_upgrade;
     }
 }
@@ -113,7 +156,10 @@ else
   exit 1
 fi
 
-# --- Obtenir le certificat SSL ---
+# =============================================================================
+# 3. Certificat SSL
+# =============================================================================
+
 log_info "Obtention du certificat SSL via certbot..."
 if certbot --nginx -d "$SUBDOMAIN" --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --redirect 2>&1; then
   log_ok "Certificat SSL obtenu et nginx mis a jour"
@@ -122,8 +168,16 @@ else
   log_info "Relancez plus tard: certbot --nginx -d $SUBDOMAIN"
 fi
 
-# --- Resultat ---
+# =============================================================================
+# Resume
+# =============================================================================
+
 echo ""
-log_ok "Sous-domaine $SUBDOMAIN configure avec succes"
+log_ok "Espace client $SLUG configure avec succes"
+log_ok "Dossier: $CLIENT_DIR"
 log_ok "URL: https://${SUBDOMAIN}"
+log_ok "Fichiers: https://${SUBDOMAIN}/files/"
 echo ""
+
+# Retourner le chemin du dossier (utilisable par le backend)
+echo "$CLIENT_DIR"
