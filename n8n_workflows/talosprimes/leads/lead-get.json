@@ -33,7 +33,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, tenant_id, nom, prenom, email, telephone, statut, source, notes, date_contact, created_at, updated_at FROM leads WHERE id = '\" + $json.id + \"'::uuid\" }}"
+        "query": "={{ \"SELECT id, tenant_id, nom, prenom, email, telephone, statut, source, notes, date_contact, date_entretien, type_entretien, created_at, updated_at FROM leads WHERE id = '\" + $json.id + \"'::uuid\" }}"
       },
       "id": "Postgres_Select",
       "name": "Postgres - SELECT lead",
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var items = $input.all();\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { success: false, error: 'Lead non trouvé' } }];\n}\nvar lead = items[0].json;\nreturn [{ json: { success: true, data: { lead: { id: lead.id, tenantId: lead.tenant_id, nom: lead.nom, prenom: lead.prenom, email: lead.email, telephone: lead.telephone, statut: lead.statut, source: lead.source, notes: lead.notes ?? null, dateContact: lead.date_contact ?? null, createdAt: lead.created_at, updatedAt: lead.updated_at } } } }];\n"
+        "jsCode": "var items = $input.all();\nif (!items || items.length === 0 || !items[0].json?.id) {\n  return [{ json: { success: false, error: 'Lead non trouvé' } }];\n}\nvar lead = items[0].json;\nreturn [{ json: { success: true, data: { lead: { id: lead.id, tenantId: lead.tenant_id, nom: lead.nom, prenom: lead.prenom, email: lead.email, telephone: lead.telephone, statut: lead.statut, source: lead.source, notes: lead.notes ?? null, dateContact: lead.date_contact ?? null, dateEntretien: lead.date_entretien ?? null, typeEntretien: lead.type_entretien ?? null, createdAt: lead.created_at, updatedAt: lead.updated_at } } } }];\n"
       },
       "id": "Code_Format",
       "name": "Formater réponse",
