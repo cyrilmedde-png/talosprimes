@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var raw = $input.item.json;\nvar payload = raw.body || raw.json || raw;\nvar tenantId = payload.tenantId || payload.data?.tenantId;\nvar clientData = payload.data?.client || payload.client || payload.data || {};\nvar clientId = clientData.id || clientData.clientId;\nvar planFromPayload = payload.data?.plan || payload.plan || {};\nvar avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\nvar subscriptionId = payload.data?.subscriptionId || payload.subscriptionId || null;\n\nif (!tenantId) throw new Error('tenantId manquant');\nif (!clientId) throw new Error('clientId manquant');\nif (!subscriptionId) throw new Error('subscriptionId manquant — l\\'abonnement doit être créé par le backend avant d\\'appeler ce workflow');\n\nvar plan = {\n  nomPlan: planFromPayload.nomPlan || 'Plan Starter',\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || ['facturation', 'comptabilite', 'agent_ia'],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\nvar chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\nvar password = '';\nfor (var i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));\n\nreturn [{\n  json: {\n    tenantId: String(tenantId),\n    clientId: String(clientId),\n    subscriptionId: String(subscriptionId),\n    clientData: clientData,\n    plan: plan,\n    avecStripe: avecStripe,\n    plainPassword: password,\n    unitAmount: Math.round(plan.montantMensuel * 100)\n  }\n}];"
+        "jsCode": "var raw = $input.item.json;\nvar payload = raw.body || raw.json || raw;\nvar tenantId = payload.tenantId || payload.data?.tenantId;\nvar clientData = payload.data?.client || payload.client || payload.data || {};\nvar clientId = clientData.id || clientData.clientId;\nvar planFromPayload = payload.data?.plan || payload.plan || {};\nvar avecStripe = payload.data?.avecStripe || payload.avecStripe || false;\nvar subscriptionId = payload.data?.subscriptionId || payload.subscriptionId || null;\n\nif (!tenantId) throw new Error('tenantId manquant');\nif (!clientId) throw new Error('clientId manquant');\nif (!subscriptionId) throw new Error('subscriptionId manquant — l\\'abonnement doit être créé par le backend avant d\\'appeler ce workflow');\n\nvar plan = {\n  nomPlan: planFromPayload.nomPlan || 'Plan Starter',\n  montantMensuel: planFromPayload.montantMensuel || 29.99,\n  modulesInclus: planFromPayload.modulesInclus || ['facturation', 'comptabilite', 'agent_ia'],\n  dureeMois: planFromPayload.dureeMois || 1\n};\n\nvar chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';\nvar password = '';\nfor (var i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));\n\nreturn [{\n  json: {\n    tenantId: String(tenantId),\n    clientId: String(clientId),\n    subscriptionId: String(subscriptionId),\n    clientData: clientData,\n    plan: plan,\n    avecStripe: avecStripe,\n    plainPassword: password,\n    unitAmount: Math.round(plan.montantMensuel * 100),\n    customerName: String(clientData.nom || clientData.raisonSociale || clientData.email || '')\n  }\n}];"
       },
       "id": "parse-validate",
       "name": "02. Parser + Valider",
@@ -49,32 +49,23 @@
     },
     {
       "parameters": {
-        "url": "https://api.stripe.com/v1/customers",
-        "method": "POST",
-        "authentication": "predefinedCredentialType",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/x-www-form-urlencoded" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "keypair",
-        "bodyParameters": {
-          "parameters": [
-            { "name": "email", "value": "={{ $('02. Parser + Valider').item.json.clientData.email }}" },
-            { "name": "name", "value": "={{ $('02. Parser + Valider').item.json.clientData.nom || $('02. Parser + Valider').item.json.clientData.raisonSociale || $('02. Parser + Valider').item.json.clientData.email }}" },
-            { "name": "metadata[clientId]", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
-            { "name": "metadata[tenantId]", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" }
-          ]
-        },
-        "options": {},
-        "genericAuthType": "stripeApi"
+        "resource": "customer",
+        "operation": "create",
+        "email": "={{ $('02. Parser + Valider').item.json.clientData.email }}",
+        "additionalFields": {
+          "name": "={{ $('02. Parser + Valider').item.json.customerName }}",
+          "metadata": {
+            "metadataProperties": [
+              { "key": "clientId", "value": "={{ $('02. Parser + Valider').item.json.clientId }}" },
+              { "key": "tenantId", "value": "={{ $('02. Parser + Valider').item.json.tenantId }}" }
+            ]
+          }
+        }
       },
       "id": "stripe-customer",
       "name": "04. Stripe - Créer Customer",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.stripe",
+      "typeVersion": 1,
       "position": [900, 300],
       "credentials": {
         "stripeApi": { "id": "hTgbVXtv3dG8wSJ4", "name": "Stripe API" }

@@ -614,6 +614,26 @@ for node in existing.get('nodes', []):
             if key in backup_params:
                 existing_params[key] = backup_params[key]
 
+    # For Stripe native nodes: update ALL parameters (resource, operation, email, additionalFields)
+    elif node_type == 'n8n-nodes-base.stripe':
+        backup_params = backup_node.get('parameters', {})
+        existing_params = node.get('parameters', {})
+        for key in backup_params:
+            existing_params[key] = backup_params[key]
+        node['parameters'] = existing_params
+        if backup_params != node.get('parameters', {}):
+            changes.append(f"Stripe params updated: {node_name}")
+
+    # For HTTP Request nodes: update ALL parameters (url, method, body, headers, auth)
+    elif node_type == 'n8n-nodes-base.httpRequest':
+        backup_params = backup_node.get('parameters', {})
+        existing_params = node.get('parameters', {})
+        for key in backup_params:
+            existing_params[key] = backup_params[key]
+        node['parameters'] = existing_params
+        if backup_params != node.get('parameters', {}):
+            changes.append(f"HTTP Request params updated: {node_name}")
+
     # NEVER touch: credentials, position, id, typeVersion, etc.
 
 # Build credential map from existing n8n nodes (type -> credentials)
