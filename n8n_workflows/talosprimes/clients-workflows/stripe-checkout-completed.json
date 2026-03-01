@@ -3,29 +3,23 @@
   "nodes": [
     {
       "parameters": {
-        "events": [
-          "checkout.session.completed"
-        ]
+        "httpMethod": "POST",
+        "path": "stripe-checkout-completed",
+        "options": {}
       },
       "id": "trigger-checkout",
-      "name": "01. Stripe Trigger",
-      "type": "n8n-nodes-base.stripeTrigger",
+      "name": "01. Webhook Stripe",
+      "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
         240,
         400
       ],
-      "credentials": {
-        "stripeApi": {
-          "id": "hTgbVXtv3dG8wSJ4",
-          "name": "Stripe API"
-        }
-      },
       "webhookId": "stripe-checkout-completed"
     },
     {
       "parameters": {
-        "jsCode": "var event = $input.item.json;\nvar session = event.data?.object || event;\n\nvar customerId = session.customer;\nvar subscriptionId = session.subscription;\nvar paymentStatus = session.payment_status;\nvar clientId = session.metadata?.clientId;\nvar tenantId = session.metadata?.tenantId;\nvar planName = session.metadata?.planName;\nvar amountTotal = session.amount_total;\nvar currency = session.currency;\nvar customerEmail = session.customer_details?.email || session.customer_email;\n\nif (!clientId || !tenantId) {\n  throw new Error('Metadata manquantes: clientId=' + (clientId || 'ABSENT') + ', tenantId=' + (tenantId || 'ABSENT'));\n}\n\nreturn [{\n  json: {\n    customerId,\n    subscriptionId,\n    paymentStatus,\n    clientId,\n    tenantId,\n    planName,\n    amountTotal,\n    currency,\n    customerEmail,\n    sessionId: session.id\n  }\n}];"
+        "jsCode": "var raw = $input.item.json;\n// Stripe envoie: { body: { id, type, data: { object: { ... } } } }\nvar body = raw.body || raw;\nvar event = body;\nvar session = event.data?.object || event;\n\n// Log pour debug\nvar eventType = event.type || 'unknown';\nif (eventType !== 'checkout.session.completed' && eventType !== 'unknown') {\n  throw new Error('Event type inattendu: ' + eventType + ' (attendu: checkout.session.completed)');\n}\n\nvar customerId = session.customer;\nvar subscriptionId = session.subscription;\nvar paymentStatus = session.payment_status;\nvar clientId = session.metadata?.clientId;\nvar tenantId = session.metadata?.tenantId;\nvar planName = session.metadata?.planName;\nvar amountTotal = session.amount_total;\nvar currency = session.currency;\nvar customerEmail = session.customer_details?.email || session.customer_email;\n\nif (!clientId || !tenantId) {\n  throw new Error('Metadata manquantes: clientId=' + (clientId || 'ABSENT') + ', tenantId=' + (tenantId || 'ABSENT') + '. Raw keys: ' + Object.keys(session).join(','));\n}\n\nreturn [{\n  json: {\n    customerId,\n    subscriptionId,\n    paymentStatus,\n    clientId,\n    tenantId,\n    planName,\n    amountTotal,\n    currency,\n    customerEmail,\n    sessionId: session.id\n  }\n}];"
       },
       "id": "parse-session",
       "name": "02. Parser données session",
@@ -216,7 +210,7 @@
     }
   ],
   "connections": {
-    "01. Stripe Trigger": {
+    "01. Webhook Stripe": {
       "main": [
         [
           {
