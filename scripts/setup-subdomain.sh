@@ -19,7 +19,7 @@ set -e
 
 # --- Config ---
 DOMAIN="talosprimes.com"
-FRONTEND_PORT=3001
+FRONTEND_PORT=3000
 CLIENT_SPACES_DIR="/var/www/client-spaces"
 NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
 NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
