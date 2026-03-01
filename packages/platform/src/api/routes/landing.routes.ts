@@ -77,6 +77,8 @@ export async function landingRoutes(fastify: FastifyInstance) {
         return acc;
       }, {} as Record<string, string>);
 
+      // Cache 5 min côté navigateur, 1h côté CDN/proxy — le contenu change rarement
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
       return reply.send(contentMap);
     } catch (error) {
       fastify.log.error(error);
@@ -118,6 +120,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         where: { affiche: true },
         orderBy: { ordre: 'asc' }
       });
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
       return reply.send(testimonials);
     } catch (error) {
       fastify.log.error(error);
@@ -423,6 +426,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
           where: { publie: true },
           orderBy: { ordre: 'asc' },
         });
+        reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
         return reply.send({ success: true, data: { pages } });
       } catch (error) {
         fastify.log.error(error);
@@ -475,9 +479,11 @@ export async function landingRoutes(fastify: FastifyInstance) {
               },
             },
           });
+          reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
           return reply.send({ success: true, data: { page, plans } });
         }
 
+        reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
         return reply.send({ success: true, data: { page } });
       } catch (error) {
         fastify.log.error(error);

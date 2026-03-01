@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import compress from '@fastify/compress';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
 import { setLogger } from './config/logger.js';
@@ -104,6 +105,12 @@ fastify.setErrorHandler((error, request, reply) => {
     error: statusCode >= 500 ? 'Erreur serveur' : 'Erreur',
     message: statusCode >= 500 ? 'Une erreur interne est survenue' : error.message,
   });
+});
+
+// Compression gzip/deflate (réduit ~70% la taille des réponses JSON/HTML)
+await fastify.register(compress, {
+  global: true,
+  threshold: 1024, // Compresser uniquement si > 1 Ko
 });
 
 // Plugins de sécurité
