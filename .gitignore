@@ -41,3 +41,6 @@ Thumbs.db
 .pnpm-store/
 .git_backup/
 _a_supprimer/
+
+# n8n deployment cache (local au VPS)
+.n8n_checksums

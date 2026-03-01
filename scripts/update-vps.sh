@@ -11,7 +11,8 @@
 #   --skip-deps       Ignorer l'installation des dependances
 #   --skip-prisma     Ignorer les migrations Prisma
 #   --skip-n8n        Ignorer la sync des workflows n8n
-#   --force-n8n       Forcer la sync de TOUS les workflows n8n (pas juste les modifies)
+#   --force-n8n       Scanner TOUS les workflows n8n, sync seulement les modifies (checksum)
+#   --force-n8n-nocache  Forcer la sync de TOUS les workflows n8n (ignore le cache checksum)
 #   --only-api        Deployer uniquement le backend (platform)
 #   --only-client     Deployer uniquement le frontend (client)
 #   --only-n8n        Synchroniser uniquement les workflows n8n
@@ -54,6 +55,7 @@ SKIP_DEPS=false
 SKIP_PRISMA=false
 SKIP_N8N=false
 FORCE_N8N=false
+FORCE_N8N_NOCACHE=false
 N8N_WORKFLOW_DIR=""
 ONLY_API=false
 ONLY_CLIENT=false
@@ -485,6 +487,7 @@ while [[ $# -gt 0 ]]; do
     --skip-prisma)   SKIP_PRISMA=true; shift ;;
     --skip-n8n)      SKIP_N8N=true; shift ;;
     --force-n8n)     FORCE_N8N=true; shift ;;
+    --force-n8n-nocache) FORCE_N8N=true; FORCE_N8N_NOCACHE=true; shift ;;
     --n8n-dir)       N8N_WORKFLOW_DIR="$2"; shift 2 ;;
     --only-api)      ONLY_API=true; shift ;;
     --only-client)   ONLY_CLIENT=true; shift ;;
@@ -511,14 +514,15 @@ echo -e "  ${BLUE}Date:${NC} $(date '+%d/%m/%Y %H:%M:%S')"
 echo -e "  ${BLUE}Serveur:${NC} $(hostname)"
 
 # Afficher les options actives
-if [ "$SKIP_BUILD" = true ] || [ "$SKIP_RESTART" = true ] || [ "$SKIP_DEPS" = true ] || [ "$SKIP_PRISMA" = true ] || [ "$SKIP_N8N" = true ] || [ "$FORCE_N8N" = true ] || [ "$ONLY_API" = true ] || [ "$ONLY_CLIENT" = true ] || [ "$ONLY_N8N" = true ]; then
+if [ "$SKIP_BUILD" = true ] || [ "$SKIP_RESTART" = true ] || [ "$SKIP_DEPS" = true ] || [ "$SKIP_PRISMA" = true ] || [ "$SKIP_N8N" = true ] || [ "$FORCE_N8N" = true ] || [ "$FORCE_N8N_NOCACHE" = true ] || [ "$ONLY_API" = true ] || [ "$ONLY_CLIENT" = true ] || [ "$ONLY_N8N" = true ]; then
   echo -e "  ${YELLOW}Options:${NC}"
   [ "$SKIP_BUILD" = true ]   && echo -e "    - Build ignore"
   [ "$SKIP_RESTART" = true ] && echo -e "    - Restart ignore"
   [ "$SKIP_DEPS" = true ]    && echo -e "    - Deps ignorees"
   [ "$SKIP_PRISMA" = true ]  && echo -e "    - Prisma ignore"
   [ "$SKIP_N8N" = true ]     && echo -e "    - n8n ignore"
-  [ "$FORCE_N8N" = true ]    && echo -e "    - n8n FORCE sync (tous les workflows)"
+  [ "$FORCE_N8N" = true ] && [ "$FORCE_N8N_NOCACHE" = false ] && echo -e "    - n8n SMART sync (tous les fichiers, checksum)"
+  [ "$FORCE_N8N_NOCACHE" = true ] && echo -e "    - n8n FORCE sync NOCACHE (tous les workflows, pas de checksum)"
   [ "$ONLY_API" = true ]     && echo -e "    - Backend uniquement"
   [ "$ONLY_CLIENT" = true ]  && echo -e "    - Frontend uniquement"
   [ "$ONLY_N8N" = true ]     && echo -e "    - n8n uniquement"
@@ -870,14 +874,17 @@ else
       fi
     fi
 
+    # ---------------------------------------------------------------
+    # Systeme de checksums pour eviter de re-sync les workflows inchanges
+    # ---------------------------------------------------------------
+    N8N_CHECKSUM_FILE="$PROJECT_DIR/.n8n_checksums"
+    touch "$N8N_CHECKSUM_FILE" 2>/dev/null || true
+
     if [ -z "$CHANGED_N8N_FILES" ]; then
       log_ok "Aucun workflow n8n modifie — rien a synchroniser"
     else
       CHANGED_COUNT=$(echo "$CHANGED_N8N_FILES" | wc -l | tr -d ' ')
-      log_info "$CHANGED_COUNT fichier(s) n8n modifie(s) detecte(s):"
-      echo "$CHANGED_N8N_FILES" | while IFS= read -r f; do
-        log_info "  -> $f"
-      done
+      log_info "$CHANGED_COUNT fichier(s) n8n candidat(s) detecte(s)"
 
       # ---------------------------------------------------------------
       # Recuperer la liste des workflows existants dans n8n (noms + IDs)
@@ -921,14 +928,25 @@ print(json.dumps({'data': all_workflows}))
         N8N_TOTAL=0
         N8N_SUCCESS=0
         N8N_ERRORS=0
+        N8N_SKIPPED=0
 
         # ---------------------------------------------------------------
-        # Synchroniser UNIQUEMENT les fichiers modifies
+        # Synchroniser UNIQUEMENT les fichiers modifies (avec checksum)
         # ---------------------------------------------------------------
         while IFS= read -r rel_path; do
           [ -z "$rel_path" ] && continue
           file="$PROJECT_DIR/$rel_path"
           [ -f "$file" ] || continue
+
+          # --- Checksum : skip si le fichier n'a pas change ---
+          if [ "$FORCE_N8N_NOCACHE" != true ]; then
+            file_hash=$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)
+            stored_hash=$(grep -F "$rel_path" "$N8N_CHECKSUM_FILE" 2>/dev/null | cut -d' ' -f1 || true)
+            if [ -n "$file_hash" ] && [ "$file_hash" = "$stored_hash" ]; then
+              N8N_SKIPPED=$((N8N_SKIPPED + 1))
+              continue
+            fi
+          fi
 
           N8N_TOTAL=$((N8N_TOTAL + 1))
 
@@ -1039,6 +1057,10 @@ except Exception as e:
             if [ "$put_http_code" = "200" ]; then
               log_ok "  UPDATE: $wf_name (id=$existing_id)"
               N8N_SUCCESS=$((N8N_SUCCESS + 1))
+              # Sauvegarder le checksum apres sync reussi
+              file_hash=${file_hash:-$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)}
+              sed -i "\|$rel_path|d" "$N8N_CHECKSUM_FILE" 2>/dev/null || true
+              echo "$file_hash  $rel_path" >> "$N8N_CHECKSUM_FILE"
             else
               # Retry sans versionId (certaines versions n8n le rejettent)
               python3 -c "
@@ -1060,6 +1082,9 @@ with open('$tmp_payload', 'w') as f:
               if [ "$put_http_code2" = "200" ]; then
                 log_ok "  UPDATE: $wf_name (id=$existing_id) [sans versionId]"
                 N8N_SUCCESS=$((N8N_SUCCESS + 1))
+                file_hash=${file_hash:-$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)}
+                sed -i "\|$rel_path|d" "$N8N_CHECKSUM_FILE" 2>/dev/null || true
+                echo "$file_hash  $rel_path" >> "$N8N_CHECKSUM_FILE"
               else
                 # Dernier fallback: n8n CLI import via docker
                 local n8n_container
@@ -1072,6 +1097,9 @@ with open('$tmp_payload', 'w') as f:
                   if echo "$import_out" | grep -qi "success\|imported"; then
                     log_ok "  UPDATE: $wf_name (id=$existing_id) [via n8n CLI import]"
                     N8N_SUCCESS=$((N8N_SUCCESS + 1))
+                    file_hash=${file_hash:-$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)}
+                    sed -i "\|$rel_path|d" "$N8N_CHECKSUM_FILE" 2>/dev/null || true
+                    echo "$file_hash  $rel_path" >> "$N8N_CHECKSUM_FILE"
                   else
                     err_body=$(echo "$put_response2" | sed '$d' | head -1)
                     log_warn "  UPDATE echoue: $wf_name (HTTP $put_http_code, retry=$put_http_code2)"
@@ -1134,6 +1162,9 @@ print(json.dumps(wf))
                 log_ok "  CREATE: $wf_name (id=$new_id)"
               fi
               N8N_SUCCESS=$((N8N_SUCCESS + 1))
+              file_hash=${file_hash:-$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)}
+              sed -i "\|$rel_path|d" "$N8N_CHECKSUM_FILE" 2>/dev/null || true
+              echo "$file_hash  $rel_path" >> "$N8N_CHECKSUM_FILE"
             else
               N8N_ERRORS=$((N8N_ERRORS + 1))
               log_warn "  CREATE echoue: $wf_name (HTTP $http_code)"
@@ -1143,10 +1174,13 @@ print(json.dumps(wf))
 
         # --- RESUME ---
         echo ""
+        if [ "$N8N_SKIPPED" -gt 0 ]; then
+          log_info "$N8N_SKIPPED workflow(s) inchange(s) (checksum identique) — skip"
+        fi
         if [ "$N8N_ERRORS" -eq 0 ]; then
-          log_ok "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL synchronises (0 erreur)"
+          log_ok "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL synchronises, $N8N_SKIPPED skip (0 erreur)"
         else
-          log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_ERRORS erreurs"
+          log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_SKIPPED skip, $N8N_ERRORS erreurs"
         fi
 
         # --- RESTART n8n si des workflows ont ete modifies ---
