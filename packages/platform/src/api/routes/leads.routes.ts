@@ -205,14 +205,16 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       const query = request.query as { source?: string; statut?: string; limit?: string };
       const { source, statut, limit } = query;
       
-      // Si on utilise n8n pour les vues, déléguer au workflow
-      // Déléguer à n8n seulement si ce n'est pas déjà n8n (évite boucle)
+      // 100% n8n — pas de fallback, le bug doit remonter
       if (!fromN8n && request.tenantId) {
         const result = await n8nService.callWorkflowReturn<{ leads: unknown[] }>(
           request.tenantId,
           'leads_list',
           { source, statut, limit: limit ?? '100' }
         );
+        if (!result.success) {
+          throw new Error(`n8n leads_list échoué: ${result.error}`);
+        }
         const raw = result.data as { leads?: unknown[] };
         const leads = Array.isArray(raw.leads) ? raw.leads : [];
         return reply.send({ success: true, data: { leads } });
@@ -268,14 +270,16 @@ export async function leadsRoutes(fastify: FastifyInstance) {
 
       const params = request.params as { id: string };
 
-      // Déléguer à n8n si activé
-      // Déléguer à n8n seulement si ce n'est pas déjà n8n (évite boucle)
+      // 100% n8n — pas de fallback, le bug doit remonter
       if (!fromN8n && request.tenantId) {
         const result = await n8nService.callWorkflowReturn<{ lead: unknown }>(
           request.tenantId,
           'lead_get',
           { id: params.id }
         );
+        if (!result.success) {
+          throw new Error(`n8n lead_get échoué: ${result.error}`);
+        }
         if (!result.data?.lead) {
           return ApiError.notFound(reply, 'Lead');
         }
