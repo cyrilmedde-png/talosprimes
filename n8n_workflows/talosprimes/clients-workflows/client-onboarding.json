@@ -172,8 +172,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "respondWith": "allIncomingItems",
         "options": {}
       },
       "id": "respond-webhook",

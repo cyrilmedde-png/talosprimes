@@ -74,8 +74,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -179,8 +178,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "09. Respond Balance Error",
       "name": "09. Respond Balance Error",
@@ -241,8 +239,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "13. Respond",
       "name": "13. Respond",

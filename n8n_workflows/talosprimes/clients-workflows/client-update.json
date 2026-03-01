@@ -56,8 +56,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "Respond_ClientUpdate",
       "name": "Respond",

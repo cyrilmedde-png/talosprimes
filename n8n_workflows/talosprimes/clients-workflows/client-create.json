@@ -69,8 +69,7 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "Respond_ClientCreate",
       "name": "Respond",
