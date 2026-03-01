@@ -108,9 +108,13 @@ export default function DashboardPage() {
         }
 
         try {
-          const leadsData = await apiClient.leads.list({ limit: '5' });
+          const leadsData = await apiClient.leads.list({ limit: '10' });
           const rawLeads = (leadsData.data?.leads || leadsData.data || []) as Lead[];
-          setLeads(rawLeads.slice(0, 5));
+          // Filtrer les statuts terminaux — ne montrer que les leads actifs dans le tunnel
+          const activeLeads = rawLeads.filter(
+            (l) => l.statut !== 'converti' && l.statut !== 'abandonne'
+          );
+          setLeads(activeLeads.slice(0, 5));
         } catch {
           // leads pas encore dispo — pas grave
         }

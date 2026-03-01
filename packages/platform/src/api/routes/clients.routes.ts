@@ -571,9 +571,26 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Émettre événement pour n8n (client.deleted) - seulement si pas déjà depuis n8n
+        // Cleanup lead SYNCHRONE via n8n — le lead doit passer en 'abandonne'
+        // AVANT que le frontend ne recharge la liste (sinon race condition :
+        // le lead réapparaît car il est encore 'converti' et le client n'existe plus).
         if (!fromN8n) {
-          await eventService.emit(
+          try {
+            await n8nService.callWorkflowReturn(
+              tenantId,
+              'client_deleted_cleanup_lead',
+              {
+                email: deletedClient.email,
+                tenantId,
+              }
+            );
+          } catch (cleanupError) {
+            // Ne pas bloquer la suppression si le cleanup lead échoue
+            fastify.log.warn({ cleanupError, clientId: deletedClient.id }, 'Cleanup lead après suppression client échoué');
+          }
+
+          // Logger l'événement (async, fire-and-forget — juste pour l'historique)
+          void eventService.emit(
             tenantId,
             'client.deleted',
             'ClientFinal',
