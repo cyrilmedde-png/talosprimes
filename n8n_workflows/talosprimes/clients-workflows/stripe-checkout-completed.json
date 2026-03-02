@@ -101,7 +101,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ 'http://127.0.0.1:3001/api/clients/create-credentials' }}",
+        "url": "={{ 'https://api.talosprimes.com/api/clients/create-credentials' }}",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
