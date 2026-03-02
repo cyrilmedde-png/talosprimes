@@ -25,8 +25,6 @@ import {
   CheckBadgeIcon,
   GlobeAltIcon,
   KeyIcon,
-  EyeIcon,
-  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 
 type CreateMode = 'from-lead' | 'direct';
