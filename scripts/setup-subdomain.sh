@@ -20,6 +20,7 @@ set -e
 # --- Config ---
 DOMAIN="talosprimes.com"
 FRONTEND_PORT=3000
+BACKEND_PORT=3001
 CLIENT_SPACES_DIR="/var/www/client-spaces"
 NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
 NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
@@ -123,6 +124,18 @@ server {
     location /files/ {
         alias ${CLIENT_DIR}/;
         autoindex off;
+    }
+
+    # API backend (Fastify sur port 3001)
+    location /api/ {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Client-Subdomain ${SLUG};
+        proxy_set_header X-Client-Dir ${CLIENT_DIR};
     }
 
     # Tout le reste vers le frontend Next.js
