@@ -168,7 +168,7 @@ export const apiClient = {
       }),
     
     getSubscription: (id: string) =>
-      authenticatedFetch<{ success: boolean; data: { subscription: { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string; dateDebut: string; dateProchainRenouvellement: string } | null } }>(`/api/clients/${id}/subscription`),
+      authenticatedFetch<{ success: boolean; data: { subscription: { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string; dateDebut: string; dateProchainRenouvellement: string; idAbonnementStripe?: string; idClientStripe?: string; temporaryPassword?: string | null } | null } }>(`/api/clients/${id}/subscription`),
   },
 
   // Abonnements

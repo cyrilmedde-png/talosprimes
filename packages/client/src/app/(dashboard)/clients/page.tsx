@@ -24,6 +24,9 @@ import {
   EnvelopeIcon,
   CheckBadgeIcon,
   GlobeAltIcon,
+  KeyIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 
 type CreateMode = 'from-lead' | 'direct';
@@ -45,9 +48,10 @@ export default function ClientsPage() {
   const [clientSubscriptions, setClientSubscriptions] = useState<Record<string, { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string } | null>>({});
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [subscriptionDetail, setSubscriptionDetail] = useState<{
-    subscription: { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string; dateDebut: string; dateProchainRenouvellement: string; idAbonnementStripe?: string; idClientStripe?: string };
+    subscription: { id: string; nomPlan: string; montantMensuel: number; modulesInclus: string[]; statut: string; dateDebut: string; dateProchainRenouvellement: string; idAbonnementStripe?: string; idClientStripe?: string; temporaryPassword?: string | null };
     space: { id: string; status: string; tenantSlug?: string; clientTenantId?: string; modulesActives?: string[] } | null;
   } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   // Modules disponibles chargés depuis l'API
@@ -1427,21 +1431,50 @@ export default function ClientsPage() {
                         Valider l'espace
                       </button>
                     )}
-                    {(subscriptionDetail.space.status === 'actif' || subscriptionDetail.space.status === 'en_attente_validation') && (
-                      <button
-                        onClick={() => handleResendEmail(subscriptionDetail.space!.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-md transition-colors"
-                      >
-                        <EnvelopeIcon className="h-4 w-4" />
-                        Renvoyer identifiants
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleResendEmail(subscriptionDetail.space!.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-md transition-colors"
+                    >
+                      <EnvelopeIcon className="h-4 w-4" />
+                      Renvoyer identifiants
+                    </button>
                   </div>
                 </>
               ) : (
                 <p className="text-gray-400 text-sm">Aucun espace client créé</p>
               )}
             </div>
+
+            {/* Section 2b : Identifiants temporaires */}
+            {subscriptionDetail.subscription.temporaryPassword && (
+              <div className="bg-indigo-900/20 border border-indigo-700/30 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <KeyIcon className="h-5 w-5 text-indigo-400" />
+                  <h3 className="text-md font-semibold text-white">Identifiants client</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <p className="text-xs text-gray-400">Email</p>
+                    <p className="text-gray-200 text-sm font-mono">{selectedClient?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Mot de passe temporaire</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-200 text-sm font-mono">
+                        {showPassword ? subscriptionDetail.subscription.temporaryPassword : '••••••••••••'}
+                      </p>
+                      <button
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-indigo-400 hover:text-indigo-300 text-xs"
+                      >
+                        {showPassword ? 'Masquer' : 'Afficher'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-yellow-400/80">Ce mot de passe sera supprimé après l'envoi de l'email au client.</p>
+              </div>
+            )}
 
             {/* Section 3 : Actions abonnement */}
             <div className="bg-gray-700/30 rounded-lg p-4">
