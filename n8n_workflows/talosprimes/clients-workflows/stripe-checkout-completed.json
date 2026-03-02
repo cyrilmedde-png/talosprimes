@@ -93,7 +93,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"UPDATE client_spaces SET status = 'actif', updated_at = NOW() WHERE client_final_id = '\" + $('02. Parser données session').item.json.clientId + \"'::uuid AND status = 'en_attente' RETURNING *;\" }}",
+        "query": "={{ \"UPDATE client_spaces SET status = 'actif', updated_at = NOW() WHERE client_final_id = '\" + $('02. Parser données session').item.json.clientId + \"'::uuid AND status IN ('en_creation', 'en_attente_validation') RETURNING *;\" }}",
         "options": {}
       },
       "id": "activate-space",
