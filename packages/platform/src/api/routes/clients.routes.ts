@@ -1069,10 +1069,25 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           },
         });
 
+        // Récupérer l'espace client
+        const space = await prisma.clientSpace.findFirst({
+          where: {
+            clientFinalId: client.id,
+            tenantId,
+          },
+        });
+
         return reply.status(200).send({
           success: true,
           data: {
             subscription: subscription || null,
+            space: space ? {
+              id: space.id,
+              status: space.status,
+              tenantSlug: space.tenantSlug,
+              clientTenantId: space.clientTenantId,
+              modulesActives: space.modulesActives,
+            } : null,
           },
         });
       } catch (error) {
