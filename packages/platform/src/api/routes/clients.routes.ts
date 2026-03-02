@@ -882,8 +882,8 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           dureeMois: body.dureeMois || 1,
         };
 
-        // Tout dans une transaction Prisma : si quoi que ce soit échoue, tout est rollback
-        const result = await prisma.$transaction(async (tx: TransactionClient) => {
+        // Transaction Prisma : uniquement les opérations DB (pas d'appel HTTP externe)
+        const txResult = await prisma.$transaction(async (tx: TransactionClient) => {
           const dateDebut = new Date();
           const dateProchainRenouvellement = new Date();
           dateProchainRenouvellement.setMonth(dateProchainRenouvellement.getMonth() + plan.dureeMois);
@@ -929,34 +929,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             });
           }
 
-          // 3. Si Stripe demandé, appeler n8n pour créer la session de paiement
-          // L'abonnement reste 'suspendu' jusqu'au webhook stripe-checkout-completed
-          let stripeData = null;
-          if (body.avecStripe && tenantId && env.USE_N8N_COMMANDS) {
-            const stripeRes = await n8nService.callWorkflowReturn<{ checkoutUrl?: string; stripe?: unknown }>(
-              tenantId,
-              'client_onboarding',
-              {
-                client: {
-                  id: client.id,
-                  tenantId,
-                  type: client.type,
-                  email: client.email,
-                  nom: client.nom,
-                  prenom: client.prenom,
-                  raisonSociale: client.raisonSociale,
-                  telephone: client.telephone,
-                },
-                plan,
-                subscriptionId: subscription.id,
-                avecStripe: true,
-              }
-            );
-            stripeData = stripeRes.data;
-            // NE PAS mettre en 'actif' ici — le webhook stripe-checkout-completed le fera après paiement
-          }
-
-          // 4. Activer les ClientModule en base (contrôle d'accès réel)
+          // 3. Activer les ClientModule en base (contrôle d'accès réel)
           for (const moduleCode of plan.modulesInclus) {
             const mod = await tx.moduleMetier.findUnique({ where: { code: moduleCode } });
             if (mod) {
@@ -980,7 +953,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             }
           }
 
-          // 5. Notification
+          // 4. Notification
           const subdomainInfo = clientSpace ? ` (sous-domaine: ${clientSpace.tenantSlug}.talosprimes.com)` : '';
           await tx.notification.create({
             data: {
@@ -997,8 +970,35 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             },
           });
 
-          return { subscription, clientSpace, stripeData };
+          return { subscription, clientSpace };
         });
+
+        // Hors transaction : appel n8n/Stripe (HTTP externe, peut prendre plusieurs secondes)
+        let stripeData = null;
+        if (body.avecStripe && tenantId && env.USE_N8N_COMMANDS) {
+          const stripeRes = await n8nService.callWorkflowReturn<{ checkoutUrl?: string; stripe?: unknown }>(
+            tenantId,
+            'client_onboarding',
+            {
+              client: {
+                id: client.id,
+                tenantId,
+                type: client.type,
+                email: client.email,
+                nom: client.nom,
+                prenom: client.prenom,
+                raisonSociale: client.raisonSociale,
+                telephone: client.telephone,
+              },
+              plan,
+              subscriptionId: txResult.subscription.id,
+              avecStripe: true,
+            }
+          );
+          stripeData = stripeRes.data;
+        }
+
+        const result = { ...txResult, stripeData };
 
         // 5. Hors transaction : lancer le vhost nginx (fire-and-forget, non critique)
         if (result.clientSpace) {
