@@ -343,11 +343,8 @@ export default function ClientsPage() {
       setSubscriptionLoading(true);
       setSelectedClient(client);
 
-      // Fetch abonnement + espaces en parallèle
-      const [subResponse, spacesResponse] = await Promise.all([
-        apiClient.clients.getSubscription(client.id),
-        apiClient.clientSpaces.list(),
-      ]);
+      // Fetch abonnement + espace client
+      const subResponse = await apiClient.clients.getSubscription(client.id);
 
       const subscription = subResponse.data.subscription;
       if (!subscription) {
@@ -356,9 +353,8 @@ export default function ClientsPage() {
         return;
       }
 
-      // Trouver l'espace client associé
-      const spaces = (spacesResponse.data as { clientSpaces?: Array<{ id: string; clientFinalId?: string; status: string; tenantSlug?: string; clientTenantId?: string; modulesActives?: string[] }> }).clientSpaces || [];
-      const space = spaces.find((s: { clientFinalId?: string }) => s.clientFinalId === client.id) || null;
+      // L'espace client est retourné directement par la route subscription
+      const space = (subResponse.data as { subscription: typeof subscription; space?: { id: string; status: string; tenantSlug?: string; clientTenantId?: string; modulesActives?: string[] } | null }).space || null;
 
       setSubscriptionDetail({ subscription, space });
       setShowSubscriptionModal(true);
