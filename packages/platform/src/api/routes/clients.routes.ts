@@ -1032,8 +1032,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           },
         });
       } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
         fastify.log.error(error, 'Erreur lors de la création de l\'espace client');
-        return ApiError.internal(reply);
+        return ApiError.internal(reply, errMsg);
       }
     }
   );
