@@ -971,7 +971,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           });
 
           return { subscription, clientSpace };
-        });
+        }, { timeout: 30000 });
 
         // Hors transaction : appel n8n/Stripe (HTTP externe, peut prendre plusieurs secondes)
         let stripeData = null;
