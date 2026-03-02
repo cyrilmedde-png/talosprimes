@@ -300,10 +300,7 @@ export default function ClientsPage() {
         || response.data?.stripe?.checkoutUrl
         || response.data?.stripe?.checkout_url;
       if (checkoutUrl) {
-        window.open(checkoutUrl, '_blank');
-        setShowOnboardingModal(false);
-        setSelectedClient(null);
-        await loadClients();
+        window.location.href = checkoutUrl;
         return;
       }
       
