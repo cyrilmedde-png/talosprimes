@@ -367,7 +367,6 @@
       ],
       "id": "934733ed-6e92-4b84-a70b-ec384a2f3f3f",
       "name": "Envoyer Réponse Vocale",
-      "webhookId": "f7b31d41-d5c1-49a8-87ce-da330572cee0",
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -412,7 +411,7 @@
         "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
         "text": "={{ $json.output || $input.first()?.json?.output || 'Désolé, une erreur est survenue.' }}",
         "additionalFields": {
-          "appendAttribution": false
+          "parseMode": "None"
         }
       },
       "type": "n8n-nodes-base.telegram",
@@ -423,7 +422,6 @@
       ],
       "id": "5ad592e8-1c33-4da3-9434-73e1a1e2133d",
       "name": "Réponse Texte",
-      "webhookId": "ee941b78-671b-4099-82ca-7c7cc72d6e16",
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -436,7 +434,7 @@
         "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
         "text": "={{ '[Réponse texte] ' + ($('AI Agent').first()?.json?.output || 'Erreur de synthèse vocale.') }}",
         "additionalFields": {
-          "appendAttribution": false
+          "parseMode": "None"
         }
       },
       "type": "n8n-nodes-base.telegram",
@@ -447,7 +445,6 @@
       ],
       "id": "613acc09-b17c-4263-bfe0-4adb8b5cd40c",
       "name": "Fallback Texte (TTS échoué)",
-      "webhookId": "adb8bf14-c892-4eb3-ba20-cfbabec4fc07",
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
