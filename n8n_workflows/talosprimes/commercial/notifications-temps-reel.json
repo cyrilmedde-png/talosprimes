@@ -35,41 +35,151 @@
     {
       "parameters": {
         "rules": {
-          "rules": [
+          "values": [
             {
-              "value": "lead.created",
-              "operation": "equal"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.event || '' }}",
+                    "rightValue": "lead.created",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value": "lead.status_changed",
-              "operation": "equal"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.event || '' }}",
+                    "rightValue": "lead.status_changed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value": "lead.deleted",
-              "operation": "equal"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.event || '' }}",
+                    "rightValue": "lead.deleted",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value": "client.created",
-              "operation": "equal"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.event || '' }}",
+                    "rightValue": "client.created",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value": "client.updated",
-              "operation": "equal"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.event || '' }}",
+                    "rightValue": "client.updated",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value": "client.deleted",
-              "operation": "equal"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.event || '' }}",
+                    "rightValue": "client.deleted",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             },
             {
-              "value": "lead.converted",
-              "operation": "equal"
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.event || '' }}",
+                    "rightValue": "lead.converted",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ],
           "fallbackOutput": "extra"
         },
-        "dataType": "string",
-        "value": "={{ $json.body?.event || '' }}",
-        "mode": "rules"
+        "options": {}
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
