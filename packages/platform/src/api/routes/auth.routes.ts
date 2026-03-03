@@ -65,17 +65,27 @@ export async function authRoutes(fastify: FastifyInstance) {
         // Authentifier l'utilisateur
         const { user, tokens } = await authenticateUser(body.email, body.password);
 
-        // Récupérer les modules actifs du tenant (depuis la subscription)
+        // Récupérer les modules actifs : ClientSpace (via clientTenantId) > Subscription > fallback ALL
         let modulesActifs: string[] = [];
         try {
-          const sub = await prisma.subscription.findUnique({
-            where: { tenantId: user.tenantId },
+          // 1. Chercher dans ClientSpace (le tenant du client = clientTenantId)
+          const space = await prisma.clientSpace.findFirst({
+            where: { clientTenantId: user.tenantId },
             select: { modulesActives: true },
           });
-          modulesActifs = sub?.modulesActives ?? [];
-        } catch (_) { /* pas de subscription → tous modules par défaut */ }
+          if (space && space.modulesActives.length > 0) {
+            modulesActifs = space.modulesActives;
+          } else {
+            // 2. Fallback: Subscription.modulesActives
+            const sub = await prisma.subscription.findUnique({
+              where: { tenantId: user.tenantId },
+              select: { modulesActives: true },
+            });
+            modulesActifs = sub?.modulesActives ?? [];
+          }
+        } catch (_) { /* pas de space ni subscription */ }
 
-        // Si aucun module activé (pas de subscription), activer tout par défaut
+        // Si aucun module activé, activer tout par défaut
         if (modulesActifs.length === 0) {
           modulesActifs = [
             'clients', 'leads', 'facturation', 'devis', 'bons_commande',
@@ -160,15 +170,23 @@ export async function authRoutes(fastify: FastifyInstance) {
       // req.user est injecté par le middleware auth
       const user = request.user as JWTPayload;
 
-      // Récupérer les modules actifs du tenant
+      // Récupérer les modules actifs : ClientSpace (via clientTenantId) > Subscription > fallback ALL
       let modulesActifs: string[] = [];
       try {
-        const sub = await prisma.subscription.findUnique({
-          where: { tenantId: user.tenantId },
+        const space = await prisma.clientSpace.findFirst({
+          where: { clientTenantId: user.tenantId },
           select: { modulesActives: true },
         });
-        modulesActifs = sub?.modulesActives ?? [];
-      } catch (_) { /* pas de subscription */ }
+        if (space && space.modulesActives.length > 0) {
+          modulesActifs = space.modulesActives;
+        } else {
+          const sub = await prisma.subscription.findUnique({
+            where: { tenantId: user.tenantId },
+            select: { modulesActives: true },
+          });
+          modulesActifs = sub?.modulesActives ?? [];
+        }
+      } catch (_) { /* pas de space ni subscription */ }
 
       if (modulesActifs.length === 0) {
         modulesActifs = [

@@ -90,7 +90,7 @@ const sentimentColors: Record<string, string> = {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, setUser, modulesActifs } = useAuthStore();
+  const { user, setUser, setModulesActifs, modulesActifs } = useAuthStore();
   const [clients, setClients] = useState<ClientFinal[]>([]);
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -114,8 +114,9 @@ export default function DashboardPage() {
     try {
       setLoading(true);
 
-      const userData = await getCurrentUser();
+      const { user: userData, modulesActifs: userModules } = await getCurrentUser();
       setUser(userData);
+      setModulesActifs(userModules);
 
       // Charger clients
       const clientsData = await apiClient.clients.list();

@@ -232,6 +232,16 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
           return activated;
         });
 
+        // Synchroniser ClientSpace.modulesActives
+        try {
+          await prisma.clientSpace.updateMany({
+            where: { clientFinalId: clientId },
+            data: { modulesActives: result },
+          });
+        } catch (syncError) {
+          fastify.log.warn(syncError, 'Impossible de synchroniser ClientSpace.modulesActives');
+        }
+
         reply.code(200).send({
           success: true,
           message: `${result.length} module(s) activé(s) pour le client`,
@@ -292,6 +302,22 @@ export async function clientModulesRoutes(fastify: FastifyInstance) {
           update: { actif },
           include: { module: true },
         });
+
+        // Synchroniser ClientSpace.modulesActives (pour que le sidebar reflète les changements)
+        try {
+          const allActiveModules = await prisma.clientModule.findMany({
+            where: { clientFinalId: clientId, actif: true },
+            include: { module: { select: { code: true } } },
+          });
+          const activeCodes = allActiveModules.map((cm: { module: { code: string } }) => cm.module.code);
+
+          await prisma.clientSpace.updateMany({
+            where: { clientFinalId: clientId },
+            data: { modulesActives: activeCodes },
+          });
+        } catch (syncError) {
+          fastify.log.warn(syncError, 'Impossible de synchroniser ClientSpace.modulesActives');
+        }
 
         reply.code(200).send({
           success: true,

@@ -26,7 +26,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   modulesActifs: ALL_MODULES,
   setUser: (user) => set({ user, isAuthenticated: !!user }),
-  setModulesActifs: (modules) => set({ modulesActifs: modules.length > 0 ? modules : ALL_MODULES }),
+  setModulesActifs: (modules) => set({ modulesActifs: modules }),
   clearAuth: () => set({ user: null, isAuthenticated: false, modulesActifs: ALL_MODULES }),
   hasModule: (moduleCode) => get().modulesActifs.includes(moduleCode),
 }));

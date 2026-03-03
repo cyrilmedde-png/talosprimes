@@ -98,9 +98,9 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 /**
  * Récupère les informations de l'utilisateur connecté
  */
-export async function getCurrentUser(): Promise<User> {
+export async function getCurrentUser(): Promise<{ user: User; modulesActifs: string[] }> {
   const token = getAccessToken();
-  
+
   if (!token) {
     throw new Error('Non authentifié');
   }
@@ -121,7 +121,10 @@ export async function getCurrentUser(): Promise<User> {
   }
 
   const data = await response.json();
-  return data.data.user;
+  return {
+    user: data.data.user,
+    modulesActifs: data.data.modulesActifs ?? [],
+  };
 }
 
 /**
