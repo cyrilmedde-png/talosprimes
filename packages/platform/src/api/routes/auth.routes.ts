@@ -65,35 +65,16 @@ export async function authRoutes(fastify: FastifyInstance) {
         // Authentifier l'utilisateur
         const { user, tokens } = await authenticateUser(body.email, body.password);
 
-        // Récupérer les modules actifs : ClientSpace (via clientTenantId) > Subscription > fallback ALL
+        // Récupérer les modules actifs depuis ClientSpace (source unique de vérité)
         let modulesActifs: string[] = [];
-        try {
-          // 1. Chercher dans ClientSpace (le tenant du client = clientTenantId)
-          const space = await prisma.clientSpace.findFirst({
-            where: { clientTenantId: user.tenantId },
-            select: { modulesActives: true },
-          });
-          if (space && space.modulesActives.length > 0) {
-            modulesActifs = space.modulesActives;
-          } else {
-            // 2. Fallback: Subscription.modulesActives
-            const sub = await prisma.subscription.findUnique({
-              where: { tenantId: user.tenantId },
-              select: { modulesActives: true },
-            });
-            modulesActifs = sub?.modulesActives ?? [];
-          }
-        } catch (_) { /* pas de space ni subscription */ }
-
-        // Si aucun module activé, activer tout par défaut
-        if (modulesActifs.length === 0) {
-          modulesActifs = [
-            'clients', 'leads', 'facturation', 'devis', 'bons_commande',
-            'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
-            'articles', 'logs', 'notifications',
-            'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
-          ];
+        const space = await prisma.clientSpace.findFirst({
+          where: { clientTenantId: user.tenantId },
+          select: { modulesActives: true },
+        });
+        if (!space) {
+          throw new Error(`Aucun ClientSpace trouvé pour le tenant ${user.tenantId}`);
         }
+        modulesActifs = space.modulesActives;
 
         // Retourner les tokens et les infos utilisateur
         reply.code(200).send({
@@ -170,32 +151,16 @@ export async function authRoutes(fastify: FastifyInstance) {
       // req.user est injecté par le middleware auth
       const user = request.user as JWTPayload;
 
-      // Récupérer les modules actifs : ClientSpace (via clientTenantId) > Subscription > fallback ALL
+      // Récupérer les modules actifs depuis ClientSpace (source unique de vérité)
       let modulesActifs: string[] = [];
-      try {
-        const space = await prisma.clientSpace.findFirst({
-          where: { clientTenantId: user.tenantId },
-          select: { modulesActives: true },
-        });
-        if (space && space.modulesActives.length > 0) {
-          modulesActifs = space.modulesActives;
-        } else {
-          const sub = await prisma.subscription.findUnique({
-            where: { tenantId: user.tenantId },
-            select: { modulesActives: true },
-          });
-          modulesActifs = sub?.modulesActives ?? [];
-        }
-      } catch (_) { /* pas de space ni subscription */ }
-
-      if (modulesActifs.length === 0) {
-        modulesActifs = [
-          'clients', 'leads', 'facturation', 'devis', 'bons_commande',
-          'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
-          'articles', 'logs', 'notifications',
-          'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
-        ];
+      const space = await prisma.clientSpace.findFirst({
+        where: { clientTenantId: user.tenantId },
+        select: { modulesActives: true },
+      });
+      if (!space) {
+        throw new Error(`Aucun ClientSpace trouvé pour le tenant ${user.tenantId}`);
       }
+      modulesActifs = space.modulesActives;
 
       reply.code(200).send({
         success: true,
