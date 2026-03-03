@@ -170,7 +170,8 @@ const allNavGroups: NavGroup[] = [
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clearAuth, modulesActifs } = useAuthStore();
+  const { clearAuth, modulesActifs, user } = useAuthStore();
+  const isDemo = user?.tenantId === 'ebeee7b6-6ddd-4993-96b4-20386e8565d6';
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -196,13 +197,23 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   }, [pathname]);
 
   const navGroups = useMemo(() => {
+    // Items masqués en mode démo
+    const hiddenInDemo = ['/settings', '/plans'];
+
     return allNavGroups
       .filter((group) => {
         if (group.requiredModules.length === 0) return true;
         return group.requiredModules.some((mod) => modulesActifs.includes(mod));
       })
+      .map((group) => {
+        if (!isDemo) return group;
+        return {
+          ...group,
+          items: group.items.filter((item) => !hiddenInDemo.includes(item.href)),
+        };
+      })
       .filter((group) => group.items.length > 0);
-  }, [modulesActifs]);
+  }, [modulesActifs, isDemo]);
 
   const handleLogout = () => {
     clearTokens();
