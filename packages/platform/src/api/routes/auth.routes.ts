@@ -14,6 +14,14 @@ import { prisma } from '../../config/database.js';
 import { ApiError } from '../../utils/api-errors.js';
 import { N8nService } from '../../services/n8n.service.js';
 
+// Tous les modules — utilisé pour les tenants admin (pas de ClientSpace)
+const ALL_MODULES = [
+  'clients', 'leads', 'facturation', 'devis', 'bons_commande',
+  'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
+  'articles', 'logs', 'notifications',
+  'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
+];
+
 // Schema de validation pour le login
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -65,16 +73,13 @@ export async function authRoutes(fastify: FastifyInstance) {
         // Authentifier l'utilisateur
         const { user, tokens } = await authenticateUser(body.email, body.password);
 
-        // Récupérer les modules actifs depuis ClientSpace (source unique de vérité)
-        let modulesActifs: string[] = [];
+        // Récupérer les modules actifs depuis ClientSpace (source unique pour les clients)
+        // Pas de ClientSpace = tenant admin → tous les modules
         const space = await prisma.clientSpace.findFirst({
           where: { clientTenantId: user.tenantId },
           select: { modulesActives: true },
         });
-        if (!space) {
-          throw new Error(`Aucun ClientSpace trouvé pour le tenant ${user.tenantId}`);
-        }
-        modulesActifs = space.modulesActives;
+        const modulesActifs = space ? space.modulesActives : ALL_MODULES;
 
         // Retourner les tokens et les infos utilisateur
         reply.code(200).send({
@@ -151,16 +156,13 @@ export async function authRoutes(fastify: FastifyInstance) {
       // req.user est injecté par le middleware auth
       const user = request.user as JWTPayload;
 
-      // Récupérer les modules actifs depuis ClientSpace (source unique de vérité)
-      let modulesActifs: string[] = [];
+      // Récupérer les modules actifs depuis ClientSpace (source unique pour les clients)
+      // Pas de ClientSpace = tenant admin → tous les modules
       const space = await prisma.clientSpace.findFirst({
         where: { clientTenantId: user.tenantId },
         select: { modulesActives: true },
       });
-      if (!space) {
-        throw new Error(`Aucun ClientSpace trouvé pour le tenant ${user.tenantId}`);
-      }
-      modulesActifs = space.modulesActives;
+      const modulesActifs = space ? space.modulesActives : ALL_MODULES;
 
       reply.code(200).send({
         success: true,
