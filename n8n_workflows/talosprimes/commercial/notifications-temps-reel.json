@@ -15,8 +15,7 @@
         0
       ],
       "id": "52d3fd2f-240b-49d4-9a74-cc2db5313283",
-      "name": "Webhook Événements",
-      "webhookId": "a1aecedd-9b2a-4315-aeb3-d7d504d41210"
+      "name": "Webhook Événements"
     },
     {
       "parameters": {
@@ -318,8 +317,7 @@
         "chatId": "={{ $json.targetChatId }}",
         "text": "={{ $json.telegramMessage }}",
         "additionalFields": {
-          "appendAttribution": false,
-          "parse_mode": "Markdown"
+          "parseMode": "Markdown"
         }
       },
       "type": "n8n-nodes-base.telegram",
@@ -330,7 +328,6 @@
       ],
       "id": "af34e04e-d1fb-4712-95ad-2ed29d344be6",
       "name": "Envoyer Notification Telegram",
-      "webhookId": "282a83fb-687a-4576-b00d-ebeb78c24049",
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -509,12 +506,8 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "availableInMCP": false,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "0eb20484-ab8c-4294-b1c3-d931a3e40138",
-  "meta": {
-    "instanceId": "8b61722adae29c7b398c5d09bd2bbaac712be7a74ebb6dc903b7ae1f5b9dd594"
-  },
+  "meta": {},
   "tags": []
 }
