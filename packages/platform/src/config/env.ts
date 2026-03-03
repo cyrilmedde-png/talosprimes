@@ -70,6 +70,9 @@ const envSchema = z.object({
   // Webhook n8n pour notifications temps réel (Telegram, etc.)
   N8N_EVENTS_WEBHOOK_URL: z.string().url().optional(),
 
+  // RGPD : clé de chiffrement AES-256 pour les credentials sensibles (32 bytes hex)
+  RGPD_ENCRYPTION_KEY: z.string().length(64, 'RGPD_ENCRYPTION_KEY doit faire 64 caractères hex (32 bytes)').optional(),
+
   // Twilio (webhooks entrants + SMS)
   TWILIO_AUTH_TOKEN: z.string().optional(),
 

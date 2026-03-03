@@ -181,14 +181,15 @@ export default function ConfidentialitePage() {
             </p>
           </LegalSection>
 
-          <LegalSection number="12" title="Cookies">
-            <p>Nous utilisons des cookies pour :</p>
-            <ul className="list-disc list-inside space-y-1.5 ml-1">
-              <li><strong className="text-slate-800">Cookies essentiels :</strong> authentification, sécurité (obligatoires)</li>
-              <li><strong className="text-slate-800">Cookies de performance :</strong> statistiques anonymisées (facultatifs)</li>
-              <li><strong className="text-slate-800">Cookies fonctionnels :</strong> préférences utilisateur (facultatifs)</li>
-            </ul>
-            <p>Vous pouvez paramétrer vos préférences de cookies dans votre navigateur.</p>
+          <LegalSection number="12" title="Cookies et authentification">
+            <p>
+              TalosPrimes utilise un système d&apos;authentification par <strong className="text-slate-800">jetons JWT (JSON Web Tokens)</strong> transmis
+              via l&apos;en-tête HTTP <code>Authorization</code>. Aucun cookie d&apos;authentification n&apos;est déposé sur votre navigateur.
+            </p>
+            <p>
+              Le site n&apos;utilise <strong className="text-slate-800">aucun cookie tiers</strong>, aucun cookie de tracking, ni aucun cookie publicitaire.
+              Seul le stockage local du navigateur (localStorage) est utilisé pour conserver votre jeton d&apos;accès le temps de votre session.
+            </p>
           </LegalSection>
 
           <LegalSection number="13" title="Modifications de la politique">

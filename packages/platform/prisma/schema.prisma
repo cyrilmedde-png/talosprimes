@@ -91,6 +91,20 @@ enum EventExecutionStatus {
   en_attente
 }
 
+// Type de consentement RGPD
+enum ConsentType {
+  donnees_personnelles   // Traitement des données personnelles
+  communications         // Communications marketing
+  cookies_analytics      // Cookies analytiques
+  partage_tiers          // Partage avec sous-traitants (OpenAI, etc.)
+}
+
+// Action de consentement (donné ou retiré)
+enum ConsentAction {
+  granted    // Consentement donné
+  withdrawn  // Consentement retiré
+}
+
 enum LeadStatus {
   nouveau
   contacte
@@ -288,6 +302,9 @@ model Tenant {
   // Ressources Humaines
   rhContrats            RhContrat[]
   rhBulletinsPaie       RhBulletinPaie[]
+  // RGPD
+  consentLogs           ConsentLog[]
+  rgpdRequests          RgpdRequest[]
   rhConges              RhConge[]
   rhDocuments           RhDocument[]
   rhEntretiens          RhEntretien[]
@@ -894,6 +911,70 @@ model EventLog {
   @@index([statutExecution])
   @@index([createdAt])
   @@map("event_logs")
+}
+
+// ============================================
+// RGPD / GDPR COMPLIANCE
+// ============================================
+
+// Registre des consentements RGPD (Art. 7 RGPD)
+// Chaque entrée est immuable : on ne modifie jamais, on ajoute un nouvel enregistrement.
+model ConsentLog {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  userId      String?       @map("user_id") @db.Uuid       // Utilisateur ayant donné le consentement (null = lead/visiteur)
+  email       String                                         // Email de la personne concernée
+  consentType ConsentType   @map("consent_type")
+  action      ConsentAction                                  // granted / withdrawn
+  version     String        @default("1.0")                  // Version de la politique acceptée
+  ipAddress   String?       @map("ip_address")               // IP au moment du consentement
+  userAgent   String?       @map("user_agent") @db.Text      // User-Agent du navigateur
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([consentType])
+  @@index([createdAt])
+  @@map("consent_logs")
+}
+
+// Demandes d'exercice de droits RGPD (Art. 15-22)
+model RgpdRequest {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  email       String                                       // Email du demandeur
+  type        String                                       // export | anonymize | delete | rectify | restrict
+  status      String   @default("pending")                 // pending | processing | completed | rejected
+  details     String?  @db.Text                            // Détails de la demande
+  completedAt DateTime? @map("completed_at")
+  completedBy String?  @map("completed_by") @db.Uuid       // User admin qui a traité
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@map("rgpd_requests")
+}
+
+// Registre des sous-traitants (Art. 28 RGPD)
+model DataProcessor {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String                                      // Nom du sous-traitant
+  purpose      String   @db.Text                           // Finalité du traitement
+  dataTypes    String[] @default([]) @map("data_types")    // Types de données partagées
+  country      String                                      // Pays d'hébergement
+  dpaSignedAt  DateTime? @map("dpa_signed_at")             // Date de signature du DPA
+  dpaUrl       String?  @map("dpa_url")                    // Lien vers le DPA
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("data_processors")
 }
 
 // Lead (demande d'inscription)

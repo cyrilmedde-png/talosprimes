@@ -36,6 +36,7 @@ import { projetsRoutes } from './api/routes/projets.routes.js';
 import { btpRoutes } from './api/routes/btp.routes.js';
 import { rhRoutes } from './api/routes/rh.routes.js';
 import { agentKnowledgeRoutes } from './api/routes/agent-knowledge.routes.js';
+import { rgpdRoutes } from './api/routes/rgpd.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -318,6 +319,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes Base de Connaissances Agent IA
 await fastify.register(async (fastify) => {
   await fastify.register(agentKnowledgeRoutes, { prefix: '/api/agent-knowledge' });
+});
+
+// Enregistrer les routes RGPD (consentement, export, anonymisation, sous-traitants)
+await fastify.register(async (fastify) => {
+  await fastify.register(rgpdRoutes, { prefix: '/api/rgpd' });
 });
 
 // Route de test
