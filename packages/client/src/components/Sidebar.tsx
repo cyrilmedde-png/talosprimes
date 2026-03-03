@@ -31,6 +31,7 @@ import {
   CalendarIcon,
   CheckCircleIcon,
   BookOpenIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -78,6 +79,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Bilan', href: '/comptabilite/bilan', icon: DocumentCheckIcon },
       { name: 'Compte de Résultat', href: '/comptabilite/compte-resultat', icon: DocumentDuplicateIcon },
       { name: 'TVA', href: '/comptabilite/tva', icon: ReceiptRefundIcon },
+      { name: 'Rapprochement', href: '/comptabilite/rapprochement', icon: ArrowPathIcon },
       { name: 'Agent IA Comptable', href: '/comptabilite/ia', icon: SparklesIcon },
       { name: 'Clôture', href: '/comptabilite/cloture', icon: LockClosedIcon },
     ],
