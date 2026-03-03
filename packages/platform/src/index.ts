@@ -37,6 +37,7 @@ import { btpRoutes } from './api/routes/btp.routes.js';
 import { rhRoutes } from './api/routes/rh.routes.js';
 import { agentKnowledgeRoutes } from './api/routes/agent-knowledge.routes.js';
 import { rgpdRoutes } from './api/routes/rgpd.routes.js';
+import { qontoRoutes } from './api/routes/qonto.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -324,6 +325,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes RGPD (consentement, export, anonymisation, sous-traitants)
 await fastify.register(async (fastify) => {
   await fastify.register(rgpdRoutes, { prefix: '/api/rgpd' });
+});
+
+// Enregistrer les routes Qonto (banque : solde, transactions)
+await fastify.register(async (fastify) => {
+  await fastify.register(qontoRoutes, { prefix: '/api/qonto' });
 });
 
 // Route de test

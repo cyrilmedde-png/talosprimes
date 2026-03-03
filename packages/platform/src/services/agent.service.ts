@@ -14,7 +14,7 @@ import {
   isEmailReadConfigured,
   isEmailSendConfigured,
 } from './email-agent.service.js';
-import { listQontoTransactions, isQontoConfigured } from './qonto-agent.service.js';
+import { listTransactions as listQontoTransactions, isQontoConfigured, getBalance as getQontoBalance } from './qonto-agent.service.js';
 
 // Types pour l'API OpenAI (chat completions + tools)
 type OpenAIMessage =
@@ -308,7 +308,7 @@ const AGENT_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'qonto_transactions',
-      description: 'Lister les mouvements bancaires Qonto (entrées et sorties d\'argent). Optionnel: settledAtFrom, settledAtTo (ISO 8601), side (credit ou debit), perPage. Nécessite QONTO_API_SECRET et QONTO_BANK_ACCOUNT_ID dans .env. Lecture seule.',
+      description: 'Lister les mouvements bancaires Qonto (entrées et sorties d\'argent). Optionnel: settledAtFrom, settledAtTo (ISO 8601), side (credit ou debit), perPage. Lecture seule.',
       parameters: {
         type: 'object',
         properties: {
@@ -317,6 +317,18 @@ const AGENT_TOOLS: Array<{
           side: { type: 'string', enum: ['credit', 'debit'], description: 'Filtrer entrées (credit) ou sorties (debit)' },
           perPage: { type: 'string', description: 'Nombre max (défaut 50)' },
         },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'qonto_balance',
+      description: 'Consulter le solde actuel du compte bancaire Qonto (solde disponible, IBAN, devise). Lecture seule.',
+      parameters: {
+        type: 'object',
+        properties: {},
         required: [],
       },
     },
@@ -710,24 +722,27 @@ async function executeTool(
       }
 
       case 'qonto_transactions': {
-        const agentConfig = await getAgentConfigForTenant(tenantId);
-        if (!isQontoConfigured(agentConfig?.qonto)) {
-          return serializeForModel({ error: 'Qonto non configuré. Renseignez API Secret et compte bancaire dans Paramètres > Assistant IA.' });
+        if (!isQontoConfigured()) {
+          return serializeForModel({ error: 'Qonto non configuré. Ajoutez QONTO_LOGIN et QONTO_SECRET_KEY dans .env' });
         }
-        const settledAtFrom = args.settledAtFrom as string | undefined;
-        const settledAtTo = args.settledAtTo as string | undefined;
+        const settled_at_from = args.settledAtFrom as string | undefined;
+        const settled_at_to = args.settledAtTo as string | undefined;
         const side = args.side as 'credit' | 'debit' | undefined;
-        const perPage = args.perPage ? Math.min(Number(args.perPage) || 50, 100) : 50;
-        const result = await listQontoTransactions(
-          { settledAtFrom, settledAtTo, side, perPage },
-          agentConfig?.qonto
-        );
-        if (result.error) return serializeForModel({ error: result.error });
+        const per_page = args.perPage ? Math.min(Number(args.perPage) || 50, 100) : 50;
+        const result = await listQontoTransactions({ settled_at_from, settled_at_to, side, per_page });
         return serializeForModel({
           transactions: result.transactions,
           meta: result.meta,
           summary: result.summary,
         });
+      }
+
+      case 'qonto_balance': {
+        if (!isQontoConfigured()) {
+          return serializeForModel({ error: 'Qonto non configuré. Ajoutez QONTO_LOGIN et QONTO_SECRET_KEY dans .env' });
+        }
+        const balanceInfo = await getQontoBalance();
+        return serializeForModel(balanceInfo);
       }
 
       case 'contact_support': {

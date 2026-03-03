@@ -50,8 +50,8 @@ export async function getAgentConfigForTenant(tenantId: string): Promise<AgentCo
       smtpFrom: db.email?.smtpFrom ?? env.SMTP_FROM ?? undefined,
     },
     qonto: {
-      apiSecret: db.qonto?.apiSecret ?? env.QONTO_API_SECRET ?? undefined,
-      bankAccountId: db.qonto?.bankAccountId ?? env.QONTO_BANK_ACCOUNT_ID ?? env.QONTO_ORG_ID ?? undefined,
+      apiSecret: db.qonto?.apiSecret ?? env.QONTO_SECRET_KEY ?? undefined,
+      bankAccountId: db.qonto?.bankAccountId ?? env.QONTO_LOGIN ?? undefined,
     },
   };
 }
@@ -82,7 +82,7 @@ export async function getAgentConfigForDisplay(tenantId: string): Promise<{
     qonto: {
       ...qonto,
       apiSecret: qonto.apiSecret ? maskSecret(qonto.apiSecret) : undefined,
-      configured: !!(qonto.apiSecret && (qonto.bankAccountId ?? env.QONTO_ORG_ID)),
+      configured: !!(qonto.apiSecret && qonto.bankAccountId),
     },
   };
 }

@@ -76,10 +76,10 @@ const envSchema = z.object({
   // Twilio (webhooks entrants + SMS)
   TWILIO_AUTH_TOKEN: z.string().optional(),
 
-  // Qonto (agent : entrées/sorties)
-  QONTO_API_SECRET: z.string().optional(),
-  QONTO_ORG_ID: z.string().optional(),
-  QONTO_BANK_ACCOUNT_ID: z.string().optional(),
+  // Qonto (banque pro : suivi transactions, solde)
+  QONTO_LOGIN: z.string().optional(),        // ex: ei-cyril-medde-3794
+  QONTO_SECRET_KEY: z.string().optional(),   // clé API depuis Paramètres > Intégrations
+
 });
 
 // Validation et export
