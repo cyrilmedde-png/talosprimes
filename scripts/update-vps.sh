@@ -174,14 +174,32 @@ start_n8n() {
   fi
   # NE PAS supprimer WAL/SHM — SQLite en a besoin pour la coherence
 
-  # Appliquer le patch webhook si present
-  if [ -f "$N8N_COMPOSE_DIR/apply-webhook-patch.sh" ]; then
-    "$N8N_COMPOSE_DIR/apply-webhook-patch.sh" > /dev/null 2>&1 || true
+  # Injecter N8N_WEBHOOK_SECRET dans docker-compose.yml si absent
+  local PLATFORM_ENV="$PLATFORM_DIR/.env"
+  if [ -f "$PLATFORM_ENV" ]; then
+    local WEBHOOK_SECRET
+    WEBHOOK_SECRET=$(grep -oP '^N8N_WEBHOOK_SECRET=["'"'"']?\K[^"'"'"']*' "$PLATFORM_ENV" 2>/dev/null || true)
+    if [ -n "$WEBHOOK_SECRET" ]; then
+      local COMPOSE_FILE="$N8N_COMPOSE_DIR/docker-compose.yml"
+      if [ -f "$COMPOSE_FILE" ] && ! grep -q "N8N_WEBHOOK_SECRET" "$COMPOSE_FILE"; then
+        # Ajouter apres la derniere ligne environment existante
+        sed -i "/- STRIPE_SECRET_KEY=/a\\      - N8N_WEBHOOK_SECRET=$WEBHOOK_SECRET" "$COMPOSE_FILE" 2>/dev/null || true
+        log_info "N8N_WEBHOOK_SECRET injecte dans docker-compose.yml"
+      fi
+    fi
   fi
 
+  # 1. Demarrer le container (peut le recreer depuis l'image)
   cd "$N8N_COMPOSE_DIR"
   docker compose up -d n8n 2>/dev/null || docker start n8n 2>/dev/null || true
   cd "$PROJECT_DIR"
+
+  # 2. Appliquer le patch webhook APRES docker compose up (sinon le patch est ecrase)
+  if [ -f "$N8N_COMPOSE_DIR/apply-webhook-patch.sh" ]; then
+    sleep 5
+    "$N8N_COMPOSE_DIR/apply-webhook-patch.sh" > /dev/null 2>&1 || true
+    log_info "Patch webhook applique, n8n redemarre"
+  fi
 }
 
 # Backup safe de la DB n8n (avec sqlite3 .backup)
