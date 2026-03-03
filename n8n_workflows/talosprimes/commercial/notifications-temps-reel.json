@@ -1,0 +1,527 @@
+{
+  "name": "Notifications Temps Réel TalosPrimes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "talosprimes-events",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "52d3fd2f-240b-49d4-9a74-cc2db5313283",
+      "name": "Webhook Événements",
+      "webhookId": "a1aecedd-9b2a-4315-aeb3-d7d504d41210"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, event: $json.body?.event || \"unknown\" }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b14ed821-14b8-4593-bd42-99905da39e9c",
+      "name": "ACK Webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "value": "lead.created",
+              "outputKey": "lead_created",
+              "operation": "equals"
+            },
+            {
+              "value": "lead.status_changed",
+              "outputKey": "lead_status",
+              "operation": "equals"
+            },
+            {
+              "value": "lead.deleted",
+              "outputKey": "lead_deleted",
+              "operation": "equals"
+            },
+            {
+              "value": "client.created",
+              "outputKey": "client_created",
+              "operation": "equals"
+            },
+            {
+              "value": "client.updated",
+              "outputKey": "client_updated",
+              "operation": "equals"
+            },
+            {
+              "value": "client.deleted",
+              "outputKey": "client_deleted",
+              "operation": "equals"
+            },
+            {
+              "value": "lead.converted",
+              "outputKey": "lead_converted",
+              "operation": "equals"
+            }
+          ],
+          "fallbackOutput": "extra"
+        },
+        "dataType": "string",
+        "value": "={{ $json.body?.event || '' }}",
+        "mode": "rules"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        208,
+        192
+      ],
+      "id": "60d213f1-6798-4732-835f-e0233a7db397",
+      "name": "Type Événement"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "626493eb-d4da-4501-9006-223897ab4308",
+              "name": "telegramMessage",
+              "value": "=🆕 *Nouveau Lead créé*\n\n👤 *{{ $json.body.data.prenom || '' }} {{ $json.body.data.nom || 'Inconnu' }}*\n📧 {{ $json.body.data.email || 'Pas d\\'email' }}\n📱 {{ $json.body.data.telephone || 'Pas de téléphone' }}\n📌 Source: {{ $json.body.data.source || 'Non précisée' }}\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}\n\n_Créé par {{ $json.body.user || 'Système' }}_",
+              "type": "string"
+            },
+            {
+              "id": "d89af470-46b6-4ee4-a6ce-3cf8b603ffa1",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        -96
+      ],
+      "id": "608bb158-d544-4eda-87ef-a4ba9e84fde6",
+      "name": "Format Lead Créé"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0ccf57b9-6f29-4ba8-b6c9-8f4c1ae311ef",
+              "name": "telegramMessage",
+              "value": "=🔄 *Statut Lead modifié*\n\n👤 *{{ $json.body.data.nom || 'Lead' }}*\n📊 {{ $json.body.data.oldStatut || '?' }} → *{{ $json.body.data.statut || '?' }}*\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}\n\n_Modifié par {{ $json.body.user || 'Système' }}_",
+              "type": "string"
+            },
+            {
+              "id": "d61b4e33-5e34-42b7-ae0e-5f4ededfed0d",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        32
+      ],
+      "id": "fcaf3bbe-4346-41a1-9a9a-63c89ed900d9",
+      "name": "Format Lead Statut"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dea1cceb-ad57-4383-b8c5-ed29b07e194d",
+              "name": "telegramMessage",
+              "value": "=🗑️ *Lead supprimé*\n\n👤 *{{ $json.body.data.nom || 'Lead' }}*\n📧 {{ $json.body.data.email || '' }}\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}\n\n_Supprimé par {{ $json.body.user || 'Système' }}_",
+              "type": "string"
+            },
+            {
+              "id": "e0063608-4962-4aaf-a8ae-f1a7b6287e85",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        160
+      ],
+      "id": "ae0bc8c5-d6bc-41e3-b442-eff645b8d912",
+      "name": "Format Lead Supprimé"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "19238993-781d-4a52-8ccf-6378d9662768",
+              "name": "telegramMessage",
+              "value": "=🎉 *Nouveau Client créé*\n\n🏢 *{{ $json.body.data.raisonSociale || $json.body.data.nom || 'Client' }}*\n📧 {{ $json.body.data.email || 'Pas d\\'email' }}\n📱 {{ $json.body.data.telephone || '' }}\n🏷️ Type: {{ $json.body.data.type || 'Non précisé' }}\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}\n\n_Créé par {{ $json.body.user || 'Système' }}_",
+              "type": "string"
+            },
+            {
+              "id": "c1d1d325-a3c8-440e-8934-55bfe7c73bf2",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        288
+      ],
+      "id": "6a7a79b5-bc7d-4d25-aa08-ffde2965b796",
+      "name": "Format Client Créé"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "73ced93f-72b0-4513-aa74-74abe5c58944",
+              "name": "telegramMessage",
+              "value": "=✏️ *Client modifié*\n\n🏢 *{{ $json.body.data.raisonSociale || $json.body.data.nom || 'Client' }}*\n📝 Champs modifiés: {{ Object.keys($json.body.data.changes || {}).join(', ') || 'Non précisé' }}\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}\n\n_Modifié par {{ $json.body.user || 'Système' }}_",
+              "type": "string"
+            },
+            {
+              "id": "71070cd2-29db-40a4-9ac4-4129a9fde81b",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        416
+      ],
+      "id": "edc58eaf-e922-4c6c-8d5f-4fe23f35b032",
+      "name": "Format Client Modifié"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "57a3b685-eba0-4d5d-989c-946bf42d7e5f",
+              "name": "telegramMessage",
+              "value": "=🗑️ *Client supprimé*\n\n🏢 *{{ $json.body.data.raisonSociale || $json.body.data.nom || 'Client' }}*\n📧 {{ $json.body.data.email || '' }}\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}\n\n_Supprimé par {{ $json.body.user || 'Système' }}_",
+              "type": "string"
+            },
+            {
+              "id": "29c24761-15d5-452c-8dfc-2972339bf2b8",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        544
+      ],
+      "id": "015a3a03-6823-4bd0-a978-98dc54f826f7",
+      "name": "Format Client Supprimé"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e3b91101-b5dd-4d66-83d9-8637772c812f",
+              "name": "telegramMessage",
+              "value": "=🚀 *Lead converti en Client !*\n\n👤 *{{ $json.body.data.nom || 'Lead' }}*\n📧 {{ $json.body.data.email || '' }}\n🏢 Nouveau client: {{ $json.body.data.clientName || 'Créé' }}\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}\n\n_Converti par {{ $json.body.user || 'Système' }}_",
+              "type": "string"
+            },
+            {
+              "id": "efc5e36c-4ca5-4f53-a244-72ab6345fd17",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        672
+      ],
+      "id": "95c03c64-336e-4444-8956-45e4f3ced721",
+      "name": "Format Lead Converti"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "52b6ed16-264d-4ddb-a2d5-96247ca0fd90",
+              "name": "telegramMessage",
+              "value": "=📌 *Événement TalosPrimes*\n\n🔔 Type: {{ $json.body?.event || 'inconnu' }}\n📄 Données: {{ JSON.stringify($json.body?.data || {}).substring(0, 200) }}\n🕐 {{ new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) }}",
+              "type": "string"
+            },
+            {
+              "id": "0b3012f5-0a9c-4641-8d36-7c810a3d7a51",
+              "name": "targetChatId",
+              "value": "={{ $json.body?.chatId || '6296082748' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        800
+      ],
+      "id": "c08c9f69-0642-4667-a892-06e1277886bd",
+      "name": "Format Événement Inconnu"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.targetChatId }}",
+        "text": "={{ $json.telegramMessage }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        352
+      ],
+      "id": "af34e04e-d1fb-4712-95ad-2ed29d344be6",
+      "name": "Envoyer Notification Telegram",
+      "webhookId": "282a83fb-687a-4576-b00d-ebeb78c24049",
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Événements": {
+      "main": [
+        [
+          {
+            "node": "ACK Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Type Événement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Type Événement": {
+      "main": [
+        [
+          {
+            "node": "Format Lead Créé",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Lead Statut",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Lead Supprimé",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Client Créé",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Client Modifié",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Client Supprimé",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Lead Converti",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Événement Inconnu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Créé": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Statut": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Supprimé": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Client Créé": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Client Modifié": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Client Supprimé": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Lead Converti": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Événement Inconnu": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Notification Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "0eb20484-ab8c-4294-b1c3-d931a3e40138",
+  "meta": {
+    "instanceId": "8b61722adae29c7b398c5d09bd2bbaac712be7a74ebb6dc903b7ae1f5b9dd594"
+  },
+  "tags": []
+}

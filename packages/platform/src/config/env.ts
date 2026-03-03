@@ -67,6 +67,9 @@ const envSchema = z.object({
   GOOGLE_CALENDAR_CREDENTIALS_JSON: z.string().optional(),
   GOOGLE_CALENDAR_ID: z.string().optional(),
 
+  // Webhook n8n pour notifications temps réel (Telegram, etc.)
+  N8N_EVENTS_WEBHOOK_URL: z.string().url().optional(),
+
   // Twilio (webhooks entrants + SMS)
   TWILIO_AUTH_TOKEN: z.string().optional(),
 

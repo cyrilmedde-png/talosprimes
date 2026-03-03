@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js';
+import { env } from '../config/env.js';
 import { n8nService } from './n8n.service.js';
 import { logger } from '../config/logger.js';
 
@@ -8,6 +9,8 @@ type EventExecutionStatus = 'succes' | 'erreur' | 'en_attente';
 /**
  * Service pour émettre des événements métiers.
  * Ces événements sont loggés dans EventLog puis déclenchent un workflow n8n.
+ * Si N8N_EVENTS_WEBHOOK_URL est configuré, chaque événement est aussi envoyé
+ * au webhook de notifications temps réel (Telegram, etc.).
  */
 export class EventService {
   /**
@@ -20,7 +23,8 @@ export class EventService {
     eventType: string,
     entityType: string,
     entityId: string,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
+    meta?: { user?: string }
   ): Promise<void> {
     try {
       // Logger l'événement dans la base de données
@@ -37,12 +41,62 @@ export class EventService {
       });
 
       // Déclencher le workflow n8n de manière asynchrone.
-      // On utilise une IIFE avec .catch() pour garantir que les rejections
-      // de promesse ne crashent pas le process.
       void this.processWorkflow(eventLog.id, tenantId, eventType, payload);
+
+      // Envoyer la notification temps réel au webhook n8n (Telegram, etc.)
+      void this.sendRealtimeNotification(eventType, payload, meta?.user);
     } catch (error) {
       // Logger l'erreur mais ne pas faire échouer la transaction principale
       logger.error({ error }, "Erreur lors de l'émission de l'événement");
+    }
+  }
+
+  /**
+   * Envoie un événement au webhook de notifications temps réel.
+   * Fire-and-forget : ne bloque pas et ne fait jamais crasher.
+   */
+  private async sendRealtimeNotification(
+    eventType: string,
+    data: Record<string, unknown>,
+    user?: string
+  ): Promise<void> {
+    const webhookUrl = env.N8N_EVENTS_WEBHOOK_URL;
+    if (!webhookUrl) return; // Pas configuré → on skip silencieusement
+
+    try {
+      // Mapper les event types internes vers le format du workflow notif
+      const eventMap: Record<string, string> = {
+        lead_created: 'lead.created',
+        lead_updated: 'lead.status_changed',
+        lead_status_changed: 'lead.status_changed',
+        lead_deleted: 'lead.deleted',
+        lead_converted: 'lead.converted',
+        client_created: 'client.created',
+        client_updated: 'client.updated',
+        client_deleted: 'client.deleted',
+      };
+
+      const event = eventMap[eventType] || eventType;
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event, data, user: user || 'Système' }),
+        signal: AbortSignal.timeout(5000), // 5s timeout
+      });
+
+      if (!response.ok) {
+        logger.warn(
+          { status: response.status, eventType },
+          'Webhook notification temps réel : réponse non-OK'
+        );
+      }
+    } catch (error) {
+      // Fire-and-forget : on log mais on ne crashe jamais
+      logger.warn(
+        { error, eventType },
+        'Webhook notification temps réel : échec (ignoré)'
+      );
     }
   }
 
