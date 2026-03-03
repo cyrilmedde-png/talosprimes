@@ -285,7 +285,7 @@
           "conditions": [
             {
               "id": "is_voice",
-              "leftValue": "={{ $('Préparer Contexte (Voix)').first()?.json?.isVoice === true ? 'voice' : 'text' }}",
+              "leftValue": "={{ (() => { try { return $('Préparer Contexte (Voix)').first()?.json?.isVoice === true ? 'voice' : 'text'; } catch(e) { return 'text'; } })() }}",
               "rightValue": "voice",
               "operator": {
                 "type": "string",
@@ -351,7 +351,7 @@
     {
       "parameters": {
         "operation": "sendAudio",
-        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId }}",
+        "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
         "binaryData": true,
         "additionalFields": {}
       },
@@ -405,7 +405,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId }}",
+        "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
         "text": "={{ $json.output || $input.first()?.json?.output || 'Désolé, une erreur est survenue.' }}",
         "additionalFields": {
           "appendAttribution": false
@@ -429,7 +429,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId }}",
+        "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
         "text": "={{ '[Réponse texte] ' + ($('AI Agent').first()?.json?.output || 'Erreur de synthèse vocale.') }}",
         "additionalFields": {
           "appendAttribution": false
@@ -1016,6 +1016,68 @@
           "name": "API TalosPrimes"
         }
       }
+    },
+    {
+      "parameters": {
+        "name": "qonto_solde",
+        "description": "Consulter le solde actuel du compte bancaire Qonto. Utilise cet outil quand l'utilisateur demande le solde, la trésorerie, combien il y a sur le compte, etc.",
+        "method": "GET",
+        "url": "https://api.talosprimes.com/api/qonto/balance",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendQuery": false,
+        "sendBody": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1240,
+        720
+      ],
+      "id": "tool-qonto-balance-001",
+      "name": "qonto_solde",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "qonto_transactions",
+        "description": "Lister les dernières transactions bancaires Qonto. Utilise cet outil quand l'utilisateur demande les derniers mouvements, les virements récents, les dépenses, les entrées/sorties d'argent.",
+        "method": "GET",
+        "url": "https://api.talosprimes.com/api/qonto/transactions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendQuery": false,
+        "sendBody": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1240,
+        780
+      ],
+      "id": "tool-qonto-transactions-001",
+      "name": "qonto_transactions",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -1394,6 +1456,28 @@
       ]
     },
     "envoyer_notification": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "qonto_solde": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "qonto_transactions": {
       "ai_tool": [
         [
           {
