@@ -38,6 +38,7 @@ import { rhRoutes } from './api/routes/rh.routes.js';
 import { agentKnowledgeRoutes } from './api/routes/agent-knowledge.routes.js';
 import { rgpdRoutes } from './api/routes/rgpd.routes.js';
 import { qontoRoutes } from './api/routes/qonto.routes.js';
+import { rapprochementRoutes } from './api/routes/rapprochement.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -330,6 +331,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes Qonto (banque : solde, transactions)
 await fastify.register(async (fastify) => {
   await fastify.register(qontoRoutes, { prefix: '/api/qonto' });
+});
+
+// Enregistrer les routes rapprochement bancaire (import CSV)
+await fastify.register(async (fastify) => {
+  await fastify.register(rapprochementRoutes, { prefix: '/api/rapprochement' });
 });
 
 // Route de test
