@@ -1272,6 +1272,41 @@ export const apiClient = {
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean }>(`/api/agent-knowledge/${id}`, { method: 'DELETE' }),
   },
+
+  // Auth (changement / reset mot de passe)
+  auth: {
+    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+      authenticatedFetch<{ success: boolean; message: string }>('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: 'Erreur' }));
+        throw new Error(err.message || 'Erreur');
+      }
+      return response.json();
+    },
+
+    resetPassword: async (token: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+      const response = await fetch(`${API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: 'Erreur' }));
+        throw new Error(err.message || 'Erreur');
+      }
+      return response.json();
+    },
+  },
 };
 
 // Types pour les factures

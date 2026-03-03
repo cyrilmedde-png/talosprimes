@@ -87,6 +87,32 @@ export function verifyRefreshToken(token: string): JWTPayload {
 }
 
 /**
+ * Génère un token de réinitialisation de mot de passe (15 min)
+ */
+export function generateResetToken(userId: string, email: string): string {
+  return jwt.sign(
+    { userId, email, sub: 'password-reset' },
+    env.JWT_SECRET,
+    { expiresIn: '15m' } as SignOptions
+  );
+}
+
+/**
+ * Vérifie un token de réinitialisation de mot de passe
+ */
+export function verifyResetToken(token: string): { userId: string; email: string } {
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string; email: string; sub: string };
+    if (decoded.sub !== 'password-reset') {
+      throw new Error('Token invalide');
+    }
+    return { userId: decoded.userId, email: decoded.email };
+  } catch (error) {
+    throw new Error('Lien de réinitialisation invalide ou expiré');
+  }
+}
+
+/**
  * Authentifie un utilisateur avec email et mot de passe
  */
 export async function authenticateUser(

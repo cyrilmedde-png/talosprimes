@@ -54,6 +54,8 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   client_deleted_cleanup_lead: 'client-deleted-cleanup-lead',
   client_onboarding: 'client-onboarding',
   stripe_checkout_completed: 'stripe-checkout-completed',
+  // Auth
+  password_reset_request: 'password-reset-request',
   // Leads
   lead_create: 'lead_create',
   leads_list: 'leads_list',

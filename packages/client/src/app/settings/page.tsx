@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import type { Tenant, User, StatutJuridique } from '@talosprimes/shared';
-import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon, QueueListIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, UserPlusIcon, CpuChipIcon, BanknotesIcon, DocumentTextIcon, QueueListIcon, WrenchScrewdriverIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { apiClient, type ArticleCode } from '@/lib/api-client';
 
 const STATUTS_JURIDIQUES: { value: StatutJuridique; label: string }[] = [
@@ -43,7 +43,7 @@ type AgentConfigEmail = {
 };
 type AgentConfigQonto = { apiSecret?: string; bankAccountId?: string; configured: boolean };
 
-type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'configPdf' | 'codesArticles' | 'systeme';
+type SettingsTab = 'entreprise' | 'utilisateurs' | 'agent' | 'facturation' | 'configPdf' | 'codesArticles' | 'systeme' | 'securite';
 
 function SettingsContent() {
   const router = useRouter();
@@ -93,6 +93,10 @@ function SettingsContent() {
   const [n8nStatus, setN8nStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [testingN8n, setTestingN8n] = useState(false);
 
+  // Changement mot de passe
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
+
   // Codes articles
   const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(false);
@@ -111,7 +115,7 @@ function SettingsContent() {
   // Ouvrir l'onglet depuis l'URL (?tab=facturation)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf' || tab === 'codesArticles' || tab === 'systeme') {
+    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf' || tab === 'codesArticles' || tab === 'systeme' || tab === 'securite') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -418,6 +422,17 @@ function SettingsContent() {
           >
             <QueueListIcon className="h-5 w-5 inline mr-2" />
             Codes Articles
+          </button>
+          <button
+            onClick={() => setActiveTab('securite')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'securite'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+            }`}
+          >
+            <LockClosedIcon className="h-5 w-5 inline mr-2" />
+            Sécurité
           </button>
           <button
             onClick={() => setActiveTab('systeme')}
@@ -1186,6 +1201,83 @@ function SettingsContent() {
               )}
             </div>
           </div>
+        </div>
+      ) : activeTab === 'securite' ? (
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
+          <h2 className="text-xl font-bold text-white mb-2">Sécurité</h2>
+          <p className="text-sm text-gray-400 mb-6">Changez votre mot de passe de connexion.</p>
+
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            setError(null);
+            setSuccess(null);
+
+            if (passwordForm.newPassword.length < 8) {
+              setError('Le nouveau mot de passe doit faire au moins 8 caractères');
+              return;
+            }
+            if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+              setError('Les mots de passe ne correspondent pas');
+              return;
+            }
+
+            setChangingPassword(true);
+            try {
+              const res = await apiClient.auth.changePassword({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword,
+              });
+              setSuccess(res.message || 'Mot de passe modifié avec succès');
+              setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Erreur lors du changement de mot de passe');
+            } finally {
+              setChangingPassword(false);
+            }
+          }} className="space-y-4 max-w-md">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe actuel</label>
+              <input
+                type="password"
+                required
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Votre mot de passe actuel"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Nouveau mot de passe</label>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Minimum 8 caractères"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Confirmer le nouveau mot de passe</label>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Retapez le nouveau mot de passe"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {changingPassword ? 'Modification...' : 'Modifier le mot de passe'}
+            </button>
+          </form>
         </div>
       ) : activeTab === 'entreprise' ? (
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">

@@ -1,9 +1,18 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { authenticateUser, generateAccessToken, verifyRefreshToken } from '../../services/auth.service.js';
+import {
+  authenticateUser,
+  generateAccessToken,
+  verifyRefreshToken,
+  hashPassword,
+  verifyPassword,
+  generateResetToken,
+  verifyResetToken,
+} from '../../services/auth.service.js';
 import type { JWTPayload } from '../../services/auth.service.js';
 import { prisma } from '../../config/database.js';
 import { ApiError } from '../../utils/api-errors.js';
+import { N8nService } from '../../services/n8n.service.js';
 
 // Schema de validation pour le login
 const loginSchema = z.object({
@@ -14,6 +23,23 @@ const loginSchema = z.object({
 // Schema de validation pour le refresh token
 const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token requis'),
+});
+
+// Schema de validation pour le changement de mot de passe
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Mot de passe actuel requis'),
+  newPassword: z.string().min(8, 'Le nouveau mot de passe doit faire au moins 8 caractères'),
+});
+
+// Schema de validation pour la demande de réinitialisation
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Email invalide'),
+});
+
+// Schema de validation pour la réinitialisation
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token requis'),
+  newPassword: z.string().min(8, 'Le nouveau mot de passe doit faire au moins 8 caractères'),
 });
 
 /**
@@ -165,6 +191,148 @@ export async function authRoutes(fastify: FastifyInstance) {
           modulesActifs,
         },
       });
+    }
+  );
+
+  // POST /api/auth/change-password (authentifié)
+  fastify.post(
+    '/change-password',
+    {
+      preHandler: [fastify.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = changePasswordSchema.parse(request.body);
+        const user = request.user as JWTPayload;
+
+        // Récupérer le user en base
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.userId },
+          select: { passwordHash: true },
+        });
+
+        if (!dbUser) {
+          return ApiError.notFound(reply, 'Utilisateur non trouvé');
+        }
+
+        // Vérifier le mot de passe actuel
+        const isValid = await verifyPassword(body.currentPassword, dbUser.passwordHash);
+        if (!isValid) {
+          return ApiError.unauthorized(reply, 'Mot de passe actuel incorrect');
+        }
+
+        // Hash et mise à jour
+        const newHash = await hashPassword(body.newPassword);
+        await prisma.user.update({
+          where: { id: user.userId },
+          data: { passwordHash: newHash, mustChangePassword: false },
+        });
+
+        reply.code(200).send({
+          success: true,
+          message: 'Mot de passe modifié avec succès',
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return ApiError.validation(reply, error);
+        }
+        const message = error instanceof Error ? error.message : 'Erreur lors du changement de mot de passe';
+        return ApiError.internal(reply, message);
+      }
+    }
+  );
+
+  // POST /api/auth/forgot-password (public, rate limité)
+  fastify.post(
+    '/forgot-password',
+    {
+      config: {
+        rateLimit: {
+          max: 3,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = forgotPasswordSchema.parse(request.body);
+
+        // Chercher le user (sans révéler s'il existe)
+        const user = await prisma.user.findFirst({
+          where: { email: body.email },
+          select: { id: true, email: true, tenantId: true, statut: true },
+        });
+
+        if (user && user.statut === 'actif') {
+          // Générer le reset token
+          const resetToken = generateResetToken(user.id, user.email);
+
+          // Appeler n8n pour envoyer l'email
+          const n8nService = new N8nService();
+          try {
+            await n8nService.callWorkflowReturn(user.tenantId, 'password_reset_request', {
+              email: user.email,
+              userId: user.id,
+              tenantId: user.tenantId,
+              resetToken,
+            });
+          } catch (err) {
+            // Log l'erreur mais ne pas bloquer la réponse (sécurité)
+            console.error('Erreur envoi email reset:', err);
+          }
+        }
+
+        // Toujours retourner succès (ne pas révéler si l'email existe)
+        reply.code(200).send({
+          success: true,
+          message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.',
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return ApiError.validation(reply, error);
+        }
+        const message = error instanceof Error ? error.message : 'Erreur';
+        return ApiError.internal(reply, message);
+      }
+    }
+  );
+
+  // POST /api/auth/reset-password (public)
+  fastify.post(
+    '/reset-password',
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = resetPasswordSchema.parse(request.body);
+
+        // Vérifier le token
+        const { userId } = verifyResetToken(body.token);
+
+        // Hash et mise à jour
+        const newHash = await hashPassword(body.newPassword);
+        await prisma.user.update({
+          where: { id: userId },
+          data: { passwordHash: newHash, mustChangePassword: false },
+        });
+
+        reply.code(200).send({
+          success: true,
+          message: 'Mot de passe réinitialisé avec succès. Vous pouvez vous connecter.',
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return ApiError.validation(reply, error);
+        }
+        const message = error instanceof Error ? error.message : 'Erreur lors de la réinitialisation';
+        return ApiError.unauthorized(reply, message);
+      }
     }
   );
 

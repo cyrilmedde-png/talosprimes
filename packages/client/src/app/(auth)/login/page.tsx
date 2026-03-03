@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { login } from '@/lib/auth';
 import { useAuthStore } from '@/store/auth-store';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resetSuccess = searchParams.get('reset') === 'success';
   const { setUser, setModulesActifs } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,11 +46,17 @@ export default function LoginPage() {
             Connexion à TalosPrimes
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Plateforme de gestion d'entreprise automatisée
+            Plateforme de gestion d&apos;entreprise automatisée
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {resetSuccess && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+              Mot de passe réinitialisé avec succès. Connectez-vous avec votre nouveau mot de passe.
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
@@ -89,6 +98,15 @@ export default function LoginPage() {
             </div>
           </div>
 
+          <div className="flex items-center justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-indigo-600 hover:text-indigo-500"
+            >
+              Mot de passe oublié ?
+            </Link>
+          </div>
+
           <div>
             <button
               type="submit"
@@ -104,3 +122,14 @@ export default function LoginPage() {
   );
 }
 
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500">Chargement...</p>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
+  );
+}
