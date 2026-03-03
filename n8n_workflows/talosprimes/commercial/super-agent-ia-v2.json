@@ -1,0 +1,1419 @@
+{
+  "name": "Super Agent IA TalosPrimes v2",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        0
+      ],
+      "id": "c5697e7b-f30d-401f-8861-17fa991ee6b7",
+      "name": "Telegram Trigger",
+      "webhookId": "d11a3361-d9b8-4df2-bb74-65e61bbba525",
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -112,
+        -192
+      ],
+      "id": "85bd4bc3-bb1b-4159-9df0-e9e06fff0a86",
+      "name": "When chat message received",
+      "webhookId": "da185b10-550d-4502-b4fe-303c65c663b5"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_voice",
+              "leftValue": "={{ $json.message?.voice ? 'voice' : 'text' }}",
+              "rightValue": "voice",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        96,
+        0
+      ],
+      "id": "4c833835-ab68-43a2-a80e-a8914d6eade4",
+      "name": "Vérifier Type Message"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        288,
+        -96
+      ],
+      "id": "c1358b85-4a5e-405a-96eb-6995842c938b",
+      "name": "Récupérer Fichier Audio",
+      "webhookId": "743f732c-116b-46be-ac58-ddc029ea3ed0",
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "name": "language",
+              "value": "fr"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        -96
+      ],
+      "id": "5ce87519-38a9-4218-a4a4-3dd1ccb69a12",
+      "name": "Transcription Whisper",
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "messageText",
+              "value": "={{ $json.text || 'Transcription échouée. Réessayez ou écrivez en texte.' }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "chatId",
+              "value": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+              "type": "number"
+            },
+            {
+              "id": "a3",
+              "name": "userId",
+              "value": "={{ $('Telegram Trigger').first().json.message.from.id }}",
+              "type": "number"
+            },
+            {
+              "id": "a4",
+              "name": "isVoice",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        -96
+      ],
+      "id": "f068ec05-4f68-4c53-ad37-451678a2ffcc",
+      "name": "Préparer Contexte (Voix)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "messageText",
+              "value": "={{ $json.message?.text || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "b2",
+              "name": "chatId",
+              "value": "={{ $json.message?.chat?.id }}",
+              "type": "number"
+            },
+            {
+              "id": "b3",
+              "name": "userId",
+              "value": "={{ $json.message?.from?.id }}",
+              "type": "number"
+            },
+            {
+              "id": "b4",
+              "name": "isVoice",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        112
+      ],
+      "id": "ca525fbb-7f90-4bbf-a5e8-a60dc6669fbb",
+      "name": "Préparer Contexte (Texte)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || '' }}",
+        "options": {
+          "systemMessage": "# Rôle\n\nTu es **l'Assistant IA TalosPrimes**, un assistant commercial et opérationnel professionnel. Tu gères les emails, l'agenda, et l'intégralité de l'application métier TalosPrimes.\nTu es autonome, efficace, poli et toujours orienté résultats.\n\n---\n\n# Objectifs\n\n1. Gérer la boîte mail (lecture, tri, rédaction, réponse, suppression).\n2. Gérer Google Calendar (création, modification, suppression, consultation d'événements).\n3. Gérer l'application TalosPrimes : leads, clients, notifications.\n4. Maintenir la cohérence entre mails, agenda et application (ex : mail de RDV → créer événement ; nouveau contact → créer lead).\n5. Prendre des décisions intelligentes sans toujours demander confirmation, sauf pour les actions irréversibles.\n\n---\n\n# Outils Disponibles (noms exacts)\n\n## Google Calendar\n- **Create an event in Google Calendar** : Params AI : Start (ISO 8601), End (ISO 8601), Summary (titre), attendees0_Attendees (email participants)\n- **Get many events in Google Calendar** : Params AI : After (ISO 8601 date début), Before (ISO 8601 date fin)\n- **Update an event in Google Calendar** : Params AI : Event_ID (ID de l'événement), Location, Summary, Start, End\n- **Delete an event in Google Calendar** : Params AI : Event_ID\n\n## Gmail\n- **Get many messages in Gmail** : Récupère les emails récents\n- **Send a message in Gmail** : Params AI : To (email), Subject (objet), Message (corps)\n- **Delete a message in Gmail** : Params AI : Message_ID\n\n## Leads TalosPrimes\n- **lister_leads** : GET /api/leads — Liste tous les leads\n- **rechercher_leads** : GET /api/leads?search=xxx — Recherche des leads par nom, email ou téléphone\n- **obtenir_lead** : GET /api/leads?id=xxx — Récupère un lead par son ID\n- **creer_lead** : POST /api/leads — Body JSON : { \"nom\", \"prenom\", \"email\", \"telephone\", \"source\", \"notes\" }\n- **modifier_statut_lead** : PATCH /api/leads?id=xxx — Body JSON : { \"statut\": \"nouveau|contacte|qualifie|converti|perdu\" }\n- **supprimer_lead** : DELETE /api/leads?id=xxx\n\n## Clients TalosPrimes\n- **lister_clients** : GET /api/clients — Liste tous les clients\n- **rechercher_clients** : GET /api/clients?search=xxx — Recherche des clients par nom, email ou raison sociale\n- **obtenir_client** : GET /api/clients?id=xxx — Récupère un client par son ID\n- **creer_client** : POST /api/clients — Body JSON : { \"type\": \"b2b|b2c\", \"email\", \"raisonSociale\", \"nom\", \"prenom\", \"telephone\", \"adresse\" }\n- **modifier_client** : PATCH /api/clients?id=xxx — Body JSON partiel avec les champs à modifier\n- **supprimer_client** : DELETE /api/clients?id=xxx\n\n## Notifications\n- **envoyer_notification** : POST /api/notifications — Body JSON : { \"from\": \"TalosPrimes <noreply@talosprimes.com>\", \"to\": \"email\", \"subject\": \"objet\", \"html\": \"<p>contenu HTML</p>\" }\n\n---\n\n# Fonctionnalités Avancées\n\n## Conversion Lead → Client\nQuand l'utilisateur demande de \"convertir un lead en client\" :\n1. Utilise **obtenir_lead** pour récupérer toutes les infos du lead\n2. Utilise **creer_client** avec les données du lead (nom, prenom, email, telephone, etc.)\n3. Utilise **modifier_statut_lead** pour passer le statut à \"converti\"\n4. Utilise **envoyer_notification** pour envoyer un email de bienvenue au nouveau client\n5. Confirme le tout à l'utilisateur\n\n## Rapport d'Activité\nQuand l'utilisateur demande un \"résumé\", \"rapport\" ou \"bilan\" :\n1. Utilise **lister_leads** pour compter les leads récents\n2. Utilise **lister_clients** pour compter les clients\n3. Utilise **Get many events in Google Calendar** pour les rendez-vous de la période\n4. Utilise **Get many messages in Gmail** pour les emails non lus\n5. Présente un rapport structuré avec les chiffres clés\n\n## Relance de Leads\nQuand l'utilisateur demande de \"relancer les leads inactifs\" :\n1. Utilise **lister_leads** pour récupérer tous les leads\n2. Identifie ceux avec statut \"nouveau\" ou \"contacte\" sans activité récente\n3. Pour chaque lead à relancer, utilise **envoyer_notification** pour envoyer un email personnalisé\n4. Met à jour le statut du lead si nécessaire\n5. Résume les relances effectuées\n\n## Contexte Enrichi\nQuand l'utilisateur pose une question sur un client ou un lead spécifique :\n- Récupère automatiquement les informations complètes (pas juste le nom)\n- Si c'est un client, mentionne aussi ses rendez-vous à venir s'il y en a\n- Présente les données de façon structurée et utile\n\n---\n\n# Gestion des Emails\n\n## Lire\n- Parcourir les nouveaux messages et identifier leur importance (urgent, important, promotionnel, spam)\n- Résumer les mails importants\n\n## Écrire / Répondre\n- Rédiger des réponses complètes, structurées et polies\n- Respecter la langue du correspondant\n\n## Supprimer / Archiver\n- Supprimer les mails indésirables (spam, phishing, promotions obsolètes)\n- Ne jamais supprimer un mail important sans instruction explicite\n\n---\n\n# Gestion Google Calendar\n\n## Créer\n- À partir d'instructions directes ou du contenu des mails\n- Toujours inclure : titre, date/heure début et fin, participants si mentionnés\n- Vérifier les conflits horaires avant de créer\n\n## Modifier\n- Mettre à jour date, heure, participants, description, lieu\n- Proposer des alternatives en cas de conflit\n\n## Supprimer\n- Uniquement sur demande claire\n- Proposer d'envoyer un email d'annulation aux participants\n\n## Consulter\n- Résumer l'agenda du jour, de la semaine ou du mois sur demande\n- Rappeler les rendez-vous importants\n\n---\n\n# Style et Ton\n\n- Langage clair, poli et professionnel\n- Réponses concises (max 150 mots pour les réponses vocales, car le TTS est lent sur les longs textes)\n- Utilise des emojis avec parcimonie pour structurer (✅ ❌ 📅 📧 👤)\n- Toujours respectueux, même face à des messages désagréables\n- En français par défaut, mais s'adapte à la langue de l'utilisateur\n\n---\n\n# Sécurité et Limites\n\n- **Confirmation obligatoire** pour : suppression de client, suppression en masse, envoi d'emails à plusieurs destinataires\n- **Interdit** : révéler des tokens/clés API, inventer des données (dates, montants, noms), supprimer des entités importantes sans instruction explicite\n- En cas de doute, demander confirmation\n- Si une information manque, la demander plutôt que l'inventer\n- Si un outil échoue, informer l'utilisateur clairement et proposer une alternative\n\n---\n\n# Format JSON pour les outils HTTP\n\nQuand tu utilises un outil HTTP (creer_lead, creer_client, modifier_client, modifier_statut_lead, envoyer_notification), tu DOIS fournir un body JSON **valide** :\n- Toutes les clés entre guillemets doubles\n- Toutes les valeurs string entre guillemets doubles\n- Pas de virgule finale avant la fermeture }\n- Pas de commentaires dans le JSON\n\nExemple correct : {\"nom\":\"Jean\",\"prenom\":\"Dupont\",\"email\":\"jean@test.com\"}\nExemple INCORRECT : {nom: \"Jean\", prenom: \"Dupont\",}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        848,
+        -32
+      ],
+      "id": "0a5955f6-cfa5-410e-8132-dcb612fd5edd",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -64,
+        224
+      ],
+      "id": "a91788ff-f83e-46ee-a32a-771262c2a164",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.userId || $json.message?.from?.id || $json.sessionId || 'chat-' + Math.random().toString(36).slice(2) }}",
+        "contextWindowLength": 50
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        96,
+        224
+      ],
+      "id": "3841f883-c3f9-4406-b2ba-6f3b0c4e7df5",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is_voice",
+              "leftValue": "={{ $('Préparer Contexte (Voix)').first()?.json?.isVoice === true ? 'voice' : 'text' }}",
+              "rightValue": "voice",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -32
+      ],
+      "id": "1201ad6f-d35b-4462-bce4-6a8a228fb118",
+      "name": "Vérifier Type Réponse"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/speech",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'tts-1', input: ($json.output || 'Réponse non disponible.').substring(0, 4096), voice: 'alloy' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1264,
+        -144
+      ],
+      "id": "0ed70aae-3481-4d06-9bc8-cbdd56fec5ba",
+      "name": "Synthèse Vocale (TTS)",
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "sendAudio",
+        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId }}",
+        "binaryData": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1456,
+        -144
+      ],
+      "id": "934733ed-6e92-4b84-a70b-ec384a2f3f3f",
+      "name": "Envoyer Réponse Vocale",
+      "webhookId": "f7b31d41-d5c1-49a8-87ce-da330572cee0",
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "tts_ok",
+              "leftValue": "={{ $json.data ? 'ok' : 'fail' }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        -272
+      ],
+      "id": "49efa61d-6e3a-49bd-b92a-a33ea1f2f7d0",
+      "name": "TTS Réussi ?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId }}",
+        "text": "={{ $json.output || $input.first()?.json?.output || 'Désolé, une erreur est survenue.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1264,
+        80
+      ],
+      "id": "5ad592e8-1c33-4da3-9434-73e1a1e2133d",
+      "name": "Réponse Texte",
+      "webhookId": "ee941b78-671b-4099-82ca-7c7cc72d6e16",
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId }}",
+        "text": "={{ '[Réponse texte] ' + ($('AI Agent').first()?.json?.output || 'Erreur de synthèse vocale.') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1456,
+        -272
+      ],
+      "id": "613acc09-b17c-4263-bfe0-4adb8b5cd40c",
+      "name": "Fallback Texte (TTS échoué)",
+      "webhookId": "adb8bf14-c892-4eb3-ba20-cfbabec4fc07",
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "TalosPrimes"
+        },
+        "start": "={{ $fromAI('Start', 'Date et heure de début au format ISO 8601', 'string') }}",
+        "end": "={{ $fromAI('End', 'Date et heure de fin au format ISO 8601', 'string') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ $fromAI('attendees0_Attendees', 'Email du participant', 'string') }}"
+          ],
+          "summary": "={{ $fromAI('Summary', 'Titre de événement', 'string') }}",
+          "description": "={{ $fromAI('Description', 'Description optionnelle', 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        224
+      ],
+      "id": "6d92f906-4ca9-499c-911e-c8880972e7f6",
+      "name": "Create an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "1098OxGMJM5eG3PU",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "TalosPrimes"
+        },
+        "returnAll": true,
+        "timeMin": "={{ $fromAI('After', 'Date de début de la plage au format ISO 8601', 'string') }}",
+        "timeMax": "={{ $fromAI('Before', 'Date de fin de la plage au format ISO 8601', 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        224
+      ],
+      "id": "26d74a74-eceb-437b-b870-d15a837c9f52",
+      "name": "Get many events in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "1098OxGMJM5eG3PU",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "TalosPrimes"
+        },
+        "eventId": "={{ $fromAI('Event_ID', 'ID de événement à modifier', 'string') }}",
+        "updateFields": {
+          "location": "={{ $fromAI('Location', 'Nouveau lieu ou lien visio', 'string') }}",
+          "summary": "={{ $fromAI('Summary', 'Nouveau titre', 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        224
+      ],
+      "id": "bc72451f-f2fb-4188-99fe-f01c28c6e70e",
+      "name": "Update an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "1098OxGMJM5eG3PU",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "TalosPrimes"
+        },
+        "eventId": "={{ $fromAI('Event_ID', 'ID de événement à supprimer', 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        784,
+        224
+      ],
+      "id": "26c8602c-80bb-4370-9173-3d178d60a905",
+      "name": "Delete an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "1098OxGMJM5eG3PU",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        384
+      ],
+      "id": "2e440828-ae4b-49f6-b339-f4124413aa4e",
+      "name": "Get many messages in Gmail",
+      "webhookId": "a9d05928-36c4-42e7-b512-62a78953901c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jzveDrdzJcs9iv7R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "messageId": "={{ $fromAI('Message_ID', 'ID du message Gmail à supprimer', 'string') }}"
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        384
+      ],
+      "id": "97dc0d35-c8bb-4be4-be77-68f2375b25a9",
+      "name": "Delete a message in Gmail",
+      "webhookId": "c1703c88-b64f-46db-9b8d-f7f69eb92b0a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jzveDrdzJcs9iv7R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $fromAI('To', 'Adresse email du destinataire', 'string') }}",
+        "subject": "={{ $fromAI('Subject', 'Objet de email', 'string') }}",
+        "message": "={{ $fromAI('Message', 'Corps de email en texte ou HTML', 'string') }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        384
+      ],
+      "id": "52262546-1be1-42f7-a4b6-ea5fdf8b7cfa",
+      "name": "Send a message in Gmail",
+      "webhookId": "c4b6c973-7906-40f6-b35f-dd337aaf91ee",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jzveDrdzJcs9iv7R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Liste tous les leads (prospects). Aucun paramètre requis.",
+        "url": "https://api.talosprimes.com/api/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        160
+      ],
+      "id": "2fb7339c-c7e4-4d73-bf81-79f4577052e1",
+      "name": "lister_leads",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Recherche des leads par mot-clé. Paramètre de requête 'search' pour filtrer par nom, prénom, email ou téléphone. Ex: search=Dupont",
+        "url": "https://api.talosprimes.com/api/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        160
+      ],
+      "id": "ff097f06-c6e6-4ab0-8fc2-844bc32998b0",
+      "name": "rechercher_leads",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Récupère un lead spécifique par son identifiant. Paramètre de requête 'id' obligatoire.",
+        "url": "https://api.talosprimes.com/api/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        288
+      ],
+      "id": "3e350fa6-1681-4d19-8204-76c440b8677c",
+      "name": "obtenir_lead",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Crée un nouveau lead. POST avec body JSON. Champs: nom (requis), prenom, email, telephone, source (ex: 'site_web', 'salon', 'recommandation'), notes. Exemple body: {\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@test.com\",\"telephone\":\"0612345678\",\"source\":\"salon\"}",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        288
+      ],
+      "id": "0bf87ed1-4a69-4e2b-acf1-102bc005a1db",
+      "name": "creer_lead",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Modifie le statut d'un lead. PATCH. Paramètre requête 'id'. Body JSON avec le nouveau statut. Valeurs possibles: nouveau, contacte, qualifie, converti, perdu. Exemple: {\"statut\":\"qualifie\"}",
+        "method": "PATCH",
+        "url": "https://api.talosprimes.com/api/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1264,
+        288
+      ],
+      "id": "860cf6d3-9085-4072-af39-d98ec8f4d9cb",
+      "name": "modifier_statut_lead",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Supprime un lead. ATTENTION: demande TOUJOURS confirmation à l'utilisateur avant de supprimer. Paramètre requête 'id'.",
+        "method": "DELETE",
+        "url": "https://api.talosprimes.com/api/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1424,
+        288
+      ],
+      "id": "2e151008-d5b0-4532-ab5a-b7cbf2720445",
+      "name": "supprimer_lead",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Liste tous les clients de l'application. Aucun paramètre requis.",
+        "url": "https://api.talosprimes.com/api/clients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        416
+      ],
+      "id": "83bf8df1-0ec9-4aab-b8f6-2ba1428edd9c",
+      "name": "lister_clients",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Recherche des clients par mot-clé. Paramètre de requête 'search' pour filtrer par nom, email, raison sociale ou téléphone. Ex: search=Martin",
+        "url": "https://api.talosprimes.com/api/clients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        416
+      ],
+      "id": "a50b1aaa-6280-4114-8056-a6790408a6f9",
+      "name": "rechercher_clients",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Récupère un client spécifique par son identifiant. Paramètre de requête 'id' obligatoire.",
+        "url": "https://api.talosprimes.com/api/clients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        544
+      ],
+      "id": "075e00ae-6123-4244-a961-fcb85161656b",
+      "name": "obtenir_client",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Crée un nouveau client. POST avec body JSON. Champs: type ('b2b' ou 'b2c', requis), email (requis), raisonSociale (pour B2B), nom, prenom, telephone, adresse. Exemple: {\"type\":\"b2c\",\"email\":\"jean@test.com\",\"nom\":\"Jean\",\"prenom\":\"Dupont\",\"telephone\":\"0612345678\"}",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/clients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        544
+      ],
+      "id": "3d047382-9503-4ccb-be69-28af53a86fa3",
+      "name": "creer_client",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Modifie un client existant. PATCH (mise à jour partielle). Paramètre requête 'id'. Body JSON avec uniquement les champs à modifier. Exemple: {\"telephone\":\"0698765432\",\"adresse\":\"12 rue de Paris\"}",
+        "method": "PATCH",
+        "url": "https://api.talosprimes.com/api/clients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1264,
+        544
+      ],
+      "id": "c56152be-fd5b-4e5a-b0c4-09dd75bc5273",
+      "name": "modifier_client",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Supprime un client. ATTENTION: demande TOUJOURS confirmation à l'utilisateur avant de supprimer un client. Paramètre requête 'id'.",
+        "method": "DELETE",
+        "url": "https://api.talosprimes.com/api/clients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1424,
+        544
+      ],
+      "id": "fb3474af-cc33-4412-b986-a92b5c349bb1",
+      "name": "supprimer_client",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Envoie un email/notification. POST. Body JSON requis: from (ex: 'TalosPrimes <noreply@talosprimes.com>'), to (email destinataire), subject (objet), html (contenu HTML). Exemple: {\"from\":\"TalosPrimes <noreply@talosprimes.com>\",\"to\":\"jean@test.com\",\"subject\":\"Bienvenue\",\"html\":\"<p>Bonjour Jean, bienvenue chez TalosPrimes !</p>\"}",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/notifications",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        672
+      ],
+      "id": "467bcf7c-c33b-4ef3-851d-0c31995f41bd",
+      "name": "envoyer_notification",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Vérifier Type Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vérifier Type Message": {
+      "main": [
+        [
+          {
+            "node": "Récupérer Fichier Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Préparer Contexte (Texte)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Récupérer Fichier Audio": {
+      "main": [
+        [
+          {
+            "node": "Transcription Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcription Whisper": {
+      "main": [
+        [
+          {
+            "node": "Préparer Contexte (Voix)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Contexte (Voix)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Contexte (Texte)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Vérifier Type Réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vérifier Type Réponse": {
+      "main": [
+        [
+          {
+            "node": "Synthèse Vocale (TTS)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Réponse Texte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Synthèse Vocale (TTS)": {
+      "main": [
+        [
+          {
+            "node": "TTS Réussi ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TTS Réussi ?": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Réponse Vocale",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback Texte (TTS échoué)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a message in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "rechercher_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "modifier_statut_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "supprimer_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_clients": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "rechercher_clients": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "modifier_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "supprimer_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "envoyer_notification": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "62b94bf4-f5b3-4a62-9172-e79e1480dc6c",
+  "meta": {
+    "instanceId": "8b61722adae29c7b398c5d09bd2bbaac712be7a74ebb6dc903b7ae1f5b9dd594"
+  },
+  "tags": []
+}
