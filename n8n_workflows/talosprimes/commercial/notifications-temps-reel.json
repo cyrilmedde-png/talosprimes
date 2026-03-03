@@ -39,38 +39,31 @@
           "rules": [
             {
               "value": "lead.created",
-              "outputKey": "lead_created",
-              "operation": "equals"
+              "operation": "equal"
             },
             {
               "value": "lead.status_changed",
-              "outputKey": "lead_status",
-              "operation": "equals"
+              "operation": "equal"
             },
             {
               "value": "lead.deleted",
-              "outputKey": "lead_deleted",
-              "operation": "equals"
+              "operation": "equal"
             },
             {
               "value": "client.created",
-              "outputKey": "client_created",
-              "operation": "equals"
+              "operation": "equal"
             },
             {
               "value": "client.updated",
-              "outputKey": "client_updated",
-              "operation": "equals"
+              "operation": "equal"
             },
             {
               "value": "client.deleted",
-              "outputKey": "client_deleted",
-              "operation": "equals"
+              "operation": "equal"
             },
             {
               "value": "lead.converted",
-              "outputKey": "lead_converted",
-              "operation": "equals"
+              "operation": "equal"
             }
           ],
           "fallbackOutput": "extra"
@@ -80,7 +73,7 @@
         "mode": "rules"
       },
       "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.2,
+      "typeVersion": 3,
       "position": [
         208,
         192
@@ -109,7 +102,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         -96
@@ -138,7 +131,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         32
@@ -167,7 +160,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         160
@@ -196,7 +189,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         288
@@ -225,7 +218,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         416
@@ -254,7 +247,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         544
@@ -283,7 +276,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         672
@@ -312,7 +305,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "typeVersion": 3,
       "position": [
         432,
         800
@@ -330,7 +323,7 @@
         }
       },
       "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
+      "typeVersion": 1.1,
       "position": [
         672,
         352
