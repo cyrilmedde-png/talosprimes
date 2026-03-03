@@ -9,7 +9,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
+      "typeVersion": 1,
       "position": [
         0,
         0
@@ -24,7 +24,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
         208,
         0
@@ -101,7 +101,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         -96
@@ -130,7 +130,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         32
@@ -159,7 +159,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         160
@@ -188,7 +188,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         288
@@ -217,7 +217,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         416
@@ -246,7 +246,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         544
@@ -275,7 +275,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         672
@@ -304,7 +304,7 @@
         "options": {}
       },
       "type": "n8n-nodes-base.set",
-      "typeVersion": 3,
+      "typeVersion": 3.4,
       "position": [
         432,
         800
@@ -321,7 +321,7 @@
         }
       },
       "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.1,
+      "typeVersion": 1.2,
       "position": [
         672,
         352
@@ -506,7 +506,8 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
   "meta": {},
   "tags": []
