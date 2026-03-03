@@ -114,6 +114,10 @@
             {
               "name": "language",
               "value": "fr"
+            },
+            {
+              "name": "prompt",
+              "value": "TalosPrimes, démarchage, démarchages terrain, prospection, Avignon, lead, leads, client, clients, planification, relance, rendez-vous, devis, facturation, avoir, bon de commande, proforma"
             }
           ]
         },
@@ -462,9 +466,6 @@
         "start": "={{ $fromAI('Start', 'Date et heure de début au format ISO 8601', 'string') }}",
         "end": "={{ $fromAI('End', 'Date et heure de fin au format ISO 8601', 'string') }}",
         "additionalFields": {
-          "attendees": [
-            "={{ $fromAI('attendees0_Attendees', 'Email du participant', 'string') }}"
-          ],
           "summary": "={{ $fromAI('Summary', 'Titre de événement', 'string') }}",
           "description": "={{ $fromAI('Description', 'Description optionnelle', 'string') }}"
         }
