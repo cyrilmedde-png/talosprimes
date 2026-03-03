@@ -714,6 +714,12 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           });
         }
 
+        // Lier le ClientSpace au tenant du sous-domaine (clientTenantId)
+        await prisma.clientSpace.updateMany({
+          where: { clientFinalId: body.clientId },
+          data: { clientTenantId: clientTenant.id },
+        });
+
         // Stocker le mot de passe temporaire dans l'abonnement du client
         // On cherche l'abonnement le plus récent pour ce client
         const subscription = await prisma.clientSubscription.findFirst({
