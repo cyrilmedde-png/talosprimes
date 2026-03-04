@@ -385,7 +385,7 @@
           "conditions": [
             {
               "id": "tts_ok",
-              "leftValue": "={{ $json.data ? 'ok' : 'fail' }}",
+              "leftValue": "={{ $binary && $binary.data ? 'ok' : 'fail' }}",
               "rightValue": "ok",
               "operator": {
                 "type": "string",
