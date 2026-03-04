@@ -5,8 +5,13 @@
  * une fois qu'elles sont terminées (timeout 15 min ou fin explicite).
  *
  * Double AES-256-GCM :
- *   Clé A : process.env.ENCRYPTION_KEY_A (VPS IONOS)
- *   Clé B : Supabase Vault (vault.decrypted_secrets)
+ *   Clé A : process.env.ENCRYPTION_KEY_A (.env app Next.js/Node)
+ *   Clé B : process.env.ENCRYPTION_KEY_B (env Docker n8n)
+ *
+ * Les deux clés sont sur le même VPS IONOS mais dans des configs séparées :
+ *   - Clé A → .env de l'app (packages/platform)
+ *   - Clé B → docker-compose.yml de n8n (environment)
+ * Compromettre l'un ne donne pas accès à l'autre.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -22,23 +27,10 @@ function getKeyA(): string {
   return key;
 }
 
-/**
- * Récupère la Clé B depuis Supabase Vault
- * Nécessite que l'extension vault soit activée sur Supabase
- */
-async function getKeyB(): Promise<string> {
-  const result = await prisma.$queryRaw<{ decrypted_secret: string }[]>`
-    SELECT decrypted_secret
-    FROM vault.decrypted_secrets
-    WHERE name = 'encryption_key_b'
-    LIMIT 1
-  `;
-
-  if (!result.length || !result[0].decrypted_secret) {
-    throw new Error("ENCRYPTION_KEY_B introuvable dans Supabase Vault");
-  }
-
-  return result[0].decrypted_secret;
+function getKeyB(): string {
+  const key = process.env.ENCRYPTION_KEY_B;
+  if (!key) throw new Error("ENCRYPTION_KEY_B manquante dans les variables d'environnement");
+  return key;
 }
 
 // ─── Chiffrement des CallLogs ───────────────────────────────
@@ -49,7 +41,7 @@ async function getKeyB(): Promise<string> {
  */
 export async function encryptCallLog(callLogId: string): Promise<boolean> {
   const keyA = getKeyA();
-  const keyB = await getKeyB();
+  const keyB = getKeyB();
 
   const callLog = await prisma.callLog.findUnique({ where: { id: callLogId } });
   if (!callLog) throw new Error(`CallLog ${callLogId} introuvable`);
@@ -103,7 +95,7 @@ export async function encryptCallLog(callLogId: string): Promise<boolean> {
  */
 export async function encryptSmsLog(smsLogId: string): Promise<boolean> {
   const keyA = getKeyA();
-  const keyB = await getKeyB();
+  const keyB = getKeyB();
 
   const smsLog = await prisma.smsLog.findUnique({ where: { id: smsLogId } });
   if (!smsLog) throw new Error(`SmsLog ${smsLogId} introuvable`);
@@ -206,7 +198,7 @@ export async function decryptCallLog(callLogId: string): Promise<{
   }
 
   const keyA = getKeyA();
-  const keyB = await getKeyB();
+  const keyB = getKeyB();
 
   return {
     conversationLog: decryptJsonField(
@@ -233,7 +225,7 @@ export async function decryptSmsLog(smsLogId: string): Promise<{
   if (!smsLog.isEncrypted) return { body: smsLog.body };
 
   const keyA = getKeyA();
-  const keyB = await getKeyB();
+  const keyB = getKeyB();
 
   return {
     body: decryptField(smsLog.body, keyA, keyB) ?? smsLog.body,
