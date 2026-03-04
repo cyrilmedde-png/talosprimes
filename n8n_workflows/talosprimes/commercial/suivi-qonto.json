@@ -39,7 +39,7 @@
     },
     {
       "parameters": {
-        "url": "=https://thirdparty.qonto.com/v2/transactions?slug={{ $json.organization.bank_accounts[0].slug }}&settled_at_from={{ $now.minus({hours: 4}).toISO() }}&per_page=100&sort_by=settled_at:desc",
+        "url": "=https://thirdparty.qonto.com/v2/transactions?slug={{ $json.organization.bank_accounts[0].slug }}&settled_at_from={{ $now.minus({hours: 4}).toUTC().toISO() }}&per_page=100&sort_by=settled_at:desc",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
