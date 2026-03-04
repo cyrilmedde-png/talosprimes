@@ -54,7 +54,7 @@ export async function encryptCallLog(callLogId: string): Promise<boolean> {
 
   // Chiffrer conversation_log (JSON → string → chiffré)
   if (callLog.conversationLog !== null) {
-    updateData.conversationLog = encryptField(callLog.conversationLog, keyA, keyB);
+    updateData.conversationLog = encryptField(callLog.conversationLog as object, keyA, keyB);
   }
 
   // Chiffrer transcript
