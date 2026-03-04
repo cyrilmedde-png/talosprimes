@@ -28,7 +28,7 @@
       "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
     },
     {
-      "parameters": {"jsCode": "const rows = $input.first().json.queryResults || [];\nconst items = rows.map(row => ({\n  id: row.id,\n  tenantId: row.tenant_id,\n  memberId: row.member_id,\n  type: row.type,\n  dateDebut: row.date_debut,\n  dateFin: row.date_fin,\n  motif: row.motif,\n  statut: row.statut,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at,\n  memberNom: row.nom,\n  memberPrenom: row.prenom\n}));\n\nreturn [{json: {success: true, data: {items: items}}}];"},
+      "parameters": {"jsCode": "// Postgres v2+ retourne les lignes directement comme items\nconst allItems = $input.all();\nconst items = allItems\n  .filter(item => item.json.id)\n  .map(item => {\n    const row = item.json;\n    return {\n      id: row.id,\n      tenantId: row.tenant_id,\n      membreId: row.member_id,\n      membreNom: (row.prenom || '') + ' ' + (row.nom || ''),\n      type: row.type,\n      dateDebut: row.date_debut,\n      dateFin: row.date_fin,\n      motif: row.motif,\n      statut: row.statut,\n      approuvePar: row.approuve_par || '',\n      createdAt: row.created_at\n    };\n  });\n\nreturn [{json: {success: true, data: {items: items}}}];"},
       "id": "Format",
       "name": "Format",
       "type": "n8n-nodes-base.code",

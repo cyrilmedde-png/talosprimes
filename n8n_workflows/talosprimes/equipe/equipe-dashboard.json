@@ -28,7 +28,7 @@
       "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
     },
     {
-      "parameters": {"jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Failed to retrieve data'}}];\n}\nconst row = rows[0];\nconst dashboard = {\n  totalMembers: parseInt(row.total_members) || 0,\n  activeMembers: parseInt(row.active_members) || 0,\n  absencesThisMonth: parseInt(row.absences_this_month) || 0,\n  avgHoursWorked: parseFloat(row.avg_hours_worked) || 0\n};\n\nreturn [{json: {success: true, data: dashboard}}];"},
+      "parameters": {"jsCode": "// Postgres v2+ retourne les lignes directement comme items\nconst row = $input.first().json;\nconst dashboard = {\n  totalMembers: parseInt(row.total_members) || 0,\n  activeMembers: parseInt(row.active_members) || 0,\n  absencesThisMonth: parseInt(row.absences_this_month) || 0,\n  avgHoursWorked: parseFloat(row.avg_hours_worked) || 0\n};\n\nreturn [{json: {success: true, data: dashboard}}];"},
       "id": "Format",
       "name": "Format",
       "type": "n8n-nodes-base.code",

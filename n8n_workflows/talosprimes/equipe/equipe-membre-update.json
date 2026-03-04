@@ -28,7 +28,7 @@
       "credentials": {"postgres": {"id": "OGqj65ZoFRileCck", "name": "Supabase Postgres"}}
     },
     {
-      "parameters": {"jsCode": "const rows = $input.first().json.queryResults || [];\nif (rows.length === 0) {\n  return [{json: {success: false, error: 'Not found or not updated'}}];\n}\nconst row = rows[0];\nconst item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  nom: row.nom,\n  prenom: row.prenom,\n  email: row.email,\n  poste: row.poste,\n  departement: row.departement,\n  contratType: row.contrat_type,\n  dateEmbauche: row.date_embauche,\n  salaireBase: row.salaire_base,\n  manager: row.manager,\n  actif: row.actif,\n  userId: row.user_id,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn [{json: {success: true, data: {item: item}}}];"},
+      "parameters": {"jsCode": "// Postgres v2+ retourne la row directement comme item\nconst row = $input.first().json;\nif (!row || !row.id) {\n  return [{json: {success: false, error: 'Not found or not updated'}}];\n}\nconst item = {\n  id: row.id,\n  tenantId: row.tenant_id,\n  nom: row.nom,\n  prenom: row.prenom,\n  email: row.email,\n  poste: row.poste,\n  departement: row.departement,\n  contratType: row.contrat_type,\n  dateEmbauche: row.date_embauche,\n  salaireBase: row.salaire_base,\n  manager: row.manager,\n  actif: row.actif,\n  userId: row.user_id,\n  createdAt: row.created_at,\n  updatedAt: row.updated_at\n};\n\nreturn [{json: {success: true, data: {item: item}}}];"},
       "id": "Format",
       "name": "Format",
       "type": "n8n-nodes-base.code",
