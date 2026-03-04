@@ -113,6 +113,15 @@ export async function runSeedLanding(prisma: PrismaClient): Promise<void> {
       section: 'footer_company_desc',
       contenu: 'La plateforme de gestion d\'entreprise intelligente et automatisée.',
     },
+    // SECTIONS TITLES (éditables via CMS)
+    {
+      section: 'features_title',
+      contenu: 'Tous vos outils métier, une seule plateforme',
+    },
+    {
+      section: 'features_subtitle',
+      contenu: 'Activez uniquement les modules dont vous avez besoin. Tarification à la carte, sans engagement.',
+    },
     // CONFIGURATIONS
     {
       section: 'config_contact_email',
@@ -209,7 +218,8 @@ export async function runSeedLanding(prisma: PrismaClient): Promise<void> {
   for (const content of landingContent) {
     await prisma.landingContent.upsert({
       where: { section: content.section },
-      update: { contenu: content.contenu },
+      // NE PAS écraser les données existantes modifiées via le CMS
+      update: {},
       create: content,
     });
   }
