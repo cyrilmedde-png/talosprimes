@@ -1183,6 +1183,8 @@ model CallLog {
   followUpRequired Boolean         @default(false) @map("follow_up_required")
   followUpDone     Boolean         @default(false) @map("follow_up_done")
   smsSent          Boolean         @default(false) @map("sms_sent")
+  isEncrypted      Boolean         @default(false) @map("is_encrypted")
+  encryptedAt      DateTime?       @map("encrypted_at") @db.Timestamptz(6)
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
 
@@ -1198,6 +1200,7 @@ model CallLog {
   @@index([urgencyLevel])
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([followUpRequired])
+  @@index([isEncrypted])
   @@map("call_logs")
 }
 
@@ -1212,6 +1215,8 @@ model SmsLog {
   body        String        @db.Text
   status      String        @default("sent") // sent, delivered, failed
   twilioSid   String?       @unique @map("twilio_sid")
+  isEncrypted Boolean       @default(false) @map("is_encrypted")
+  encryptedAt DateTime?     @map("encrypted_at") @db.Timestamptz(6)
   createdAt   DateTime      @default(now()) @map("created_at")
 
   // Relations
@@ -1221,6 +1226,7 @@ model SmsLog {
   @@index([tenantId])
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([callLogId])
+  @@index([isEncrypted])
   @@map("sms_logs")
 }
 

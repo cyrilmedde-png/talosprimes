@@ -39,6 +39,7 @@ import { agentKnowledgeRoutes } from './api/routes/agent-knowledge.routes.js';
 import { rgpdRoutes } from './api/routes/rgpd.routes.js';
 import { qontoRoutes } from './api/routes/qonto.routes.js';
 import { rapprochementRoutes } from './api/routes/rapprochement.routes.js';
+import { encryptionRoutes } from './api/routes/encryption.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -263,6 +264,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes call logs
 await fastify.register(async (fastify) => {
   await fastify.register(callLogsRoutes, { prefix: '/api/call-logs' });
+});
+
+// Enregistrer les routes chiffrement
+await fastify.register(async (fastify) => {
+  await fastify.register(encryptionRoutes, { prefix: '/api/encryption' });
 });
 
 // Enregistrer les routes twilio config

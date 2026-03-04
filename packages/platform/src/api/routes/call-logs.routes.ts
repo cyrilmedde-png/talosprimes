@@ -5,6 +5,7 @@ import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import type { InputJsonValue } from '../../types/prisma-helpers.js';
 import { ApiError } from '../../utils/api-errors.js';
+import { decryptCallLog } from '../../services/encryption.service.js';
 
 async function logEvent(tenantId: string, typeEvenement: string, entiteType: string, entiteId: string, payload: Record<string, unknown>, statut: 'succes' | 'erreur' = 'succes', messageErreur?: string) {
   try {
@@ -289,6 +290,37 @@ export async function callLogsRoutes(fastify: FastifyInstance) {
       const callLog = await prisma.callLog.findFirst({ where });
 
       if (!callLog) return ApiError.notFound(reply, 'Call log');
+
+      // Déchiffrement à la volée si chiffré
+      if (callLog.isEncrypted) {
+        try {
+          const decrypted = await decryptCallLog(callLog.id);
+          if (decrypted) {
+            return reply.status(200).send({
+              success: true,
+              data: {
+                callLog: {
+                  ...callLog,
+                  conversationLog: decrypted.conversationLog,
+                  transcript: decrypted.transcript,
+                  notes: decrypted.notes,
+                  callerName: decrypted.callerName,
+                  callerEmail: decrypted.callerEmail,
+                  callerAddress: decrypted.callerAddress,
+                },
+              },
+            });
+          }
+        } catch (decryptError) {
+          fastify.log.error(decryptError, 'Erreur déchiffrement call log');
+          // Retourner les données chiffrées avec un flag
+          return reply.status(200).send({
+            success: true,
+            data: { callLog, _encrypted: true, _decryptError: true },
+          });
+        }
+      }
+
       return reply.status(200).send({ success: true, data: { callLog } });
     } catch (error) {
       if (error instanceof z.ZodError) {

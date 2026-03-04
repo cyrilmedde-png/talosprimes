@@ -1,0 +1,344 @@
+{
+  "name": "[TalosPrimes] Chiffrement Post-Conversation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron 15min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, conversation_log, transcript, notes, caller_name, caller_email, caller_address\nFROM call_logs\nWHERE is_encrypted = false\n  AND status IN ('completed', 'failed', 'no-answer')\n  AND updated_at < NOW() - INTERVAL '15 minutes'\nLIMIT 50",
+        "options": {}
+      },
+      "id": "get-unencrypted-calls",
+      "name": "Get Unencrypted CallLogs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-results",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-has-data",
+      "name": "Has Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'encryption_key_b' LIMIT 1",
+        "options": {}
+      },
+      "id": "get-key-b",
+      "name": "Get Key B (Vault)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [940, 200],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Double chiffrement AES-256-GCM\nconst crypto = require('crypto');\n\nconst ALGORITHM = 'aes-256-gcm';\nconst IV_LENGTH = 16;\n\nfunction hexToBuffer(hex) {\n  return Buffer.from(hex, 'hex');\n}\n\nfunction encryptLayer(data, keyHex) {\n  const key = hexToBuffer(keyHex);\n  const iv = crypto.randomBytes(IV_LENGTH);\n  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);\n  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);\n  const authTag = cipher.getAuthTag();\n  return { iv, authTag, ciphertext: encrypted };\n}\n\nfunction doubleEncrypt(plaintext, keyA, keyB) {\n  const data = Buffer.from(plaintext, 'utf-8');\n  const layer1 = encryptLayer(data, keyA);\n  const layer2 = encryptLayer(layer1.ciphertext, keyB);\n  return Buffer.concat([\n    layer1.iv, layer1.authTag,\n    layer2.iv, layer2.authTag,\n    layer2.ciphertext\n  ]).toString('base64');\n}\n\nfunction encryptField(value, keyA, keyB) {\n  if (value === null || value === undefined) return null;\n  const str = typeof value === 'string' ? value : JSON.stringify(value);\n  return doubleEncrypt(str, keyA, keyB);\n}\n\n// Récupérer les clés\nconst keyA = $env.ENCRYPTION_KEY_A;\nif (!keyA) throw new Error('ENCRYPTION_KEY_A manquante');\n\nconst keyBResult = $('Get Key B (Vault)').first();\nconst keyB = keyBResult.json.decrypted_secret;\nif (!keyB) throw new Error('ENCRYPTION_KEY_B introuvable dans Vault');\n\n// Récupérer les CallLogs non chiffrés\nconst callLogs = $('Get Unencrypted CallLogs').all();\nconst results = [];\n\nfor (const item of callLogs) {\n  const row = item.json;\n  results.push({\n    json: {\n      id: row.id,\n      conversation_log: encryptField(row.conversation_log, keyA, keyB),\n      transcript: encryptField(row.transcript, keyA, keyB),\n      notes: encryptField(row.notes, keyA, keyB),\n      caller_name: encryptField(row.caller_name, keyA, keyB),\n      caller_email: encryptField(row.caller_email, keyA, keyB),\n      caller_address: encryptField(row.caller_address, keyA, keyB),\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "encrypt-data",
+      "name": "Double Encrypt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE call_logs SET\n  conversation_log = '{{ $json.conversation_log }}'::jsonb,\n  transcript = {{ $json.transcript ? \"'\" + $json.transcript + \"'\" : 'NULL' }},\n  notes = {{ $json.notes ? \"'\" + $json.notes + \"'\" : 'NULL' }},\n  caller_name = {{ $json.caller_name ? \"'\" + $json.caller_name + \"'\" : 'NULL' }},\n  caller_email = {{ $json.caller_email ? \"'\" + $json.caller_email + \"'\" : 'NULL' }},\n  caller_address = {{ $json.caller_address ? \"'\" + $json.caller_address + \"'\" : 'NULL' }},\n  is_encrypted = true,\n  encrypted_at = NOW()\nWHERE id = '{{ $json.id }}'",
+        "options": {}
+      },
+      "id": "update-encrypted",
+      "name": "Update Encrypted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1420, 200],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.id, s.body\nFROM sms_logs s\nWHERE s.is_encrypted = false\n  AND s.created_at < NOW() - INTERVAL '15 minutes'\nLIMIT 50",
+        "options": {}
+      },
+      "id": "get-unencrypted-sms",
+      "name": "Get Unencrypted SMS",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [940, 500],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst ALGORITHM = 'aes-256-gcm';\nconst IV_LENGTH = 16;\n\nfunction hexToBuffer(hex) { return Buffer.from(hex, 'hex'); }\nfunction encryptLayer(data, keyHex) {\n  const key = hexToBuffer(keyHex);\n  const iv = crypto.randomBytes(IV_LENGTH);\n  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);\n  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);\n  return { iv, authTag: cipher.getAuthTag(), ciphertext: encrypted };\n}\nfunction doubleEncrypt(plaintext, keyA, keyB) {\n  const data = Buffer.from(plaintext, 'utf-8');\n  const l1 = encryptLayer(data, keyA);\n  const l2 = encryptLayer(l1.ciphertext, keyB);\n  return Buffer.concat([l1.iv, l1.authTag, l2.iv, l2.authTag, l2.ciphertext]).toString('base64');\n}\n\nconst keyA = $env.ENCRYPTION_KEY_A;\nconst keyBResult = $('Get Key B (Vault)').first();\nconst keyB = keyBResult.json.decrypted_secret;\n\nconst smsLogs = $('Get Unencrypted SMS').all();\nconst results = [];\nfor (const item of smsLogs) {\n  results.push({\n    json: {\n      id: item.json.id,\n      body: doubleEncrypt(item.json.body, keyA, keyB)\n    }\n  });\n}\nreturn results.length > 0 ? results : [{ json: { skip: true } }];"
+      },
+      "id": "encrypt-sms",
+      "name": "Encrypt SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "notEquals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "sms-has-data",
+      "name": "SMS Has Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1420, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE sms_logs SET\n  body = '{{ $json.body }}',\n  is_encrypted = true,\n  encrypted_at = NOW()\nWHERE id = '{{ $json.id }}'",
+        "options": {}
+      },
+      "id": "update-sms-encrypted",
+      "name": "Update SMS Encrypted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1660, 400],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compter le total chiffré\nconst callResults = $('Update Encrypted').all();\nconst smsResults = $('Update SMS Encrypted').all();\n\nconst callCount = callResults.length;\nconst smsCount = smsResults.filter(r => !r.json.skip).length;\n\nreturn [{\n  json: {\n    callCount,\n    smsCount,\n    total: callCount + smsCount,\n    message: `✅ Chiffrement terminé : ${callCount} appels + ${smsCount} SMS`\n  }\n}];"
+      },
+      "id": "count-results",
+      "name": "Count Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-total",
+              "leftValue": "={{ $json.total }}",
+              "rightValue": "0",
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-encrypted",
+      "name": "Any Encrypted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2140, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "None"
+        }
+      },
+      "id": "telegram-notify",
+      "name": "Telegram Notify",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2380, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "no-data-noop",
+      "name": "No Data",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [940, 400]
+    }
+  ],
+  "connections": {
+    "Cron 15min": {
+      "main": [
+        [
+          { "node": "Get Unencrypted CallLogs", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Unencrypted CallLogs": {
+      "main": [
+        [
+          { "node": "Has Data?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Has Data?": {
+      "main": [
+        [
+          { "node": "Get Key B (Vault)", "type": "main", "index": 0 },
+          { "node": "Get Unencrypted SMS", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "No Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Key B (Vault)": {
+      "main": [
+        [
+          { "node": "Double Encrypt", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Double Encrypt": {
+      "main": [
+        [
+          { "node": "Update Encrypted", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Unencrypted SMS": {
+      "main": [
+        [
+          { "node": "Encrypt SMS", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Encrypt SMS": {
+      "main": [
+        [
+          { "node": "SMS Has Data?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "SMS Has Data?": {
+      "main": [
+        [
+          { "node": "Update SMS Encrypted", "type": "main", "index": 0 }
+        ],
+        []
+      ]
+    },
+    "Update Encrypted": {
+      "main": [
+        [
+          { "node": "Count Results", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Update SMS Encrypted": {
+      "main": [
+        [
+          { "node": "Count Results", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Count Results": {
+      "main": [
+        [
+          { "node": "Any Encrypted?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Any Encrypted?": {
+      "main": [
+        [
+          { "node": "Telegram Notify", "type": "main", "index": 0 }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "talosprimes" },
+    { "name": "security" },
+    { "name": "encryption" }
+  ]
+}
