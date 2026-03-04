@@ -47,9 +47,14 @@ export default function PointagePage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.equipe.pointages.list({ dateFrom: selectedDate });
-      const raw = response.data as unknown as { success: boolean; data: { items: Pointage[] } };
-      setPointages(raw.data.items);
-      setError(null);
+      const raw = response.data as unknown as { success: boolean; data?: { items?: Pointage[] }; error?: string };
+      if (raw?.success && raw.data) {
+        setPointages(raw.data.items || []);
+        setError(null);
+      } else {
+        setPointages([]);
+        setError(raw?.error || 'Aucune donnée reçue du serveur');
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Erreur lors du chargement'
