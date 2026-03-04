@@ -10,7 +10,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import { encryptField, decryptField, decryptJsonField } from "../utils/crypto";
+import { encryptField, decryptField, decryptJsonField } from "../utils/crypto.js";
 
 const prisma = new PrismaClient();
 
