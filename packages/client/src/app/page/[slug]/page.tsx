@@ -142,19 +142,6 @@ export default function DynamicCmsPage() {
           </div>
         ) : page ? (
           <>
-            {/* Contenu CMS (affiché sur toutes les pages, y compris tarifs) */}
-            {page.contenu && (
-              <div className="container mx-auto px-6 py-12 max-w-4xl">
-                {/* Titre uniquement si ce n'est PAS la page tarifs (la TarifsSection a son propre hero) */}
-                {!(slug === 'tarifs' && plans.length > 0) && (
-                  <h1 className="text-4xl font-bold text-gray-900 mb-8">{page.titre}</h1>
-                )}
-                <div className="prose prose-lg max-w-none prose-gray">
-                  <ReactMarkdown>{page.contenu}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-
             {/* Section tarifs avec les cartes de plans */}
             {slug === 'tarifs' && plans.length > 0 && (
               <TarifsSection
@@ -162,6 +149,19 @@ export default function DynamicCmsPage() {
                 billingCycle={billingCycle}
                 setBillingCycle={setBillingCycle}
               />
+            )}
+
+            {/* Contenu CMS Markdown (affiché sous les plans ou seul pour les pages standard) */}
+            {page.contenu && (
+              <div className="container mx-auto px-6 py-12 max-w-4xl">
+                {/* Titre uniquement pour les pages CMS standard (pas tarifs) */}
+                {!(slug === 'tarifs' && plans.length > 0) && (
+                  <h1 className="text-4xl font-bold text-gray-900 mb-8">{page.titre}</h1>
+                )}
+                <div className="max-w-none text-gray-800 leading-relaxed [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-gray-900 [&_h1]:mt-10 [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-gray-900 [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-gray-900 [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_hr]:my-8 [&_hr]:border-gray-200 [&_a]:text-indigo-600 [&_a]:underline">
+                  <ReactMarkdown>{page.contenu}</ReactMarkdown>
+                </div>
+              </div>
             )}
           </>
         ) : null}
