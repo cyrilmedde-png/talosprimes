@@ -145,10 +145,12 @@ async function main() {
   });
 
   // Créer un lead de démo d'abord (nécessaire pour le questionnaire)
+  const demoLeadId = '00000000-0000-0000-0000-00000000lead';
   const demoLead = await prisma.lead.upsert({
-    where: { email: 'jean.dupont@email.com' },
+    where: { id: demoLeadId },
     update: {},
     create: {
+      id: demoLeadId,
       tenant: { connect: { id: tenant.id } },
       nom: 'Dupont',
       prenom: 'Jean',

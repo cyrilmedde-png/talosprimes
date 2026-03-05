@@ -76,10 +76,16 @@ export async function leadsRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Vérifier si le lead existe déjà (par email)
-      const existingLead = await prisma.lead.findUnique({
-        where: { email: data.email },
-      });
+      // Vérifier si le lead existe déjà (par email ou téléphone)
+      const existingLead = data.email
+        ? await prisma.lead.findFirst({
+            where: { tenantId, email: data.email },
+          })
+        : data.telephone
+          ? await prisma.lead.findFirst({
+              where: { tenantId, telephone: data.telephone },
+            })
+          : null;
 
       if (existingLead) {
         // Mettre à jour le lead existant

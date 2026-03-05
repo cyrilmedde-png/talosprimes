@@ -219,16 +219,18 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return ApiError.notFound(reply, 'Lead');
         }
 
-        // Vérifier que le client n'existe pas déjà
-        const existingClient = await prisma.clientFinal.findFirst({
-          where: {
-            tenantId,
-            email: lead.email,
-          },
-        });
+        // Vérifier que le client n'existe pas déjà (par email si dispo, sinon par téléphone)
+        if (lead.email || lead.telephone) {
+          const existingClient = await prisma.clientFinal.findFirst({
+            where: {
+              tenantId,
+              ...(lead.email ? { email: lead.email } : { telephone: lead.telephone }),
+            },
+          });
 
-        if (existingClient) {
-          return ApiError.conflict(reply, 'Un client avec cet email existe déjà');
+          if (existingClient) {
+            return ApiError.conflict(reply, 'Un client avec cet email/téléphone existe déjà');
+          }
         }
 
         // Si le lead n'est pas déjà converti, le marquer comme converti
@@ -244,9 +246,9 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           data: {
             tenantId,
             type: 'b2c',
-            nom: lead.nom,
-            prenom: lead.prenom,
-            email: lead.email,
+            nom: lead.nom ?? undefined,
+            prenom: lead.prenom ?? undefined,
+            email: lead.email ?? undefined,
             telephone: lead.telephone,
             statut: 'actif',
           },

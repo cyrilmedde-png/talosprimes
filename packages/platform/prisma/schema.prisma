@@ -390,7 +390,7 @@ model ClientFinal {
   raisonSociale  String?           @map("raison_sociale")
   nom            String?           @map("nom")
   prenom         String?           @map("prenom")
-  email          String
+  email          String?
   telephone      String?           @map("telephone")
   adresse        String?           @map("adresse") @db.Text
   tags           String[]          @default([]) @db.Text
