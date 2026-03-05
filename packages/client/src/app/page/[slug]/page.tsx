@@ -142,19 +142,9 @@ export default function DynamicCmsPage() {
           </div>
         ) : page ? (
           <>
-            {/* Section tarifs avec les cartes de plans */}
-            {slug === 'tarifs' && plans.length > 0 && (
-              <TarifsSection
-                plans={plans}
-                billingCycle={billingCycle}
-                setBillingCycle={setBillingCycle}
-              />
-            )}
-
-            {/* Contenu CMS Markdown (affiché sous les plans ou seul pour les pages standard) */}
+            {/* Contenu CMS Markdown en haut */}
             {page.contenu && (
               <div className="container mx-auto px-6 py-12 max-w-4xl">
-                {/* Titre uniquement pour les pages CMS standard (pas tarifs) */}
                 {!(slug === 'tarifs' && plans.length > 0) && (
                   <h1 className="text-4xl font-bold text-gray-900 mb-8">{page.titre}</h1>
                 )}
@@ -162,6 +152,15 @@ export default function DynamicCmsPage() {
                   <ReactMarkdown>{page.contenu}</ReactMarkdown>
                 </div>
               </div>
+            )}
+
+            {/* Cartes de plans en dessous */}
+            {slug === 'tarifs' && plans.length > 0 && (
+              <TarifsSection
+                plans={plans}
+                billingCycle={billingCycle}
+                setBillingCycle={setBillingCycle}
+              />
             )}
           </>
         ) : null}
