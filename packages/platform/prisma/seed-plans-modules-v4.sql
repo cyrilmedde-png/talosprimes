@@ -11,14 +11,8 @@ VALUES
   (gen_random_uuid(), 'starter', 'Starter', 'L''essentiel pour démarrer : facturation, devis, bons de commande et tableau de bord.', 79.99, 599.90, 14, 1, true, '#6366f1', NOW(), NOW()),
   (gen_random_uuid(), 'pro', 'Pro', 'Pour les entreprises en croissance : comptabilité, leads, CRM et toutes les fonctionnalités de facturation.', 150.00, 1296.00, 14, 2, true, '#8b5cf6', NOW(), NOW()),
   (gen_random_uuid(), 'enterprise', 'Enterprise', 'La solution complète : Agent IA, gestion de projet, RH, BTP et tous les modules premium.', 299.00, 2868.00, 30, 3, true, '#f59e0b', NOW(), NOW())
-ON CONFLICT (code) DO UPDATE SET
-  nom = EXCLUDED.nom,
-  description = EXCLUDED.description,
-  -- prix_mensuel et prix_annuel ne sont PAS écrasés pour préserver les modifs admin
-  essai_jours = EXCLUDED.essai_jours,
-  ordre_affichage = EXCLUDED.ordre_affichage,
-  couleur = EXCLUDED.couleur,
-  updated_at = NOW();
+ON CONFLICT (code) DO NOTHING;
+-- Les plans existants ne sont JAMAIS écrasés pour préserver les modifs admin
 
 -- 2. Associer les modules aux plans
 
@@ -37,9 +31,7 @@ CROSS JOIN (VALUES
 ) AS v(module_code, limite, config)
 JOIN module_metiers m ON m.code = v.module_code
 WHERE p.code = 'prospection'
-ON CONFLICT (plan_id, module_id) DO UPDATE SET
-  limite_usage = EXCLUDED.limite_usage,
-  config = EXCLUDED.config;
+ON CONFLICT (plan_id, module_id) DO NOTHING;
 
 -- Plan Starter : facturation complète
 INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
@@ -57,9 +49,7 @@ CROSS JOIN (VALUES
 ) AS v(module_code, limite, config)
 JOIN module_metiers m ON m.code = v.module_code
 WHERE p.code = 'starter'
-ON CONFLICT (plan_id, module_id) DO UPDATE SET
-  limite_usage = EXCLUDED.limite_usage,
-  config = EXCLUDED.config;
+ON CONFLICT (plan_id, module_id) DO NOTHING;
 
 -- Plan Pro : tout Starter + comptabilité + CRM
 INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
@@ -82,9 +72,7 @@ CROSS JOIN (VALUES
 ) AS v(module_code, limite, config)
 JOIN module_metiers m ON m.code = v.module_code
 WHERE p.code = 'pro'
-ON CONFLICT (plan_id, module_id) DO UPDATE SET
-  limite_usage = EXCLUDED.limite_usage,
-  config = EXCLUDED.config;
+ON CONFLICT (plan_id, module_id) DO NOTHING;
 
 -- Plan Enterprise : tout Pro + IA + gestion + RH + BTP
 INSERT INTO plan_modules (id, plan_id, module_id, limite_usage, config)
@@ -113,9 +101,7 @@ CROSS JOIN (VALUES
 ) AS v(module_code, limite, config)
 JOIN module_metiers m ON m.code = v.module_code
 WHERE p.code = 'enterprise'
-ON CONFLICT (plan_id, module_id) DO UPDATE SET
-  limite_usage = EXCLUDED.limite_usage,
-  config = EXCLUDED.config;
+ON CONFLICT (plan_id, module_id) DO NOTHING;
 
 -- Vérification
 SELECT '=== PLANS ===' as section;
