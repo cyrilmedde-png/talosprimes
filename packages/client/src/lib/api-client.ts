@@ -1307,6 +1307,47 @@ export const apiClient = {
       return response.json();
     },
   },
+
+  // Partenaires
+  partners: {
+    list: (params?: { statut?: string; type?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.statut) qp.append('statut', params.statut);
+      if (params?.type) qp.append('type', params.type);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: { partners: unknown[] } }>(`/api/partners${q ? `?${q}` : ''}`);
+    },
+    get: (id: string) => authenticatedFetch<{ success: boolean; data: { partner: unknown } }>(`/api/partners/${id}`),
+    create: (data: Record<string, unknown>) => authenticatedFetch<{ success: boolean; data: { partner: unknown } }>('/api/partners', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    update: (id: string, data: Record<string, unknown>) => authenticatedFetch<{ success: boolean; data: { partner: unknown } }>(`/api/partners/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+    dashboard: (id: string) => authenticatedFetch<{ success: boolean; data: unknown }>(`/api/partners/${id}/dashboard`),
+  },
+
+  // Revenus & Commissions
+  revenue: {
+    dashboard: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/revenue/dashboard'),
+    commissions: (params?: { statut?: string; partnerId?: string; mois?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.statut) qp.append('statut', params.statut);
+      if (params?.partnerId) qp.append('partnerId', params.partnerId);
+      if (params?.mois) qp.append('mois', params.mois);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: { commissions: unknown[] } }>(`/api/revenue/commissions${q ? `?${q}` : ''}`);
+    },
+    events: (params?: { type?: string; mois?: string }) => {
+      const qp = new URLSearchParams();
+      if (params?.type) qp.append('type', params.type);
+      if (params?.mois) qp.append('mois', params.mois);
+      const q = qp.toString();
+      return authenticatedFetch<{ success: boolean; data: { events: unknown[] } }>(`/api/revenue/events${q ? `?${q}` : ''}`);
+    },
+  },
 };
 
 // Types pour les factures

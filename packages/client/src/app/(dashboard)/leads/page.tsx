@@ -14,6 +14,8 @@ import {
   XMarkIcon,
   CalendarDaysIcon,
   TrashIcon,
+  FireIcon,
+  ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline';
 
 type LeadStatut = 'nouveau' | 'contacte' | 'qualifie' | 'converti' | 'abandonne';
@@ -185,6 +187,36 @@ export default function LeadsPage() {
   const leadsByStatut = (statut: LeadStatut) =>
     filteredLeads.filter(l => l.statut === statut);
 
+  // Pipeline stats
+  const pipelineStats = STATUT_ORDER.map(s => ({
+    statut: s,
+    count: leadsByStatut(s).length,
+    config: statutConfig[s],
+  }));
+  const totalActive = filteredLeads.length;
+  const avgScore = leads.length > 0
+    ? Math.round(leads.reduce((sum, l) => sum + ((l as Record<string, unknown>).score as number || 0), 0) / leads.length)
+    : 0;
+  const conversionRate = leads.length > 0
+    ? Math.round((leads.filter(l => l.statut === 'converti').length / leads.length) * 100)
+    : 0;
+
+  // Score badge
+  const getScoreBadge = (score: number | null | undefined) => {
+    if (!score && score !== 0) return null;
+    let color = 'bg-gray-600 text-gray-300';
+    if (score >= 80) color = 'bg-green-600/30 text-green-300';
+    else if (score >= 50) color = 'bg-yellow-600/30 text-yellow-300';
+    else if (score >= 20) color = 'bg-orange-600/30 text-orange-300';
+    else color = 'bg-red-600/30 text-red-300';
+    return (
+      <span className={`inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded ${color}`}>
+        <FireIcon className="h-3 w-3" />
+        {score}
+      </span>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -234,6 +266,38 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {/* Pipeline Funnel Stats */}
+      <div className="mb-6 grid grid-cols-2 md:grid-cols-6 gap-3">
+        {pipelineStats.map(({ statut, count, config }) => (
+          <div key={statut} className={`border rounded-lg p-3 ${config.bgCard}`}>
+            <div className="flex items-center gap-1.5">
+              <config.icon className={`h-4 w-4 ${config.color}`} />
+              <span className={`text-xs font-medium ${config.color}`}>{config.label}</span>
+            </div>
+            <p className="text-2xl font-bold text-white mt-1">{count}</p>
+            {totalActive > 0 && (
+              <p className="text-xs text-gray-500">{Math.round((count / totalActive) * 100)}%</p>
+            )}
+          </div>
+        ))}
+        <div className="border rounded-lg p-3 border-indigo-500/30 bg-indigo-500/5">
+          <div className="flex items-center gap-1.5">
+            <FireIcon className="h-4 w-4 text-indigo-300" />
+            <span className="text-xs font-medium text-indigo-300">Score moy.</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{avgScore}</p>
+          <p className="text-xs text-gray-500">/100</p>
+        </div>
+        <div className="border rounded-lg p-3 border-emerald-500/30 bg-emerald-500/5">
+          <div className="flex items-center gap-1.5">
+            <ArrowTrendingUpIcon className="h-4 w-4 text-emerald-300" />
+            <span className="text-xs font-medium text-emerald-300">Conversion</span>
+          </div>
+          <p className="text-2xl font-bold text-white mt-1">{conversionRate}%</p>
+          <p className="text-xs text-gray-500">global</p>
+        </div>
+      </div>
+
       {/* Tunnel Kanban horizontal */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         {STATUT_ORDER.map((statut) => {
@@ -262,11 +326,19 @@ export default function LeadsPage() {
                     key={lead.id}
                     className="bg-gray-800/60 border border-gray-700/30 rounded-lg p-3 hover:bg-gray-800/80 transition-colors"
                   >
-                    <p className="text-sm font-medium text-white truncate">
-                      {lead.prenom} {lead.nom}
-                    </p>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-sm font-medium text-white truncate">
+                        {lead.prenom} {lead.nom}
+                      </p>
+                      {getScoreBadge((lead as Record<string, unknown>).score as number)}
+                    </div>
                     <p className="text-xs text-gray-400 truncate">{lead.email}</p>
                     <p className="text-xs text-gray-500">{lead.telephone}</p>
+                    {(lead as Record<string, unknown>).nombreRelances ? (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {(lead as Record<string, unknown>).nombreRelances} relance{((lead as Record<string, unknown>).nombreRelances as number) > 1 ? 's' : ''}
+                      </p>
+                    ) : null}
 
                     {lead.dateEntretien && (
                       <div className="mt-1 flex items-center gap-1 text-xs text-purple-300">

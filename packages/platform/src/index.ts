@@ -40,6 +40,8 @@ import { rgpdRoutes } from './api/routes/rgpd.routes.js';
 import { qontoRoutes } from './api/routes/qonto.routes.js';
 import { rapprochementRoutes } from './api/routes/rapprochement.routes.js';
 import { encryptionRoutes } from './api/routes/encryption.routes.js';
+import { partnersRoutes } from './api/routes/partners.routes.js';
+import { revenueRoutes } from './api/routes/revenue.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -342,6 +344,16 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes rapprochement bancaire (import CSV)
 await fastify.register(async (fastify) => {
   await fastify.register(rapprochementRoutes, { prefix: '/api/rapprochement' });
+});
+
+// Enregistrer les routes partenaires
+await fastify.register(async (fastify) => {
+  await fastify.register(partnersRoutes, { prefix: '/api/partners' });
+});
+
+// Enregistrer les routes revenus & commissions
+await fastify.register(async (fastify) => {
+  await fastify.register(revenueRoutes, { prefix: '/api/revenue' });
 });
 
 // Route de test

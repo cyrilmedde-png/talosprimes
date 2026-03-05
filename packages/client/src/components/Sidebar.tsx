@@ -32,6 +32,10 @@ import {
   CheckCircleIcon,
   BookOpenIcon,
   ArrowPathIcon,
+  CurrencyEuroIcon,
+  BuildingOffice2Icon,
+  ChartBarIcon,
+  GiftIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -92,6 +96,25 @@ const allNavGroups: NavGroup[] = [
       { name: 'Leads', href: '/leads', icon: UserPlusIcon },
       { name: 'Clients', href: '/clients', icon: UsersIcon },
       { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
+    ],
+  },
+  {
+    label: 'Partenaires',
+    icon: BuildingOffice2Icon,
+    requiredModules: ['partenaire'],
+    items: [
+      { name: 'Dashboard', href: '/partenaires', icon: ChartBarIcon },
+      { name: 'Liste Partenaires', href: '/partenaires/liste', icon: BuildingOffice2Icon },
+      { name: 'Commissions', href: '/partenaires/commissions', icon: GiftIcon },
+    ],
+  },
+  {
+    label: 'Revenus',
+    icon: CurrencyEuroIcon,
+    requiredModules: ['partenaire'],
+    items: [
+      { name: 'Dashboard MRR', href: '/revenus', icon: ChartBarIcon },
+      { name: 'Commissions', href: '/revenus/commissions', icon: CurrencyEuroIcon },
     ],
   },
   {
