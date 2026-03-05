@@ -230,6 +230,42 @@ enum StatutJuridique {
 }
 
 // ============================================
+// ENUMS - PARTENAIRES & REVENUS
+// ============================================
+
+enum PartnerType {
+  revendeur
+  apporteur_affaires
+  white_label
+}
+
+enum PartnerStatus {
+  actif
+  suspendu
+  resilie
+}
+
+enum CommissionType {
+  abonnement_mensuel
+  setup
+  one_shot
+}
+
+enum CommissionStatus {
+  en_attente
+  validee
+  payee
+}
+
+enum RevenueType {
+  abonnement
+  setup
+  automation
+  support
+  commission_sortante
+}
+
+// ============================================
 // MODELS
 // ============================================
 
@@ -312,7 +348,6 @@ model Tenant {
   rhInscriptions        RhInscriptionFormation[]
   rhEvaluations         RhEvaluation[]
   agentKnowledgeEntries AgentKnowledgeEntry[]
-
   @@index([emailContact])
   @@index([statut])
   @@map("tenants")
@@ -360,25 +395,34 @@ model ClientFinal {
   adresse        String?           @map("adresse") @db.Text
   tags           String[]          @default([]) @db.Text
   statut         ClientFinalStatus @default(actif)
+  // Partenariat — commission 2 niveaux
+  partnerId          String?   @map("partner_id") @db.Uuid          // Niveau 1 : partenaire qui a apporté ce client
+  apporteurClientId  String?   @map("apporteur_client_id") @db.Uuid // Niveau 2 : client qui a apporté ce sous-client
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  subscriptions  ClientSubscription[]
-  invoices       Invoice[]
-  bonsCommande   BonCommande[]
-  devis          Devis[]
-  avoirs         Avoir[]
-  proformas      Proforma[]
-  clientSpaces   ClientSpace[]
-  clientModules  ClientModule[]
-  projets        Projet[]
-  btpChantiers   BtpChantier[]
+  tenant              Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partner             Partner?              @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  apporteurClient     ClientFinal?          @relation("ClientParrainage", fields: [apporteurClientId], references: [id], onDelete: SetNull)
+  clientsApportes     ClientFinal[]         @relation("ClientParrainage") // Sous-clients apportés par ce client
+  subscriptions       ClientSubscription[]
+  invoices            Invoice[]
+  bonsCommande        BonCommande[]
+  devis               Devis[]
+  avoirs              Avoir[]
+  proformas           Proforma[]
+  clientSpaces        ClientSpace[]
+  clientModules       ClientModule[]
+  projets             Projet[]
+  btpChantiers        BtpChantier[]
+  commissionsGenerees Commission[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([email])
+  @@index([partnerId])
+  @@index([apporteurClientId])
   @@map("client_finals")
 }
 
@@ -991,11 +1035,18 @@ model Lead {
   dateContact   DateTime?  @map("date_contact") @db.Timestamptz(6)
   dateEntretien DateTime?  @map("date_entretien") @db.Timestamptz(6)
   typeEntretien String?    @map("type_entretien") // telephonique, visioconference, physique
+  // Pipeline prospect
+  score            Int       @default(0) @map("score") // 0-100 qualification score
+  derniereRelance  DateTime? @map("derniere_relance") @db.Timestamptz(6)
+  nombreRelances   Int       @default(0) @map("nombre_relances")
+  // Partenaire apporteur
+  partnerId        String?   @map("partner_id") @db.Uuid
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
 
   // Relations
   tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partner        Partner?        @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   callLogs       CallLog[]
   questionnaires Questionnaire[]
 
@@ -1003,6 +1054,8 @@ model Lead {
   @@index([tenantId])
   @@index([statut])
   @@index([createdAt])
+  @@index([partnerId])
+  @@index([score])
   @@map("leads")
 }
 
@@ -2145,5 +2198,95 @@ model AgentKnowledgeEntry {
   @@index([tenantId])
   @@index([categorie])
   @@map("agent_knowledge_entries")
+}
+
+// ============================================
+// PARTENAIRES & COMMISSIONS (White-Label)
+// ============================================
+
+// Partenaire (revendeur / apporteur d'affaires / white-label)
+model Partner {
+  id                     String        @id @default(uuid()) @db.Uuid
+  nom                    String
+  email                  String        @unique
+  telephone              String?
+  raisonSociale          String        @map("raison_sociale")
+  siret                  String        @map("siret")     // OBLIGATOIRE — conformité légale
+  siren                  String        @map("siren")     // OBLIGATOIRE — conformité légale
+  adresse                String?       @db.Text
+  type                   PartnerType   @default(apporteur_affaires)
+  commissionTauxNiveau1  Decimal       @default(10) @map("commission_taux_niveau1") @db.Decimal(5, 2)  // % sur clients directs
+  commissionTauxNiveau2  Decimal       @default(3)  @map("commission_taux_niveau2") @db.Decimal(5, 2)  // % sur sous-clients
+  statut                 PartnerStatus @default(actif)
+  // White-label
+  domainePersonnalise    String?       @map("domaine_personnalise") // ex: app.mondomaine.com
+  logoBase64             String?       @map("logo_base64") @db.Text
+  couleurPrimaire        String?       @map("couleur_primaire")     // hex color
+  nomAffiche             String?       @map("nom_affiche")          // nom affiché à la place de TalosPrimes
+  // Stripe Connect (pour paiement automatique au partenaire)
+  stripeConnectId        String?       @map("stripe_connect_id")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  leads              Lead[]
+  clientsApportes    ClientFinal[]
+  commissions        Commission[]
+
+  @@index([email])
+  @@index([siret])
+  @@index([statut])
+  @@index([type])
+  @@map("partners")
+}
+
+// Commission (calculée automatiquement à chaque paiement)
+model Commission {
+  id                  String           @id @default(uuid()) @db.Uuid
+  partnerId           String           @map("partner_id") @db.Uuid
+  clientFinalId       String?          @map("client_final_id") @db.Uuid
+  niveau              Int              @default(1) @map("niveau") // 1 = client direct (10%), 2 = sous-client (3%)
+  type                CommissionType   @default(abonnement_mensuel)
+  montantBaseHt       Decimal          @map("montant_base_ht") @db.Decimal(10, 2)  // montant du paiement client
+  tauxApplique        Decimal          @map("taux_applique") @db.Decimal(5, 2)     // taux effectif appliqué
+  montantCommission   Decimal          @map("montant_commission") @db.Decimal(10, 2)
+  statut              CommissionStatus @default(en_attente)
+  datePaiement        DateTime?        @map("date_paiement") @db.Timestamptz(6)
+  stripeTransferId    String?          @map("stripe_transfer_id")
+  mois                String           @map("mois") // "2026-03" pour agrégation mensuelle
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  partner     Partner      @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  clientFinal ClientFinal? @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId])
+  @@index([clientFinalId])
+  @@index([statut])
+  @@index([mois])
+  @@index([niveau])
+  @@map("commissions")
+}
+
+// Événement de revenu (chaque paiement = 1 ligne)
+model RevenueEvent {
+  id              String      @id @default(uuid()) @db.Uuid
+  tenantId        String?     @map("tenant_id") @db.Uuid
+  clientFinalId   String?     @map("client_final_id") @db.Uuid
+  partnerId       String?     @map("partner_id") @db.Uuid
+  type            RevenueType
+  montantHt       Decimal     @map("montant_ht") @db.Decimal(10, 2)
+  montantTtc      Decimal     @map("montant_ttc") @db.Decimal(10, 2)
+  description     String?     @db.Text
+  stripePaymentId String?     @map("stripe_payment_id")
+  mois            String      @map("mois") // "2026-03"
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([clientFinalId])
+  @@index([partnerId])
+  @@index([mois])
+  @@index([type])
+  @@map("revenue_events")
 }
 
