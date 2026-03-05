@@ -142,23 +142,26 @@ export default function DynamicCmsPage() {
           </div>
         ) : page ? (
           <>
-            {/* Si c'est la page tarifs */}
-            {slug === 'tarifs' && plans.length > 0 ? (
+            {/* Contenu CMS (affiché sur toutes les pages, y compris tarifs) */}
+            {page.contenu && (
+              <div className="container mx-auto px-6 py-12 max-w-4xl">
+                {/* Titre uniquement si ce n'est PAS la page tarifs (la TarifsSection a son propre hero) */}
+                {!(slug === 'tarifs' && plans.length > 0) && (
+                  <h1 className="text-4xl font-bold text-gray-900 mb-8">{page.titre}</h1>
+                )}
+                <div className="prose prose-lg max-w-none prose-gray">
+                  <ReactMarkdown>{page.contenu}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {/* Section tarifs avec les cartes de plans */}
+            {slug === 'tarifs' && plans.length > 0 && (
               <TarifsSection
                 plans={plans}
                 billingCycle={billingCycle}
                 setBillingCycle={setBillingCycle}
               />
-            ) : (
-              /* Pages CMS standard */
-              <div className="container mx-auto px-6 py-12 max-w-4xl">
-                <h1 className="text-4xl font-bold text-gray-900 mb-8">{page.titre}</h1>
-                {page.contenu && (
-                  <div className="prose prose-lg max-w-none prose-gray">
-                    <ReactMarkdown>{page.contenu}</ReactMarkdown>
-                  </div>
-                )}
-              </div>
             )}
           </>
         ) : null}
