@@ -13,27 +13,12 @@ import {
   ArrowRightIcon 
 } from '@heroicons/react/24/outline';
 
-interface Partner {
-  id: string;
-  nom: string;
-  type: string;
-  statut: string;
-  clientsCount: number;
-  commissionsCount: number;
-}
-
-interface Commission {
-  id: string;
-  month: string;
-  amount: number;
-}
-
 interface KPIData {
   totalPartners: number;
   activePartners: number;
   suspendedPartners: number;
   totalCommissions: number;
-  commissionsByMonth: Commission[];
+  commissionsByMonth: Array<{ month: string; amount: number }>;
 }
 
 export default function PartenairesPage() {
