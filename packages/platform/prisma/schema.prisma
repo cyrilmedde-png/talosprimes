@@ -1025,9 +1025,9 @@ model DataProcessor {
 model Lead {
   id          String     @id @default(uuid()) @db.Uuid
   tenantId    String?    @map("tenant_id") @db.Uuid
-  nom         String
-  prenom      String
-  email       String
+  nom         String?
+  prenom      String?
+  email       String?
   telephone   String
   statut      LeadStatus @default(nouveau)
   source      String?    @default("formulaire_inscription")
@@ -1050,7 +1050,7 @@ model Lead {
   callLogs       CallLog[]
   questionnaires Questionnaire[]
 
-  @@unique([email])
+  @@index([email])
   @@index([tenantId])
   @@index([statut])
   @@index([createdAt])
@@ -1191,9 +1191,9 @@ model TwilioConfig {
   phoneNumber       String?  @map("phone_number") // Numéro Twilio attribué (+33...)
   accountSid        String?  @map("account_sid") // Twilio Account SID
   authToken         String?  @map("auth_token") // Twilio Auth Token
-  agentName         String   @default("Sophie") @map("agent_name")
+  agentName         String   @default("Lea") @map("agent_name")
   companyName       String?  @map("company_name") // Nom affiché par l'agent
-  niche             String   @default("plomberie") // Clé vers niches-config
+  niche             String   @default("saas_gestion") // Secteur d'activité du tenant
   businessHours     String?  @map("business_hours") @db.Text
   systemPromptAddon String?  @map("system_prompt_addon") @db.Text
   knowledgeBase     String?  @map("knowledge_base") @db.Text
