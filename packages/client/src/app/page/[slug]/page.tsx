@@ -42,10 +42,17 @@ function calcDiscount(mensuel: number, annuel: number | null): number | null {
   return discount > 0 && discount < 100 ? discount : null;
 }
 
-/** Formatte un prix sans décimales inutiles */
+/** Formatte un prix : affiche les centimes seulement si nécessaire */
 function formatPrice(price: number): string {
   const n = Number(price);
-  return Number.isFinite(n) ? n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) : '0';
+  if (!Number.isFinite(n)) return '0';
+  // Si le prix a des centimes (ex: 79.90), on affiche 2 décimales
+  // Sinon (ex: 150), on n'affiche pas de décimales
+  const hasDecimals = n % 1 !== 0;
+  return n.toLocaleString('fr-FR', {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+  });
 }
 
 export default function DynamicCmsPage() {

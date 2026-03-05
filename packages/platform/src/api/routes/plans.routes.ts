@@ -490,13 +490,23 @@ export async function plansRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // DELETE /api/plans/:id - Supprimer un plan (soft : désactiver)
+  // DELETE /api/plans/:id - Supprimer un plan définitivement
   fastify.delete(
     '/:id',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const { id } = planIdSchema.parse(request.params);
+
+        // Vérifier que le plan existe
+        const plan = await prisma.plan.findUnique({ where: { id } });
+        if (!plan) {
+          reply.code(404).send({
+            error: 'Plan non trouvé',
+            message: `Aucun plan avec l'ID ${id}`,
+          });
+          return;
+        }
 
         // Vérifier s'il y a des abonnements actifs liés
         const activeSubscriptions = await prisma.clientSubscription.count({
@@ -511,15 +521,15 @@ export async function plansRoutes(fastify: FastifyInstance) {
           return;
         }
 
-        // Soft delete : désactiver
-        await prisma.plan.update({
-          where: { id },
-          data: { actif: false },
+        // Suppression réelle : d'abord les plan_modules, puis le plan
+        await prisma.$transaction(async (tx: TransactionClient) => {
+          await tx.planModule.deleteMany({ where: { planId: id } });
+          await tx.plan.delete({ where: { id } });
         });
 
         reply.code(200).send({
           success: true,
-          message: 'Plan désactivé avec succès',
+          message: 'Plan supprimé définitivement',
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
