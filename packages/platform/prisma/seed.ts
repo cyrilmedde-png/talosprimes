@@ -146,7 +146,7 @@ async function main() {
   });
 
   // Créer un lead de démo d'abord (nécessaire pour le questionnaire)
-  const demoLeadId = '00000000-0000-0000-0000-00000000lead';
+  const demoLeadId = '00000000-0000-0000-0000-0000001ead00';
   const demoLead = await prisma.lead.upsert({
     where: { id: demoLeadId },
     update: {},
