@@ -21,6 +21,17 @@ import { apiClient, type PlanWithModules, type ModuleMetier, type ClientModuleDa
 
 type TabType = 'plans' | 'modules' | 'attribution';
 
+/** Formate un prix : affiche les centimes seulement si nécessaire (79,99€ vs 150€) */
+function fmtPrix(v: number | string): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '0';
+  const hasDecimals = n % 1 !== 0;
+  return n.toLocaleString('fr-FR', {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+  });
+}
+
 // ============================================
 // Composant principal
 // ============================================
@@ -372,12 +383,12 @@ function PlansTab({
                   {/* Prix */}
                   <div className="text-right">
                     <div className="text-xl font-bold text-white">
-                      {Number(plan.prixMensuel).toFixed(0)}€
+                      {fmtPrix(plan.prixMensuel)}€
                       <span className="text-sm font-normal text-gray-400">/mois</span>
                     </div>
                     {plan.prixAnnuel && (
                       <div className="text-xs text-gray-500">
-                        {Number(plan.prixAnnuel).toFixed(0)}€/an
+                        {fmtPrix(plan.prixAnnuel)}€/an
                       </div>
                     )}
                   </div>
@@ -1205,7 +1216,7 @@ function AttributionTab({
                       </span>
                       {clientSubscription.plan && (
                         <span className="ml-3 text-sm text-gray-400">
-                          {Number(clientSubscription.plan.prixMensuel).toFixed(0)}€/mois
+                          {fmtPrix(clientSubscription.plan.prixMensuel)}€/mois
                         </span>
                       )}
                     </div>
@@ -1231,7 +1242,7 @@ function AttributionTab({
                         } disabled:opacity-50`}
                         style={{ borderLeftColor: p.couleur ?? undefined, borderLeftWidth: '3px' }}
                       >
-                        {p.nom} — {Number(p.prixMensuel).toFixed(0)}€
+                        {p.nom} — {fmtPrix(p.prixMensuel)}€
                       </button>
                     ))}
                 </div>

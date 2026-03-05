@@ -8,14 +8,13 @@
 INSERT INTO plans (id, code, nom, description, prix_mensuel, prix_annuel, essai_jours, ordre_affichage, actif, couleur, created_at, updated_at)
 VALUES
   (gen_random_uuid(), 'prospection', 'Prospection', 'Idéal pour les revendeurs et apporteurs d''affaires. Accès gratuit aux outils de prospection.', 0, NULL, 1, 0, true, '#10b981', NOW(), NOW()),
-  (gen_random_uuid(), 'starter', 'Starter', 'L''essentiel pour démarrer : facturation, devis, bons de commande et tableau de bord.', 80.00, 600.00, 14, 1, true, '#6366f1', NOW(), NOW()),
+  (gen_random_uuid(), 'starter', 'Starter', 'L''essentiel pour démarrer : facturation, devis, bons de commande et tableau de bord.', 79.99, 599.90, 14, 1, true, '#6366f1', NOW(), NOW()),
   (gen_random_uuid(), 'pro', 'Pro', 'Pour les entreprises en croissance : comptabilité, leads, CRM et toutes les fonctionnalités de facturation.', 150.00, 1296.00, 14, 2, true, '#8b5cf6', NOW(), NOW()),
   (gen_random_uuid(), 'enterprise', 'Enterprise', 'La solution complète : Agent IA, gestion de projet, RH, BTP et tous les modules premium.', 299.00, 2868.00, 30, 3, true, '#f59e0b', NOW(), NOW())
 ON CONFLICT (code) DO UPDATE SET
   nom = EXCLUDED.nom,
   description = EXCLUDED.description,
-  prix_mensuel = EXCLUDED.prix_mensuel,
-  prix_annuel = EXCLUDED.prix_annuel,
+  -- prix_mensuel et prix_annuel ne sont PAS écrasés pour préserver les modifs admin
   essai_jours = EXCLUDED.essai_jours,
   ordre_affichage = EXCLUDED.ordre_affichage,
   couleur = EXCLUDED.couleur,

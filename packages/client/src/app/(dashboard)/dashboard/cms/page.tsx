@@ -1382,12 +1382,12 @@ export default function CMSPage() {
                   )}
                   <div className="mt-4">
                     <span className="text-3xl font-bold text-white">
-                      {Number(plan.prixMensuel).toFixed(0)}€
+                      {(() => { const n = Number(plan.prixMensuel); return n % 1 !== 0 ? n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }); })()}€
                     </span>
                     <span className="text-gray-400 text-sm">/mois</span>
                     {plan.prixAnnuel && (
                       <div className="text-xs text-gray-500 mt-1">
-                        ou {Number(plan.prixAnnuel).toFixed(0)}€/an
+                        ou {(() => { const n = Number(plan.prixAnnuel); return n % 1 !== 0 ? n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }); })()}€/an
                       </div>
                     )}
                   </div>
