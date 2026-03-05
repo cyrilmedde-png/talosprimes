@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { TrendingUpIcon, CurrencyEuroIcon, ShoppingCartIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowTrendingUpIcon, CurrencyEuroIcon, ShoppingCartIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 interface DashboardData {
   mrr: number;
@@ -115,7 +115,7 @@ export default function RevenueDashboard() {
                   {formatCurrency(data.mrr)}
                 </p>
               </div>
-              <TrendingUpIcon className="h-12 w-12 text-blue-500/50" />
+              <ArrowTrendingUpIcon className="h-12 w-12 text-blue-500/50" />
             </div>
           </div>
 

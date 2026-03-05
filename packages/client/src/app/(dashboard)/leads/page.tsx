@@ -195,7 +195,7 @@ export default function LeadsPage() {
   }));
   const totalActive = filteredLeads.length;
   const avgScore = leads.length > 0
-    ? Math.round(leads.reduce((sum, l) => sum + ((l as Record<string, unknown>).score as number || 0), 0) / leads.length)
+    ? Math.round(leads.reduce((sum, l) => sum + ((l as unknown as Record<string, unknown>).score as number || 0), 0) / leads.length)
     : 0;
   const conversionRate = leads.length > 0
     ? Math.round((leads.filter(l => l.statut === 'converti').length / leads.length) * 100)
@@ -330,13 +330,13 @@ export default function LeadsPage() {
                       <p className="text-sm font-medium text-white truncate">
                         {lead.prenom} {lead.nom}
                       </p>
-                      {getScoreBadge((lead as Record<string, unknown>).score as number)}
+                      {getScoreBadge((lead as unknown as Record<string, unknown>).score as number)}
                     </div>
                     <p className="text-xs text-gray-400 truncate">{lead.email}</p>
                     <p className="text-xs text-gray-500">{lead.telephone}</p>
-                    {(lead as Record<string, unknown>).nombreRelances ? (
+                    {(lead as unknown as Record<string, unknown>).nombreRelances ? (
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {(lead as Record<string, unknown>).nombreRelances} relance{((lead as Record<string, unknown>).nombreRelances as number) > 1 ? 's' : ''}
+                        {(lead as unknown as Record<string, unknown>).nombreRelances} relance{((lead as unknown as Record<string, unknown>).nombreRelances as number) > 1 ? 's' : ''}
                       </p>
                     ) : null}
 
