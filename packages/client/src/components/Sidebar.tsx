@@ -193,8 +193,7 @@ const allNavGroups: NavGroup[] = [
 export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { clearAuth, modulesActifs, user } = useAuthStore();
-  const isDemo = user?.tenantId === 'ebeee7b6-6ddd-4993-96b4-20386e8565d6';
+  const { clearAuth, modulesActifs, isClientUser } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -220,8 +219,8 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   }, [pathname]);
 
   const navGroups = useMemo(() => {
-    // Items masqués en mode démo
-    const hiddenInDemo = ['/settings', '/plans'];
+    // Items réservés à l'admin (pas visibles pour les clients finaux)
+    const adminOnlyItems = ['/plans', '/dashboard/cms', '/onboarding'];
 
     return allNavGroups
       .filter((group) => {
@@ -229,14 +228,14 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
         return group.requiredModules.some((mod) => modulesActifs.includes(mod));
       })
       .map((group) => {
-        if (!isDemo) return group;
+        if (!isClientUser) return group;
         return {
           ...group,
-          items: group.items.filter((item) => !hiddenInDemo.includes(item.href)),
+          items: group.items.filter((item) => !adminOnlyItems.includes(item.href)),
         };
       })
       .filter((group) => group.items.length > 0);
-  }, [modulesActifs, isDemo]);
+  }, [modulesActifs, isClientUser]);
 
   const handleLogout = () => {
     clearTokens();

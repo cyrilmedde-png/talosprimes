@@ -98,7 +98,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 /**
  * Récupère les informations de l'utilisateur connecté
  */
-export async function getCurrentUser(): Promise<{ user: User; modulesActifs: string[] }> {
+export async function getCurrentUser(): Promise<{ user: User; modulesActifs: string[]; isClientUser: boolean }> {
   const token = getAccessToken();
 
   if (!token) {
@@ -124,6 +124,7 @@ export async function getCurrentUser(): Promise<{ user: User; modulesActifs: str
   return {
     user: data.data.user,
     modulesActifs: data.data.modulesActifs ?? [],
+    isClientUser: data.data.isClientUser ?? false,
   };
 }
 

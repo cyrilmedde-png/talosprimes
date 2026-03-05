@@ -163,6 +163,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         where: { clientTenantId: user.tenantId },
         select: { modulesActives: true },
       });
+      const isClientUser = !!space;
       const modulesActifs = space ? space.modulesActives : ALL_MODULES;
 
       reply.code(200).send({
@@ -175,6 +176,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             tenantId: user.tenantId,
           },
           modulesActifs,
+          isClientUser,
         },
       });
     }

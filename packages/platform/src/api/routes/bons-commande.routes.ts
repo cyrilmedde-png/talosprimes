@@ -130,12 +130,7 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const skip = (page - 1) * limit;
       const where: Record<string, unknown> = { tenantId, deletedAt: null };
       if (query.statut) where.statut = query.statut as 'brouillon' | 'valide' | 'facture' | 'annule';
-      // Isolation client : forcer le filtrage par clientFinalId pour les clients finaux
-      if (request.isClientUser && request.clientFinalId) {
-        where.clientFinalId = request.clientFinalId;
-      } else if (query.clientFinalId) {
-        where.clientFinalId = query.clientFinalId;
-      }
+      if (query.clientFinalId) where.clientFinalId = query.clientFinalId;
 
       const [bons, total] = await Promise.all([
         prisma.bonCommande.findMany({
