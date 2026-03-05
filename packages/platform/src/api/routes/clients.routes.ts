@@ -67,6 +67,10 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         if (tenantId) {
           whereClause.tenantId = tenantId;
         }
+        // Isolation client : un client final ne voit que son propre enregistrement
+        if (request.isClientUser && request.clientFinalId) {
+          whereClause.id = request.clientFinalId;
+        }
 
         // Récupérer les clients du tenant uniquement
         const clients = await prisma.clientFinal.findMany({

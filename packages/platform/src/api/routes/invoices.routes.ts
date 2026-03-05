@@ -217,7 +217,10 @@ export async function invoicesRoutes(fastify: FastifyInstance) {
           (where as Record<string, unknown>).statut = queryParams.statut;
         }
 
-        if (queryParams.clientFinalId) {
+        // Isolation client : forcer le filtrage par clientFinalId pour les clients finaux
+        if (request.isClientUser && request.clientFinalId) {
+          where.clientFinalId = request.clientFinalId;
+        } else if (queryParams.clientFinalId) {
           where.clientFinalId = queryParams.clientFinalId;
         }
 

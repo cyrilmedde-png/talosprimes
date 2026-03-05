@@ -11,6 +11,8 @@ declare module 'fastify' {
     tenantId?: string;
     /** Pour les clients : le tenantId isolé du client (celui du JWT) */
     clientTenantId?: string;
+    /** Pour les clients : l'id du ClientFinal associé à cet espace client */
+    clientFinalId?: string;
     /** true si l'utilisateur connecté est un client final (pas un admin) */
     isClientUser?: boolean;
     isN8nRequest?: boolean;
@@ -20,25 +22,31 @@ declare module 'fastify' {
 // ─────────────────────────────────────────────────────────────────
 // Cache en mémoire : clientTenantId → adminTenantId (évite un SELECT à chaque requête)
 // ─────────────────────────────────────────────────────────────────
-const tenantTranslationCache = new Map<string, { adminTenantId: string; expiresAt: number }>();
+interface TenantTranslation {
+  adminTenantId: string;
+  clientFinalId: string;
+  expiresAt: number;
+}
+
+const tenantTranslationCache = new Map<string, TenantTranslation>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Pour les clients finaux, traduit le clientTenantId (JWT) vers le tenantId admin
- * afin que les requêtes de données fonctionnent correctement.
+ * et récupère le clientFinalId associé pour le filtrage des données.
  * Les données (clients, factures, leads...) sont stockées sous le tenantId admin.
  */
-async function resolveAdminTenantId(clientTenantId: string): Promise<string | null> {
+async function resolveClientSpace(clientTenantId: string): Promise<{ adminTenantId: string; clientFinalId: string } | null> {
   // Vérifier le cache
   const cached = tenantTranslationCache.get(clientTenantId);
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.adminTenantId;
+    return { adminTenantId: cached.adminTenantId, clientFinalId: cached.clientFinalId };
   }
 
   // Chercher en base : ce tenantId est-il un clientTenantId d'un espace client ?
   const space = await prisma.clientSpace.findFirst({
     where: { clientTenantId: clientTenantId },
-    select: { tenantId: true },
+    select: { tenantId: true, clientFinalId: true },
   });
 
   if (!space) return null; // Pas un client → c'est un tenant admin normal
@@ -46,10 +54,11 @@ async function resolveAdminTenantId(clientTenantId: string): Promise<string | nu
   // Mettre en cache
   tenantTranslationCache.set(clientTenantId, {
     adminTenantId: space.tenantId,
+    clientFinalId: space.clientFinalId,
     expiresAt: Date.now() + CACHE_TTL_MS,
   });
 
-  return space.tenantId;
+  return { adminTenantId: space.tenantId, clientFinalId: space.clientFinalId };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -111,11 +120,12 @@ export async function authMiddleware(
 
     // Traduction tenant : si c'est un client final, son JWT contient le
     // clientTenantId isolé, mais les données vivent sous le tenantId admin.
-    const adminTenantId = await resolveAdminTenantId(payload.tenantId);
-    if (adminTenantId) {
+    const clientSpace = await resolveClientSpace(payload.tenantId);
+    if (clientSpace) {
       // C'est un client final
       request.clientTenantId = payload.tenantId;
-      request.tenantId = adminTenantId; // Utiliser le tenant admin pour les requêtes
+      request.tenantId = clientSpace.adminTenantId; // Utiliser le tenant admin pour les requêtes
+      request.clientFinalId = clientSpace.clientFinalId; // Pour filtrer les données propres au client
       request.isClientUser = true;
     } else {
       // C'est un admin normal

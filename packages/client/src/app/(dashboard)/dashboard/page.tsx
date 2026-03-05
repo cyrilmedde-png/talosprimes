@@ -123,7 +123,8 @@ export default function DashboardPage() {
       setClients(clientsData.data.clients as ClientFinal[]);
 
       // Charger appels et leads si module agent IA actif
-      if (modulesActifs.includes('agent_telephonique')) {
+      // Utiliser userModules (frais) et non modulesActifs (stale dans la closure)
+      if (userModules.includes('agent_telephonique')) {
         try {
           const callsData = await apiClient.callLogs.list();
           const rawCalls = (callsData.data?.callLogs || callsData.data?.calls || callsData.data || []) as CallLog[];

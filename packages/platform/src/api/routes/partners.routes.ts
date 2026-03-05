@@ -69,7 +69,8 @@ export async function partnersRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          partners: partners.map((p) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          partners: partners.map((p: any) => ({
             id: p.id,
             nom: p.nom,
             email: p.email,
@@ -182,7 +183,8 @@ export async function partnersRoutes(fastify: FastifyInstance) {
             ...partner,
             commissionTauxNiveau1: Number(partner.commissionTauxNiveau1),
             commissionTauxNiveau2: Number(partner.commissionTauxNiveau2),
-            commissions: partner.commissions.map((c) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            commissions: partner.commissions.map((c: any) => ({
               ...c,
               montantBaseHt: Number(c.montantBaseHt),
               tauxApplique: Number(c.tauxApplique),
@@ -259,7 +261,8 @@ export async function partnersRoutes(fastify: FastifyInstance) {
       });
       const clientsN2 = await prisma.clientFinal.count({
         where: {
-          apporteurClientId: { in: clientsDirectIds.map((c) => c.id) },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          apporteurClientId: { in: clientsDirectIds.map((c: any) => c.id) },
         },
       });
 
@@ -294,12 +297,14 @@ export async function partnersRoutes(fastify: FastifyInstance) {
           clientsN1,
           clientsN2,
           leadsCount,
-          commissionsStats: commissionsStats.map((s) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          commissionsStats: commissionsStats.map((s: any) => ({
             statut: s.statut,
             total: Number(s._sum.montantCommission || 0),
             count: s._count,
           })),
-          commissionsParMois: commissionsParMois.map((m) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          commissionsParMois: commissionsParMois.map((m: any) => ({
             mois: m.mois,
             total: Number(m._sum.montantCommission || 0),
           })),

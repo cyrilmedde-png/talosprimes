@@ -64,18 +64,21 @@ export async function revenueRoutes(fastify: FastifyInstance) {
           totalHt: Number(totalGeneral._sum.montantHt || 0),
           totalTtc: Number(totalGeneral._sum.montantTtc || 0),
           totalTransactions: totalGeneral._count,
-          revenueByType: revenueByType.map((r) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          revenueByType: revenueByType.map((r: any) => ({
             type: r.type,
             totalHt: Number(r._sum.montantHt || 0),
             totalTtc: Number(r._sum.montantTtc || 0),
             count: r._count,
           })),
-          commissionsStats: commissionsStats.map((c) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          commissionsStats: commissionsStats.map((c: any) => ({
             statut: c.statut,
             total: Number(c._sum.montantCommission || 0),
             count: c._count,
           })),
-          evolutionMensuelle: evolutionMensuelle.map((e) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          evolutionMensuelle: evolutionMensuelle.map((e: any) => ({
             mois: e.mois,
             totalHt: Number(e._sum.montantHt || 0),
           })),
@@ -116,7 +119,8 @@ export async function revenueRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          commissions: commissions.map((c) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          commissions: commissions.map((c: any) => ({
             id: c.id,
             partnerId: c.partnerId,
             partnerNom: c.partner.nom,
@@ -167,7 +171,8 @@ export async function revenueRoutes(fastify: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          events: events.map((e) => ({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          events: events.map((e: any) => ({
             id: e.id,
             type: e.type,
             montantHt: Number(e.montantHt),
