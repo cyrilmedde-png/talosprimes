@@ -723,11 +723,21 @@ else
     log_warn "Prisma db push: pas de changements ou erreur (non bloquant)"
   fi
 
-  # --- Seed Prisma (TypeScript) desactive ---
-  # Le seed ne doit PAS s'executer a chaque deploiement car il ecrase
-  # les donnees modifiees depuis l'admin (plans, modules, config...).
-  # Pour le lancer manuellement : cd /var/www/talosprimes/packages/platform && npx prisma db seed
-  log_info "Seed Prisma: desactive (lancer manuellement si besoin)"
+  # --- Execution du seed Prisma (TypeScript) — une seule fois ---
+  SEEDS_DONE_FILE="$PLATFORM_DIR/.seeds-done"
+  [ ! -f "$SEEDS_DONE_FILE" ] && touch "$SEEDS_DONE_FILE"
+  SEED_TS_MARKER="prisma-seed-ts-v1"
+  if grep -qxF "$SEED_TS_MARKER" "$SEEDS_DONE_FILE" 2>/dev/null; then
+    log_info "Seed Prisma (TS): deja execute ($SEED_TS_MARKER)"
+  else
+    log_info "Seed Prisma (TS): premiere execution..."
+    if npx prisma db seed 2>&1 | tail -10; then
+      echo "$SEED_TS_MARKER" >> "$SEEDS_DONE_FILE"
+      log_ok "Seed Prisma execute et marque comme fait"
+    else
+      log_warn "Prisma db seed: erreur (non bloquant)"
+    fi
+  fi
 
   # --- Execution des seeds SQL (uniquement les nouveaux) ---
   SEED_SQL_DIR="$PLATFORM_DIR/prisma"
