@@ -28,6 +28,33 @@ const updateTenantSchema = z.object({
 });
 
 export async function tenantRoutes(fastify: FastifyInstance) {
+  // Vérifier si un sous-domaine correspond à un espace client actif (PUBLIC, pas d'auth)
+  fastify.get('/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { slug } = request.query as { slug?: string };
+
+      if (!slug || typeof slug !== 'string') {
+        return reply.send({ success: true, data: { exists: false } });
+      }
+
+      const space = await prisma.clientSpace.findFirst({
+        where: {
+          tenantSlug: slug.trim().toLowerCase(),
+          status: 'actif',
+        },
+        select: { id: true, tenantSlug: true },
+      });
+
+      return reply.send({
+        success: true,
+        data: { exists: !!space, slug: slug.trim().toLowerCase() },
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.send({ success: true, data: { exists: false } });
+    }
+  });
+
   // Obtenir le profil de l'entreprise (nécessite authentification)
   fastify.get('/', {
     preHandler: [fastify.authenticate],
