@@ -1,6 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
-import { isN8nInternalRequest, n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { z } from 'zod';
 import { ApiError } from '../../utils/api-errors.js';
 
