@@ -14,6 +14,7 @@ import {
 
 interface Partner {
   id: string;
+  raisonSociale: string;
   nom: string;
   type: string;
   statut: string;
@@ -27,6 +28,7 @@ interface Partner {
 }
 
 interface CreatePartnerInput {
+  raisonSociale: string;
   nom: string;
   type: string;
   siret: string;
@@ -46,6 +48,7 @@ export default function PartenairesListePage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
   const [formData, setFormData] = useState<CreatePartnerInput>({
+    raisonSociale: '',
     nom: '',
     type: '',
     siret: '',
@@ -109,6 +112,11 @@ export default function PartenairesListePage() {
     setFormError('');
 
     // Validation
+    if (!formData.raisonSociale.trim()) {
+      setFormError('La raison sociale est requise');
+      return;
+    }
+
     if (!formData.nom.trim()) {
       setFormError('Le nom est requis');
       return;
@@ -137,6 +145,7 @@ export default function PartenairesListePage() {
     try {
       setSubmitting(true);
       await apiClient.partners.create({
+        raisonSociale: formData.raisonSociale.trim(),
         nom: formData.nom.trim(),
         type: formData.type,
         siret: formData.siret.replace(/\s/g, ''),
@@ -145,7 +154,7 @@ export default function PartenairesListePage() {
       });
 
       setShowModal(false);
-      setFormData({ nom: '', type: '', siret: '', siren: '', email: '' });
+      setFormData({ raisonSociale: '', nom: '', type: '', siret: '', siren: '', email: '' });
       loadPartners();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création du partenaire';
@@ -157,11 +166,11 @@ export default function PartenairesListePage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
+      case 'actif':
         return 'text-green-400';
-      case 'suspended':
+      case 'suspendu':
         return 'text-red-400';
-      case 'pending':
+      case 'resilie':
         return 'text-yellow-400';
       default:
         return 'text-gray-400';
@@ -170,14 +179,27 @@ export default function PartenairesListePage() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'active':
+      case 'actif':
         return 'Actif';
-      case 'suspended':
+      case 'suspendu':
         return 'Suspendu';
-      case 'pending':
-        return 'En attente';
+      case 'resilie':
+        return 'Résilié';
       default:
         return status;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'revendeur':
+        return 'Revendeur';
+      case 'apporteur_affaires':
+        return "Apporteur d'affaires";
+      case 'white_label':
+        return 'White Label';
+      default:
+        return type;
     }
   };
 
@@ -221,9 +243,9 @@ export default function PartenairesListePage() {
           className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
         >
           <option value="">Tous les statuts</option>
-          <option value="active">Actif</option>
-          <option value="suspended">Suspendu</option>
-          <option value="pending">En attente</option>
+          <option value="actif">Actif</option>
+          <option value="suspendu">Suspendu</option>
+          <option value="resilie">Résilié</option>
         </select>
 
         <select
@@ -232,9 +254,9 @@ export default function PartenairesListePage() {
           className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
         >
           <option value="">Tous les types</option>
-          <option value="agency">Agence</option>
-          <option value="individual">Individuel</option>
-          <option value="company">Entreprise</option>
+          <option value="revendeur">Revendeur</option>
+          <option value="apporteur_affaires">Apporteur d&apos;affaires</option>
+          <option value="white_label">White Label</option>
         </select>
       </div>
 
@@ -258,11 +280,7 @@ export default function PartenairesListePage() {
                   <tr key={partner.id} className="hover:bg-gray-700/50 transition">
                     <td className="px-6 py-4 text-white font-medium">{partner.nom}</td>
                     <td className="px-6 py-4 text-gray-400">
-                      {partner.type === 'agency'
-                        ? 'Agence'
-                        : partner.type === 'individual'
-                        ? 'Individuel'
-                        : 'Entreprise'}
+                      {getTypeLabel(partner.type)}
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -270,10 +288,10 @@ export default function PartenairesListePage() {
                           partner.statut
                         )}`}
                       >
-                        {partner.statut === 'active' && (
+                        {partner.statut === 'actif' && (
                           <CheckCircleIcon className="w-4 h-4" />
                         )}
-                        {partner.statut === 'suspended' && (
+                        {partner.statut === 'suspendu' && (
                           <ExclamationCircleIcon className="w-4 h-4" />
                         )}
                         {getStatusLabel(partner.statut)}
@@ -329,6 +347,23 @@ export default function PartenairesListePage() {
             )}
 
             <form onSubmit={handleCreatePartner}>
+              {/* Raison Sociale */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Raison sociale
+                </label>
+                <input
+                  type="text"
+                  value={formData.raisonSociale}
+                  onChange={(e) =>
+                    setFormData({ ...formData, raisonSociale: e.target.value })
+                  }
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 transition"
+                  placeholder="Raison sociale de l'entreprise"
+                  disabled={submitting}
+                />
+              </div>
+
               {/* Nom */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-400 mb-2">
@@ -360,9 +395,9 @@ export default function PartenairesListePage() {
                   disabled={submitting}
                 >
                   <option value="">Sélectionner un type</option>
-                  <option value="agency">Agence</option>
-                  <option value="individual">Individuel</option>
-                  <option value="company">Entreprise</option>
+                  <option value="revendeur">Revendeur</option>
+                  <option value="apporteur_affaires">Apporteur d&apos;affaires</option>
+                  <option value="white_label">White Label</option>
                 </select>
               </div>
 
@@ -472,11 +507,7 @@ export default function PartenairesListePage() {
               <div>
                 <p className="text-gray-400 text-sm mb-1">Type</p>
                 <p className="text-white font-semibold">
-                  {selectedPartner.type === 'agency'
-                    ? 'Agence'
-                    : selectedPartner.type === 'individual'
-                    ? 'Individuel'
-                    : 'Entreprise'}
+                  {getTypeLabel(selectedPartner.type)}
                 </p>
               </div>
 
