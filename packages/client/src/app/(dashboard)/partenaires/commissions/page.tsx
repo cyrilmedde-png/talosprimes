@@ -78,7 +78,7 @@ export default function CommissionsPage() {
       setLoading(true);
       setError('');
       const response = await apiClient.revenue.commissions();
-      const data: Commission[] = response.data?.commissions || [];
+      const data = (response.data?.commissions || []) as Commission[];
       setCommissions(data);
 
       const uniqueMonths = Array.from(
