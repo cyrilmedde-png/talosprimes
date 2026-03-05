@@ -1205,6 +1205,12 @@ function SettingsContent() {
       ) : activeTab === 'securite' ? (
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg backdrop-blur-md p-6">
           <h2 className="text-xl font-bold text-white mb-2">Sécurité</h2>
+          {searchParams.get('mustChange') === '1' && (
+            <div className="bg-amber-900/30 border border-amber-600/50 text-amber-200 px-4 py-3 rounded-lg mb-4">
+              <p className="font-medium">⚠ Première connexion détectée</p>
+              <p className="text-sm mt-1">Veuillez changer votre mot de passe temporaire avant de continuer.</p>
+            </div>
+          )}
           <p className="text-sm text-gray-400 mb-6">Changez votre mot de passe de connexion.</p>
 
           <form onSubmit={async (e) => {

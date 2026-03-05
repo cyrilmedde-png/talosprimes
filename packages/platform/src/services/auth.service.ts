@@ -124,6 +124,7 @@ export async function authenticateUser(
     email: string;
     role: UserRole;
     tenantId: string;
+    mustChangePassword: boolean;
   };
   tokens: AuthTokens;
 }> {
@@ -185,6 +186,7 @@ export async function authenticateUser(
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      mustChangePassword: user.mustChangePassword,
     },
     tokens,
   };

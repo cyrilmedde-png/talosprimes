@@ -29,6 +29,11 @@ function LoginForm() {
       if (response.data.modulesActifs) {
         setModulesActifs(response.data.modulesActifs);
       }
+      // Si l'utilisateur doit changer son mot de passe (première connexion client)
+      if (response.data.mustChangePassword) {
+        router.push('/settings?tab=securite&mustChange=1');
+        return;
+      }
       // Rediriger vers le dashboard après connexion réussie
       router.push('/dashboard');
     } catch (err) {

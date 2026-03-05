@@ -25,6 +25,7 @@ export interface LoginResponse {
     user: User;
     tokens: AuthTokens;
     modulesActifs?: string[];
+    mustChangePassword?: boolean;
   };
 }
 

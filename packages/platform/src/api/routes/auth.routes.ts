@@ -94,6 +94,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             },
             tokens,
             modulesActifs,
+            mustChangePassword: user.mustChangePassword,
           },
         });
       } catch (error) {
