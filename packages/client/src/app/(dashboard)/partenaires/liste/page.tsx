@@ -72,8 +72,8 @@ export default function PartenairesListePage() {
     try {
       setLoading(true);
       setError('');
-      const response = await apiClient.get('/partners');
-      setPartners(response.data || []);
+      const response = await apiClient.partners.list();
+      setPartners(response.data?.partners || []);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des partenaires';
       setError(errorMessage);
@@ -137,7 +137,7 @@ export default function PartenairesListePage() {
 
     try {
       setSubmitting(true);
-      await apiClient.post('/partners', {
+      await apiClient.partners.create({
         nom: formData.nom.trim(),
         type: formData.type,
         siret: formData.siret.replace(/\s/g, ''),

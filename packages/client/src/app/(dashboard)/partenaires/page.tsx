@@ -63,12 +63,15 @@ export default function PartenairesPage() {
       setError('');
       
       // Fetch KPI data
-      const response = await apiClient.get('/partners/kpis');
-      setKpis(response.data || {
-        totalPartners: 0,
-        activePartners: 0,
-        suspendedPartners: 0,
-        totalCommissions: 0,
+      const response = await apiClient.partners.list();
+      const partners = response.data?.partners || [];
+      const commResponse = await apiClient.revenue.commissions();
+      const comms = commResponse.data?.commissions || [];
+      setKpis({
+        totalPartners: partners.length,
+        activePartners: partners.filter((p: Record<string, unknown>) => p.statut === 'actif').length,
+        suspendedPartners: partners.filter((p: Record<string, unknown>) => p.statut === 'suspendu').length,
+        totalCommissions: comms.reduce((s: number, c: Record<string, unknown>) => s + (c.montantCommission as number || 0), 0),
         commissionsByMonth: [],
       });
     } catch (err: unknown) {

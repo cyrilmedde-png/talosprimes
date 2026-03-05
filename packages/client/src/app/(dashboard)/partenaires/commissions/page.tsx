@@ -13,21 +13,29 @@ import {
 
 interface Commission {
   id: string;
-  partnerName: string;
-  partnerSiret: string;
-  clientName: string;
-  level: 'N1' | 'N2';
-  amount: number;
-  status: string;
-  month: string;
+  partnerId: string;
+  partnerNom: string;
+  clientFinalId: string;
+  clientNom: string;
+  niveau: number;
+  type: string;
+  montantBaseHt: number;
+  tauxApplique: number;
+  montantCommission: number;
+  statut: string;
+  mois: string;
+  datePaiement: string | null;
   createdAt: string;
 }
 
 interface FilterState {
-  status: string;
-  month: string;
-  level: string;
+  statut: string;
+  mois: string;
+  niveau: string;
 }
+
+const fmt = (n: number) =>
+  n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
 export default function CommissionsPage() {
   const router = useRouter();
@@ -37,16 +45,16 @@ export default function CommissionsPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [filteredCommissions, setFilteredCommissions] = useState<Commission[]>([]);
   const [filters, setFilters] = useState<FilterState>({
-    status: '',
-    month: '',
-    level: '',
+    statut: '',
+    mois: '',
+    niveau: '',
   });
   const [months, setMonths] = useState<string[]>([]);
   const [totals, setTotals] = useState({
     total: 0,
-    pending: 0,
-    validated: 0,
-    rejected: 0,
+    enAttente: 0,
+    validee: 0,
+    annulee: 0,
   });
 
   useEffect(() => {
@@ -59,27 +67,26 @@ export default function CommissionsPage() {
 
   useEffect(() => {
     applyFilters();
-    calculateTotals();
   }, [commissions, filters]);
+
+  useEffect(() => {
+    calculateTotals();
+  }, [filteredCommissions]);
 
   const loadCommissions = async () => {
     try {
       setLoading(true);
       setError('');
-      const response = await apiClient.get('/commissions');
-      const data = response.data || [];
+      const response = await apiClient.revenue.commissions();
+      const data: Commission[] = response.data?.commissions || [];
       setCommissions(data);
 
-      // Extract unique months for filter
       const uniqueMonths = Array.from(
-        new Set(data.map((c: Commission) => c.month))
-      ).sort((a: string, b: string) => b.localeCompare(a)) as string[];
+        new Set(data.map((c) => c.mois).filter(Boolean))
+      ).sort((a, b) => b.localeCompare(a));
       setMonths(uniqueMonths);
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Erreur lors du chargement des commissions';
-      setError(errorMessage);
-      console.error('Error loading commissions:', err);
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des commissions');
     } finally {
       setLoading(false);
     }
@@ -87,74 +94,49 @@ export default function CommissionsPage() {
 
   const applyFilters = () => {
     let filtered = commissions;
-
-    if (filters.status) {
-      filtered = filtered.filter((c) => c.status === filters.status);
-    }
-
-    if (filters.month) {
-      filtered = filtered.filter((c) => c.month === filters.month);
-    }
-
-    if (filters.level) {
-      filtered = filtered.filter((c) => c.level === filters.level);
-    }
-
+    if (filters.statut) filtered = filtered.filter((c) => c.statut === filters.statut);
+    if (filters.mois) filtered = filtered.filter((c) => c.mois === filters.mois);
+    if (filters.niveau) filtered = filtered.filter((c) => String(c.niveau) === filters.niveau);
     setFilteredCommissions(filtered);
   };
 
   const calculateTotals = () => {
-    let total = 0;
-    let pending = 0;
-    let validated = 0;
-    let rejected = 0;
-
-    filteredCommissions.forEach((commission) => {
-      total += commission.amount;
-      if (commission.status === 'pending') pending += commission.amount;
-      if (commission.status === 'validated') validated += commission.amount;
-      if (commission.status === 'rejected') rejected += commission.amount;
+    let total = 0, enAttente = 0, validee = 0, annulee = 0;
+    filteredCommissions.forEach((c) => {
+      total += c.montantCommission;
+      if (c.statut === 'en_attente') enAttente += c.montantCommission;
+      if (c.statut === 'validee') validee += c.montantCommission;
+      if (c.statut === 'annulee') annulee += c.montantCommission;
     });
-
-    setTotals({ total, pending, validated, rejected });
+    setTotals({ total, enAttente, validee, annulee });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'validated':
-        return 'text-green-400 bg-green-400/10';
-      case 'pending':
-        return 'text-yellow-400 bg-yellow-400/10';
-      case 'rejected':
-        return 'text-red-400 bg-red-400/10';
-      default:
-        return 'text-gray-400 bg-gray-400/10';
+  const getStatusColor = (statut: string) => {
+    switch (statut) {
+      case 'validee': return 'text-green-400 bg-green-400/10';
+      case 'payee': return 'text-blue-400 bg-blue-400/10';
+      case 'en_attente': return 'text-yellow-400 bg-yellow-400/10';
+      case 'annulee': return 'text-red-400 bg-red-400/10';
+      default: return 'text-gray-400 bg-gray-400/10';
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'validated':
-        return 'Validée';
-      case 'pending':
-        return 'En attente';
-      case 'rejected':
-        return 'Rejetée';
-      default:
-        return status;
+  const getStatusLabel = (statut: string) => {
+    switch (statut) {
+      case 'validee': return 'Validée';
+      case 'payee': return 'Payée';
+      case 'en_attente': return 'En attente';
+      case 'annulee': return 'Annulée';
+      default: return statut;
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'validated':
-        return <CheckCircleIcon className="w-4 h-4" />;
-      case 'pending':
-        return <ClockIcon className="w-4 h-4" />;
-      case 'rejected':
-        return <XCircleIcon className="w-4 h-4" />;
-      default:
-        return null;
+  const getStatusIcon = (statut: string) => {
+    switch (statut) {
+      case 'validee': case 'payee': return <CheckCircleIcon className="w-4 h-4" />;
+      case 'en_attente': return <ClockIcon className="w-4 h-4" />;
+      case 'annulee': return <XCircleIcon className="w-4 h-4" />;
+      default: return null;
     }
   };
 
@@ -167,16 +149,14 @@ export default function CommissionsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
+    <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Commissions</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">Commissions</h1>
         <p className="text-gray-400">
-          Gérez et suivez toutes les commissions ({filteredCommissions.length})
+          Suivi des commissions partenaires ({filteredCommissions.length})
         </p>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg text-red-400">
           {error}
@@ -184,48 +164,41 @@ export default function CommissionsPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium mb-2">Total</p>
-              <p className="text-3xl font-bold text-white">{totals.total.toFixed(0)}€</p>
+              <p className="text-gray-400 text-sm mb-1">Total</p>
+              <p className="text-2xl font-bold text-white">{fmt(totals.total)}</p>
             </div>
-            <CurrencyEuroIcon className="w-12 h-12 text-amber-400" />
+            <CurrencyEuroIcon className="w-10 h-10 text-amber-400" />
           </div>
         </div>
-
-        {/* Validated */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium mb-2">Validées</p>
-              <p className="text-3xl font-bold text-green-400">{totals.validated.toFixed(0)}€</p>
+              <p className="text-gray-400 text-sm mb-1">Validées</p>
+              <p className="text-2xl font-bold text-green-400">{fmt(totals.validee)}</p>
             </div>
-            <CheckCircleIcon className="w-12 h-12 text-green-400" />
+            <CheckCircleIcon className="w-10 h-10 text-green-400" />
           </div>
         </div>
-
-        {/* Pending */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium mb-2">En attente</p>
-              <p className="text-3xl font-bold text-yellow-400">{totals.pending.toFixed(0)}€</p>
+              <p className="text-gray-400 text-sm mb-1">En attente</p>
+              <p className="text-2xl font-bold text-yellow-400">{fmt(totals.enAttente)}</p>
             </div>
-            <ClockIcon className="w-12 h-12 text-yellow-400" />
+            <ClockIcon className="w-10 h-10 text-yellow-400" />
           </div>
         </div>
-
-        {/* Rejected */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium mb-2">Rejetées</p>
-              <p className="text-3xl font-bold text-red-400">{totals.rejected.toFixed(0)}€</p>
+              <p className="text-gray-400 text-sm mb-1">Annulées</p>
+              <p className="text-2xl font-bold text-red-400">{fmt(totals.annulee)}</p>
             </div>
-            <XCircleIcon className="w-12 h-12 text-red-400" />
+            <XCircleIcon className="w-10 h-10 text-red-400" />
           </div>
         </div>
       </div>
@@ -233,43 +206,36 @@ export default function CommissionsPage() {
       {/* Filters */}
       <div className="mb-6 flex gap-4 flex-wrap">
         <select
-          value={filters.status}
-          onChange={(e) =>
-            setFilters({ ...filters, status: e.target.value })
-          }
+          value={filters.statut}
+          onChange={(e) => setFilters({ ...filters, statut: e.target.value })}
           className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
         >
           <option value="">Tous les statuts</option>
-          <option value="validated">Validée</option>
-          <option value="pending">En attente</option>
-          <option value="rejected">Rejetée</option>
+          <option value="en_attente">En attente</option>
+          <option value="validee">Validée</option>
+          <option value="payee">Payée</option>
+          <option value="annulee">Annulée</option>
         </select>
 
         <select
-          value={filters.month}
-          onChange={(e) =>
-            setFilters({ ...filters, month: e.target.value })
-          }
+          value={filters.mois}
+          onChange={(e) => setFilters({ ...filters, mois: e.target.value })}
           className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
         >
           <option value="">Tous les mois</option>
-          {months.map((month) => (
-            <option key={month} value={month}>
-              {month}
-            </option>
+          {months.map((m) => (
+            <option key={m} value={m}>{m}</option>
           ))}
         </select>
 
         <select
-          value={filters.level}
-          onChange={(e) =>
-            setFilters({ ...filters, level: e.target.value })
-          }
+          value={filters.niveau}
+          onChange={(e) => setFilters({ ...filters, niveau: e.target.value })}
           className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
         >
           <option value="">Tous les niveaux</option>
-          <option value="N1">Niveau 1 (N1)</option>
-          <option value="N2">Niveau 2 (N2)</option>
+          <option value="1">Niveau 1 (N1)</option>
+          <option value="2">Niveau 2 (N2)</option>
         </select>
       </div>
 
@@ -280,57 +246,36 @@ export default function CommissionsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-700 bg-gray-700/50">
-                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">
-                    Partenaire
-                  </th>
-                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">
-                    Client
-                  </th>
-                  <th className="px-6 py-4 text-center text-gray-400 font-semibold">
-                    Niveau
-                  </th>
-                  <th className="px-6 py-4 text-right text-gray-400 font-semibold">
-                    Montant
-                  </th>
-                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">
-                    Statut
-                  </th>
-                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">
-                    Mois
-                  </th>
+                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">Partenaire</th>
+                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">Client</th>
+                  <th className="px-6 py-4 text-center text-gray-400 font-semibold">Niveau</th>
+                  <th className="px-6 py-4 text-right text-gray-400 font-semibold">Base HT</th>
+                  <th className="px-6 py-4 text-center text-gray-400 font-semibold">Taux</th>
+                  <th className="px-6 py-4 text-right text-gray-400 font-semibold">Commission</th>
+                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">Statut</th>
+                  <th className="px-6 py-4 text-left text-gray-400 font-semibold">Mois</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {filteredCommissions.map((commission) => (
-                  <tr key={commission.id} className="hover:bg-gray-700/50 transition">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-white font-medium">{commission.partnerName}</p>
-                        <p className="text-gray-400 text-xs font-mono">
-                          {commission.partnerSiret}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-400">{commission.clientName}</td>
+                {filteredCommissions.map((c) => (
+                  <tr key={c.id} className="hover:bg-gray-700/50 transition">
+                    <td className="px-6 py-4 text-white font-medium">{c.partnerNom}</td>
+                    <td className="px-6 py-4 text-gray-400">{c.clientNom}</td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-block bg-amber-400/10 text-amber-400 rounded px-3 py-1 font-semibold">
-                        {commission.level}
+                      <span className={`inline-block rounded px-3 py-1 font-semibold text-xs ${c.niveau === 1 ? 'bg-purple-400/10 text-purple-400' : 'bg-indigo-400/10 text-indigo-400'}`}>
+                        N{c.niveau}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right text-white font-semibold">
-                      {commission.amount.toFixed(2)}€
-                    </td>
+                    <td className="px-6 py-4 text-right text-gray-300">{fmt(c.montantBaseHt)}</td>
+                    <td className="px-6 py-4 text-center text-gray-300">{c.tauxApplique}%</td>
+                    <td className="px-6 py-4 text-right text-white font-semibold">{fmt(c.montantCommission)}</td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                          commission.status
-                        )}`}
-                      >
-                        {getStatusIcon(commission.status)}
-                        {getStatusLabel(commission.status)}
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(c.statut)}`}>
+                        {getStatusIcon(c.statut)}
+                        {getStatusLabel(c.statut)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-400">{commission.month}</td>
+                    <td className="px-6 py-4 text-gray-400">{c.mois}</td>
                   </tr>
                 ))}
               </tbody>
@@ -343,12 +288,8 @@ export default function CommissionsPage() {
         )}
       </div>
 
-      {/* Footer Info */}
-      <div className="mt-6 text-center text-sm text-gray-400">
-        <p>
-          Affichage de {filteredCommissions.length} commission
-          {filteredCommissions.length > 1 ? 's' : ''} sur {commissions.length}
-        </p>
+      <div className="mt-4 text-center text-sm text-gray-500">
+        {filteredCommissions.length} commission{filteredCommissions.length > 1 ? 's' : ''} sur {commissions.length}
       </div>
     </div>
   );
