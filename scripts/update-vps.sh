@@ -723,6 +723,14 @@ else
     log_warn "Prisma db push: pas de changements ou erreur (non bloquant)"
   fi
 
+  # --- Execution du seed Prisma (TypeScript) ---
+  log_info "Execution du seed Prisma (modules, workflow_links, plans comptables...)"
+  if npx prisma db seed 2>&1 | tail -10; then
+    log_ok "Seed Prisma execute"
+  else
+    log_warn "Prisma db seed: erreur (non bloquant)"
+  fi
+
   # --- Execution des seeds SQL (uniquement les nouveaux) ---
   SEED_SQL_DIR="$PLATFORM_DIR/prisma"
   SEEDS_DONE_FILE="$PLATFORM_DIR/.seeds-done"
