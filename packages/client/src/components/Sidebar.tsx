@@ -220,7 +220,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
 
   const navGroups = useMemo(() => {
     // Items réservés à l'admin (pas visibles pour les clients finaux)
-    const adminOnlyItems = ['/plans', '/dashboard/cms', '/onboarding'];
+    const adminOnlyItems = ['/plans', '/dashboard/cms'];
 
     return allNavGroups
       .filter((group) => {
