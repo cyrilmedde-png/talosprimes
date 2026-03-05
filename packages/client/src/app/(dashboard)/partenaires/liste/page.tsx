@@ -7,7 +7,6 @@ import { useAuthStore } from '@/store/auth-store';
 import {
   PlusIcon,
   XMarkIcon,
-  ChevronDownIcon,
   EyeIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
