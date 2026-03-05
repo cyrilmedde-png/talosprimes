@@ -141,6 +141,106 @@ const COMPTABILITE_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'compta_ia_agent',             workflowN8nId: 'compta_ia_agent',            workflowN8nNom: 'compta-ia-agent' },
 ];
 
+const PARTNERS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'partner_create', workflowN8nId: 'partner_create', workflowN8nNom: 'partner-create' },
+  { typeEvenement: 'partner_list', workflowN8nId: 'partner_list', workflowN8nNom: 'partner-list' },
+  { typeEvenement: 'partner_get', workflowN8nId: 'partner_get', workflowN8nNom: 'partner-get' },
+  { typeEvenement: 'partner_update', workflowN8nId: 'partner_update', workflowN8nNom: 'partner-update' },
+  { typeEvenement: 'partner_dashboard', workflowN8nId: 'partner_dashboard', workflowN8nNom: 'partner-dashboard' },
+];
+
+const REVENUS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'revenue_dashboard', workflowN8nId: 'revenue_dashboard', workflowN8nNom: 'revenue-dashboard' },
+  { typeEvenement: 'revenue_track', workflowN8nId: 'revenue_track', workflowN8nNom: 'revenue-track' },
+  { typeEvenement: 'commission_payout', workflowN8nId: 'commission_payout', workflowN8nNom: 'commission-payout' },
+];
+
+const PROJETS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'projet_create', workflowN8nId: 'projet_create', workflowN8nNom: 'projet-create' },
+  { typeEvenement: 'projets_list', workflowN8nId: 'projets_list', workflowN8nNom: 'projets-list' },
+  { typeEvenement: 'projet_get', workflowN8nId: 'projet_get', workflowN8nNom: 'projet-get' },
+  { typeEvenement: 'projet_update', workflowN8nId: 'projet_update', workflowN8nNom: 'projet-update' },
+  { typeEvenement: 'projet_delete', workflowN8nId: 'projet_delete', workflowN8nNom: 'projet-delete' },
+  { typeEvenement: 'projet_tache_create', workflowN8nId: 'projet_tache_create', workflowN8nNom: 'projet-tache-create' },
+  { typeEvenement: 'projet_taches_list', workflowN8nId: 'projet_taches_list', workflowN8nNom: 'projet-taches-list' },
+  { typeEvenement: 'projet_tache_update', workflowN8nId: 'projet_tache_update', workflowN8nNom: 'projet-tache-update' },
+  { typeEvenement: 'projet_tache_delete', workflowN8nId: 'projet_tache_delete', workflowN8nNom: 'projet-tache-delete' },
+  { typeEvenement: 'projets_dashboard', workflowN8nId: 'projets_dashboard', workflowN8nNom: 'projets-dashboard' },
+];
+
+const EQUIPE_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'equipe_membre_create', workflowN8nId: 'equipe_membre_create', workflowN8nNom: 'equipe-membre-create' },
+  { typeEvenement: 'equipe_membres_list', workflowN8nId: 'equipe_membres_list', workflowN8nNom: 'equipe-membres-list' },
+  { typeEvenement: 'equipe_membre_get', workflowN8nId: 'equipe_membre_get', workflowN8nNom: 'equipe-membre-get' },
+  { typeEvenement: 'equipe_membre_update', workflowN8nId: 'equipe_membre_update', workflowN8nNom: 'equipe-membre-update' },
+  { typeEvenement: 'equipe_membre_delete', workflowN8nId: 'equipe_membre_delete', workflowN8nNom: 'equipe-membre-delete' },
+  { typeEvenement: 'equipe_pointage_create', workflowN8nId: 'equipe_pointage_create', workflowN8nNom: 'equipe-pointage-create' },
+  { typeEvenement: 'equipe_pointages_list', workflowN8nId: 'equipe_pointages_list', workflowN8nNom: 'equipe-pointages-list' },
+  { typeEvenement: 'equipe_pointage_update', workflowN8nId: 'equipe_pointage_update', workflowN8nNom: 'equipe-pointage-update' },
+  { typeEvenement: 'equipe_pointage_delete', workflowN8nId: 'equipe_pointage_delete', workflowN8nNom: 'equipe-pointage-delete' },
+  { typeEvenement: 'equipe_absence_create', workflowN8nId: 'equipe_absence_create', workflowN8nNom: 'equipe-absence-create' },
+  { typeEvenement: 'equipe_absences_list', workflowN8nId: 'equipe_absences_list', workflowN8nNom: 'equipe-absences-list' },
+  { typeEvenement: 'equipe_absence_update', workflowN8nId: 'equipe_absence_update', workflowN8nNom: 'equipe-absence-update' },
+  { typeEvenement: 'equipe_absence_delete', workflowN8nId: 'equipe_absence_delete', workflowN8nNom: 'equipe-absence-delete' },
+  { typeEvenement: 'equipe_dashboard', workflowN8nId: 'equipe_dashboard', workflowN8nNom: 'equipe-dashboard' },
+];
+
+const RH_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'rh_contrat_create', workflowN8nId: 'rh_contrat_create', workflowN8nNom: 'rh-contrat-create' },
+  { typeEvenement: 'rh_contrats_list', workflowN8nId: 'rh_contrats_list', workflowN8nNom: 'rh-contrats-list' },
+  { typeEvenement: 'rh_contrat_get', workflowN8nId: 'rh_contrat_get', workflowN8nNom: 'rh-contrat-get' },
+  { typeEvenement: 'rh_contrat_update', workflowN8nId: 'rh_contrat_update', workflowN8nNom: 'rh-contrat-update' },
+  { typeEvenement: 'rh_contrat_delete', workflowN8nId: 'rh_contrat_delete', workflowN8nNom: 'rh-contrat-delete' },
+  { typeEvenement: 'rh_conge_create', workflowN8nId: 'rh_conge_create', workflowN8nNom: 'rh-conge-create' },
+  { typeEvenement: 'rh_conges_list', workflowN8nId: 'rh_conges_list', workflowN8nNom: 'rh-conges-list' },
+  { typeEvenement: 'rh_conge_get', workflowN8nId: 'rh_conge_get', workflowN8nNom: 'rh-conge-get' },
+  { typeEvenement: 'rh_conge_update', workflowN8nId: 'rh_conge_update', workflowN8nNom: 'rh-conge-update' },
+  { typeEvenement: 'rh_conge_delete', workflowN8nId: 'rh_conge_delete', workflowN8nNom: 'rh-conge-delete' },
+  { typeEvenement: 'rh_conge_approuver', workflowN8nId: 'rh_conge_approuver', workflowN8nNom: 'rh-conge-approuver' },
+  { typeEvenement: 'rh_conge_rejeter', workflowN8nId: 'rh_conge_rejeter', workflowN8nNom: 'rh-conge-rejeter' },
+  { typeEvenement: 'rh_bulletin_create', workflowN8nId: 'rh_bulletin_create', workflowN8nNom: 'rh-bulletin-create' },
+  { typeEvenement: 'rh_paie_list', workflowN8nId: 'rh_paie_list', workflowN8nNom: 'rh-paie-list' },
+  { typeEvenement: 'rh_bulletin_get', workflowN8nId: 'rh_bulletin_get', workflowN8nNom: 'rh-bulletin-get' },
+  { typeEvenement: 'rh_bulletin_update', workflowN8nId: 'rh_bulletin_update', workflowN8nNom: 'rh-bulletin-update' },
+  { typeEvenement: 'rh_bulletin_delete', workflowN8nId: 'rh_bulletin_delete', workflowN8nNom: 'rh-bulletin-delete' },
+  { typeEvenement: 'rh_evaluation_create', workflowN8nId: 'rh_evaluation_create', workflowN8nNom: 'rh-evaluation-create' },
+  { typeEvenement: 'rh_evaluations_list', workflowN8nId: 'rh_evaluations_list', workflowN8nNom: 'rh-evaluations-list' },
+  { typeEvenement: 'rh_evaluation_get', workflowN8nId: 'rh_evaluation_get', workflowN8nNom: 'rh-evaluation-get' },
+  { typeEvenement: 'rh_evaluation_update', workflowN8nId: 'rh_evaluation_update', workflowN8nNom: 'rh-evaluation-update' },
+  { typeEvenement: 'rh_evaluation_delete', workflowN8nId: 'rh_evaluation_delete', workflowN8nNom: 'rh-evaluation-delete' },
+  { typeEvenement: 'rh_formation_create', workflowN8nId: 'rh_formation_create', workflowN8nNom: 'rh-formation-create' },
+  { typeEvenement: 'rh_formations_list', workflowN8nId: 'rh_formations_list', workflowN8nNom: 'rh-formations-list' },
+  { typeEvenement: 'rh_formation_get', workflowN8nId: 'rh_formation_get', workflowN8nNom: 'rh-formation-get' },
+  { typeEvenement: 'rh_formation_update', workflowN8nId: 'rh_formation_update', workflowN8nNom: 'rh-formation-update' },
+  { typeEvenement: 'rh_formation_delete', workflowN8nId: 'rh_formation_delete', workflowN8nNom: 'rh-formation-delete' },
+  { typeEvenement: 'rh_formation_inscrire', workflowN8nId: 'rh_formation_inscrire', workflowN8nNom: 'rh-formation-inscrire' },
+  { typeEvenement: 'rh_entretien_create', workflowN8nId: 'rh_entretien_create', workflowN8nNom: 'rh-entretien-create' },
+  { typeEvenement: 'rh_entretiens_list', workflowN8nId: 'rh_entretiens_list', workflowN8nNom: 'rh-entretiens-list' },
+  { typeEvenement: 'rh_entretien_get', workflowN8nId: 'rh_entretien_get', workflowN8nNom: 'rh-entretien-get' },
+  { typeEvenement: 'rh_entretien_update', workflowN8nId: 'rh_entretien_update', workflowN8nNom: 'rh-entretien-update' },
+  { typeEvenement: 'rh_entretien_delete', workflowN8nId: 'rh_entretien_delete', workflowN8nNom: 'rh-entretien-delete' },
+  { typeEvenement: 'rh_document_create', workflowN8nId: 'rh_document_create', workflowN8nNom: 'rh-document-create' },
+  { typeEvenement: 'rh_documents_list', workflowN8nId: 'rh_documents_list', workflowN8nNom: 'rh-documents-list' },
+  { typeEvenement: 'rh_document_get', workflowN8nId: 'rh_document_get', workflowN8nNom: 'rh-document-get' },
+  { typeEvenement: 'rh_document_update', workflowN8nId: 'rh_document_update', workflowN8nNom: 'rh-document-update' },
+  { typeEvenement: 'rh_document_delete', workflowN8nId: 'rh_document_delete', workflowN8nNom: 'rh-document-delete' },
+  { typeEvenement: 'rh_dashboard', workflowN8nId: 'rh_dashboard', workflowN8nNom: 'rh-dashboard' },
+];
+
+const BTP_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'btp_chantier_create', workflowN8nId: 'btp_chantier_create', workflowN8nNom: 'btp-chantier-create' },
+  { typeEvenement: 'btp_chantiers_list', workflowN8nId: 'btp_chantiers_list', workflowN8nNom: 'btp-chantiers-list' },
+  { typeEvenement: 'btp_chantier_get', workflowN8nId: 'btp_chantier_get', workflowN8nNom: 'btp-chantier-get' },
+  { typeEvenement: 'btp_chantier_update', workflowN8nId: 'btp_chantier_update', workflowN8nNom: 'btp-chantier-update' },
+  { typeEvenement: 'btp_chantier_delete', workflowN8nId: 'btp_chantier_delete', workflowN8nNom: 'btp-chantier-delete' },
+  { typeEvenement: 'btp_situation_create', workflowN8nId: 'btp_situation_create', workflowN8nNom: 'btp-situation-create' },
+  { typeEvenement: 'btp_situations_list', workflowN8nId: 'btp_situations_list', workflowN8nNom: 'btp-situations-list' },
+  { typeEvenement: 'btp_situation_update', workflowN8nId: 'btp_situation_update', workflowN8nNom: 'btp-situation-update' },
+  { typeEvenement: 'btp_situation_delete', workflowN8nId: 'btp_situation_delete', workflowN8nNom: 'btp-situation-delete' },
+  { typeEvenement: 'btp_situation_valider', workflowN8nId: 'btp_situation_valider', workflowN8nNom: 'btp-situation-valider' },
+  { typeEvenement: 'btp_dashboard', workflowN8nId: 'btp_dashboard', workflowN8nNom: 'btp-dashboard' },
+];
+
 const NOTIFICATIONS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'notifications_list', workflowN8nId: 'notifications_list', workflowN8nNom: 'notifications-list' },
   { typeEvenement: 'notification_create', workflowN8nId: 'notification_create', workflowN8nNom: 'notification-created' },
@@ -299,4 +399,46 @@ export async function seedWorkflowLinksComptabilite(
   tenantId: string
 ): Promise<void> {
   await seedWorkflowLinks(prisma, tenantId, 'comptabilite', COMPTABILITE_WORKFLOWS, 'comptabilité');
+}
+
+export async function seedWorkflowLinksPartenaires(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'partenaire', PARTNERS_WORKFLOWS, 'partenaires');
+}
+
+export async function seedWorkflowLinksRevenus(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'revenus', REVENUS_WORKFLOWS, 'revenus');
+}
+
+export async function seedWorkflowLinksProjets(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'gestion_projet', PROJETS_WORKFLOWS, 'projets');
+}
+
+export async function seedWorkflowLinksEquipe(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'gestion_equipe', EQUIPE_WORKFLOWS, 'équipe');
+}
+
+export async function seedWorkflowLinksRh(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'gestion_rh', RH_WORKFLOWS, 'RH');
+}
+
+export async function seedWorkflowLinksBtp(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'btp', BTP_WORKFLOWS, 'BTP');
 }

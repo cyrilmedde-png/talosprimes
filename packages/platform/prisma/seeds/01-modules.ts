@@ -211,4 +211,106 @@ export async function seedModules(prisma: PrismaClient): Promise<void> {
   });
 
   console.log('✅ Module comptabilite OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'partenaire' },
+    update: {
+      nomAffiche: 'Partenaires',
+      description: 'Module partenaires : gestion des revendeurs, apporteurs d\'affaires, commissions N1/N2',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'partenaire',
+      nomAffiche: 'Partenaires',
+      description: 'Module partenaires : gestion des revendeurs, apporteurs d\'affaires, commissions N1/N2',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module partenaire OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'revenus' },
+    update: {
+      nomAffiche: 'Revenus & Commissions',
+      description: 'Module revenus : suivi MRR, commissions, paiements partenaires',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'revenus',
+      nomAffiche: 'Revenus & Commissions',
+      description: 'Module revenus : suivi MRR, commissions, paiements partenaires',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module revenus OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'gestion_projet' },
+    update: {
+      nomAffiche: 'Gestion de Projet',
+      description: 'Module projets : création, tâches, suivi avancement, dashboard',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'gestion_projet',
+      nomAffiche: 'Gestion de Projet',
+      description: 'Module projets : création, tâches, suivi avancement, dashboard',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module gestion_projet OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'gestion_equipe' },
+    update: {
+      nomAffiche: 'Gestion d\'Équipe',
+      description: 'Module équipe : membres, pointages, absences, dashboard',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'gestion_equipe',
+      nomAffiche: 'Gestion d\'Équipe',
+      description: 'Module équipe : membres, pointages, absences, dashboard',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module gestion_equipe OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'gestion_rh' },
+    update: {
+      nomAffiche: 'Ressources Humaines',
+      description: 'Module RH : contrats, congés, paie, formations, évaluations, entretiens',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'gestion_rh',
+      nomAffiche: 'Ressources Humaines',
+      description: 'Module RH : contrats, congés, paie, formations, évaluations, entretiens',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module gestion_rh OK');
+
+  await prisma.moduleMetier.upsert({
+    where: { code: 'btp' },
+    update: {
+      nomAffiche: 'BTP',
+      description: 'Module BTP : chantiers, situations de travaux, validation, dashboard',
+      prixParMois: prixZero,
+    },
+    create: {
+      code: 'btp',
+      nomAffiche: 'BTP',
+      description: 'Module BTP : chantiers, situations de travaux, validation, dashboard',
+      prixParMois: prixZero,
+    },
+  });
+
+  console.log('✅ Module btp OK');
 }

@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { seedModules } from './seeds/01-modules';
-import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications, seedWorkflowLinksAgentTelephonique, seedWorkflowLinksClients, seedWorkflowLinksLeads, seedWorkflowLinksComptabilite } from './seeds/02-workflow-links';
+import { seedWorkflowLinksFacturation, seedWorkflowLinksArticles, seedWorkflowLinksBdc, seedWorkflowLinksDevis, seedWorkflowLinksAvoir, seedWorkflowLinksProforma, seedWorkflowLinksLogs, seedWorkflowLinksNotifications, seedWorkflowLinksAgentTelephonique, seedWorkflowLinksClients, seedWorkflowLinksLeads, seedWorkflowLinksComptabilite, seedWorkflowLinksPartenaires, seedWorkflowLinksRevenus, seedWorkflowLinksProjets, seedWorkflowLinksEquipe, seedWorkflowLinksRh, seedWorkflowLinksBtp } from './seeds/02-workflow-links';
 import { seedPlanComptable, seedJournauxComptables, seedExerciceComptable } from './seeds/04-plan-comptable';
 import { seedAgentKnowledge } from './seeds/05-agent-knowledge';
 import { runSeedLanding } from './seed-landing';
@@ -102,6 +102,12 @@ async function main() {
   await seedWorkflowLinksClients(prisma, tenant.id);
   await seedWorkflowLinksLeads(prisma, tenant.id);
   await seedWorkflowLinksComptabilite(prisma, tenant.id);
+  await seedWorkflowLinksPartenaires(prisma, tenant.id);
+  await seedWorkflowLinksRevenus(prisma, tenant.id);
+  await seedWorkflowLinksProjets(prisma, tenant.id);
+  await seedWorkflowLinksEquipe(prisma, tenant.id);
+  await seedWorkflowLinksRh(prisma, tenant.id);
+  await seedWorkflowLinksBtp(prisma, tenant.id);
 
   // 7. Plan Comptable Général + Journaux + Exercice
   await seedPlanComptable(prisma, tenant.id);
