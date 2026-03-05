@@ -561,10 +561,16 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         }
 
         // Vérifier que le client existe et appartient au tenant
+        // + récupérer le ClientSpace pour cleanup du tenant isolé
         const existingClient = await prisma.clientFinal.findFirst({
           where: {
             id: params.id,
             tenantId,
+          },
+          include: {
+            clientSpaces: {
+              select: { clientTenantId: true },
+            },
           },
         });
 
@@ -572,12 +578,35 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           return ApiError.notFound(reply, 'Client');
         }
 
-        // Suppression définitive (hard delete)
+        // Récupérer les tenantIds isolés AVANT suppression (le cascade va supprimer les ClientSpaces)
+        const clientTenantIds = existingClient.clientSpaces
+          .map((cs: { clientTenantId: string | null }) => cs.clientTenantId)
+          .filter((id: string | null): id is string => id !== null);
+
+        // Suppression définitive (hard delete) — cascade supprime aussi les ClientSpaces
         const deletedClient = await prisma.clientFinal.delete({
           where: {
             id: params.id,
           },
         });
+
+        // Cleanup des tenants isolés + leurs users (l'espace client ne doit plus exister)
+        for (const clientTenantId of clientTenantIds) {
+          try {
+            // Supprimer les users du tenant isolé
+            await prisma.user.deleteMany({
+              where: { tenantId: clientTenantId },
+            });
+            // Supprimer le tenant isolé lui-même (cascade supprime toutes ses données)
+            await prisma.tenant.delete({
+              where: { id: clientTenantId },
+            });
+            fastify.log.info({ clientTenantId, clientId: params.id }, 'Tenant isolé client supprimé');
+          } catch (tenantCleanupError) {
+            // Log mais ne bloque pas — le client est déjà supprimé
+            fastify.log.warn({ tenantCleanupError, clientTenantId, clientId: params.id }, 'Cleanup tenant isolé échoué');
+          }
+        }
 
         // Cleanup lead SYNCHRONE via n8n — le lead doit passer en 'abandonne'
         // AVANT que le frontend ne recharge la liste (sinon race condition :
