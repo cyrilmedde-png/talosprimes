@@ -791,9 +791,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         }
 
         // Récupérer l'utilisateur associé au tenant du client
+        const clientEmail = subscription.clientFinal.email;
+        if (!clientEmail) {
+          return ApiError.badRequest(reply, 'Le client n\'a pas d\'email');
+        }
+
         const tenant = await prisma.tenant.findFirst({
           where: {
-            emailContact: subscription.clientFinal.email,
+            emailContact: clientEmail,
           },
         });
 
@@ -804,7 +809,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         const user = await prisma.user.findFirst({
           where: {
             tenantId: tenant.id,
-            email: subscription.clientFinal.email,
+            email: clientEmail,
           },
         });
 
