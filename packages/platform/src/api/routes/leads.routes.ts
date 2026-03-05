@@ -227,6 +227,10 @@ export async function leadsRoutes(fastify: FastifyInstance) {
       }
       
       const where: Record<string, unknown> = {};
+      // Isolation tenant — même pour les appels n8n, filtrer par tenantId si disponible
+      if (request.tenantId) {
+        where.tenantId = request.tenantId;
+      }
       if (source) {
         where.source = source;
       }
