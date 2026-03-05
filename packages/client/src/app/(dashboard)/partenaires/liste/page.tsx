@@ -72,7 +72,7 @@ export default function PartenairesListePage() {
       setLoading(true);
       setError('');
       const response = await apiClient.partners.list();
-      setPartners(response.data?.partners || []);
+      setPartners((response.data?.partners || []) as Partner[]);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des partenaires';
       setError(errorMessage);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+
 
 interface Commission {
   id: string;
@@ -50,7 +50,7 @@ export default function RevenueCommissions() {
 
       const response = await apiClient.revenue.commissions(params);
       if (response.success) {
-        setData(response.data);
+        setData(response.data as CommissionsData);
       } else {
         setError('Erreur lors du chargement des commissions');
       }

@@ -38,7 +38,7 @@ export default function RevenueDashboard() {
         setLoading(true);
         const response = await apiClient.revenue.dashboard();
         if (response.success) {
-          setData(response.data);
+          setData(response.data as DashboardData);
         } else {
           setError('Erreur lors du chargement du tableau de bord');
         }
