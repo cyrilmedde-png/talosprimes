@@ -121,6 +121,16 @@ const LEADS_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'workflow_inscription', workflowN8nId: 'workflow_inscription', workflowN8nNom: 'workflow-inscription' },
 ];
 
+const PROSPECTS_WORKFLOWS: WfDef[] = [
+  { typeEvenement: 'prospect_list', workflowN8nId: 'prospect_list', workflowN8nNom: 'prospect-list' },
+  { typeEvenement: 'prospect_get', workflowN8nId: 'prospect_get', workflowN8nNom: 'prospect-get' },
+  { typeEvenement: 'prospect_update', workflowN8nId: 'prospect_update', workflowN8nNom: 'prospect-update' },
+  { typeEvenement: 'prospect_score', workflowN8nId: 'prospect_score', workflowN8nNom: 'prospect-score' },
+  { typeEvenement: 'prospect_relance', workflowN8nId: 'prospect_relance', workflowN8nNom: 'prospect-relance' },
+  { typeEvenement: 'prospect_convert', workflowN8nId: 'prospect_convert', workflowN8nNom: 'prospect-convert' },
+  { typeEvenement: 'prospect_dashboard', workflowN8nId: 'prospect_dashboard', workflowN8nNom: 'prospect-dashboard' },
+];
+
 const COMPTABILITE_WORKFLOWS: WfDef[] = [
   { typeEvenement: 'compta_init',                workflowN8nId: 'compta_init',                workflowN8nNom: 'compta-init' },
   { typeEvenement: 'compta_plan_comptable_list',  workflowN8nId: 'compta_plan_comptable_list', workflowN8nNom: 'compta-plan-comptable-list' },
@@ -441,4 +451,11 @@ export async function seedWorkflowLinksBtp(
   tenantId: string
 ): Promise<void> {
   await seedWorkflowLinks(prisma, tenantId, 'btp', BTP_WORKFLOWS, 'BTP');
+}
+
+export async function seedWorkflowLinksProspects(
+  prisma: PrismaClient,
+  tenantId: string
+): Promise<void> {
+  await seedWorkflowLinks(prisma, tenantId, 'prospects', PROSPECTS_WORKFLOWS, 'prospects');
 }
