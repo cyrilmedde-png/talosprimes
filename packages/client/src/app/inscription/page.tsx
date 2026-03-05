@@ -74,6 +74,7 @@ export default function InscriptionPage() {
           prenom: formData.prenom.trim(),
           telephone: formData.telephone.trim(),
           email: formData.email.trim(),
+          hostname: window.location.hostname,
           timestamp: new Date().toISOString(),
         }),
       });
