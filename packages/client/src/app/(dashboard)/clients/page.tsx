@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/store/auth-store';
 import type { Lead, ClientFinal } from '@talosprimes/shared';
 import {
   UserPlusIcon,
@@ -31,6 +32,7 @@ type CreateMode = 'from-lead' | 'direct';
 
 export default function ClientsPage() {
   const router = useRouter();
+  const { isClientUser } = useAuthStore();
   const [clients, setClients] = useState<ClientFinal[]>([]);
   const [leadsConvertis, setLeadsConvertis] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -602,7 +604,7 @@ export default function ClientsPage() {
                           </td>
                           <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
-                              {!clientSubscriptions[client.id] && (
+                              {!isClientUser && !clientSubscriptions[client.id] && (
                                 <button
                                   onClick={() => handleOpenOnboarding(client)}
                                   className="text-green-400 hover:text-green-300"
@@ -611,7 +613,7 @@ export default function ClientsPage() {
                                   <SparklesIcon className="h-5 w-5" />
                                 </button>
                               )}
-                              {clientSubscriptions[client.id] && (
+                              {!isClientUser && clientSubscriptions[client.id] && (
                                 <button
                                   onClick={() => handleManageSubscription(client)}
                                   className="text-green-400 hover:text-green-300"
@@ -701,7 +703,7 @@ export default function ClientsPage() {
                           </td>
                           <td className="px-3 py-2 sm:px-6 sm:py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
-                              {!clientSubscriptions[client.id] && (
+                              {!isClientUser && !clientSubscriptions[client.id] && (
                                 <button
                                   onClick={() => handleOpenOnboarding(client)}
                                   className="text-green-400 hover:text-green-300"
@@ -710,7 +712,7 @@ export default function ClientsPage() {
                                   <SparklesIcon className="h-5 w-5" />
                                 </button>
                               )}
-                              {clientSubscriptions[client.id] && (
+                              {!isClientUser && clientSubscriptions[client.id] && (
                                 <button
                                   onClick={() => handleManageSubscription(client)}
                                   className="text-green-400 hover:text-green-300"
