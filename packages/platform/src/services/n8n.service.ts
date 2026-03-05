@@ -329,7 +329,7 @@ export class N8nService {
         tenantId,
         timestamp: new Date().toISOString(),
         ...payload,     // champs à plat pour les nouveaux workflows
-        data: payload,   // wrapper data pour les anciens workflows
+        data: { tenantId, ...payload },   // wrapper data avec tenantId inclus pour les workflows qui lisent data.tenantId
       }),
       signal: AbortSignal.timeout(30_000), // 30 s max
     });
@@ -427,7 +427,7 @@ export class N8nService {
         tenantId,
         timestamp: new Date().toISOString(),
         ...payload,     // champs à plat pour les nouveaux workflows
-        data: payload,   // wrapper data pour les anciens workflows
+        data: { tenantId, ...payload },   // wrapper data avec tenantId inclus pour les workflows qui lisent data.tenantId
         metadata: {
           workflowId: workflowLink?.workflowN8nId ?? webhookPath,
           workflowName: workflowLink?.workflowN8nNom ?? webhookPath,
