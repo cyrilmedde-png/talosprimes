@@ -334,9 +334,9 @@ export default function LeadsPage() {
                     </div>
                     <p className="text-xs text-gray-400 truncate">{lead.email}</p>
                     <p className="text-xs text-gray-500">{lead.telephone}</p>
-                    {(lead as unknown as Record<string, unknown>).nombreRelances ? (
+                    {((lead as unknown as Record<string, unknown>).nombreRelances as number) > 0 ? (
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {(lead as unknown as Record<string, unknown>).nombreRelances} relance{((lead as unknown as Record<string, unknown>).nombreRelances as number) > 1 ? 's' : ''}
+                        {String((lead as unknown as Record<string, unknown>).nombreRelances)} relance{((lead as unknown as Record<string, unknown>).nombreRelances as number) > 1 ? 's' : ''}
                       </p>
                     ) : null}
 
