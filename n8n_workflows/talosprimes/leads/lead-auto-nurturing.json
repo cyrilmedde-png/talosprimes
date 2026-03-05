@@ -1,0 +1,447 @@
+{
+  "name": "Pipeline - Auto Nurturing Leads",
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": "every",
+        "unit": "hours",
+        "value": 1
+      },
+      "id": "Trigger_Schedule",
+      "name": "01. Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Chercher les leads à relancer\n// Critères :\n// - statut IN ('nouveau', 'contacte')\n// - nombre_relances < 2\n// - (première relance : pas de derniere_relance ET created_at < NOW - 2h)\n//   OU (deuxième relance : nombre_relances = 1 ET derniere_relance < NOW - 48h)\n\nvar query = `\nSELECT id, nom, prenom, email, telephone, statut, nombre_relances, derniere_relance, created_at\nFROM leads\nWHERE statut IN ('nouveau', 'contacte')\n  AND nombre_relances < 2\n  AND (\n    (nombre_relances = 0 AND created_at < NOW() - INTERVAL '2 hours')\n    OR (nombre_relances = 1 AND derniere_relance < NOW() - INTERVAL '48 hours')\n  )\nORDER BY created_at ASC\n`;\n\nreturn [{ json: { query: query } }];"
+      },
+      "id": "Code_FindLeads",
+      "name": "02. Chercher leads à relancer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "PG_SelectLeads",
+      "name": "03. Postgres - SELECT leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_leads",
+              "leftValue": "={{ $json.data && $json.data.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "IF_HasLeads",
+      "name": "04. IF - Leads à traiter ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Traiter chaque lead pour une relance\nvar leads = $input.first().json.data || [];\nif (!Array.isArray(leads) || leads.length === 0) {\n  return { json: { updates: [] } };\n}\n\nvar updates = [];\nfor (var i = 0; i < leads.length; i++) {\n  var lead = leads[i];\n  var leadId = lead.id;\n  var nom = lead.nom;\n  var prenom = lead.prenom;\n  var telephone = lead.telephone;\n  var nombreRelances = lead.nombre_relances || 0;\n  var nextRelance = nombreRelances + 1;\n  \n  var query = `\nUPDATE leads\nSET derniere_relance = NOW(), nombre_relances = ${nextRelance}, updated_at = NOW()\nWHERE id = '${leadId}'::uuid\nRETURNING id, nom, prenom, nombre_relances\n`;\n  \n  updates.push({\n    leadId: leadId,\n    nom: nom,\n    prenom: prenom,\n    telephone: telephone,\n    nombreRelances: nextRelance,\n    query: query\n  });\n}\n\nreturn [{ json: { updates: updates } }];"
+      },
+      "id": "Code_PrepareRelances",
+      "name": "05. Préparer relances",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "loopOver": "updates",
+        "resource": "itemsLoop"
+      },
+      "id": "Loop_UpdateLeads",
+      "name": "06. Loop - Exécuter updates",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 1.0,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "PG_UpdateLead",
+      "name": "07. Postgres - UPDATE lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1520,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Vérifier si le lead doit être marqué comme abandonné\nvar pgResult = $input.first().json;\nvar updatedLead = pgResult.data && pgResult.data.length > 0 ? pgResult.data[0] : {};\nvar parentContext = $('05. Préparer relances').first().json;\nvar currentUpdate = $json;\n\nvar leadId = currentUpdate.leadId;\nvar nombreRelances = currentUpdate.nombreRelances;\n\nif (nombreRelances >= 2) {\n  // Chercher la date de création pour vérifier le délai de 7 jours\n  var selectQuery = `\nSELECT id, created_at, statut\nFROM leads\nWHERE id = '${leadId}'::uuid\nLIMIT 1\n`;\n  return [{ json: { ...currentUpdate, checkAbandon: true, selectQuery: selectQuery } }];\n} else {\n  return [{ json: { ...currentUpdate, checkAbandon: false } }];\n}"
+      },
+      "id": "Code_CheckAbandon",
+      "name": "08. Vérifier si abandonner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.selectQuery }}"
+      },
+      "id": "PG_GetLeadForAbandon",
+      "name": "09. Postgres - GET lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1920,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check_abandon_time",
+              "leftValue": "={{ new Date($json.data && $json.data[0] ? $json.data[0].created_at : null) < new Date(Date.now() - 7*24*60*60*1000) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "IF_AbandonLead",
+      "name": "10. IF - Marquer abandonné ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Marquer le lead comme abandonné\nvar parentData = $('08. Vérifier si abandonner').first().json;\nvar leadId = parentData.leadId;\n\nvar query = `\nUPDATE leads\nSET statut = 'abandonne', updated_at = NOW()\nWHERE id = '${leadId}'::uuid\nRETURNING id, nom, prenom\n`;\n\nreturn [{ json: { ...parentData, updateAbandonQuery: query, isAbandoned: true } }];"
+      },
+      "id": "Code_MarkAbandoned",
+      "name": "11. Marquer abandonné",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.updateAbandonQuery }}"
+      },
+      "id": "PG_UpdateAbandon",
+      "name": "12. Postgres - UPDATE abandon",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        2520,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "={{ \"❌ Lead abandonné: \" + $json.nom + \" \" + $json.prenom }}"
+      },
+      "id": "Telegram_AbandonNotif",
+      "name": "13. Telegram - Notif abandon",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pour les relances normales, préparer notification Telegram\nvar parentData = $('08. Vérifier si abandonner').first().json;\nvar parentContext = $('05. Préparer relances').first().json;\nvar selectData = $('09. Postgres - GET lead').first().json;\nvar leadInfo = selectData.data && selectData.data[0] ? selectData.data[0] : {};\n\nreturn [{ json: { ...parentData, leadInfo: leadInfo, notifyRelance: true } }];"
+      },
+      "id": "Code_PrepareNotifRelance",
+      "name": "14. Préparer notif relance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "={{ \"🔔 Relance lead: \" + $json.nom + \" \" + $json.prenom + \" - Relance #\" + $json.nombreRelances }}"
+      },
+      "id": "Telegram_RelanceNotif",
+      "name": "15. Telegram - Notif relance",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2520,
+        400
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "01. Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "02. Chercher leads à relancer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Chercher leads à relancer": {
+      "main": [
+        [
+          {
+            "node": "03. Postgres - SELECT leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Postgres - SELECT leads": {
+      "main": [
+        [
+          {
+            "node": "04. IF - Leads à traiter ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. IF - Leads à traiter ?": {
+      "main": [
+        [
+          {
+            "node": "05. Préparer relances",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "05. Préparer relances": {
+      "main": [
+        [
+          {
+            "node": "06. Loop - Exécuter updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Loop - Exécuter updates": {
+      "main": [
+        [
+          {
+            "node": "07. Postgres - UPDATE lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Postgres - UPDATE lead": {
+      "main": [
+        [
+          {
+            "node": "08. Vérifier si abandonner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Vérifier si abandonner": {
+      "main": [
+        [
+          {
+            "node": "09. Postgres - GET lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Postgres - GET lead": {
+      "main": [
+        [
+          {
+            "node": "10. IF - Marquer abandonné ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. IF - Marquer abandonné ?": {
+      "main": [
+        [
+          {
+            "node": "11. Marquer abandonné",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "14. Préparer notif relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Marquer abandonné": {
+      "main": [
+        [
+          {
+            "node": "12. Postgres - UPDATE abandon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Postgres - UPDATE abandon": {
+      "main": [
+        [
+          {
+            "node": "13. Telegram - Notif abandon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14. Préparer notif relance": {
+      "main": [
+        [
+          {
+            "node": "15. Telegram - Notif relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}

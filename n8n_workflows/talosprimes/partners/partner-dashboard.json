@@ -1,0 +1,201 @@
+{
+  "name": "Partenaires - Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "partner_dashboard",
+        "responseMode": "responseNode",
+        "method": "GET"
+      },
+      "id": "webhook_partner_dashboard",
+      "name": "Webhook - Partner Dashboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract partner_id from query\nconst query = $input.first().json.query;\nconst partner_id = query.partner_id;\n\nif (!partner_id) {\n  throw new Error('partner_id is required');\n}\n\nreturn { json: { partner_id } };"
+      },
+      "id": "code_extract_partner_id",
+      "name": "Code - Extract Partner ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "SELECT * FROM partners WHERE id = '{{ $input.first().json.partner_id }}';"
+      },
+      "id": "postgres_partner_info",
+      "name": "Postgres - Partner Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [750, 150]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "SELECT cf.id, cf.nom, cf.email, sub.montant_mensuel\nFROM client_finals cf\nLEFT JOIN subscriptions sub ON sub.client_id = cf.id\nWHERE cf.partner_id = '{{ $input.all()[0].json.partner_id }}'\nORDER BY cf.created_at DESC;"
+      },
+      "id": "postgres_clients_n1",
+      "name": "Postgres - Clients N1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "SELECT cf.id, cf.nom, cf.email, sub.montant_mensuel, cff.nom as parent_nom\nFROM client_finals cf\nJOIN client_finals cff ON cff.id = cf.apporteur_client_id\nLEFT JOIN subscriptions sub ON sub.client_id = cf.id\nWHERE cff.partner_id = '{{ $input.all()[0].json.partner_id }}'\nORDER BY cf.created_at DESC;"
+      },
+      "id": "postgres_clients_n2",
+      "name": "Postgres - Clients N2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [750, 450]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "SELECT DATE_TRUNC('month', created_at) as mois, statut, SUM(montant) as total\nFROM commissions\nWHERE partner_id = '{{ $input.all()[0].json.partner_id }}'\nGROUP BY DATE_TRUNC('month', created_at), statut\nORDER BY mois DESC;"
+      },
+      "id": "postgres_commissions",
+      "name": "Postgres - Commissions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [750, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format dashboard data\nconst partnerInfo = $input.all()[1].json[0];\nconst clientsN1 = $input.all()[2].json;\nconst clientsN2 = $input.all()[3].json;\nconst commissions = $input.all()[4].json;\n\nconst nombreClientsN1 = clientsN1.length;\nconst nombreClientsN2 = clientsN2.length;\n\nconst revenueN1Mensuel = clientsN1.reduce((sum, client) => {\n  return sum + (client.montant_mensuel || 0);\n}, 0) * (partnerInfo.commission_taux_niveau1 / 100);\n\nconst revenueN2Mensuel = clientsN2.reduce((sum, client) => {\n  return sum + (client.montant_mensuel || 0);\n}, 0) * (partnerInfo.commission_taux_niveau2 / 100);\n\nconst totalCommissionsEnAttente = commissions\n  .filter(c => c.statut === 'en_attente')\n  .reduce((sum, c) => sum + c.total, 0);\n\nconst totalCommissionsPaye = commissions\n  .filter(c => c.statut === 'paye')\n  .reduce((sum, c) => sum + c.total, 0);\n\nconst historiqueCommissions = commissions.map(c => ({\n  mois: c.mois,\n  statut: c.statut,\n  montant: c.total\n}));\n\nconst dashboard = {\n  partner: partnerInfo,\n  nombre_clients_n1: nombreClientsN1,\n  nombre_clients_n2: nombreClientsN2,\n  revenue_n1_mensuel: Math.round(revenueN1Mensuel * 100) / 100,\n  revenue_n2_mensuel: Math.round(revenueN2Mensuel * 100) / 100,\n  total_commissions_en_attente: totalCommissionsEnAttente,\n  total_commissions_payees: totalCommissionsPaye,\n  historique_commissions: historiqueCommissions\n};\n\nreturn { json: dashboard };"
+      },
+      "id": "code_format_dashboard",
+      "name": "Code - Format Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "respondWithFirstItem": false,
+        "responseData": "{{ $input.first().json }}",
+        "responseContentType": "application/json"
+      },
+      "id": "response_dashboard",
+      "name": "Response - Dashboard",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook_partner_dashboard": {
+      "main": [
+        [
+          {
+            "node": "code_extract_partner_id",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "code_extract_partner_id": {
+      "main": [
+        [
+          {
+            "node": "postgres_partner_info",
+            "indices": [0]
+          },
+          {
+            "node": "postgres_clients_n1",
+            "indices": [0]
+          },
+          {
+            "node": "postgres_clients_n2",
+            "indices": [0]
+          },
+          {
+            "node": "postgres_commissions",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_partner_info": {
+      "main": [
+        [
+          {
+            "node": "code_format_dashboard",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_clients_n1": {
+      "main": [
+        [
+          {
+            "node": "code_format_dashboard",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_clients_n2": {
+      "main": [
+        [
+          {
+            "node": "code_format_dashboard",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_commissions": {
+      "main": [
+        [
+          {
+            "node": "code_format_dashboard",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "code_format_dashboard": {
+      "main": [
+        [
+          {
+            "node": "response_dashboard",
+            "indices": [0]
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "UTC"
+  }
+}

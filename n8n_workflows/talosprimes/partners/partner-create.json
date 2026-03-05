@@ -1,0 +1,120 @@
+{
+  "name": "Partenaires - Créer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "partner_create",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook_partner_create",
+      "name": "Webhook - Partner Create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate partner data\nconst body = $input.first().json.body;\n\nconst requiredFields = ['nom', 'email', 'raison_sociale', 'siret', 'siren'];\nconst errors = [];\n\nfor (const field of requiredFields) {\n  if (!body[field]) {\n    errors.push(`${field} is required`);\n  }\n}\n\n// Validate SIRET format (14 digits)\nif (body.siret && !/^\\d{14}$/.test(body.siret.toString())) {\n  errors.push('SIRET must be 14 digits');\n}\n\n// Validate SIREN format (9 digits)\nif (body.siren && !/^\\d{9}$/.test(body.siren.toString())) {\n  errors.push('SIREN must be 9 digits');\n}\n\nif (errors.length > 0) {\n  throw new Error(errors.join(', '));\n}\n\n// Set defaults\nconst partnerData = {\n  nom: body.nom,\n  email: body.email,\n  raison_sociale: body.raison_sociale,\n  siret: body.siret,\n  siren: body.siren,\n  telephone: body.telephone || null,\n  type: body.type || 'apporteur_affaires',\n  adresse: body.adresse || null,\n  commission_taux_niveau1: body.commission_taux_niveau1 ?? 10,\n  commission_taux_niveau2: body.commission_taux_niveau2 ?? 3,\n  statut: 'actif',\n  domaine_personnalise: (body.type === 'white_label' ? body.domaine_personnalise : null) || null,\n  nom_affiche: (body.type === 'white_label' ? body.nom_affiche : null) || null,\n  couleur_primaire: (body.type === 'white_label' ? body.couleur_primaire : null) || null\n};\n\nreturn { json: partnerData };"
+      },
+      "id": "code_validate_partner",
+      "name": "Code - Validate Partner Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "INSERT INTO partners (nom, email, raison_sociale, siret, siren, telephone, type, adresse, commission_taux_niveau1, commission_taux_niveau2, statut, domaine_personnalise, nom_affiche, couleur_primaire)\nVALUES (\n  '{{ $input.first().json.nom }}',\n  '{{ $input.first().json.email }}',\n  '{{ $input.first().json.raison_sociale }}',\n  '{{ $input.first().json.siret }}',\n  '{{ $input.first().json.siren }}',\n  {{ $input.first().json.telephone ? `'${$input.first().json.telephone}'` : 'NULL' }},\n  '{{ $input.first().json.type }}',\n  {{ $input.first().json.adresse ? `'${$input.first().json.adresse}'` : 'NULL' }},\n  {{ $input.first().json.commission_taux_niveau1 }},\n  {{ $input.first().json.commission_taux_niveau2 }},\n  'actif',\n  {{ $input.first().json.domaine_personnalise ? `'${$input.first().json.domaine_personnalise}'` : 'NULL' }},\n  {{ $input.first().json.nom_affiche ? `'${$input.first().json.nom_affiche}'` : 'NULL' }},\n  {{ $input.first().json.couleur_primaire ? `'${$input.first().json.couleur_primaire}'` : 'NULL' }}\n)\nRETURNING *;",
+        "credential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "postgres_insert_partner",
+      "name": "Postgres - Insert Partner",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "🤝 Nouveau partenaire: {{ $input.all()[1].json[0].nom }} ({{ $input.all()[1].json[0].type }}) - SIRET: {{ $input.all()[1].json[0].siret }}",
+        "credential": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      },
+      "id": "telegram_notify_partner",
+      "name": "Telegram - Notify Partner Creation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "respondWithFirstItem": false,
+        "responseData": "{{ {\"success\": true, \"partner\": $input.all()[2].json[0]} }}",
+        "responseContentType": "application/json"
+      },
+      "id": "response_partner_created",
+      "name": "Response - Partner Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook_partner_create": {
+      "main": [
+        [
+          {
+            "node": "code_validate_partner",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "code_validate_partner": {
+      "main": [
+        [
+          {
+            "node": "postgres_insert_partner",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_insert_partner": {
+      "main": [
+        [
+          {
+            "node": "telegram_notify_partner",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "telegram_notify_partner": {
+      "main": [
+        [
+          {
+            "node": "response_partner_created",
+            "indices": [0]
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "UTC"
+  }
+}

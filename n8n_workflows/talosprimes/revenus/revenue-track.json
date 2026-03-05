@@ -1,0 +1,166 @@
+{
+  "name": "Revenus - Tracker Paiement",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "revenue_track",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook_revenue_track",
+      "name": "Webhook POST - Revenue Track",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { client_final_id, montant_ht, montant_ttc, type = 'abonnement', description, stripe_payment_id, tenant_id } = $input.first().json.body;\n\nif (!client_final_id) throw new Error('client_final_id is required');\nif (!montant_ht || montant_ht <= 0) throw new Error('montant_ht is required and must be > 0');\n\nconst date = new Date();\nconst mois = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;\n\nreturn {\n  json: {\n    client_final_id,\n    montant_ht,\n    montant_ttc: montant_ttc || montant_ht,\n    type,\n    description: description || '',\n    stripe_payment_id: stripe_payment_id || null,\n    tenant_id: tenant_id || null,\n    mois\n  }\n};"
+      },
+      "id": "code_parser",
+      "name": "Code - Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "actionOnResource": "insert",
+        "schema": "public",
+        "table": "revenue_events",
+        "columns": {
+          "mapping": {
+            "client_final_id": "{{ $json.client_final_id }}",
+            "montant_ht": "{{ $json.montant_ht }}",
+            "montant_ttc": "{{ $json.montant_ttc }}",
+            "type": "{{ $json.type }}",
+            "description": "{{ $json.description }}",
+            "stripe_payment_id": "{{ $json.stripe_payment_id }}",
+            "tenant_id": "{{ $json.tenant_id }}",
+            "mois": "{{ $json.mois }}"
+          }
+        },
+        "returnFields": "id, client_final_id, montant_ht, montant_ttc, type, mois, created_at"
+      },
+      "id": "postgres_insert_revenue",
+      "name": "Postgres - INSERT Revenue Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const revenueEvent = $input.first().json;\nconst client_final_id = revenueEvent.client_final_id;\n\nconst query = `\nSELECT \n  cf.id,\n  cf.partner_id,\n  cf.apporteur_client_id,\n  p1.commission_taux_niveau1,\n  p1.commission_taux_niveau2,\n  cf.nom as client_name,\n  p1.nom as partner_name\nFROM client_finals cf\nLEFT JOIN partners p1 ON cf.partner_id = p1.id\nWHERE cf.id = '${client_final_id}';\n`;\n\nreturn {\n  json: {\n    query,\n    client_final_id,\n    montant_ht: revenueEvent.montant_ht,\n    type: revenueEvent.type,\n    mois: revenueEvent.mois\n  }\n};"
+      },
+      "id": "code_check_commissions",
+      "name": "Code - Check Commissions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "query": "{{ $json.query }}"
+      },
+      "id": "postgres_get_client_partner",
+      "name": "Postgres - Get Client & Partner Info",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const clientData = $input.first().json[0];\nconst montant_ht = $input.all()[3].json.montant_ht;\nconst mois = $input.all()[3].json.mois;\nconst type = $input.all()[3].json.type;\n\nconst statements = [];\nconst commissions = [];\n\n// Niveau 1: Direct partner\nif (clientData.partner_id) {\n  const commission_n1 = (montant_ht * clientData.commission_taux_niveau1) / 100;\n  statements.push(`INSERT INTO commissions (partner_id, client_final_id, niveau, type, montant_base_ht, taux_applique, montant_commission, statut, mois, created_at) VALUES ('${clientData.partner_id}', '${clientData.id}', 1, '${type}', ${montant_ht}, ${clientData.commission_taux_niveau1}, ${commission_n1}, 'en_attente', '${mois}', NOW());`);\n  commissions.push({ niveau: 1, partner_id: clientData.partner_id, amount: commission_n1, partner_name: clientData.partner_name });\n  statements.push(`INSERT INTO revenue_events (client_final_id, montant_ht, type, description, mois, created_at) VALUES ('${clientData.id}', -${commission_n1}, 'commission_sortante', 'Commission N1 - ${clientData.partner_name}', '${mois}', NOW());`);\n}\n\n// Niveau 2: Apporteur's partner (if exists)\nif (clientData.apporteur_client_id) {\n  statements.push(`\nSELECT cf2.partner_id, p2.commission_taux_niveau2, p2.nom\nFROM client_finals cf2\nLEFT JOIN partners p2 ON cf2.partner_id = p2.id\nWHERE cf2.id = '${clientData.apporteur_client_id}'\n  `);\n}\n\nreturn {\n  json: {\n    statements,\n    commissions,\n    montant_ht,\n    mois,\n    client_id: clientData.id,\n    client_name: clientData.client_name\n  }\n};"
+      },
+      "id": "code_calculer_commissions",
+      "name": "Code - Calculer Commissions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "query": "{{ $json.statements[0] }}"
+      },
+      "id": "postgres_insert_commissions",
+      "name": "Postgres - Execute Commission INSERTs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [1750, 300]
+    },
+    {
+      "parameters": {
+        "text": "{{ 'Revenu: ' + $input.all()[3].json.montant_ht + '€ HT (' + $input.all()[3].json.type + ') — Client: ' + $input.all()[4].json[0].client_name + '\\n' + ($input.all()[5].json.commissions.length > 0 ? $input.all()[5].json.commissions.map(c => ('Commission N' + c.niveau + ': ' + c.amount + '€ pour ' + c.partner_name)).join('\\n') : '') }}"
+      },
+      "id": "telegram_send_notification",
+      "name": "Telegram - Send Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      },
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "💰 Revenu: {{ $json.montant_ht }}€ HT ({{ $json.type }}) — Client: {{ $json.client_name }}"
+      },
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "responseData": "{{ { success: true, revenue_event_id: $json.id, commissions_created: $input.all()[5].json.commissions } }}"
+      },
+      "id": "response_node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    }
+  ],
+  "connections": {
+    "webhook_revenue_track": {
+      "main": [[{ "node": "code_parser", "branch": 0, "type": "main" }]]
+    },
+    "code_parser": {
+      "main": [[{ "node": "postgres_insert_revenue", "branch": 0, "type": "main" }]]
+    },
+    "postgres_insert_revenue": {
+      "main": [[{ "node": "code_check_commissions", "branch": 0, "type": "main" }]]
+    },
+    "code_check_commissions": {
+      "main": [[{ "node": "postgres_get_client_partner", "branch": 0, "type": "main" }]]
+    },
+    "postgres_get_client_partner": {
+      "main": [[{ "node": "code_calculer_commissions", "branch": 0, "type": "main" }]]
+    },
+    "code_calculer_commissions": {
+      "main": [[{ "node": "postgres_insert_commissions", "branch": 0, "type": "main" }]]
+    },
+    "postgres_insert_commissions": {
+      "main": [[{ "node": "telegram_send_notification", "branch": 0, "type": "main" }]]
+    },
+    "telegram_send_notification": {
+      "main": [[{ "node": "response_node", "branch": 0, "type": "main" }]]
+    }
+  }
+}

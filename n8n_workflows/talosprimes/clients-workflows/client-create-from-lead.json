@@ -32,7 +32,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, tenant_id, nom, prenom, email, telephone, statut FROM leads WHERE id = '\" + $json.leadId + \"'::uuid AND tenant_id = '\" + $json.tenantId + \"'::uuid\" }}"
+        "query": "={{ \"SELECT id, tenant_id, nom, prenom, email, telephone, statut, partner_id FROM leads WHERE id = '\" + $json.leadId + \"'::uuid AND tenant_id = '\" + $json.tenantId + \"'::uuid\" }}"
       },
       "id": "03. Get Lead",
       "name": "03. Get Lead",
@@ -52,7 +52,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var lead = $('03. Get Lead').first().json;\nvar parser = $('02. Parser').first().json;\nif (!lead || !lead.id) throw new Error('Lead introuvable');\nif (!lead.email) throw new Error('Email du lead introuvable');\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar insertQuery = 'INSERT INTO client_finals (id, tenant_id, type, nom, prenom, email, telephone, adresse, statut, created_at, updated_at) VALUES (gen_random_uuid(), ' + esc(parser.tenantId) + '::uuid, ' + esc('b2c') + ', ' + esc(lead.nom) + ', ' + esc(lead.prenom) + ', ' + esc(lead.email) + ', ' + esc(lead.telephone) + ', NULL, ' + esc('actif') + ', NOW(), NOW()) ON CONFLICT (tenant_id, email) DO UPDATE SET nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone, updated_at = NOW() RETURNING *';\n\nvar updateLeadQuery = \"UPDATE leads SET statut = 'converti', updated_at = NOW() WHERE id = \" + esc(lead.id) + \"::uuid AND tenant_id = \" + esc(parser.tenantId) + \"::uuid\";\n\nreturn [{ json: { insertQuery: insertQuery, updateLeadQuery: updateLeadQuery, leadId: lead.id } }];"
+        "jsCode": "var lead = $('03. Get Lead').first().json;\nvar parser = $('02. Parser').first().json;\nif (!lead || !lead.id) throw new Error('Lead introuvable');\nif (!lead.email) throw new Error('Email du lead introuvable');\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\n// Propager partner_id du lead vers le client\nvar partnerCol = lead.partner_id ? ', partner_id' : '';\nvar partnerVal = lead.partner_id ? ', ' + esc(lead.partner_id) + '::uuid' : '';\nvar partnerUpdate = lead.partner_id ? ', partner_id = EXCLUDED.partner_id' : '';\n\nvar insertQuery = 'INSERT INTO client_finals (id, tenant_id, type, nom, prenom, email, telephone, adresse, statut' + partnerCol + ', created_at, updated_at) VALUES (gen_random_uuid(), ' + esc(parser.tenantId) + '::uuid, ' + esc('b2c') + ', ' + esc(lead.nom) + ', ' + esc(lead.prenom) + ', ' + esc(lead.email) + ', ' + esc(lead.telephone) + ', NULL, ' + esc('actif') + partnerVal + ', NOW(), NOW()) ON CONFLICT (tenant_id, email) DO UPDATE SET nom = EXCLUDED.nom, prenom = EXCLUDED.prenom, telephone = EXCLUDED.telephone' + partnerUpdate + ', updated_at = NOW() RETURNING *';\n\nvar updateLeadQuery = \"UPDATE leads SET statut = 'converti', updated_at = NOW() WHERE id = \" + esc(lead.id) + \"::uuid AND tenant_id = \" + esc(parser.tenantId) + \"::uuid\";\n\nreturn [{ json: { insertQuery: insertQuery, updateLeadQuery: updateLeadQuery, leadId: lead.id, partnerId: lead.partner_id || null } }];"
       },
       "id": "04. Build SQL",
       "name": "04. Build SQL",

@@ -1,0 +1,262 @@
+{
+  "name": "Pipeline - Auto Qualification (Téléphone)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead_auto_qualification",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_AutoQualification",
+      "name": "01. Webhook POST lead_auto_qualification",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser payload\nvar raw = $input.first().json;\nvar payload = raw?.body || raw?.json || raw;\nvar data = payload?.data || payload;\n\nvar leadId = String(data?.lead_id || data?.id || '').trim();\nif (!leadId) throw new Error('lead_id requis');\n\nreturn [{ json: { leadId: leadId } }];"
+      },
+      "id": "Code_Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, nom, prenom, email, telephone, statut FROM leads WHERE id = '\" + $json.leadId + \"'::uuid\" }}"
+      },
+      "id": "PG_SelectLead",
+      "name": "03. Postgres - SELECT lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer actions pour auto-qualification\nvar pgResult = $input.first().json;\nvar leadData = pgResult.data && pgResult.data.length > 0 ? pgResult.data[0] : null;\n\nif (!leadData) {\n  throw new Error('Lead not found');\n}\n\nvar prenom = leadData.prenom || '';\nvar smsText = `Bonjour ${prenom}, merci pour votre appel ! L'équipe TalosPrimes vous recontactera sous 24h. En attendant, découvrez nos solutions sur talosprimes.com`;\n\nvar updateQuery = `\nUPDATE leads\nSET statut = 'contacte', date_contact = NOW(), updated_at = NOW()\nWHERE id = '${leadData.id}'::uuid\nRETURNING id, nom, prenom, telephone, statut, date_contact\n`;\n\n// Prepare internal lead_scoring call\nvar leadScoringWebhookBody = {\n  event: 'lead.auto_scored',\n  lead_id: leadData.id,\n  source: 'lead_auto_qualification'\n};\n\nreturn [{ json: { \n  leadId: leadData.id, \n  nom: leadData.nom, \n  prenom: leadData.prenom, \n  telephone: leadData.telephone,\n  smsText: smsText,\n  updateQuery: updateQuery,\n  leadScoringPayload: leadScoringWebhookBody\n} }];"
+      },
+      "id": "Code_PrepareActions",
+      "name": "04. Préparer actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.updateQuery }}"
+      },
+      "id": "PG_UpdateStatut",
+      "name": "05. Postgres - UPDATE statut",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "method": "POST",
+        "url": "http://localhost:5099/webhook/lead_scoring",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParametersUi": "json",
+        "bodyParameters": {
+          "json": "={{ $json.leadScoringPayload }}"
+        }
+      },
+      "id": "HTTP_CallLeadScoring",
+      "name": "06. Call lead_scoring webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "={{ \"📞 Nouveau lead téléphone: \" + $json.nom + \" \" + $json.prenom + \" (\" + $json.telephone + \") — Score calculé, relance planifiée\" }}"
+      },
+      "id": "Telegram_NotifPhoneLead",
+      "name": "07. Telegram - Notif lead téléphone",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        500
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la réponse webhook\nreturn [{ json: { success: true, leadId: $json.leadId, statut: 'contacte', message: 'Lead auto-qualifié et scoring calculé' } }];"
+      },
+      "id": "Code_PrepareResponse",
+      "name": "08. Préparer réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "Respond_AutoQualification",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1720,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook POST lead_auto_qualification": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Postgres - SELECT lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Postgres - SELECT lead": {
+      "main": [
+        [
+          {
+            "node": "04. Préparer actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Préparer actions": {
+      "main": [
+        [
+          {
+            "node": "05. Postgres - UPDATE statut",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Postgres - UPDATE statut": {
+      "main": [
+        [
+          {
+            "node": "06. Call lead_scoring webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Call lead_scoring webhook": {
+      "main": [
+        [
+          {
+            "node": "07. Telegram - Notif lead téléphone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Telegram - Notif lead téléphone": {
+      "main": [
+        [
+          {
+            "node": "08. Préparer réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Préparer réponse": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}

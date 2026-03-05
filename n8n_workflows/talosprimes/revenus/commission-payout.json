@@ -1,0 +1,211 @@
+{
+  "name": "Revenus - Paiement Commissions Mensuel",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "cronExpression": "0 9 1 * *",
+              "timezone": "Europe/Paris"
+            }
+          ]
+        }
+      },
+      "id": "schedule_trigger",
+      "name": "Schedule - 1st of Month 9 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "path": "commission_payout",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook_commission_payout",
+      "name": "Webhook POST - Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 450]
+    },
+    {
+      "parameters": {
+        "jsCode": "const date = new Date();\ndate.setMonth(date.getMonth() - 1);\nconst prev_mois = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;\n\nreturn {\n  json: {\n    mois: prev_mois\n  }\n};"
+      },
+      "id": "code_calculer_mois",
+      "name": "Code - Calculer Mois",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "query": "SELECT c.id, c.partner_id, c.montant_commission, c.niveau, p.nom as partner_name, p.siret FROM commissions c JOIN partners p ON c.partner_id = p.id WHERE c.mois = '{{ $json.mois }}' AND c.statut = 'en_attente' ORDER BY c.partner_id, c.niveau;"
+      },
+      "id": "postgres_get_pending_commissions",
+      "name": "Postgres - Get Pending Commissions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "type": "manual",
+        "expression": "{{ $json.length > 0 }}"
+      },
+      "id": "if_has_commissions",
+      "name": "IF - Has Commissions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const commissions = $input.first().json;\nconst grouped = {};\n\ncommissions.forEach(c => {\n  if (!grouped[c.partner_id]) {\n    grouped[c.partner_id] = {\n      partner_id: c.partner_id,\n      partner_name: c.partner_name,\n      siret: c.siret,\n      total: 0,\n      n1_total: 0,\n      n2_total: 0,\n      count: 0,\n      ids: []\n    };\n  }\n  grouped[c.partner_id].total += c.montant_commission;\n  if (c.niveau === 1) {\n    grouped[c.partner_id].n1_total += c.montant_commission;\n  } else if (c.niveau === 2) {\n    grouped[c.partner_id].n2_total += c.montant_commission;\n  }\n  grouped[c.partner_id].count += 1;\n  grouped[c.partner_id].ids.push(c.id);\n});\n\nreturn {\n  json: Object.values(grouped)\n};"
+      },
+      "id": "code_grouper_partenaires",
+      "name": "Code - Grouper par Partenaire",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "query": "UPDATE commissions SET statut = 'validee' WHERE mois = '{{ $json.mois }}' AND statut = 'en_attente';"
+      },
+      "id": "postgres_update_to_validee",
+      "name": "Postgres - UPDATE to Validée",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "text": "{{ 'Paiement à valider - ' + $input.first().json[0].partner_name + ': ' + $input.first().json[0].total + '€ (' + $input.first().json[0].count + ' commissions)\\n- N1: ' + $input.first().json[0].n1_total + '€\\n- N2: ' + $input.first().json[0].n2_total + '€\\nSIRET: ' + $input.first().json[0].siret }}"
+      },
+      "id": "telegram_commission_by_partner",
+      "name": "Telegram - Commission per Partner",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      },
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "💸 Commission à payer: {{ $json.partner_name }} — {{ $json.total }}€ ({{ $json.count }} commissions)\n- N1: {{ $json.n1_total }}€\n- N2: {{ $json.n2_total }}€\nSIRET: {{ $json.siret }}"
+      },
+      "position": [1750, 200]
+    },
+    {
+      "parameters": {
+        "query": "UPDATE commissions SET statut = 'payee', date_paiement = NOW() WHERE mois = '{{ $json.mois }}' AND statut = 'validee' AND stripe_transfer_id IS NOT NULL;"
+      },
+      "id": "postgres_update_to_payee",
+      "name": "Postgres - UPDATE to Payée",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allCommissions = $input.all()[1].json || [];\nconst totalPartners = allCommissions.length;\nconst totalMontant = allCommissions.reduce((sum, c) => sum + c.total, 0);\n\nreturn {\n  json: {\n    total_partenaires: totalPartners,\n    total_montant: totalMontant,\n    mois: $input.all()[0].json.mois\n  }\n};"
+      },
+      "id": "code_resume_paiements",
+      "name": "Code - Résumé Paiements",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 400]
+    },
+    {
+      "parameters": {
+        "text": "{{ '📊 Résumé paiements du mois: ' + $json.total_partenaires + ' partenaires, ' + $json.total_montant + '€ total' }}"
+      },
+      "id": "telegram_summary",
+      "name": "Telegram - Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      },
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "📊 Résumé paiements du mois: {{ $json.total_partenaires }} partenaires, {{ $json.total_montant }}€ total"
+      },
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "responseData": "{{ { success: true, mois: $json.mois, total_partenaires: $json.total_partenaires, total_montant: $json.total_montant } }}"
+      },
+      "id": "response_payout",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    }
+  ],
+  "connections": {
+    "schedule_trigger": {
+      "main": [[{ "node": "code_calculer_mois", "branch": 0, "type": "main" }]]
+    },
+    "webhook_commission_payout": {
+      "main": [[{ "node": "code_calculer_mois", "branch": 0, "type": "main" }]]
+    },
+    "code_calculer_mois": {
+      "main": [[{ "node": "postgres_get_pending_commissions", "branch": 0, "type": "main" }]]
+    },
+    "postgres_get_pending_commissions": {
+      "main": [[{ "node": "if_has_commissions", "branch": 0, "type": "main" }]]
+    },
+    "if_has_commissions": {
+      "main": [
+        [{ "node": "code_grouper_partenaires", "branch": 0, "type": "main" }],
+        [{ "node": "response_payout", "branch": 0, "type": "main" }]
+      ]
+    },
+    "code_grouper_partenaires": {
+      "main": [[{ "node": "postgres_update_to_validee", "branch": 0, "type": "main" }]]
+    },
+    "postgres_update_to_validee": {
+      "main": [[{ "node": "telegram_commission_by_partner", "branch": 0, "type": "main" }]]
+    },
+    "telegram_commission_by_partner": {
+      "main": [[{ "node": "postgres_update_to_payee", "branch": 0, "type": "main" }]]
+    },
+    "postgres_update_to_payee": {
+      "main": [[{ "node": "code_resume_paiements", "branch": 0, "type": "main" }]]
+    },
+    "code_resume_paiements": {
+      "main": [[{ "node": "telegram_summary", "branch": 0, "type": "main" }]]
+    },
+    "telegram_summary": {
+      "main": [[{ "node": "response_payout", "branch": 0, "type": "main" }]]
+    }
+  }
+}

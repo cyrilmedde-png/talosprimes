@@ -1,0 +1,290 @@
+{
+  "name": "Pipeline - Dashboard Leads",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "lead_pipeline_dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_Dashboard",
+      "name": "01. Webhook GET lead_pipeline_dashboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construire les requêtes SQL pour le dashboard\n// 1. COUNT by statut\n// 2. COUNT total leads this month\n// 3. AVG score\n// 4. Leads with score > 70\n// 5. Conversion rate\n\nvar queries = [\n  // Query 1: Count by statut\n  `SELECT statut, COUNT(*) as count FROM leads GROUP BY statut`,\n  // Query 2: Count total this month\n  `SELECT COUNT(*) as total FROM leads WHERE created_at >= DATE_TRUNC('month', NOW())`,\n  // Query 3: Average score\n  `SELECT COALESCE(AVG(CAST(score AS NUMERIC)), 0) as avg_score FROM leads`,\n  // Query 4: Hot leads (score > 70)\n  `SELECT id, nom, prenom, email, telephone, score FROM leads WHERE score > 70 ORDER BY score DESC LIMIT 20`,\n  // Query 5: Conversion rate\n  `SELECT COUNT(*) FILTER (WHERE statut = 'converti') as converti, COUNT(*) as total FROM leads`\n];\n\nreturn [{ json: { queries: queries } }];"
+      },
+      "id": "Code_BuildQueries",
+      "name": "02. Construire les requêtes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries[0] }}"
+      },
+      "id": "PG_CountByStatut",
+      "name": "03a. Postgres - COUNT by statut",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries[1] }}"
+      },
+      "id": "PG_CountThisMonth",
+      "name": "03b. Postgres - COUNT this month",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries[2] }}"
+      },
+      "id": "PG_AvgScore",
+      "name": "03c. Postgres - AVG score",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries[3] }}"
+      },
+      "id": "PG_HotLeads",
+      "name": "03d. Postgres - Hot leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.queries[4] }}"
+      },
+      "id": "PG_ConversionRate",
+      "name": "03e. Postgres - Conversion rate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatter les résultats en JSON clean pour le dashboard\nvar byStatut = $('03a. Postgres - COUNT by statut').first().json.data || [];\nvar thisMonth = $('03b. Postgres - COUNT this month').first().json.data || [{}];\nvar avgScore = $('03c. Postgres - AVG score').first().json.data || [{}];\nvar hotLeads = $('03d. Postgres - Hot leads').first().json.data || [];\nvar conversionData = $('03e. Postgres - Conversion rate').first().json.data || [{}];\n\n// Build status map\nvar statusMap = {};\nbyStatut.forEach(function(row) {\n  statusMap[row.statut] = parseInt(row.count || 0);\n});\n\n// Ensure all statuses exist\nvar statuses = ['nouveau', 'contacte', 'qualifie', 'converti', 'abandonne'];\nstatuses.forEach(function(s) {\n  if (!statusMap[s]) statusMap[s] = 0;\n});\n\n// Get metrics\nvar totalThisMonth = parseInt(thisMonth[0]?.total || 0);\nvar averageScore = parseFloat(avgScore[0]?.avg_score || 0).toFixed(2);\nvar conversionRate = 0;\nif (conversionData[0] && conversionData[0].total > 0) {\n  conversionRate = ((parseInt(conversionData[0].converti || 0) / parseInt(conversionData[0].total)) * 100).toFixed(2);\n}\n\n// Build hot leads list\nvar hotLeadsList = hotLeads.map(function(lead) {\n  return {\n    id: lead.id,\n    nom: lead.nom,\n    prenom: lead.prenom,\n    email: lead.email,\n    telephone: lead.telephone,\n    score: parseInt(lead.score || 0)\n  };\n});\n\n// Build dashboard response\nvar dashboard = {\n  timestamp: new Date().toISOString(),\n  summary: {\n    totalLeadsThisMonth: totalThisMonth,\n    averageScore: parseFloat(averageScore),\n    conversionRate: parseFloat(conversionRate)\n  },\n  byStatus: statusMap,\n  hotLeads: hotLeadsList,\n  hotLeadsCount: hotLeadsList.length\n};\n\nreturn [{ json: dashboard }];"
+      },
+      "id": "Code_Formatter",
+      "name": "04. Formatter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "Respond_Dashboard",
+      "name": "05. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook GET lead_pipeline_dashboard": {
+      "main": [
+        [
+          {
+            "node": "02. Construire les requêtes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Construire les requêtes": {
+      "main": [
+        [
+          {
+            "node": "03a. Postgres - COUNT by statut",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "03b. Postgres - COUNT this month",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "03c. Postgres - AVG score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "03d. Postgres - Hot leads",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "03e. Postgres - Conversion rate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03a. Postgres - COUNT by statut": {
+      "main": [
+        [
+          {
+            "node": "04. Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03b. Postgres - COUNT this month": {
+      "main": [
+        [
+          {
+            "node": "04. Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03c. Postgres - AVG score": {
+      "main": [
+        [
+          {
+            "node": "04. Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03d. Postgres - Hot leads": {
+      "main": [
+        [
+          {
+            "node": "04. Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03e. Postgres - Conversion rate": {
+      "main": [
+        [
+          {
+            "node": "04. Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Formatter": {
+      "main": [
+        [
+          {
+            "node": "05. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}

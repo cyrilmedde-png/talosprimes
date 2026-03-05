@@ -1,0 +1,161 @@
+{
+  "name": "Revenus - Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "revenue_dashboard",
+        "responseMode": "responseNode",
+        "method": "GET"
+      },
+      "id": "webhook_dashboard",
+      "name": "Webhook GET - Revenue Dashboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queryParams = $input.first().json.query || {};\nconst mois = queryParams.mois || (() => {\n  const date = new Date();\n  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;\n})();\n\nconst prev_month = new Date(mois + '-01');\nprev_month.setMonth(prev_month.getMonth() - 1);\nconst prev_mois = `${prev_month.getFullYear()}-${String(prev_month.getMonth() + 1).padStart(2, '0')}`;\n\nreturn {\n  json: {\n    mois,\n    prev_mois\n  }\n};"
+      },
+      "id": "code_parser_dashboard",
+      "name": "Code - Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "query": "SELECT type, SUM(montant_ht) as total FROM revenue_events WHERE mois = '{{ $json.mois }}' AND montant_ht > 0 GROUP BY type;"
+      },
+      "id": "postgres_revenue_by_type",
+      "name": "Postgres - Revenue by Type",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [750, 100]
+    },
+    {
+      "parameters": {
+        "query": "SELECT COALESCE(SUM(montant_ht), 0) as mrr FROM revenue_events WHERE mois = '{{ $json.mois }}' AND type = 'abonnement' AND montant_ht > 0;"
+      },
+      "id": "postgres_mrr",
+      "name": "Postgres - MRR",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [750, 250]
+    },
+    {
+      "parameters": {
+        "query": "SELECT COALESCE(SUM(montant_commission), 0) as commissions_dues FROM commissions WHERE mois = '{{ $json.mois }}' AND statut IN ('en_attente', 'validee');"
+      },
+      "id": "postgres_commissions_dues",
+      "name": "Postgres - Commissions Dues",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [750, 400]
+    },
+    {
+      "parameters": {
+        "query": "SELECT COALESCE(SUM(montant_commission), 0) as commissions_payees FROM commissions WHERE mois = '{{ $json.mois }}' AND statut = 'payee';"
+      },
+      "id": "postgres_commissions_paid",
+      "name": "Postgres - Commissions Paid",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [750, 550]
+    },
+    {
+      "parameters": {
+        "query": "SELECT COALESCE(SUM(montant_ht), 0) as prev_total FROM revenue_events WHERE mois = '{{ $json.prev_mois }}' AND montant_ht > 0;"
+      },
+      "id": "postgres_prev_month_total",
+      "name": "Postgres - Previous Month Total",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "credentials": {
+        "postgresNodeCredential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "position": [750, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allResults = $input.all();\n\nconst revenueByType = {};\nif (allResults[2] && allResults[2].json) {\n  allResults[2].json.forEach(row => {\n    revenueByType[row.type] = row.total;\n  });\n}\n\nconst mrr = allResults[3] && allResults[3].json[0] ? allResults[3].json[0].mrr : 0;\nconst commissionsDues = allResults[4] && allResults[4].json[0] ? allResults[4].json[0].commissions_dues : 0;\nconst commissionsPaid = allResults[5] && allResults[5].json[0] ? allResults[5].json[0].commissions_payees : 0;\nconst prevTotal = allResults[6] && allResults[6].json[0] ? allResults[6].json[0].prev_total : 0;\n\nconst totalBrut = Object.values(revenueByType).reduce((a, b) => a + b, 0);\nconst evolution = prevTotal > 0 ? ((totalBrut - prevTotal) / prevTotal * 100).toFixed(2) : 0;\nconst netRevenue = totalBrut - (commissionsDues + commissionsPaid);\n\nreturn {\n  json: {\n    mois: allResults[1].json.mois,\n    mrr,\n    revenue_par_type: revenueByType,\n    total_brut: totalBrut,\n    commissions_dues: commissionsDues,\n    commissions_payees: commissionsPaid,\n    net_revenue: netRevenue,\n    evolution: parseFloat(evolution)\n  }\n};"
+      },
+      "id": "code_formatter_dashboard",
+      "name": "Code - Formatter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "responseData": "{{ $json }}"
+      },
+      "id": "response_dashboard",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook_dashboard": {
+      "main": [[{ "node": "code_parser_dashboard", "branch": 0, "type": "main" }]]
+    },
+    "code_parser_dashboard": {
+      "main": [
+        [
+          { "node": "postgres_revenue_by_type", "branch": 0, "type": "main" },
+          { "node": "postgres_mrr", "branch": 0, "type": "main" },
+          { "node": "postgres_commissions_dues", "branch": 0, "type": "main" },
+          { "node": "postgres_commissions_paid", "branch": 0, "type": "main" },
+          { "node": "postgres_prev_month_total", "branch": 0, "type": "main" }
+        ]
+      ]
+    },
+    "postgres_revenue_by_type": {
+      "main": [[{ "node": "code_formatter_dashboard", "branch": 0, "type": "main" }]]
+    },
+    "postgres_mrr": {
+      "main": [[{ "node": "code_formatter_dashboard", "branch": 0, "type": "main" }]]
+    },
+    "postgres_commissions_dues": {
+      "main": [[{ "node": "code_formatter_dashboard", "branch": 0, "type": "main" }]]
+    },
+    "postgres_commissions_paid": {
+      "main": [[{ "node": "code_formatter_dashboard", "branch": 0, "type": "main" }]]
+    },
+    "postgres_prev_month_total": {
+      "main": [[{ "node": "code_formatter_dashboard", "branch": 0, "type": "main" }]]
+    },
+    "code_formatter_dashboard": {
+      "main": [[{ "node": "response_dashboard", "branch": 0, "type": "main" }]]
+    }
+  }
+}

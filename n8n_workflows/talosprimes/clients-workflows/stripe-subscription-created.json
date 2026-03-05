@@ -68,6 +68,39 @@
         "postgres": { "id": "OGqj65ZoFRileCck", "name": "Supabase Postgres" }
       },
       "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var data = $('02. Parser subscription').item.json;\n// Récupérer le montant depuis l'abonnement Stripe\nvar raw = $('01. Stripe Trigger').first().json;\nvar sub = raw.data?.object || raw;\nvar amount = sub.items?.data?.[0]?.plan?.amount || sub.plan?.amount || 0;\nvar montantTtc = (amount / 100).toFixed(2);\nvar montantHt = (amount / 100 / 1.2).toFixed(2);\n\nreturn [{\n  json: {\n    url: 'https://n8n.talosprimes.com/webhook/revenue_track',\n    body: {\n      tenantId: data.tenantId,\n      data: {\n        clientFinalId: data.clientId,\n        type: 'abonnement',\n        montantHt: parseFloat(montantHt),\n        montantTtc: parseFloat(montantTtc),\n        description: 'Abonnement Stripe - ' + (data.planName || 'Mensuel'),\n        stripePaymentId: data.subscriptionId,\n        mois: new Date().toISOString().slice(0, 7)\n      }\n    }\n  }\n}];"
+      },
+      "id": "prepare-revenue",
+      "name": "06. Préparer Revenue Track",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "call-revenue-track",
+      "name": "07. Appeler Revenue Track",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 600],
+      "alwaysOutputData": true
     }
   ],
   "connections": {
@@ -78,10 +111,18 @@
       "main": [[{ "node": "03. UPDATE subscription BDD", "type": "main", "index": 0 }]]
     },
     "03. UPDATE subscription BDD": {
-      "main": [[{ "node": "04. Préparer notification", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          { "node": "04. Préparer notification", "type": "main", "index": 0 },
+          { "node": "06. Préparer Revenue Track", "type": "main", "index": 0 }
+        ]
+      ]
     },
     "04. Préparer notification": {
       "main": [[{ "node": "05. INSERT notification", "type": "main", "index": 0 }]]
+    },
+    "06. Préparer Revenue Track": {
+      "main": [[{ "node": "07. Appeler Revenue Track", "type": "main", "index": 0 }]]
     }
   },
   "settings": { "executionOrder": "v1" },

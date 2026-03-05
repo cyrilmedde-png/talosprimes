@@ -1,0 +1,272 @@
+{
+  "name": "Pipeline - Lead Scoring",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead_scoring",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_LeadScoring",
+      "name": "01. Webhook POST lead_scoring",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser payload\nvar raw = $input.first().json;\nvar payload = raw?.body || raw?.json || raw;\nvar data = payload?.data || payload;\n\nvar leadId = String(data?.lead_id || data?.id || '').trim();\nif (!leadId) throw new Error('lead_id requis');\n\nreturn [{ json: { leadId: leadId } }];"
+      },
+      "id": "Code_Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, nom, prenom, email, telephone, source, statut, notes, date_entretien, nombre_relances FROM leads WHERE id = '\" + $json.leadId + \"'::uuid\" }}"
+      },
+      "id": "PG_SelectLead",
+      "name": "03. Postgres - SELECT lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        680,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculer le score du lead (0-100)\nvar pgResult = $input.first().json;\nvar leadData = pgResult.data && pgResult.data.length > 0 ? pgResult.data[0] : null;\n\nif (!leadData) {\n  throw new Error('Lead not found');\n}\n\nvar score = 0;\n\n// +20 si email\nif (leadData.email && String(leadData.email).trim()) {\n  score += 20;\n}\n\n// +10 si telephone\nif (leadData.telephone && String(leadData.telephone).trim()) {\n  score += 10;\n}\n\n// +15 si source est 'telephone_ia'\nif (leadData.source === 'telephone_ia') {\n  score += 15;\n}\n\n// +10 si notes/description\nif (leadData.notes && String(leadData.notes).trim()) {\n  score += 10;\n}\n\n// +15 si statut est 'contacte' ou 'qualifie'\nif (leadData.statut === 'contacte' || leadData.statut === 'qualifie') {\n  score += 15;\n}\n\n// +20 si date_entretien existe\nif (leadData.date_entretien) {\n  score += 20;\n}\n\n// +10 si nombre_relances == 0 (fresh lead)\nif (leadData.nombre_relances === 0 || !leadData.nombre_relances) {\n  score += 10;\n}\n\n// Caps at 100\nif (score > 100) {\n  score = 100;\n}\n\nvar updateQuery = `\nUPDATE leads\nSET score = ${score}, updated_at = NOW()\nWHERE id = '${leadData.id}'::uuid\nRETURNING id, nom, prenom, score\n`;\n\nreturn [{ json: { leadId: leadData.id, nom: leadData.nom, prenom: leadData.prenom, telephone: leadData.telephone, score: score, updateQuery: updateQuery } }];"
+      },
+      "id": "Code_CalculateScore",
+      "name": "04. Calculer Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.updateQuery }}"
+      },
+      "id": "PG_UpdateScore",
+      "name": "05. Postgres - UPDATE score",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "hot_lead",
+              "leftValue": "={{ $json.score > 70 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "IF_HotLead",
+      "name": "06. IF - Score > 70 ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "={{ \"🔥 Lead chaud (\" + $json.score + \"/100): \" + $json.nom + \" \" + $json.prenom + \" - \" + ($json.telephone || 'N/A') }}"
+      },
+      "id": "Telegram_HotLeadNotif",
+      "name": "07. Telegram - Notif lead chaud",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la réponse webhook\nvar data = $('05. Postgres - UPDATE score').first().json;\n\nreturn [{ json: { success: true, score: $json.score, leadId: $json.leadId } }];"
+      },
+      "id": "Code_PrepareResponse",
+      "name": "08. Préparer réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "Respond_LeadScoring",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook POST lead_scoring": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Postgres - SELECT lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Postgres - SELECT lead": {
+      "main": [
+        [
+          {
+            "node": "04. Calculer Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04. Calculer Score": {
+      "main": [
+        [
+          {
+            "node": "05. Postgres - UPDATE score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Postgres - UPDATE score": {
+      "main": [
+        [
+          {
+            "node": "06. IF - Score > 70 ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. IF - Score > 70 ?": {
+      "main": [
+        [
+          {
+            "node": "07. Telegram - Notif lead chaud",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "08. Préparer réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Telegram - Notif lead chaud": {
+      "main": [
+        [
+          {
+            "node": "08. Préparer réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Préparer réponse": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1"
+}

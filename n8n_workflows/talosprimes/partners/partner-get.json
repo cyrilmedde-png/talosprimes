@@ -1,0 +1,95 @@
+{
+  "name": "Partenaires - Détails",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "partner_get",
+        "responseMode": "responseNode",
+        "method": "GET"
+      },
+      "id": "webhook_partner_get",
+      "name": "Webhook - Partner Get",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract partner id from query\nconst query = $input.first().json.query;\nconst id = query.id;\n\nif (!id) {\n  throw new Error('partner id is required');\n}\n\nreturn { json: { id } };"
+      },
+      "id": "code_extract_id",
+      "name": "Code - Extract Partner ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "SELECT p.*,\n  COUNT(DISTINCT cf.id) as nombre_clients_directs,\n  COALESCE(SUM(sub.montant), 0) as total_commissions\nFROM partners p\nLEFT JOIN client_finals cf ON cf.partner_id = p.id\nLEFT JOIN subscriptions sub ON sub.client_id = cf.id\nWHERE p.id = '{{ $input.first().json.id }}'\nGROUP BY p.id\nRETURNING *;",
+        "credential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "postgres_get_partner",
+      "name": "Postgres - Get Partner Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "respondWithFirstItem": false,
+        "responseData": "{{ $input.first().json[0] }}",
+        "responseContentType": "application/json"
+      },
+      "id": "response_partner_get",
+      "name": "Response - Partner Details",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    }
+  ],
+  "connections": {
+    "webhook_partner_get": {
+      "main": [
+        [
+          {
+            "node": "code_extract_id",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "code_extract_id": {
+      "main": [
+        [
+          {
+            "node": "postgres_get_partner",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_get_partner": {
+      "main": [
+        [
+          {
+            "node": "response_partner_get",
+            "indices": [0]
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "UTC"
+  }
+}

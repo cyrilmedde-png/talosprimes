@@ -1,0 +1,95 @@
+{
+  "name": "Partenaires - Liste",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "partner_list",
+        "responseMode": "responseNode",
+        "method": "GET"
+      },
+      "id": "webhook_partner_list",
+      "name": "Webhook - Partner List",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse query parameters for filtering\nconst query = $input.first().json.query;\nconst filters = {};\n\nif (query.statut) {\n  filters.statut = query.statut;\n}\nif (query.type) {\n  filters.type = query.type;\n}\n\nreturn { json: filters };"
+      },
+      "id": "code_parse_filters",
+      "name": "Code - Parse Filters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "SELECT * FROM partners\nWHERE 1=1\n{{ $input.first().json.statut ? `AND statut = '${$input.first().json.statut}'` : '' }}\n{{ $input.first().json.type ? `AND type = '${$input.first().json.type}'` : '' }}\nORDER BY created_at DESC\nLIMIT 50;",
+        "credential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "postgres_list_partners",
+      "name": "Postgres - List Partners",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "respondWithFirstItem": false,
+        "responseData": "{{ $input.first().json }}",
+        "responseContentType": "application/json"
+      },
+      "id": "response_partner_list",
+      "name": "Response - Partner List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    }
+  ],
+  "connections": {
+    "webhook_partner_list": {
+      "main": [
+        [
+          {
+            "node": "code_parse_filters",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "code_parse_filters": {
+      "main": [
+        [
+          {
+            "node": "postgres_list_partners",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_list_partners": {
+      "main": [
+        [
+          {
+            "node": "response_partner_list",
+            "indices": [0]
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "UTC"
+  }
+}

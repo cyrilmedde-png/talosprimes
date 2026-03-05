@@ -1,0 +1,115 @@
+{
+  "name": "Partenaires - Modifier",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "partner_update",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook_partner_update",
+      "name": "Webhook - Partner Update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract id and optional fields to update\nconst body = $input.first().json.body;\nconst id = body.id;\n\nif (!id) {\n  throw new Error('id is required');\n}\n\nconst updateableFields = [\n  'nom',\n  'email',\n  'telephone',\n  'raison_sociale',\n  'siret',\n  'siren',\n  'adresse',\n  'type',\n  'commission_taux_niveau1',\n  'commission_taux_niveau2',\n  'statut',\n  'domaine_personnalise',\n  'logo_base64',\n  'couleur_primaire',\n  'nom_affiche',\n  'stripe_connect_id'\n];\n\nconst fieldsToUpdate = {};\n\nfor (const field of updateableFields) {\n  if (body.hasOwnProperty(field)) {\n    fieldsToUpdate[field] = body[field];\n  }\n}\n\nreturn { json: { id, fieldsToUpdate } };"
+      },
+      "id": "code_parse_update",
+      "name": "Code - Parse Update Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build dynamic UPDATE SET clause\nconst { id, fieldsToUpdate } = $input.first().json;\n\nif (Object.keys(fieldsToUpdate).length === 0) {\n  throw new Error('No fields to update');\n}\n\nconst setClauses = [];\nconst values = {};\n\nfor (const [field, value] of Object.entries(fieldsToUpdate)) {\n  setClauses.push(`${field} = \\$\\{${field}\\}`);\n  values[field] = value;\n}\n\nvalues.id = id;\n\nconst setClause = setClauses.join(', ');\n\nreturn { json: { setClause, values, id } };"
+      },
+      "id": "code_build_update_sql",
+      "name": "Code - Build Update Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "host": "{{ $credentials.supabasePostgres.host }}",
+        "database": "{{ $credentials.supabasePostgres.database }}",
+        "user": "{{ $credentials.supabasePostgres.user }}",
+        "password": "{{ $credentials.supabasePostgres.password }}",
+        "port": "{{ $credentials.supabasePostgres.port }}",
+        "ssl": false,
+        "query": "UPDATE partners\nSET {{ $input.first().json.setClause }}, updated_at = NOW()\nWHERE id = '{{ $input.first().json.id }}'\nRETURNING *;",
+        "credential": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "postgres_update_partner",
+      "name": "Postgres - Update Partner",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "respondWithFirstItem": false,
+        "responseData": "{{ {\"success\": true, \"partner\": $input.first().json[0]} }}",
+        "responseContentType": "application/json"
+      },
+      "id": "response_partner_updated",
+      "name": "Response - Partner Updated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook_partner_update": {
+      "main": [
+        [
+          {
+            "node": "code_parse_update",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "code_parse_update": {
+      "main": [
+        [
+          {
+            "node": "code_build_update_sql",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "code_build_update_sql": {
+      "main": [
+        [
+          {
+            "node": "postgres_update_partner",
+            "indices": [0]
+          }
+        ]
+      ]
+    },
+    "postgres_update_partner": {
+      "main": [
+        [
+          {
+            "node": "response_partner_updated",
+            "indices": [0]
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "UTC"
+  }
+}
