@@ -1237,7 +1237,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const caption = $('Telegram Trigger').first().json.message?.caption || '';\nconst emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;\nconst emailMatches = caption.match(emailRegex);\nconst toEmail = emailMatches ? emailMatches[0] : '';\n\nconst doc = $('Telegram Trigger').first().json.message?.document;\nconst fileName = doc?.file_name || 'photo.jpg';\n\n// IMPORTANT : Récupérer le binary DIRECTEMENT depuis le node source\n// car le Set node et le IF node peuvent perdre le binary data\nconst fileNode = $('Récupérer Fichier Document').first();\nconst binaryData = fileNode.binary || {};\n\n// Fallback : essayer depuis $input si le node source n'a pas de binary\nconst inputBinary = $input.first().binary || {};\nconst finalBinary = Object.keys(binaryData).length > 0 ? binaryData : inputBinary;\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    caption,\n    subject: 'Fichier: ' + fileName\n  },\n  binary: finalBinary\n}];"
+        "jsCode": "const caption = $('Telegram Trigger').first().json.message?.caption || '';\nconst emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;\nconst emailMatches = caption.match(emailRegex);\nconst toEmail = emailMatches ? emailMatches[0] : '';\n\nconst doc = $('Telegram Trigger').first().json.message?.document;\nconst fileName = doc?.file_name || 'photo.jpg';\n\n// Récupérer le contenu extrait du document\nconst documentContent = $json.documentContent || '';\nconst extractionMethod = $json.extractionMethod || 'none';\n\n// Récupérer le binary DIRECTEMENT depuis le node source\nconst fileNode = $('Récupérer Fichier Document').first();\nconst binaryData = fileNode.binary || {};\nconst inputBinary = $input.first().binary || {};\nconst finalBinary = Object.keys(binaryData).length > 0 ? binaryData : inputBinary;\n\n// Préparer le prompt pour l'IA qui va composer l'email\nlet aiPrompt = 'Demande de l\\'utilisateur : ' + caption + '\\n\\n';\naiPrompt += 'Fichier joint : ' + fileName + '\\n\\n';\nif (documentContent && extractionMethod !== 'none' && !documentContent.startsWith('[')) {\n  aiPrompt += '--- CONTENU DU DOCUMENT ---\\n' + documentContent.substring(0, 8000) + '\\n--- FIN DU CONTENU ---';\n} else if (documentContent) {\n  aiPrompt += 'Info fichier : ' + documentContent;\n}\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    caption,\n    documentContent,\n    aiPrompt,\n    subject: fileName\n  },\n  binary: finalBinary\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1252,7 +1252,7 @@
       "parameters": {
         "sendTo": "={{ $json.toEmail }}",
         "subject": "={{ $json.subject }}",
-        "message": "={{ $json.caption || 'Pièce jointe ci-dessous.' }}",
+        "message": "={{ $json.message }}",
         "options": {
           "appendAttribution": false,
           "attachmentsUi": {
@@ -1267,7 +1267,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1120,
+        1360,
         0
       ],
       "id": "8224afbb-1acf-4444-ae9a-13cea73cda16",
@@ -1282,12 +1282,12 @@
     {
       "parameters": {
         "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
-        "text": "=✅ Fichier « {{ $('Extraire Email et Fichier').first().json.fileName }} » envoyé par email à {{ $('Extraire Email et Fichier').first().json.toEmail }}"
+        "text": "=✅ Email envoyé avec succès !\n\n📧 Destinataire : {{ $('Préparer Email Final').first().json.toEmail }}\n📎 Pièce jointe : {{ $('Préparer Email Final').first().json.fileName }}\n📋 Objet : {{ $('Préparer Email Final').first().json.subject }}"
       },
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1280,
+        1520,
         0
       ],
       "id": "197c7bc8-49bf-4160-8712-6cc8d96a9037",
@@ -1340,6 +1340,55 @@
       ],
       "id": "d1e2f3a4-b5c6-7890-1234-abcdef567890",
       "name": "Extraire Contenu Document"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n JSON.stringify({\n  model: \"gpt-4.1-mini\",\n  messages: [\n    {\n      role: \"system\",\n      content: \"Tu es un assistant professionnel pour l'entreprise TalosPrimes (cabinet de courtage en assurance et gestion administrative). Tu dois rédiger un email professionnel en français.\\n\\nRègles :\\n- L'email doit être poli, professionnel et bien structuré\\n- Utilise les informations du document joint si elles sont disponibles\\n- Adapte le ton selon le contexte (formel pour clients, semi-formel pour partenaires)\\n- N'inclus PAS de ligne 'Objet:' dans le corps du mail\\n- Commence directement par la formule de politesse (Bonjour, Madame/Monsieur)\\n- Termine par une formule de politesse et la signature 'Cordialement,\\nL'équipe TalosPrimes'\\n- Si l'utilisateur demande simplement d'envoyer un fichier, rédige un court email d'accompagnement professionnel\\n- Réponds UNIQUEMENT avec le corps de l'email, rien d'autre\"\n    },\n    {\n      role: \"user\",\n      content: $json.aiPrompt\n    }\n  ],\n  temperature: 0.7,\n  max_tokens: 1000\n})\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "e2f3a4b5-c6d7-8901-2345-bcdef6789012",
+      "name": "Composer Email IA",
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Récupérer la réponse de l'IA\nconst aiResponse = $json;\nlet emailBody = '';\n\n// Extraire le corps du mail depuis la réponse OpenAI\nif (aiResponse.choices && aiResponse.choices[0]) {\n  emailBody = aiResponse.choices[0].message.content;\n} else {\n  emailBody = 'Veuillez trouver ci-joint le document demandé.';\n}\n\n// Récupérer les infos du node précédent\nconst extractData = $('Extraire Email et Fichier').first().json;\nconst toEmail = extractData.toEmail;\nconst fileName = extractData.fileName;\nconst caption = extractData.caption;\n\n// Générer un objet email professionnel\n// Retirer \"Fichier: \" du subject et utiliser quelque chose de mieux\nlet subject = fileName;\n// Si le nom contient une extension, la garder dans le subject\nif (subject.match(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i)) {\n  subject = subject.replace(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i, '').trim();\n}\n\n// Récupérer le binary depuis le node source\nconst fileNode = $('Récupérer Fichier Document').first();\nconst binaryData = fileNode.binary || {};\nconst inputBinary = $('Extraire Email et Fichier').first().binary || {};\nconst finalBinary = Object.keys(binaryData).length > 0 ? binaryData : inputBinary;\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    subject,\n    message: emailBody,\n    caption\n  },\n  binary: finalBinary\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "f3a4b5c6-d7e8-9012-3456-cdef78901234",
+      "name": "Préparer Email Final"
     }
   ],
   "pinData": {},
@@ -1834,7 +1883,7 @@
       "main": [
         [
           {
-            "node": "Gmail Envoyer PJ",
+            "node": "Composer Email IA",
             "type": "main",
             "index": 0
           }
@@ -1857,6 +1906,28 @@
         [
           {
             "node": "Préparer Contexte (Fichier)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Composer Email IA": {
+      "main": [
+        [
+          {
+            "node": "Préparer Email Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Email Final": {
+      "main": [
+        [
+          {
+            "node": "Gmail Envoyer PJ",
             "type": "main",
             "index": 0
           }
