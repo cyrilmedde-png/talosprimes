@@ -1267,7 +1267,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1440,
+        1380,
         0
       ],
       "id": "8224afbb-1acf-4444-ae9a-13cea73cda16",
@@ -1287,7 +1287,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1600,
+        1540,
         0
       ],
       "id": "197c7bc8-49bf-4160-8712-6cc8d96a9037",
@@ -1378,68 +1378,16 @@
     },
     {
       "parameters": {
-        "mode": "mergeByPosition"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Réponse OpenAI (depuis Composer Email IA = input direct)\nconst aiResponse = $input.all()[0].json;\nlet emailBody = \"Veuillez trouver ci-joint le document demandé.\";\nif (aiResponse.choices && aiResponse.choices[0]) {\n  emailBody = aiResponse.choices[0].message.content;\n}\n\n// Metadata depuis Extraire Email et Fichier\nconst extractData = $(\"Extraire Email et Fichier\").first().json;\nconst toEmail = extractData.toEmail || \"\";\nconst fileName = extractData.fileName || \"document\";\nconst caption = extractData.caption || \"\";\n\n// Subject = nom du fichier sans extension\nlet subject = fileName;\nif (subject.match(/\\\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i)) {\n  subject = subject.replace(/\\\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i, \"\").trim();\n}\n\n// BINARY : copier depuis Extraire Email et Fichier\n// Dans n8n Code v2, on peut accéder au binary des nodes précédents\nconst sourceItem = $(\"Extraire Email et Fichier\").first();\nconst binaryData = sourceItem.binary || {};\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    subject,\n    message: emailBody,\n    caption\n  },\n  binary: binaryData\n}];"
       },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1160,
+        1200,
         0
       ],
-      "id": "a1b2c3d4-e5f6-7890-merge-binary001",
-      "name": "Fusionner Email + Binary"
-    },
-    {
-      "parameters": {
-        "mode": "manual",
-        "duplicateItem": false,
-        "assignments": {
-          "assignments": [
-            {
-              "id": "toEmail",
-              "name": "toEmail",
-              "value": "={{ $json.toEmail }}",
-              "type": "string"
-            },
-            {
-              "id": "fileName",
-              "name": "fileName",
-              "value": "={{ $json.fileName }}",
-              "type": "string"
-            },
-            {
-              "id": "subject",
-              "name": "subject",
-              "value": "={{ $json.fileName ? $json.fileName.replace(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i, '').trim() : 'Document' }}",
-              "type": "string"
-            },
-            {
-              "id": "message",
-              "name": "message",
-              "value": "={{ $json.choices ? $json.choices[0].message.content : ($json.message || 'Veuillez trouver ci-joint le document demandé.') }}",
-              "type": "string"
-            },
-            {
-              "id": "caption",
-              "name": "caption",
-              "value": "={{ $json.caption }}",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": false,
-        "include": "none",
-        "options": {
-          "includeBinary": true
-        }
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1300,
-        0
-      ],
-      "id": "f3a4b5c6-set-email-final-001",
+      "id": "f3a4b5c6-code-email-final-002",
       "name": "Préparer Email Final"
     }
   ],
@@ -1938,11 +1886,6 @@
             "node": "Composer Email IA",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Fusionner Email + Binary",
-            "type": "main",
-            "index": 1
           }
         ]
       ]
@@ -1970,17 +1913,6 @@
       ]
     },
     "Composer Email IA": {
-      "main": [
-        [
-          {
-            "node": "Fusionner Email + Binary",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fusionner Email + Binary": {
       "main": [
         [
           {
