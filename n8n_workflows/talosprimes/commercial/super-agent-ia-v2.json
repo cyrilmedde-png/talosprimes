@@ -1378,14 +1378,10 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combinationMode": "mergeByPosition",
-        "options": {
-          "includeUnpaired": true
-        }
+        "mode": "mergeByPosition"
       },
       "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.1,
+      "typeVersion": 2.1,
       "position": [
         1160,
         0
