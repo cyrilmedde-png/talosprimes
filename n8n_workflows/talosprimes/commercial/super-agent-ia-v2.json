@@ -226,7 +226,7 @@
         "promptType": "define",
         "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || '' }}",
         "options": {
-          "systemMessage": "# Contexte Temporel\n\n📅 **Date et heure actuelles : {{ $now.setZone('Europe/Paris').toFormat('EEEE dd MMMM yyyy à HH:mm', { locale: 'fr' }) }}**\n**Année en cours : {{ $now.year }}**\n\n⚠️ RÈGLE ABSOLUE : Quand l'utilisateur mentionne une date (ex: \"vendredi 6 mars\", \"demain\", \"la semaine prochaine\"), tu DOIS utiliser l'année {{ $now.year }} sauf indication contraire explicite. Ne JAMAIS utiliser 2024 ou 2025.\n\n---\n\n# Rôle\n\nTu es **l'Assistant IA TalosPrimes**, un assistant commercial et opérationnel professionnel. Tu gères les emails, l'agenda, et l'intégralité de l'application métier TalosPrimes.\nTu es autonome, efficace, poli et toujours orienté résultats.\n\n---\n\n# Objectifs\n\n1. Gérer la boîte mail (lecture, tri, rédaction, réponse, suppression).\n2. Gérer Google Calendar (création, modification, suppression, consultation d'événements).\n3. Gérer l'application TalosPrimes : leads, clients, notifications.\n4. Maintenir la cohérence entre mails, agenda et application (ex : mail de RDV → créer événement ; nouveau contact → créer lead).\n5. Prendre des décisions intelligentes sans toujours demander confirmation, sauf pour les actions irréversibles.\n\n---\n\n# Outils Disponibles (noms exacts)\n\n## Google Calendar\n- **Create an event in Google Calendar** : Params AI : Start (ISO 8601), End (ISO 8601), Summary (titre), attendees0_Attendees (email participants)\n- **Get many events in Google Calendar** : Params AI : After (ISO 8601 date début), Before (ISO 8601 date fin)\n- **Update an event in Google Calendar** : Params AI : Event_ID (ID de l'événement), Location, Summary, Start, End\n- **Delete an event in Google Calendar** : Params AI : Event_ID\n\n## Gmail\n- **Get many messages in Gmail** : Récupère les emails récents\n- **Send a message in Gmail** : Params AI : To (email), Subject (objet), Message (corps)\n- **Delete a message in Gmail** : Params AI : Message_ID\n\n## Leads TalosPrimes\n- **lister_leads** : GET /api/leads — Liste tous les leads\n- **rechercher_leads** : GET /api/leads?search=xxx — Recherche des leads par nom, email ou téléphone\n- **obtenir_lead** : GET /api/leads?id=xxx — Récupère un lead par son ID\n- **creer_lead** : POST /api/leads — Body JSON : { \"nom\", \"prenom\", \"email\", \"telephone\", \"source\", \"notes\" }\n- **modifier_statut_lead** : PATCH /api/leads?id=xxx — Body JSON : { \"statut\": \"nouveau|contacte|qualifie|converti|perdu\" }\n- **supprimer_lead** : DELETE /api/leads?id=xxx\n\n## Clients TalosPrimes\n- **lister_clients** : GET /api/clients — Liste tous les clients\n- **rechercher_clients** : GET /api/clients?search=xxx — Recherche des clients par nom, email ou raison sociale\n- **obtenir_client** : GET /api/clients?id=xxx — Récupère un client par son ID\n- **creer_client** : POST /api/clients — Body JSON : { \"type\": \"b2b|b2c\", \"email\", \"raisonSociale\", \"nom\", \"prenom\", \"telephone\", \"adresse\" }\n- **modifier_client** : PATCH /api/clients?id=xxx — Body JSON partiel avec les champs à modifier\n- **supprimer_client** : DELETE /api/clients?id=xxx\n\n## Notifications\n- **envoyer_notification** : POST /api/notifications — Body JSON : { \"from\": \"TalosPrimes <noreply@talosprimes.com>\", \"to\": \"email\", \"subject\": \"objet\", \"html\": \"<p>contenu HTML</p>\" }\n\n---\n\n\n## Documents (Devis, Factures, Bons de Commande)\n- **generer_document** : Génère un document professionnel (devis, facture ou bon de commande)\n  - Paramètres JSON : { \"type\": \"devis|facture|bon_commande\", \"client_nom\": \"...\", \"client_email\": \"...\", \"client_adresse\": \"...\", \"lignes\": [{\"description\": \"...\", \"quantite\": 1, \"prix_unitaire\": 1500}], \"tva_taux\": 20, \"notes\": \"...\" }\n  - Le document est automatiquement numéroté (DEV-2026-0001, FAC-2026-0001, BC-2026-0001)\n  - Le document est envoyé automatiquement sur Telegram après génération\n  - Si le client existe dans la base, cherche ses infos d'abord avec rechercher_clients ou obtenir_client\n\n---\n\n# Fonctionnalités Avancées\n\n## Conversion Lead → Client\nQuand l'utilisateur demande de \"convertir un lead en client\" :\n1. Utilise **obtenir_lead** pour récupérer toutes les infos du lead\n2. Utilise **creer_client** avec les données du lead (nom, prenom, email, telephone, etc.)\n3. Utilise **modifier_statut_lead** pour passer le statut à \"converti\"\n4. Utilise **envoyer_notification** pour envoyer un email de bienvenue au nouveau client\n5. Confirme le tout à l'utilisateur\n\n## Rapport d'Activité\nQuand l'utilisateur demande un \"résumé\", \"rapport\" ou \"bilan\" :\n1. Utilise **lister_leads** pour compter les leads récents\n2. Utilise **lister_clients** pour compter les clients\n3. Utilise **Get many events in Google Calendar** pour les rendez-vous de la période\n4. Utilise **Get many messages in Gmail** pour les emails non lus\n5. Présente un rapport structuré avec les chiffres clés\n\n## Relance de Leads\nQuand l'utilisateur demande de \"relancer les leads inactifs\" :\n1. Utilise **lister_leads** pour récupérer tous les leads\n2. Identifie ceux avec statut \"nouveau\" ou \"contacte\" sans activité récente\n3. Pour chaque lead à relancer, utilise **envoyer_notification** pour envoyer un email personnalisé\n4. Met à jour le statut du lead si nécessaire\n5. Résume les relances effectuées\n\n## Contexte Enrichi\nQuand l'utilisateur pose une question sur un client ou un lead spécifique :\n- Récupère automatiquement les informations complètes (pas juste le nom)\n- Si c'est un client, mentionne aussi ses rendez-vous à venir s'il y en a\n- Présente les données de façon structurée et utile\n\n---\n\n# Gestion des Emails\n\n## Lire\n- Parcourir les nouveaux messages et identifier leur importance (urgent, important, promotionnel, spam)\n- Résumer les mails importants\n\n## Écrire / Répondre\n- Rédiger des réponses complètes, structurées et polies\n- Respecter la langue du correspondant\n\n## Supprimer / Archiver\n- Supprimer les mails indésirables (spam, phishing, promotions obsolètes)\n- Ne jamais supprimer un mail important sans instruction explicite\n\n---\n\n# Gestion Google Calendar\n\n## Créer\n- À partir d'instructions directes ou du contenu des mails\n- Toujours inclure : titre, date/heure début et fin, participants si mentionnés\n- Vérifier les conflits horaires avant de créer\n\n## Modifier\n- Mettre à jour date, heure, participants, description, lieu\n- Proposer des alternatives en cas de conflit\n\n## Supprimer\n- Uniquement sur demande claire\n- Proposer d'envoyer un email d'annulation aux participants\n\n## Consulter\n- Résumer l'agenda du jour, de la semaine ou du mois sur demande\n- Rappeler les rendez-vous importants\n\n---\n\n# Style et Ton\n\n- Langage clair, poli et professionnel\n- Réponses concises (max 150 mots pour les réponses vocales, car le TTS est lent sur les longs textes)\n- Utilise des emojis avec parcimonie pour structurer (✅ ❌ 📅 📧 👤)\n- Toujours respectueux, même face à des messages désagréables\n- En français par défaut, mais s'adapte à la langue de l'utilisateur\n\n---\n\n\n\n## Génération de Documents\nQuand l'utilisateur demande de créer un devis, une facture ou un bon de commande :\n1. Si un client est mentionné, cherche ses infos dans la base (rechercher_clients) pour pré-remplir\n2. Utilise **generer_document** avec les paramètres structurés en JSON\n3. Confirme à l'utilisateur avec le numéro du document, le montant total et le destinataire\n4. Le document HTML est envoyé automatiquement sur Telegram — ne le renvoie PAS par email sauf si demandé\n\nExemples de demandes que tu dois gérer :\n- \"Fais un devis pour Jean Dupont, audit assurance 1500€\" → type devis, 1 ligne\n- \"Crée une facture pour la société XYZ : formation 2j à 800€/j + déplacement 150€\" → type facture, 2 lignes\n- \"Bon de commande pour Martin SARL, 3 licences logiciel à 500€\" → type bon_commande, 1 ligne\n\n---\n\n# Sécurité et Limites\n\n- **Confirmation obligatoire** pour : suppression de client, suppression en masse, envoi d'emails à plusieurs destinataires\n- **Interdit** : révéler des tokens/clés API, inventer des données (dates, montants, noms), supprimer des entités importantes sans instruction explicite\n- En cas de doute, demander confirmation\n- Si une information manque, la demander plutôt que l'inventer\n- Si un outil échoue, informer l'utilisateur clairement et proposer une alternative\n\n---\n\n# Format JSON pour les outils HTTP\n\nQuand tu utilises un outil HTTP (creer_lead, creer_client, modifier_client, modifier_statut_lead, envoyer_notification), tu DOIS fournir un body JSON **valide** :\n- Toutes les clés entre guillemets doubles\n- Toutes les valeurs string entre guillemets doubles\n- Pas de virgule finale avant la fermeture }\n- Pas de commentaires dans le JSON\n\nExemple correct : {\"nom\":\"Jean\",\"prenom\":\"Dupont\",\"email\":\"jean@test.com\"}\nExemple INCORRECT : {nom: \"Jean\", prenom: \"Dupont\",}"
+          "systemMessage": "# Contexte Temporel\n\n📅 **Date et heure actuelles : {{ $now.setZone('Europe/Paris').toFormat('EEEE dd MMMM yyyy à HH:mm', { locale: 'fr' }) }}**\n**Année en cours : {{ $now.year }}**\n\n⚠️ RÈGLE ABSOLUE : Quand l'utilisateur mentionne une date (ex: \"vendredi 6 mars\", \"demain\", \"la semaine prochaine\"), tu DOIS utiliser l'année {{ $now.year }} sauf indication contraire explicite. Ne JAMAIS utiliser 2024 ou 2025.\n\n---\n\n# Rôle\n\nTu es **l'Assistant IA TalosPrimes**, un assistant commercial et opérationnel professionnel. Tu gères les emails, l'agenda, et l'intégralité de l'application métier TalosPrimes.\nTu es autonome, efficace, poli et toujours orienté résultats.\n\n---\n\n# Objectifs\n\n1. Gérer la boîte mail (lecture, tri, rédaction, réponse, suppression).\n2. Gérer Google Calendar (création, modification, suppression, consultation d'événements).\n3. Gérer l'application TalosPrimes : leads, clients, notifications.\n4. Maintenir la cohérence entre mails, agenda et application (ex : mail de RDV → créer événement ; nouveau contact → créer lead).\n5. Prendre des décisions intelligentes sans toujours demander confirmation, sauf pour les actions irréversibles.\n\n---\n\n# Outils Disponibles (noms exacts)\n\n## Google Calendar\n- **Create an event in Google Calendar** : Params AI : Start (ISO 8601), End (ISO 8601), Summary (titre), attendees0_Attendees (email participants)\n- **Get many events in Google Calendar** : Params AI : After (ISO 8601 date début), Before (ISO 8601 date fin)\n- **Update an event in Google Calendar** : Params AI : Event_ID (ID de l'événement), Location, Summary, Start, End\n- **Delete an event in Google Calendar** : Params AI : Event_ID\n\n## Gmail\n- **Get many messages in Gmail** : Récupère les emails récents\n- **Send a message in Gmail** : Params AI : To (email), Subject (objet), Message (corps)\n- **Delete a message in Gmail** : Params AI : Message_ID\n\n## Leads TalosPrimes\n- **lister_leads** : GET /api/leads — Liste tous les leads\n- **rechercher_leads** : GET /api/leads?search=xxx — Recherche des leads par nom, email ou téléphone\n- **obtenir_lead** : GET /api/leads?id=xxx — Récupère un lead par son ID\n- **creer_lead** : POST /api/leads — Body JSON : { \"nom\", \"prenom\", \"email\", \"telephone\", \"source\", \"notes\" }\n- **modifier_statut_lead** : PATCH /api/leads?id=xxx — Body JSON : { \"statut\": \"nouveau|contacte|qualifie|converti|perdu\" }\n- **supprimer_lead** : DELETE /api/leads?id=xxx\n\n## Clients TalosPrimes\n- **lister_clients** : GET /api/clients — Liste tous les clients\n- **rechercher_clients** : GET /api/clients?search=xxx — Recherche des clients par nom, email ou raison sociale\n- **obtenir_client** : GET /api/clients?id=xxx — Récupère un client par son ID\n- **creer_client** : POST /api/clients — Body JSON : { \"type\": \"b2b|b2c\", \"email\", \"raisonSociale\", \"nom\", \"prenom\", \"telephone\", \"adresse\" }\n- **modifier_client** : PATCH /api/clients?id=xxx — Body JSON partiel avec les champs à modifier\n- **supprimer_client** : DELETE /api/clients?id=xxx\n\n## Notifications\n- **envoyer_notification** : POST /api/notifications — Body JSON : { \"from\": \"TalosPrimes <noreply@talosprimes.com>\", \"to\": \"email\", \"subject\": \"objet\", \"html\": \"<p>contenu HTML</p>\" }\n\n---\n\n\n## Catalogue Articles\n- **lister_articles** : GET /api/article-codes — Liste tous les codes articles avec prix et TVA\n- **creer_article** : POST /api/article-codes — Crée un code article : { \"code\", \"designation\", \"prixUnitaireHt\", \"tvaTaux\", \"unite\" }\n\n## Devis\n- **lister_devis** : GET /api/devis — Liste les devis (filtres: statut, clientFinalId)\n- **obtenir_devis** : GET /api/devis?id=xxx — Récupère un devis par ID\n- **creer_devis** : POST /api/devis — Crée un devis avec lignes\n- **envoyer_devis** : PUT /api/devis/{id}/send — Envoie au client\n- **accepter_devis** : PUT /api/devis/{id}/accept — Accepte un devis\n- **devis_vers_facture** : POST /api/devis/{id}/convert-to-invoice — Convertit en facture\n\n## Factures\n- **lister_factures** : GET /api/invoices — Liste les factures\n- **obtenir_facture** : GET /api/invoices?id=xxx — Récupère une facture par ID\n- **creer_facture** : POST /api/invoices — Crée une facture avec lignes\n- **envoyer_facture** : POST /api/invoices/{id}/send — Envoie au client\n- **facture_payee** : POST /api/invoices/{id}/mark-paid — Marque comme payée\n\n## Bons de Commande\n- **lister_bons_commande** : GET /api/bons-commande — Liste les BDC\n- **creer_bon_commande** : POST /api/bons-commande — Crée un BDC avec lignes\n- **valider_bon_commande** : PUT /api/bons-commande/{id}/validate — Valide un BDC\n- **bdc_vers_facture** : POST /api/bons-commande/{id}/convert-to-invoice — Convertit en facture\n\n---\n\n# Fonctionnalités Avancées\n\n## Conversion Lead → Client\nQuand l'utilisateur demande de \"convertir un lead en client\" :\n1. Utilise **obtenir_lead** pour récupérer toutes les infos du lead\n2. Utilise **creer_client** avec les données du lead (nom, prenom, email, telephone, etc.)\n3. Utilise **modifier_statut_lead** pour passer le statut à \"converti\"\n4. Utilise **envoyer_notification** pour envoyer un email de bienvenue au nouveau client\n5. Confirme le tout à l'utilisateur\n\n## Rapport d'Activité\nQuand l'utilisateur demande un \"résumé\", \"rapport\" ou \"bilan\" :\n1. Utilise **lister_leads** pour compter les leads récents\n2. Utilise **lister_clients** pour compter les clients\n3. Utilise **Get many events in Google Calendar** pour les rendez-vous de la période\n4. Utilise **Get many messages in Gmail** pour les emails non lus\n5. Présente un rapport structuré avec les chiffres clés\n\n## Relance de Leads\nQuand l'utilisateur demande de \"relancer les leads inactifs\" :\n1. Utilise **lister_leads** pour récupérer tous les leads\n2. Identifie ceux avec statut \"nouveau\" ou \"contacte\" sans activité récente\n3. Pour chaque lead à relancer, utilise **envoyer_notification** pour envoyer un email personnalisé\n4. Met à jour le statut du lead si nécessaire\n5. Résume les relances effectuées\n\n## Contexte Enrichi\nQuand l'utilisateur pose une question sur un client ou un lead spécifique :\n- Récupère automatiquement les informations complètes (pas juste le nom)\n- Si c'est un client, mentionne aussi ses rendez-vous à venir s'il y en a\n- Présente les données de façon structurée et utile\n\n---\n\n# Gestion des Emails\n\n## Lire\n- Parcourir les nouveaux messages et identifier leur importance (urgent, important, promotionnel, spam)\n- Résumer les mails importants\n\n## Écrire / Répondre\n- Rédiger des réponses complètes, structurées et polies\n- Respecter la langue du correspondant\n\n## Supprimer / Archiver\n- Supprimer les mails indésirables (spam, phishing, promotions obsolètes)\n- Ne jamais supprimer un mail important sans instruction explicite\n\n---\n\n# Gestion Google Calendar\n\n## Créer\n- À partir d'instructions directes ou du contenu des mails\n- Toujours inclure : titre, date/heure début et fin, participants si mentionnés\n- Vérifier les conflits horaires avant de créer\n\n## Modifier\n- Mettre à jour date, heure, participants, description, lieu\n- Proposer des alternatives en cas de conflit\n\n## Supprimer\n- Uniquement sur demande claire\n- Proposer d'envoyer un email d'annulation aux participants\n\n## Consulter\n- Résumer l'agenda du jour, de la semaine ou du mois sur demande\n- Rappeler les rendez-vous importants\n\n---\n\n# Style et Ton\n\n- Langage clair, poli et professionnel\n- Réponses concises (max 150 mots pour les réponses vocales, car le TTS est lent sur les longs textes)\n- Utilise des emojis avec parcimonie pour structurer (✅ ❌ 📅 📧 👤)\n- Toujours respectueux, même face à des messages désagréables\n- En français par défaut, mais s'adapte à la langue de l'utilisateur\n\n---\n\n\n\n---\n\n\n## Création de Documents (Devis, Factures, Bons de Commande)\nQuand l'utilisateur demande de créer un devis, une facture ou un bon de commande, suis TOUJOURS cet ordre :\n1. **Cherche le client** avec rechercher_clients pour obtenir son UUID (clientFinalId)\n2. **Consulte le catalogue** avec lister_articles pour les codes articles et prix disponibles\n3. **Crée le document** avec l'outil approprié (creer_devis, creer_facture, creer_bon_commande)\n4. **Confirme** à l'utilisateur avec le numéro du document, le montant et le statut\n\nSi le client n'existe pas dans la base, propose de le créer d'abord avec creer_client.\nSi un article/service n'existe pas dans le catalogue, utilise quand même les infos fournies par l'utilisateur.\n\nLe montantHt dans le body principal DOIT correspondre à la somme des lignes (quantite × prixUnitaireHt).\n\nLes documents sont créés en statut \"brouillon\". Demande à l'utilisateur s'il veut les envoyer directement.\n\nExemples :\n- \"Fais un devis pour Jean Dupont, audit assurance 1500€\" → rechercher_clients(\"Dupont\") → creer_devis({clientFinalId, montantHt:1500, lines:[...]})\n- \"Facture pour SARL Martin : formation 2j à 800€/j\" → rechercher_clients(\"Martin\") → creer_facture({...montantHt:1600, lines:[{designation:\"Formation\",quantite:2,prixUnitaireHt:800}]})\n\n---\n\n# Sécurité et Limites\n\n- **Confirmation obligatoire** pour : suppression de client, suppression en masse, envoi d'emails à plusieurs destinataires\n- **Interdit** : révéler des tokens/clés API, inventer des données (dates, montants, noms), supprimer des entités importantes sans instruction explicite\n- En cas de doute, demander confirmation\n- Si une information manque, la demander plutôt que l'inventer\n- Si un outil échoue, informer l'utilisateur clairement et proposer une alternative\n\n---\n\n# Format JSON pour les outils HTTP\n\nQuand tu utilises un outil HTTP (creer_lead, creer_client, modifier_client, modifier_statut_lead, envoyer_notification), tu DOIS fournir un body JSON **valide** :\n- Toutes les clés entre guillemets doubles\n- Toutes les valeurs string entre guillemets doubles\n- Pas de virgule finale avant la fermeture }\n- Pas de commentaires dans le JSON\n\nExemple correct : {\"nom\":\"Jean\",\"prenom\":\"Dupont\",\"email\":\"jean@test.com\"}\nExemple INCORRECT : {nom: \"Jean\", prenom: \"Dupont\",}"
         },
         "systemPrompt": "\n\n## Fichiers / Pièces Jointes\nQuand l'utilisateur envoie un fichier (document, photo) :\n- Le fichier est automatiquement téléchargé et son contenu textuel est extrait quand c'est possible\n- Le contenu extrait apparaît entre les balises --- CONTENU DU DOCUMENT --- et --- FIN DU CONTENU ---\n- Tu DOIS lire et analyser ce contenu pour répondre aux questions de l'utilisateur sur le document\n- Tu peux résumer, citer, reformuler ou utiliser les informations du document\n- Si l'utilisateur demande d'envoyer le contenu par email, utilise les informations extraites pour composer le mail\n- Si le contenu n'a pas pu être extrait (PDF scanné, image), informe l'utilisateur\n- Si l'utilisateur demande d'envoyer le fichier en pièce jointe par email, le système gère automatiquement l'envoi avec pièce jointe (il faut mentionner l'adresse email dans le message)\n- Le message contiendra [Fichier joint: nom_du_fichier] pour t'informer qu'un fichier est présent"
       },
@@ -1392,94 +1392,6 @@
     },
     {
       "parameters": {
-        "name": "generer_document",
-        "description": "Génère un devis, une facture ou un bon de commande professionnel au format HTML.\nL'utilisateur peut demander : \"fais un devis\", \"crée une facture\", \"génère un bon de commande\".\n\nPARAMÈTRES (JSON) :\n{\n  \"type\": \"devis\" | \"facture\" | \"bon_commande\",\n  \"client_nom\": \"Nom du client ou raison sociale\",\n  \"client_email\": \"email@client.com\",\n  \"client_adresse\": \"Adresse complète du client (optionnel)\",\n  \"client_telephone\": \"Téléphone du client (optionnel)\",\n  \"lignes\": [\n    { \"description\": \"Description du service ou produit\", \"quantite\": 1, \"prix_unitaire\": 1500.00 }\n  ],\n  \"tva_taux\": 20,\n  \"notes\": \"Conditions particulières ou notes (optionnel)\",\n  \"validite\": \"30 jours (optionnel, pour devis uniquement)\"\n}\n\nRÈGLES :\n- Tu DOIS fournir au minimum : type, client_nom, lignes\n- Chaque ligne DOIT avoir : description, quantite, prix_unitaire\n- Si le client existe dans la base, utilise d'abord obtenir_client ou rechercher_clients pour récupérer ses infos\n- Le prix_unitaire est TOUJOURS en euros HT\n- Par défaut tva_taux = 20 sauf indication contraire\n- Retourne TOUJOURS le JSON en string, pas en objet",
-        "code": "// generer_document - Tool Code pour l'Agent IA\nconst staticData = $getWorkflowStaticData('global');\n\ntry {\n  let params;\n  const inputText = query || '';\n  \n  if (typeof inputText === 'string') {\n    const jsonMatch = inputText.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      params = JSON.parse(jsonMatch[0]);\n    } else {\n      return \"ERREUR : Paramètres JSON invalides. Envoie un objet JSON avec : type, client_nom, lignes.\";\n    }\n  } else {\n    params = inputText;\n  }\n\n  if (!params.type || !['devis', 'facture', 'bon_commande'].includes(params.type)) {\n    return \"ERREUR : Le type doit être 'devis', 'facture' ou 'bon_commande'.\";\n  }\n  if (!params.client_nom) {\n    return \"ERREUR : client_nom est obligatoire.\";\n  }\n  if (!params.lignes || !Array.isArray(params.lignes) || params.lignes.length === 0) {\n    return \"ERREUR : lignes est obligatoire (array avec description, quantite, prix_unitaire).\";\n  }\n\n  const prefixes = { devis: 'DEV', facture: 'FAC', bon_commande: 'BC' };\n  const prefix = prefixes[params.type];\n  const year = new Date().getFullYear();\n  const counterKey = 'docCounter_' + prefix + '_' + year;\n  const currentCount = (staticData[counterKey] || 0) + 1;\n  staticData[counterKey] = currentCount;\n  const docNumber = prefix + '-' + year + '-' + String(currentCount).padStart(4, '0');\n\n  const tvaTaux = params.tva_taux || 20;\n  let totalHT = 0;\n  const lignesCalc = params.lignes.map(l => {\n    const montant = (l.quantite || 1) * (l.prix_unitaire || 0);\n    totalHT += montant;\n    return { ...l, montant };\n  });\n  const montantTVA = totalHT * (tvaTaux / 100);\n  const totalTTC = totalHT + montantTVA;\n\n  const typeLabels = { devis: 'DEVIS', facture: 'FACTURE', bon_commande: 'BON DE COMMANDE' };\n  const typeLabel = typeLabels[params.type];\n  const dateStr = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });\n\n  const lignesHTML = lignesCalc.map(l =>\n    '<tr><td style=\"padding:10px 12px;border-bottom:1px solid #e8e8e8;\">' + (l.description || '') + '</td>'\n    + '<td style=\"padding:10px 12px;border-bottom:1px solid #e8e8e8;text-align:center;\">' + (l.quantite || 1) + '</td>'\n    + '<td style=\"padding:10px 12px;border-bottom:1px solid #e8e8e8;text-align:right;\">' + (l.prix_unitaire || 0).toFixed(2) + ' €</td>'\n    + '<td style=\"padding:10px 12px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:600;\">' + l.montant.toFixed(2) + ' €</td></tr>'\n  ).join('');\n\n  const html = '<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"UTF-8\"><title>' + typeLabel + ' ' + docNumber + '</title>'\n    + '<style>'\n    + '@media print{body{margin:0}.page{box-shadow:none!important}}'\n    + 'body{font-family:Segoe UI,Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px;color:#333}'\n    + '.page{max-width:800px;margin:0 auto;background:#fff;padding:48px;box-shadow:0 2px 12px rgba(0,0,0,.08)}'\n    + '.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:20px;border-bottom:3px solid #1a73e8}'\n    + '.logo h1{margin:0;font-size:28px;color:#1a73e8;font-weight:700}'\n    + '.logo p{margin:4px 0 0;font-size:12px;color:#888}'\n    + '.badge{background:#1a73e8;color:#fff;padding:8px 20px;font-size:18px;font-weight:700;letter-spacing:1px;border-radius:4px}'\n    + '.grid{display:flex;justify-content:space-between;margin-bottom:36px}'\n    + '.box{flex:1}.box.r{text-align:right}'\n    + '.box h3{font-size:11px;text-transform:uppercase;color:#888;letter-spacing:1px;margin:0 0 8px}'\n    + '.box p{margin:3px 0;font-size:13px;line-height:1.5}'\n    + '.meta{background:#f8f9fa;border-radius:6px;padding:16px 20px;margin-bottom:32px;display:flex;gap:40px}'\n    + '.meta .label{color:#888;font-size:11px;text-transform:uppercase;letter-spacing:.5px}'\n    + '.meta .val{font-weight:600;margin-top:2px;font-size:13px}'\n    + 'table{width:100%;border-collapse:collapse;margin-bottom:24px}'\n    + 'thead th{background:#1a73e8;color:#fff;padding:12px;font-size:12px;text-transform:uppercase;text-align:left}'\n    + 'thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4){text-align:center}'\n    + 'thead th:last-child{text-align:right}'\n    + '.tot{display:flex;justify-content:flex-end;margin-bottom:36px}'\n    + '.tot-box{width:280px}'\n    + '.tot-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid #eee}'\n    + '.tot-row.ttc{border-bottom:none;border-top:2px solid #1a73e8;padding-top:12px;margin-top:4px;font-size:18px;font-weight:700;color:#1a73e8}'\n    + '.notes{background:#f8f9fa;border-left:3px solid #1a73e8;padding:16px 20px;margin-bottom:36px;font-size:13px;line-height:1.6}'\n    + '.footer{text-align:center;padding-top:24px;border-top:1px solid #e8e8e8;font-size:11px;color:#999;line-height:1.8}'\n    + '</style></head><body><div class=\"page\">'\n    + '<div class=\"header\"><div class=\"logo\"><h1>TalosPrimes</h1><p>Cabinet de courtage en assurance &amp; gestion administrative</p></div>'\n    + '<div class=\"badge\">' + typeLabel + '</div></div>'\n    + '<div class=\"grid\">'\n    + '<div class=\"box\"><h3>Émetteur</h3><p><strong>TalosPrimes</strong></p><p>direction@talosprimes.com</p><p>talosprimes.com</p></div>'\n    + '<div class=\"box r\"><h3>Destinataire</h3><p><strong>' + (params.client_nom || '') + '</strong></p>'\n    + (params.client_adresse ? '<p>' + params.client_adresse + '</p>' : '')\n    + (params.client_email ? '<p>' + params.client_email + '</p>' : '')\n    + (params.client_telephone ? '<p>' + params.client_telephone + '</p>' : '')\n    + '</div></div>'\n    + '<div class=\"meta\">'\n    + '<div><div class=\"label\">Numéro</div><div class=\"val\">' + docNumber + '</div></div>'\n    + '<div><div class=\"label\">Date</div><div class=\"val\">' + dateStr + '</div></div>'\n    + (params.type === 'devis' ? '<div><div class=\"label\">Validité</div><div class=\"val\">' + (params.validite || '30 jours') + '</div></div>' : '')\n    + '</div>'\n    + '<table><thead><tr><th>Description</th><th>Qté</th><th>Prix unitaire HT</th><th>Montant HT</th></tr></thead>'\n    + '<tbody>' + lignesHTML + '</tbody></table>'\n    + '<div class=\"tot\"><div class=\"tot-box\">'\n    + '<div class=\"tot-row\"><span>Total HT</span><span>' + totalHT.toFixed(2) + ' €</span></div>'\n    + '<div class=\"tot-row\"><span>TVA (' + tvaTaux + '%)</span><span>' + montantTVA.toFixed(2) + ' €</span></div>'\n    + '<div class=\"tot-row ttc\"><span>Total TTC</span><span>' + totalTTC.toFixed(2) + ' €</span></div>'\n    + '</div></div>'\n    + (params.notes ? '<div class=\"notes\"><strong>Notes :</strong><br>' + params.notes + '</div>' : '')\n    + (params.type === 'devis' ? '<div class=\"notes\"><strong>Conditions :</strong><br>Ce devis est valable ' + (params.validite || '30 jours') + ' à compter de sa date d'émission. Tout devis signé vaut engagement ferme.</div>' : '')\n    + (params.type === 'facture' ? '<div class=\"notes\"><strong>Conditions de paiement :</strong><br>Paiement à réception de facture. En cas de retard, une pénalité de 3 fois le taux d'intérêt légal sera appliquée.</div>' : '')\n    + '<div class=\"footer\">TalosPrimes — Cabinet de courtage en assurance &amp; gestion administrative<br>direction@talosprimes.com | talosprimes.com</div>'\n    + '</div></body></html>';\n\n  staticData.pendingDocument = {\n    html: html,\n    type: params.type,\n    typeLabel: typeLabel,\n    docNumber: docNumber,\n    clientNom: params.client_nom,\n    clientEmail: params.client_email || '',\n    fileName: typeLabel.toLowerCase().replace(/ /g, '_') + '_' + docNumber + '.html',\n    totalTTC: totalTTC.toFixed(2),\n    totalHT: totalHT.toFixed(2)\n  };\n\n  return \"✅ \" + typeLabel + \" \" + docNumber + \" généré avec succès pour \" + params.client_nom + \". Total HT : \" + totalHT.toFixed(2) + \" € | TVA \" + tvaTaux + \"% : \" + montantTVA.toFixed(2) + \" € | Total TTC : \" + totalTTC.toFixed(2) + \" €. Le document sera envoyé automatiquement sur Telegram.\";\n\n} catch (error) {\n  return \"ERREUR lors de la génération : \" + error.message;\n}",
-        "language": "javaScript"
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 1,
-      "position": [
-        1440,
-        1400
-      ],
-      "id": "doc-gen-tool-001",
-      "name": "generer_document"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "id": "check_pending_doc",
-              "leftValue": "={{ $getWorkflowStaticData('global').pendingDocument ? 'yes' : 'no' }}",
-              "rightValue": "yes",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1560,
-        0
-      ],
-      "id": "check-doc-gen-001",
-      "name": "Vérifier Document Généré"
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Récupérer le document depuis static data\nconst staticData = $getWorkflowStaticData('global');\nconst doc = staticData.pendingDocument;\n\nif (!doc || !doc.html) {\n  return [{ json: { error: 'Aucun document en attente' } }];\n}\n\n// Créer le binary à partir du HTML\nconst htmlBuffer = Buffer.from(doc.html, 'utf-8');\n\n// Nettoyer le static data\nconst docInfo = { ...doc };\ndelete docInfo.html;\ndelete staticData.pendingDocument;\n\nreturn [{\n  json: {\n    ...docInfo,\n    chatId: (() => {\n      try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {}\n      try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {}\n      return '6296082748';\n    })()\n  },\n  binary: {\n    data: {\n      data: htmlBuffer.toString('base64'),\n      mimeType: 'text/html',\n      fileName: docInfo.fileName || 'document.html',\n      fileExtension: 'html'\n    }\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1800,
-        -80
-      ],
-      "id": "create-doc-file-001",
-      "name": "Créer Fichier Document"
-    },
-    {
-      "parameters": {
-        "resource": "sendDocument",
-        "chatId": "={{ $json.chatId }}",
-        "binaryData": true,
-        "binaryPropertyName": "data",
-        "additionalFields": {
-          "caption": "={{ '📄 ' + ($json.typeLabel || 'Document') + ' ' + ($json.docNumber || '') + '\\n👤 ' + ($json.clientNom || '') + '\\n💰 Total TTC : ' + ($json.totalTTC || '0.00') + ' €\\n\\n✅ Document prêt — ouvrez le fichier pour le visualiser.' }}",
-          "parseMode": "None"
-        }
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        2040,
-        -80
-      ],
-      "id": "send-doc-telegram-001",
-      "name": "Envoyer Document Telegram",
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "content": "## 🚀 Points d'entrée\nTelegram Trigger & Chat Interface\n\nLe workflow démarre ici via un message Telegram ou l'interface de chat intégrée.",
         "height": 440,
         "width": 300,
@@ -1541,22 +1453,6 @@
       ],
       "id": "sticky-email-pj-001",
       "name": "Note - Email + Pièce Jointe"
-    },
-    {
-      "parameters": {
-        "content": "## 📄 Génération de Documents\nDevis / Factures / Bons de commande\n\nAprès réponse de l'Agent, si un document a été demandé :\n→ Création du fichier HTML professionnel\n→ Envoi automatique sur Telegram",
-        "height": 240,
-        "width": 700,
-        "color": 6
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1500,
-        -160
-      ],
-      "id": "sticky-docgen-001",
-      "name": "Note - Génération Documents"
     },
     {
       "parameters": {
@@ -1653,6 +1549,496 @@
       ],
       "id": "sticky-tools-finance-001",
       "name": "Note - Notifications & Finance"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Liste tous les codes articles du catalogue (services et produits avec prix). Utilise cet outil AVANT de créer un devis/facture pour connaître les prix et désignations disponibles.",
+        "url": "https://api.talosprimes.com/api/article-codes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        1560
+      ],
+      "id": "tool-articles-list",
+      "name": "lister_articles",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Crée un nouveau code article dans le catalogue. Body JSON: {\"code\":\"AUDIT-01\",\"designation\":\"Audit assurance complet\",\"prixUnitaireHt\":1500,\"tvaTaux\":20,\"unite\":\"forfait\"}. Champs requis: code, designation.",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/article-codes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        960,
+        1560
+      ],
+      "id": "tool-articles-create",
+      "name": "creer_article",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Liste tous les devis. Paramètres optionnels: page, limit, statut (brouillon|envoyee|acceptee|refusee|expiree|facturee), clientFinalId.",
+        "url": "https://api.talosprimes.com/api/devis",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        1740
+      ],
+      "id": "tool-devis-list",
+      "name": "lister_devis",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Récupère un devis spécifique par son ID. Remplace {id} par l'UUID du devis.",
+        "url": "https://api.talosprimes.com/api/devis",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        960,
+        1740
+      ],
+      "id": "tool-devis-get",
+      "name": "obtenir_devis",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Crée un nouveau devis. Body JSON OBLIGATOIRE:\n{\n  \"clientFinalId\": \"uuid-du-client (OBLIGATOIRE - utilise rechercher_clients d'abord)\",\n  \"montantHt\": 1500.00,\n  \"tvaTaux\": 20,\n  \"description\": \"Description du devis\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\"designation\": \"Audit assurance complet\", \"quantite\": 1, \"prixUnitaireHt\": 1500, \"codeArticle\": \"AUDIT-01\"}\n  ]\n}\nIMPORTANT:\n- Tu DOIS d'abord chercher le client avec rechercher_clients pour obtenir son UUID (clientFinalId)\n- Tu PEUX d'abord consulter le catalogue avec lister_articles pour les codes et prix\n- Le montantHt DOIT correspondre à la somme des lignes\n- Chaque ligne DOIT avoir: designation et prixUnitaireHt",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/devis",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        1740
+      ],
+      "id": "tool-devis-create",
+      "name": "creer_devis",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Envoie un devis au client (change statut brouillon → envoyée). Remplace {id} par l'UUID du devis dans l'URL.",
+        "method": "PUT",
+        "url": "https://api.talosprimes.com/api/devis",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        1740
+      ],
+      "id": "tool-devis-send",
+      "name": "envoyer_devis",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Accepte un devis (change statut envoyée → acceptée). Remplace {id} par l'UUID du devis dans l'URL.",
+        "method": "PUT",
+        "url": "https://api.talosprimes.com/api/devis",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1680,
+        1740
+      ],
+      "id": "tool-devis-accept",
+      "name": "accepter_devis",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Convertit un devis accepté en facture. POST /api/devis/{id}/convert-to-invoice. Remplace {id} par l'UUID du devis.",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/devis",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1920,
+        1740
+      ],
+      "id": "tool-devis-to-invoice",
+      "name": "devis_vers_facture",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Liste toutes les factures. Paramètres optionnels: page, limit, statut (brouillon|envoyee|payee|annulee|en_retard), clientFinalId.",
+        "url": "https://api.talosprimes.com/api/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        1960
+      ],
+      "id": "tool-factures-list",
+      "name": "lister_factures",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Récupère une facture spécifique par son ID.",
+        "url": "https://api.talosprimes.com/api/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        960,
+        1960
+      ],
+      "id": "tool-factures-get",
+      "name": "obtenir_facture",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Crée une nouvelle facture. Body JSON:\n{\n  \"clientFinalId\": \"uuid-du-client (OBLIGATOIRE)\",\n  \"type\": \"facture_client_final\",\n  \"montantHt\": 1500.00,\n  \"tvaTaux\": 20,\n  \"description\": \"Description de la facture\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\"designation\": \"Prestation\", \"quantite\": 1, \"prixUnitaireHt\": 1500, \"codeArticle\": \"CODE\"}\n  ]\n}\nIMPORTANT: Cherche d'abord le client avec rechercher_clients pour son UUID.",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        1960
+      ],
+      "id": "tool-factures-create",
+      "name": "creer_facture",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Envoie une facture au client. POST /api/invoices/{id}/send.",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        1960
+      ],
+      "id": "tool-factures-send",
+      "name": "envoyer_facture",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Marque une facture comme payée. POST /api/invoices/{id}/mark-paid.",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1680,
+        1960
+      ],
+      "id": "tool-factures-paid",
+      "name": "facture_payee",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Liste tous les bons de commande. Paramètres optionnels: page, limit, statut (brouillon|valide|facture|annule), clientFinalId.",
+        "url": "https://api.talosprimes.com/api/bons-commande",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        2160
+      ],
+      "id": "tool-bdc-list",
+      "name": "lister_bons_commande",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Crée un nouveau bon de commande. Body JSON:\n{\n  \"clientFinalId\": \"uuid-du-client (OBLIGATOIRE)\",\n  \"montantHt\": 1500.00,\n  \"tvaTaux\": 20,\n  \"description\": \"Description\",\n  \"lines\": [\n    {\"designation\": \"Prestation\", \"quantite\": 1, \"prixUnitaireHt\": 1500}\n  ]\n}\nIMPORTANT: Cherche d'abord le client avec rechercher_clients pour son UUID.",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/bons-commande",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        960,
+        2160
+      ],
+      "id": "tool-bdc-create",
+      "name": "creer_bon_commande",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Valide un bon de commande (brouillon → validé). PUT /api/bons-commande/{id}/validate.",
+        "method": "PUT",
+        "url": "https://api.talosprimes.com/api/bons-commande",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        2160
+      ],
+      "id": "tool-bdc-validate",
+      "name": "valider_bon_commande",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Convertit un bon de commande validé en facture. POST /api/bons-commande/{id}/convert-to-invoice.",
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/bons-commande",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        2160
+      ],
+      "id": "tool-bdc-to-invoice",
+      "name": "bdc_vers_facture",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 📦 Catalogue Articles\nLister et créer des codes articles avec prix, TVA et unités",
+        "height": 160,
+        "width": 400,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        1500
+      ],
+      "id": "sticky-catalogue-001",
+      "name": "Note - Catalogue Articles"
+    },
+    {
+      "parameters": {
+        "content": "## 📝 Devis\nCréer, lister, envoyer, accepter, convertir en facture/BDC\n\nFlux : brouillon → envoyée → acceptée → facturée",
+        "height": 180,
+        "width": 1380,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        1680
+      ],
+      "id": "sticky-devis-001",
+      "name": "Note - Devis"
+    },
+    {
+      "parameters": {
+        "content": "## 🧾 Factures\nCréer, lister, envoyer, marquer payée\n\nFlux : brouillon → envoyée → payée",
+        "height": 180,
+        "width": 1140,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        1900
+      ],
+      "id": "sticky-factures-001",
+      "name": "Note - Factures"
+    },
+    {
+      "parameters": {
+        "content": "## 📋 Bons de Commande\nCréer, lister, valider, convertir en facture\n\nFlux : brouillon → validé → facturé",
+        "height": 180,
+        "width": 900,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        2100
+      ],
+      "id": "sticky-bdc-001",
+      "name": "Note - Bons de Commande"
     }
   ],
   "pinData": {},
@@ -1756,7 +2142,7 @@
       "main": [
         [
           {
-            "node": "Vérifier Document Généré",
+            "node": "Vérifier Type Réponse",
             "type": "main",
             "index": 0
           }
@@ -2198,7 +2584,7 @@
         ]
       ]
     },
-    "generer_document": {
+    "lister_articles": {
       "ai_tool": [
         [
           {
@@ -2209,41 +2595,177 @@
         ]
       ]
     },
-    "Vérifier Document Généré": {
-      "main": [
+    "creer_article": {
+      "ai_tool": [
         [
           {
-            "node": "Créer Fichier Document",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Vérifier Type Réponse",
-            "type": "main",
+            "node": "AI Agent",
+            "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     },
-    "Créer Fichier Document": {
-      "main": [
+    "lister_devis": {
+      "ai_tool": [
         [
           {
-            "node": "Envoyer Document Telegram",
-            "type": "main",
+            "node": "AI Agent",
+            "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     },
-    "Envoyer Document Telegram": {
-      "main": [
+    "obtenir_devis": {
+      "ai_tool": [
         [
           {
-            "node": "Vérifier Type Réponse",
-            "type": "main",
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "envoyer_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "accepter_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "devis_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_factures": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "envoyer_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "facture_payee": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_bons_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "valider_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "bdc_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
             "index": 0
           }
         ]
