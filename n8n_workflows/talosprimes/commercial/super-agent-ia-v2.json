@@ -241,24 +241,27 @@
     },
     {
       "parameters": {
-        "model": "claude-3-5-sonnet-20241022",
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
         "options": {
-          "temperature": 0.2,
-          "maxTokensToSample": 4096
+          "temperature": 0.2
         }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
         1160,
         200
       ],
       "id": "a91788ff-f83e-46ee-a32a-771262c2a164",
-      "name": "Claude Sonnet",
+      "name": "OpenAI Chat Model",
       "credentials": {
-        "anthropicApi": {
-          "id": "",
-          "name": "Anthropic API"
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
         }
       }
     },
@@ -2189,7 +2192,7 @@
         ]
       ]
     },
-    "Claude Sonnet": {
+    "OpenAI Chat Model": {
       "ai_languageModel": [
         [
           {
