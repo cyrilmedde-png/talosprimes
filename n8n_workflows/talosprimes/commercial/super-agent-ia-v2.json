@@ -11,7 +11,7 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
       "position": [
-        -96,
+        -240,
         0
       ],
       "id": "c5697e7b-f30d-401f-8861-17fa991ee6b7",
@@ -31,8 +31,8 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.4,
       "position": [
-        -112,
-        -192
+        -240,
+        -240
       ],
       "id": "85bd4bc3-bb1b-4159-9df0-e9e06fff0a86",
       "name": "When chat message received",
@@ -64,7 +64,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        96,
+        80,
         0
       ],
       "id": "4c833835-ab68-43a2-a80e-a8914d6eade4",
@@ -79,8 +79,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        288,
-        -96
+        320,
+        -160
       ],
       "id": "c1358b85-4a5e-405a-96eb-6995842c938b",
       "name": "Récupérer Fichier Audio",
@@ -126,8 +126,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        464,
-        -96
+        560,
+        -160
       ],
       "id": "5ce87519-38a9-4218-a4a4-3dd1ccb69a12",
       "name": "Transcription Whisper",
@@ -174,8 +174,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        640,
-        -96
+        800,
+        -160
       ],
       "id": "f068ec05-4f68-4c53-ad37-451678a2ffcc",
       "name": "Préparer Contexte (Voix)"
@@ -215,8 +215,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        288,
-        112
+        320,
+        80
       ],
       "id": "ca525fbb-7f90-4bbf-a5e8-a60dc6669fbb",
       "name": "Préparer Contexte (Texte)"
@@ -233,8 +233,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        848,
-        -32
+        1300,
+        0
       ],
       "id": "0a5955f6-cfa5-410e-8132-dcb612fd5edd",
       "name": "AI Agent"
@@ -252,8 +252,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -64,
-        224
+        1160,
+        200
       ],
       "id": "a91788ff-f83e-46ee-a32a-771262c2a164",
       "name": "OpenAI Chat Model",
@@ -273,8 +273,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        96,
-        224
+        1360,
+        200
       ],
       "id": "3841f883-c3f9-4406-b2ba-6f3b0c4e7df5",
       "name": "Simple Memory"
@@ -305,8 +305,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1072,
-        -32
+        2280,
+        0
       ],
       "id": "1201ad6f-d35b-4462-bce4-6a8a228fb118",
       "name": "Vérifier Type Réponse"
@@ -340,8 +340,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1264,
-        -144
+        2520,
+        -160
       ],
       "id": "0ed70aae-3481-4d06-9bc8-cbdd56fec5ba",
       "name": "Synthèse Vocale (TTS)",
@@ -363,8 +363,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1456,
-        -144
+        2760,
+        -280
       ],
       "id": "934733ed-6e92-4b84-a70b-ec384a2f3f3f",
       "name": "Envoyer Réponse Vocale",
@@ -401,8 +401,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1264,
-        -272
+        2760,
+        -160
       ],
       "id": "49efa61d-6e3a-49bd-b92a-a33ea1f2f7d0",
       "name": "TTS Réussi ?"
@@ -418,7 +418,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1264,
+        2520,
         80
       ],
       "id": "5ad592e8-1c33-4da3-9434-73e1a1e2133d",
@@ -441,8 +441,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1456,
-        -272
+        3000,
+        -160
       ],
       "id": "613acc09-b17c-4263-bfe0-4adb8b5cd40c",
       "name": "Fallback Texte (TTS échoué)",
@@ -471,8 +471,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        304,
-        224
+        720,
+        480
       ],
       "id": "6d92f906-4ca9-499c-911e-c8880972e7f6",
       "name": "Create an event in Google Calendar",
@@ -500,8 +500,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        464,
-        224
+        960,
+        480
       ],
       "id": "26d74a74-eceb-437b-b870-d15a837c9f52",
       "name": "Get many events in Google Calendar",
@@ -530,8 +530,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        624,
-        224
+        1200,
+        480
       ],
       "id": "bc72451f-f2fb-4188-99fe-f01c28c6e70e",
       "name": "Update an event in Google Calendar",
@@ -557,8 +557,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        784,
-        224
+        1440,
+        480
       ],
       "id": "26c8602c-80bb-4370-9173-3d178d60a905",
       "name": "Delete an event in Google Calendar",
@@ -577,8 +577,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        304,
-        384
+        720,
+        640
       ],
       "id": "2e440828-ae4b-49f6-b339-f4124413aa4e",
       "name": "Get many messages in Gmail",
@@ -598,8 +598,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        464,
-        384
+        960,
+        640
       ],
       "id": "97dc0d35-c8bb-4be4-be77-68f2375b25a9",
       "name": "Delete a message in Gmail",
@@ -623,8 +623,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        624,
-        384
+        1200,
+        640
       ],
       "id": "52262546-1be1-42f7-a4b6-ea5fdf8b7cfa",
       "name": "Send a message in Gmail",
@@ -647,8 +647,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        944,
-        160
+        720,
+        820
       ],
       "id": "2fb7339c-c7e4-4d73-bf81-79f4577052e1",
       "name": "lister_leads",
@@ -678,8 +678,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1104,
-        160
+        960,
+        820
       ],
       "id": "ff097f06-c6e6-4ab0-8fc2-844bc32998b0",
       "name": "rechercher_leads",
@@ -709,8 +709,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        944,
-        288
+        1200,
+        820
       ],
       "id": "3e350fa6-1681-4d19-8204-76c440b8677c",
       "name": "obtenir_lead",
@@ -735,8 +735,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1104,
-        288
+        720,
+        940
       ],
       "id": "0bf87ed1-4a69-4e2b-acf1-102bc005a1db",
       "name": "creer_lead",
@@ -769,8 +769,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1264,
-        288
+        960,
+        940
       ],
       "id": "860cf6d3-9085-4072-af39-d98ec8f4d9cb",
       "name": "modifier_statut_lead",
@@ -801,8 +801,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1424,
-        288
+        1200,
+        940
       ],
       "id": "2e151008-d5b0-4532-ab5a-b7cbf2720445",
       "name": "supprimer_lead",
@@ -824,8 +824,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        944,
-        416
+        720,
+        1100
       ],
       "id": "83bf8df1-0ec9-4aab-b8f6-2ba1428edd9c",
       "name": "lister_clients",
@@ -855,8 +855,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1104,
-        416
+        960,
+        1100
       ],
       "id": "a50b1aaa-6280-4114-8056-a6790408a6f9",
       "name": "rechercher_clients",
@@ -886,8 +886,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        944,
-        544
+        1200,
+        1100
       ],
       "id": "075e00ae-6123-4244-a961-fcb85161656b",
       "name": "obtenir_client",
@@ -912,8 +912,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1104,
-        544
+        720,
+        1220
       ],
       "id": "3d047382-9503-4ccb-be69-28af53a86fa3",
       "name": "creer_client",
@@ -946,8 +946,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1264,
-        544
+        960,
+        1220
       ],
       "id": "c56152be-fd5b-4e5a-b0c4-09dd75bc5273",
       "name": "modifier_client",
@@ -978,8 +978,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1424,
-        544
+        1200,
+        1220
       ],
       "id": "fb3474af-cc33-4412-b986-a92b5c349bb1",
       "name": "supprimer_client",
@@ -1004,8 +1004,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        944,
-        672
+        720,
+        1400
       ],
       "id": "467bcf7c-c33b-4ef3-851d-0c31995f41bd",
       "name": "envoyer_notification",
@@ -1035,8 +1035,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1240,
-        720
+        960,
+        1400
       ],
       "id": "tool-qonto-balance-001",
       "name": "qonto_solde",
@@ -1066,8 +1066,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1240,
-        780
+        1200,
+        1400
       ],
       "id": "tool-qonto-transactions-001",
       "name": "qonto_transactions",
@@ -1104,8 +1104,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        288,
-        112
+        320,
+        240
       ],
       "id": "6b492a32-64bd-4f4f-9298-d3fff44f9376",
       "name": "Vérifier Fichier"
@@ -1119,8 +1119,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        480,
-        48
+        560,
+        240
       ],
       "id": "c8f1703b-376f-4df4-b193-07f30586da4b",
       "name": "Récupérer Fichier Document",
@@ -1196,8 +1196,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        720,
-        48
+        1040,
+        240
       ],
       "id": "c616303b-b650-4c48-85a5-5811af4d7cc7",
       "name": "Préparer Contexte (Fichier)"
@@ -1228,8 +1228,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        800,
-        48
+        1040,
+        340
       ],
       "id": "81c0f17e-7f56-47be-8748-1b3c0421c920",
       "name": "Vérifier Intent Email"
@@ -1242,8 +1242,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
-        0
+        1280,
+        440
       ],
       "id": "1a073fe6-4cb1-4a0b-9ce5-c24994f40640",
       "name": "Extraire Email et Fichier"
@@ -1267,8 +1267,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1380,
-        0
+        2000,
+        440
       ],
       "id": "8224afbb-1acf-4444-ae9a-13cea73cda16",
       "name": "Gmail Envoyer PJ",
@@ -1287,8 +1287,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1540,
-        0
+        2240,
+        440
       ],
       "id": "197c7bc8-49bf-4160-8712-6cc8d96a9037",
       "name": "Confirmer Envoi Telegram",
@@ -1307,8 +1307,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        48
+        800,
+        340
       ],
       "id": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
       "name": "Sauvegarder Fichier en Cache"
@@ -1321,8 +1321,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        360,
-        112
+        560,
+        80
       ],
       "id": "a1b2c3d4-e5f6-7890-abcd-ef0987654321",
       "name": "Enrichir Contexte Fichier Récent"
@@ -1335,8 +1335,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        560,
-        48
+        800,
+        240
       ],
       "id": "d1e2f3a4-b5c6-7890-1234-abcdef567890",
       "name": "Extraire Contenu Document"
@@ -1364,8 +1364,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1040,
-        0
+        1520,
+        440
       ],
       "id": "e2f3a4b5-c6d7-8901-2345-bcdef6789012",
       "name": "Composer Email IA",
@@ -1384,8 +1384,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
-        0
+        1760,
+        440
       ],
       "id": "f3a4b5c6-code-email-final-002",
       "name": "Préparer Email Final"
@@ -1400,8 +1400,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1,
       "position": [
-        608,
-        592
+        1440,
+        1400
       ],
       "id": "doc-gen-tool-001",
       "name": "generer_document"
@@ -1432,8 +1432,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1072,
-        160
+        1560,
+        0
       ],
       "id": "check-doc-gen-001",
       "name": "Vérifier Document Généré"
@@ -1446,8 +1446,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1280,
-        96
+        1800,
+        -80
       ],
       "id": "create-doc-file-001",
       "name": "Créer Fichier Document"
@@ -1466,8 +1466,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1504,
-        96
+        2040,
+        -80
       ],
       "id": "send-doc-telegram-001",
       "name": "Envoyer Document Telegram",
@@ -1477,6 +1477,182 @@
           "name": "Telegram account"
         }
       }
+    },
+    {
+      "parameters": {
+        "content": "## 🚀 Points d'entrée\nTelegram Trigger & Chat Interface\n\nLe workflow démarre ici via un message Telegram ou l'interface de chat intégrée.",
+        "height": 440,
+        "width": 300,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -300,
+        -300
+      ],
+      "id": "sticky-entry-001",
+      "name": "Note - Points d'entrée"
+    },
+    {
+      "parameters": {
+        "content": "## 📨 Traitement des Messages\nRoutage et préparation du contexte\n\n**Voix** → Transcription Whisper → Contexte\n**Texte** → Contexte direct\n**Fichier** → Téléchargement → Extraction contenu → Cache\n\nChaque type de message est transformé en contexte exploitable par l'Agent IA.",
+        "height": 680,
+        "width": 1060,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        20,
+        -240
+      ],
+      "id": "sticky-routing-001",
+      "name": "Note - Traitement Messages"
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 Agent IA\nGPT-4.1-mini + Mémoire conversationnelle\n\nCerveau central du système. Gère emails, calendrier, leads, clients, documents, finances.\n\nDécide automatiquement quels outils utiliser.",
+        "height": 380,
+        "width": 400,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -80
+      ],
+      "id": "sticky-agent-001",
+      "name": "Note - Agent IA"
+    },
+    {
+      "parameters": {
+        "content": "## 📎 Envoi Email avec Pièce Jointe\nShortcut : détection d'intent email → Composition IA → HTML pro → Gmail avec PJ → Confirmation Telegram",
+        "height": 180,
+        "width": 1120,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1220,
+        380
+      ],
+      "id": "sticky-email-pj-001",
+      "name": "Note - Email + Pièce Jointe"
+    },
+    {
+      "parameters": {
+        "content": "## 📄 Génération de Documents\nDevis / Factures / Bons de commande\n\nAprès réponse de l'Agent, si un document a été demandé :\n→ Création du fichier HTML professionnel\n→ Envoi automatique sur Telegram",
+        "height": 240,
+        "width": 700,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        -160
+      ],
+      "id": "sticky-docgen-001",
+      "name": "Note - Génération Documents"
+    },
+    {
+      "parameters": {
+        "content": "## 💬 Réponse à l'utilisateur\nRoutage de la réponse selon le type de message initial\n\n**Voix** → TTS (synthèse vocale) → Audio Telegram\n**Texte** → Message texte Telegram\n\nFallback texte si le TTS échoue.",
+        "height": 520,
+        "width": 880,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        -340
+      ],
+      "id": "sticky-response-001",
+      "name": "Note - Réponse"
+    },
+    {
+      "parameters": {
+        "content": "## 📅 Google Calendar\nCréer, consulter, modifier et supprimer des événements",
+        "height": 160,
+        "width": 860,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        420
+      ],
+      "id": "sticky-tools-calendar-001",
+      "name": "Note - Google Calendar"
+    },
+    {
+      "parameters": {
+        "content": "## ✉️ Gmail\nLire, envoyer et supprimer des emails",
+        "height": 160,
+        "width": 620,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        580
+      ],
+      "id": "sticky-tools-gmail-001",
+      "name": "Note - Gmail"
+    },
+    {
+      "parameters": {
+        "content": "## 🎯 Gestion des Leads\nCRUD complet sur l'API TalosPrimes\n\nLister, rechercher, obtenir, créer, modifier statut, supprimer",
+        "height": 260,
+        "width": 620,
+        "color": 1
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        760
+      ],
+      "id": "sticky-tools-leads-001",
+      "name": "Note - Gestion Leads"
+    },
+    {
+      "parameters": {
+        "content": "## 👥 Gestion des Clients\nCRUD complet sur l'API TalosPrimes\n\nLister, rechercher, obtenir, créer, modifier, supprimer",
+        "height": 260,
+        "width": 620,
+        "color": 1
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        1040
+      ],
+      "id": "sticky-tools-clients-001",
+      "name": "Note - Gestion Clients"
+    },
+    {
+      "parameters": {
+        "content": "## 💰 Notifications & Finance (Qonto)\nEnvoyer des notifications email, consulter le solde et les transactions bancaires",
+        "height": 160,
+        "width": 900,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        1340
+      ],
+      "id": "sticky-tools-finance-001",
+      "name": "Note - Notifications & Finance"
     }
   ],
   "pinData": {},
