@@ -244,7 +244,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4.1"
+          "value": "gpt-4o"
         },
         "builtInTools": {},
         "options": {
