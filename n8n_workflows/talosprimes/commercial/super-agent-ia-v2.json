@@ -228,7 +228,7 @@
         "options": {
           "systemMessage": "# Contexte Temporel\n\n📅 **Date et heure actuelles : {{ $now.setZone('Europe/Paris').toFormat('EEEE dd MMMM yyyy à HH:mm', { locale: 'fr' }) }}**\n**Année en cours : {{ $now.year }}**\n\n⚠️ RÈGLE ABSOLUE : Quand l'utilisateur mentionne une date (ex: \"vendredi 6 mars\", \"demain\", \"la semaine prochaine\"), tu DOIS utiliser l'année {{ $now.year }} sauf indication contraire explicite. Ne JAMAIS utiliser 2024 ou 2025.\n\n---\n\n# Rôle\n\nTu es **l'Assistant IA TalosPrimes**, un assistant commercial et opérationnel professionnel. Tu gères les emails, l'agenda, et l'intégralité de l'application métier TalosPrimes.\nTu es autonome, efficace, poli et toujours orienté résultats.\n\n---\n\n# Objectifs\n\n1. Gérer la boîte mail (lecture, tri, rédaction, réponse, suppression).\n2. Gérer Google Calendar (création, modification, suppression, consultation d'événements).\n3. Gérer l'application TalosPrimes : leads, clients, notifications.\n4. Maintenir la cohérence entre mails, agenda et application (ex : mail de RDV → créer événement ; nouveau contact → créer lead).\n5. Prendre des décisions intelligentes sans toujours demander confirmation, sauf pour les actions irréversibles.\n\n---\n\n# Outils Disponibles (noms exacts)\n\n## Google Calendar\n- **Create an event in Google Calendar** : Params AI : Start (ISO 8601), End (ISO 8601), Summary (titre), attendees0_Attendees (email participants)\n- **Get many events in Google Calendar** : Params AI : After (ISO 8601 date début), Before (ISO 8601 date fin)\n- **Update an event in Google Calendar** : Params AI : Event_ID (ID de l'événement), Location, Summary, Start, End\n- **Delete an event in Google Calendar** : Params AI : Event_ID\n\n## Gmail\n- **Get many messages in Gmail** : Récupère les emails récents\n- **Send a message in Gmail** : Params AI : To (email), Subject (objet), Message (corps)\n- **Delete a message in Gmail** : Params AI : Message_ID\n\n## Leads TalosPrimes\n- **lister_leads** : GET /api/leads — Liste tous les leads\n- **rechercher_leads** : GET /api/leads?search=xxx — Recherche des leads par nom, email ou téléphone\n- **obtenir_lead** : GET /api/leads?id=xxx — Récupère un lead par son ID\n- **creer_lead** : POST /api/leads — Body JSON : { \"nom\", \"prenom\", \"email\", \"telephone\", \"source\", \"notes\" }\n- **modifier_statut_lead** : PATCH /api/leads?id=xxx — Body JSON : { \"statut\": \"nouveau|contacte|qualifie|converti|perdu\" }\n- **supprimer_lead** : DELETE /api/leads?id=xxx\n\n## Clients TalosPrimes\n- **lister_clients** : GET /api/clients — Liste tous les clients\n- **rechercher_clients** : GET /api/clients?search=xxx — Recherche des clients par nom, email ou raison sociale\n- **obtenir_client** : GET /api/clients?id=xxx — Récupère un client par son ID\n- **creer_client** : POST /api/clients — Body JSON : { \"type\": \"b2b|b2c\", \"email\", \"raisonSociale\", \"nom\", \"prenom\", \"telephone\", \"adresse\" }\n- **modifier_client** : PATCH /api/clients?id=xxx — Body JSON partiel avec les champs à modifier\n- **supprimer_client** : DELETE /api/clients?id=xxx\n\n## Notifications\n- **envoyer_notification** : POST /api/notifications — Body JSON : { \"from\": \"TalosPrimes <noreply@talosprimes.com>\", \"to\": \"email\", \"subject\": \"objet\", \"html\": \"<p>contenu HTML</p>\" }\n\n---\n\n# Fonctionnalités Avancées\n\n## Conversion Lead → Client\nQuand l'utilisateur demande de \"convertir un lead en client\" :\n1. Utilise **obtenir_lead** pour récupérer toutes les infos du lead\n2. Utilise **creer_client** avec les données du lead (nom, prenom, email, telephone, etc.)\n3. Utilise **modifier_statut_lead** pour passer le statut à \"converti\"\n4. Utilise **envoyer_notification** pour envoyer un email de bienvenue au nouveau client\n5. Confirme le tout à l'utilisateur\n\n## Rapport d'Activité\nQuand l'utilisateur demande un \"résumé\", \"rapport\" ou \"bilan\" :\n1. Utilise **lister_leads** pour compter les leads récents\n2. Utilise **lister_clients** pour compter les clients\n3. Utilise **Get many events in Google Calendar** pour les rendez-vous de la période\n4. Utilise **Get many messages in Gmail** pour les emails non lus\n5. Présente un rapport structuré avec les chiffres clés\n\n## Relance de Leads\nQuand l'utilisateur demande de \"relancer les leads inactifs\" :\n1. Utilise **lister_leads** pour récupérer tous les leads\n2. Identifie ceux avec statut \"nouveau\" ou \"contacte\" sans activité récente\n3. Pour chaque lead à relancer, utilise **envoyer_notification** pour envoyer un email personnalisé\n4. Met à jour le statut du lead si nécessaire\n5. Résume les relances effectuées\n\n## Contexte Enrichi\nQuand l'utilisateur pose une question sur un client ou un lead spécifique :\n- Récupère automatiquement les informations complètes (pas juste le nom)\n- Si c'est un client, mentionne aussi ses rendez-vous à venir s'il y en a\n- Présente les données de façon structurée et utile\n\n---\n\n# Gestion des Emails\n\n## Lire\n- Parcourir les nouveaux messages et identifier leur importance (urgent, important, promotionnel, spam)\n- Résumer les mails importants\n\n## Écrire / Répondre\n- Rédiger des réponses complètes, structurées et polies\n- Respecter la langue du correspondant\n\n## Supprimer / Archiver\n- Supprimer les mails indésirables (spam, phishing, promotions obsolètes)\n- Ne jamais supprimer un mail important sans instruction explicite\n\n---\n\n# Gestion Google Calendar\n\n## Créer\n- À partir d'instructions directes ou du contenu des mails\n- Toujours inclure : titre, date/heure début et fin, participants si mentionnés\n- Vérifier les conflits horaires avant de créer\n\n## Modifier\n- Mettre à jour date, heure, participants, description, lieu\n- Proposer des alternatives en cas de conflit\n\n## Supprimer\n- Uniquement sur demande claire\n- Proposer d'envoyer un email d'annulation aux participants\n\n## Consulter\n- Résumer l'agenda du jour, de la semaine ou du mois sur demande\n- Rappeler les rendez-vous importants\n\n---\n\n# Style et Ton\n\n- Langage clair, poli et professionnel\n- Réponses concises (max 150 mots pour les réponses vocales, car le TTS est lent sur les longs textes)\n- Utilise des emojis avec parcimonie pour structurer (✅ ❌ 📅 📧 👤)\n- Toujours respectueux, même face à des messages désagréables\n- En français par défaut, mais s'adapte à la langue de l'utilisateur\n\n---\n\n# Sécurité et Limites\n\n- **Confirmation obligatoire** pour : suppression de client, suppression en masse, envoi d'emails à plusieurs destinataires\n- **Interdit** : révéler des tokens/clés API, inventer des données (dates, montants, noms), supprimer des entités importantes sans instruction explicite\n- En cas de doute, demander confirmation\n- Si une information manque, la demander plutôt que l'inventer\n- Si un outil échoue, informer l'utilisateur clairement et proposer une alternative\n\n---\n\n# Format JSON pour les outils HTTP\n\nQuand tu utilises un outil HTTP (creer_lead, creer_client, modifier_client, modifier_statut_lead, envoyer_notification), tu DOIS fournir un body JSON **valide** :\n- Toutes les clés entre guillemets doubles\n- Toutes les valeurs string entre guillemets doubles\n- Pas de virgule finale avant la fermeture }\n- Pas de commentaires dans le JSON\n\nExemple correct : {\"nom\":\"Jean\",\"prenom\":\"Dupont\",\"email\":\"jean@test.com\"}\nExemple INCORRECT : {nom: \"Jean\", prenom: \"Dupont\",}"
         },
-        "systemPrompt": "\n\n## Fichiers / Pièces Jointes\nQuand l'utilisateur envoie un fichier (document, photo) :\n- Le fichier est automatiquement téléchargé et disponible\n- Si l'utilisateur demande d'envoyer par email, le système gère automatiquement l'envoi avec pièce jointe\n- Tu peux faire référence au fichier dans tes réponses\n- Le message contiendra [Fichier joint: nom_du_fichier] pour t'informer qu'un fichier est présent"
+        "systemPrompt": "\n\n## Fichiers / Pièces Jointes\nQuand l'utilisateur envoie un fichier (document, photo) :\n- Le fichier est automatiquement téléchargé et son contenu textuel est extrait quand c'est possible\n- Le contenu extrait apparaît entre les balises --- CONTENU DU DOCUMENT --- et --- FIN DU CONTENU ---\n- Tu DOIS lire et analyser ce contenu pour répondre aux questions de l'utilisateur sur le document\n- Tu peux résumer, citer, reformuler ou utiliser les informations du document\n- Si l'utilisateur demande d'envoyer le contenu par email, utilise les informations extraites pour composer le mail\n- Si le contenu n'a pas pu être extrait (PDF scanné, image), informe l'utilisateur\n- Si l'utilisateur demande d'envoyer le fichier en pièce jointe par email, le système gère automatiquement l'envoi avec pièce jointe (il faut mentionner l'adresse email dans le message)\n- Le message contiendra [Fichier joint: nom_du_fichier] pour t'informer qu'un fichier est présent"
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -1138,7 +1138,7 @@
             "id": "msg_text",
             "name": "messageText",
             "type": "string",
-            "value": "={{ (() => { const cap = $('Telegram Trigger').first().json.message?.caption || ''; const doc = $('Telegram Trigger').first().json.message?.document; const photo = $('Telegram Trigger').first().json.message?.photo; const fname = doc?.file_name || 'photo.jpg'; return '[Fichier joint: ' + fname + ']' + (cap ? ' ' + cap : ' L\\'utilisateur a envoyé un fichier sans message.'); })() }}"
+            "value": "={{ (() => { const cap = $('Telegram Trigger').first().json.message?.caption || ''; const doc = $('Telegram Trigger').first().json.message?.document; const fname = doc?.file_name || 'photo.jpg'; const content = $json.documentContent || ''; const method = $json.extractionMethod || 'none'; let msg = '[Fichier joint: ' + fname + ']'; if (content && method !== 'none' && !content.startsWith('[')) { msg += '\\n\\n--- CONTENU DU DOCUMENT ---\\n' + content + '\\n--- FIN DU CONTENU ---'; } else if (content) { msg += '\\n' + content; } if (cap) { msg += '\\n\\nMessage de l\\'utilisateur: ' + cap; } else { msg += '\\nL\\'utilisateur a envoyé ce fichier sans message.'; } return msg; })() }}"
           },
           {
             "id": "chat_id",
@@ -1175,6 +1175,18 @@
             "name": "fileMimeType",
             "type": "string",
             "value": "={{ $('Telegram Trigger').first().json.message?.document?.mime_type || 'image/jpeg' }}"
+          },
+          {
+            "id": "doc_content",
+            "name": "documentContent",
+            "type": "string",
+            "value": "={{ $json.documentContent || '' }}"
+          },
+          {
+            "id": "extract_method",
+            "name": "extractionMethod",
+            "type": "string",
+            "value": "={{ $json.extractionMethod || 'none' }}"
           }
         ],
         "options": {
@@ -1184,7 +1196,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        640,
+        720,
         48
       ],
       "id": "c616303b-b650-4c48-85a5-5811af4d7cc7",
@@ -1290,7 +1302,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Sauvegarder le fichier dans le cache statique du workflow\n// pour qu'il soit accessible si l'utilisateur envoie un texte séparément\nconst staticData = $getWorkflowStaticData('global');\nconst chatId = $json.chatId;\nconst fileName = $json.fileName || '';\nconst fileMime = $json.fileMimeType || '';\n\nif (chatId && fileName) {\n  staticData[`lastFile_${chatId}`] = {\n    fileName,\n    fileMimeType: fileMime,\n    timestamp: Date.now()\n  };\n}\n\n// Passer tous les items (json + binary) tels quels\nconst items = $input.all();\nreturn items.map(item => ({\n  json: item.json,\n  binary: item.binary\n}));"
+        "jsCode": "// Sauvegarder le fichier ET son contenu dans le cache statique\nconst staticData = $getWorkflowStaticData('global');\nconst chatId = $json.chatId;\nconst fileName = $json.fileName || '';\nconst fileMime = $json.fileMimeType || '';\nconst docContent = $json.documentContent || '';\nconst extractMethod = $json.extractionMethod || 'none';\n\nif (chatId && fileName) {\n  staticData[`lastFile_${chatId}`] = {\n    fileName,\n    fileMimeType: fileMime,\n    documentContent: docContent.substring(0, 5000),\n    extractionMethod: extractMethod,\n    timestamp: Date.now()\n  };\n}\n\nconst items = $input.all();\nreturn items.map(item => ({\n  json: item.json,\n  binary: item.binary\n}));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1304,7 +1316,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Vérifier si un fichier a été envoyé récemment par cet utilisateur\nconst staticData = $getWorkflowStaticData('global');\nconst items = $input.all();\n\nreturn items.map(item => {\n  const chatId = item.json.chatId;\n  const lastFile = staticData[`lastFile_${chatId}`];\n  const newJson = { ...item.json };\n\n  // Si un fichier a été envoyé il y a moins de 5 minutes\n  if (lastFile && (Date.now() - lastFile.timestamp) < 300000) {\n    newJson.messageText = (newJson.messageText || '') +\n      '\\n[Fichier récemment envoyé: ' + lastFile.fileName +\n      ' (' + lastFile.fileMimeType + '). L\\'utilisateur peut faire référence à ce fichier.]';\n    newJson.hasRecentFile = true;\n    newJson.recentFileName = lastFile.fileName;\n    newJson.recentFileMime = lastFile.fileMimeType;\n  }\n\n  return { json: newJson, binary: item.binary };\n});"
+        "jsCode": "// Vérifier si un fichier a été envoyé récemment et enrichir avec son contenu\nconst staticData = $getWorkflowStaticData('global');\nconst items = $input.all();\n\nreturn items.map(item => {\n  const chatId = item.json.chatId;\n  const lastFile = staticData[`lastFile_${chatId}`];\n  const newJson = { ...item.json };\n\n  if (lastFile && (Date.now() - lastFile.timestamp) < 300000) {\n    let fileContext = '\\n[Fichier récemment envoyé: ' + lastFile.fileName + ' (' + lastFile.fileMimeType + ')]';\n\n    // Ajouter le contenu extrait si disponible\n    if (lastFile.documentContent && lastFile.extractionMethod !== 'none' && !lastFile.documentContent.startsWith('[')) {\n      fileContext += '\\n\\n--- CONTENU DU DOCUMENT ---\\n' + lastFile.documentContent + '\\n--- FIN DU CONTENU ---';\n    } else if (lastFile.documentContent) {\n      fileContext += '\\n' + lastFile.documentContent;\n    }\n\n    newJson.messageText = (newJson.messageText || '') + fileContext;\n    newJson.hasRecentFile = true;\n    newJson.recentFileName = lastFile.fileName;\n    newJson.recentFileMime = lastFile.fileMimeType;\n  }\n\n  return { json: newJson, binary: item.binary };\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1314,6 +1326,20 @@
       ],
       "id": "a1b2c3d4-e5f6-7890-abcd-ef0987654321",
       "name": "Enrichir Contexte Fichier Récent"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Extraire le contenu textuel du document envoyé via Telegram\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const binaryObj = item.binary?.data;\n  let documentContent = '';\n  let extractionMethod = 'none';\n\n  if (binaryObj) {\n    const mimeType = binaryObj.mimeType || '';\n    const fileName = binaryObj.fileName || '';\n\n    try {\n      const base64Data = binaryObj.data;\n\n      if (base64Data && typeof base64Data === 'string') {\n        const buffer = Buffer.from(base64Data, 'base64');\n\n        // Fichiers texte : extraction directe UTF-8\n        if (mimeType.startsWith('text/') ||\n            ['application/json', 'application/xml', 'application/csv',\n             'application/javascript', 'application/x-yaml'].includes(mimeType) ||\n            fileName.match(/\\.(txt|csv|json|xml|yaml|yml|md|html|htm|log|ini|cfg|conf|sh|js|ts|py|sql)$/i)) {\n          documentContent = buffer.toString('utf-8').substring(0, 15000);\n          extractionMethod = 'text_direct';\n        }\n        // PDF : extraction des chaînes de texte encodées\n        else if (mimeType === 'application/pdf' || fileName.match(/\\.pdf$/i)) {\n          const raw = buffer.toString('latin1');\n          const textParts = [];\n          // Extraire texte entre parenthèses (opérateurs PDF Tj/TJ)\n          const regex = /\\(([^\\\\)]{0,500}(?:\\\\.[^\\\\)]{0,500})*)\\)/g;\n          let match;\n          while ((match = regex.exec(raw)) !== null) {\n            let text = match[1]\n              .replace(/\\\\n/g, '\\n')\n              .replace(/\\\\r/g, '')\n              .replace(/\\\\\\(/g, '(')\n              .replace(/\\\\\\)/g, ')')\n              .replace(/\\\\(.)/g, '$1');\n            if (text.length > 0 && /[a-zA-Z\\u00C0-\\u00FF0-9]/.test(text)) {\n              textParts.push(text);\n            }\n          }\n          if (textParts.length > 0) {\n            documentContent = textParts.join(' ').replace(/\\s+/g, ' ').trim().substring(0, 15000);\n            extractionMethod = 'pdf_text_extract';\n          }\n          if (!documentContent || documentContent.length < 50) {\n            // Fallback : extraire séquences ASCII lisibles\n            const printable = buffer.toString('utf-8')\n              .replace(/[^\\x20-\\x7E\\u00C0-\\u00FF\\n]/g, ' ')\n              .replace(/\\s{3,}/g, '\\n')\n              .trim()\n              .substring(0, 15000);\n            if (printable.length > 100) {\n              documentContent = printable;\n              extractionMethod = 'pdf_fallback';\n            } else {\n              documentContent = '[Document PDF: ' + fileName + ' - PDF scanné/image, contenu non extractible sans OCR]';\n              extractionMethod = 'pdf_no_text';\n            }\n          }\n        }\n        // DOCX : extraction du texte depuis le XML interne\n        else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileName.match(/\\.docx$/i)) {\n          const raw = buffer.toString('utf-8', 0, Math.min(buffer.length, 500000));\n          const textParts = [];\n          const regex = /<w:t[^>]*>([^<]+)<\\/w:t>/g;\n          let match;\n          while ((match = regex.exec(raw)) !== null) {\n            textParts.push(match[1]);\n          }\n          if (textParts.length > 0) {\n            documentContent = textParts.join(' ').substring(0, 15000);\n            extractionMethod = 'docx_xml_extract';\n          } else {\n            documentContent = '[Document DOCX: ' + fileName + ' - Contenu non extractible]';\n            extractionMethod = 'docx_no_text';\n          }\n        }\n        // XLS/XLSX : indication\n        else if (fileName.match(/\\.xlsx?$/i)) {\n          documentContent = '[Fichier Excel: ' + fileName + ' - Format tableur, extraction limitée]';\n          extractionMethod = 'excel_unsupported';\n        }\n        // Images : pas d OCR disponible\n        else if (mimeType.startsWith('image/')) {\n          documentContent = '[Image: ' + fileName + ' (' + mimeType + ') - Pas d\\'extraction sans OCR]';\n          extractionMethod = 'image_no_ocr';\n        }\n        else {\n          documentContent = '[Document: ' + fileName + ' (' + mimeType + ') - Format non supporté]';\n          extractionMethod = 'unsupported';\n        }\n      } else {\n        // Données binaires stockées en référence (n8n récent)\n        // Tenter via toString si possible\n        documentContent = '[Document: ' + fileName + ' - Données en référence fichier]';\n        extractionMethod = 'file_reference';\n      }\n    } catch (err) {\n      documentContent = '[Erreur extraction: ' + err.message + ']';\n      extractionMethod = 'error';\n    }\n  }\n\n  results.push({\n    json: { ...item.json, documentContent, extractionMethod },\n    binary: item.binary\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        48
+      ],
+      "id": "d1e2f3a4-b5c6-7890-1234-abcdef567890",
+      "name": "Extraire Contenu Document"
     }
   ],
   "pinData": {},
@@ -1757,7 +1783,7 @@
       "main": [
         [
           {
-            "node": "Préparer Contexte (Fichier)",
+            "node": "Extraire Contenu Document",
             "type": "main",
             "index": 0
           }
@@ -1820,6 +1846,17 @@
         [
           {
             "node": "Confirmer Envoi Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire Contenu Document": {
+      "main": [
+        [
+          {
+            "node": "Préparer Contexte (Fichier)",
             "type": "main",
             "index": 0
           }
