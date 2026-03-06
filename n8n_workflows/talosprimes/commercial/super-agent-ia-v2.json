@@ -732,7 +732,8 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {},
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON du lead: {\\\"nom\\\":\\\"text\\\",\\\"prenom\\\":\\\"text\\\",\\\"email\\\":\\\"email\\\",\\\"telephone\\\":\\\"text\\\",\\\"source\\\":\\\"text\\\",\\\"notes\\\":\\\"text\\\"}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -766,7 +767,8 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON: {\\\"statut\\\":\\\"nouveau|contacte|qualifie|converti|perdu\\\"}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -909,7 +911,8 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {},
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON du client: {\\\"type\\\":\\\"b2b ou b2c\\\",\\\"email\\\":\\\"email\\\",\\\"raisonSociale\\\":\\\"text\\\",\\\"nom\\\":\\\"text\\\",\\\"prenom\\\":\\\"text\\\",\\\"telephone\\\":\\\"text\\\",\\\"adresse\\\":\\\"text\\\"}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -943,7 +946,8 @@
           ]
         },
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON partiel avec les champs à modifier\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1001,7 +1005,8 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {},
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON: {\\\"from\\\":\\\"TalosPrimes <noreply@talosprimes.com>\\\",\\\"to\\\":\\\"email\\\",\\\"subject\\\":\\\"objet\\\",\\\"html\\\":\\\"<p>contenu</p>\\\"}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1584,7 +1589,8 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {},
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON de article: {\\\"code\\\":\\\"CODE\\\",\\\"designation\\\":\\\"text\\\",\\\"prixUnitaireHt\\\":number,\\\"tvaTaux\\\":20,\\\"unite\\\":\\\"unité\\\"}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1657,7 +1663,8 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {},
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON du devis: {\\\"clientFinalId\\\":\\\"UUID\\\",\\\"montantHt\\\":number,\\\"tvaTaux\\\":20,\\\"description\\\":\\\"text\\\",\\\"modePaiement\\\":\\\"virement\\\",\\\"lines\\\":[{\\\"designation\\\":\\\"text\\\",\\\"quantite\\\":number,\\\"prixUnitaireHt\\\":number}]}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1802,7 +1809,8 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {},
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON de la facture: {\\\"clientFinalId\\\":\\\"UUID\\\",\\\"montantHt\\\":number,\\\"tvaTaux\\\":20,\\\"type\\\":\\\"facture_client_final\\\",\\\"description\\\":\\\"text\\\",\\\"lines\\\":[{\\\"designation\\\":\\\"text\\\",\\\"quantite\\\":number,\\\"prixUnitaireHt\\\":number}]}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1899,7 +1907,8 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {},
         "sendBody": true,
-        "specifyBody": "json"
+        "specifyBody": "json",
+        "jsonBody": "={{ $fromAI(\"requestBody\", \"JSON du bon de commande: {\\\"clientFinalId\\\":\\\"UUID\\\",\\\"montantHt\\\":number,\\\"tvaTaux\\\":20,\\\"description\\\":\\\"text\\\",\\\"lines\\\":[{\\\"designation\\\":\\\"text\\\",\\\"quantite\\\":number,\\\"prixUnitaireHt\\\":number}]}\") }}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
