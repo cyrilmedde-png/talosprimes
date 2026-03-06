@@ -1176,7 +1176,10 @@
             "type": "string",
             "value": "={{ $('Telegram Trigger').first().json.message?.document?.mime_type || 'image/jpeg' }}"
           }
-        ]
+        ],
+        "options": {
+          "includeBinary": true
+        }
       },
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
@@ -1222,7 +1225,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const caption = $('Telegram Trigger').first().json.message?.caption || '';\nconst emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;\nconst emailMatches = caption.match(emailRegex);\nconst toEmail = emailMatches ? emailMatches[0] : '';\n\nconst doc = $('Telegram Trigger').first().json.message?.document;\nconst fileName = doc?.file_name || 'photo.jpg';\n\n// On récupère le binary data du node précédent et on le passe tel quel\nconst items = $input.all();\nconst result = items.map(item => {\n  return {\n    json: {\n      toEmail,\n      fileName,\n      caption,\n      subject: 'Fichier: ' + fileName\n    },\n    binary: item.binary\n  };\n});\nreturn result;"
+        "jsCode": "const caption = $('Telegram Trigger').first().json.message?.caption || '';\nconst emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;\nconst emailMatches = caption.match(emailRegex);\nconst toEmail = emailMatches ? emailMatches[0] : '';\n\nconst doc = $('Telegram Trigger').first().json.message?.document;\nconst fileName = doc?.file_name || 'photo.jpg';\n\n// IMPORTANT : Récupérer le binary DIRECTEMENT depuis le node source\n// car le Set node et le IF node peuvent perdre le binary data\nconst fileNode = $('Récupérer Fichier Document').first();\nconst binaryData = fileNode.binary || {};\n\n// Fallback : essayer depuis $input si le node source n'a pas de binary\nconst inputBinary = $input.first().binary || {};\nconst finalBinary = Object.keys(binaryData).length > 0 ? binaryData : inputBinary;\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    caption,\n    subject: 'Fichier: ' + fileName\n  },\n  binary: finalBinary\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1283,6 +1286,34 @@
           "name": "Telegram account"
         }
       }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Sauvegarder le fichier dans le cache statique du workflow\n// pour qu'il soit accessible si l'utilisateur envoie un texte séparément\nconst staticData = $getWorkflowStaticData('global');\nconst chatId = $json.chatId;\nconst fileName = $json.fileName || '';\nconst fileMime = $json.fileMimeType || '';\n\nif (chatId && fileName) {\n  staticData[`lastFile_${chatId}`] = {\n    fileName,\n    fileMimeType: fileMime,\n    timestamp: Date.now()\n  };\n}\n\n// Passer tous les items (json + binary) tels quels\nconst items = $input.all();\nreturn items.map(item => ({\n  json: item.json,\n  binary: item.binary\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        48
+      ],
+      "id": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
+      "name": "Sauvegarder Fichier en Cache"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Vérifier si un fichier a été envoyé récemment par cet utilisateur\nconst staticData = $getWorkflowStaticData('global');\nconst items = $input.all();\n\nreturn items.map(item => {\n  const chatId = item.json.chatId;\n  const lastFile = staticData[`lastFile_${chatId}`];\n  const newJson = { ...item.json };\n\n  // Si un fichier a été envoyé il y a moins de 5 minutes\n  if (lastFile && (Date.now() - lastFile.timestamp) < 300000) {\n    newJson.messageText = (newJson.messageText || '') +\n      '\\n[Fichier récemment envoyé: ' + lastFile.fileName +\n      ' (' + lastFile.fileMimeType + '). L\\'utilisateur peut faire référence à ce fichier.]';\n    newJson.hasRecentFile = true;\n    newJson.recentFileName = lastFile.fileName;\n    newJson.recentFileMime = lastFile.fileMimeType;\n  }\n\n  return { json: newJson, binary: item.binary };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        112
+      ],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef0987654321",
+      "name": "Enrichir Contexte Fichier Récent"
     }
   ],
   "pinData": {},
@@ -1350,6 +1381,17 @@
       ]
     },
     "Préparer Contexte (Texte)": {
+      "main": [
+        [
+          {
+            "node": "Enrichir Contexte Fichier Récent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrichir Contexte Fichier Récent": {
       "main": [
         [
           {
@@ -1723,6 +1765,17 @@
       ]
     },
     "Préparer Contexte (Fichier)": {
+      "main": [
+        [
+          {
+            "node": "Sauvegarder Fichier en Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sauvegarder Fichier en Cache": {
       "main": [
         [
           {
