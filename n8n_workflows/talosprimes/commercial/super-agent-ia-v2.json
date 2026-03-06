@@ -1267,7 +1267,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1360,
+        1440,
         0
       ],
       "id": "8224afbb-1acf-4444-ae9a-13cea73cda16",
@@ -1287,7 +1287,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1520,
+        1600,
         0
       ],
       "id": "197c7bc8-49bf-4160-8712-6cc8d96a9037",
@@ -1378,16 +1378,72 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Récupérer la réponse de l'IA\nconst aiResponse = $json;\nlet emailBody = '';\n\n// Extraire le corps du mail depuis la réponse OpenAI\nif (aiResponse.choices && aiResponse.choices[0]) {\n  emailBody = aiResponse.choices[0].message.content;\n} else {\n  emailBody = 'Veuillez trouver ci-joint le document demandé.';\n}\n\n// Récupérer les infos du node précédent\nconst extractData = $('Extraire Email et Fichier').first().json;\nconst toEmail = extractData.toEmail;\nconst fileName = extractData.fileName;\nconst caption = extractData.caption;\n\n// Générer un objet email professionnel\n// Retirer \"Fichier: \" du subject et utiliser quelque chose de mieux\nlet subject = fileName;\n// Si le nom contient une extension, la garder dans le subject\nif (subject.match(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i)) {\n  subject = subject.replace(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i, '').trim();\n}\n\n// Récupérer le binary depuis le node source\nconst fileNode = $('Récupérer Fichier Document').first();\nconst binaryData = fileNode.binary || {};\nconst inputBinary = $('Extraire Email et Fichier').first().binary || {};\nconst finalBinary = Object.keys(binaryData).length > 0 ? binaryData : inputBinary;\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    subject,\n    message: emailBody,\n    caption\n  },\n  binary: finalBinary\n}];"
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
       "position": [
-        1200,
+        1160,
         0
       ],
-      "id": "f3a4b5c6-d7e8-9012-3456-cdef78901234",
+      "id": "a1b2c3d4-e5f6-7890-merge-binary001",
+      "name": "Fusionner Email + Binary"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "toEmail",
+              "name": "toEmail",
+              "value": "={{ $json.toEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "fileName",
+              "name": "fileName",
+              "value": "={{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "subject",
+              "name": "subject",
+              "value": "={{ $json.fileName ? $json.fileName.replace(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i, '').trim() : 'Document' }}",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "={{ $json.choices ? $json.choices[0].message.content : ($json.message || 'Veuillez trouver ci-joint le document demandé.') }}",
+              "type": "string"
+            },
+            {
+              "id": "caption",
+              "name": "caption",
+              "value": "={{ $json.caption }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "include": "none",
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        0
+      ],
+      "id": "f3a4b5c6-set-email-final-001",
       "name": "Préparer Email Final"
     }
   ],
@@ -1886,6 +1942,11 @@
             "node": "Composer Email IA",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Fusionner Email + Binary",
+            "type": "main",
+            "index": 1
           }
         ]
       ]
@@ -1913,6 +1974,17 @@
       ]
     },
     "Composer Email IA": {
+      "main": [
+        [
+          {
+            "node": "Fusionner Email + Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fusionner Email + Binary": {
       "main": [
         [
           {
