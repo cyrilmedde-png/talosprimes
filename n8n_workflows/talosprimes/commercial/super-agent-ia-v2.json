@@ -644,8 +644,7 @@
         "url": "https://api.talosprimes.com/api/leads",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -677,8 +676,7 @@
               "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les leads par nom, prénom, email ou téléphone\") }}"
             }
           ]
-        },
-        "nodeCredentialType": "httpHeaderAuth"
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -710,8 +708,7 @@
               "value": "={{ $fromAI(\"leadId\", \"UUID du lead à récupérer\") }}"
             }
           ]
-        },
-        "nodeCredentialType": "httpHeaderAuth"
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -738,8 +735,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"leadBody\", \"Body JSON pour créer un lead. EXEMPLE EXACT A SUIVRE: {\\\"nom\\\":\\\"Dupont\\\",\\\"prenom\\\":\\\"Jean\\\",\\\"email\\\":\\\"jean@example.com\\\",\\\"telephone\\\":\\\"0612345678\\\",\\\"source\\\":\\\"telephone\\\"}. Adapte les valeurs selon ce que l'utilisateur a donné. NE METS QUE les champs fournis par l'utilisateur.\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    nom: $fromAI(\"nom\", \"Nom de famille du lead\"),\n    prenom: $fromAI(\"prenom\", \"Prénom du lead (vide si non fourni)\"),\n    email: $fromAI(\"email\", \"Adresse email du lead\"),\n    telephone: $fromAI(\"telephone\", \"Numéro de téléphone du lead (vide si non fourni)\"),\n    source: $fromAI(\"source\", \"Source du lead: site_web, telephone, recommandation, reseaux_sociaux, terrain (vide si non précisé)\"),\n    notes: $fromAI(\"notes\", \"Notes additionnelles sur le lead (vide si non précisé)\")\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -775,8 +771,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"statutBody\", \"Body JSON pour changer le statut. EXEMPLE: {\\\"statut\\\":\\\"qualifie\\\"}. Valeurs: nouveau, contacte, qualifie, converti, perdu. UN SEUL CHAMP.\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    statut: $fromAI(\"statut\", \"Nouveau statut OBLIGATOIRE. Une seule valeur parmi: nouveau, contacte, qualifie, converti, perdu\")\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -809,8 +804,7 @@
               "value": "={{ $fromAI(\"leadId\", \"UUID du lead à supprimer\") }}"
             }
           ]
-        },
-        "nodeCredentialType": "httpHeaderAuth"
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -833,8 +827,7 @@
         "url": "https://api.talosprimes.com/api/clients",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -866,8 +859,7 @@
               "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les clients par nom, email ou raison sociale\") }}"
             }
           ]
-        },
-        "nodeCredentialType": "httpHeaderAuth"
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -899,8 +891,7 @@
               "value": "={{ $fromAI(\"clientId\", \"UUID du client à récupérer\") }}"
             }
           ]
-        },
-        "nodeCredentialType": "httpHeaderAuth"
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -927,8 +918,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"clientBody\", \"Body JSON pour créer un client. EXEMPLE B2B: {\\\"type\\\":\\\"b2b\\\",\\\"raisonSociale\\\":\\\"Entreprise SAS\\\",\\\"email\\\":\\\"contact@entreprise.com\\\",\\\"telephone\\\":\\\"0612345678\\\"}. EXEMPLE B2C: {\\\"type\\\":\\\"b2c\\\",\\\"nom\\\":\\\"Dupont\\\",\\\"prenom\\\":\\\"Jean\\\",\\\"email\\\":\\\"jean@example.com\\\"}\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    type: $fromAI(\"clientType\", \"Type de client OBLIGATOIRE: b2b ou b2c (en minuscules)\"),\n    email: $fromAI(\"email\", \"Email du client OBLIGATOIRE\"),\n    nom: $fromAI(\"nom\", \"Nom du client (pour B2C surtout, vide si non fourni)\"),\n    prenom: $fromAI(\"prenom\", \"Prénom du client (vide si non fourni)\"),\n    raisonSociale: $fromAI(\"raisonSociale\", \"Raison sociale (REQUIS pour B2B, vide pour B2C)\"),\n    telephone: $fromAI(\"telephone\", \"Numéro de téléphone (vide si non fourni)\"),\n    adresse: $fromAI(\"adresse\", \"Adresse postale (vide si non fourni)\")\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -964,8 +954,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"updateBody\", \"Body JSON partiel avec UNIQUEMENT les champs à modifier. EXEMPLE: {\\\"telephone\\\":\\\"0698765432\\\",\\\"adresse\\\":\\\"12 rue de Paris\\\"}\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    nom: $fromAI(\"nom\", \"Nouveau nom (vide si inchangé)\"),\n    prenom: $fromAI(\"prenom\", \"Nouveau prénom (vide si inchangé)\"),\n    email: $fromAI(\"email\", \"Nouvel email (vide si inchangé)\"),\n    telephone: $fromAI(\"telephone\", \"Nouveau téléphone (vide si inchangé)\"),\n    raisonSociale: $fromAI(\"raisonSociale\", \"Nouvelle raison sociale (vide si inchangé)\"),\n    adresse: $fromAI(\"adresse\", \"Nouvelle adresse (vide si inchangé)\")\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -998,8 +987,7 @@
               "value": "={{ $fromAI(\"clientId\", \"UUID du client à supprimer\") }}"
             }
           ]
-        },
-        "nodeCredentialType": "httpHeaderAuth"
+        }
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1026,8 +1014,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"notifBody\", \"Body JSON de notification email. EXEMPLE: {\\\"from\\\":\\\"TalosPrimes <noreply@talosprimes.com>\\\",\\\"to\\\":\\\"client@email.com\\\",\\\"subject\\\":\\\"Votre devis\\\",\\\"html\\\":\\\"<p>Bonjour</p>\\\"}\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    from: $fromAI(\"fromEmail\", \"Expéditeur: TalosPrimes <noreply@talosprimes.com>\"),\n    to: $fromAI(\"toEmail\", \"Email du destinataire\"),\n    subject: $fromAI(\"subject\", \"Objet de l'email\"),\n    html: $fromAI(\"htmlContent\", \"Contenu HTML de l'email. Utilise des balises <p>, <h2>, <strong>.\")\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1586,8 +1573,7 @@
         "url": "https://api.talosprimes.com/api/article-codes",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1614,8 +1600,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"articleBody\", \"Body JSON pour créer un article. EXEMPLE: {\\\"code\\\":\\\"AUDIT-01\\\",\\\"designation\\\":\\\"Audit initial\\\",\\\"prixUnitaireHt\\\":500,\\\"tvaTaux\\\":20,\\\"unite\\\":\\\"forfait\\\"}. Les nombres prixUnitaireHt et tvaTaux sont SANS guillemets.\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    code: $fromAI(\"code\", \"Code article unique en MAJUSCULES (ex: AUDIT-01, PACK-BIZ)\"),\n    designation: $fromAI(\"designation\", \"Description/nom de l'article\"),\n    prixUnitaireHt: Number($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT en euros (nombre, ex: 500)\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage (nombre, ex: 20)\")) || 0,\n    unite: $fromAI(\"unite\", \"Unité de mesure: unité, heure, jour, forfait, mois\")\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1638,8 +1623,7 @@
         "url": "https://api.talosprimes.com/api/devis",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1663,8 +1647,7 @@
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {},
-        "sendQuery": false,
-        "nodeCredentialType": "httpHeaderAuth"
+        "sendQuery": false
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1691,8 +1674,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"devisBody\", \"Body JSON pour créer un devis. EXEMPLE: {\\\"clientFinalId\\\":\\\"uuid-du-client\\\",\\\"montantHt\\\":1500,\\\"tvaTaux\\\":20,\\\"description\\\":\\\"Devis prestation\\\",\\\"modePaiement\\\":\\\"virement\\\",\\\"lines\\\":[{\\\"designation\\\":\\\"Service X\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]}. CRITIQUE: clientFinalId DOIT être le vrai UUID trouvé avec rechercher_clients. montantHt = somme des lignes.\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client trouvé avec rechercher_clients. JAMAIS inventer ce UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros = somme des (quantite x prixUnitaireHt) de toutes les lignes\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA (nombre, ex: 20)\")) || 0,\n    description: $fromAI(\"devisDescription\", \"Description courte du devis\"),\n    modePaiement: $fromAI(\"modePaiement\", \"Mode de paiement: virement, cheque, cb, prelevement (défaut: virement)\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"devisLines\", \"Tableau JSON des lignes. Format EXACT: [{\"designation\":\"Service X\",\"quantite\":1,\"prixUnitaireHt\":1500}]. Chaque ligne a designation (string), quantite (nombre), prixUnitaireHt (nombre). codeArticle est optionnel.\")); } catch(e) { return []; } })()\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1716,8 +1698,7 @@
         "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à envoyer\") }}/send",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1741,8 +1722,7 @@
         "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à accepter\") }}/accept",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1766,8 +1746,7 @@
         "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à convertir en facture\") }}/convert-to-invoice",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1790,8 +1769,7 @@
         "url": "https://api.talosprimes.com/api/invoices",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1815,8 +1793,7 @@
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {},
-        "sendQuery": false,
-        "nodeCredentialType": "httpHeaderAuth"
+        "sendQuery": false
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1843,8 +1820,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"factureBody\", \"Body JSON pour créer une facture. EXEMPLE: {\\\"clientFinalId\\\":\\\"uuid-du-client\\\",\\\"montantHt\\\":1500,\\\"tvaTaux\\\":20,\\\"type\\\":\\\"facture_client_final\\\",\\\"lines\\\":[{\\\"designation\\\":\\\"Service X\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]}. CRITIQUE: clientFinalId est le UUID réel du client.\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client trouvé avec rechercher_clients. JAMAIS inventer.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT = somme des lignes\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA (nombre, ex: 20)\")) || 0,\n    type: $fromAI(\"factureType\", \"Type de facture: facture_client_final\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"factureLines\", \"Tableau JSON des lignes: [{\"designation\":\"...\",\"quantite\":1,\"prixUnitaireHt\":1500}]\")); } catch(e) { return []; } })()\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1868,8 +1844,7 @@
         "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à envoyer\") }}/send",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1893,8 +1868,7 @@
         "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à marquer payée\") }}/mark-paid",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1917,8 +1891,7 @@
         "url": "https://api.talosprimes.com/api/bons-commande",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1945,8 +1918,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"bdcBody\", \"Body JSON pour créer un BDC. EXEMPLE: {\\\"clientFinalId\\\":\\\"uuid-du-client\\\",\\\"montantHt\\\":1500,\\\"tvaTaux\\\":20,\\\"lines\\\":[{\\\"designation\\\":\\\"Service X\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]}. CRITIQUE: clientFinalId est le UUID réel du client.\") }}",
-        "nodeCredentialType": "httpHeaderAuth"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client trouvé avec rechercher_clients. JAMAIS inventer.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT = somme des lignes\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA (nombre, ex: 20)\")) || 0,\n    lines: (() => { try { return JSON.parse($fromAI(\"bdcLines\", \"Tableau JSON des lignes: [{\"designation\":\"...\",\"quantite\":1,\"prixUnitaireHt\":1500}]\")); } catch(e) { return []; } })()\n  })\n}}"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1970,8 +1942,7 @@
         "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à valider\") }}/validate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1995,8 +1966,7 @@
         "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à convertir\") }}/convert-to-invoice",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "nodeCredentialType": "httpHeaderAuth"
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
