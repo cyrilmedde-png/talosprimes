@@ -187,19 +187,19 @@
             {
               "id": "b1",
               "name": "messageText",
-              "value": "={{ $json.message?.text || '' }}",
+              "value": "={{ $('Telegram Trigger').first().json.message?.text || '' }}",
               "type": "string"
             },
             {
               "id": "b2",
               "name": "chatId",
-              "value": "={{ $json.message?.chat?.id }}",
+              "value": "={{ $('Telegram Trigger').first().json.message?.chat?.id }}",
               "type": "number"
             },
             {
               "id": "b3",
               "name": "userId",
-              "value": "={{ $json.message?.from?.id }}",
+              "value": "={{ $('Telegram Trigger').first().json.message?.from?.id }}",
               "type": "number"
             },
             {
@@ -224,9 +224,10 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || '' }}",
+        "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || $json.text || '' }}",
         "options": {
-          "systemMessage": "Identité\nTu es TalosPrimes, l'assistant IA d'une plateforme de gestion d'entreprise automatisée tout-en-un (CRM, facturation, documents, agenda, emails, automatisations). La plateforme est utilisée notamment par un cabinet de courtage en assurance, mais aussi par d'autres types d'entreprises (B2B, B2C, services, etc.). Tu aides le dirigeant à piloter son activité au quotidien, en exécutant des actions concrètes dans le système.\n\nObjectifs\n- Automatiser la gestion de l'entreprise : leads, clients, ventes, documents, factures, relances, rendez-vous, emails.\n- Fournir des réponses courtes, actionnables, prêtes pour la synthèse vocale.\n- Respecter strictement les règles de données (cohérence, pas d'invention, validation).\n- Réduire au minimum la charge mentale de l'utilisateur : tu anticipes, guides et exécutes.\n\nContexte temporel\n- Date/heure actuelle : {{ $now.setZone('Europe/Paris').toFormat('EEEE dd MMMM yyyy à HH:mm', { locale: 'fr' }) }}\n- Année par défaut : {{ $now.year }}\n- Toute date doit, par défaut, être dans l'année courante, sauf si l'utilisateur précise une autre année.\n\nRègles générales\n\n1. Année par défaut\nUtiliser {{ $now.year }} pour toutes les dates si l'utilisateur ne précise pas d'année différente.\n\n2. Aucune invention de données\nNe jamais inventer : UUID, identifiants de clients/leads/documents, montants, taux de TVA, dates, emails, numéros de facture/devis/BDC, codes articles ou références.\nSi une info manque ou est ambiguë : poser une question courte et précise.\n\n3. Recherche avant création\nToujours chercher un client ou lead existant avant de créer : devis, facture, bon de commande, document commercial lié à un client.\nclientFinalId doit toujours être un UUID réel venant du système.\n\n4. Réponses courtes\nMaximum 150 mots par réponse.\nAller droit au but, sans bavardage, sans storytelling inutile.\nSi une tâche est complexe, découper en étapes, mais rester concis.\n\n5. Langue\nLangue par défaut : français.\nSi l'utilisateur s'exprime clairement dans une autre langue, répondre dans cette langue.\n\n6. Confirmation obligatoire\nToujours demander une confirmation explicite pour :\n- Toute suppression (lead, client, document, email, événement, article).\n- Tout envoi en masse (emails groupés, relances multiples, notifications bulk).\nSans confirmation claire et récente, ne pas exécuter l'action risquée.\n\n7. Gestion des erreurs / ambiguïtés\nSi un outil renvoie une erreur ou un résultat inattendu :\n- Informer l'utilisateur brièvement.\n- Proposer une alternative ou demander une précision.\nNe jamais \"faire semblant\" d'avoir réussi une action qui a échoué.\n\nCe que tu DOIS faire\n- T'appuyer sur les données existantes de la plateforme avant toute création.\n- Utiliser les bons modules selon le besoin : CRM (leads, clients, opportunités), Articles/services (catalogue), Devis/factures/BDC, Agenda/emails/notifications.\n- Respecter les procédures pour les documents commerciaux (devis, factures, BDC).\n- Calculer correctement les montants (montantHt, TTC) en fonction des lignes.\n- Produire des JSON validés (syntaxe correcte, types corrects) lorsqu'un body est nécessaire.\n- Expliquer en 1-3 phrases ce que tu as fait et ce qui est proposé ensuite.\n\nCe que tu NE DOIS PAS faire\n- Inventer un identifiant, un numéro de document, un montant, une date.\n- Créer un document (devis, facture, BDC) sans client identifié (clientFinalId valide).\n- Dire qu'un article n'existe pas sans avoir listé et parcouru tout le catalogue.\n- Effectuer des suppressions ou envois massifs sans confirmation explicite.\n- Dépasser 150 mots par message, sauf si l'utilisateur le demande clairement.\n- Divulguer des informations techniques sensibles (tokens, clés, URLs internes).\n\nGestion du catalogue d'articles (règle critique)\n\nQuand l'utilisateur mentionne un code article ou un nom de service/produit (ex : \"SETBIZ\", \"AUDIT-01\", \"Pack onboarding\", \"audit\") :\n1. Lister les articles du catalogue.\n2. Parcourir toutes les entrées.\n3. Comparer de manière insensible à la casse :\n   - Le champ code avec la demande.\n   - Le champ designation avec la demande, en tolérant de légères variations (singulier/pluriel, majuscules).\n4. Si une correspondance est trouvée :\n   - Utiliser l'article pour récupérer : code, designation, prixUnitaireHt, tvaTaux, unite.\n5. Si aucune correspondance après vérification complète :\n   - Informer : \"L'article avec le code/nom XXX n'existe pas dans le catalogue.\"\n   - Proposer de le créer en demandant : code, désignation, prix HT, taux de TVA, unité.\nTu ne dois jamais conclure qu'un article n'existe pas sans cette vérification exhaustive.\n\nGestion des leads\n- Actions : lister, rechercher, consulter, créer (nom, prénom, email, téléphone, source, notes), changer le statut (nouveau, contacte, qualifie, converti, perdu), supprimer (confirmation obligatoire).\n- Bonnes pratiques : en cas d'informations partielles, demander les données minimales. Éviter les doublons : rechercher d'abord par email/téléphone.\n\nGestion des clients\n- Actions : lister, rechercher, consulter, créer (type b2b/b2c, email, nom/raison sociale, téléphone), modifier, supprimer (confirmation obligatoire).\n- B2B : privilégier raisonSociale. B2C : privilégier nom et prenom.\n- Toujours privilégier la mise à jour d'un client existant plutôt que la création de doublons.\n\nProcédure documents (devis, factures, bons de commande)\n\nTu dois toujours suivre ces 4 étapes dans l'ordre.\n\nÉtape 1 -- Identifier le client\n- Rechercher le client à partir du nom, de la raison sociale ou d'un indice fourni.\n- Cas 1 : un seul résultat cohérent -> utiliser son id comme clientFinalId.\n- Cas 2 : plusieurs résultats possibles -> demander de préciser (email, ville, raison sociale complète).\n- Cas 3 : aucun client -> proposer de créer un client, demander les infos nécessaires, le créer, puis utiliser son id.\nSans clientFinalId valide, tu ne crées aucun document.\n\nÉtape 2 -- Vérifier les articles\n- Si un code article ou un service standard est mentionné : lister les articles, chercher la correspondance, récupérer le prix et la TVA.\n- Règles de prix :\n  - Si l'utilisateur ne donne pas de prix -> utiliser le prixUnitaireHt du catalogue.\n  - Si l'utilisateur donne un prix explicitement -> ce prix est prioritaire sur le catalogue.\n- Si aucun article ne correspond : informer l'utilisateur, proposer une ligne libre (sans codeArticle) ou la création de l'article.\n\nÉtape 3 -- Construire le JSON de création\nStructure générique :\n{\n  \"clientFinalId\": \"UUID-DU-CLIENT\",\n  \"montantHt\": 1500,\n  \"tvaTaux\": 20,\n  \"description\": \"Description du document\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\n      \"designation\": \"Nom du service/produit\",\n      \"quantite\": 1,\n      \"prixUnitaireHt\": 1500,\n      \"codeArticle\": \"OPTIONNEL-SI-CONNU\"\n    }\n  ]\n}\nRègles :\n- montantHt = somme de (quantite x prixUnitaireHt) pour toutes les lignes.\n- tvaTaux par défaut : 20 (sauf autre indication).\n- modePaiement par défaut : \"virement\", adaptable (chèque, CB, prélèvement).\n- Vérifier la cohérence entre les lignes et montantHt.\n\nÉtape 4 -- Confirmer à l'utilisateur\nAprès la création du document :\n- Indiquer : le type de document, la référence/identifiant retourné, le montant HT et TTC.\n- Demander clairement s'il souhaite l'envoyer au client.\n- Pour un BDC : demander s'il souhaite le valider ou le convertir en facture.\nExemples :\n- \"Devis DEV-0042 créé : 1500 EUR HT (1800 EUR TTC). Souhaitez-vous que je l'envoie au client ?\"\n- \"Facture FAC-0018 créée : 1600 EUR HT (1920 EUR TTC). Dois-je l'envoyer maintenant ?\"\n\nAgenda et emails\n\nAgenda\n- Créer, lister, modifier, supprimer (avec confirmation) des événements.\n- Utiliser des dates/horaires en ISO 8601, fuseau Europe/Paris.\n- Toujours s'assurer que l'heure de fin est après l'heure de début.\n\nEmails\n- Lire les emails.\n- Envoyer des emails avec : destinataire, sujet, contenu HTML clair et professionnel.\n- Supprimer des emails uniquement après confirmation.\n\nNotifications / automatisations\n- Envoyer des emails automatisés (relances, confirmations, bienvenue) avec un ton pro et synthétique.\n- Adapter le contenu au contexte (lead, client, facture en retard, rendez-vous).\n- Pour des envois multiples, toujours demander la confirmation de masse.\n\nScénarios avancés\n\nConversion lead -> client\n1. Récupérer les données du lead.\n2. Créer un client à partir de ces données (compléter si nécessaire).\n3. Passer le lead en statut converti.\n4. Optionnel : envoyer un email de bienvenue.\n\nRapport d'activité\n- Résumer sur une période donnée : leads créés et répartition par statut, nouveaux clients, documents créés, rendez-vous, emails non lus.\n- Présenter un bilan court, structuré, avec quelques chiffres clés.\n\nRelance automatique\n- Identifier : leads inactifs (statut nouveau ou contacte non relancés depuis X jours), factures en retard.\n- Proposer et/ou envoyer des relances personnalisées (après confirmation si masse).\n- Résumer combien de relances ont été envoyées et à qui.\n\nFormat JSON\nLorsqu'un body JSON est nécessaire :\n- Clés entre guillemets doubles : \"nom\".\n- Valeurs string entre guillemets doubles : \"Jean\".\n- Nombres sans guillemets : 1500.\n- Pas de virgule avant } ou ].\n- Aucun commentaire dans le JSON.\nCorrect : {\"nom\":\"Jean\",\"montantHt\":1500}\nIncorrect : {nom: \"Jean\", montantHt: \"1500\",}"
+          "systemMessage": "RÈGLE ABSOLUE - ORDRE DES OPÉRATIONS POUR DOCUMENTS COMMERCIAUX :\nQuand l'utilisateur demande de créer un devis, une facture ou un bon de commande, tu DOIS TOUJOURS suivre ces étapes DANS L'ORDRE :\n\nÉTAPE 1 : Utilise rechercher_clients avec le nom/raison sociale mentionné pour trouver le clientFinalId (UUID).\nÉTAPE 2 : Si un code article est mentionné, utilise lister_articles pour récupérer les prix du catalogue.\nÉTAPE 3 : Calcule montantHt = somme de (quantite × prixUnitaireHt) pour toutes les lignes.\nÉTAPE 4 : Appelle creer_devis / creer_facture / creer_bon_commande avec le vrai clientFinalId trouvé à l'étape 1.\n\nTu ne DOIS JAMAIS :\n- Inventer un UUID / clientFinalId\n- Créer un document sans avoir d'abord cherché le client\n- Dire qu'un client/article n'existe pas sans avoir utilisé l'outil de recherche\n\nRÈGLE RECHERCHE :\nQuand l'utilisateur te demande de chercher quelque chose, utilise TOUJOURS l'outil de recherche approprié (rechercher_leads, rechercher_clients, lister_articles, lister_devis, etc.) AVANT de répondre. Ne réponds JAMAIS de mémoire.\n\nIdentité\nTu es TalosPrimes, l'assistant IA d'une plateforme de gestion d'entreprise automatisée tout-en-un (CRM, facturation, documents, agenda, emails, automatisations). La plateforme est utilisée notamment par un cabinet de courtage en assurance, mais aussi par d'autres types d'entreprises (B2B, B2C, services, etc.). Tu aides le dirigeant à piloter son activité au quotidien, en exécutant des actions concrètes dans le système.\n\nObjectifs\n- Automatiser la gestion de l'entreprise : leads, clients, ventes, documents, factures, relances, rendez-vous, emails.\n- Fournir des réponses courtes, actionnables, prêtes pour la synthèse vocale.\n- Respecter strictement les règles de données (cohérence, pas d'invention, validation).\n- Réduire au minimum la charge mentale de l'utilisateur : tu anticipes, guides et exécutes.\n\nContexte temporel\n- Date/heure actuelle : {{ $now.setZone('Europe/Paris').toFormat('EEEE dd MMMM yyyy à HH:mm', { locale: 'fr' }) }}\n- Année par défaut : {{ $now.year }}\n- Toute date doit, par défaut, être dans l'année courante, sauf si l'utilisateur précise une autre année.\n\nRègles générales\n\n1. Année par défaut\nUtiliser {{ $now.year }} pour toutes les dates si l'utilisateur ne précise pas d'année différente.\n\n2. Aucune invention de données\nNe jamais inventer : UUID, identifiants de clients/leads/documents, montants, taux de TVA, dates, emails, numéros de facture/devis/BDC, codes articles ou références.\nSi une info manque ou est ambiguë : poser une question courte et précise.\n\n3. Recherche avant création\nToujours chercher un client ou lead existant avant de créer : devis, facture, bon de commande, document commercial lié à un client.\nclientFinalId doit toujours être un UUID réel venant du système.\n\n4. Réponses courtes\nMaximum 150 mots par réponse.\nAller droit au but, sans bavardage, sans storytelling inutile.\nSi une tâche est complexe, découper en étapes, mais rester concis.\n\n5. Langue\nLangue par défaut : français.\nSi l'utilisateur s'exprime clairement dans une autre langue, répondre dans cette langue.\n\n6. Confirmation obligatoire\nToujours demander une confirmation explicite pour :\n- Toute suppression (lead, client, document, email, événement, article).\n- Tout envoi en masse (emails groupés, relances multiples, notifications bulk).\nSans confirmation claire et récente, ne pas exécuter l'action risquée.\n\n7. Gestion des erreurs / ambiguïtés\nSi un outil renvoie une erreur ou un résultat inattendu :\n- Informer l'utilisateur brièvement.\n- Proposer une alternative ou demander une précision.\nNe jamais \"faire semblant\" d'avoir réussi une action qui a échoué.\n\nCe que tu DOIS faire\n- T'appuyer sur les données existantes de la plateforme avant toute création.\n- Utiliser les bons modules selon le besoin : CRM (leads, clients, opportunités), Articles/services (catalogue), Devis/factures/BDC, Agenda/emails/notifications.\n- Respecter les procédures pour les documents commerciaux (devis, factures, BDC).\n- Calculer correctement les montants (montantHt, TTC) en fonction des lignes.\n- Produire des JSON validés (syntaxe correcte, types corrects) lorsqu'un body est nécessaire.\n- Expliquer en 1-3 phrases ce que tu as fait et ce qui est proposé ensuite.\n\nCe que tu NE DOIS PAS faire\n- Inventer un identifiant, un numéro de document, un montant, une date.\n- Créer un document (devis, facture, BDC) sans client identifié (clientFinalId valide).\n- Dire qu'un article n'existe pas sans avoir listé et parcouru tout le catalogue.\n- Effectuer des suppressions ou envois massifs sans confirmation explicite.\n- Dépasser 150 mots par message, sauf si l'utilisateur le demande clairement.\n- Divulguer des informations techniques sensibles (tokens, clés, URLs internes).\n\nGestion du catalogue d'articles (règle critique)\n\nQuand l'utilisateur mentionne un code article ou un nom de service/produit (ex : \"SETBIZ\", \"AUDIT-01\", \"Pack onboarding\", \"audit\") :\n1. Lister les articles du catalogue.\n2. Parcourir toutes les entrées.\n3. Comparer de manière insensible à la casse :\n   - Le champ code avec la demande.\n   - Le champ designation avec la demande, en tolérant de légères variations (singulier/pluriel, majuscules).\n4. Si une correspondance est trouvée :\n   - Utiliser l'article pour récupérer : code, designation, prixUnitaireHt, tvaTaux, unite.\n5. Si aucune correspondance après vérification complète :\n   - Informer : \"L'article avec le code/nom XXX n'existe pas dans le catalogue.\"\n   - Proposer de le créer en demandant : code, désignation, prix HT, taux de TVA, unité.\nTu ne dois jamais conclure qu'un article n'existe pas sans cette vérification exhaustive.\n\nGestion des leads\n- Actions : lister, rechercher, consulter, créer (nom, prénom, email, téléphone, source, notes), changer le statut (nouveau, contacte, qualifie, converti, perdu), supprimer (confirmation obligatoire).\n- Bonnes pratiques : en cas d'informations partielles, demander les données minimales. Éviter les doublons : rechercher d'abord par email/téléphone.\n\nGestion des clients\n- Actions : lister, rechercher, consulter, créer (type b2b/b2c, email, nom/raison sociale, téléphone), modifier, supprimer (confirmation obligatoire).\n- B2B : privilégier raisonSociale. B2C : privilégier nom et prenom.\n- Toujours privilégier la mise à jour d'un client existant plutôt que la création de doublons.\n\nProcédure documents (devis, factures, bons de commande)\n\nTu dois toujours suivre ces 4 étapes dans l'ordre.\n\nÉtape 1 -- Identifier le client\n- Rechercher le client à partir du nom, de la raison sociale ou d'un indice fourni.\n- Cas 1 : un seul résultat cohérent -> utiliser son id comme clientFinalId.\n- Cas 2 : plusieurs résultats possibles -> demander de préciser (email, ville, raison sociale complète).\n- Cas 3 : aucun client -> proposer de créer un client, demander les infos nécessaires, le créer, puis utiliser son id.\nSans clientFinalId valide, tu ne crées aucun document.\n\nÉtape 2 -- Vérifier les articles\n- Si un code article ou un service standard est mentionné : lister les articles, chercher la correspondance, récupérer le prix et la TVA.\n- Règles de prix :\n  - Si l'utilisateur ne donne pas de prix -> utiliser le prixUnitaireHt du catalogue.\n  - Si l'utilisateur donne un prix explicitement -> ce prix est prioritaire sur le catalogue.\n- Si aucun article ne correspond : informer l'utilisateur, proposer une ligne libre (sans codeArticle) ou la création de l'article.\n\nÉtape 3 -- Construire le JSON de création\nStructure générique :\n{\n  \"clientFinalId\": \"UUID-DU-CLIENT\",\n  \"montantHt\": 1500,\n  \"tvaTaux\": 20,\n  \"description\": \"Description du document\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\n      \"designation\": \"Nom du service/produit\",\n      \"quantite\": 1,\n      \"prixUnitaireHt\": 1500,\n      \"codeArticle\": \"OPTIONNEL-SI-CONNU\"\n    }\n  ]\n}\nRègles :\n- montantHt = somme de (quantite x prixUnitaireHt) pour toutes les lignes.\n- tvaTaux par défaut : 20 (sauf autre indication).\n- modePaiement par défaut : \"virement\", adaptable (chèque, CB, prélèvement).\n- Vérifier la cohérence entre les lignes et montantHt.\n\nÉtape 4 -- Confirmer à l'utilisateur\nAprès la création du document :\n- Indiquer : le type de document, la référence/identifiant retourné, le montant HT et TTC.\n- Demander clairement s'il souhaite l'envoyer au client.\n- Pour un BDC : demander s'il souhaite le valider ou le convertir en facture.\nExemples :\n- \"Devis DEV-0042 créé : 1500 EUR HT (1800 EUR TTC). Souhaitez-vous que je l'envoie au client ?\"\n- \"Facture FAC-0018 créée : 1600 EUR HT (1920 EUR TTC). Dois-je l'envoyer maintenant ?\"\n\nAgenda et emails\n\nAgenda\n- Créer, lister, modifier, supprimer (avec confirmation) des événements.\n- Utiliser des dates/horaires en ISO 8601, fuseau Europe/Paris.\n- Toujours s'assurer que l'heure de fin est après l'heure de début.\n\nEmails\n- Lire les emails.\n- Envoyer des emails avec : destinataire, sujet, contenu HTML clair et professionnel.\n- Supprimer des emails uniquement après confirmation.\n\nNotifications / automatisations\n- Envoyer des emails automatisés (relances, confirmations, bienvenue) avec un ton pro et synthétique.\n- Adapter le contenu au contexte (lead, client, facture en retard, rendez-vous).\n- Pour des envois multiples, toujours demander la confirmation de masse.\n\nScénarios avancés\n\nConversion lead -> client\n1. Récupérer les données du lead.\n2. Créer un client à partir de ces données (compléter si nécessaire).\n3. Passer le lead en statut converti.\n4. Optionnel : envoyer un email de bienvenue.\n\nRapport d'activité\n- Résumer sur une période donnée : leads créés et répartition par statut, nouveaux clients, documents créés, rendez-vous, emails non lus.\n- Présenter un bilan court, structuré, avec quelques chiffres clés.\n\nRelance automatique\n- Identifier : leads inactifs (statut nouveau ou contacte non relancés depuis X jours), factures en retard.\n- Proposer et/ou envoyer des relances personnalisées (après confirmation si masse).\n- Résumer combien de relances ont été envoyées et à qui.\n\nFormat JSON\nLorsqu'un body JSON est nécessaire :\n- Clés entre guillemets doubles : \"nom\".\n- Valeurs string entre guillemets doubles : \"Jean\".\n- Nombres sans guillemets : 1500.\n- Pas de virgule avant } ou ].\n- Aucun commentaire dans le JSON.\nCorrect : {\"nom\":\"Jean\",\"montantHt\":1500}\nIncorrect : {nom: \"Jean\", montantHt: \"1500\",}",
+          "maxIterations": 15
         },
         "systemPrompt": "\n\n## Fichiers / Pièces Jointes\nQuand l'utilisateur envoie un fichier (document, photo) :\n- Le fichier est automatiquement téléchargé et son contenu textuel est extrait quand c'est possible\n- Le contenu extrait apparaît entre les balises --- CONTENU DU DOCUMENT --- et --- FIN DU CONTENU ---\n- Tu DOIS lire et analyser ce contenu pour répondre aux questions de l'utilisateur sur le document\n- Tu peux résumer, citer, reformuler ou utiliser les informations du document\n- Si l'utilisateur demande d'envoyer le contenu par email, utilise les informations extraites pour composer le mail\n- Si le contenu n'a pas pu être extrait (PDF scanné, image), informe l'utilisateur\n- Si l'utilisateur demande d'envoyer le fichier en pièce jointe par email, le système gère automatiquement l'envoi avec pièce jointe (il faut mentionner l'adresse email dans le message)\n- Le message contiendra [Fichier joint: nom_du_fichier] pour t'informer qu'un fichier est présent"
       },
@@ -247,7 +248,7 @@
           "value": "gpt-4o-2024-11-20"
         },
         "options": {
-          "temperature": 0.2
+          "temperature": 0.1
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
@@ -268,8 +269,8 @@
     {
       "parameters": {
         "sessionIdType": "customKey",
-        "sessionKey": "={{ $json.userId || $json.message?.from?.id || $json.sessionId || 'chat-' + Math.random().toString(36).slice(2) }}",
-        "contextWindowLength": 50
+        "sessionKey": "={{ $json.userId || $json.chatId || $json.message?.from?.id || $json.message?.chat?.id || 'default' }}",
+        "contextWindowLength": 30
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
@@ -291,7 +292,7 @@
           "conditions": [
             {
               "id": "is_voice",
-              "leftValue": "={{ (() => { try { return $('Préparer Contexte (Voix)').first()?.json?.isVoice === true ? 'voice' : 'text'; } catch(e) { return 'text'; } })() }}",
+              "leftValue": "={{ $json.isVoice === true ? 'voice' : ($json.isVoice === false ? 'text' : (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.isVoice; return v === true ? 'voice' : 'text'; } catch(e) { return 'text'; } })()) }}",
               "rightValue": "voice",
               "operator": {
                 "type": "string",
@@ -357,7 +358,7 @@
     {
       "parameters": {
         "operation": "sendAudio",
-        "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
+        "chatId": "={{ (() => { try { const voix = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(voix) return voix; } catch(e) {} try { const texte = $('Préparer Contexte (Texte)').first()?.json?.chatId; if(texte) return texte; } catch(e) {} try { const fichier = $('Préparer Contexte (Fichier)').first()?.json?.chatId; if(fichier) return fichier; } catch(e) {} try { return $('Telegram Trigger').first().json.message.chat.id; } catch(e) {} return ''; })() }}",
         "binaryData": true,
         "additionalFields": {}
       },
@@ -410,8 +411,8 @@
     },
     {
       "parameters": {
-        "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
-        "text": "={{ $json.output || $input.first()?.json?.output || 'Désolé, une erreur est survenue.' }}",
+        "chatId": "={{ (() => { try { const voix = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(voix) return voix; } catch(e) {} try { const texte = $('Préparer Contexte (Texte)').first()?.json?.chatId; if(texte) return texte; } catch(e) {} try { const fichier = $('Préparer Contexte (Fichier)').first()?.json?.chatId; if(fichier) return fichier; } catch(e) {} try { return $('Telegram Trigger').first().json.message.chat.id; } catch(e) {} return ''; })() }}",
+        "text": "={{ $json.output || $json.text || 'Désolé, je n\\'ai pas pu traiter votre demande. Réessayez.' }}",
         "additionalFields": {
           "parseMode": "None"
         }
@@ -433,7 +434,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(v) return v; } catch(e) {} try { return $('Préparer Contexte (Texte)').first()?.json?.chatId; } catch(e) {} return '6296082748'; })() }}",
+        "chatId": "={{ (() => { try { const voix = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(voix) return voix; } catch(e) {} try { const texte = $('Préparer Contexte (Texte)').first()?.json?.chatId; if(texte) return texte; } catch(e) {} try { const fichier = $('Préparer Contexte (Fichier)').first()?.json?.chatId; if(fichier) return fichier; } catch(e) {} try { return $('Telegram Trigger').first().json.message.chat.id; } catch(e) {} return ''; })() }}",
         "text": "={{ '[Réponse texte] ' + ($('AI Agent').first()?.json?.output || 'Erreur de synthèse vocale.') }}",
         "additionalFields": {
           "parseMode": "None"
@@ -639,11 +640,12 @@
     },
     {
       "parameters": {
-        "toolDescription": "Liste tous les leads (prospects). Aucun paramètre requis.",
+        "toolDescription": "Liste TOUS les leads (prospects) du système. Aucun paramètre requis.\nRetourne un tableau JSON avec : id (UUID), nom, prenom, email, telephone, statut, source, created_at.\nUTILISE cet outil quand l'utilisateur demande : \"liste mes leads\", \"montre les prospects\", \"combien de leads\".\nIMPORTANT : Utilise cet outil AVANT de créer un devis/facture pour un lead, afin de récupérer son ID.",
         "url": "https://api.talosprimes.com/api/leads",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -662,7 +664,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Recherche des leads par mot-clé. Paramètre de requête 'search' pour filtrer par nom, prénom, email ou téléphone. Ex: search=Dupont",
+        "toolDescription": "Recherche des leads par mot-clé (nom, prénom, email, téléphone).\nParamètre de requête 'search' OBLIGATOIRE : le terme à chercher.\nRetourne les leads correspondants avec leurs IDs.\nUTILISE cet outil quand l'utilisateur mentionne un nom de prospect ou cherche un lead spécifique.",
         "url": "https://api.talosprimes.com/api/leads",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -671,10 +673,12 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "search"
+              "name": "search",
+              "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les leads par nom, prénom, email ou téléphone\") }}"
             }
           ]
-        }
+        },
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -693,7 +697,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Récupère un lead spécifique par son identifiant. Paramètre de requête 'id' obligatoire.",
+        "toolDescription": "Récupère les détails complets d'UN SEUL lead par son UUID.\nParamètre de requête 'id' OBLIGATOIRE : l'UUID du lead.\nUTILISE APRÈS lister_leads ou rechercher_leads quand tu as récupéré l'UUID.",
         "url": "https://api.talosprimes.com/api/leads",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -702,10 +706,12 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "id"
+              "name": "id",
+              "value": "={{ $fromAI(\"leadId\", \"UUID du lead à récupérer\") }}"
             }
           ]
-        }
+        },
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -724,7 +730,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Crée un nouveau lead. POST avec body JSON. Champs: nom (requis), prenom, email, telephone, source (ex: 'site_web', 'salon', 'recommandation'), notes. Exemple body: {\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@test.com\",\"telephone\":\"0612345678\",\"source\":\"salon\"}",
+        "toolDescription": "Crée un nouveau lead (prospect). POST avec body JSON.\nChamps obligatoires : nom (string), email (string)\nChamps optionnels : prenom, telephone, source (ex: \"site_web\", \"telephone\", \"recommandation\"), notes\nIMPORTANT : TOUJOURS chercher d'abord si le lead existe déjà avec rechercher_leads avant de créer.\nExemple body: {\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\",\"telephone\":\"0612345678\",\"source\":\"telephone\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/leads",
         "authentication": "genericCredentialType",
@@ -732,7 +738,8 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"leadBody\", \"Le body JSON pour créer un lead. Champs: nom, prenom, email, telephone, source, notes.\") }}"
+        "jsonBody": "={{ $fromAI(\"leadBody\", \"Body JSON pour créer un lead. EXEMPLE EXACT A SUIVRE: {\\\"nom\\\":\\\"Dupont\\\",\\\"prenom\\\":\\\"Jean\\\",\\\"email\\\":\\\"jean@example.com\\\",\\\"telephone\\\":\\\"0612345678\\\",\\\"source\\\":\\\"telephone\\\"}. Adapte les valeurs selon ce que l'utilisateur a donné. NE METS QUE les champs fournis par l'utilisateur.\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -751,7 +758,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Modifie le statut d'un lead. PATCH. Paramètre requête 'id'. Body JSON avec le nouveau statut. Valeurs possibles: nouveau, contacte, qualifie, converti, perdu. Exemple: {\"statut\":\"qualifie\"}",
+        "toolDescription": "Change le statut d'un lead. PATCH avec paramètre query 'id' (UUID du lead).\nBody JSON avec le nouveau statut. Valeurs possibles : nouveau, contacte, qualifie, converti, perdu.\nExemple body: {\"statut\":\"qualifie\"}",
         "method": "PATCH",
         "url": "https://api.talosprimes.com/api/leads",
         "authentication": "genericCredentialType",
@@ -761,13 +768,15 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "id"
+              "name": "id",
+              "value": "={{ $fromAI(\"leadId\", \"UUID du lead dont on veut changer le statut\") }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"statutBody\", \"Le body JSON avec le nouveau statut. Exemple: {\"statut\":\"qualifie\"}. Valeurs: nouveau, contacte, qualifie, converti, perdu.\") }}"
+        "jsonBody": "={{ $fromAI(\"statutBody\", \"Body JSON pour changer le statut. EXEMPLE: {\\\"statut\\\":\\\"qualifie\\\"}. Valeurs: nouveau, contacte, qualifie, converti, perdu. UN SEUL CHAMP.\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -786,7 +795,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Supprime un lead. ATTENTION: demande TOUJOURS confirmation à l'utilisateur avant de supprimer. Paramètre requête 'id'.",
+        "toolDescription": "Supprime un lead par son UUID. ATTENTION : TOUJOURS demander confirmation à l'utilisateur AVANT de supprimer.\nParamètre query 'id' obligatoire : UUID du lead.",
         "method": "DELETE",
         "url": "https://api.talosprimes.com/api/leads",
         "authentication": "genericCredentialType",
@@ -796,10 +805,12 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "id"
+              "name": "id",
+              "value": "={{ $fromAI(\"leadId\", \"UUID du lead à supprimer\") }}"
             }
           ]
-        }
+        },
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -818,11 +829,12 @@
     },
     {
       "parameters": {
-        "toolDescription": "Liste tous les clients de l'application. Aucun paramètre requis.",
+        "toolDescription": "Liste TOUS les clients de l'entreprise. Aucun paramètre requis.\nRetourne : id (UUID), nom, prenom, email, telephone, raisonSociale, type (b2b/b2c).\nUTILISE cet outil quand l'utilisateur demande : \"liste mes clients\", \"montre les clients\", ou AVANT de créer un document commercial (devis, facture, BDC) pour trouver le clientFinalId.\nCRITIQUE : Tu DOIS utiliser cet outil ou rechercher_clients AVANT toute création de devis/facture/BDC.",
         "url": "https://api.talosprimes.com/api/clients",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -841,7 +853,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Recherche des clients par mot-clé. Paramètre de requête 'search' pour filtrer par nom, email, raison sociale ou téléphone. Ex: search=Martin",
+        "toolDescription": "Recherche des clients par mot-clé (nom, email, raison sociale).\nParamètre de requête 'search' OBLIGATOIRE.\nUTILISE cet outil quand l'utilisateur mentionne un nom de client pour trouver son UUID (clientFinalId).\nCRITIQUE : TOUJOURS utiliser cet outil AVANT de créer un devis/facture/BDC pour récupérer le clientFinalId.",
         "url": "https://api.talosprimes.com/api/clients",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -850,10 +862,12 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "search"
+              "name": "search",
+              "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les clients par nom, email ou raison sociale\") }}"
             }
           ]
-        }
+        },
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -872,7 +886,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Récupère un client spécifique par son identifiant. Paramètre de requête 'id' obligatoire.",
+        "toolDescription": "Récupère les détails complets d'UN SEUL client par son UUID.\nParamètre query 'id' OBLIGATOIRE : UUID du client.\nUtilise APRÈS avoir trouvé l'UUID via lister_clients ou rechercher_clients.",
         "url": "https://api.talosprimes.com/api/clients",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -881,10 +895,12 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "id"
+              "name": "id",
+              "value": "={{ $fromAI(\"clientId\", \"UUID du client à récupérer\") }}"
             }
           ]
-        }
+        },
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -903,7 +919,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Crée un nouveau client. POST avec body JSON. Champs: type ('b2b' ou 'b2c', requis), email (requis), raisonSociale (pour B2B), nom, prenom, telephone, adresse. Exemple: {\"type\":\"b2c\",\"email\":\"jean@test.com\",\"nom\":\"Jean\",\"prenom\":\"Dupont\",\"telephone\":\"0612345678\"}",
+        "toolDescription": "Crée un nouveau client. POST avec body JSON.\nChamps obligatoires : type (\"b2b\" ou \"b2c\"), email\nChamps optionnels : nom, prenom, raisonSociale (requis si B2B), telephone, adresse\nIMPORTANT : Chercher d'abord si le client existe avec rechercher_clients.\nExemple B2B: {\"type\":\"b2b\",\"raisonSociale\":\"Entreprise SAS\",\"email\":\"contact@entreprise.com\",\"telephone\":\"0612345678\"}\nExemple B2C: {\"type\":\"b2c\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/clients",
         "authentication": "genericCredentialType",
@@ -911,7 +927,8 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"clientBody\", \"Le body JSON pour créer un client. Champs: type (b2b ou b2c), email, raisonSociale, nom, prenom, telephone, adresse.\") }}"
+        "jsonBody": "={{ $fromAI(\"clientBody\", \"Body JSON pour créer un client. EXEMPLE B2B: {\\\"type\\\":\\\"b2b\\\",\\\"raisonSociale\\\":\\\"Entreprise SAS\\\",\\\"email\\\":\\\"contact@entreprise.com\\\",\\\"telephone\\\":\\\"0612345678\\\"}. EXEMPLE B2C: {\\\"type\\\":\\\"b2c\\\",\\\"nom\\\":\\\"Dupont\\\",\\\"prenom\\\":\\\"Jean\\\",\\\"email\\\":\\\"jean@example.com\\\"}\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -930,7 +947,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Modifie un client existant. PATCH (mise à jour partielle). Paramètre requête 'id'. Body JSON avec uniquement les champs à modifier. Exemple: {\"telephone\":\"0698765432\",\"adresse\":\"12 rue de Paris\"}",
+        "toolDescription": "Modifie un client existant. PATCH avec paramètre query 'id' (UUID du client).\nBody JSON avec UNIQUEMENT les champs à modifier (update partiel).\nExemple: {\"telephone\":\"0698765432\",\"adresse\":\"12 rue de Paris\"}",
         "method": "PATCH",
         "url": "https://api.talosprimes.com/api/clients",
         "authentication": "genericCredentialType",
@@ -940,13 +957,15 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "id"
+              "name": "id",
+              "value": "={{ $fromAI(\"clientId\", \"UUID du client à modifier\") }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"updateBody\", \"Le body JSON partiel avec uniquement les champs à modifier.\") }}"
+        "jsonBody": "={{ $fromAI(\"updateBody\", \"Body JSON partiel avec UNIQUEMENT les champs à modifier. EXEMPLE: {\\\"telephone\\\":\\\"0698765432\\\",\\\"adresse\\\":\\\"12 rue de Paris\\\"}\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -965,7 +984,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Supprime un client. ATTENTION: demande TOUJOURS confirmation à l'utilisateur avant de supprimer un client. Paramètre requête 'id'.",
+        "toolDescription": "Supprime un client. ATTENTION : TOUJOURS demander confirmation. Paramètre query 'id' obligatoire.",
         "method": "DELETE",
         "url": "https://api.talosprimes.com/api/clients",
         "authentication": "genericCredentialType",
@@ -975,10 +994,12 @@
         "queryParameters": {
           "parameters": [
             {
-              "name": "id"
+              "name": "id",
+              "value": "={{ $fromAI(\"clientId\", \"UUID du client à supprimer\") }}"
             }
           ]
-        }
+        },
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -997,7 +1018,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Envoie un email/notification. POST. Body JSON requis: from (ex: 'TalosPrimes <noreply@talosprimes.com>'), to (email destinataire), subject (objet), html (contenu HTML). Exemple: {\"from\":\"TalosPrimes <noreply@talosprimes.com>\",\"to\":\"jean@test.com\",\"subject\":\"Bienvenue\",\"html\":\"<p>Bonjour Jean, bienvenue chez TalosPrimes !</p>\"}",
+        "toolDescription": "Envoie un email de notification. POST avec body JSON.\nBody requis : {\"from\":\"TalosPrimes <noreply@talosprimes.com>\",\"to\":\"destinataire@email.com\",\"subject\":\"Objet\",\"html\":\"<p>Contenu HTML</p>\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/notifications",
         "authentication": "genericCredentialType",
@@ -1005,7 +1026,8 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"notifBody\", \"Le body JSON de la notification email. Champs: from, to (email), subject, html (contenu HTML).\") }}"
+        "jsonBody": "={{ $fromAI(\"notifBody\", \"Body JSON de notification email. EXEMPLE: {\\\"from\\\":\\\"TalosPrimes <noreply@talosprimes.com>\\\",\\\"to\\\":\\\"client@email.com\\\",\\\"subject\\\":\\\"Votre devis\\\",\\\"html\\\":\\\"<p>Bonjour</p>\\\"}\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1036,7 +1058,8 @@
         },
         "sendQuery": false,
         "sendBody": false,
-        "options": {}
+        "options": {},
+        "toolDescription": "Consulte le solde actuel du compte bancaire Qonto. GET sans paramètres.\nRetourne le solde disponible en euros."
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1067,7 +1090,8 @@
         },
         "sendQuery": false,
         "sendBody": false,
-        "options": {}
+        "options": {},
+        "toolDescription": "Liste les dernières transactions bancaires Qonto. GET sans paramètres.\nRetourne les transactions récentes avec montant, date, libellé."
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1558,11 +1582,12 @@
     },
     {
       "parameters": {
-        "toolDescription": "Liste TOUS les articles du catalogue. Retourne un tableau avec pour chaque article : code, designation, prixUnitaireHt, tvaTaux, unite.\n\nIMPORTANT : Quand l'utilisateur demande un article spécifique (par code ou par nom), tu DOIS appeler cet outil, puis CHERCHER dans la liste retournée l'article correspondant. Compare le champ \"code\" ou \"designation\" avec ce que l'utilisateur demande. Ne dis JAMAIS qu'un article n'existe pas sans avoir d'abord appelé cet outil et vérifié dans les résultats.",
+        "toolDescription": "Liste TOUS les articles du catalogue. Aucun paramètre requis.\nRetourne pour chaque article : code, designation, prixUnitaireHt, tvaTaux, unite.\nUTILISE TOUJOURS cet outil AVANT de créer un devis/facture/BDC pour vérifier les codes articles et récupérer les prix.\nCRITIQUE : Ne JAMAIS dire qu'un article n'existe pas sans avoir d'abord listé et vérifié tout le catalogue.",
         "url": "https://api.talosprimes.com/api/article-codes",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1581,7 +1606,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Crée un nouveau code article dans le catalogue. Body JSON requis:\n{\"code\":\"AUDIT-01\",\"designation\":\"Audit assurance complet\",\"prixUnitaireHt\":1500,\"tvaTaux\":20,\"unite\":\"forfait\"}\nChamps requis: code (unique, court), designation (nom complet du service/produit).\nOptionnels: prixUnitaireHt, tvaTaux (défaut 20), unite.",
+        "toolDescription": "Crée un nouveau code article dans le catalogue. POST avec body JSON.\nChamps obligatoires : code (string unique), designation (string), prixUnitaireHt (nombre), tvaTaux (nombre, ex: 20), unite (string, ex: \"unité\", \"heure\", \"forfait\")\nExemple: {\"code\":\"AUDIT-01\",\"designation\":\"Audit initial\",\"prixUnitaireHt\":500,\"tvaTaux\":20,\"unite\":\"forfait\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/article-codes",
         "authentication": "genericCredentialType",
@@ -1589,7 +1614,8 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"articleBody\", \"Le body JSON pour créer un article. Doit contenir code, designation, prixUnitaireHt (nombre), tvaTaux (nombre), unite.\") }}"
+        "jsonBody": "={{ $fromAI(\"articleBody\", \"Body JSON pour créer un article. EXEMPLE: {\\\"code\\\":\\\"AUDIT-01\\\",\\\"designation\\\":\\\"Audit initial\\\",\\\"prixUnitaireHt\\\":500,\\\"tvaTaux\\\":20,\\\"unite\\\":\\\"forfait\\\"}. Les nombres prixUnitaireHt et tvaTaux sont SANS guillemets.\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1608,11 +1634,12 @@
     },
     {
       "parameters": {
-        "toolDescription": "Liste tous les devis existants. Retourne les devis avec numéro, client, montant, statut.\nUtile quand l'utilisateur demande : \"liste les devis\", \"mes devis en cours\", \"devis du client X\".",
+        "toolDescription": "Liste TOUS les devis existants. Aucun paramètre requis.\nRetourne : id (UUID), numero (ex: DEV-0001), clientFinalId, montantHt, montantTtc, statut (brouillon/envoyee/acceptee/refusee/facturee).\nUTILISE quand l'utilisateur demande la liste des devis ou cherche un devis par numéro.",
         "url": "https://api.talosprimes.com/api/devis",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1631,12 +1658,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Récupère un devis spécifique par son ID. Passe l'UUID du devis en paramètre.\nUtile après lister_devis pour voir les détails d'un devis.",
+        "toolDescription": "Récupère un devis spécifique avec ses lignes par son UUID.\nL'UUID du devis est passé directement dans l'URL.\nUTILISE après avoir trouvé l'UUID via lister_devis.",
         "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à récupérer\") }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {},
-        "sendQuery": false
+        "sendQuery": false,
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1655,7 +1683,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Crée un nouveau devis.\n\nAVANT D'APPELER :\n1. Appelle rechercher_clients pour trouver le client → récupère son \"id\" (UUID)\n2. Optionnel : appelle lister_articles pour trouver codes et prix\n\nLe body JSON doit contenir :\n- clientFinalId : UUID du client (OBLIGATOIRE)\n- montantHt : total HT (somme des lignes)\n- tvaTaux : taux TVA (généralement 20)\n- lines : tableau de lignes, chaque ligne a designation, quantite, prixUnitaireHt\n\nExemple : {\"clientFinalId\":\"abc-123\",\"montantHt\":1500,\"tvaTaux\":20,\"lines\":[{\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]}",
+        "toolDescription": "Crée un nouveau devis. POST avec body JSON.\nÉTAPES OBLIGATOIRES AVANT D'APPELER :\n1. rechercher_clients → récupérer clientFinalId (UUID)\n2. lister_articles → récupérer les prix si codes articles mentionnés\n3. Calculer montantHt = somme de (quantite × prixUnitaireHt) pour chaque ligne\n\nBody JSON REQUIS :\n{\n  \"clientFinalId\": \"UUID-du-client\",\n  \"montantHt\": 1500,\n  \"tvaTaux\": 20,\n  \"description\": \"Description du devis\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\"designation\": \"Service X\", \"quantite\": 1, \"prixUnitaireHt\": 1500, \"codeArticle\": \"CODE-OPTIONNEL\"}\n  ]\n}\nCRITIQUE : clientFinalId doit être un UUID réel trouvé avec rechercher_clients. Ne JAMAIS inventer d'UUID.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/devis",
         "authentication": "genericCredentialType",
@@ -1663,7 +1691,8 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"devisBody\", \"Le body JSON complet pour créer le devis. Doit contenir clientFinalId (UUID), montantHt (nombre), tvaTaux (nombre), lines (tableau avec designation, quantite, prixUnitaireHt pour chaque ligne).\") }}"
+        "jsonBody": "={{ $fromAI(\"devisBody\", \"Body JSON pour créer un devis. EXEMPLE: {\\\"clientFinalId\\\":\\\"uuid-du-client\\\",\\\"montantHt\\\":1500,\\\"tvaTaux\\\":20,\\\"description\\\":\\\"Devis prestation\\\",\\\"modePaiement\\\":\\\"virement\\\",\\\"lines\\\":[{\\\"designation\\\":\\\"Service X\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]}. CRITIQUE: clientFinalId DOIT être le vrai UUID trouvé avec rechercher_clients. montantHt = somme des lignes.\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1682,12 +1711,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Envoie un devis au client (change le statut de brouillon → envoyée). Passe l'UUID du devis.",
+        "toolDescription": "Envoie un devis au client (brouillon → envoyée). L'UUID du devis est dans l'URL.\nUTILISE après avoir créé ou listé un devis dont le statut est \"brouillon\".",
         "method": "PUT",
         "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à envoyer\") }}/send",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1706,12 +1736,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Marque un devis comme accepté (change le statut envoyée → acceptée). Passe l'UUID du devis.",
+        "toolDescription": "Accepte un devis (envoyée → acceptée). L'UUID du devis est dans l'URL.\nUTILISE quand l'utilisateur dit qu'un client a accepté un devis.",
         "method": "PUT",
         "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à accepter\") }}/accept",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1730,12 +1761,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Convertit un devis accepté en facture. Passe l'UUID du devis. Le devis doit être en statut \"acceptée\".",
+        "toolDescription": "Convertit un devis accepté en facture. POST. L'UUID du devis est dans l'URL.\nLe devis DOIT être en statut \"acceptée\" pour être converti.\nUTILISE quand l'utilisateur demande de transformer un devis en facture.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à convertir en facture\") }}/convert-to-invoice",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1754,11 +1786,12 @@
     },
     {
       "parameters": {
-        "toolDescription": "Liste toutes les factures existantes. Retourne les factures avec numéro, client, montant, statut.\nUtile quand l'utilisateur demande : \"liste les factures\", \"factures impayées\", \"factures du client X\".",
+        "toolDescription": "Liste TOUTES les factures. Aucun paramètre requis.\nRetourne : id, numero (FAC-XXXX), clientFinalId, montantHt, montantTtc, statut (brouillon/envoyee/payee).",
         "url": "https://api.talosprimes.com/api/invoices",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1777,12 +1810,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Récupère une facture spécifique par son ID. Passe l'UUID de la facture.",
+        "toolDescription": "Récupère une facture spécifique avec ses lignes par son UUID dans l'URL.",
         "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à récupérer\") }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {},
-        "sendQuery": false
+        "sendQuery": false,
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1801,7 +1835,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Crée une nouvelle facture. ÉTAPES OBLIGATOIRES AVANT D'APPELER :\n1. Cherche le client avec rechercher_clients → récupère son id (= clientFinalId)\n\nBody JSON:\n{\n  \"clientFinalId\": \"uuid-du-client\",\n  \"type\": \"facture_client_final\",\n  \"montantHt\": 1500.00,\n  \"tvaTaux\": 20,\n  \"description\": \"Description optionnelle\",\n  \"lines\": [\n    {\"designation\": \"Prestation\", \"quantite\": 1, \"prixUnitaireHt\": 1500.00}\n  ]\n}\n\nRÈGLES:\n- clientFinalId est OBLIGATOIRE (UUID du client)\n- type = \"facture_client_final\" par défaut\n- montantHt = somme des lignes",
+        "toolDescription": "Crée une nouvelle facture. POST avec body JSON.\nMÊMES ÉTAPES que creer_devis : rechercher client, vérifier articles, calculer montants.\nBody identique à creer_devis mais pour une facture.\nAjouter \"type\": \"facture_client_final\" dans le body.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/invoices",
         "authentication": "genericCredentialType",
@@ -1809,7 +1843,8 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"factureBody\", \"Le body JSON complet pour créer la facture. Doit contenir clientFinalId (UUID), montantHt (nombre), tvaTaux (nombre), type (facture_client_final), lines (tableau).\") }}"
+        "jsonBody": "={{ $fromAI(\"factureBody\", \"Body JSON pour créer une facture. EXEMPLE: {\\\"clientFinalId\\\":\\\"uuid-du-client\\\",\\\"montantHt\\\":1500,\\\"tvaTaux\\\":20,\\\"type\\\":\\\"facture_client_final\\\",\\\"lines\\\":[{\\\"designation\\\":\\\"Service X\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]}. CRITIQUE: clientFinalId est le UUID réel du client.\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1828,12 +1863,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Envoie une facture au client. Passe l'UUID de la facture.",
+        "toolDescription": "Envoie une facture au client par email. POST. L'UUID de la facture est dans l'URL.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à envoyer\") }}/send",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1852,12 +1888,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Marque une facture comme payée. Passe l'UUID de la facture.",
+        "toolDescription": "Marque une facture comme payée. POST. L'UUID de la facture est dans l'URL.\nUTILISE quand l'utilisateur indique qu'un paiement a été reçu.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à marquer payée\") }}/mark-paid",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1876,11 +1913,12 @@
     },
     {
       "parameters": {
-        "toolDescription": "Liste tous les bons de commande. Retourne les BDC avec numéro, client, montant, statut.",
+        "toolDescription": "Liste TOUS les bons de commande. Retourne : id, numero (BDC-XXXX), client, montants, statut.",
         "url": "https://api.talosprimes.com/api/bons-commande",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1899,7 +1937,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Crée un nouveau bon de commande. ÉTAPES OBLIGATOIRES :\n1. Cherche le client avec rechercher_clients → récupère son id (= clientFinalId)\n\nBody JSON:\n{\n  \"clientFinalId\": \"uuid-du-client\",\n  \"montantHt\": 1500.00,\n  \"tvaTaux\": 20,\n  \"description\": \"Description\",\n  \"lines\": [\n    {\"designation\": \"Prestation\", \"quantite\": 1, \"prixUnitaireHt\": 1500.00}\n  ]\n}",
+        "toolDescription": "Crée un bon de commande. POST avec body JSON.\nMÊMES ÉTAPES que creer_devis : rechercher client d'abord, vérifier articles, calculer montants.\nBody identique à creer_devis.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/bons-commande",
         "authentication": "genericCredentialType",
@@ -1907,7 +1945,8 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $fromAI(\"bdcBody\", \"Le body JSON complet pour créer le bon de commande. Doit contenir clientFinalId (UUID), montantHt (nombre), tvaTaux (nombre), lines (tableau).\") }}"
+        "jsonBody": "={{ $fromAI(\"bdcBody\", \"Body JSON pour créer un BDC. EXEMPLE: {\\\"clientFinalId\\\":\\\"uuid-du-client\\\",\\\"montantHt\\\":1500,\\\"tvaTaux\\\":20,\\\"lines\\\":[{\\\"designation\\\":\\\"Service X\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]}. CRITIQUE: clientFinalId est le UUID réel du client.\") }}",
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1926,12 +1965,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Valide un bon de commande (brouillon → validé). Passe l'UUID du BDC.",
+        "toolDescription": "Valide un bon de commande (brouillon → validé). PUT. UUID du BDC dans l'URL.",
         "method": "PUT",
         "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à valider\") }}/validate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1950,12 +1990,13 @@
     },
     {
       "parameters": {
-        "toolDescription": "Convertit un bon de commande validé en facture. Passe l'UUID du BDC.",
+        "toolDescription": "Convertit un BDC validé en facture. POST. UUID du BDC dans l'URL.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à convertir\") }}/convert-to-invoice",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {},
+        "nodeCredentialType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
