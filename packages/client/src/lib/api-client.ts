@@ -297,11 +297,46 @@ export const apiClient = {
 
   // Agent IA (Super Assistant)
   agent: {
-    chat: (message: string, history?: Array<{ role: 'user' | 'assistant'; content: string }>) =>
+    chat: (message: string, history?: Array<{ role: 'user' | 'assistant'; content: string }>, fileIds?: string[]) =>
       authenticatedFetch<{ success: boolean; reply: string; error?: string }>('/api/agent/chat', {
         method: 'POST',
-        body: JSON.stringify({ message, history: history ?? [] }),
+        body: JSON.stringify({ message, history: history ?? [], fileIds: fileIds ?? [] }),
       }),
+    /** Upload de fichiers pour pièces jointes email (base64 JSON). Retourne les fileIds à passer dans chat() */
+    upload: async (files: File[]): Promise<{ success: boolean; files: Array<{ fileId: string; filename: string; size: number }> }> => {
+      const toBase64 = (file: File): Promise<string> =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1] || '';
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+      const payload = await Promise.all(
+        files.map(async (f) => ({
+          filename: f.name,
+          contentType: f.type || 'application/octet-stream',
+          base64: await toBase64(f),
+        }))
+      );
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${baseUrl}/api/agent/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ files: payload }),
+      });
+      if (!res.ok) throw new Error(`Upload échoué: ${res.status}`);
+      return res.json();
+    },
     getConfig: () =>
       authenticatedFetch<{
         success: boolean;

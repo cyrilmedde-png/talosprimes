@@ -40,6 +40,8 @@ export interface AgentChatOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   tenantId: string;
   userRole: string;
+  /** IDs des fichiers uploadés via /api/agent/upload — disponibles comme pièces jointes pour send_email */
+  fileIds?: string[];
 }
 
 export interface AgentChatResult {
@@ -222,7 +224,7 @@ const AGENT_TOOLS: Array<{
     type: 'function',
     function: {
       name: 'send_email',
-      description: 'Envoyer un email. À utiliser seulement après confirmation de l\'utilisateur pour les envois importants. Nécessite configuration SMTP dans .env.',
+      description: 'Envoyer un email avec ou sans pièces jointes. À utiliser seulement après confirmation de l\'utilisateur pour les envois importants. Si l\'utilisateur a uploadé des fichiers, ils seront automatiquement joints sauf si attachFileIds est spécifié. Nécessite configuration SMTP.',
       parameters: {
         type: 'object',
         properties: {
@@ -230,6 +232,7 @@ const AGENT_TOOLS: Array<{
           subject: { type: 'string', description: 'Objet' },
           text: { type: 'string', description: 'Corps du message (texte brut)' },
           html: { type: 'string', description: 'Corps HTML (optionnel)' },
+          attachFileIds: { type: 'string', description: 'Liste des IDs de fichiers à joindre séparés par des virgules (optionnel — si omis, tous les fichiers uploadés sont joints)' },
         },
         required: ['to', 'subject'],
       },
@@ -420,7 +423,8 @@ function serializeForModel(value: unknown): string {
 async function executeTool(
   name: string,
   args: Record<string, unknown>,
-  tenantId: string
+  tenantId: string,
+  fileIds?: string[]
 ): Promise<string> {
   try {
     switch (name) {
@@ -639,12 +643,35 @@ async function executeTool(
         const subject = args.subject as string;
         const text = args.text as string | undefined;
         const html = args.html as string | undefined;
+        const rawAttachIds = args.attachFileIds as string | undefined;
+        const attachFileIds = rawAttachIds ? rawAttachIds.split(',').map((s) => s.trim()).filter(Boolean) : (fileIds ?? []);
         if (!to?.trim() || !subject?.trim()) {
           return serializeForModel({ error: 'to et subject sont requis' });
         }
-        const result = await sendEmailService({ to: to.trim(), subject: subject.trim(), text, html }, agentConfig?.email);
+        // Résoudre les pièces jointes depuis les fichiers uploadés
+        const { getUploadedFile } = await import('../api/routes/agent.routes.js');
+        const { readFile } = await import('fs/promises');
+        const attachments: Array<{ filename: string; content: Buffer; contentType: string }> = [];
+        for (const fid of attachFileIds) {
+          const uploaded = getUploadedFile(fid, tenantId);
+          if (uploaded) {
+            try {
+              const content = await readFile(uploaded.path);
+              attachments.push({ filename: uploaded.filename, content, contentType: uploaded.contentType });
+            } catch {
+              // fichier expiré ou supprimé, on l'ignore
+            }
+          }
+        }
+        const result = await sendEmailService({
+          to: to.trim(), subject: subject.trim(), text, html,
+          attachments: attachments.length > 0 ? attachments : undefined,
+        }, agentConfig?.email);
         if (result.error) return serializeForModel({ error: result.error });
-        return serializeForModel({ success: true, message: 'Email envoyé' });
+        const msg = attachments.length > 0
+          ? `Email envoyé avec ${attachments.length} pièce(s) jointe(s) : ${attachments.map(a => a.filename).join(', ')}`
+          : 'Email envoyé';
+        return serializeForModel({ success: true, message: msg });
       }
 
       case 'list_calendar_events': {
@@ -810,7 +837,7 @@ async function executeTool(
 }
 
 export async function chatAgent(options: AgentChatOptions): Promise<AgentChatResult> {
-  const { message, history = [], tenantId } = options;
+  const { message, history = [], tenantId, fileIds } = options;
 
   if (!env.OPENAI_API_KEY) {
     return {
@@ -836,6 +863,21 @@ export async function chatAgent(options: AgentChatOptions): Promise<AgentChatRes
   const systemPrompt = isClientFinal ? CLIENT_FINAL_SYSTEM_PROMPT : SUPER_AGENT_SYSTEM_PROMPT;
   const tools = isClientFinal ? CLIENT_FINAL_AGENT_TOOLS : AGENT_TOOLS;
 
+  // Si des fichiers sont uploadés, informer l'agent dans le message utilisateur
+  let userMessage = message;
+  if (fileIds && fileIds.length > 0) {
+    const { getUploadedFile } = await import('../api/routes/agent.routes.js');
+    const fileInfos = fileIds
+      .map((id) => {
+        const f = getUploadedFile(id, tenantId);
+        return f ? `- ${f.filename} (id: ${id}, type: ${f.contentType})` : null;
+      })
+      .filter(Boolean);
+    if (fileInfos.length > 0) {
+      userMessage += `\n\n[Fichiers joints disponibles pour envoi par email :\n${fileInfos.join('\n')}\nCes fichiers seront automatiquement attachés si tu utilises send_email.]`;
+    }
+  }
+
   const messages: OpenAIMessage[] = [
     { role: 'system', content: systemPrompt },
     ...history.map((h) =>
@@ -843,7 +885,7 @@ export async function chatAgent(options: AgentChatOptions): Promise<AgentChatRes
         ? { role: 'user' as const, content: h.content }
         : { role: 'assistant' as const, content: h.content }
     ),
-    { role: 'user', content: message },
+    { role: 'user', content: userMessage },
   ];
 
   let iterations = 0;
@@ -918,7 +960,7 @@ export async function chatAgent(options: AgentChatOptions): Promise<AgentChatRes
       } catch {
         // ignore
       }
-      const toolResult = await executeTool(tc.function.name, toolArgs, tenantId);
+      const toolResult = await executeTool(tc.function.name, toolArgs, tenantId, fileIds);
       messages.push({
         role: 'tool',
         tool_call_id: tc.id,

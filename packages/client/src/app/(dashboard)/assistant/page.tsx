@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
-import { SparklesIcon, PaperAirplaneIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { SparklesIcon, PaperAirplaneIcon, MicrophoneIcon, PaperClipIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 type Message = { role: 'user' | 'assistant'; content: string };
+type UploadedFile = { fileId: string; filename: string; size: number };
 
 // Web Speech API (non standard, pas dans les types DOM par défaut)
 interface SpeechRecognitionResult {
@@ -47,7 +48,10 @@ export default function AssistantPage() {
   const [voiceMode, setVoiceMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploading, setUploading] = useState(false);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,14 +77,22 @@ export default function AssistantPage() {
     if (!trimmed || loading) return;
 
     setError(null);
-    setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
+    // Afficher les noms de fichiers joints dans le message utilisateur
+    const fileNames = uploadedFiles.map((f) => f.filename);
+    const displayText = fileNames.length > 0
+      ? `${trimmed}\n📎 ${fileNames.join(', ')}`
+      : trimmed;
+    setMessages((prev) => [...prev, { role: 'user', content: displayText }]);
     setLoading(true);
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
-      const res = await apiClient.agent.chat(trimmed, history);
+      const fileIds = uploadedFiles.map((f) => f.fileId);
+      const res = await apiClient.agent.chat(trimmed, history, fileIds.length > 0 ? fileIds : undefined);
       setMessages((prev) => [...prev, { role: 'assistant', content: res.reply }]);
       if (!res.success && res.error) setError(res.error);
+      // Vider les fichiers après envoi
+      setUploadedFiles([]);
       return res.reply;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur de connexion';
@@ -90,7 +102,7 @@ export default function AssistantPage() {
     } finally {
       setLoading(false);
     }
-  }, [loading, messages]);
+  }, [loading, messages, uploadedFiles]);
 
   const speak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -109,6 +121,34 @@ export default function AssistantPage() {
       window.speechSynthesis.addEventListener('voiceschanged', () => {});
     }
   }, []);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    setError(null);
+    try {
+      const result = await apiClient.agent.upload(Array.from(files));
+      setUploadedFiles((prev) => [...prev, ...result.files]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
+    } finally {
+      setUploading(false);
+      // Reset le input pour permettre de re-sélectionner le même fichier
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.fileId !== fileId));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} o`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  };
 
   const handleSendClick = () => {
     const text = input.trim();
@@ -219,7 +259,54 @@ export default function AssistantPage() {
           </div>
         )}
 
+        {/* Barre de fichiers joints */}
+        {uploadedFiles.length > 0 && (
+          <div className="px-4 py-2 border-t border-gray-700 flex flex-wrap gap-2">
+            {uploadedFiles.map((f) => (
+              <div
+                key={f.fileId}
+                className="flex items-center gap-1.5 bg-gray-700 rounded-md px-2.5 py-1.5 text-sm text-gray-200"
+              >
+                <PaperClipIcon className="h-3.5 w-3.5 text-gray-400" />
+                <span className="max-w-[150px] truncate">{f.filename}</span>
+                <span className="text-gray-500 text-xs">({formatFileSize(f.size)})</span>
+                <button
+                  type="button"
+                  onClick={() => removeFile(f.fileId)}
+                  className="text-gray-400 hover:text-red-400 ml-0.5"
+                  title="Retirer"
+                >
+                  <XMarkIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="p-4 border-t border-gray-700 flex gap-2 items-center">
+          {/* Input file caché */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.gif,.zip"
+          />
+          {/* Bouton pièce jointe */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || uploading}
+            className={`rounded-lg p-3 flex-shrink-0 ${
+              uploading
+                ? 'bg-indigo-700 text-white animate-pulse'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+            title={uploading ? 'Upload en cours…' : 'Joindre un fichier'}
+          >
+            <PaperClipIcon className="h-6 w-6" />
+          </button>
           {speechSupported && (
             <button
               type="button"
@@ -240,7 +327,7 @@ export default function AssistantPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Votre message…"
+            placeholder={uploadedFiles.length > 0 ? `${uploadedFiles.length} fichier(s) joint(s) — votre message…` : 'Votre message…'}
             className="flex-1 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
             disabled={loading}
           />

@@ -166,6 +166,13 @@ export async function getEmail(
   }
 }
 
+export interface EmailAttachment {
+  filename: string;
+  content?: Buffer;
+  path?: string;
+  contentType?: string;
+}
+
 export async function sendEmail(
   params: {
     to: string;
@@ -173,6 +180,7 @@ export async function sendEmail(
     text?: string;
     html?: string;
     replyTo?: string;
+    attachments?: EmailAttachment[];
   },
   config?: EmailConfig
 ): Promise<{ error?: string; success?: boolean }> {
@@ -190,14 +198,24 @@ export async function sendEmail(
     },
   });
   try {
-    await transporter.sendMail({
+    const mailOptions: Record<string, unknown> = {
       from,
       to: params.to,
       subject: params.subject,
       text: params.text ?? undefined,
       html: params.html ?? undefined,
       replyTo: params.replyTo ?? undefined,
-    });
+    };
+    if (params.attachments && params.attachments.length > 0) {
+      mailOptions.attachments = params.attachments.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        path: a.path,
+        contentType: a.contentType,
+      }));
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await transporter.sendMail(mailOptions as any);
     return { success: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
