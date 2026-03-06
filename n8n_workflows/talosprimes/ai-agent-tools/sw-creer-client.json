@@ -1,0 +1,151 @@
+{
+  "name": "SW - Créer Client",
+  "nodes": [
+    {
+      "id": "4ccb4049-0b56-40c1-803d-492bfc6d5ee5",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "1461f9bf-f656-4ba9-a06e-9ddf0b68fab6",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.nom }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "47be21e9-7a1e-49bf-b328-2a6ac593be91",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f7adbdd6-3051-4212-9c9e-b7997da5da1b",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, nom, type",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "059dc65c-4d4b-48c9-b92d-95aaccc973e0",
+      "name": "Insert Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO client_finals (id, tenant_id, nom, email, telephone, type, raison_sociale, created_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', '{{ $json.nom }}', '{{ $json.email }}', '{{ $json.telephone }}', '{{ $json.type }}', '{{ $json.raison_sociale }}', NOW()) RETURNING *"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Insert Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Crée un client B2B ou B2C"
+  }
+}

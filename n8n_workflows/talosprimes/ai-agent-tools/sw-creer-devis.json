@@ -1,0 +1,213 @@
+{
+  "name": "SW - Créer Devis",
+  "nodes": [
+    {
+      "id": "7da2c49c-8d99-4678-9780-843a967d8908",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "de5cdcf7-9093-4731-9b37-84844f8f8e31",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.client_final_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.lignes }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "d2c31093-9be5-4a91-bfec-fef4649dc8d7",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "457d65a5-0757-4035-b4fc-53d053c5c862",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, client_final_id, lignes",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f28fabb7-ef8e-4206-b8bd-9b66e6e3110f",
+      "name": "Get Next Numero",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM 5) AS INTEGER)), 0) + 1 as next_num FROM devis WHERE tenant_id = '{{ $json.tenant_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "437def70-76a0-40ae-8c12-ccd0719cfe18",
+      "name": "Insert Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO devis (id, tenant_id, numero, client_final_id, montant_ht, tva, montant_ttc, statut, created_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', 'DEV-' || LPAD({{ $json.next_num }}::text, 4, '0'), '{{ $json.client_final_id }}', {{ $json.montant_ht }}, {{ $json.montant_ht }} * 0.2, {{ $json.montant_ht }} * 1.2, 'brouillon', NOW()) RETURNING *"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "5673b351-228d-467d-9c75-e690d1914807",
+      "name": "Insert Lignes Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Les lignes sont insérées par une boucle dans le workflow\n-- Chaque ligne: INSERT INTO devis_lines (id, devis_id, description, quantite, prix_unitaire_ht, montant_ht) VALUES (...)"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Get Next Numero",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Numero": {
+      "main": [
+        [
+          {
+            "node": "Insert Devis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Devis": {
+      "main": [
+        [
+          {
+            "node": "Insert Lignes Devis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Crée un devis avec auto-numérotation DEV-XXXX et lignes"
+  }
+}

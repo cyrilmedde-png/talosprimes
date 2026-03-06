@@ -1,0 +1,253 @@
+{
+  "name": "SW - Créer Lead",
+  "nodes": [
+    {
+      "id": "410e12a6-1f36-47ce-a505-12faeb89014f",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "85fb7741-b476-45a3-9af1-cdd4dc6037b6",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.nom }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "34d65eb9-c926-41bc-a521-e11b3eb10424",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4abfda77-7ea9-4db1-81ba-a9ee648d49a6",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, nom, email",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "603bcfe4-0ffb-42c7-b6c6-69b67ced8aab",
+      "name": "Check Doublon",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM leads WHERE tenant_id = '{{ $json.tenant_id }}' AND (email = '{{ $json.email }}' OR telephone = '{{ $json.telephone }}') LIMIT 1"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "b41d0867-56c8-414f-99c8-46a47b5327b5",
+      "name": "Doublon?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "5dd3e4fd-2ff0-4997-b14f-2d30413a2635",
+      "name": "Insert Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO leads (id, tenant_id, nom, email, telephone, source, statut, created_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', '{{ $json.nom }}', '{{ $json.email }}', '{{ $json.telephone }}', '{{ $json.source }}', 'nouveau', NOW()) RETURNING *"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "f6146c5e-8a13-422e-99de-547e507e0908",
+      "name": "Doublon Existant",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1000,
+        400
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70a2c496-7321-4c2a-8161-8375b9a6587f",
+              "name": "error",
+              "value": "Un lead avec cet email ou téléphone existe déjà.",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Check Doublon",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Doublon": {
+      "main": [
+        [
+          {
+            "node": "Doublon?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Doublon?": {
+      "main": [
+        [
+          {
+            "node": "Insert Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Lead": {
+      "main": [
+        [
+          {
+            "node": "Doublon Existant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Crée un lead avec déduplication"
+  }
+}

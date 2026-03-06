@@ -1,0 +1,174 @@
+{
+  "name": "SW - BDC vers Facture",
+  "nodes": [
+    {
+      "id": "c62107b2-a929-497b-8ebb-51af2bc74f4a",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "bbb1492c-5846-4c95-a7ec-f459eaf80698",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.bdc_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "6e941be2-625c-45a0-89dd-d0b2496b07a3",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "12e4510a-6cca-445e-a581-4f81bbe1e531",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, bdc_id",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "17f2a03f-5f01-4948-bc8c-83863e49a103",
+      "name": "Get BDC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bc.*, json_agg(json_build_object('description', bcl.description, 'quantite', bcl.quantite, 'prix_unitaire_ht', bcl.prix_unitaire_ht, 'montant_ht', bcl.montant_ht)) as lignes FROM bons_commande bc LEFT JOIN bons_commande_lines bcl ON bcl.bon_commande_id = bc.id WHERE bc.tenant_id = '{{ $json.tenant_id }}' AND bc.id = '{{ $json.bdc_id }}' GROUP BY bc.id"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "2abaa521-dd7a-44e6-aa97-c144d17e4950",
+      "name": "Create Facture from BDC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_facture AS (INSERT INTO invoices (id, tenant_id, numero, client_final_id, bon_commande_id, montant_ht, tva, montant_ttc, statut, created_at) SELECT gen_random_uuid(), tenant_id, 'FAC-' || LPAD((SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM 5) AS INTEGER)), 0) + 1 FROM invoices WHERE tenant_id = bc.tenant_id)::text, 4, '0'), client_final_id, id, montant_ht, tva, montant_ttc, 'brouillon', NOW() FROM bons_commande bc WHERE id = '{{ $json.bdc_id }}' RETURNING *) UPDATE bons_commande SET statut = 'facture' WHERE id = '{{ $json.bdc_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Get BDC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get BDC": {
+      "main": [
+        [
+          {
+            "node": "Create Facture from BDC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Convertit un bon de commande en facture"
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "name": "SW - Créer BDC",
+  "nodes": [
+    {
+      "id": "53481636-8f79-41eb-97a1-ac0ae113f0ee",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2329f7ee-abb2-4054-bb94-08629b10e8d5",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.client_final_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.lignes }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "585f42d4-d34b-40fb-b72e-eb481cd079bd",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cc9bf253-69da-45f1-a6be-016c402d17bf",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, client_final_id, lignes",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1630747e-a56f-4c36-bc4e-51dbc386fd58",
+      "name": "Get Next Numero",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM 5) AS INTEGER)), 0) + 1 as next_num FROM bons_commande WHERE tenant_id = '{{ $json.tenant_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "11004fc5-99c0-475e-85c7-bb15e706352b",
+      "name": "Insert BDC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO bons_commande (id, tenant_id, numero, client_final_id, montant_ht, tva, montant_ttc, statut, created_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', 'BDC-' || LPAD({{ $json.next_num }}::text, 4, '0'), '{{ $json.client_final_id }}', {{ $json.montant_ht }}, {{ $json.montant_ht }} * 0.2, {{ $json.montant_ht }} * 1.2, 'brouillon', NOW()) RETURNING *"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Get Next Numero",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Numero": {
+      "main": [
+        [
+          {
+            "node": "Insert BDC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Crée un bon de commande avec auto-numérotation BDC-XXXX"
+  }
+}

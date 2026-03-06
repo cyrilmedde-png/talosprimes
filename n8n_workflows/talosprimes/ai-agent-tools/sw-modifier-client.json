@@ -1,0 +1,143 @@
+{
+  "name": "SW - Modifier Client",
+  "nodes": [
+    {
+      "id": "9999b78e-d489-472f-8c08-e2c65978bed2",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "6937e1e1-597f-4e72-b297-c03fe3f6560a",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.client_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "928f53c8-2017-4914-90bc-5e07d1dbb8c0",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1c9c3799-2ce0-4c88-aed9-fbab8e4065ee",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, client_id",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3484a299-7942-464f-ae93-769421b9e135",
+      "name": "Update Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE client_finals SET nom = COALESCE(NULLIF('{{ $json.nom }}', ''), nom), email = COALESCE(NULLIF('{{ $json.email }}', ''), email), telephone = COALESCE(NULLIF('{{ $json.telephone }}', ''), telephone), raison_sociale = COALESCE(NULLIF('{{ $json.raison_sociale }}', ''), raison_sociale), updated_at = NOW() WHERE tenant_id = '{{ $json.tenant_id }}' AND id = '{{ $json.client_id }}' RETURNING *"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Update Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Modifie partiellement un client"
+  }
+}

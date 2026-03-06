@@ -1,0 +1,1332 @@
+{
+  "name": "Super Agent IA TalosPrimes v2",
+  "nodes": [
+    {
+      "id": "8db696c0-afb0-4c03-add3-c4b00cf49d10",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram Bot TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "79e141d0-2081-4ae2-bf1b-8e1e04c2fc28",
+      "name": "AI Agent TalosPrimes",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        300,
+        400
+      ],
+      "parameters": {
+        "options": {
+          "systemMessage": "Tu es l'assistant IA de TalosPrimes, un ERP/CRM SaaS pour les entrepreneurs.\n\nTu gères :\n- Les leads (prospects) : création, recherche, modification de statut, suppression\n- Les clients (B2B/B2C) : création, recherche, modification, suppression\n- Les articles (catalogue) : création, listage\n- Les devis : création, listage, envoi, acceptation, conversion en facture\n- Les factures : création, listage, envoi, marquage payée\n- Les bons de commande : création, listage, validation, conversion en facture\n- La consultation du solde et transactions Qonto\n\nRègles importantes :\n- Toujours utiliser le tenant_id du contexte utilisateur\n- Confirmer les actions destructives (suppression) avant exécution\n- Donner des réponses concises et structurées\n- En cas d'erreur, expliquer clairement le problème",
+          "maxIterations": 10,
+          "returnIntermediateSteps": false
+        }
+      }
+    },
+    {
+      "id": "3b011223-8971-4e62-868f-a1189f0b0b74",
+      "name": "OpenAI GPT-4o",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        300,
+        600
+      ],
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 4096
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "__OPENAI_CREDENTIAL_ID__",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "id": "7a696a79-2199-4962-9d2d-6e6fcbe6c34a",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        300,
+        800
+      ],
+      "parameters": {
+        "sessionKey": "={{ $json.message.chat.id }}",
+        "contextWindowLength": 20
+      }
+    },
+    {
+      "id": "a36e4c91-dc7b-4337-9a28-b421e969a680",
+      "name": "Telegram Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        700,
+        400
+      ],
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $(\"Telegram Trigger\").item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram Bot TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "251f695e-1b02-4053-8a37-8efec784d208",
+      "name": "lister_articles",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        -600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM article_codes WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' ORDER BY code",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Liste tous les codes articles du catalogue pour le tenant. Utilise cet outil quand l'utilisateur demande la liste des articles ou du catalogue.",
+        "table": "article_codes",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "e48c1265-5638-44f8-b28d-de114ba8b991",
+      "name": "lister_leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        -400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, nom, email, telephone, statut, source, created_at FROM leads WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' ORDER BY created_at DESC",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Liste tous les leads (prospects) pour le tenant, triés par date de création décroissante.",
+        "table": "leads",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "f737f14a-2aa5-4c00-9aa4-098b63c6d974",
+      "name": "rechercher_leads",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        -200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM leads WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND (nom ILIKE '%' || '{{ $fromAI(\"search\", \"Terme de recherche\") }}' || '%' OR email ILIKE '%' || '{{ $fromAI(\"search\", \"Terme de recherche\") }}' || '%')",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Recherche des leads par nom ou email. Utilise cet outil quand l'utilisateur cherche un lead spécifique.",
+        "table": "leads",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "e758e35a-ff43-4a9a-b77e-e3913e2b9107",
+      "name": "obtenir_lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM leads WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"lead_id\", \"UUID du lead\") }}'",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Obtient les détails complets d'un lead par son ID.",
+        "table": "leads",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "7eef9cb8-9a19-4762-8bb3-df0f1ca0cf53",
+      "name": "lister_clients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, nom, raison_sociale, email, telephone, type, created_at FROM client_finals WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}'",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Liste tous les clients finals pour le tenant.",
+        "table": "client_finals",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "78d58779-b2a5-4394-bad0-eaf4da8037df",
+      "name": "rechercher_clients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM client_finals WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND (nom ILIKE '%' || '{{ $fromAI(\"search\", \"Terme de recherche\") }}' || '%' OR raison_sociale ILIKE '%' || '{{ $fromAI(\"search\", \"Terme de recherche\") }}' || '%')",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Recherche des clients par nom ou raison sociale.",
+        "table": "client_finals",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "24e23b10-0848-48d1-a8dc-c707e1d31acf",
+      "name": "obtenir_client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM client_finals WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"client_id\", \"UUID du client\") }}'",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Obtient les détails complets d'un client par son ID.",
+        "table": "client_finals",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "a56018eb-18ca-4ba6-9769-592705837f54",
+      "name": "lister_devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        800
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, numero, client_final_id, montant_ht, montant_ttc, statut, created_at FROM devis WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' ORDER BY created_at DESC",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Liste tous les devis pour le tenant, triés par date de création.",
+        "table": "devis",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "ebf7a025-cc62-41f5-b42c-84c34fe8d37d",
+      "name": "obtenir_devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        1000
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, json_agg(json_build_object('id', dl.id, 'description', dl.description, 'quantite', dl.quantite, 'prix_unitaire_ht', dl.prix_unitaire_ht, 'montant_ht', dl.montant_ht)) as lignes FROM devis d LEFT JOIN devis_lines dl ON dl.devis_id = d.id WHERE d.tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND d.id = '{{ $fromAI(\"devis_id\", \"UUID du devis\") }}' GROUP BY d.id",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Obtient un devis complet avec ses lignes par son ID.",
+        "table": "devis + devis_lines",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "6e32aec5-e714-4ec5-8e8f-d1c417a39f4f",
+      "name": "lister_factures",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        1200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, numero, client_final_id, montant_ht, montant_ttc, statut, created_at FROM invoices WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' ORDER BY created_at DESC",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Liste toutes les factures pour le tenant.",
+        "table": "invoices",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "4ccabc27-e0ba-4a11-885d-37e1ce405858",
+      "name": "obtenir_facture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        1400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.*, json_agg(json_build_object('id', il.id, 'description', il.description, 'quantite', il.quantite, 'prix_unitaire_ht', il.prix_unitaire_ht, 'montant_ht', il.montant_ht)) as lignes FROM invoices i LEFT JOIN invoice_lines il ON il.invoice_id = i.id WHERE i.tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND i.id = '{{ $fromAI(\"facture_id\", \"UUID de la facture\") }}' GROUP BY i.id",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Obtient une facture complète avec ses lignes par son ID.",
+        "table": "invoices + invoice_lines",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "a59dae40-aef6-4ac5-b1cb-552f91b7af98",
+      "name": "lister_bons_commande",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        1600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, numero, client_final_id, montant_ht, montant_ttc, statut, created_at FROM bons_commande WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' ORDER BY created_at DESC",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Liste tous les bons de commande pour le tenant.",
+        "table": "bons_commande",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "2b50c49c-05c4-43a1-8772-bc9115dacf96",
+      "name": "obtenir_bon_commande",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        1800
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bc.*, json_agg(json_build_object('id', bcl.id, 'description', bcl.description, 'quantite', bcl.quantite, 'prix_unitaire_ht', bcl.prix_unitaire_ht, 'montant_ht', bcl.montant_ht)) as lignes FROM bons_commande bc LEFT JOIN bons_commande_lines bcl ON bcl.bon_commande_id = bc.id WHERE bc.tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND bc.id = '{{ $fromAI(\"bdc_id\", \"UUID du bon de commande\") }}' GROUP BY bc.id",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Obtient un bon de commande complet avec ses lignes par son ID.",
+        "table": "bons_commande + bons_commande_lines",
+        "category": "READ",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "b21f4b1c-ac77-4220-8781-a1bca1c69636",
+      "name": "creer_article",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        -600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO article_codes (id, tenant_id, code, description, prix_unitaire_ht, tva_rate) VALUES (gen_random_uuid(), '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}', '{{ $fromAI(\"code\", \"Code article\") }}', '{{ $fromAI(\"description\", \"Description de l article\") }}', {{ $fromAI(\"prix_unitaire_ht\", \"Prix unitaire HT en euros\") }}, {{ $fromAI(\"tva_rate\", \"Taux de TVA, ex: 20\") }}) RETURNING *",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Crée un nouveau code article dans le catalogue.",
+        "table": "article_codes",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "cbf137ff-150d-4ef8-8a33-97cb57c38baa",
+      "name": "modifier_statut_lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        -400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET statut = '{{ $fromAI(\"statut\", \"Nouveau statut: nouveau, contacte, qualifie, proposition, gagne, perdu\") }}', updated_at = NOW() WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"lead_id\", \"UUID du lead\") }}' RETURNING *",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Change le statut d'un lead. Statuts possibles : nouveau, contacte, qualifie, proposition, gagne, perdu.",
+        "table": "leads",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "9afe0c04-3c20-4f0a-83a1-c3c5cdd6d7fc",
+      "name": "supprimer_lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        -200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM leads WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"lead_id\", \"UUID du lead\") }}' RETURNING id, nom",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Supprime définitivement un lead. Demande confirmation à l'utilisateur avant d'exécuter.",
+        "table": "leads",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "71cf71f8-a56f-4519-aebd-14aa75b842b5",
+      "name": "supprimer_client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM client_finals WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"client_id\", \"UUID du client\") }}' RETURNING id, nom",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Supprime définitivement un client. Demande confirmation à l'utilisateur avant d'exécuter.",
+        "table": "client_finals",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "1557f23b-e725-4d72-a3c3-6a769bc25d0e",
+      "name": "envoyer_devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE devis SET statut = 'envoyee', updated_at = NOW() WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"devis_id\", \"UUID du devis\") }}' RETURNING id, numero, statut",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Passe le statut d'un devis à \"envoyee\".",
+        "table": "devis",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "3223042b-fb94-4378-86b8-4a1788360e81",
+      "name": "accepter_devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        400
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE devis SET statut = 'acceptee', updated_at = NOW() WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"devis_id\", \"UUID du devis\") }}' RETURNING id, numero, statut",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Accepte un devis en passant son statut à \"acceptee\".",
+        "table": "devis",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "4caa5729-48de-467d-8bbc-2c20b7af4ab8",
+      "name": "valider_bon_commande",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        600
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE bons_commande SET statut = 'valide', updated_at = NOW() WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"bdc_id\", \"UUID du bon de commande\") }}' RETURNING id, numero, statut",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Valide un bon de commande en passant son statut à \"valide\".",
+        "table": "bons_commande",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "aab6b666-58fa-46f3-9dfa-87dbc278642b",
+      "name": "facture_payee",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        800
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET statut = 'payee', paid_at = NOW(), updated_at = NOW() WHERE tenant_id = '{{ $fromAI(\"tenant_id\", \"UUID du tenant\") }}' AND id = '{{ $fromAI(\"facture_id\", \"UUID de la facture\") }}' RETURNING id, numero, statut",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "_meta": {
+        "description": "Marque une facture comme payée.",
+        "table": "invoices",
+        "category": "WRITE_SIMPLE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "344ffb98-8408-4164-8346-d6379ca97ea9",
+      "name": "sw_creer_lead",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        -600
+      ],
+      "parameters": {
+        "workflowId": "__SW_CREER_LEAD_ID__",
+        "description": "Crée un nouveau lead avec déduplication par email/téléphone. Paramètres requis : tenant_id, nom, email, telephone, source.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "8695d270-b0bd-4c1e-a461-a5722d8fbfa5",
+      "name": "sw_creer_client",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        -400
+      ],
+      "parameters": {
+        "workflowId": "__SW_CREER_CLIENT_ID__",
+        "description": "Crée un nouveau client (B2B ou B2C) avec validation du type. Paramètres : tenant_id, nom, type (B2B/B2C), email, telephone, raison_sociale (si B2B).",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "5647cff1-3c18-4a5b-87fa-e74adff1212f",
+      "name": "sw_modifier_client",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        -200
+      ],
+      "parameters": {
+        "workflowId": "__SW_MODIFIER_CLIENT_ID__",
+        "description": "Modifie partiellement un client existant. Paramètres : tenant_id, client_id, et les champs à modifier.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "ec3599cc-1699-4455-bb59-3d8e7698962a",
+      "name": "sw_creer_devis",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        0
+      ],
+      "parameters": {
+        "workflowId": "__SW_CREER_DEVIS_ID__",
+        "description": "Crée un devis avec auto-numérotation DEV-XXXX, lignes et calcul TTC. Paramètres : tenant_id, client_final_id, lignes (description, quantite, prix_unitaire_ht).",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "582e8b79-33d5-4627-b9b8-4fde5d316afa",
+      "name": "sw_creer_facture",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        200
+      ],
+      "parameters": {
+        "workflowId": "__SW_CREER_FACTURE_ID__",
+        "description": "Crée une facture avec auto-numérotation FAC-XXXX. Paramètres : tenant_id, client_final_id, lignes.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "4cf459c5-45e7-419d-894e-025f72ce3653",
+      "name": "sw_creer_bdc",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        400
+      ],
+      "parameters": {
+        "workflowId": "__SW_CREER_BDC_ID__",
+        "description": "Crée un bon de commande avec auto-numérotation BDC-XXXX. Paramètres : tenant_id, client_final_id, lignes.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "6d52a8cd-bca4-460b-b3ea-17172a212e5b",
+      "name": "sw_devis_vers_facture",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        600
+      ],
+      "parameters": {
+        "workflowId": "__SW_DEVIS_VERS_FACTURE_ID__",
+        "description": "Convertit un devis accepté en facture. Copie les lignes, crée la facture, met à jour le statut du devis. Paramètres : tenant_id, devis_id.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "7aca3df1-f204-4fb0-b554-0dc249c8582b",
+      "name": "sw_bdc_vers_facture",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        800
+      ],
+      "parameters": {
+        "workflowId": "__SW_BDC_VERS_FACTURE_ID__",
+        "description": "Convertit un bon de commande validé en facture. Paramètres : tenant_id, bdc_id.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "d57aedb6-3d94-49e4-99eb-7e7520c67da2",
+      "name": "sw_envoyer_facture",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        1000
+      ],
+      "parameters": {
+        "workflowId": "__SW_ENVOYER_FACTURE_ID__",
+        "description": "Génère le PDF d'une facture et l'envoie par email au client. Paramètres : tenant_id, facture_id.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "e259d827-f6fc-4746-bfb7-a6d5c2e10c6b",
+      "name": "sw_envoyer_notification",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        1200
+      ],
+      "parameters": {
+        "workflowId": "__SW_ENVOYER_NOTIFICATION_ID__",
+        "description": "Envoie un email de notification avec template HTML. Paramètres : tenant_id, destinataire, sujet, contenu.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "6a6c9c75-4779-46ea-b264-5e3a92630c3e",
+      "name": "qonto_solde",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        2100,
+        -200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.talosprimes.com/api/qonto/balance",
+        "description": "Consulte le solde bancaire Qonto de l'entreprise.",
+        "options": {}
+      },
+      "_meta": {
+        "category": "API_EXTERNE",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "22352b27-e8db-4bfa-bf45-2f183ae8dd7f",
+      "name": "qonto_transactions",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        2100,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.talosprimes.com/api/qonto/transactions",
+        "description": "Liste les dernières transactions Qonto de l'entreprise.",
+        "options": {}
+      },
+      "_meta": {
+        "category": "API_EXTERNE",
+        "connectionType": "ai_tool"
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent TalosPrimes": {
+      "main": [
+        [
+          {
+            "node": "Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_articles": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "rechercher_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_clients": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "rechercher_clients": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_factures": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_bons_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_article": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "modifier_statut_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "supprimer_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "supprimer_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "envoyer_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "accepter_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "valider_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "facture_payee": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_creer_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_creer_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_modifier_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_creer_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_creer_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_creer_bdc": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_devis_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_bdc_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_envoyer_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_envoyer_notification": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "qonto_solde": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "qonto_transactions": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "ai-agent"
+    },
+    {
+      "name": "v2-postgres"
+    }
+  ],
+  "meta": {
+    "instanceId": "__N8N_INSTANCE_ID__",
+    "templateCredsSetupCompleted": false
+  }
+}

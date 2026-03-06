@@ -1,0 +1,182 @@
+{
+  "name": "SW - Créer Facture",
+  "nodes": [
+    {
+      "id": "76497e0b-3c6f-403c-bf32-7fb77a6c8e76",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "7fa17e5a-b012-43b4-952f-6007015ab271",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.client_final_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.lignes }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "de5c1bfe-f8a3-46f3-90b5-1d94fe1a839d",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "86466ab0-b3e6-484e-9462-4f811c671aed",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, client_final_id, lignes",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "72d359a9-66ad-453f-9db5-da6d8f03a636",
+      "name": "Get Next Numero",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM 5) AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenant_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "7732813c-ecde-4a38-87b5-b4b25810f4e0",
+      "name": "Insert Facture",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO invoices (id, tenant_id, numero, client_final_id, montant_ht, tva, montant_ttc, statut, created_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', 'FAC-' || LPAD({{ $json.next_num }}::text, 4, '0'), '{{ $json.client_final_id }}', {{ $json.montant_ht }}, {{ $json.montant_ht }} * 0.2, {{ $json.montant_ht }} * 1.2, 'brouillon', NOW()) RETURNING *"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Get Next Numero",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Numero": {
+      "main": [
+        [
+          {
+            "node": "Insert Facture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Crée une facture avec auto-numérotation FAC-XXXX"
+  }
+}

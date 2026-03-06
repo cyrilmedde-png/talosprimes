@@ -1,0 +1,228 @@
+{
+  "name": "SW - Envoyer Facture",
+  "nodes": [
+    {
+      "id": "5c72d6d7-cd65-4fa3-b670-3bc8707c77ee",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "deac5f4e-f164-4612-9617-fb0170787fa8",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.facture_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "69d38358-eacf-4aa4-bb5e-37f66fa07fc9",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bf80a314-b3fb-47fb-8f50-c41baf7cfc89",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, facture_id",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1eb908ee-422a-469a-86b6-8e5d857900e9",
+      "name": "Get Facture + Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.*, cf.nom as client_nom, cf.email as client_email FROM invoices i JOIN client_finals cf ON cf.id = i.client_final_id WHERE i.tenant_id = '{{ $json.tenant_id }}' AND i.id = '{{ $json.facture_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "793913a0-6b58-461a-bdfc-feb89a6c4d2c",
+      "name": "Generate PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/invoices/{{ $json.id }}/pdf",
+        "options": {}
+      }
+    },
+    {
+      "id": "06f85fbf-5b69-42c3-b6ee-aabe5fed607b",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "fromEmail": "facturation@talosprimes.com",
+        "toEmail": "={{ $json.client_email }}",
+        "subject": "=Facture {{ $json.numero }} - TalosPrimes",
+        "emailType": "html",
+        "html": "=<h2>Facture {{ $json.numero }}</h2><p>Bonjour {{ $json.client_nom }},</p><p>Veuillez trouver ci-joint votre facture d'un montant de {{ $json.montant_ttc }}€ TTC.</p>"
+      }
+    },
+    {
+      "id": "15dac4ce-73b0-4cbc-893a-862d64f341ba",
+      "name": "Update Statut",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1250,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE invoices SET statut = 'envoyee', updated_at = NOW() WHERE id = '{{ $json.id }}' RETURNING *"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Get Facture + Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Facture + Client": {
+      "main": [
+        [
+          {
+            "node": "Generate PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate PDF": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Update Statut",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Génère le PDF et envoie la facture par email"
+  }
+}

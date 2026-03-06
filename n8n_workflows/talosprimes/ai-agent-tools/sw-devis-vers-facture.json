@@ -1,0 +1,205 @@
+{
+  "name": "SW - Devis vers Facture",
+  "nodes": [
+    {
+      "id": "0f0fc2b2-074c-4018-86cd-3da93279c81a",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "447ca037-7a62-4d13-8490-d7e56b48f92d",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.devis_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "04d31bba-e725-4c48-b793-1fd638e264c6",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "06cc91cf-c849-402d-864a-1a3852ba2a62",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, devis_id",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "24eb1d1c-0188-4e2a-9fd3-3c8b0ac1abe2",
+      "name": "Get Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, json_agg(json_build_object('description', dl.description, 'quantite', dl.quantite, 'prix_unitaire_ht', dl.prix_unitaire_ht, 'montant_ht', dl.montant_ht)) as lignes FROM devis d LEFT JOIN devis_lines dl ON dl.devis_id = d.id WHERE d.tenant_id = '{{ $json.tenant_id }}' AND d.id = '{{ $json.devis_id }}' GROUP BY d.id"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "41b9cba5-386b-4995-a149-41a4ee15cabd",
+      "name": "Get Next FAC Numero",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM 5) AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenant_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "2d3c629f-e9e8-4e71-8d2f-36dcf954e023",
+      "name": "Create Facture from Devis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH new_facture AS (INSERT INTO invoices (id, tenant_id, numero, client_final_id, devis_id, montant_ht, tva, montant_ttc, statut, created_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', 'FAC-' || LPAD({{ $json.next_num }}::text, 4, '0'), '{{ $json.client_final_id }}', '{{ $json.devis_id }}', {{ $json.montant_ht }}, {{ $json.tva }}, {{ $json.montant_ttc }}, 'brouillon', NOW()) RETURNING *) UPDATE devis SET statut = 'facturee' WHERE id = '{{ $json.devis_id }}'"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Get Devis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Devis": {
+      "main": [
+        [
+          {
+            "node": "Get Next FAC Numero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next FAC Numero": {
+      "main": [
+        [
+          {
+            "node": "Create Facture from Devis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Convertit un devis en facture"
+  }
+}

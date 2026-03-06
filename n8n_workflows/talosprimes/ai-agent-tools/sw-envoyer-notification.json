@@ -1,0 +1,197 @@
+{
+  "name": "SW - Envoyer Notification",
+  "nodes": [
+    {
+      "id": "34a74e2c-6de3-4b50-a452-fbf1720e793c",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "3bdd16a2-beb9-4ab5-a31f-3eb971404495",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.destinataire }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.sujet }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.contenu }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "5b4cce87-4c47-4b11-bcaf-0d8b8a14d80b",
+      "name": "Erreur Validation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        500
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cd782bce-dbd4-46b2-8578-b0d073daec0a",
+              "name": "error",
+              "value": "Champs requis manquants: tenant_id, destinataire, sujet, contenu",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "261a76e3-8517-4656-89b8-e10048c27f3a",
+      "name": "Send Notification Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "fromEmail": "notifications@talosprimes.com",
+        "toEmail": "={{ $json.destinataire }}",
+        "subject": "={{ $json.sujet }}",
+        "emailType": "html",
+        "html": "={{ $json.contenu }}"
+      }
+    },
+    {
+      "id": "ac037af8-046d-4608-8fcf-b7bb712dc08f",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        750,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ab99195a-ca09-464a-867a-69f7a617ff19",
+              "name": "success",
+              "value": "true",
+              "type": "string"
+            },
+            {
+              "id": "8af27aa2-5d48-4d1b-98a3-a8da67c4ddaa",
+              "name": "message",
+              "value": "Email envoyé avec succès",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "Send Notification Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erreur Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Notification Email": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "talosprimes"
+    },
+    {
+      "name": "sub-workflow"
+    }
+  ],
+  "meta": {
+    "description": "Envoie un email de notification"
+  }
+}
