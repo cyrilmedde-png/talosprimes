@@ -195,7 +195,7 @@
         "promptType": "define",
         "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || '' }}",
         "options": {
-          "systemMessage": "Tu es l'assistant commercial de TalosPrimes. Tu EXÉCUTES les instructions sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n\n═══ RÈGLE ABSOLUE ═══\nEXÉCUTE. NE DEMANDE PAS. NE VALIDE PAS. NE DISCUTE PAS.\n\n═══ MATCHING CLIENTS ═══\nQuand on dit \"client Roussie Alexandre\" :\n1. Appelle rechercher_clients avec search = \"roussie\"\n2. Dans les résultats, CHERCHE celui dont le nom contient \"roussie\" ET le prénom contient \"alexandre\"\n3. S'il y a un match par nom → C'EST LE BON → prends son UUID\n4. NE DEMANDE JAMAIS \"il y a 2 clients, lequel ?\" — COMPARE les noms et choisis\n5. \"demo\" ne correspond PAS à \"roussie alexandre\" → IGNORE-LE\n\nExemple :\n- Résultats : [{\"nom\":\"Roussie\",\"prenom\":\"Alexandre\",\"id\":\"abc\"}, {\"raisonSociale\":\"demo\",\"id\":\"xyz\"}]\n- Tu cherches \"Roussie Alexandre\" → le premier MATCHE → utilise \"abc\"\n- Ne dis PAS \"il y a 2 clients\"\n\n═══ MATCHING ARTICLES ═══\nQuand on dit \"code article 001\" :\n1. Appelle lister_articles\n2. Dans les résultats, CHERCHE celui dont le champ \"code\" = \"001\"\n3. Trouvé → prends ses infos (designation, prixUnitaireHt)\n4. NE DIS JAMAIS \"l'article 001 n'existe pas\" SANS AVOIR LISTÉ\n\n═══ CRÉER UN DEVIS ═══\nInstruction : \"créer un devis pour [client] avec [article] et envoyer à [email]\"\n\nÉTAPE 1 → rechercher_clients(search: nom_de_famille)\nÉTAPE 2 → lister_articles() → trouver le code article\nÉTAPE 3 → creer_devis(clientFinalId, montantHt, tvaTaux, description, modePaiement, lines)\nÉTAPE 4 → envoyer email via Gmail (to: email, subject: \"Devis ...\", message: résumé)\n\nTu ENCHAÎNES les 4 étapes SANS POSER DE QUESTION.\n\n═══ CRÉER FACTURE / BON DE COMMANDE ═══\nMêmes étapes mais avec creer_facture ou creer_bon_commande.\n\n═══ EMAILS ═══\n- Adresse email = EXACTEMENT ce que l'utilisateur donne\n- NE JAMAIS dire \"adresse invalide\"\n- NE JAMAIS modifier l'adresse\n- Pour envoyer un document : compose un email professionnel\n\n═══ AGENDA ═══\n- Dates en ISO 8601 (ex: 2025-03-15T14:00:00+01:00)\n- Pour modifier/supprimer → lister les événements d'abord\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS demander confirmation quand le nom matche\n- NE JAMAIS dire \"l'article n'existe pas\" sans avoir listé\n- NE JAMAIS poser de question intermédiaire sur une instruction complète\n- NE JAMAIS inventer d'erreurs"
+          "systemMessage": "Tu es l'assistant commercial vocal de TalosPrimes. Tu EXÉCUTES les demandes COMPLÈTEMENT sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n🔑 tenantId : 00000000-0000-0000-0000-000000000001\n\n═══ RÈGLE N°1 : EXÉCUTER SANS DEMANDER ═══\nOn te donne un ordre → tu l'exécutes. Pas de question. Pas de validation.\n\n═══ TENANTID ═══\nCHAQUE appel webhook DOIT contenir dans le body JSON :\n\"tenantId\": \"00000000-0000-0000-0000-000000000001\"\nTOUJOURS. SANS EXCEPTION.\n\n═══ MATCHING CLIENTS ═══\n\"Client Roussie Alexandre\" :\n1. rechercher_clients avec body {\"tenantId\":\"...\",\"search\":\"roussie\"}\n2. Résultat = liste → COMPARE nom+prénom → prends celui qui matche\n3. UN seul match = C'EST LUI, prends son UUID (id ou clientFinalId)\n4. NE DIS JAMAIS \"il y a 2 clients lequel ?\" → COMPARE et CHOISIS\n\n═══ MATCHING ARTICLES ═══\n\"Code article 001\" :\n1. lister_articles avec body {\"tenantId\":\"...\"}\n2. CHERCHE code = \"001\" dans les résultats\n3. Trouvé → prends designation + prixUnitaireHt\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ CRÉER ET ENVOYER UN DEVIS (WORKFLOW COMPLET) ═══\nQuand on dit \"créer un devis pour X avec article Y et envoyer à Z@email.com\" :\n\nÉTAPE 1 → rechercher_clients(body: {\"tenantId\":\"...\",\"search\":\"nom_client\"})\n         → récupérer le clientFinalId (UUID)\n\nÉTAPE 2 → lister_articles(body: {\"tenantId\":\"...\"})\n         → trouver l'article par code → noter designation + prixUnitaireHt\n\nÉTAPE 3 → creer_devis(body: {\n  \"tenantId\":\"...\",\n  \"clientFinalId\":\"UUID_TROUVÉ_ÉTAPE_1\",\n  \"montantHt\": quantite × prixUnitaireHt,\n  \"tvaTaux\": 20,\n  \"description\": \"Devis pour [client]\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [{\"codeArticle\":\"001\",\"designation\":\"...\",\"quantite\":1,\"prixUnitaireHt\":...}]\n})\n         → noter le numero_devis et l'id retournés\n\nÉTAPE 4 → Send a message in Gmail(\n  to: \"Z@email.com\",\n  subject: \"Devis [numero_devis] - TalosPrimes\",\n  message: \"Bonjour,\\n\\nVeuillez trouver ci-joint votre devis [numero_devis] d'un montant de [montantHt]€ HT.\\n\\nCordialement,\\nTalosPrimes\"\n)\n\nTu ENCHAÎNES les 4 étapes AUTOMATIQUEMENT. L'envoi se fait TOUJOURS via Gmail.\n\n═══ MÊME LOGIQUE POUR FACTURES / BONS DE COMMANDE ═══\nFacture : rechercher_clients → lister_articles → creer_facture → Gmail\nBon de commande : rechercher_clients → lister_articles → creer_bon_commande → Gmail\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS dire \"l'article n'existe pas\" sans lister_articles\n- NE JAMAIS demander confirmation si le nom matche\n- NE JAMAIS oublier tenantId dans le body\n- NE JAMAIS envoyer un email sans avoir créé le document d'abord"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -575,12 +575,11 @@
         700
       ],
       "parameters": {
-        "toolDescription": "Rechercher et lister les clients. Utilise 'search' pour filtrer par nom/prénom/email. Sans 'search', retourne tous les clients.",
+        "toolDescription": "Rechercher/lister les clients. POST. Body JSON obligatoire :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"search\":\"terme de recherche\"}\nSi pas de filtre, envoie juste : {\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}\nLe champ search filtre par nom, prénom ou email.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/clients_list",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", search: $fromAI(\"search\", \"Terme de recherche pour filtrer les clients (nom, prénom, email). Laisser vide pour tout lister.\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -600,12 +599,11 @@
         700
       ],
       "parameters": {
-        "toolDescription": "Obtenir les détails d'un client par son UUID.",
+        "toolDescription": "Obtenir un client par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientId\":\"UUID_DU_CLIENT\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/client_get",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientId: $fromAI(\"clientId\", \"UUID du client à récupérer\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -625,12 +623,11 @@
         700
       ],
       "parameters": {
-        "toolDescription": "Créer un nouveau client.",
+        "toolDescription": "Créer un nouveau client. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"type\":\"b2c\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@test.com\",\"telephone\":\"0612345678\"}\nLes champs type, nom, prenom et email sont obligatoires.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/client_create",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", type: $fromAI(\"type\", \"Type: b2c ou b2b. Par défaut b2c.\", \"string\"), nom: $fromAI(\"nom\", \"Nom de famille du client\", \"string\"), prenom: $fromAI(\"prenom\", \"Prénom du client\", \"string\"), email: $fromAI(\"email\", \"Email du client\", \"string\"), telephone: $fromAI(\"telephone\", \"Téléphone du client. Optionnel.\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -650,12 +647,11 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Lister tous les leads/prospects.",
+        "toolDescription": "Lister tous les leads/prospects. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/leads_list",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
         "options": {
           "response": {
             "response": {
@@ -675,12 +671,11 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Obtenir un lead par son UUID.",
+        "toolDescription": "Obtenir un lead par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"UUID_DU_LEAD\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_get",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", leadId: $fromAI(\"leadId\", \"UUID du lead\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -700,12 +695,11 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Créer un nouveau lead/prospect.",
+        "toolDescription": "Créer un lead. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@test.com\",\"telephone\":\"0612345678\",\"source\":\"admin\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_create",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", nom: $fromAI(\"nom\", \"Nom du lead\", \"string\"), prenom: $fromAI(\"prenom\", \"Prénom du lead\", \"string\"), email: $fromAI(\"email\", \"Email du lead\", \"string\"), telephone: $fromAI(\"telephone\", \"Téléphone. Optionnel.\", \"string\"), source: $fromAI(\"source\", \"Source: admin, web, etc. Par défaut admin.\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -725,12 +719,11 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Modifier le statut d'un lead.",
+        "toolDescription": "Modifier le statut d'un lead. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"UUID_DU_LEAD\",\"statut\":\"qualifié\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_update_status",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", leadId: $fromAI(\"leadId\", \"UUID du lead\", \"string\"), statut: $fromAI(\"statut\", \"Nouveau statut du lead\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -750,12 +743,11 @@
         1200
       ],
       "parameters": {
-        "toolDescription": "Lister tous les codes articles disponibles avec leurs prix et désignations. TOUJOURS appeler cet outil AVANT de créer un devis/facture pour connaître les articles existants.",
+        "toolDescription": "Lister tous les codes articles avec prix et désignations. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}\nTOUJOURS appeler cet outil AVANT de créer un devis ou une facture.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/article-codes-list",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
         "options": {
           "response": {
             "response": {
@@ -775,12 +767,11 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN DEVIS. Étapes OBLIGATOIRES AVANT d'appeler cet outil :\n1) rechercher_clients → récupérer le clientFinalId (UUID)\n2) lister_articles → récupérer designation et prixUnitaireHt du code article demandé\n\nLe champ 'lines' DOIT être un tableau JSON valide. Exemple pour 1 article :\n[{\"codeArticle\":\"001\",\"designation\":\"Audit initial\",\"quantite\":1,\"prixUnitaireHt\":1500}]\nExemple pour 2 articles :\n[{\"codeArticle\":\"001\",\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500},{\"codeArticle\":\"002\",\"designation\":\"Formation\",\"quantite\":2,\"prixUnitaireHt\":800}]\n\nLe montantHt = somme de (quantite × prixUnitaireHt) de chaque ligne.",
+        "toolDescription": "CRÉER UN DEVIS en base de données. POST. ÉTAPES OBLIGATOIRES AVANT :\n1) rechercher_clients → récupérer clientFinalId (UUID)\n2) lister_articles → récupérer designation et prixUnitaireHt\n\nBody JSON EXACT à envoyer :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description du devis\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Audit initial\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nIMPORTANT : montantHt = somme de (quantite × prixUnitaireHt) pour chaque ligne.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    tenantId: \"00000000-0000-0000-0000-000000000001\",\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT (somme quantite*prixUnitaireHt)\")),\n    tvaTaux: 20,\n    description: $fromAI(\"description\", \"Description courte du devis\"),\n    modePaiement: $fromAI(\"modePaiement\", \"virement ou cheque ou cb. Défaut: virement\") || \"virement\",\n    lines: JSON.parse($fromAI(\"lines\", \"Tableau JSON des lignes du devis\"))\n  })\n}}",
         "options": {
           "response": {
             "response": {
@@ -800,12 +791,11 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "Lister tous les devis.",
+        "toolDescription": "Lister tous les devis. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-list",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
         "options": {
           "response": {
             "response": {
@@ -825,12 +815,11 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "Obtenir un devis par son ID.",
+        "toolDescription": "Obtenir un devis par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-get",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", devisId: $fromAI(\"devisId\", \"UUID du devis\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -850,12 +839,11 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "Envoyer un devis par email.",
+        "toolDescription": "Marquer un devis comme envoyé. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-sent",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", devisId: $fromAI(\"devisId\", \"UUID du devis à envoyer\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -875,12 +863,11 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "CRÉER UNE FACTURE. Mêmes étapes que creer_devis : d'abord rechercher_clients puis lister_articles.\nLe champ 'lines' DOIT être un tableau JSON. Exemple :\n[{\"codeArticle\":\"001\",\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]",
+        "toolDescription": "CRÉER UNE FACTURE. POST. Mêmes étapes que creer_devis.\nBody JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":2000,\"tvaTaux\":20,\"type\":\"facture_client_final\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    tenantId: \"00000000-0000-0000-0000-000000000001\",\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")),\n    tvaTaux: 20,\n    type: \"facture_client_final\",\n    lines: JSON.parse($fromAI(\"lines\", \"Tableau JSON des lignes de la facture\"))\n  })\n}}",
         "options": {
           "response": {
             "response": {
@@ -900,12 +887,11 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "Lister toutes les factures.",
+        "toolDescription": "Lister toutes les factures. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoices-list",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
         "options": {
           "response": {
             "response": {
@@ -925,12 +911,11 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "Obtenir une facture par son ID.",
+        "toolDescription": "Obtenir une facture par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-get",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", invoiceId: $fromAI(\"invoiceId\", \"UUID de la facture\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -950,12 +935,11 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "Envoyer une facture par email.",
+        "toolDescription": "Marquer une facture comme envoyée. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-sent",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", invoiceId: $fromAI(\"invoiceId\", \"UUID de la facture à envoyer\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
@@ -975,12 +959,11 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN BON DE COMMANDE. Mêmes étapes que creer_devis.\nLe champ 'lines' DOIT être un tableau JSON. Exemple :\n[{\"codeArticle\":\"001\",\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]",
+        "toolDescription": "CRÉER UN BON DE COMMANDE. POST. Mêmes étapes que creer_devis.\nBody JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":3000,\"tvaTaux\":20,\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    tenantId: \"00000000-0000-0000-0000-000000000001\",\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")),\n    tvaTaux: 20,\n    lines: JSON.parse($fromAI(\"lines\", \"Tableau JSON des lignes du bon de commande\"))\n  })\n}}",
         "options": {
           "response": {
             "response": {
@@ -1000,12 +983,11 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "Lister tous les bons de commande.",
+        "toolDescription": "Lister tous les bons de commande. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-list",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
         "options": {
           "response": {
             "response": {
@@ -1025,12 +1007,11 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "Obtenir un bon de commande par son ID.",
+        "toolDescription": "Obtenir un bon de commande par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"bdcId\":\"UUID_BDC\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-get",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", bdcId: $fromAI(\"bdcId\", \"UUID du bon de commande\", \"string\") }) }}",
         "options": {
           "response": {
             "response": {
