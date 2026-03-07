@@ -581,7 +581,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", search: $fromAI(\"search\", \"Terme de recherche pour filtrer les clients (nom, prénom, email). Laisser vide pour tout lister.\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -600,7 +606,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientId: $fromAI(\"clientId\", \"UUID du client à récupérer\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -619,7 +631,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", type: $fromAI(\"type\", \"Type: b2c ou b2b. Par défaut b2c.\", \"string\"), nom: $fromAI(\"nom\", \"Nom de famille du client\", \"string\"), prenom: $fromAI(\"prenom\", \"Prénom du client\", \"string\"), email: $fromAI(\"email\", \"Email du client\", \"string\"), telephone: $fromAI(\"telephone\", \"Téléphone du client. Optionnel.\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -638,7 +656,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -657,7 +681,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", leadId: $fromAI(\"leadId\", \"UUID du lead\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -676,7 +706,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", nom: $fromAI(\"nom\", \"Nom du lead\", \"string\"), prenom: $fromAI(\"prenom\", \"Prénom du lead\", \"string\"), email: $fromAI(\"email\", \"Email du lead\", \"string\"), telephone: $fromAI(\"telephone\", \"Téléphone. Optionnel.\", \"string\"), source: $fromAI(\"source\", \"Source: admin, web, etc. Par défaut admin.\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -695,7 +731,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", leadId: $fromAI(\"leadId\", \"UUID du lead\", \"string\"), statut: $fromAI(\"statut\", \"Nouveau statut du lead\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -714,7 +756,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -727,13 +775,19 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN DEVIS. OBLIGATOIRE AVANT : 1) rechercher_clients pour le clientFinalId, 2) lister_articles pour les prix. Le champ lines est un tableau JSON de lignes.",
+        "toolDescription": "CRÉER UN DEVIS. Étapes OBLIGATOIRES AVANT d'appeler cet outil :\n1) rechercher_clients → récupérer le clientFinalId (UUID)\n2) lister_articles → récupérer designation et prixUnitaireHt du code article demandé\n\nLe champ 'lines' DOIT être un tableau JSON valide. Exemple pour 1 article :\n[{\"codeArticle\":\"001\",\"designation\":\"Audit initial\",\"quantite\":1,\"prixUnitaireHt\":1500}]\nExemple pour 2 articles :\n[{\"codeArticle\":\"001\",\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500},{\"codeArticle\":\"002\",\"designation\":\"Formation\",\"quantite\":2,\"prixUnitaireHt\":800}]\n\nLe montantHt = somme de (quantite × prixUnitaireHt) de chaque ligne.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA en pourcent. Défaut 20\", \"string\")) || 20, description: $fromAI(\"description\", \"Description courte du devis\", \"string\"), modePaiement: $fromAI(\"modePaiement\", \"virement, cheque, cb ou prelevement. Défaut virement\", \"string\") || \"virement\", lines: JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Format: [{\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]', \"string\")) }) }}",
-        "options": {}
+        "jsonBody": "={{\n  JSON.stringify({\n    tenantId: \"00000000-0000-0000-0000-000000000001\",\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT (somme quantite*prixUnitaireHt)\")),\n    tvaTaux: 20,\n    description: $fromAI(\"description\", \"Description courte du devis\"),\n    modePaiement: $fromAI(\"modePaiement\", \"virement ou cheque ou cb. Défaut: virement\") || \"virement\",\n    lines: JSON.parse($fromAI(\"lines\", \"Tableau JSON des lignes du devis\"))\n  })\n}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -752,7 +806,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -771,7 +831,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", devisId: $fromAI(\"devisId\", \"UUID du devis\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -790,7 +856,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", devisId: $fromAI(\"devisId\", \"UUID du devis à envoyer\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -803,13 +875,19 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "CRÉER UNE FACTURE. OBLIGATOIRE AVANT : 1) rechercher_clients pour le clientFinalId, 2) lister_articles pour les prix.",
+        "toolDescription": "CRÉER UNE FACTURE. Mêmes étapes que creer_devis : d'abord rechercher_clients puis lister_articles.\nLe champ 'lines' DOIT être un tableau JSON. Exemple :\n[{\"codeArticle\":\"001\",\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA %. Défaut 20\", \"string\")) || 20, type: \"facture_client_final\", lines: JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Format: [{\"designation\":\"Nom\",\"quantite\":1,\"prixUnitaireHt\":2000}]', \"string\")) }) }}",
-        "options": {}
+        "jsonBody": "={{\n  JSON.stringify({\n    tenantId: \"00000000-0000-0000-0000-000000000001\",\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")),\n    tvaTaux: 20,\n    type: \"facture_client_final\",\n    lines: JSON.parse($fromAI(\"lines\", \"Tableau JSON des lignes de la facture\"))\n  })\n}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -828,7 +906,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -847,7 +931,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", invoiceId: $fromAI(\"invoiceId\", \"UUID de la facture\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -866,7 +956,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", invoiceId: $fromAI(\"invoiceId\", \"UUID de la facture à envoyer\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -879,13 +975,19 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN BON DE COMMANDE. OBLIGATOIRE AVANT : 1) rechercher_clients pour le clientFinalId, 2) lister_articles pour les prix.",
+        "toolDescription": "CRÉER UN BON DE COMMANDE. Mêmes étapes que creer_devis.\nLe champ 'lines' DOIT être un tableau JSON. Exemple :\n[{\"codeArticle\":\"001\",\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA %. Défaut 20\", \"string\")) || 20, lines: JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Format: [{\"designation\":\"Nom\",\"quantite\":1,\"prixUnitaireHt\":3000}]', \"string\")) }) }}",
-        "options": {}
+        "jsonBody": "={{\n  JSON.stringify({\n    tenantId: \"00000000-0000-0000-0000-000000000001\",\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")),\n    tvaTaux: 20,\n    lines: JSON.parse($fromAI(\"lines\", \"Tableau JSON des lignes du bon de commande\"))\n  })\n}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -904,7 +1006,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
@@ -923,7 +1031,13 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", bdcId: $fromAI(\"bdcId\", \"UUID du bon de commande\", \"string\") }) }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
       }
     },
     {
