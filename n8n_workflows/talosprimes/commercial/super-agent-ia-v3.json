@@ -282,7 +282,7 @@
           "conditions": [
             {
               "id": "is_voice",
-              "leftValue": "={{ $('Préparer Contexte (Voix)').first()?.json?.isVoice === true ? 'voice' : 'text' }}",
+              "leftValue": "={{ (function() { try { return $('Préparer Contexte (Voix)').first().json.isVoice === true ? 'voice' : 'text' } catch(e) { return 'text' } })() }}",
               "rightValue": "voice",
               "operator": {
                 "type": "string",
