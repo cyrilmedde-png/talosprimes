@@ -1181,33 +1181,6 @@
       }
     },
     {
-      "id": "baa0938007714b4d94a1",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        600,
-        1900
-      ],
-      "name": "creer_devis",
-      "parameters": {
-        "toolDescription": "CRÉER UN DEVIS. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour obtenir les prix). Le champ 'lines' est un tableau JSON de lignes avec designation, quantite, prixUnitaireHt. Le montantHt = somme des (quantite × prixUnitaireHt).",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/devis",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    description: $fromAI(\"devisDescription\", \"Description courte du devis, ex: Devis audit comptable\"),\n    modePaiement: $fromAI(\"modePaiement\", \"Mode de paiement: virement ou cheque ou cb ou prelevement. Par defaut virement.\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"devisLines\", 'Tableau JSON des lignes du devis. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\"designation\\\":\\\"Audit comptable\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre). Si un codeArticle est connu, ajouter codeArticle.')); } catch(e) { return []; } })()\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
       "id": "12526d8158e346ccb294",
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1327,33 +1300,6 @@
       }
     },
     {
-      "id": "fae5709b45b74c099d58",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        600,
-        2200
-      ],
-      "name": "creer_facture",
-      "parameters": {
-        "toolDescription": "CRÉER UNE FACTURE. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour obtenir les prix). Le champ 'lines' est un tableau JSON de lignes.",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/invoices",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    type: $fromAI(\"factureType\", \"Type: facture_client_final\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"factureLines\", 'Tableau JSON des lignes de la facture. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\"designation\\\":\\\"Service conseil\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":2000}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre).')); } catch(e) { return []; } })()\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
       "id": "2b47559fd3e543d1ba8f",
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
@@ -1416,33 +1362,6 @@
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "c11fd07e0f084d74a255",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        300,
-        2500
-      ],
-      "name": "creer_bon_commande",
-      "parameters": {
-        "toolDescription": "CRÉER UN BON DE COMMANDE. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour les prix).",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/bons-commande",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    lines: (() => { try { return JSON.parse($fromAI(\"bdcLines\", 'Tableau JSON des lignes du bon de commande. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\"designation\\\":\\\"Pack Premium\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":3000}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre).')); } catch(e) { return []; } })()\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1926,7 +1845,7 @@
       ],
       "name": "📄 Devis",
       "parameters": {
-        "content": "## 📄 Devis\n6 outils : lister · obtenir · créer · envoyer · accepter · → facture",
+        "content": "## 📄 Devis (PostgreSQL)\n6 outils : lister · obtenir · créer (PG) · envoyer · accepter · → facture",
         "width": 1700,
         "height": 280,
         "color": 6
@@ -1942,7 +1861,7 @@
       ],
       "name": "🧾 Factures",
       "parameters": {
-        "content": "## 🧾 Factures\n5 outils : lister · obtenir · créer · envoyer · marquer payée",
+        "content": "## 🧾 Factures (PostgreSQL)\n5 outils : lister · obtenir · créer (PG) · envoyer · marquer payée",
         "width": 1400,
         "height": 280,
         "color": 6
@@ -1958,7 +1877,7 @@
       ],
       "name": "📋 Bons de Commande",
       "parameters": {
-        "content": "## 📋 Bons de Commande\n4 outils : lister · créer · valider · → facture",
+        "content": "## 📋 Bons de Commande (PostgreSQL)\n4 outils : lister · créer (PG) · valider · → facture",
         "width": 1100,
         "height": 280,
         "color": 6
@@ -2026,6 +1945,111 @@
         "width": 500,
         "height": 300,
         "color": 1
+      }
+    },
+    {
+      "id": "pg_500",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        600,
+        1900
+      ],
+      "name": "creer_devis",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO devis (client_final_id, montant_ht, tva_taux, description, mode_paiement, lines, status) VALUES ('\" + $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\") + \"', \" + $fromAI(\"montantHt\", \"Montant total HT en nombre\") + \", \" + $fromAI(\"tvaTaux\", \"Taux TVA en nombre, defaut 20\") + \", '\" + $fromAI(\"description\", \"Description courte du devis\") + \"', '\" + $fromAI(\"modePaiement\", \"virement ou cheque ou cb. Defaut: virement\") + \"', '\" + $fromAI(\"lines\", \"JSON array des lignes. Ex: [{&quot;designation&quot;:&quot;Audit&quot;,&quot;quantite&quot;:1,&quot;prix_unitaire_ht&quot;:1500}]\") + \"'::jsonb, 'draft') RETURNING *\" }}",
+        "toolDescription": "Créer un devis dans la base de données. OBLIGATOIRE AVANT: utiliser rechercher_clients pour obtenir le UUID du client, et lister_articles pour les détails. Retourne le devis créé avec son UUID."
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "id": "pg_501",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        600,
+        2200
+      ],
+      "name": "creer_facture",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO invoices (client_final_id, montant_ht, tva_taux, type, lines, status) VALUES ('\" + $fromAI(\"clientFinalId\", \"UUID du client\") + \"', \" + $fromAI(\"montantHt\", \"Montant total HT\") + \", \" + $fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\") + \", 'facture_client_final', '\" + $fromAI(\"lines\", \"JSON array des lignes\") + \"'::jsonb, 'draft') RETURNING *\" }}",
+        "toolDescription": "Créer une facture dans la base de données. OBLIGATOIRE AVANT: utiliser rechercher_clients pour le UUID client, et lister_articles pour les détails."
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "id": "pg_502",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        2500
+      ],
+      "name": "creer_bon_commande",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO bons_commande (client_final_id, montant_ht, tva_taux, lines, status) VALUES ('\" + $fromAI(\"clientFinalId\", \"UUID du client\") + \"', \" + $fromAI(\"montantHt\", \"Montant total HT\") + \", \" + $fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\") + \", '\" + $fromAI(\"lines\", \"JSON array des lignes\") + \"'::jsonb, 'draft') RETURNING *\" }}",
+        "toolDescription": "Créer un bon de commande dans la base de données. OBLIGATOIRE AVANT: utiliser rechercher_clients et lister_articles."
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "id": "pg_503",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        1900
+      ],
+      "name": "pg_schema",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $fromAI(\"query\", \"Requête SQL pour explorer le schéma. Exemples: SELECT table_name FROM information_schema.tables WHERE table_schema='public'; ou SELECT column_name, data_type FROM information_schema.columns WHERE table_name='devis';\") }}",
+        "toolDescription": "Lister les tables et colonnes de la base de données. Utilise cet outil au premier appel pour découvrir la structure des tables avant de faire un INSERT."
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "id": "pg_504",
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        2200
+      ],
+      "name": "pg_sql",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $fromAI(\"query\", \"Requête SQL complète à exécuter\") }}",
+        "toolDescription": "Exécuter une requête SQL libre sur la base de données PostgreSQL. Utilise pour SELECT, INSERT, UPDATE, DELETE. Vérifie d'abord le schéma avec pg_schema si tu ne connais pas la structure."
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase account"
+        }
       }
     }
   ],
@@ -2484,17 +2508,6 @@
         ]
       ]
     },
-    "creer_devis": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "envoyer_devis": {
       "ai_tool": [
         [
@@ -2550,17 +2563,6 @@
         ]
       ]
     },
-    "creer_facture": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "envoyer_facture": {
       "ai_tool": [
         [
@@ -2584,17 +2586,6 @@
       ]
     },
     "lister_bons_commande": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_bon_commande": {
       "ai_tool": [
         [
           {
@@ -2749,6 +2740,61 @@
       ]
     },
     "qonto_transactions": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pg_schema": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pg_sql": {
       "ai_tool": [
         [
           {
