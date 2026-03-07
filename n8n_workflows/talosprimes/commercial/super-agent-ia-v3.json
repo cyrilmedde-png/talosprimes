@@ -195,7 +195,7 @@
         "promptType": "define",
         "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || '' }}",
         "options": {
-          "systemMessage": "Tu es l'assistant commercial vocal de TalosPrimes. Tu EXÉCUTES les demandes COMPLÈTEMENT sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n🔑 tenantId : 00000000-0000-0000-0000-000000000001\n\n═══ RÈGLE N°1 : EXÉCUTER SANS DEMANDER ═══\nOn te donne un ordre → tu l'exécutes. Pas de question. Pas de validation.\n\n═══ NORMALISATION EMAILS (VOCAL) ═══\nL'utilisateur DICTE les emails à voix haute. Whisper transcrit \"arobase\" ou \"at\" en texte.\nTu DOIS convertir automatiquement :\n- \"arobase\" → @\n- \" at \" → @\n- \"arrobase\" → @\n- \"arobas\" → @\n- \"a]robase\" → @\n- \"point\" → .\n- \"tiret\" → -\n- \"underscore\" ou \"tiret bas\" ou \"tiret du bas\" ou \"tiret du 8\" → _\nExemples :\n- \"cyrilmedde arobase gmail point com\" → cyrilmedde@gmail.com\n- \"contact at talosprimes point com\" → contact@talosprimes.com\n- \"jean tiret pierre underscore dupont arobase outlook point fr\" → jean-pierre_dupont@outlook.fr\nTu ne poses JAMAIS de question sur l'email. Tu normalises et tu utilises.\n\n═══ TENANTID ═══\nCHAQUE appel webhook DOIT contenir dans le body JSON :\n\"tenantId\": \"00000000-0000-0000-0000-000000000001\"\nTOUJOURS. SANS EXCEPTION.\n\n═══ MATCHING CLIENTS ═══\n\"Client Roussie Alexandre\" :\n1. rechercher_clients avec body {\"tenantId\":\"...\",\"search\":\"roussie\"}\n2. Résultat = liste → COMPARE nom+prénom → prends celui qui matche\n3. UN seul match = C'EST LUI, prends son UUID (id ou clientFinalId)\n4. NE DIS JAMAIS \"il y a 2 clients lequel ?\" → COMPARE et CHOISIS\n\n═══ MATCHING ARTICLES ═══\n\"Code article 001\" :\n1. lister_articles avec body {\"tenantId\":\"...\"}\n2. CHERCHE code = \"001\" dans les résultats\n3. Trouvé → prends designation + prixUnitaireHt\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ CRÉER ET ENVOYER UN DEVIS (WORKFLOW COMPLET) ═══\nQuand on dit \"créer un devis pour X avec article Y et envoyer à Z@email.com\" :\n\nÉTAPE 1 → rechercher_clients(body: {\"tenantId\":\"...\",\"search\":\"nom_client\"})\n         → récupérer le clientFinalId (UUID)\n\nÉTAPE 2 → lister_articles(body: {\"tenantId\":\"...\"})\n         → trouver l'article par code → noter designation + prixUnitaireHt\n\nÉTAPE 3 → creer_devis(body: {\n  \"tenantId\":\"...\",\n  \"clientFinalId\":\"UUID_TROUVÉ_ÉTAPE_1\",\n  \"montantHt\": quantite × prixUnitaireHt,\n  \"tvaTaux\": 20,\n  \"description\": \"Devis pour [client]\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [{\"codeArticle\":\"001\",\"designation\":\"...\",\"quantite\":1,\"prixUnitaireHt\":...}]\n})\n         → noter le numero_devis et l'id retournés\n\nÉTAPE 4 → Send a message in Gmail(\n  to: \"Z@email.com\",\n  subject: \"Devis [numero_devis] - TalosPrimes\",\n  message: \"Bonjour,\\n\\nVeuillez trouver ci-joint votre devis [numero_devis] d'un montant de [montantHt]€ HT.\\n\\nCordialement,\\nTalosPrimes\"\n)\n\nTu ENCHAÎNES les 4 étapes AUTOMATIQUEMENT. L'envoi se fait TOUJOURS via Gmail.\n\n═══ MÊME LOGIQUE POUR FACTURES / BONS DE COMMANDE ═══\nFacture : rechercher_clients → lister_articles → creer_facture → Gmail\nBon de commande : rechercher_clients → lister_articles → creer_bon_commande → Gmail\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS dire \"l'article n'existe pas\" sans lister_articles\n- NE JAMAIS demander confirmation si le nom matche\n- NE JAMAIS oublier tenantId dans le body\n- NE JAMAIS envoyer un email sans avoir créé le document d'abord"
+          "systemMessage": "Tu es l'assistant commercial vocal de TalosPrimes. Tu EXÉCUTES les demandes COMPLÈTEMENT sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n🔑 tenantId : 00000000-0000-0000-0000-000000000001\n\n═══ RÈGLE N°1 : EXÉCUTER SANS DEMANDER ═══\nOn te donne un ordre → tu l'exécutes. Pas de question. Pas de validation.\n\n═══ NORMALISATION EMAILS (VOCAL) ═══\nL'utilisateur DICTE les emails à voix haute. Whisper transcrit \"arobase\" ou \"at\" en texte.\nTu DOIS convertir automatiquement :\n- \"arobase\" → @\n- \" at \" → @\n- \"arrobase\" → @\n- \"arobas\" → @\n- \"a]robase\" → @\n- \"point\" → .\n- \"tiret\" → -\n- \"underscore\" ou \"tiret bas\" ou \"tiret du bas\" ou \"tiret du 8\" → _\nExemples :\n- \"cyrilmedde arobase gmail point com\" → cyrilmedde@gmail.com\n- \"contact at talosprimes point com\" → contact@talosprimes.com\n- \"jean tiret pierre underscore dupont arobase outlook point fr\" → jean-pierre_dupont@outlook.fr\nTu ne poses JAMAIS de question sur l'email. Tu normalises et tu utilises.\n\n═══ TENANTID ═══\nCHAQUE appel webhook DOIT contenir dans le body JSON :\n\"tenantId\": \"00000000-0000-0000-0000-000000000001\"\nTOUJOURS. SANS EXCEPTION.\n\n═══ MATCHING CLIENTS ═══\n\"Client Roussie Alexandre\" :\n1. rechercher_clients avec body {\"tenantId\":\"...\",\"search\":\"roussie\"}\n2. Résultat = liste → COMPARE nom+prénom → prends celui qui matche\n3. UN seul match = C'EST LUI, prends son UUID (id ou clientFinalId)\n4. NE DIS JAMAIS \"il y a 2 clients lequel ?\" → COMPARE et CHOISIS\n\n═══ MATCHING ARTICLES ═══\n\"Code article 001\" :\n1. lister_articles avec body {\"tenantId\":\"...\"}\n2. CHERCHE code = \"001\" dans les résultats\n3. Trouvé → prends designation + prixUnitaireHt\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ CRÉER ET ENVOYER UN DEVIS (WORKFLOW COMPLET) ═══\nQuand on dit \"créer un devis pour X avec article Y et envoyer à Z@email.com\" :\n\nÉTAPE 1 → rechercher_clients(body: {\"tenantId\":\"...\",\"search\":\"nom_client\"})\n         → récupérer le clientFinalId (UUID)\n\nÉTAPE 2 → lister_articles(body: {\"tenantId\":\"...\"})\n         → trouver l'article par code → noter designation + prixUnitaireHt\n\nÉTAPE 3 → creer_devis(body: {\n  \"tenantId\":\"...\",\n  \"clientFinalId\":\"UUID_TROUVÉ_ÉTAPE_1\",\n  \"montantHt\": quantite × prixUnitaireHt,\n  \"tvaTaux\": 20,\n  \"description\": \"Devis pour [client]\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [{\"codeArticle\":\"001\",\"designation\":\"...\",\"quantite\":1,\"prixUnitaireHt\":...}]\n})\n         → noter le numero_devis et l'id retournés\n\nÉTAPE 4 → Send a message in Gmail(\n  to: \"Z@email.com\",\n  subject: \"Devis [numero_devis] - TalosPrimes\",\n  message: \"Bonjour,\\n\\nVeuillez trouver ci-joint votre devis [numero_devis] d'un montant de [montantHt]€ HT.\\n\\nCordialement,\\nTalosPrimes\"\n)\n\nTu ENCHAÎNES les 4 étapes AUTOMATIQUEMENT. L'envoi se fait TOUJOURS via Gmail.\n\n═══ MÊME LOGIQUE POUR FACTURES / BONS DE COMMANDE ═══\nFacture : rechercher_clients → lister_articles → creer_facture → Gmail\nBon de commande : rechercher_clients → lister_articles → creer_bon_commande → Gmail\n\n\n═══ GESTION DES ERREURS ═══\nSi un outil webhook retourne un message d'erreur (ex: \"tenantId manquant\", \"Champs requis manquants\", \"error\"):\n- NE CONTINUE PAS au step suivant\n- DIS à l'utilisateur que l'action a échoué et pourquoi\n- NE JAMAIS envoyer un email si la création du devis/facture a échoué\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS dire \"l'article n'existe pas\" sans lister_articles\n- NE JAMAIS demander confirmation si le nom matche\n- NE JAMAIS oublier tenantId dans le body\n- NE JAMAIS envoyer un email sans avoir créé le document d'abord"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -587,7 +587,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"search\":\"' + ($fromAI(\"search\", \"Terme de recherche: nom, prénom ou email du client\") || \"\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", search: $fromAI(\"search\", \"Terme de recherche: nom, prénom ou email\")}) }}"
       }
     },
     {
@@ -612,7 +612,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientId\":\"' + $fromAI(\"clientId\", \"UUID du client\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientId: $fromAI(\"clientId\", \"UUID du client\")}) }}"
       }
     },
     {
@@ -637,7 +637,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"type\":\"' + ($fromAI(\"type\", \"b2c ou b2b. Défaut b2c\") || \"b2c\") + '\",\"nom\":\"' + $fromAI(\"nom\", \"Nom de famille\") + '\",\"prenom\":\"' + $fromAI(\"prenom\", \"Prénom\") + '\",\"email\":\"' + $fromAI(\"email\", \"Adresse email\") + '\",\"telephone\":\"' + ($fromAI(\"telephone\", \"Numéro de téléphone. Optionnel\") || \"\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", type: $fromAI(\"type\", \"b2c ou b2b\") || \"b2c\", nom: $fromAI(\"nom\", \"Nom de famille\"), prenom: $fromAI(\"prenom\", \"Prénom\"), email: $fromAI(\"email\", \"Adresse email\"), telephone: $fromAI(\"telephone\", \"Numéro de téléphone\")}) }}"
       }
     },
     {
@@ -662,7 +662,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}"
       }
     },
     {
@@ -687,7 +687,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"' + $fromAI(\"leadId\", \"UUID du lead\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", leadId: $fromAI(\"leadId\", \"UUID du lead\")}) }}"
       }
     },
     {
@@ -712,7 +712,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"data\":{\"nom\":\"' + $fromAI(\"nom\", \"Nom de famille\") + '\",\"prenom\":\"' + $fromAI(\"prenom\", \"Prénom\") + '\",\"email\":\"' + $fromAI(\"email\", \"Adresse email\") + '\",\"telephone\":\"' + $fromAI(\"telephone\", \"Numéro de téléphone\") + '\",\"source\":\"admin\"}}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", data: {nom: $fromAI(\"nom\", \"Nom de famille\"), prenom: $fromAI(\"prenom\", \"Prénom\"), email: $fromAI(\"email\", \"Adresse email\"), telephone: $fromAI(\"telephone\", \"Numéro de téléphone\"), source: \"admin\"}}) }}"
       }
     },
     {
@@ -737,7 +737,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"data\":{\"id\":\"' + $fromAI(\"leadId\", \"UUID du lead\") + '\",\"statut\":\"' + $fromAI(\"statut\", \"Nouveau statut: nouveau, contacte, qualifie, converti, abandonne\") + '\"}}' }}"
+        "jsonBody": "={{ JSON.stringify({data: {id: $fromAI(\"leadId\", \"UUID du lead\"), statut: $fromAI(\"statut\", \"Statut: nouveau, contacte, qualifie, converti, abandonne\")}}) }}"
       }
     },
     {
@@ -762,7 +762,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}"
       }
     },
     {
@@ -787,7 +787,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"' + $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\") + '\",\"montantHt\":' + $fromAI(\"montantHt\", \"Montant total HT = somme(quantite * prixUnitaireHt)\") + ',\"tvaTaux\":20,\"description\":\"' + ($fromAI(\"description\", \"Description courte\") || \"Devis\") + '\",\"modePaiement\":\"' + ($fromAI(\"modePaiement\", \"virement, cheque, cb. Défaut virement\") || \"virement\") + '\",\"lines\":' + $fromAI(\"lines\", 'Tableau JSON. Ex: [{\"codeArticle\":\"001\",\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]') + '}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT = somme des quantite x prixUnitaireHt\")), tvaTaux: 20, description: $fromAI(\"description\", \"Description courte du devis\") || \"Devis\", modePaiement: \"virement\", lines: JSON.parse($fromAI(\"lines\", \"TABLEAU JSON. Exemple: [{\\\"codeArticle\\\":\\\"001\\\",\\\"designation\\\":\\\"Nom article\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":100}]\"))}) }}"
       }
     },
     {
@@ -812,7 +812,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}"
       }
     },
     {
@@ -837,7 +837,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"' + $fromAI(\"devisId\", \"UUID du devis\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", devisId: $fromAI(\"devisId\", \"UUID du devis\")}) }}"
       }
     },
     {
@@ -862,7 +862,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"' + $fromAI(\"devisId\", \"UUID du devis à envoyer\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", devisId: $fromAI(\"devisId\", \"UUID du devis\")}) }}"
       }
     },
     {
@@ -887,7 +887,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"' + $fromAI(\"clientFinalId\", \"UUID du client\") + '\",\"montantHt\":' + $fromAI(\"montantHt\", \"Montant total HT\") + ',\"tvaTaux\":20,\"type\":\"facture_client_final\",\"lines\":' + $fromAI(\"lines\", 'Tableau JSON. Ex: [{\"codeArticle\":\"001\",\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]') + '}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")), tvaTaux: 20, description: $fromAI(\"description\", \"Description\") || \"Facture\", modePaiement: \"virement\", lines: JSON.parse($fromAI(\"lines\", \"TABLEAU JSON. Exemple: [{\\\"codeArticle\\\":\\\"001\\\",\\\"designation\\\":\\\"Nom\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":100}]\"))}) }}"
       }
     },
     {
@@ -912,7 +912,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}"
       }
     },
     {
@@ -937,7 +937,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"' + $fromAI(\"invoiceId\", \"UUID de la facture\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", invoiceId: $fromAI(\"invoiceId\", \"UUID de la facture\")}) }}"
       }
     },
     {
@@ -962,7 +962,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"' + $fromAI(\"invoiceId\", \"UUID de la facture à envoyer\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", invoiceId: $fromAI(\"invoiceId\", \"UUID de la facture\")}) }}"
       }
     },
     {
@@ -987,7 +987,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"' + $fromAI(\"clientFinalId\", \"UUID du client\") + '\",\"montantHt\":' + $fromAI(\"montantHt\", \"Montant total HT\") + ',\"tvaTaux\":20,\"lines\":' + $fromAI(\"lines\", 'Tableau JSON. Ex: [{\"codeArticle\":\"001\",\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]') + '}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")), tvaTaux: 20, description: $fromAI(\"description\", \"Description\") || \"Bon de commande\", modePaiement: \"virement\", lines: JSON.parse($fromAI(\"lines\", \"TABLEAU JSON. Exemple: [{\\\"codeArticle\\\":\\\"001\\\",\\\"designation\\\":\\\"Nom\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":100}]\"))}) }}"
       }
     },
     {
@@ -1012,7 +1012,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}"
       }
     },
     {
@@ -1037,7 +1037,7 @@
             }
           }
         },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"bdcId\":\"' + $fromAI(\"bdcId\", \"UUID du bon de commande\") + '\"}' }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", bdcId: $fromAI(\"bdcId\", \"UUID du bon de commande\")}) }}"
       }
     },
     {
