@@ -575,7 +575,7 @@
         700
       ],
       "parameters": {
-        "toolDescription": "Rechercher/lister les clients. POST. Body JSON obligatoire :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"search\":\"terme de recherche\"}\nSi pas de filtre, envoie juste : {\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}\nLe champ search filtre par nom, prénom ou email.",
+        "toolDescription": "Rechercher des clients par nom, prénom ou email.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"search\":\"TERME_RECHERCHE\"}\nRemplace TERME_RECHERCHE par le nom/prénom/email à chercher.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/clients_list",
         "sendBody": true,
@@ -586,8 +586,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"search\":\"' + ($fromAI(\"search\", \"Terme de recherche: nom, prénom ou email du client\") || \"\") + '\"}' }}"
+        }
       }
     },
     {
@@ -600,7 +599,7 @@
         700
       ],
       "parameters": {
-        "toolDescription": "Obtenir un client par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientId\":\"UUID_DU_CLIENT\"}",
+        "toolDescription": "Obtenir les détails d'un client par son UUID.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientId\":\"UUID_DU_CLIENT\"}\nRemplace UUID_DU_CLIENT par l'UUID obtenu via rechercher_clients.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/client_get",
         "sendBody": true,
@@ -611,8 +610,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientId\":\"' + $fromAI(\"clientId\", \"UUID du client\") + '\"}' }}"
+        }
       }
     },
     {
@@ -625,7 +623,7 @@
         700
       ],
       "parameters": {
-        "toolDescription": "Créer un nouveau client. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"type\":\"b2c\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@test.com\",\"telephone\":\"0612345678\"}\nLes champs type, nom, prenom et email sont obligatoires.",
+        "toolDescription": "Créer un nouveau client.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"type\":\"b2c\",\"nom\":\"NOM\",\"prenom\":\"PRENOM\",\"email\":\"EMAIL\",\"telephone\":\"TELEPHONE\"}\nRemplace les valeurs en MAJUSCULES. type peut être \"b2c\" ou \"b2b\".",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/client_create",
         "sendBody": true,
@@ -636,8 +634,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"type\":\"' + ($fromAI(\"type\", \"b2c ou b2b. Défaut b2c\") || \"b2c\") + '\",\"nom\":\"' + $fromAI(\"nom\", \"Nom de famille\") + '\",\"prenom\":\"' + $fromAI(\"prenom\", \"Prénom\") + '\",\"email\":\"' + $fromAI(\"email\", \"Adresse email\") + '\",\"telephone\":\"' + ($fromAI(\"telephone\", \"Numéro de téléphone. Optionnel\") || \"\") + '\"}' }}"
+        }
       }
     },
     {
@@ -650,7 +647,7 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Lister tous les leads/prospects. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
+        "toolDescription": "Lister tous les leads.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/leads_list",
         "sendBody": true,
@@ -661,8 +658,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}"
+        }
       }
     },
     {
@@ -675,7 +671,7 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Obtenir un lead par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"UUID_DU_LEAD\"}",
+        "toolDescription": "Obtenir les détails d'un lead par son UUID.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"UUID_DU_LEAD\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_get",
         "sendBody": true,
@@ -686,8 +682,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"' + $fromAI(\"leadId\", \"UUID du lead\") + '\"}' }}"
+        }
       }
     },
     {
@@ -700,7 +695,7 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Créer un lead. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@test.com\",\"telephone\":\"0612345678\",\"source\":\"admin\"}",
+        "toolDescription": "Créer un nouveau lead. TOUS les champs sont OBLIGATOIRES.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"data\":{\"nom\":\"NOM\",\"prenom\":\"PRENOM\",\"email\":\"EMAIL\",\"telephone\":\"TELEPHONE\",\"source\":\"admin\"}}\nATTENTION : les données doivent être dans un objet \"data\" imbriqué.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_create",
         "sendBody": true,
@@ -711,8 +706,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"nom\":\"' + $fromAI(\"nom\", \"Nom\") + '\",\"prenom\":\"' + $fromAI(\"prenom\", \"Prénom\") + '\",\"email\":\"' + $fromAI(\"email\", \"Email\") + '\",\"telephone\":\"' + ($fromAI(\"telephone\", \"Téléphone. Optionnel\") || \"\") + '\",\"source\":\"' + ($fromAI(\"source\", \"Source: admin, web. Défaut admin\") || \"admin\") + '\"}' }}"
+        }
       }
     },
     {
@@ -725,7 +719,7 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Modifier le statut d'un lead. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"UUID_DU_LEAD\",\"statut\":\"qualifié\"}",
+        "toolDescription": "Modifier le statut d'un lead.\nL'IA DOIT fournir ce body JSON exact :\n{\"data\":{\"id\":\"UUID_DU_LEAD\",\"statut\":\"NOUVEAU_STATUT\"}}\nStatuts valides : nouveau, contacte, qualifie, converti, abandonne.\nATTENTION : les données doivent être dans un objet \"data\" imbriqué.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_update_status",
         "sendBody": true,
@@ -736,8 +730,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"' + $fromAI(\"leadId\", \"UUID du lead\") + '\",\"statut\":\"' + $fromAI(\"statut\", \"Nouveau statut du lead\") + '\"}' }}"
+        }
       }
     },
     {
@@ -750,7 +743,7 @@
         1200
       ],
       "parameters": {
-        "toolDescription": "Lister tous les codes articles avec prix et désignations. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}\nTOUJOURS appeler cet outil AVANT de créer un devis ou une facture.",
+        "toolDescription": "Lister tous les articles/produits disponibles.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/article-codes-list",
         "sendBody": true,
@@ -761,8 +754,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}"
+        }
       }
     },
     {
@@ -775,7 +767,7 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN DEVIS en base de données. POST. ÉTAPES OBLIGATOIRES AVANT :\n1) rechercher_clients → récupérer clientFinalId (UUID)\n2) lister_articles → récupérer designation et prixUnitaireHt\n\nBody JSON EXACT à envoyer :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description du devis\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Audit initial\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nIMPORTANT : montantHt = somme de (quantite × prixUnitaireHt) pour chaque ligne.",
+        "toolDescription": "Créer un nouveau devis.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":MONTANT_NOMBRE,\"tvaTaux\":20,\"description\":\"DESCRIPTION\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"CODE\",\"designation\":\"NOM_ARTICLE\",\"quantite\":QTE,\"prixUnitaireHt\":PRIX}]}\nIMPORTANT : montantHt = somme(quantite * prixUnitaireHt) de chaque ligne. lines est un TABLEAU JSON.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-created",
         "sendBody": true,
@@ -786,8 +778,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"' + $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\") + '\",\"montantHt\":' + $fromAI(\"montantHt\", \"Montant total HT = somme(quantite * prixUnitaireHt)\") + ',\"tvaTaux\":20,\"description\":\"' + ($fromAI(\"description\", \"Description courte\") || \"Devis\") + '\",\"modePaiement\":\"' + ($fromAI(\"modePaiement\", \"virement, cheque, cb. Défaut virement\") || \"virement\") + '\",\"lines\":' + $fromAI(\"lines\", 'Tableau JSON. Ex: [{\"codeArticle\":\"001\",\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]') + '}' }}"
+        }
       }
     },
     {
@@ -800,7 +791,7 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "Lister tous les devis. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
+        "toolDescription": "Lister tous les devis.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-list",
         "sendBody": true,
@@ -811,8 +802,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}"
+        }
       }
     },
     {
@@ -825,7 +815,7 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "Obtenir un devis par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
+        "toolDescription": "Obtenir les détails d'un devis.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-get",
         "sendBody": true,
@@ -836,8 +826,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"' + $fromAI(\"devisId\", \"UUID du devis\") + '\"}' }}"
+        }
       }
     },
     {
@@ -850,7 +839,7 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "Marquer un devis comme envoyé. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
+        "toolDescription": "Marquer un devis comme envoyé.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-sent",
         "sendBody": true,
@@ -861,8 +850,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"' + $fromAI(\"devisId\", \"UUID du devis à envoyer\") + '\"}' }}"
+        }
       }
     },
     {
@@ -875,7 +863,7 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "CRÉER UNE FACTURE. POST. Mêmes étapes que creer_devis.\nBody JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":2000,\"tvaTaux\":20,\"type\":\"facture_client_final\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]}",
+        "toolDescription": "Créer une nouvelle facture.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":MONTANT_NOMBRE,\"tvaTaux\":20,\"description\":\"DESCRIPTION\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"CODE\",\"designation\":\"NOM_ARTICLE\",\"quantite\":QTE,\"prixUnitaireHt\":PRIX}]}\nIMPORTANT : montantHt = somme(quantite * prixUnitaireHt) de chaque ligne.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-created",
         "sendBody": true,
@@ -886,8 +874,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"' + $fromAI(\"clientFinalId\", \"UUID du client\") + '\",\"montantHt\":' + $fromAI(\"montantHt\", \"Montant total HT\") + ',\"tvaTaux\":20,\"type\":\"facture_client_final\",\"lines\":' + $fromAI(\"lines\", 'Tableau JSON. Ex: [{\"codeArticle\":\"001\",\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]') + '}' }}"
+        }
       }
     },
     {
@@ -900,7 +887,7 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "Lister toutes les factures. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
+        "toolDescription": "Lister toutes les factures.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoices-list",
         "sendBody": true,
@@ -911,8 +898,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}"
+        }
       }
     },
     {
@@ -925,7 +911,7 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "Obtenir une facture par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
+        "toolDescription": "Obtenir les détails d'une facture.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-get",
         "sendBody": true,
@@ -936,8 +922,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"' + $fromAI(\"invoiceId\", \"UUID de la facture\") + '\"}' }}"
+        }
       }
     },
     {
@@ -950,7 +935,7 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "Marquer une facture comme envoyée. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
+        "toolDescription": "Marquer une facture comme envoyée.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-sent",
         "sendBody": true,
@@ -961,8 +946,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"' + $fromAI(\"invoiceId\", \"UUID de la facture à envoyer\") + '\"}' }}"
+        }
       }
     },
     {
@@ -975,7 +959,7 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN BON DE COMMANDE. POST. Mêmes étapes que creer_devis.\nBody JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":3000,\"tvaTaux\":20,\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]}",
+        "toolDescription": "Créer un nouveau bon de commande.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_CLIENT\",\"montantHt\":MONTANT_NOMBRE,\"tvaTaux\":20,\"description\":\"DESCRIPTION\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"CODE\",\"designation\":\"NOM_ARTICLE\",\"quantite\":QTE,\"prixUnitaireHt\":PRIX}]}\nIMPORTANT : montantHt = somme(quantite * prixUnitaireHt) de chaque ligne.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-created",
         "sendBody": true,
@@ -986,8 +970,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"' + $fromAI(\"clientFinalId\", \"UUID du client\") + '\",\"montantHt\":' + $fromAI(\"montantHt\", \"Montant total HT\") + ',\"tvaTaux\":20,\"lines\":' + $fromAI(\"lines\", 'Tableau JSON. Ex: [{\"codeArticle\":\"001\",\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]') + '}' }}"
+        }
       }
     },
     {
@@ -1000,7 +983,7 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "Lister tous les bons de commande. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
+        "toolDescription": "Lister tous les bons de commande.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-list",
         "sendBody": true,
@@ -1011,8 +994,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}"
+        }
       }
     },
     {
@@ -1025,7 +1007,7 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "Obtenir un bon de commande par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"bdcId\":\"UUID_BDC\"}",
+        "toolDescription": "Obtenir les détails d'un bon de commande.\nL'IA DOIT fournir ce body JSON exact :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"bdcId\":\"UUID_BDC\"}",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-get",
         "sendBody": true,
@@ -1036,8 +1018,7 @@
               "responseFormat": "text"
             }
           }
-        },
-        "jsonBody": "={{ '{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"bdcId\":\"' + $fromAI(\"bdcId\", \"UUID du bon de commande\") + '\"}' }}"
+        }
       }
     },
     {
