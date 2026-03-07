@@ -11,8 +11,8 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
       "position": [
-        -600,
-        0
+        -800,
+        200
       ],
       "id": "c5697e7b-f30d-401f-8861-17fa991ee6b7",
       "name": "Telegram Trigger",
@@ -31,8 +31,8 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.4,
       "position": [
-        -240,
-        -240
+        -1200,
+        200
       ],
       "id": "85bd4bc3-bb1b-4159-9df0-e9e06fff0a86",
       "name": "When chat message received",
@@ -64,8 +64,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        80,
-        0
+        -400,
+        200
       ],
       "id": "4c833835-ab68-43a2-a80e-a8914d6eade4",
       "name": "Vérifier Type Message"
@@ -79,8 +79,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -80,
-        -200
+        0,
+        0
       ],
       "id": "c1358b85-4a5e-405a-96eb-6995842c938b",
       "name": "Récupérer Fichier Audio",
@@ -126,8 +126,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        200,
-        -200
+        400,
+        0
       ],
       "id": "5ce87519-38a9-4218-a4a4-3dd1ccb69a12",
       "name": "Transcription Whisper",
@@ -174,8 +174,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        800,
-        -160
+        600,
+        0
       ],
       "id": "f068ec05-4f68-4c53-ad37-451678a2ffcc",
       "name": "Préparer Contexte (Voix)"
@@ -215,8 +215,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        320,
-        80
+        600,
+        200
       ],
       "id": "ca525fbb-7f90-4bbf-a5e8-a60dc6669fbb",
       "name": "Préparer Contexte (Texte)"
@@ -234,8 +234,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        600,
-        0
+        900,
+        200
       ],
       "id": "0a5955f6-cfa5-410e-8132-dcb612fd5edd",
       "name": "AI Agent"
@@ -254,8 +254,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        600,
-        280
+        900,
+        520
       ],
       "id": "a91788ff-f83e-46ee-a32a-771262c2a164",
       "name": "OpenAI Chat Model",
@@ -275,8 +275,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        1360,
-        200
+        1100,
+        520
       ],
       "id": "3841f883-c3f9-4406-b2ba-6f3b0c4e7df5",
       "name": "Simple Memory"
@@ -307,8 +307,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2280,
-        0
+        1400,
+        200
       ],
       "id": "1201ad6f-d35b-4462-bce4-6a8a228fb118",
       "name": "Vérifier Type Réponse"
@@ -342,8 +342,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1400,
-        -100
+        1800,
+        50
       ],
       "id": "0ed70aae-3481-4d06-9bc8-cbdd56fec5ba",
       "name": "Synthèse Vocale (TTS)",
@@ -365,8 +365,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1700,
-        -100
+        2200,
+        50
       ],
       "id": "934733ed-6e92-4b84-a70b-ec384a2f3f3f",
       "name": "Envoyer Réponse Vocale",
@@ -403,8 +403,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2760,
-        -160
+        2000,
+        50
       ],
       "id": "49efa61d-6e3a-49bd-b92a-a33ea1f2f7d0",
       "name": "TTS Réussi ?"
@@ -420,8 +420,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1400,
-        100
+        1800,
+        350
       ],
       "id": "5ad592e8-1c33-4da3-9434-73e1a1e2133d",
       "name": "Réponse Texte",
@@ -443,8 +443,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1700,
-        40
+        2200,
+        250
       ],
       "id": "613acc09-b17c-4263-bfe0-4adb8b5cd40c",
       "name": "Fallback Texte (TTS échoué)",
@@ -481,8 +481,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        320,
-        240
+        200,
+        400
       ],
       "id": "6b492a32-64bd-4f4f-9298-d3fff44f9376",
       "name": "Vérifier Fichier"
@@ -496,7 +496,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        -80,
+        0,
         400
       ],
       "id": "c8f1703b-376f-4df4-b193-07f30586da4b",
@@ -573,8 +573,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        1040,
-        240
+        600,
+        400
       ],
       "id": "c616303b-b650-4c48-85a5-5811af4d7cc7",
       "name": "Préparer Contexte (Fichier)"
@@ -605,8 +605,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1040,
-        340
+        900,
+        700
       ],
       "id": "81c0f17e-7f56-47be-8748-1b3c0421c920",
       "name": "Vérifier Intent Email"
@@ -619,8 +619,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1280,
-        440
+        1100,
+        900
       ],
       "id": "1a073fe6-4cb1-4a0b-9ce5-c24994f40640",
       "name": "Extraire Email et Fichier"
@@ -645,7 +645,7 @@
       "typeVersion": 2.1,
       "position": [
         1700,
-        500
+        900
       ],
       "id": "8224afbb-1acf-4444-ae9a-13cea73cda16",
       "name": "Gmail Envoyer PJ",
@@ -664,8 +664,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2000,
-        500
+        2100,
+        900
       ],
       "id": "197c7bc8-49bf-4160-8712-6cc8d96a9037",
       "name": "Confirmer Envoi Telegram",
@@ -684,8 +684,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        800,
-        340
+        900,
+        900
       ],
       "id": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
       "name": "Sauvegarder Fichier en Cache"
@@ -698,8 +698,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        560,
-        80
+        200,
+        200
       ],
       "id": "a1b2c3d4-e5f6-7890-abcd-ef0987654321",
       "name": "Enrichir Contexte Fichier Récent"
@@ -712,8 +712,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        800,
-        240
+        400,
+        400
       ],
       "id": "d1e2f3a4-b5c6-7890-1234-abcdef567890",
       "name": "Extraire Contenu Document"
@@ -741,8 +741,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1400,
-        500
+        1300,
+        900
       ],
       "id": "e2f3a4b5-c6d7-8901-2345-bcdef6789012",
       "name": "Composer Email IA",
@@ -761,8 +761,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1760,
-        440
+        1500,
+        900
       ],
       "id": "f3a4b5c6-code-email-final-002",
       "name": "Préparer Email Final"
@@ -772,8 +772,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        -1000,
-        1000
+        -200,
+        1600
       ],
       "name": "agent_leads",
       "parameters": {
@@ -790,8 +790,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        -1000,
-        1280
+        -200,
+        1900
       ],
       "name": "LLM Leads",
       "parameters": {
@@ -816,8 +816,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -1600,
-        1300
+        -800,
+        2100
       ],
       "name": "lister_leads",
       "parameters": {
@@ -839,8 +839,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -1400,
-        1300
+        -600,
+        2100
       ],
       "name": "rechercher_leads",
       "parameters": {
@@ -871,8 +871,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -1200,
-        1300
+        -400,
+        2100
       ],
       "name": "obtenir_lead",
       "parameters": {
@@ -903,8 +903,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -800,
-        1300
+        -200,
+        2100
       ],
       "name": "creer_lead",
       "parameters": {
@@ -929,8 +929,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -600,
-        1300
+        0,
+        2100
       ],
       "name": "modifier_statut_lead",
       "parameters": {
@@ -964,8 +964,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -400,
-        1300
+        200,
+        2100
       ],
       "name": "supprimer_lead",
       "parameters": {
@@ -996,8 +996,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        200,
-        1000
+        1800,
+        1600
       ],
       "name": "agent_clients",
       "parameters": {
@@ -1014,8 +1014,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        200,
-        1280
+        1800,
+        1900
       ],
       "name": "LLM Clients",
       "parameters": {
@@ -1040,8 +1040,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -400,
-        1300
+        1200,
+        2100
       ],
       "name": "lister_clients",
       "parameters": {
@@ -1063,8 +1063,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -200,
-        1300
+        1400,
+        2100
       ],
       "name": "rechercher_clients",
       "parameters": {
@@ -1095,8 +1095,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        0,
-        1300
+        1600,
+        2100
       ],
       "name": "obtenir_client",
       "parameters": {
@@ -1127,8 +1127,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        400,
-        1300
+        1800,
+        2100
       ],
       "name": "creer_client",
       "parameters": {
@@ -1153,8 +1153,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        600,
-        1300
+        2000,
+        2100
       ],
       "name": "modifier_client",
       "parameters": {
@@ -1188,8 +1188,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1300
+        2200,
+        2100
       ],
       "name": "supprimer_client",
       "parameters": {
@@ -1220,8 +1220,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1400,
-        1000
+        1000,
+        3000
       ],
       "name": "agent_documents",
       "parameters": {
@@ -1238,8 +1238,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        1400,
-        1280
+        1000,
+        3300
       ],
       "name": "LLM Documents",
       "parameters": {
@@ -1264,8 +1264,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        2000,
-        1600
+        1800,
+        3500
       ],
       "name": "rechercher_clients_doc",
       "parameters": {
@@ -1296,8 +1296,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        2200,
-        1600
+        1800,
+        3700
       ],
       "name": "lister_articles_doc",
       "parameters": {
@@ -1319,8 +1319,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        600,
-        1300
+        0,
+        3500
       ],
       "name": "lister_devis",
       "parameters": {
@@ -1342,8 +1342,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1300
+        200,
+        3500
       ],
       "name": "obtenir_devis",
       "parameters": {
@@ -1365,8 +1365,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1000,
-        1300
+        400,
+        3500
       ],
       "name": "creer_devis",
       "parameters": {
@@ -1391,8 +1391,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1200,
-        1300
+        600,
+        3500
       ],
       "name": "envoyer_devis",
       "parameters": {
@@ -1414,8 +1414,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1400,
-        1300
+        800,
+        3500
       ],
       "name": "accepter_devis",
       "parameters": {
@@ -1437,8 +1437,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1600,
-        1300
+        1000,
+        3500
       ],
       "name": "devis_vers_facture",
       "parameters": {
@@ -1460,8 +1460,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1500
+        0,
+        3700
       ],
       "name": "lister_factures",
       "parameters": {
@@ -1483,8 +1483,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1000,
-        1500
+        200,
+        3700
       ],
       "name": "obtenir_facture",
       "parameters": {
@@ -1506,8 +1506,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1200,
-        1500
+        400,
+        3700
       ],
       "name": "creer_facture",
       "parameters": {
@@ -1532,8 +1532,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1400,
-        1500
+        600,
+        3700
       ],
       "name": "envoyer_facture",
       "parameters": {
@@ -1555,8 +1555,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1600,
-        1500
+        800,
+        3700
       ],
       "name": "facture_payee",
       "parameters": {
@@ -1578,8 +1578,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1000,
-        1700
+        0,
+        3900
       ],
       "name": "lister_bons_commande",
       "parameters": {
@@ -1601,8 +1601,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1200,
-        1700
+        200,
+        3900
       ],
       "name": "creer_bon_commande",
       "parameters": {
@@ -1627,8 +1627,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1400,
-        1700
+        400,
+        3900
       ],
       "name": "valider_bon_commande",
       "parameters": {
@@ -1650,8 +1650,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1600,
-        1700
+        600,
+        3900
       ],
       "name": "bdc_vers_facture",
       "parameters": {
@@ -1673,8 +1673,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        -1000,
-        2600
+        -400,
+        4600
       ],
       "name": "agent_articles",
       "parameters": {
@@ -1691,8 +1691,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        -1000,
-        2880
+        -400,
+        4900
       ],
       "name": "LLM Articles",
       "parameters": {
@@ -1717,8 +1717,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -1200,
-        2900
+        -600,
+        5100
       ],
       "name": "lister_articles",
       "parameters": {
@@ -1740,8 +1740,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        -800,
-        2900
+        -200,
+        5100
       ],
       "name": "creer_article",
       "parameters": {
@@ -1766,8 +1766,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        -200,
-        2600
+        400,
+        4600
       ],
       "name": "agent_gmail",
       "parameters": {
@@ -1784,8 +1784,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        -200,
-        2880
+        400,
+        4900
       ],
       "name": "LLM Gmail",
       "parameters": {
@@ -1810,12 +1810,13 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.1,
       "position": [
-        -600,
-        2900
+        100,
+        5100
       ],
       "name": "lire_emails",
       "parameters": {
-        "operation": "getAll"
+        "operation": "getAll",
+        "filters": {}
       },
       "credentials": {
         "gmailOAuth2": {
@@ -1829,12 +1830,17 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.1,
       "position": [
-        -400,
-        2900
+        300,
+        5100
       ],
       "name": "envoyer_email",
       "parameters": {
-        "operation": "send"
+        "sendTo": "={{ $fromAI('To', 'Adresse email du destinataire', 'string') }}",
+        "subject": "={{ $fromAI('Subject', 'Objet de email', 'string') }}",
+        "message": "={{ $fromAI('Message', 'Corps de email en texte ou HTML', 'string') }}",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "credentials": {
         "gmailOAuth2": {
@@ -1848,12 +1854,13 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.1,
       "position": [
-        -200,
-        2900
+        500,
+        5100
       ],
       "name": "supprimer_email",
       "parameters": {
-        "operation": "delete"
+        "operation": "delete",
+        "messageId": "={{ $fromAI('Message_ID', 'ID du message Gmail à supprimer', 'string') }}"
       },
       "credentials": {
         "gmailOAuth2": {
@@ -1867,8 +1874,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        0,
-        2900
+        700,
+        5100
       ],
       "name": "envoyer_notification",
       "parameters": {
@@ -1893,8 +1900,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        800,
-        2600
+        1400,
+        4600
       ],
       "name": "agent_calendar",
       "parameters": {
@@ -1911,8 +1918,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        800,
-        2880
+        1400,
+        4900
       ],
       "name": "LLM Calendar",
       "parameters": {
@@ -1937,8 +1944,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.1,
       "position": [
-        400,
-        2900
+        1100,
+        5100
       ],
       "name": "creer_evenement",
       "parameters": {
@@ -1948,7 +1955,13 @@
           "mode": "list",
           "cachedResultName": "TalosPrimes"
         },
-        "operation": "create"
+        "operation": "create",
+        "start": "={{ $fromAI('Start', 'Date et heure de début au format ISO 8601', 'string') }}",
+        "end": "={{ $fromAI('End', 'Date et heure de fin au format ISO 8601', 'string') }}",
+        "additionalFields": {
+          "summary": "={{ $fromAI('Summary', 'Titre de événement', 'string') }}",
+          "description": "={{ $fromAI('Description', 'Description optionnelle', 'string') }}"
+        }
       },
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -1962,19 +1975,22 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.1,
       "position": [
-        600,
-        2900
+        1300,
+        5100
       ],
       "name": "lister_evenements",
       "parameters": {
+        "operation": "getAll",
         "calendar": {
           "__rl": true,
           "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
           "mode": "list",
           "cachedResultName": "TalosPrimes"
         },
-        "operation": "getAll",
-        "returnAll": true
+        "returnAll": true,
+        "timeMin": "={{ $fromAI('After', 'Date de début de la plage au format ISO 8601', 'string') }}",
+        "timeMax": "={{ $fromAI('Before', 'Date de fin de la plage au format ISO 8601', 'string') }}",
+        "options": {}
       },
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -1988,18 +2004,23 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.1,
       "position": [
-        1000,
-        2900
+        1500,
+        5100
       ],
       "name": "modifier_evenement",
       "parameters": {
+        "operation": "update",
         "calendar": {
           "__rl": true,
           "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
           "mode": "list",
           "cachedResultName": "TalosPrimes"
         },
-        "operation": "update"
+        "eventId": "={{ $fromAI('Event_ID', 'ID de événement à modifier', 'string') }}",
+        "updateFields": {
+          "location": "={{ $fromAI('Location', 'Nouveau lieu ou lien visio', 'string') }}",
+          "summary": "={{ $fromAI('Summary', 'Nouveau titre', 'string') }}"
+        }
       },
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -2013,18 +2034,20 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.1,
       "position": [
-        1200,
-        2900
+        1700,
+        5100
       ],
       "name": "supprimer_evenement",
       "parameters": {
+        "operation": "delete",
         "calendar": {
           "__rl": true,
           "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
           "mode": "list",
           "cachedResultName": "TalosPrimes"
         },
-        "operation": "delete"
+        "eventId": "={{ $fromAI('Event_ID', 'ID de événement à supprimer', 'string') }}",
+        "options": {}
       },
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -2038,8 +2061,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        2000,
-        2600
+        2300,
+        4600
       ],
       "name": "agent_finance",
       "parameters": {
@@ -2056,8 +2079,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        2000,
-        2880
+        2300,
+        4900
       ],
       "name": "LLM Finance",
       "parameters": {
@@ -2082,8 +2105,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1800,
-        2900
+        2100,
+        5100
       ],
       "name": "qonto_solde",
       "parameters": {
@@ -2105,8 +2128,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        2200,
-        2900
+        2500,
+        5100
       ],
       "name": "qonto_transactions",
       "parameters": {
@@ -2124,179 +2147,179 @@
       }
     },
     {
-      "id": "sticky_900",
+      "id": "s800",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -680,
-        -340
+        -880,
+        -150
       ],
-      "name": "📥 Points d'Entrée Telegram",
+      "name": "📥 Entrée Telegram",
       "parameters": {
-        "content": "## 📥 Points d'Entrée\n\nRéception des messages Telegram :\n- **Voix** → Whisper transcription\n- **Texte** → Passage direct\n- **Fichier** → Extraction du contenu\n\nTous les messages sont normalisés puis envoyés à l'Agent IA principal.",
-        "width": 1500,
-        "height": 780,
-        "color": 1
-      }
-    },
-    {
-      "id": "sticky_901",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        480,
-        -340
-      ],
-      "name": "🧠 Agent IA Orchestrateur",
-      "parameters": {
-        "content": "## 🧠 Agent IA Orchestrateur\n\nAgent principal qui analyse l'intention de l'utilisateur et route vers le bon sous-agent spécialisé.\n\n**7 sous-agents disponibles :**\n- Leads, Clients, Documents\n- Articles, Gmail, Calendar, Finance\n\n**Modèle :** GPT-4o\n**Mémoire :** 30 derniers messages",
-        "width": 500,
-        "height": 680,
-        "color": 7
-      }
-    },
-    {
-      "id": "sticky_902",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1060,
-        -340
-      ],
-      "name": "📤 Réponse Utilisateur",
-      "parameters": {
-        "content": "## 📤 Réponse\n\nEnvoi de la réponse via Telegram :\n- **Vocale** → TTS OpenAI → Audio\n- **Texte** → Message direct\n- **Fallback** → Texte si TTS échoue",
-        "width": 800,
-        "height": 480,
-        "color": 2
-      }
-    },
-    {
-      "id": "sticky_903",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1060,
-        380
-      ],
-      "name": "📎 Envoi Email + Pièce Jointe",
-      "parameters": {
-        "content": "## 📎 Email avec PJ\n\nWorkflow spécial pour envoyer un devis/facture par email avec le PDF en pièce jointe.\nCache le fichier → Compose l'email via IA → Gmail → Confirmation Telegram.",
-        "width": 1100,
-        "height": 280,
-        "color": 5
-      }
-    },
-    {
-      "id": "sticky_904",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -1680,
-        800
-      ],
-      "name": "👤 Sous-Agent LEADS",
-      "parameters": {
-        "content": "## 👤 Sous-Agent Leads\n\nGère tout le cycle de vie des prospects/leads.\n\n**6 outils disponibles :**\n- `lister_leads` — Liste tous les leads\n- `rechercher_leads` — Recherche par nom/email\n- `obtenir_lead` — Détails d'un lead par UUID\n- `creer_lead` — Nouveau lead\n- `modifier_statut_lead` — Changer le statut\n- `supprimer_lead` — Supprimer un lead\n\n**API :** `https://api.talosprimes.com/api/leads`",
-        "width": 1600,
-        "height": 800,
-        "color": 3
-      }
-    },
-    {
-      "id": "sticky_905",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -480,
-        800
-      ],
-      "name": "🏢 Sous-Agent CLIENTS",
-      "parameters": {
-        "content": "## 🏢 Sous-Agent Clients\n\nGère la base clients (entreprises/particuliers).\n\n**6 outils disponibles :**\n- `lister_clients` — Liste tous les clients\n- `rechercher_clients` — Recherche par nom/SIRET\n- `obtenir_client` — Détails d'un client par UUID\n- `creer_client` — Nouveau client\n- `modifier_client` — Mettre à jour un client\n- `supprimer_client` — Supprimer un client\n\n**API :** `https://api.talosprimes.com/api/clients`",
-        "width": 1600,
-        "height": 800,
-        "color": 3
-      }
-    },
-    {
-      "id": "sticky_906",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        520,
-        800
-      ],
-      "name": "📄 Sous-Agent DOCUMENTS",
-      "parameters": {
-        "content": "## 📄 Sous-Agent Documents\n\nLe plus complexe : gère devis, factures et bons de commande.\n\n**Devis (6 outils) :** lister, obtenir, créer, envoyer, accepter, convertir en facture\n**Factures (5 outils) :** lister, obtenir, créer, envoyer, marquer payée\n**Bons de commande (4 outils) :** lister, créer, valider, convertir en facture\n\n**+ Accès lecture :** clients et articles (résolution UUID)\n\n**API :** `https://api.talosprimes.com/api/`\n\n⚠️ Pour créer un devis/facture, l'agent résout d'abord le nom client → UUID et le code article → détails, puis construit le document.",
-        "width": 2200,
-        "height": 1100,
+        "content": "## 📥 Entrée Telegram\nRéception des messages : voix (Whisper), texte, fichiers.\nTout est normalisé et envoyé à l'Agent IA.",
+        "width": 1580,
+        "height": 750,
         "color": 4
       }
     },
     {
-      "id": "sticky_907",
+      "id": "s801",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1280,
-        2400
+        820,
+        -80
       ],
-      "name": "📦 Sous-Agent ARTICLES",
+      "name": "🧠 Agent Principal",
       "parameters": {
-        "content": "## 📦 Sous-Agent Articles\n\nGère le catalogue de produits/services.\n\n**2 outils :**\n- `lister_articles` — Catalogue complet\n- `creer_article` — Nouvel article\n\n**API :** `https://api.talosprimes.com/api/article-codes`",
-        "width": 800,
-        "height": 800,
-        "color": 6
+        "content": "## 🧠 Agent IA Orchestrateur\nAnalyse l'intention et route vers le bon sous-agent.\n\n**Sous-agents :** Leads · Clients · Documents · Articles · Gmail · Calendar · Finance",
+        "width": 400,
+        "height": 660,
+        "color": 5
       }
     },
     {
-      "id": "sticky_908",
+      "id": "s802",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -680,
-        2400
+        1320,
+        -100
       ],
-      "name": "✉️ Sous-Agent GMAIL",
+      "name": "📤 Réponse",
       "parameters": {
-        "content": "## ✉️ Sous-Agent Gmail\n\nGère les emails professionnels.\n\n**3 outils Gmail :**\n- `lire_emails` — Lire les derniers emails\n- `envoyer_email` — Envoyer un email\n- `supprimer_email` — Supprimer un email\n\n**+ 1 outil API :**\n- `envoyer_notification` — Email transactionnel via API\n\n**Compte :** Gmail OAuth2 TalosPrimes",
+        "content": "## 📤 Réponse Telegram\nVocale (TTS) ou texte, avec fallback automatique.",
         "width": 1000,
-        "height": 800,
+        "height": 560,
+        "color": 3
+      }
+    },
+    {
+      "id": "s803",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        820,
+        780
+      ],
+      "name": "📎 Email + PJ",
+      "parameters": {
+        "content": "## 📎 Envoi Email avec PJ\nCache fichier → Compose email IA → Gmail → Confirmation Telegram",
+        "width": 1400,
+        "height": 280,
         "color": 1
       }
     },
     {
-      "id": "sticky_909",
+      "id": "s804",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        320,
-        2400
+        -880,
+        1420
       ],
-      "name": "📅 Sous-Agent CALENDAR",
+      "name": "👤 Sous-Agent LEADS",
       "parameters": {
-        "content": "## 📅 Sous-Agent Calendar\n\nGère l'agenda Google Calendar.\n\n**4 outils :**\n- `creer_evenement` — Créer un RDV\n- `lister_evenements` — Voir les événements\n- `modifier_evenement` — Modifier un RDV\n- `supprimer_evenement` — Annuler un RDV\n\n**Calendrier :** TalosPrimes\n**⏰ Toujours utiliser le format ISO 8601**\n**Fuseau :** Europe/Paris",
-        "width": 1200,
-        "height": 800,
+        "content": "## 👤 Leads\nGestion complète des prospects.\n\n**Outils :** lister · rechercher · obtenir · créer · modifier statut · supprimer\n**API :** /api/leads",
+        "width": 1400,
+        "height": 860,
         "color": 2
       }
     },
     {
-      "id": "sticky_910",
+      "id": "s805",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1720,
-        2400
+        1120,
+        1420
+      ],
+      "name": "🏢 Sous-Agent CLIENTS",
+      "parameters": {
+        "content": "## 🏢 Clients\nGestion de la base clients.\n\n**Outils :** lister · rechercher · obtenir · créer · modifier · supprimer\n**API :** /api/clients",
+        "width": 1400,
+        "height": 860,
+        "color": 2
+      }
+    },
+    {
+      "id": "s806",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        2800
+      ],
+      "name": "📄 Sous-Agent DOCUMENTS",
+      "parameters": {
+        "content": "## 📄 Documents Commerciaux\nLe plus complexe : devis, factures, bons de commande.\n\n**Devis (6) :** lister · obtenir · créer · envoyer · accepter · → facture\n**Factures (5) :** lister · obtenir · créer · envoyer · marquer payée\n**BDC (4) :** lister · créer · valider · → facture\n**+ Lecture :** clients et articles pour résolution UUID",
+        "width": 2100,
+        "height": 1300,
+        "color": 6
+      }
+    },
+    {
+      "id": "s807",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -680,
+        4420
+      ],
+      "name": "📦 Sous-Agent ARTICLES",
+      "parameters": {
+        "content": "## 📦 Articles\nCatalogue produits/services.\n\n**Outils :** lister · créer\n**API :** /api/article-codes",
+        "width": 700,
+        "height": 860,
+        "color": 2
+      }
+    },
+    {
+      "id": "s808",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        4420
+      ],
+      "name": "✉️ Sous-Agent GMAIL",
+      "parameters": {
+        "content": "## ✉️ Gmail\nGestion des emails.\n\n**Outils :** lire · envoyer · supprimer · notification\n**Compte :** Gmail OAuth2",
+        "width": 900,
+        "height": 860,
+        "color": 4
+      }
+    },
+    {
+      "id": "s809",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        4420
+      ],
+      "name": "📅 Sous-Agent CALENDAR",
+      "parameters": {
+        "content": "## 📅 Google Calendar\nGestion de l'agenda TalosPrimes.\n\n**Outils :** créer · lister · modifier · supprimer\n**Fuseau :** Europe/Paris · Format ISO 8601",
+        "width": 900,
+        "height": 860,
+        "color": 3
+      }
+    },
+    {
+      "id": "s810",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2020,
+        4420
       ],
       "name": "💰 Sous-Agent FINANCE",
       "parameters": {
-        "content": "## 💰 Sous-Agent Finance (Qonto)\n\nConsulte les données bancaires Qonto.\n\n**2 outils :**\n- `qonto_solde` — Solde actuel du compte\n- `qonto_transactions` — Dernières transactions\n\n**API :** Via proxy TalosPrimes\n\n⚠️ Lecture seule — aucune transaction ne peut être effectuée.",
-        "width": 800,
-        "height": 800,
-        "color": 5
+        "content": "## 💰 Finance (Qonto)\nConsultation bancaire (lecture seule).\n\n**Outils :** solde · transactions",
+        "width": 700,
+        "height": 860,
+        "color": 1
       }
     }
   ],
