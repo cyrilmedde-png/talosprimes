@@ -115,7 +115,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { search: $fromAI(\"search\", \"Mot-clé: nom de famille, email ou raison sociale\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { search: $fromAI(\"search\", \"Mot-clé: nom de famille, email ou raison sociale\") } }) }}"
       }
     },
     {
@@ -134,7 +134,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"clientId\", \"UUID du client\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"clientId\", \"UUID du client\") } }) }}"
       }
     },
     {
@@ -153,7 +153,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { type: $fromAI(\"clientType\",\"b2b ou b2c\"), email: $fromAI(\"email\",\"Email\"), nom: $fromAI(\"nom\",\"Nom\"), prenom: $fromAI(\"prenom\",\"Prénom ou vide\"), raisonSociale: $fromAI(\"raisonSociale\",\"Raison sociale si B2B ou vide\"), telephone: $fromAI(\"telephone\",\"Téléphone ou vide\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { type: $fromAI(\"clientType\",\"b2b ou b2c\"), email: $fromAI(\"email\",\"Email\"), nom: $fromAI(\"nom\",\"Nom\"), prenom: $fromAI(\"prenom\",\"Prénom ou vide\"), raisonSociale: $fromAI(\"raisonSociale\",\"Raison sociale si B2B ou vide\"), telephone: $fromAI(\"telephone\",\"Téléphone ou vide\") } }) }}"
       }
     },
     {
@@ -172,7 +172,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}"
       }
     },
     {
@@ -191,7 +191,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"leadId\",\"UUID du lead\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"leadId\",\"UUID du lead\") } }) }}"
       }
     },
     {
@@ -210,7 +210,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { nom: $fromAI(\"nom\",\"Nom\"), email: $fromAI(\"email\",\"Email\"), prenom: $fromAI(\"prenom\",\"Prénom ou vide\"), telephone: $fromAI(\"telephone\",\"Téléphone ou vide\"), source: $fromAI(\"source\",\"Source: site_web, telephone, recommandation ou vide\"), notes: $fromAI(\"notes\",\"Notes ou vide\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { nom: $fromAI(\"nom\",\"Nom\"), email: $fromAI(\"email\",\"Email\"), prenom: $fromAI(\"prenom\",\"Prénom ou vide\"), telephone: $fromAI(\"telephone\",\"Téléphone ou vide\"), source: $fromAI(\"source\",\"Source: site_web, telephone, recommandation ou vide\"), notes: $fromAI(\"notes\",\"Notes ou vide\") } }) }}"
       }
     },
     {
@@ -229,7 +229,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"leadId\",\"UUID du lead\"), statut: $fromAI(\"statut\",\"Nouveau statut: nouveau, contacte, converti, abandonne\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"leadId\",\"UUID du lead\"), statut: $fromAI(\"statut\",\"Nouveau statut: nouveau, contacte, converti, abandonne\") } }) }}"
       }
     },
     {
@@ -248,7 +248,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}"
       }
     },
     {
@@ -267,7 +267,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}"
       }
     },
     {
@@ -286,7 +286,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"devisId\",\"UUID du devis\") } }) }}"
       }
     },
     {
@@ -305,7 +305,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client obtenu via rechercher_clients\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, description: $fromAI(\"devisDescription\",\"Description courte du devis\"), modePaiement: $fromAI(\"modePaiement\",\"virement, cheque, cb. Defaut: virement\"), lines: JSON.parse($fromAI(\"devisLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]')) }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client obtenu via rechercher_clients\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, description: $fromAI(\"devisDescription\",\"Description courte du devis\"), modePaiement: $fromAI(\"modePaiement\",\"virement, cheque, cb. Defaut: virement\"), lines: JSON.parse($fromAI(\"devisLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]')) }) }}"
       }
     },
     {
@@ -324,7 +324,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à envoyer\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"devisId\",\"UUID du devis à envoyer\") } }) }}"
       }
     },
     {
@@ -343,7 +343,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à accepter\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"devisId\",\"UUID du devis à accepter\") } }) }}"
       }
     },
     {
@@ -362,7 +362,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à convertir\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"devisId\",\"UUID du devis à convertir\") } }) }}"
       }
     },
     {
@@ -381,7 +381,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à convertir\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"devisId\",\"UUID du devis à convertir\") } }) }}"
       }
     },
     {
@@ -400,7 +400,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}"
       }
     },
     {
@@ -419,7 +419,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
       }
     },
     {
@@ -438,7 +438,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, type: \"facture_client_final\", lines: JSON.parse($fromAI(\"factureLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]')) }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, type: \"facture_client_final\", lines: JSON.parse($fromAI(\"factureLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]')) }) }}"
       }
     },
     {
@@ -457,7 +457,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
       }
     },
     {
@@ -476,7 +476,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
       }
     },
     {
@@ -495,7 +495,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\" }) }}"
       }
     },
     {
@@ -514,7 +514,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"bdcId\",\"UUID du bon de commande\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"bdcId\",\"UUID du bon de commande\") } }) }}"
       }
     },
     {
@@ -533,7 +533,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, lines: JSON.parse($fromAI(\"bdcLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]')) }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, lines: JSON.parse($fromAI(\"bdcLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]')) }) }}"
       }
     },
     {
@@ -552,7 +552,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"bdcId\",\"UUID du BDC\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"bdcId\",\"UUID du BDC\") } }) }}"
       }
     },
     {
@@ -571,7 +571,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"bdcId\",\"UUID du BDC à convertir\") } }) }}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", data: { id: $fromAI(\"bdcId\",\"UUID du BDC à convertir\") } }) }}"
       }
     },
     {
