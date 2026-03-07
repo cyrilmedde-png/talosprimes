@@ -226,7 +226,7 @@
         "promptType": "define",
         "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || $json.text || '' }}",
         "options": {
-          "systemMessage": "Tu es l'assistant IA de TalosPrimes, une entreprise de services aux entreprises.\nTu gères les prospects, clients, devis, factures, bons de commande, emails, agenda et finances via Telegram.\n\n📅 Date actuelle : {{ $now.format('dd/MM/yyyy HH:mm') }} — Fuseau : Europe/Paris\n\n═══════════════════════════════════════════\nRÈGLES FONDAMENTALES\n═══════════════════════════════════════════\n1. Communique TOUJOURS en français\n2. Ne devine JAMAIS un UUID — cherche d'abord par nom/email\n3. Les montants sont des NOMBRES (pas de texte)\n4. Pour les dates, utilise le format ISO 8601 (ex: 2025-03-15T09:00:00+01:00)\n5. Sois concis et professionnel\n\n═══════════════════════════════════════════\n👤 LEADS (prospects)\n═══════════════════════════════════════════\n• lister_leads — Tous les leads\n• rechercher_leads — Chercher par nom/email (paramètre q)\n• obtenir_lead — Détails par UUID\n• creer_lead — Nouveau lead (nom, prenom, email requis)\n• modifier_statut_lead — Changer le statut d'un lead\n• supprimer_lead — Supprimer un lead\n\n═══════════════════════════════════════════\n🏢 CLIENTS\n═══════════════════════════════════════════\n• lister_clients — Tous les clients\n• rechercher_clients — Chercher par nom/SIRET (paramètre q)\n• obtenir_client — Détails par UUID\n• creer_client — Nouveau client\n• modifier_client — Mettre à jour un client\n• supprimer_client — Supprimer un client\n\n═══════════════════════════════════════════\n📦 ARTICLES (catalogue)\n═══════════════════════════════════════════\n• lister_articles — Tout le catalogue\n• creer_article — Nouvel article\n\n═══════════════════════════════════════════\n📄 DEVIS\n═══════════════════════════════════════════\n• lister_devis / obtenir_devis — Consulter\n• creer_devis — Créer (⚠️ voir processus ci-dessous)\n• envoyer_devis / accepter_devis — Actions\n• devis_vers_facture — Convertir en facture\n\n═══════════════════════════════════════════\n🧾 FACTURES\n═══════════════════════════════════════════\n• lister_factures / obtenir_facture — Consulter\n• creer_facture — Créer (⚠️ voir processus ci-dessous)\n• envoyer_facture — Envoyer par email\n• facture_payee — Marquer comme payée\n\n═══════════════════════════════════════════\n📋 BONS DE COMMANDE\n═══════════════════════════════════════════\n• lister_bons_commande — Consulter\n• creer_bon_commande — Créer (⚠️ voir processus ci-dessous)\n• valider_bon_commande — Valider\n• bdc_vers_facture — Convertir en facture\n\n═══════════════════════════════════════════\n✉️ GMAIL\n═══════════════════════════════════════════\n• lire_emails — Derniers emails reçus\n• envoyer_email — Envoyer un email\n• supprimer_email — Supprimer (demander confirmation)\n• envoyer_notification — Email transactionnel via API\n\n═══════════════════════════════════════════\n📅 GOOGLE CALENDAR\n═══════════════════════════════════════════\n• creer_evenement — Nouveau RDV (start, end en ISO 8601)\n• lister_evenements — Événements dans une plage\n• modifier_evenement — Modifier (chercher l'ID d'abord)\n• supprimer_evenement — Annuler un RDV\n\n═══════════════════════════════════════════\n💰 FINANCE (Qonto)\n═══════════════════════════════════════════\n• qonto_solde — Solde actuel\n• qonto_transactions — Dernières transactions\n\n═══════════════════════════════════════════\n⚠️ PROCESSUS CRÉATION DOCUMENT (DEVIS/FACTURE/BDC)\n═══════════════════════════════════════════\nÉTAPE 1 : Résoudre le client\n  → rechercher_clients avec le nom du client\n  → Récupérer l'UUID du client\n\nÉTAPE 2 : Résoudre les articles\n  → lister_articles pour trouver les articles demandés\n  → Récupérer les prix, TVA, désignation\n\nÉTAPE 3 : Construire le document\n  → Appeler creer_devis / creer_facture / creer_bon_commande\n  → Avec client_id (UUID) et lines (JSON array)\n  → Format lines : [{\"designation\":\"...\", \"quantity\":1, \"unit_price\":100, \"tva_rate\":20}]",
+          "systemMessage": "Tu es l'assistant commercial de TalosPrimes. Tu gères les clients, leads, devis, factures, bons de commande, emails, agenda et finances.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n\n══════════════════════════════════════\nRÈGLES ABSOLUES — NE JAMAIS DÉROGER\n══════════════════════════════════════\n\n1. LANGUE : Toujours répondre en français.\n\n2. JAMAIS DEVINER UN UUID : Toujours chercher d'abord.\n\n3. UN SEUL RÉSULTAT SUFFIT : Si tu cherches \"roussie\" et que tu trouves 1 client qui s'appelle \"Roussie Alexandre\", C'EST LE BON. Ne demande PAS confirmation. Utilise-le directement.\n\n4. PLUSIEURS RÉSULTATS : Si la recherche retourne plusieurs résultats, choisis celui qui correspond le mieux au nom demandé. Ne demande confirmation que si c'est vraiment ambigu (2 personnes avec le même nom).\n\n5. CODE ARTICLE : Quand l'utilisateur dit \"code article 001\" ou \"article 001\", utilise lister_articles pour lister le catalogue, puis cherche dans les résultats l'article dont le code correspond. NE DIS JAMAIS que l'article n'existe pas sans avoir d'abord listé le catalogue.\n\n6. AGIR SANS DEMANDER : Quand l'utilisateur te donne une instruction complète, EXÉCUTE-LA entièrement. Ne pose pas de questions intermédiaires.\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UN DEVIS\n══════════════════════════════════════\n\nQuand on dit \"créer un devis pour [client] avec [article]\" :\n\nÉTAPE 1 — Chercher le client :\n→ Appelle rechercher_clients avec le NOM DE FAMILLE seul (ex: \"roussie\")\n→ Récupère le UUID (champ id ou uuid) du client trouvé\n\nÉTAPE 2 — Chercher l'article :\n→ Appelle lister_articles\n→ Parcours les résultats pour trouver l'article par son CODE (ex: \"001\")\n→ Récupère : designation, prixUnitaireHt (ou unit_price), tva_rate\n\nÉTAPE 3 — Créer le devis :\n→ Appelle creer_devis avec :\n  - clientFinalId = UUID du client\n  - montantHt = prixUnitaireHt × quantité\n  - tvaTaux = tva_rate de l'article (ou 20 par défaut)\n  - description = résumé court\n  - modePaiement = \"virement\"\n  - lines = [{\"designation\": \"...\", \"quantite\": 1, \"prixUnitaireHt\": ...}]\n\nÉTAPE 4 — Si on demande d'envoyer par email :\n→ Si une adresse email est fournie, utilise envoyer_email (outil Gmail)\n  avec le résumé du devis créé\n→ OU utilise envoyer_devis avec le UUID du devis créé\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UNE FACTURE\n══════════════════════════════════════\n\nMême processus que le devis mais avec creer_facture.\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UN BON DE COMMANDE\n══════════════════════════════════════\n\nMême processus que le devis mais avec creer_bon_commande.\n\n══════════════════════════════════════\nPROCESSUS : ENVOYER UN DOCUMENT\n══════════════════════════════════════\n\nSi on dit \"envoie le devis/facture à [email]\" :\n1. Si tu viens de créer le document → tu as son UUID → utilise envoyer_devis ou envoyer_facture\n2. Si tu n'as pas le UUID → cherche-le avec lister_devis ou lister_factures\n3. Pour un email libre → utilise envoyer_email\n\n══════════════════════════════════════\nRECHERCHE DE CLIENTS/LEADS\n══════════════════════════════════════\n\n• rechercher_clients : cherche par NOM DE FAMILLE seul (1 mot)\n• rechercher_leads : même chose pour les prospects\n• Si 0 résultat avec le nom complet → essaie juste le nom de famille\n• Si toujours 0 → dis-le clairement\n\n══════════════════════════════════════\nAGENDA GOOGLE CALENDAR\n══════════════════════════════════════\n\n• Dates toujours en ISO 8601 (ex: 2025-03-15T14:00:00+01:00)\n• \"demain 14h\" → calcule la date correcte\n• Pour modifier/supprimer → lister_evenements d'abord pour trouver l'ID\n\n══════════════════════════════════════\nGMAIL\n══════════════════════════════════════\n\n• envoyer_email : destinataire, objet, corps du message\n• Ne supprime JAMAIS sans confirmation\n\n══════════════════════════════════════\nFINANCE (Qonto)\n══════════════════════════════════════\n\n• Lecture seule : solde et transactions",
           "maxIterations": 10
         },
         "systemPrompt": "\n\n## Fichiers / Pièces Jointes\nQuand l'utilisateur envoie un fichier (document, photo) :\n- Le fichier est automatiquement téléchargé et son contenu textuel est extrait quand c'est possible\n- Le contenu extrait apparaît entre les balises --- CONTENU DU DOCUMENT --- et --- FIN DU CONTENU ---\n- Tu DOIS lire et analyser ce contenu pour répondre aux questions de l'utilisateur sur le document\n- Tu peux résumer, citer, reformuler ou utiliser les informations du document\n- Si l'utilisateur demande d'envoyer le contenu par email, utilise les informations extraites pour composer le mail\n- Si le contenu n'a pas pu être extrait (PDF scanné, image), informe l'utilisateur\n- Si l'utilisateur demande d'envoyer le fichier en pièce jointe par email, le système gère automatiquement l'envoi avec pièce jointe (il faut mentionner l'adresse email dans le message)\n- Le message contiendra [Fichier joint: nom_du_fichier] pour t'informer qu'un fichier est présent"
@@ -779,7 +779,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Lister tous les leads/prospects.",
+        "description": "Liste TOUS les leads/prospects.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -802,7 +802,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Rechercher des leads par nom, email ou téléphone. Le paramètre search accepte un mot simple.",
+        "description": "Trouver un lead par nom ou email. Utilise UN mot-clé simple (nom de famille).",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -959,7 +959,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "Lister tous les clients.",
+        "description": "Liste TOUS les clients. Utiliser rechercher_clients si tu connais le nom.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -982,7 +982,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "Rechercher clients par nom, email ou raison sociale. UN SEUL mot-clé.",
+        "description": "OUTIL PRINCIPAL pour trouver un client par son nom. Utilise UN mot-clé simple (nom de famille). Retourne le UUID du client nécessaire pour créer devis/facture/BDC.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -1139,7 +1139,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/devis",
-        "description": "Lister les derniers devis.",
+        "description": "Liste tous les devis existants.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1162,7 +1162,7 @@
       "parameters": {
         "method": "GET",
         "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") }}",
-        "description": "Détails d'un devis par UUID.",
+        "description": "Obtenir les détails complets d'un devis par son UUID.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1185,12 +1185,12 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.talosprimes.com/api/devis",
-        "description": "Créer un devis. AVANT: chercher client et article.",
+        "description": "Créer un devis. OBLIGATOIRE AVANT: utiliser rechercher_clients pour obtenir le UUID du client, et lister_articles pour obtenir les détails de l'article (designation, prixUnitaireHt).",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients_doc\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0, description: $fromAI(\"description\", \"Description courte du devis\"), modePaiement: $fromAI(\"modePaiement\", \"virement, cheque, cb, prelevement. Defaut: virement\"), lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON. Ex: [{\\\"designation\\\":\\\"Audit\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]')); } catch(e) { return []; } })() }) }}"
+        "jsonBody": "={{ JSON.stringify({ clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT calcule depuis les lignes\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 20, description: $fromAI(\"description\", \"Description courte du devis\"), modePaiement: $fromAI(\"modePaiement\", \"virement, cheque, cb, prelevement. Defaut: virement\"), lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON. Ex: [{\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]')); } catch(e) { return []; } })() }) }}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1211,7 +1211,7 @@
       "parameters": {
         "method": "PUT",
         "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") + \"/send\" }}",
-        "description": "Envoyer un devis par email.",
+        "description": "Envoyer un devis par email au client. Nécessite le UUID du devis.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1234,7 +1234,7 @@
       "parameters": {
         "method": "PUT",
         "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") + \"/accept\" }}",
-        "description": "Accepter un devis.",
+        "description": "Marquer un devis comme accepté.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1257,7 +1257,7 @@
       "parameters": {
         "method": "POST",
         "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") + \"/convert-to-invoice\" }}",
-        "description": "Convertir un devis en facture.",
+        "description": "Convertir un devis accepté en facture.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1280,7 +1280,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/invoices",
-        "description": "Lister les factures.",
+        "description": "Liste toutes les factures.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1303,7 +1303,7 @@
       "parameters": {
         "method": "GET",
         "url": "={{ \"https://api.talosprimes.com/api/invoices/\" + $fromAI(\"factureId\", \"UUID de la facture\") }}",
-        "description": "Détails d'une facture.",
+        "description": "Détails d'une facture par UUID.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1326,7 +1326,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.talosprimes.com/api/invoices",
-        "description": "Créer une facture.",
+        "description": "Créer une facture. OBLIGATOIRE AVANT: utiliser rechercher_clients pour le UUID client, et lister_articles pour les détails articles.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -1352,7 +1352,7 @@
       "parameters": {
         "method": "POST",
         "url": "={{ \"https://api.talosprimes.com/api/invoices/\" + $fromAI(\"factureId\", \"UUID\") + \"/send\" }}",
-        "description": "Envoyer une facture.",
+        "description": "Envoyer une facture par email.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1398,7 +1398,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/bons-commande",
-        "description": "Lister les bons de commande.",
+        "description": "Liste tous les bons de commande.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1421,7 +1421,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.talosprimes.com/api/bons-commande",
-        "description": "Créer un bon de commande.",
+        "description": "Créer un bon de commande. OBLIGATOIRE AVANT: utiliser rechercher_clients pour le UUID client, et lister_articles pour les détails articles.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -1493,7 +1493,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/article-codes",
-        "description": "Lister tous les articles du catalogue.",
+        "description": "OUTIL PRINCIPAL pour consulter le catalogue articles. Retourne TOUS les articles avec leurs codes, désignations et prix. TOUJOURS utiliser cet outil AVANT de créer un devis/facture/BDC pour vérifier les détails de l'article.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1606,7 +1606,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.talosprimes.com/api/notifications",
-        "description": "Envoyer un email via API TalosPrimes.",
+        "description": "Envoyer un email de notification via l'API TalosPrimes.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -1749,7 +1749,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/qonto/balance",
-        "description": "Consulter le solde Qonto.",
+        "description": "Consulter le solde bancaire Qonto.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
@@ -1772,7 +1772,7 @@
       "parameters": {
         "method": "GET",
         "url": "https://api.talosprimes.com/api/qonto/transactions",
-        "description": "Lister les transactions Qonto.",
+        "description": "Voir les dernières transactions Qonto.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth"
       },
