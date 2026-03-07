@@ -2,263 +2,58 @@
   "name": "Super Agent IA TalosPrimes v3",
   "nodes": [
     {
+      "id": "v3_001",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ],
       "parameters": {
         "updates": [
           "message"
         ],
         "additionalFields": {}
       },
-      "type": "n8n-nodes-base.telegramTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -800,
-        100
-      ],
-      "id": "c5697e7b-f30d-401f-8861-17fa991ee6b7",
-      "name": "Telegram Trigger",
-      "webhookId": "d11a3361-d9b8-4df2-bb74-65e61bbba525",
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
           "name": "Telegram account"
         }
-      }
+      },
+      "webhookId": "telegram-trigger-v3"
     },
     {
-      "parameters": {
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        -1200,
-        200
-      ],
-      "id": "85bd4bc3-bb1b-4159-9df0-e9e06fff0a86",
-      "name": "When chat message received",
-      "webhookId": "da185b10-550d-4502-b4fe-303c65c663b5"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "has_voice",
-              "leftValue": "={{ $json.message?.voice ? 'voice' : 'text' }}",
-              "rightValue": "voice",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -400,
-        100
-      ],
-      "id": "4c833835-ab68-43a2-a80e-a8914d6eade4",
-      "name": "Vérifier Type Message"
-    },
-    {
-      "parameters": {
-        "resource": "file",
-        "fileId": "={{ $json.message.voice.file_id }}",
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        0,
-        -100
-      ],
-      "id": "c1358b85-4a5e-405a-96eb-6995842c938b",
-      "name": "Récupérer Fichier Audio",
-      "webhookId": "743f732c-116b-46be-ac58-ddc029ea3ed0",
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/audio/transcriptions",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "contentType": "multipart-form-data",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "parameterType": "formBinaryData",
-              "name": "file",
-              "inputDataFieldName": "data"
-            },
-            {
-              "name": "model",
-              "value": "whisper-1"
-            },
-            {
-              "name": "language",
-              "value": "fr"
-            },
-            {
-              "name": "prompt",
-              "value": "TalosPrimes, démarchage, démarchages terrain, prospection, Avignon, lead, leads, client, clients, planification, relance, rendez-vous, devis, facturation, avoir, bon de commande, proforma"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        -100
-      ],
-      "id": "5ce87519-38a9-4218-a4a4-3dd1ccb69a12",
-      "name": "Transcription Whisper",
-      "credentials": {
-        "openAiApi": {
-          "id": "MmpYHYAt746xfTrB",
-          "name": "OpenAi account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "a1",
-              "name": "messageText",
-              "value": "={{ $json.text || 'Transcription échouée. Réessayez ou écrivez en texte.' }}",
-              "type": "string"
-            },
-            {
-              "id": "a2",
-              "name": "chatId",
-              "value": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
-              "type": "number"
-            },
-            {
-              "id": "a3",
-              "name": "userId",
-              "value": "={{ $('Telegram Trigger').first().json.message.from.id }}",
-              "type": "number"
-            },
-            {
-              "id": "a4",
-              "name": "isVoice",
-              "value": true,
-              "type": "boolean"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        600,
-        -100
-      ],
-      "id": "f068ec05-4f68-4c53-ad37-451678a2ffcc",
-      "name": "Préparer Contexte (Voix)"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "b1",
-              "name": "messageText",
-              "value": "={{ $('Telegram Trigger').first().json.message?.text || '' }}",
-              "type": "string"
-            },
-            {
-              "id": "b2",
-              "name": "chatId",
-              "value": "={{ $('Telegram Trigger').first().json.message?.chat?.id }}",
-              "type": "number"
-            },
-            {
-              "id": "b3",
-              "name": "userId",
-              "value": "={{ $('Telegram Trigger').first().json.message?.from?.id }}",
-              "type": "number"
-            },
-            {
-              "id": "b4",
-              "name": "isVoice",
-              "value": false,
-              "type": "boolean"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        600,
-        100
-      ],
-      "id": "ca525fbb-7f90-4bbf-a5e8-a60dc6669fbb",
-      "name": "Préparer Contexte (Texte)"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || $json.text || '' }}",
-        "options": {
-          "systemMessage": "Tu es l'assistant commercial de TalosPrimes. Tu EXÉCUTES les instructions sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n\n═══ RÈGLE ABSOLUE ═══\nEXÉCUTE. NE DEMANDE PAS. NE VALIDE PAS. NE DISCUTE PAS.\n\n═══ MATCHING CLIENTS ═══\nQuand on dit \"client Roussie Alexandre\" :\n1. Appelle rechercher_clients avec search = \"roussie\"\n2. Dans les résultats, CHERCHE celui dont le nom contient \"roussie\" ET le prénom contient \"alexandre\"\n3. S'il y a un match par nom → C'EST LE BON → prends son UUID\n4. NE DEMANDE JAMAIS \"il y a 2 clients, lequel ?\" — COMPARE les noms et choisis\n5. \"demo\" ne correspond PAS à \"roussie alexandre\" → IGNORE-LE\n\nExemple concret :\n- Résultats API : [{\"nom\":\"Roussie\",\"prenom\":\"Alexandre\",\"id\":\"abc123\"}, {\"raisonSociale\":\"demo\",\"id\":\"xyz789\"}]\n- Tu demandes \"Roussie Alexandre\" → le premier MATCHE → utilise \"abc123\"\n- Tu ne dis PAS \"il y a 2 clients\"\n\n═══ MATCHING ARTICLES ═══\nQuand on dit \"code article 001\" :\n1. Appelle lister_articles\n2. Dans les résultats, CHERCHE celui dont le champ \"code\" = \"001\"\n3. Trouvé → prends ses infos (designation, prixUnitaireHt, etc.)\n4. NE DIS JAMAIS \"l'article 001 n'existe pas\" SANS AVOIR LISTÉ\n\nExemple concret :\n- Résultats API : [{\"code\":\"001\",\"designation\":\"Setup Business\",\"prixUnitaireHt\":3500}, ...]\n- Code demandé = \"001\" → MATCH → utilise-le\n\n═══ CRÉER UN DEVIS ═══\nInstruction : \"créer un devis pour [client] avec [article] et envoyer à [email]\"\n\nÉTAPE 1 → rechercher_clients(search: nom_de_famille)\nÉTAPE 2 → lister_articles() → trouver le code article\nÉTAPE 3 → creer_devis(clientFinalId, montantHt, tvaTaux, description, modePaiement, lines)\nÉTAPE 4 → envoyer_email(to: email, subject: \"Devis ...\", message: résumé)\n\nTu ENCHAÎNES les 4 étapes SANS POSER DE QUESTION.\n\n═══ CRÉER FACTURE / BON DE COMMANDE ═══\nMême étapes mais avec creer_facture ou creer_bon_commande.\n\n═══ EMAILS ═══\n- Adresse email = EXACTEMENT ce que l'utilisateur donne\n- NE JAMAIS dire \"adresse invalide\"\n- NE JAMAIS modifier l'adresse\n- Pour envoyer un document : compose un email pro avec les détails\n\n═══ AGENDA ═══\n- Dates en ISO 8601 (ex: 2025-03-15T14:00:00+01:00)\n- Pour modifier/supprimer → lister_evenements d'abord\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS valider format email/téléphone/nom\n- NE JAMAIS dire \"l'article n'existe pas\" sans avoir listé\n- NE JAMAIS demander confirmation quand le nom matche\n- NE JAMAIS inventer d'erreurs\n- NE JAMAIS poser de question intermédiaire sur une instruction complète",
-          "maxIterations": 10
-        },
-        "systemPrompt": "\n\n## Fichiers / Pièces Jointes\nQuand l'utilisateur envoie un fichier (document, photo) :\n- Le fichier est automatiquement téléchargé et son contenu textuel est extrait quand c'est possible\n- Le contenu extrait apparaît entre les balises --- CONTENU DU DOCUMENT --- et --- FIN DU CONTENU ---\n- Tu DOIS lire et analyser ce contenu pour répondre aux questions de l'utilisateur sur le document\n- Tu peux résumer, citer, reformuler ou utiliser les informations du document\n- Si l'utilisateur demande d'envoyer le contenu par email, utilise les informations extraites pour composer le mail\n- Si le contenu n'a pas pu être extrait (PDF scanné, image), informe l'utilisateur\n- Si l'utilisateur demande d'envoyer le fichier en pièce jointe par email, le système gère automatiquement l'envoi avec pièce jointe (il faut mentionner l'adresse email dans le message)\n- Le message contiendra [Fichier joint: nom_du_fichier] pour t'informer qu'un fichier est présent"
-      },
+      "id": "v3_002",
+      "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1200,
-        100
+        500,
+        400
       ],
-      "id": "0a5955f6-cfa5-410e-8132-dcb612fd5edd",
-      "name": "AI Agent"
+      "parameters": {
+        "options": {
+          "systemMessage": "Tu es l'assistant commercial de TalosPrimes. Tu EXÉCUTES les instructions sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n\n═══ RÈGLE ABSOLUE ═══\nEXÉCUTE. NE DEMANDE PAS. NE VALIDE PAS. NE DISCUTE PAS.\n\n═══ MATCHING CLIENTS ═══\nQuand on dit \"client Roussie Alexandre\" :\n1. Appelle rechercher_clients avec search = \"roussie\"\n2. Dans les résultats, CHERCHE celui dont le nom contient \"roussie\" ET le prénom contient \"alexandre\"\n3. S'il y a un match par nom → C'EST LE BON → prends son id\n4. NE DEMANDE JAMAIS \"il y a 2 clients, lequel ?\" — COMPARE les noms et choisis\n5. Si un résultat est \"demo\" ou une entreprise sans rapport → IGNORE-LE\n\n═══ MATCHING ARTICLES ═══\nQuand on dit \"code article 001\" :\n1. Appelle lister_articles\n2. Dans les résultats, CHERCHE celui dont le champ \"code\" = \"001\"\n3. Trouvé → prends ses infos (designation, prix_unitaire_ht)\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ CRÉER UN DEVIS ═══\nInstruction : \"créer un devis pour [client] avec [article] et envoyer à [email]\"\n\nÉTAPE 1 → rechercher_clients(search: nom_de_famille) → récupère id du client\nÉTAPE 2 → lister_articles() → trouve l'article par son code → récupère designation, prix_unitaire_ht\nÉTAPE 3 → creer_devis avec les données\nÉTAPE 4 → envoyer_email(to: email, subject: \"Devis ...\", message: résumé du devis)\n\nTu ENCHAÎNES les 4 étapes SANS POSER DE QUESTION.\n\n═══ CRÉER FACTURE / BON DE COMMANDE ═══\nMême étapes mais avec creer_facture ou creer_bon_commande.\n\n═══ EMAILS ═══\n- Adresse email = EXACTEMENT ce que l'utilisateur donne\n- NE JAMAIS dire \"adresse invalide\"\n\n═══ AGENDA ═══\n- Dates en ISO 8601 (ex: 2025-03-15T14:00:00+01:00)\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS valider format email/téléphone\n- NE JAMAIS dire \"l'article n'existe pas\" sans avoir listé\n- NE JAMAIS demander confirmation quand le nom matche clairement\n- NE JAMAIS poser de question intermédiaire sur une instruction complète"
+        }
+      }
     },
     {
+      "id": "v3_003",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        500,
+        620
+      ],
       "parameters": {
-        "model": {
-          "__rl": true,
-          "mode": "list",
-          "value": "gpt-4o-2024-11-20"
-        },
+        "model": "gpt-4o-2024-11-20",
         "options": {
           "temperature": 0.1
         }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.3,
-      "position": [
-        1200,
-        500
-      ],
-      "id": "a91788ff-f83e-46ee-a32a-771262c2a164",
-      "name": "OpenAI Chat Model",
       "credentials": {
         "openAiApi": {
           "id": "MmpYHYAt746xfTrB",
@@ -267,1959 +62,819 @@
       }
     },
     {
+      "id": "v3_004",
+      "name": "Telegram Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        400
+      ],
       "parameters": {
-        "sessionIdType": "customKey",
-        "sessionKey": "={{ $json.userId || $json.chatId || $json.message?.from?.id || $json.message?.chat?.id || 'default' }}",
-        "contextWindowLength": 30
+        "operation": "sendMessage",
+        "chatId": "={{ $(\"Telegram Trigger\").item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
       },
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "v3_005",
+      "name": "Window Buffer Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        1500,
-        500
-      ],
-      "id": "3841f883-c3f9-4406-b2ba-6f3b0c4e7df5",
-      "name": "Simple Memory"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "is_voice",
-              "leftValue": "={{ $json.isVoice === true ? 'voice' : ($json.isVoice === false ? 'text' : (() => { try { const v = $('Préparer Contexte (Voix)').first()?.json?.isVoice; return v === true ? 'voice' : 'text'; } catch(e) { return 'text'; } })()) }}",
-              "rightValue": "voice",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1600,
-        100
-      ],
-      "id": "1201ad6f-d35b-4462-bce4-6a8a228fb118",
-      "name": "Vérifier Type Réponse"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/audio/speech",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'tts-1', input: ($json.output || 'Réponse non disponible.').substring(0, 4096), voice: 'alloy' }) }}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          }
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1900,
-        -50
-      ],
-      "id": "0ed70aae-3481-4d06-9bc8-cbdd56fec5ba",
-      "name": "Synthèse Vocale (TTS)",
-      "credentials": {
-        "openAiApi": {
-          "id": "MmpYHYAt746xfTrB",
-          "name": "OpenAi account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "sendAudio",
-        "chatId": "={{ (() => { try { const voix = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(voix) return voix; } catch(e) {} try { const texte = $('Préparer Contexte (Texte)').first()?.json?.chatId; if(texte) return texte; } catch(e) {} try { const fichier = $('Préparer Contexte (Fichier)').first()?.json?.chatId; if(fichier) return fichier; } catch(e) {} try { return $('Telegram Trigger').first().json.message.chat.id; } catch(e) {} return ''; })() }}",
-        "binaryData": true,
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        2500,
-        -150
-      ],
-      "id": "934733ed-6e92-4b84-a70b-ec384a2f3f3f",
-      "name": "Envoyer Réponse Vocale",
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "tts_ok",
-              "leftValue": "={{ $binary && $binary.data ? 'ok' : 'fail' }}",
-              "rightValue": "ok",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        2200,
-        -50
-      ],
-      "id": "49efa61d-6e3a-49bd-b92a-a33ea1f2f7d0",
-      "name": "TTS Réussi ?"
-    },
-    {
-      "parameters": {
-        "chatId": "={{ (() => { try { const voix = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(voix) return voix; } catch(e) {} try { const texte = $('Préparer Contexte (Texte)').first()?.json?.chatId; if(texte) return texte; } catch(e) {} try { const fichier = $('Préparer Contexte (Fichier)').first()?.json?.chatId; if(fichier) return fichier; } catch(e) {} try { return $('Telegram Trigger').first().json.message.chat.id; } catch(e) {} return ''; })() }}",
-        "text": "={{ $json.output || $json.text || 'Désolé, je n\\'ai pas pu traiter votre demande. Réessayez.' }}",
-        "additionalFields": {
-          "parseMode": "None"
-        }
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1900,
-        250
-      ],
-      "id": "5ad592e8-1c33-4da3-9434-73e1a1e2133d",
-      "name": "Réponse Texte",
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "={{ (() => { try { const voix = $('Préparer Contexte (Voix)').first()?.json?.chatId; if(voix) return voix; } catch(e) {} try { const texte = $('Préparer Contexte (Texte)').first()?.json?.chatId; if(texte) return texte; } catch(e) {} try { const fichier = $('Préparer Contexte (Fichier)').first()?.json?.chatId; if(fichier) return fichier; } catch(e) {} try { return $('Telegram Trigger').first().json.message.chat.id; } catch(e) {} return ''; })() }}",
-        "text": "={{ '[Réponse texte] ' + ($('AI Agent').first()?.json?.output || 'Erreur de synthèse vocale.') }}",
-        "additionalFields": {
-          "parseMode": "None"
-        }
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        2500,
-        50
-      ],
-      "id": "613acc09-b17c-4263-bfe0-4adb8b5cd40c",
-      "name": "Fallback Texte (TTS échoué)",
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "has_file",
-              "leftValue": "={{ $json.message?.document || $json.message?.photo ? 'file' : 'text' }}",
-              "rightValue": "file",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        0,
-        300
-      ],
-      "id": "6b492a32-64bd-4f4f-9298-d3fff44f9376",
-      "name": "Vérifier Fichier"
-    },
-    {
-      "parameters": {
-        "resource": "file",
-        "fileId": "={{ $json.message?.document?.file_id || ($json.message?.photo ? $json.message.photo[$json.message.photo.length - 1].file_id : '') }}",
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        300,
-        300
-      ],
-      "id": "c8f1703b-376f-4df4-b193-07f30586da4b",
-      "name": "Récupérer Fichier Document",
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "assignments": [
-          {
-            "id": "msg_text",
-            "name": "messageText",
-            "type": "string",
-            "value": "={{ (() => { const cap = $('Telegram Trigger').first().json.message?.caption || ''; const doc = $('Telegram Trigger').first().json.message?.document; const fname = doc?.file_name || 'photo.jpg'; const content = $json.documentContent || ''; const method = $json.extractionMethod || 'none'; let msg = '[Fichier joint: ' + fname + ']'; if (content && method !== 'none' && !content.startsWith('[')) { msg += '\\n\\n--- CONTENU DU DOCUMENT ---\\n' + content + '\\n--- FIN DU CONTENU ---'; } else if (content) { msg += '\\n' + content; } if (cap) { msg += '\\n\\nMessage de l\\'utilisateur: ' + cap; } else { msg += '\\nL\\'utilisateur a envoyé ce fichier sans message.'; } return msg; })() }}"
-          },
-          {
-            "id": "chat_id",
-            "name": "chatId",
-            "type": "number",
-            "value": "={{ $('Telegram Trigger').first().json.message.chat.id }}"
-          },
-          {
-            "id": "user_id",
-            "name": "userId",
-            "type": "number",
-            "value": "={{ $('Telegram Trigger').first().json.message.from.id }}"
-          },
-          {
-            "id": "is_voice",
-            "name": "isVoice",
-            "type": "boolean",
-            "value": false
-          },
-          {
-            "id": "has_file",
-            "name": "hasFile",
-            "type": "boolean",
-            "value": true
-          },
-          {
-            "id": "file_name",
-            "name": "fileName",
-            "type": "string",
-            "value": "={{ $('Telegram Trigger').first().json.message?.document?.file_name || 'photo.jpg' }}"
-          },
-          {
-            "id": "file_mime",
-            "name": "fileMimeType",
-            "type": "string",
-            "value": "={{ $('Telegram Trigger').first().json.message?.document?.mime_type || 'image/jpeg' }}"
-          },
-          {
-            "id": "doc_content",
-            "name": "documentContent",
-            "type": "string",
-            "value": "={{ $json.documentContent || '' }}"
-          },
-          {
-            "id": "extract_method",
-            "name": "extractionMethod",
-            "type": "string",
-            "value": "={{ $json.extractionMethod || 'none' }}"
-          }
-        ],
-        "options": {
-          "includeBinary": true
-        }
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
-      "position": [
-        900,
-        300
-      ],
-      "id": "c616303b-b650-4c48-85a5-5811af4d7cc7",
-      "name": "Préparer Contexte (Fichier)"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": false,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "has_email_intent",
-              "leftValue": "={{ $('Telegram Trigger').first().json.message?.caption || '' }}",
-              "rightValue": "mail|email|envoyer|forward|@",
-              "operator": {
-                "type": "string",
-                "operation": "regex"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1200,
-        700
-      ],
-      "id": "81c0f17e-7f56-47be-8748-1b3c0421c920",
-      "name": "Vérifier Intent Email"
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const caption = $('Telegram Trigger').first().json.message?.caption || '';\nconst emailRegex = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;\nconst emailMatches = caption.match(emailRegex);\nconst toEmail = emailMatches ? emailMatches[0] : '';\n\nconst doc = $('Telegram Trigger').first().json.message?.document;\nconst fileName = doc?.file_name || 'photo.jpg';\n\n// Récupérer le contenu extrait du document\nconst documentContent = $json.documentContent || '';\nconst extractionMethod = $json.extractionMethod || 'none';\n\n// Récupérer le binary DIRECTEMENT depuis le node source\nconst fileNode = $('Récupérer Fichier Document').first();\nconst binaryData = fileNode.binary || {};\nconst inputBinary = $input.first().binary || {};\nconst finalBinary = Object.keys(binaryData).length > 0 ? binaryData : inputBinary;\n\n// Préparer le prompt pour l'IA qui va composer l'email\nlet aiPrompt = 'Demande de l\\'utilisateur : ' + caption + '\\n\\n';\naiPrompt += 'Fichier joint : ' + fileName + '\\n\\n';\nif (documentContent && extractionMethod !== 'none' && !documentContent.startsWith('[')) {\n  aiPrompt += '--- CONTENU DU DOCUMENT ---\\n' + documentContent.substring(0, 8000) + '\\n--- FIN DU CONTENU ---';\n} else if (documentContent) {\n  aiPrompt += 'Info fichier : ' + documentContent;\n}\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    caption,\n    documentContent,\n    aiPrompt,\n    subject: fileName\n  },\n  binary: finalBinary\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1500,
-        900
-      ],
-      "id": "1a073fe6-4cb1-4a0b-9ce5-c24994f40640",
-      "name": "Extraire Email et Fichier"
-    },
-    {
-      "parameters": {
-        "sendTo": "={{ $json.toEmail }}",
-        "subject": "={{ $json.subject }}",
-        "message": "={{ $json.message }}",
-        "options": {
-          "appendAttribution": false,
-          "attachmentsUi": {
-            "attachmentsBinary": [
-              {
-                "property": "data"
-              }
-            ]
-          }
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        2400,
-        900
-      ],
-      "id": "8224afbb-1acf-4444-ae9a-13cea73cda16",
-      "name": "Gmail Envoyer PJ",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "jzveDrdzJcs9iv7R",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
-        "text": "=✅ Email envoyé avec succès !\n\n📧 Destinataire : {{ $('Préparer Email Final').first().json.toEmail }}\n📎 Pièce jointe : {{ $('Préparer Email Final').first().json.fileName }}\n📋 Objet : {{ $('Préparer Email Final').first().json.subject }}"
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        2700,
-        900
-      ],
-      "id": "197c7bc8-49bf-4160-8712-6cc8d96a9037",
-      "name": "Confirmer Envoi Telegram",
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Sauvegarder le fichier ET son contenu dans le cache statique\nconst staticData = $getWorkflowStaticData('global');\nconst chatId = $json.chatId;\nconst fileName = $json.fileName || '';\nconst fileMime = $json.fileMimeType || '';\nconst docContent = $json.documentContent || '';\nconst extractMethod = $json.extractionMethod || 'none';\n\nif (chatId && fileName) {\n  staticData[`lastFile_${chatId}`] = {\n    fileName,\n    fileMimeType: fileMime,\n    documentContent: docContent.substring(0, 5000),\n    extractionMethod: extractMethod,\n    timestamp: Date.now()\n  };\n}\n\nconst items = $input.all();\nreturn items.map(item => ({\n  json: item.json,\n  binary: item.binary\n}));"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1200,
-        900
-      ],
-      "id": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
-      "name": "Sauvegarder Fichier en Cache"
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Vérifier si un fichier a été envoyé récemment et enrichir avec son contenu\nconst staticData = $getWorkflowStaticData('global');\nconst items = $input.all();\n\nreturn items.map(item => {\n  const chatId = item.json.chatId;\n  const lastFile = staticData[`lastFile_${chatId}`];\n  const newJson = { ...item.json };\n\n  if (lastFile && (Date.now() - lastFile.timestamp) < 300000) {\n    let fileContext = '\\n[Fichier récemment envoyé: ' + lastFile.fileName + ' (' + lastFile.fileMimeType + ')]';\n\n    // Ajouter le contenu extrait si disponible\n    if (lastFile.documentContent && lastFile.extractionMethod !== 'none' && !lastFile.documentContent.startsWith('[')) {\n      fileContext += '\\n\\n--- CONTENU DU DOCUMENT ---\\n' + lastFile.documentContent + '\\n--- FIN DU CONTENU ---';\n    } else if (lastFile.documentContent) {\n      fileContext += '\\n' + lastFile.documentContent;\n    }\n\n    newJson.messageText = (newJson.messageText || '') + fileContext;\n    newJson.hasRecentFile = true;\n    newJson.recentFileName = lastFile.fileName;\n    newJson.recentFileMime = lastFile.fileMimeType;\n  }\n\n  return { json: newJson, binary: item.binary };\n});"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        300,
-        100
-      ],
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef0987654321",
-      "name": "Enrichir Contexte Fichier Récent"
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Extraire le contenu textuel du document envoyé via Telegram\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const binaryObj = item.binary?.data;\n  let documentContent = '';\n  let extractionMethod = 'none';\n\n  if (binaryObj) {\n    const mimeType = binaryObj.mimeType || '';\n    const fileName = binaryObj.fileName || '';\n\n    try {\n      const base64Data = binaryObj.data;\n\n      if (base64Data && typeof base64Data === 'string') {\n        const buffer = Buffer.from(base64Data, 'base64');\n\n        // Fichiers texte : extraction directe UTF-8\n        if (mimeType.startsWith('text/') ||\n            ['application/json', 'application/xml', 'application/csv',\n             'application/javascript', 'application/x-yaml'].includes(mimeType) ||\n            fileName.match(/\\.(txt|csv|json|xml|yaml|yml|md|html|htm|log|ini|cfg|conf|sh|js|ts|py|sql)$/i)) {\n          documentContent = buffer.toString('utf-8').substring(0, 15000);\n          extractionMethod = 'text_direct';\n        }\n        // PDF : extraction des chaînes de texte encodées\n        else if (mimeType === 'application/pdf' || fileName.match(/\\.pdf$/i)) {\n          const raw = buffer.toString('latin1');\n          const textParts = [];\n          // Extraire texte entre parenthèses (opérateurs PDF Tj/TJ)\n          const regex = /\\(([^\\\\)]{0,500}(?:\\\\.[^\\\\)]{0,500})*)\\)/g;\n          let match;\n          while ((match = regex.exec(raw)) !== null) {\n            let text = match[1]\n              .replace(/\\\\n/g, '\\n')\n              .replace(/\\\\r/g, '')\n              .replace(/\\\\\\(/g, '(')\n              .replace(/\\\\\\)/g, ')')\n              .replace(/\\\\(.)/g, '$1');\n            if (text.length > 0 && /[a-zA-Z\\u00C0-\\u00FF0-9]/.test(text)) {\n              textParts.push(text);\n            }\n          }\n          if (textParts.length > 0) {\n            documentContent = textParts.join(' ').replace(/\\s+/g, ' ').trim().substring(0, 15000);\n            extractionMethod = 'pdf_text_extract';\n          }\n          if (!documentContent || documentContent.length < 50) {\n            // Fallback : extraire séquences ASCII lisibles\n            const printable = buffer.toString('utf-8')\n              .replace(/[^\\x20-\\x7E\\u00C0-\\u00FF\\n]/g, ' ')\n              .replace(/\\s{3,}/g, '\\n')\n              .trim()\n              .substring(0, 15000);\n            if (printable.length > 100) {\n              documentContent = printable;\n              extractionMethod = 'pdf_fallback';\n            } else {\n              documentContent = '[Document PDF: ' + fileName + ' - PDF scanné/image, contenu non extractible sans OCR]';\n              extractionMethod = 'pdf_no_text';\n            }\n          }\n        }\n        // DOCX : extraction du texte depuis le XML interne\n        else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileName.match(/\\.docx$/i)) {\n          const raw = buffer.toString('utf-8', 0, Math.min(buffer.length, 500000));\n          const textParts = [];\n          const regex = /<w:t[^>]*>([^<]+)<\\/w:t>/g;\n          let match;\n          while ((match = regex.exec(raw)) !== null) {\n            textParts.push(match[1]);\n          }\n          if (textParts.length > 0) {\n            documentContent = textParts.join(' ').substring(0, 15000);\n            extractionMethod = 'docx_xml_extract';\n          } else {\n            documentContent = '[Document DOCX: ' + fileName + ' - Contenu non extractible]';\n            extractionMethod = 'docx_no_text';\n          }\n        }\n        // XLS/XLSX : indication\n        else if (fileName.match(/\\.xlsx?$/i)) {\n          documentContent = '[Fichier Excel: ' + fileName + ' - Format tableur, extraction limitée]';\n          extractionMethod = 'excel_unsupported';\n        }\n        // Images : pas d OCR disponible\n        else if (mimeType.startsWith('image/')) {\n          documentContent = '[Image: ' + fileName + ' (' + mimeType + ') - Pas d\\'extraction sans OCR]';\n          extractionMethod = 'image_no_ocr';\n        }\n        else {\n          documentContent = '[Document: ' + fileName + ' (' + mimeType + ') - Format non supporté]';\n          extractionMethod = 'unsupported';\n        }\n      } else {\n        // Données binaires stockées en référence (n8n récent)\n        // Tenter via toString si possible\n        documentContent = '[Document: ' + fileName + ' - Données en référence fichier]';\n        extractionMethod = 'file_reference';\n      }\n    } catch (err) {\n      documentContent = '[Erreur extraction: ' + err.message + ']';\n      extractionMethod = 'error';\n    }\n  }\n\n  results.push({\n    json: { ...item.json, documentContent, extractionMethod },\n    binary: item.binary\n  });\n}\n\nreturn results;"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        600,
-        300
-      ],
-      "id": "d1e2f3a4-b5c6-7890-1234-abcdef567890",
-      "name": "Extraire Contenu Document"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n JSON.stringify({\n  model: \"gpt-4.1-mini\",\n  messages: [\n    {\n      role: \"system\",\n      content: \"Tu es un assistant professionnel pour l'entreprise TalosPrimes (cabinet de courtage en assurance et gestion administrative). Tu dois rédiger un email professionnel en français.\\n\\nRègles :\\n- L'email doit être poli, professionnel et bien structuré\\n- Utilise les informations du document joint si elles sont disponibles\\n- Adapte le ton selon le contexte (formel pour clients, semi-formel pour partenaires)\\n- N'inclus PAS de ligne 'Objet:' dans le corps du mail\\n- Commence directement par la formule de politesse (Bonjour, Madame/Monsieur)\\n- Termine par une formule de politesse et la signature 'Cordialement,\\nL'équipe TalosPrimes'\\n- NE METS PAS de signature détaillée — la signature HTML est ajoutée automatiquement après le texte\\n- Si l'utilisateur demande simplement d'envoyer un fichier, rédige un court email d'accompagnement professionnel\\n- Réponds UNIQUEMENT avec le corps de l'email, rien d'autre\"\n    },\n    {\n      role: \"user\",\n      content: $json.aiPrompt\n    }\n  ],\n  temperature: 0.7,\n  max_tokens: 1000\n})\n}}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1800,
-        900
-      ],
-      "id": "e2f3a4b5-c6d7-8901-2345-bcdef6789012",
-      "name": "Composer Email IA",
-      "credentials": {
-        "openAiApi": {
-          "id": "MmpYHYAt746xfTrB",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "// Réponse OpenAI (depuis Composer Email IA = input direct)\nconst aiResponse = $input.all()[0].json;\nlet emailBody = \"Veuillez trouver ci-joint le document demandé.\";\nif (aiResponse.choices && aiResponse.choices[0]) {\n  emailBody = aiResponse.choices[0].message.content;\n}\n\n// Metadata depuis Extraire Email et Fichier\nconst extractData = $(\"Extraire Email et Fichier\").first().json;\nconst toEmail = extractData.toEmail || \"\";\nconst fileName = extractData.fileName || \"document.pdf\";\nconst caption = extractData.caption || \"\";\n\n// Subject = nom du fichier sans extension\nlet subject = fileName;\nconst extMatch = subject.match(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i);\nconst fileExt = extMatch ? extMatch[0].toLowerCase() : \"\";\nif (extMatch) {\n  subject = subject.replace(/\\.(pdf|docx|xlsx|doc|xls|csv|txt)$/i, \"\").trim();\n}\n\n// MimeType mapping\nconst mimeMap = {\n  \".pdf\": \"application/pdf\",\n  \".docx\": \"application/vnd.openxmlformats-officedocument.wordprocessingml.document\",\n  \".xlsx\": \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\",\n  \".doc\": \"application/msword\",\n  \".csv\": \"text/csv\",\n  \".txt\": \"text/plain\"\n};\nconst mimeType = mimeMap[fileExt] || \"application/octet-stream\";\n\n// BINARY : récupérer et normaliser sous la clé \"data\"\nconst sourceItem = $(\"Extraire Email et Fichier\").first();\nconst sourceBinary = sourceItem.binary || {};\nlet finalBinary = {};\n\nconst keys = Object.keys(sourceBinary);\nif (keys.length > 0) {\n  const firstKey = keys[0];\n  const binaryMeta = { ...sourceBinary[firstKey] };\n  binaryMeta.fileName = fileName;\n  if (!binaryMeta.mimeType || binaryMeta.mimeType === \"application/octet-stream\") {\n    binaryMeta.mimeType = mimeType;\n  }\n  finalBinary = { data: binaryMeta };\n} else {\n  // Fallback depuis Récupérer Fichier Document\n  const fileNodeBinary = $(\"Récupérer Fichier Document\").first().binary || {};\n  const fkeys = Object.keys(fileNodeBinary);\n  if (fkeys.length > 0) {\n    const binaryMeta = { ...fileNodeBinary[fkeys[0]] };\n    binaryMeta.fileName = fileName;\n    if (!binaryMeta.mimeType || binaryMeta.mimeType === \"application/octet-stream\") {\n      binaryMeta.mimeType = mimeType;\n    }\n    finalBinary = { data: binaryMeta };\n  }\n}\n\n// Convertir le message en HTML professionnel\nconst paragraphs = emailBody.split(\"\\n\\n\");\nconst htmlParagraphs = paragraphs.map(p => {\n  const escaped = p.replace(/\\n/g, \"<br>\");\n  return '<p style=\"margin:0 0 14px 0;line-height:1.6;font-size:14px;\">' + escaped + \"</p>\";\n}).join(\"\");\n\nconst htmlMessage = '<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;\">'\n  + '<div style=\"padding:0 0 20px 0;\">' + htmlParagraphs + \"</div>\"\n  + '<div style=\"border-top:2px solid #1a73e8;padding-top:16px;margin-top:8px;\">'\n  + '<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>'\n  + '<td style=\"vertical-align:top;\">'\n  + '<div style=\"font-weight:700;color:#1a73e8;font-size:14px;\">TalosPrimes</div>'\n  + '<div style=\"font-size:12px;color:#666;margin-top:2px;\">Cabinet de courtage en assurance &amp; gestion administrative</div>'\n  + '<div style=\"font-size:12px;color:#666;margin-top:4px;\">📧 direction@talosprimes.com</div>'\n  + '<div style=\"font-size:11px;color:#999;margin-top:4px;\"><a href=\"https://talosprimes.com\" style=\"color:#1a73e8;text-decoration:none;\">talosprimes.com</a></div>'\n  + \"</td></tr></table></div></div>\";\n\nreturn [{\n  json: {\n    toEmail,\n    fileName,\n    subject,\n    message: htmlMessage,\n    caption\n  },\n  binary: finalBinary\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2100,
-        900
-      ],
-      "id": "f3a4b5c6-code-email-final-002",
-      "name": "Préparer Email Final"
-    },
-    {
-      "id": "96421625e77d417c8fb2",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        0,
-        1400
-      ],
-      "name": "lister_leads",
-      "parameters": {
-        "toolDescription": "Liste TOUS les leads (prospects) du système. Aucun paramètre requis.\nRetourne un tableau JSON avec : id (UUID), nom, prenom, email, telephone, statut, source, created_at.\nUTILISE cet outil quand l'utilisateur demande : \"liste mes leads\", \"montre les prospects\", \"combien de leads\".\nIMPORTANT : Utilise cet outil AVANT de créer un devis/facture pour un lead, afin de récupérer son ID.",
-        "url": "https://api.talosprimes.com/api/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "e700fd124d3045e982be",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        300,
-        1400
-      ],
-      "name": "rechercher_leads",
-      "parameters": {
-        "toolDescription": "RECHERCHER DES LEADS par nom, email ou téléphone. Le paramètre 'search' accepte un mot simple. Retourne une liste de leads avec leur UUID.",
-        "url": "https://api.talosprimes.com/api/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "search",
-              "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les leads par nom, prénom, email ou téléphone\") }}"
-            }
-          ]
-        }
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "9b48843269a34615a0a8",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        600,
-        1400
-      ],
-      "name": "obtenir_lead",
-      "parameters": {
-        "toolDescription": "Récupère les détails complets d'UN SEUL lead par son UUID.\nParamètre de requête 'id' OBLIGATOIRE : l'UUID du lead.\nUTILISE APRÈS lister_leads ou rechercher_leads quand tu as récupéré l'UUID.",
-        "url": "https://api.talosprimes.com/api/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ $fromAI(\"leadId\", \"UUID du lead à récupérer\") }}"
-            }
-          ]
-        }
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "db45e26dcd274e4ab68e",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        900,
-        1400
-      ],
-      "name": "creer_lead",
-      "parameters": {
-        "toolDescription": "Crée un nouveau lead (prospect). POST avec body JSON.\nChamps obligatoires : nom (string), email (string)\nChamps optionnels : prenom, telephone, source (ex: \"site_web\", \"telephone\", \"recommandation\"), notes\nIMPORTANT : TOUJOURS chercher d'abord si le lead existe déjà avec rechercher_leads avant de créer.\nExemple body: {\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\",\"telephone\":\"0612345678\",\"source\":\"telephone\"}",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    nom: $fromAI(\"nom\", \"Nom de famille du lead\"),\n    prenom: $fromAI(\"prenom\", \"Prénom du lead (vide si non fourni)\"),\n    email: $fromAI(\"email\", \"Adresse email du lead\"),\n    telephone: $fromAI(\"telephone\", \"Numéro de téléphone du lead (vide si non fourni)\"),\n    source: $fromAI(\"source\", \"Source du lead: site_web, telephone, recommandation, reseaux_sociaux, terrain (vide si non précisé)\"),\n    notes: $fromAI(\"notes\", \"Notes additionnelles sur le lead (vide si non précisé)\")\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "233b0bb236374285bb22",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        1200,
-        1400
-      ],
-      "name": "modifier_statut_lead",
-      "parameters": {
-        "toolDescription": "Change le statut d'un lead. PATCH avec paramètre query 'id' (UUID du lead).\nBody JSON avec le nouveau statut. Valeurs possibles : nouveau, contacte, qualifie, converti, perdu.\nExemple body: {\"statut\":\"qualifie\"}",
-        "method": "PATCH",
-        "url": "https://api.talosprimes.com/api/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ $fromAI(\"leadId\", \"UUID du lead dont on veut changer le statut\") }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    statut: $fromAI(\"statut\", \"Nouveau statut OBLIGATOIRE. Une seule valeur parmi: nouveau, contacte, qualifie, converti, perdu\")\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "b8dce97099ec47a98f9c",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        1500,
-        1400
-      ],
-      "name": "supprimer_lead",
-      "parameters": {
-        "toolDescription": "Supprime un lead par son UUID. ATTENTION : TOUJOURS demander confirmation à l'utilisateur AVANT de supprimer.\nParamètre query 'id' obligatoire : UUID du lead.",
-        "method": "DELETE",
-        "url": "https://api.talosprimes.com/api/leads",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ $fromAI(\"leadId\", \"UUID du lead à supprimer\") }}"
-            }
-          ]
-        }
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "6f5b73f22f854360965a",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        2000,
-        1400
-      ],
-      "name": "lister_clients",
-      "parameters": {
-        "toolDescription": "Liste TOUS les clients de l'entreprise. Aucun paramètre requis.\nRetourne : id (UUID), nom, prenom, email, telephone, raisonSociale, type (b2b/b2c).\nUTILISE cet outil quand l'utilisateur demande : \"liste mes clients\", \"montre les clients\", ou AVANT de créer un document commercial (devis, facture, BDC) pour trouver le clientFinalId.\nCRITIQUE : Tu DOIS utiliser cet outil ou rechercher_clients AVANT toute création de devis/facture/BDC.",
-        "url": "https://api.talosprimes.com/api/clients",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "d1d2ddb3cdb844509f1b",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        2300,
-        1400
-      ],
-      "name": "rechercher_clients",
-      "parameters": {
-        "toolDescription": "RECHERCHER DES CLIENTS par nom, email ou raison sociale. UTILISE CET OUTIL EN PREMIER avant de créer un devis, une facture ou un bon de commande. Le paramètre 'search' accepte un mot simple (ex: 'roussie' pour trouver 'Alexandre Roussie'). Retourne une liste de clients avec leur UUID (champ 'id') nécessaire pour les autres outils.",
-        "url": "https://api.talosprimes.com/api/clients",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "search",
-              "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les clients par nom, email ou raison sociale\") }}"
-            }
-          ]
-        }
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "0957ef27c84440ebb913",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        2600,
-        1400
-      ],
-      "name": "obtenir_client",
-      "parameters": {
-        "toolDescription": "Récupère les détails complets d'UN SEUL client par son UUID.\nParamètre query 'id' OBLIGATOIRE : UUID du client.\nUtilise APRÈS avoir trouvé l'UUID via lister_clients ou rechercher_clients.",
-        "url": "https://api.talosprimes.com/api/clients",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ $fromAI(\"clientId\", \"UUID du client à récupérer\") }}"
-            }
-          ]
-        }
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "279779f9e8d04205acb0",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        2900,
-        1400
-      ],
-      "name": "creer_client",
-      "parameters": {
-        "toolDescription": "Crée un nouveau client. POST avec body JSON.\nChamps obligatoires : type (\"b2b\" ou \"b2c\"), email\nChamps optionnels : nom, prenom, raisonSociale (requis si B2B), telephone, adresse\nIMPORTANT : Chercher d'abord si le client existe avec rechercher_clients.\nExemple B2B: {\"type\":\"b2b\",\"raisonSociale\":\"Entreprise SAS\",\"email\":\"contact@entreprise.com\",\"telephone\":\"0612345678\"}\nExemple B2C: {\"type\":\"b2c\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\"}",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/clients",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    type: $fromAI(\"clientType\", \"Type de client OBLIGATOIRE: b2b ou b2c (en minuscules)\"),\n    email: $fromAI(\"email\", \"Email du client OBLIGATOIRE\"),\n    nom: $fromAI(\"nom\", \"Nom du client (pour B2C surtout, vide si non fourni)\"),\n    prenom: $fromAI(\"prenom\", \"Prénom du client (vide si non fourni)\"),\n    raisonSociale: $fromAI(\"raisonSociale\", \"Raison sociale (REQUIS pour B2B, vide pour B2C)\"),\n    telephone: $fromAI(\"telephone\", \"Numéro de téléphone (vide si non fourni)\"),\n    adresse: $fromAI(\"adresse\", \"Adresse postale (vide si non fourni)\")\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "9973def6b56a47898e31",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        3200,
-        1400
-      ],
-      "name": "modifier_client",
-      "parameters": {
-        "toolDescription": "Modifie un client existant. PATCH avec paramètre query 'id' (UUID du client).\nBody JSON avec UNIQUEMENT les champs à modifier (update partiel).\nExemple: {\"telephone\":\"0698765432\",\"adresse\":\"12 rue de Paris\"}",
-        "method": "PATCH",
-        "url": "https://api.talosprimes.com/api/clients",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ $fromAI(\"clientId\", \"UUID du client à modifier\") }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    nom: $fromAI(\"nom\", \"Nouveau nom (vide si inchangé)\"),\n    prenom: $fromAI(\"prenom\", \"Nouveau prénom (vide si inchangé)\"),\n    email: $fromAI(\"email\", \"Nouvel email (vide si inchangé)\"),\n    telephone: $fromAI(\"telephone\", \"Nouveau téléphone (vide si inchangé)\"),\n    raisonSociale: $fromAI(\"raisonSociale\", \"Nouvelle raison sociale (vide si inchangé)\"),\n    adresse: $fromAI(\"adresse\", \"Nouvelle adresse (vide si inchangé)\")\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "3d72a5e2a310425985e4",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        3500,
-        1400
-      ],
-      "name": "supprimer_client",
-      "parameters": {
-        "toolDescription": "Supprime un client. ATTENTION : TOUJOURS demander confirmation. Paramètre query 'id' obligatoire.",
-        "method": "DELETE",
-        "url": "https://api.talosprimes.com/api/clients",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "id",
-              "value": "={{ $fromAI(\"clientId\", \"UUID du client à supprimer\") }}"
-            }
-          ]
-        }
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "86e5b6053d0c43ba9eb8",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        0,
-        1900
-      ],
-      "name": "lister_devis",
-      "parameters": {
-        "toolDescription": "Liste TOUS les devis existants. Aucun paramètre requis.\nRetourne : id (UUID), numero (ex: DEV-0001), clientFinalId, montantHt, montantTtc, statut (brouillon/envoyee/acceptee/refusee/facturee).\nUTILISE quand l'utilisateur demande la liste des devis ou cherche un devis par numéro.",
-        "url": "https://api.talosprimes.com/api/devis",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "2dea07dea6c241cba3b0",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        300,
-        1900
-      ],
-      "name": "obtenir_devis",
-      "parameters": {
-        "toolDescription": "Récupère un devis spécifique avec ses lignes par son UUID.\nL'UUID du devis est passé directement dans l'URL.\nUTILISE après avoir trouvé l'UUID via lister_devis.",
-        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à récupérer\") }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": false
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "12526d8158e346ccb294",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        900,
-        1900
-      ],
-      "name": "envoyer_devis",
-      "parameters": {
-        "toolDescription": "Envoie un devis au client (brouillon → envoyée). L'UUID du devis est dans l'URL.\nUTILISE après avoir créé ou listé un devis dont le statut est \"brouillon\".",
-        "method": "PUT",
-        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à envoyer\") }}/send",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "c5dd91a4fc19436790fb",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        1200,
-        1900
-      ],
-      "name": "accepter_devis",
-      "parameters": {
-        "toolDescription": "Accepte un devis (envoyée → acceptée). L'UUID du devis est dans l'URL.\nUTILISE quand l'utilisateur dit qu'un client a accepté un devis.",
-        "method": "PUT",
-        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à accepter\") }}/accept",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "554f7e22a74a48e08a8a",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        1500,
-        1900
-      ],
-      "name": "devis_vers_facture",
-      "parameters": {
-        "toolDescription": "Convertit un devis accepté en facture. POST. L'UUID du devis est dans l'URL.\nLe devis DOIT être en statut \"acceptée\" pour être converti.\nUTILISE quand l'utilisateur demande de transformer un devis en facture.",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à convertir en facture\") }}/convert-to-invoice",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "0e1e156076ef407aa1c7",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        0,
-        2200
-      ],
-      "name": "lister_factures",
-      "parameters": {
-        "toolDescription": "Liste TOUTES les factures. Aucun paramètre requis.\nRetourne : id, numero (FAC-XXXX), clientFinalId, montantHt, montantTtc, statut (brouillon/envoyee/payee).",
-        "url": "https://api.talosprimes.com/api/invoices",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "be31cda90e264895aa0f",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        300,
-        2200
-      ],
-      "name": "obtenir_facture",
-      "parameters": {
-        "toolDescription": "Récupère une facture spécifique avec ses lignes par son UUID dans l'URL.",
-        "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à récupérer\") }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendQuery": false
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "2b47559fd3e543d1ba8f",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        900,
-        2200
-      ],
-      "name": "envoyer_facture",
-      "parameters": {
-        "toolDescription": "Envoie une facture au client par email. POST. L'UUID de la facture est dans l'URL.",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à envoyer\") }}/send",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "cb2512440b1d49b79f1c",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        1200,
-        2200
-      ],
-      "name": "facture_payee",
-      "parameters": {
-        "toolDescription": "Marque une facture comme payée. POST. L'UUID de la facture est dans l'URL.\nUTILISE quand l'utilisateur indique qu'un paiement a été reçu.",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à marquer payée\") }}/mark-paid",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "e8f93a9a7b3f46d194b2",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        0,
-        2500
-      ],
-      "name": "lister_bons_commande",
-      "parameters": {
-        "toolDescription": "Liste TOUS les bons de commande. Retourne : id, numero (BDC-XXXX), client, montants, statut.",
-        "url": "https://api.talosprimes.com/api/bons-commande",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "f960e04538b94b1bbc1b",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        600,
-        2500
-      ],
-      "name": "valider_bon_commande",
-      "parameters": {
-        "toolDescription": "Valide un bon de commande (brouillon → validé). PUT. UUID du BDC dans l'URL.",
-        "method": "PUT",
-        "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à valider\") }}/validate",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "a7f6fe4589b3472ca5b8",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        900,
-        2500
-      ],
-      "name": "bdc_vers_facture",
-      "parameters": {
-        "toolDescription": "Convertit un BDC validé en facture. POST. UUID du BDC dans l'URL.",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à convertir\") }}/convert-to-invoice",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "56abb85c6a03404ebdaf",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        0,
-        3000
-      ],
-      "name": "lister_articles",
-      "parameters": {
-        "toolDescription": "LISTER TOUS LES ARTICLES du catalogue. Appelle cet outil pour trouver un article par son code ou sa désignation. Chaque article a: id, code, designation, prixUnitaireHt, tvaTaux, unite. UTILISE CET OUTIL avant de créer un devis pour connaître les prix et codes articles.",
-        "url": "https://api.talosprimes.com/api/article-codes",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "515630fb699641ec86a6",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        300,
-        3000
-      ],
-      "name": "creer_article",
-      "parameters": {
-        "toolDescription": "Crée un nouveau code article dans le catalogue. POST avec body JSON.\nChamps obligatoires : code (string unique), designation (string), prixUnitaireHt (nombre), tvaTaux (nombre, ex: 20), unite (string, ex: \"unité\", \"heure\", \"forfait\")\nExemple: {\"code\":\"AUDIT-01\",\"designation\":\"Audit initial\",\"prixUnitaireHt\":500,\"tvaTaux\":20,\"unite\":\"forfait\"}",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/article-codes",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    code: $fromAI(\"code\", \"Code article unique en MAJUSCULES (ex: AUDIT-01, PACK-BIZ)\"),\n    designation: $fromAI(\"designation\", \"Description/nom de l'article\"),\n    prixUnitaireHt: Number($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT en euros (nombre, ex: 500)\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage (nombre, ex: 20)\")) || 0,\n    unite: $fromAI(\"unite\", \"Unité de mesure: unité, heure, jour, forfait, mois\")\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "09d4b119b83d441989f6",
-      "type": "n8n-nodes-base.gmailTool",
-      "typeVersion": 2.2,
-      "position": [
-        800,
-        3000
-      ],
-      "name": "lire_emails",
-      "parameters": {
-        "operation": "getAll",
-        "filters": {}
-      },
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "jzveDrdzJcs9iv7R",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "id": "1a13dcc6086645bcb827",
-      "type": "n8n-nodes-base.gmailTool",
-      "typeVersion": 2.2,
-      "position": [
-        1100,
-        3000
-      ],
-      "name": "envoyer_email",
-      "parameters": {
-        "sendTo": "={{ $fromAI('To', 'Adresse email du destinataire', 'string') }}",
-        "subject": "={{ $fromAI('Subject', 'Objet de email', 'string') }}",
-        "message": "={{ $fromAI('Message', 'Corps de email en texte ou HTML', 'string') }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "jzveDrdzJcs9iv7R",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "id": "9e960fe6e2154cbbbd09",
-      "type": "n8n-nodes-base.gmailTool",
-      "typeVersion": 2.2,
-      "position": [
-        1400,
-        3000
-      ],
-      "name": "supprimer_email",
-      "parameters": {
-        "operation": "delete",
-        "messageId": "={{ $fromAI('Message_ID', 'ID du message Gmail à supprimer', 'string') }}"
-      },
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "jzveDrdzJcs9iv7R",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "id": "39fc159c1f0a4d9a8e9e",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        1700,
-        3000
-      ],
-      "name": "envoyer_notification",
-      "parameters": {
-        "toolDescription": "Envoie un email de notification. POST avec body JSON.\nBody requis : {\"from\":\"TalosPrimes <noreply@talosprimes.com>\",\"to\":\"destinataire@email.com\",\"subject\":\"Objet\",\"html\":\"<p>Contenu HTML</p>\"}",
-        "method": "POST",
-        "url": "https://api.talosprimes.com/api/notifications",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    from: $fromAI(\"fromEmail\", \"Expéditeur: TalosPrimes <noreply@talosprimes.com>\"),\n    to: $fromAI(\"toEmail\", \"Email du destinataire\"),\n    subject: $fromAI(\"subject\", \"Objet de l'email\"),\n    html: $fromAI(\"htmlContent\", \"Contenu HTML de l'email. Utilise des balises <p>, <h2>, <strong>.\")\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "177fb4483ca04146bc33",
-      "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.3,
-      "position": [
-        2200,
-        3000
-      ],
-      "name": "creer_evenement",
-      "parameters": {
-        "calendar": {
-          "__rl": true,
-          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
-          "mode": "list",
-          "cachedResultName": "TalosPrimes"
-        },
-        "start": "={{ $fromAI('Start', 'Date et heure de début au format ISO 8601', 'string') }}",
-        "end": "={{ $fromAI('End', 'Date et heure de fin au format ISO 8601', 'string') }}",
-        "additionalFields": {
-          "summary": "={{ $fromAI('Summary', 'Titre de événement', 'string') }}",
-          "description": "={{ $fromAI('Description', 'Description optionnelle', 'string') }}"
-        }
-      },
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "1098OxGMJM5eG3PU",
-          "name": "Google Calendar account"
-        }
-      }
-    },
-    {
-      "id": "bd1ad94ba66940728ee6",
-      "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.3,
-      "position": [
-        2500,
-        3000
-      ],
-      "name": "lister_evenements",
-      "parameters": {
-        "operation": "getAll",
-        "calendar": {
-          "__rl": true,
-          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
-          "mode": "list",
-          "cachedResultName": "TalosPrimes"
-        },
-        "returnAll": true,
-        "timeMin": "={{ $fromAI('After', 'Date de début de la plage au format ISO 8601', 'string') }}",
-        "timeMax": "={{ $fromAI('Before', 'Date de fin de la plage au format ISO 8601', 'string') }}",
-        "options": {}
-      },
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "1098OxGMJM5eG3PU",
-          "name": "Google Calendar account"
-        }
-      }
-    },
-    {
-      "id": "3d8e989332b344528315",
-      "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.3,
-      "position": [
-        2800,
-        3000
-      ],
-      "name": "modifier_evenement",
-      "parameters": {
-        "operation": "update",
-        "calendar": {
-          "__rl": true,
-          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
-          "mode": "list",
-          "cachedResultName": "TalosPrimes"
-        },
-        "eventId": "={{ $fromAI('Event_ID', 'ID de événement à modifier', 'string') }}",
-        "updateFields": {
-          "location": "={{ $fromAI('Location', 'Nouveau lieu ou lien visio', 'string') }}",
-          "summary": "={{ $fromAI('Summary', 'Nouveau titre', 'string') }}"
-        }
-      },
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "1098OxGMJM5eG3PU",
-          "name": "Google Calendar account"
-        }
-      }
-    },
-    {
-      "id": "e15d5d23837d4e3b8063",
-      "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.3,
-      "position": [
-        3100,
-        3000
-      ],
-      "name": "supprimer_evenement",
-      "parameters": {
-        "operation": "delete",
-        "calendar": {
-          "__rl": true,
-          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com",
-          "mode": "list",
-          "cachedResultName": "TalosPrimes"
-        },
-        "eventId": "={{ $fromAI('Event_ID', 'ID de événement à supprimer', 'string') }}",
-        "options": {}
-      },
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "1098OxGMJM5eG3PU",
-          "name": "Google Calendar account"
-        }
-      }
-    },
-    {
-      "id": "02b3cd09b26d4b6bb1c1",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        3600,
-        3000
-      ],
-      "name": "qonto_solde",
-      "parameters": {
-        "name": "qonto_solde",
-        "description": "Consulter le solde actuel du compte bancaire Qonto. Utilise cet outil quand l'utilisateur demande le solde, la trésorerie, combien il y a sur le compte, etc.",
-        "method": "GET",
-        "url": "https://api.talosprimes.com/api/qonto/balance",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": []
-        },
-        "sendQuery": false,
-        "sendBody": false,
-        "options": {},
-        "toolDescription": "Consulte le solde actuel du compte bancaire Qonto. GET sans paramètres.\nRetourne le solde disponible en euros."
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "afe695b9649543d1a1cb",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.3,
-      "position": [
-        3900,
-        3000
-      ],
-      "name": "qonto_transactions",
-      "parameters": {
-        "name": "qonto_transactions",
-        "description": "Lister les dernières transactions bancaires Qonto. Utilise cet outil quand l'utilisateur demande les derniers mouvements, les virements récents, les dépenses, les entrées/sorties d'argent.",
-        "method": "GET",
-        "url": "https://api.talosprimes.com/api/qonto/transactions",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": []
-        },
-        "sendQuery": false,
-        "sendBody": false,
-        "options": {},
-        "toolDescription": "Liste les dernières transactions bancaires Qonto. GET sans paramètres.\nRetourne les transactions récentes avec montant, date, libellé."
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
-      }
-    },
-    {
-      "id": "s700",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -880,
-        -280
-      ],
-      "name": "📥 Entrée Telegram",
-      "parameters": {
-        "content": "## 📥 Entrée Telegram\nRéception : voix → Whisper, texte, fichiers.\nNormalisé et envoyé à l'Agent IA.",
-        "width": 2200,
-        "height": 720,
-        "color": 4
-      }
-    },
-    {
-      "id": "s701",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1120,
-        -80
-      ],
-      "name": "🧠 Agent IA Principal",
-      "parameters": {
-        "content": "## 🧠 Agent IA TalosPrimes\nAgent unique avec 39 outils directs.\nGPT-4o · Température 0.1 · Mémoire 30 msg",
-        "width": 500,
-        "height": 640,
-        "color": 5
-      }
-    },
-    {
-      "id": "s702",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1520,
-        -230
-      ],
-      "name": "📤 Réponse",
-      "parameters": {
-        "content": "## 📤 Réponse Telegram\nVocale (TTS) ou texte + fallback",
-        "width": 1100,
-        "height": 540,
-        "color": 3
-      }
-    },
-    {
-      "id": "s703",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        1120,
+        700,
         620
       ],
-      "name": "📎 Email + PJ",
       "parameters": {
-        "content": "## 📎 Envoi Email avec Pièce Jointe",
-        "width": 1700,
-        "height": 400,
-        "color": 1
+        "sessionKey": "={{ $(\"Telegram Trigger\").item.json.message.chat.id }}",
+        "contextWindowLength": 20
       }
     },
     {
-      "id": "s704",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_006",
+      "name": "rechercher_clients",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        -80,
-        1240
+        200,
+        800
       ],
-      "name": "👤 Leads",
       "parameters": {
-        "content": "## 👤 Gestion des Leads\n6 outils : lister · rechercher · obtenir · créer · modifier statut · supprimer",
-        "width": 1700,
-        "height": 300,
-        "color": 2
+        "toolDescription": "RECHERCHER DES CLIENTS par nom, email ou raison sociale. Retourne une liste avec id, nom, prenom, email, type. Le résultat contient le champ \"id\" (UUID) nécessaire pour créer devis/factures.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/clients_list",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { search: $fromAI(\"search\", \"Mot-clé: nom de famille, email ou raison sociale\") } }) }}"
       }
     },
     {
-      "id": "s705",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_007",
+      "name": "obtenir_client",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        1920,
-        1240
+        400,
+        800
       ],
-      "name": "🏢 Clients",
       "parameters": {
-        "content": "## 🏢 Gestion des Clients\n6 outils : lister · rechercher · obtenir · créer · modifier · supprimer",
-        "width": 1700,
-        "height": 300,
-        "color": 2
+        "toolDescription": "Obtenir les détails complets d un client par son UUID.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/client_get",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"clientId\", \"UUID du client\") } }) }}"
       }
     },
     {
-      "id": "s706",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_008",
+      "name": "creer_client",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        -80,
-        1740
+        600,
+        800
       ],
-      "name": "📄 Devis",
       "parameters": {
-        "content": "## 📄 Devis (PostgreSQL)\n6 outils : lister · obtenir · créer (PG) · envoyer · accepter · → facture",
-        "width": 1700,
-        "height": 280,
-        "color": 6
+        "toolDescription": "Créer un nouveau client. Champs: type (b2b ou b2c), email, nom, prenom, raisonSociale (si B2B), telephone.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/client_create",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { type: $fromAI(\"clientType\",\"b2b ou b2c\"), email: $fromAI(\"email\",\"Email\"), nom: $fromAI(\"nom\",\"Nom\"), prenom: $fromAI(\"prenom\",\"Prénom ou vide\"), raisonSociale: $fromAI(\"raisonSociale\",\"Raison sociale si B2B ou vide\"), telephone: $fromAI(\"telephone\",\"Téléphone ou vide\") } }) }}"
       }
     },
     {
-      "id": "s707",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_009",
+      "name": "lister_leads",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        -80,
-        2040
+        200,
+        1000
       ],
-      "name": "🧾 Factures",
       "parameters": {
-        "content": "## 🧾 Factures (PostgreSQL)\n5 outils : lister · obtenir · créer (PG) · envoyer · marquer payée",
-        "width": 1400,
-        "height": 280,
-        "color": 6
+        "toolDescription": "Lister tous les leads/prospects.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/leads_list",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
       }
     },
     {
-      "id": "s708",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_010",
+      "name": "obtenir_lead",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        -80,
-        2340
+        400,
+        1000
       ],
-      "name": "📋 Bons de Commande",
       "parameters": {
-        "content": "## 📋 Bons de Commande (PostgreSQL)\n4 outils : lister · créer (PG) · valider · → facture",
-        "width": 1100,
-        "height": 280,
-        "color": 6
+        "toolDescription": "Obtenir les détails d un lead par son UUID.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/lead_get",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"leadId\",\"UUID du lead\") } }) }}"
       }
     },
     {
-      "id": "s709",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_011",
+      "name": "creer_lead",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        -80,
-        2840
+        600,
+        1000
       ],
-      "name": "📦 Articles",
       "parameters": {
-        "content": "## 📦 Catalogue Articles\n2 outils : lister · créer",
-        "width": 500,
-        "height": 300,
-        "color": 2
+        "toolDescription": "Créer un nouveau lead. Champs: nom, email, prenom, telephone, source, notes.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/lead_create",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { nom: $fromAI(\"nom\",\"Nom\"), email: $fromAI(\"email\",\"Email\"), prenom: $fromAI(\"prenom\",\"Prénom ou vide\"), telephone: $fromAI(\"telephone\",\"Téléphone ou vide\"), source: $fromAI(\"source\",\"Source: site_web, telephone, recommandation ou vide\"), notes: $fromAI(\"notes\",\"Notes ou vide\") } }) }}"
       }
     },
     {
-      "id": "s710",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_012",
+      "name": "modifier_statut_lead",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        720,
-        2840
+        800,
+        1000
       ],
-      "name": "✉️ Gmail",
       "parameters": {
-        "content": "## ✉️ Gmail\n4 outils : lire · envoyer · supprimer · notification",
-        "width": 1100,
-        "height": 300,
-        "color": 4
+        "toolDescription": "Modifier le statut d un lead. Statuts: nouveau, contacte, converti, abandonne.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/lead_update_status",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"leadId\",\"UUID du lead\"), statut: $fromAI(\"statut\",\"Nouveau statut: nouveau, contacte, converti, abandonne\") } }) }}"
       }
     },
     {
-      "id": "s711",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_013",
+      "name": "lister_articles",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        2120,
-        2840
+        200,
+        1200
       ],
-      "name": "📅 Calendar",
       "parameters": {
-        "content": "## 📅 Google Calendar\n4 outils : créer · lister · modifier · supprimer\nCalendrier : TalosPrimes · Fuseau : Europe/Paris",
-        "width": 1100,
-        "height": 300,
-        "color": 3
+        "toolDescription": "LISTER TOUS LES ARTICLES du catalogue. Retourne: code, designation, prix_unitaire_ht, tva_taux, unite. UTILISE CET OUTIL pour trouver un article par son code.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/article-codes-list",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
       }
     },
     {
-      "id": "s712",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "v3_014",
+      "name": "lister_devis",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        3520,
-        2840
+        400,
+        1200
       ],
-      "name": "💰 Finance",
       "parameters": {
-        "content": "## 💰 Finance (Qonto)\n2 outils : solde · transactions (lecture seule)",
-        "width": 500,
-        "height": 300,
-        "color": 1
+        "toolDescription": "Lister tous les devis.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/devis-list",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
       }
     },
     {
-      "id": "pg_503",
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
+      "id": "v3_015",
+      "name": "obtenir_devis",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
       "position": [
-        640,
-        1480
+        600,
+        1200
       ],
-      "name": "pg_schema",
       "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $fromAI(\"query\", \"Requête SQL pour explorer le schéma. Exemples: SELECT table_name FROM information_schema.tables WHERE table_schema='public'; ou SELECT column_name, data_type FROM information_schema.columns WHERE table_name='devis';\") }}",
-        "toolDescription": "Explorer le schéma de la base PostgreSQL. Utilise TOUJOURS cet outil en premier pour découvrir les tables et colonnes avant de créer un devis, facture ou bon de commande. Exemples : SELECT table_name FROM information_schema.tables WHERE table_schema='public'; ou SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name='NOM_TABLE' ORDER BY ordinal_position;"
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase account"
-        }
+        "toolDescription": "Obtenir les détails d un devis par son UUID.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/devis-get",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis\") } }) }}"
       }
     },
     {
-      "id": "pg_504",
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [
-        840,
-        1480
-      ],
-      "name": "pg_sql",
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $fromAI(\"query\", \"Requête SQL complète à exécuter\") }}",
-        "toolDescription": "Exécuter une requête SQL (SELECT, INSERT, UPDATE, DELETE) sur la base PostgreSQL. Utilise pg_schema AVANT pour connaître la structure exacte des tables. Pour créer un devis/facture/bon de commande : fais d'abord un SELECT des colonnes avec pg_schema, puis construis l'INSERT avec les bonnes colonnes."
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
-      "id": "fix_cd_001",
+      "id": "v3_016",
       "name": "creer_devis",
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        640,
-        1480
+        800,
+        1200
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN DEVIS. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour obtenir les prix). Le champ 'lines' est un tableau JSON de lignes avec designation, quantite, prixUnitaireHt. Le montantHt = somme des (quantite × prixUnitaireHt).",
+        "toolDescription": "CRÉER UN DEVIS. AVANT: 1) rechercher_clients pour obtenir l id client, 2) lister_articles pour les prix. Le montantHt = somme des (quantite × prixUnitaireHt).",
         "method": "POST",
-        "url": "https://api.talosprimes.com/api/devis",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://n8n.talosprimes.com/webhook/devis-created",
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    description: $fromAI(\"devisDescription\", \"Description courte du devis, ex: Devis audit comptable\"),\n    modePaiement: $fromAI(\"modePaiement\", \"Mode de paiement: virement ou cheque ou cb ou prelevement. Par defaut virement.\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"devisLines\", 'Tableau JSON des lignes du devis. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\\\"designation\\\\\":\\\\\"Audit comptable\\\\\",\\\\\"quantite\\\\\":1,\\\\\"prixUnitaireHt\\\\\":1500}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre). Si un codeArticle est connu, ajouter codeArticle.')); } catch(e) { return []; } })()\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client obtenu via rechercher_clients\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, description: $fromAI(\"devisDescription\",\"Description courte du devis\"), modePaiement: $fromAI(\"modePaiement\",\"virement, cheque, cb. Defaut: virement\"), lines: JSON.parse($fromAI(\"devisLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]')) }) }}"
       }
     },
     {
-      "id": "fix_cf_001",
+      "id": "v3_017",
+      "name": "envoyer_devis",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        200,
+        1400
+      ],
+      "parameters": {
+        "toolDescription": "Envoyer un devis par email au client.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/devis-sent",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à envoyer\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_018",
+      "name": "accepter_devis",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        400,
+        1400
+      ],
+      "parameters": {
+        "toolDescription": "Marquer un devis comme accepté.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/devis-accepted",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à accepter\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_019",
+      "name": "devis_vers_facture",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        600,
+        1400
+      ],
+      "parameters": {
+        "toolDescription": "Convertir un devis accepté en facture.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/devis-convert-to-invoice",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à convertir\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_020",
+      "name": "devis_vers_bdc",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        1400
+      ],
+      "parameters": {
+        "toolDescription": "Convertir un devis en bon de commande.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/devis-convert-to-bdc",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"devisId\",\"UUID du devis à convertir\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_021",
+      "name": "lister_factures",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        200,
+        1600
+      ],
+      "parameters": {
+        "toolDescription": "Lister toutes les factures.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/invoices-list",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
+      }
+    },
+    {
+      "id": "v3_022",
+      "name": "obtenir_facture",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        400,
+        1600
+      ],
+      "parameters": {
+        "toolDescription": "Obtenir les détails d une facture par son UUID.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/invoice-get",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_023",
       "name": "creer_facture",
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        840,
-        1480
+        600,
+        1600
       ],
       "parameters": {
-        "toolDescription": "CRÉER UNE FACTURE. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour obtenir les prix). Le champ 'lines' est un tableau JSON de lignes.",
+        "toolDescription": "CRÉER UNE FACTURE. AVANT: rechercher_clients + lister_articles.",
         "method": "POST",
-        "url": "https://api.talosprimes.com/api/invoices",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://n8n.talosprimes.com/webhook/invoice-created",
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    type: $fromAI(\"factureType\", \"Type: facture_client_final\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"factureLines\", 'Tableau JSON des lignes de la facture. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\\\"designation\\\\\":\\\\\"Service conseil\\\\\",\\\\\"quantite\\\\\":1,\\\\\"prixUnitaireHt\\\\\":2000}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre).')); } catch(e) { return []; } })()\n  })\n}}"
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
-        }
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, type: \"facture_client_final\", lines: JSON.parse($fromAI(\"factureLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]')) }) }}"
       }
     },
     {
-      "id": "fix_bc_001",
+      "id": "v3_024",
+      "name": "envoyer_facture",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        1600
+      ],
+      "parameters": {
+        "toolDescription": "Envoyer une facture par email.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/invoice-sent",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_025",
+      "name": "facture_payee",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        200,
+        1800
+      ],
+      "parameters": {
+        "toolDescription": "Marquer une facture comme payée.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/invoice-paid",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"factureId\",\"UUID de la facture\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_026",
+      "name": "lister_bons_commande",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        400,
+        1800
+      ],
+      "parameters": {
+        "toolDescription": "Lister tous les bons de commande.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/bdc-list",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\" }) }}"
+      }
+    },
+    {
+      "id": "v3_027",
+      "name": "obtenir_bon_commande",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        600,
+        1800
+      ],
+      "parameters": {
+        "toolDescription": "Obtenir les détails d un bon de commande par UUID.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/bdc-get",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"bdcId\",\"UUID du bon de commande\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_028",
       "name": "creer_bon_commande",
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1040,
-        1480
+        800,
+        1800
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN BON DE COMMANDE. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour les prix).",
+        "toolDescription": "CRÉER UN BON DE COMMANDE. AVANT: rechercher_clients + lister_articles.",
         "method": "POST",
-        "url": "https://api.talosprimes.com/api/bons-commande",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://n8n.talosprimes.com/webhook/bdc-created",
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    lines: (() => { try { return JSON.parse($fromAI(\"bdcLines\", 'Tableau JSON des lignes du bon de commande. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\\\"designation\\\\\":\\\\\"Pack Premium\\\\\",\\\\\"quantite\\\\\":1,\\\\\"prixUnitaireHt\\\\\":3000}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre).')); } catch(e) { return []; } })()\n  })\n}}"
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", clientFinalId: $fromAI(\"clientFinalId\",\"UUID du client\"), montantHt: Number($fromAI(\"montantHt\",\"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\",\"Taux TVA, defaut 20\")) || 20, lines: JSON.parse($fromAI(\"bdcLines\",'Tableau JSON des lignes. Ex: [{\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]')) }) }}"
+      }
+    },
+    {
+      "id": "v3_029",
+      "name": "valider_bon_commande",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1000,
+        1800
+      ],
+      "parameters": {
+        "toolDescription": "Valider un bon de commande.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/bdc-validated",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"bdcId\",\"UUID du BDC\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_030",
+      "name": "bdc_vers_facture",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        200,
+        2000
+      ],
+      "parameters": {
+        "toolDescription": "Convertir un bon de commande en facture.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/bdc-convert-to-invoice",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"{{ $vars.tenantId }}\", data: { id: $fromAI(\"bdcId\",\"UUID du BDC à convertir\") } }) }}"
+      }
+    },
+    {
+      "id": "v3_031",
+      "name": "lister_evenements",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        2000
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com"
+        },
+        "options": {}
       },
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "FLSZWCszgEFfXDoK",
-          "name": "API TalosPrimes"
+        "googleCalendarOAuth2Api": {
+          "id": "1098OxGMJM5eG3PU",
+          "name": "Google Calendar account"
         }
+      }
+    },
+    {
+      "id": "v3_032",
+      "name": "creer_evenement",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        2000
+      ],
+      "parameters": {
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com"
+        },
+        "start": "={{ $fromAI(\"start\",\"Date début ISO 8601\") }}",
+        "end": "={{ $fromAI(\"end\",\"Date fin ISO 8601\") }}",
+        "additionalFields": {
+          "summary": "={{ $fromAI(\"summary\",\"Titre de l événement\") }}"
+        }
+      },
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "1098OxGMJM5eG3PU",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "id": "v3_033",
+      "name": "modifier_evenement",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        2000
+      ],
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "c_dfd5d30e99497e6887043e53e206d2fb28848056bd4725c491682ceb0f05e093@group.calendar.google.com"
+        },
+        "eventId": "={{ $fromAI(\"eventId\",\"ID de l événement à modifier\") }}",
+        "updateFields": {}
+      },
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "1098OxGMJM5eG3PU",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "id": "v3_034",
+      "name": "lire_emails",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        2200
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 10,
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jzveDrdzJcs9iv7R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "v3_035",
+      "name": "envoyer_email",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        2200
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $fromAI(\"to\",\"Adresse email du destinataire EXACTEMENT comme donnée\") }}",
+        "subject": "={{ $fromAI(\"subject\",\"Objet de l email\") }}",
+        "emailType": "text",
+        "message": "={{ $fromAI(\"message\",\"Corps de l email\") }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jzveDrdzJcs9iv7R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "v3_036",
+      "name": "supprimer_email",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        2200
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "delete",
+        "messageId": "={{ $fromAI(\"messageId\",\"ID du message Gmail à supprimer\") }}",
+        "options": {}
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jzveDrdzJcs9iv7R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "sticky_0",
+      "name": "Sticky Note 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "content": "## ⚙️ CONFIGURATION\n\n**Avant d utiliser ce workflow :**\n\n1. Aller dans Settings > Variables\n2. Créer une variable `tenantId`\n3. Y mettre votre UUID de tenant\n\nSans cette variable, aucun outil ne fonctionnera.",
+        "width": 350,
+        "height": 250,
+        "color": 1
+      }
+    },
+    {
+      "id": "sticky_1",
+      "name": "Sticky Note 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        250
+      ],
+      "parameters": {
+        "content": "## 🤖 Agent Principal\n\nTrigger Telegram → AI Agent → Réponse Telegram\nModèle: GPT-4o | Temp: 0.1",
+        "width": 700,
+        "height": 120,
+        "color": 4
+      }
+    },
+    {
+      "id": "sticky_2",
+      "name": "Sticky Note 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        750
+      ],
+      "parameters": {
+        "content": "## 👥 Clients",
+        "width": 800,
+        "height": 80,
+        "color": 3
+      }
+    },
+    {
+      "id": "sticky_3",
+      "name": "Sticky Note 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        950
+      ],
+      "parameters": {
+        "content": "## 🎯 Leads",
+        "width": 800,
+        "height": 80,
+        "color": 5
+      }
+    },
+    {
+      "id": "sticky_4",
+      "name": "Sticky Note 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1150
+      ],
+      "parameters": {
+        "content": "## 📦 Articles & Devis",
+        "width": 800,
+        "height": 80,
+        "color": 2
+      }
+    },
+    {
+      "id": "sticky_5",
+      "name": "Sticky Note 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1350
+      ],
+      "parameters": {
+        "content": "## 📄 Actions Devis",
+        "width": 800,
+        "height": 80,
+        "color": 2
+      }
+    },
+    {
+      "id": "sticky_6",
+      "name": "Sticky Note 6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1550
+      ],
+      "parameters": {
+        "content": "## 💰 Factures",
+        "width": 800,
+        "height": 80,
+        "color": 6
+      }
+    },
+    {
+      "id": "sticky_7",
+      "name": "Sticky Note 7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1750
+      ],
+      "parameters": {
+        "content": "## 📋 BDC & Conversions",
+        "width": 800,
+        "height": 80,
+        "color": 7
+      }
+    },
+    {
+      "id": "sticky_8",
+      "name": "Sticky Note 8",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        180,
+        1950
+      ],
+      "parameters": {
+        "content": "## 📅 Agenda & 📧 Gmail",
+        "width": 800,
+        "height": 80,
+        "color": 4
       }
     }
   ],
-  "pinData": {},
   "connections": {
     "Telegram Trigger": {
       "main": [
         [
           {
-            "node": "Vérifier Type Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Vérifier Type Message": {
-      "main": [
-        [
-          {
-            "node": "Récupérer Fichier Audio",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Vérifier Fichier",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Récupérer Fichier Audio": {
-      "main": [
-        [
-          {
-            "node": "Transcription Whisper",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Transcription Whisper": {
-      "main": [
-        [
-          {
-            "node": "Préparer Contexte (Voix)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Préparer Contexte (Voix)": {
-      "main": [
-        [
-          {
             "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Préparer Contexte (Texte)": {
-      "main": [
-        [
-          {
-            "node": "Enrichir Contexte Fichier Récent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Enrichir Contexte Fichier Récent": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "When chat message received": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Vérifier Type Réponse",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Vérifier Type Réponse": {
-      "main": [
-        [
-          {
-            "node": "Synthèse Vocale (TTS)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Réponse Texte",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Synthèse Vocale (TTS)": {
-      "main": [
-        [
-          {
-            "node": "TTS Réussi ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "TTS Réussi ?": {
-      "main": [
-        [
-          {
-            "node": "Envoyer Réponse Vocale",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Fallback Texte (TTS échoué)",
             "type": "main",
             "index": 0
           }
@@ -2237,7 +892,18 @@
         ]
       ]
     },
-    "Simple Memory": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
       "ai_memory": [
         [
           {
@@ -2248,131 +914,7 @@
         ]
       ]
     },
-    "Vérifier Fichier": {
-      "main": [
-        [
-          {
-            "node": "Récupérer Fichier Document",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Préparer Contexte (Texte)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Récupérer Fichier Document": {
-      "main": [
-        [
-          {
-            "node": "Extraire Contenu Document",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Préparer Contexte (Fichier)": {
-      "main": [
-        [
-          {
-            "node": "Sauvegarder Fichier en Cache",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Sauvegarder Fichier en Cache": {
-      "main": [
-        [
-          {
-            "node": "Vérifier Intent Email",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Vérifier Intent Email": {
-      "main": [
-        [
-          {
-            "node": "Extraire Email et Fichier",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extraire Email et Fichier": {
-      "main": [
-        [
-          {
-            "node": "Composer Email IA",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Gmail Envoyer PJ": {
-      "main": [
-        [
-          {
-            "node": "Confirmer Envoi Telegram",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extraire Contenu Document": {
-      "main": [
-        [
-          {
-            "node": "Préparer Contexte (Fichier)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Composer Email IA": {
-      "main": [
-        [
-          {
-            "node": "Préparer Email Final",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Préparer Email Final": {
-      "main": [
-        [
-          {
-            "node": "Gmail Envoyer PJ",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "lister_leads": {
+    "rechercher_clients": {
       "ai_tool": [
         [
           {
@@ -2383,7 +925,29 @@
         ]
       ]
     },
-    "rechercher_leads": {
+    "obtenir_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_client": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_leads": {
       "ai_tool": [
         [
           {
@@ -2427,73 +991,7 @@
         ]
       ]
     },
-    "supprimer_lead": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "lister_clients": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "rechercher_clients": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "obtenir_client": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_client": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "modifier_client": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "supprimer_client": {
+    "lister_articles": {
       "ai_tool": [
         [
           {
@@ -2516,6 +1014,17 @@
       ]
     },
     "obtenir_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_devis": {
       "ai_tool": [
         [
           {
@@ -2559,6 +1068,17 @@
         ]
       ]
     },
+    "devis_vers_bdc": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "lister_factures": {
       "ai_tool": [
         [
@@ -2571,6 +1091,17 @@
       ]
     },
     "obtenir_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_facture": {
       "ai_tool": [
         [
           {
@@ -2614,6 +1145,28 @@
         ]
       ]
     },
+    "obtenir_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "valider_bon_commande": {
       "ai_tool": [
         [
@@ -2636,7 +1189,7 @@
         ]
       ]
     },
-    "lister_articles": {
+    "lister_evenements": {
       "ai_tool": [
         [
           {
@@ -2647,7 +1200,18 @@
         ]
       ]
     },
-    "creer_article": {
+    "creer_evenement": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "modifier_evenement": {
       "ai_tool": [
         [
           {
@@ -2690,149 +1254,11 @@
           }
         ]
       ]
-    },
-    "envoyer_notification": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_evenement": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "lister_evenements": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "modifier_evenement": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "supprimer_evenement": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "qonto_solde": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "qonto_transactions": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "pg_schema": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "pg_sql": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_devis": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_facture": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_bon_commande": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "active": false,
   "settings": {
-    "executionOrder": "v1",
-    "availableInMCP": false,
-    "callerPolicy": "workflowsFromSameOwner"
-  },
-  "versionId": "bf31531c-b20b-4609-b9ba-7059a505b10b",
-  "meta": {
-    "instanceId": "8b61722adae29c7b398c5d09bd2bbaac712be7a74ebb6dc903b7ae1f5b9dd594"
+    "executionOrder": "v1"
   },
   "tags": []
 }
