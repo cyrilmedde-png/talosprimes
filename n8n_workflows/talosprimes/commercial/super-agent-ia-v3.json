@@ -82,7 +82,8 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/audio/transcriptions",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
@@ -111,7 +112,13 @@
         -96
       ],
       "id": "n-whisper",
-      "name": "Transcription Whisper"
+      "name": "Transcription Whisper",
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      }
     },
     {
       "parameters": {
@@ -300,7 +307,8 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/audio/speech",
-        "authentication": "headerAuth",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -328,7 +336,13 @@
         -176
       ],
       "id": "n-tts",
-      "name": "Synthèse Vocale (TTS)"
+      "name": "Synthèse Vocale (TTS)",
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      }
     },
     {
       "parameters": {
