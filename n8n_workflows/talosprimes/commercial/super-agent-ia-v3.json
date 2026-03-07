@@ -777,11 +777,11 @@
       ],
       "name": "lister_leads",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "Liste TOUS les leads (prospects) du système. Aucun paramètre requis.\nRetourne un tableau JSON avec : id (UUID), nom, prenom, email, telephone, statut, source, created_at.\nUTILISE cet outil quand l'utilisateur demande : \"liste mes leads\", \"montre les prospects\", \"combien de leads\".\nIMPORTANT : Utilise cet outil AVANT de créer un devis/facture pour un lead, afin de récupérer son ID.",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Liste TOUS les leads/prospects.",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -800,17 +800,17 @@
       ],
       "name": "rechercher_leads",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "RECHERCHER DES LEADS par nom, email ou téléphone. Le paramètre 'search' accepte un mot simple. Retourne une liste de leads avec leur UUID.",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Trouver un lead par nom ou email. Utilise UN mot-clé simple (nom de famille).",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "search",
-              "value": "={{ $fromAI(\"search\", \"Mot-clé simple, ex: dupont\") }}"
+              "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les leads par nom, prénom, email ou téléphone\") }}"
             }
           ]
         }
@@ -832,17 +832,17 @@
       ],
       "name": "obtenir_lead",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "Récupère les détails complets d'UN SEUL lead par son UUID.\nParamètre de requête 'id' OBLIGATOIRE : l'UUID du lead.\nUTILISE APRÈS lister_leads ou rechercher_leads quand tu as récupéré l'UUID.",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Obtenir les détails d'un lead par son UUID.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "id",
-              "value": "={{ $fromAI(\"leadId\", \"UUID du lead\") }}"
+              "value": "={{ $fromAI(\"leadId\", \"UUID du lead à récupérer\") }}"
             }
           ]
         }
@@ -864,14 +864,15 @@
       ],
       "name": "creer_lead",
       "parameters": {
+        "toolDescription": "Crée un nouveau lead (prospect). POST avec body JSON.\nChamps obligatoires : nom (string), email (string)\nChamps optionnels : prenom, telephone, source (ex: \"site_web\", \"telephone\", \"recommandation\"), notes\nIMPORTANT : TOUJOURS chercher d'abord si le lead existe déjà avec rechercher_leads avant de créer.\nExemple body: {\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\",\"telephone\":\"0612345678\",\"source\":\"telephone\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Créer un nouveau lead.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ nom: $fromAI(\"nom\", \"Nom\"), prenom: $fromAI(\"prenom\", \"Prénom (vide si inconnu)\"), email: $fromAI(\"email\", \"Email\"), telephone: $fromAI(\"telephone\", \"Téléphone (vide si inconnu)\"), source: $fromAI(\"source\", \"Source: site_web, telephone, recommandation, reseaux_sociaux, terrain\"), notes: $fromAI(\"notes\", \"Notes (vide si aucune)\") }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    nom: $fromAI(\"nom\", \"Nom de famille du lead\"),\n    prenom: $fromAI(\"prenom\", \"Prénom du lead (vide si non fourni)\"),\n    email: $fromAI(\"email\", \"Adresse email du lead\"),\n    telephone: $fromAI(\"telephone\", \"Numéro de téléphone du lead (vide si non fourni)\"),\n    source: $fromAI(\"source\", \"Source du lead: site_web, telephone, recommandation, reseaux_sociaux, terrain (vide si non précisé)\"),\n    notes: $fromAI(\"notes\", \"Notes additionnelles sur le lead (vide si non précisé)\")\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -890,23 +891,24 @@
       ],
       "name": "modifier_statut_lead",
       "parameters": {
+        "toolDescription": "Change le statut d'un lead. PATCH avec paramètre query 'id' (UUID du lead).\nBody JSON avec le nouveau statut. Valeurs possibles : nouveau, contacte, qualifie, converti, perdu.\nExemple body: {\"statut\":\"qualifie\"}",
         "method": "PATCH",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Modifier le statut d'un lead. Statuts: nouveau, contacte, qualifie, converti, perdu.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "id",
-              "value": "={{ $fromAI(\"leadId\", \"UUID du lead\") }}"
+              "value": "={{ $fromAI(\"leadId\", \"UUID du lead dont on veut changer le statut\") }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ statut: $fromAI(\"statut\", \"Statut: nouveau, contacte, qualifie, converti, perdu\") }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    statut: $fromAI(\"statut\", \"Nouveau statut OBLIGATOIRE. Une seule valeur parmi: nouveau, contacte, qualifie, converti, perdu\")\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -925,17 +927,18 @@
       ],
       "name": "supprimer_lead",
       "parameters": {
+        "toolDescription": "Supprime un lead par son UUID. ATTENTION : TOUJOURS demander confirmation à l'utilisateur AVANT de supprimer.\nParamètre query 'id' obligatoire : UUID du lead.",
         "method": "DELETE",
         "url": "https://api.talosprimes.com/api/leads",
-        "description": "Supprimer un lead. Demander confirmation avant.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "id",
-              "value": "={{ $fromAI(\"leadId\", \"UUID du lead\") }}"
+              "value": "={{ $fromAI(\"leadId\", \"UUID du lead à supprimer\") }}"
             }
           ]
         }
@@ -957,11 +960,11 @@
       ],
       "name": "lister_clients",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "Liste TOUS les clients de l'entreprise. Aucun paramètre requis.\nRetourne : id (UUID), nom, prenom, email, telephone, raisonSociale, type (b2b/b2c).\nUTILISE cet outil quand l'utilisateur demande : \"liste mes clients\", \"montre les clients\", ou AVANT de créer un document commercial (devis, facture, BDC) pour trouver le clientFinalId.\nCRITIQUE : Tu DOIS utiliser cet outil ou rechercher_clients AVANT toute création de devis/facture/BDC.",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "Liste TOUS les clients. Utiliser rechercher_clients si tu connais le nom.",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -980,17 +983,17 @@
       ],
       "name": "rechercher_clients",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "RECHERCHER DES CLIENTS par nom, email ou raison sociale. UTILISE CET OUTIL EN PREMIER avant de créer un devis, une facture ou un bon de commande. Le paramètre 'search' accepte un mot simple (ex: 'roussie' pour trouver 'Alexandre Roussie'). Retourne une liste de clients avec leur UUID (champ 'id') nécessaire pour les autres outils.",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "OUTIL PRINCIPAL pour trouver un client par son nom. Utilise UN mot-clé simple (nom de famille). Retourne le UUID du client nécessaire pour créer devis/facture/BDC.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "search",
-              "value": "={{ $fromAI(\"search\", \"Mot-clé simple: nom de famille seul\") }}"
+              "value": "={{ $fromAI(\"search\", \"Mot-clé de recherche pour filtrer les clients par nom, email ou raison sociale\") }}"
             }
           ]
         }
@@ -1012,17 +1015,17 @@
       ],
       "name": "obtenir_client",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "Récupère les détails complets d'UN SEUL client par son UUID.\nParamètre query 'id' OBLIGATOIRE : UUID du client.\nUtilise APRÈS avoir trouvé l'UUID via lister_clients ou rechercher_clients.",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "Obtenir détails d'un client par UUID.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "id",
-              "value": "={{ $fromAI(\"clientId\", \"UUID du client\") }}"
+              "value": "={{ $fromAI(\"clientId\", \"UUID du client à récupérer\") }}"
             }
           ]
         }
@@ -1044,14 +1047,15 @@
       ],
       "name": "creer_client",
       "parameters": {
+        "toolDescription": "Crée un nouveau client. POST avec body JSON.\nChamps obligatoires : type (\"b2b\" ou \"b2c\"), email\nChamps optionnels : nom, prenom, raisonSociale (requis si B2B), telephone, adresse\nIMPORTANT : Chercher d'abord si le client existe avec rechercher_clients.\nExemple B2B: {\"type\":\"b2b\",\"raisonSociale\":\"Entreprise SAS\",\"email\":\"contact@entreprise.com\",\"telephone\":\"0612345678\"}\nExemple B2C: {\"type\":\"b2c\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "Créer un client. Type b2b ou b2c.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ type: $fromAI(\"type\", \"b2b ou b2c\"), email: $fromAI(\"email\", \"Email\"), nom: $fromAI(\"nom\", \"Nom\"), prenom: $fromAI(\"prenom\", \"Prénom (vide si inconnu)\"), raisonSociale: $fromAI(\"raisonSociale\", \"Raison sociale (REQUIS pour b2b)\"), telephone: $fromAI(\"telephone\", \"Téléphone (vide si inconnu)\"), adresse: $fromAI(\"adresse\", \"Adresse (vide si inconnue)\") }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    type: $fromAI(\"clientType\", \"Type de client OBLIGATOIRE: b2b ou b2c (en minuscules)\"),\n    email: $fromAI(\"email\", \"Email du client OBLIGATOIRE\"),\n    nom: $fromAI(\"nom\", \"Nom du client (pour B2C surtout, vide si non fourni)\"),\n    prenom: $fromAI(\"prenom\", \"Prénom du client (vide si non fourni)\"),\n    raisonSociale: $fromAI(\"raisonSociale\", \"Raison sociale (REQUIS pour B2B, vide pour B2C)\"),\n    telephone: $fromAI(\"telephone\", \"Numéro de téléphone (vide si non fourni)\"),\n    adresse: $fromAI(\"adresse\", \"Adresse postale (vide si non fourni)\")\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1070,23 +1074,24 @@
       ],
       "name": "modifier_client",
       "parameters": {
+        "toolDescription": "Modifie un client existant. PATCH avec paramètre query 'id' (UUID du client).\nBody JSON avec UNIQUEMENT les champs à modifier (update partiel).\nExemple: {\"telephone\":\"0698765432\",\"adresse\":\"12 rue de Paris\"}",
         "method": "PATCH",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "Modifier un client existant.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "id",
-              "value": "={{ $fromAI(\"clientId\", \"UUID du client\") }}"
+              "value": "={{ $fromAI(\"clientId\", \"UUID du client à modifier\") }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ nom: $fromAI(\"nom\", \"Nouveau nom (vide si inchangé)\"), prenom: $fromAI(\"prenom\", \"Nouveau prénom (vide si inchangé)\"), email: $fromAI(\"email\", \"Nouvel email (vide si inchangé)\"), telephone: $fromAI(\"telephone\", \"Nouveau tél (vide si inchangé)\") }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    nom: $fromAI(\"nom\", \"Nouveau nom (vide si inchangé)\"),\n    prenom: $fromAI(\"prenom\", \"Nouveau prénom (vide si inchangé)\"),\n    email: $fromAI(\"email\", \"Nouvel email (vide si inchangé)\"),\n    telephone: $fromAI(\"telephone\", \"Nouveau téléphone (vide si inchangé)\"),\n    raisonSociale: $fromAI(\"raisonSociale\", \"Nouvelle raison sociale (vide si inchangé)\"),\n    adresse: $fromAI(\"adresse\", \"Nouvelle adresse (vide si inchangé)\")\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1105,17 +1110,18 @@
       ],
       "name": "supprimer_client",
       "parameters": {
+        "toolDescription": "Supprime un client. ATTENTION : TOUJOURS demander confirmation. Paramètre query 'id' obligatoire.",
         "method": "DELETE",
         "url": "https://api.talosprimes.com/api/clients",
-        "description": "Supprimer un client. Demander confirmation avant.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "id",
-              "value": "={{ $fromAI(\"clientId\", \"UUID du client\") }}"
+              "value": "={{ $fromAI(\"clientId\", \"UUID du client à supprimer\") }}"
             }
           ]
         }
@@ -1137,11 +1143,11 @@
       ],
       "name": "lister_devis",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "Liste TOUS les devis existants. Aucun paramètre requis.\nRetourne : id (UUID), numero (ex: DEV-0001), clientFinalId, montantHt, montantTtc, statut (brouillon/envoyee/acceptee/refusee/facturee).\nUTILISE quand l'utilisateur demande la liste des devis ou cherche un devis par numéro.",
         "url": "https://api.talosprimes.com/api/devis",
-        "description": "Liste tous les devis existants.",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1160,11 +1166,12 @@
       ],
       "name": "obtenir_devis",
       "parameters": {
-        "method": "GET",
-        "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") }}",
-        "description": "Obtenir les détails complets d'un devis par son UUID.",
+        "toolDescription": "Récupère un devis spécifique avec ses lignes par son UUID.\nL'UUID du devis est passé directement dans l'URL.\nUTILISE après avoir trouvé l'UUID via lister_devis.",
+        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à récupérer\") }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": false
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1183,14 +1190,15 @@
       ],
       "name": "creer_devis",
       "parameters": {
+        "toolDescription": "CRÉER UN DEVIS. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour obtenir les prix). Le champ 'lines' est un tableau JSON de lignes avec designation, quantite, prixUnitaireHt. Le montantHt = somme des (quantite × prixUnitaireHt).",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/devis",
-        "description": "Créer un devis. OBLIGATOIRE AVANT: utiliser rechercher_clients pour obtenir le UUID du client, et lister_articles pour obtenir les détails de l'article (designation, prixUnitaireHt).",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT calcule depuis les lignes\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 20, description: $fromAI(\"description\", \"Description courte du devis\"), modePaiement: $fromAI(\"modePaiement\", \"virement, cheque, cb, prelevement. Defaut: virement\"), lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON. Ex: [{\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]')); } catch(e) { return []; } })() }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    description: $fromAI(\"devisDescription\", \"Description courte du devis, ex: Devis audit comptable\"),\n    modePaiement: $fromAI(\"modePaiement\", \"Mode de paiement: virement ou cheque ou cb ou prelevement. Par defaut virement.\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"devisLines\", 'Tableau JSON des lignes du devis. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\"designation\\\":\\\"Audit comptable\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre). Si un codeArticle est connu, ajouter codeArticle.')); } catch(e) { return []; } })()\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1209,11 +1217,12 @@
       ],
       "name": "envoyer_devis",
       "parameters": {
+        "toolDescription": "Envoie un devis au client (brouillon → envoyée). L'UUID du devis est dans l'URL.\nUTILISE après avoir créé ou listé un devis dont le statut est \"brouillon\".",
         "method": "PUT",
-        "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") + \"/send\" }}",
-        "description": "Envoyer un devis par email au client. Nécessite le UUID du devis.",
+        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à envoyer\") }}/send",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1232,11 +1241,12 @@
       ],
       "name": "accepter_devis",
       "parameters": {
+        "toolDescription": "Accepte un devis (envoyée → acceptée). L'UUID du devis est dans l'URL.\nUTILISE quand l'utilisateur dit qu'un client a accepté un devis.",
         "method": "PUT",
-        "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") + \"/accept\" }}",
-        "description": "Marquer un devis comme accepté.",
+        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à accepter\") }}/accept",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1255,11 +1265,12 @@
       ],
       "name": "devis_vers_facture",
       "parameters": {
+        "toolDescription": "Convertit un devis accepté en facture. POST. L'UUID du devis est dans l'URL.\nLe devis DOIT être en statut \"acceptée\" pour être converti.\nUTILISE quand l'utilisateur demande de transformer un devis en facture.",
         "method": "POST",
-        "url": "={{ \"https://api.talosprimes.com/api/devis/\" + $fromAI(\"devisId\", \"UUID du devis\") + \"/convert-to-invoice\" }}",
-        "description": "Convertir un devis accepté en facture.",
+        "url": "https://api.talosprimes.com/api/devis/{{ $fromAI(\"devisId\", \"UUID du devis à convertir en facture\") }}/convert-to-invoice",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1278,11 +1289,11 @@
       ],
       "name": "lister_factures",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "Liste TOUTES les factures. Aucun paramètre requis.\nRetourne : id, numero (FAC-XXXX), clientFinalId, montantHt, montantTtc, statut (brouillon/envoyee/payee).",
         "url": "https://api.talosprimes.com/api/invoices",
-        "description": "Liste toutes les factures.",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1301,11 +1312,12 @@
       ],
       "name": "obtenir_facture",
       "parameters": {
-        "method": "GET",
-        "url": "={{ \"https://api.talosprimes.com/api/invoices/\" + $fromAI(\"factureId\", \"UUID de la facture\") }}",
-        "description": "Détails d'une facture par UUID.",
+        "toolDescription": "Récupère une facture spécifique avec ses lignes par son UUID dans l'URL.",
+        "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à récupérer\") }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendQuery": false
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1324,14 +1336,15 @@
       ],
       "name": "creer_facture",
       "parameters": {
+        "toolDescription": "CRÉER UNE FACTURE. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour obtenir les prix). Le champ 'lines' est un tableau JSON de lignes.",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/invoices",
-        "description": "Créer une facture. OBLIGATOIRE AVANT: utiliser rechercher_clients pour le UUID client, et lister_articles pour les détails articles.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0, type: \"facture_client_final\", lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON: [{\\\"designation\\\":\\\"Service\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":2000}]')); } catch(e) { return []; } })() }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    type: $fromAI(\"factureType\", \"Type: facture_client_final\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"factureLines\", 'Tableau JSON des lignes de la facture. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\"designation\\\":\\\"Service conseil\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":2000}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre).')); } catch(e) { return []; } })()\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1350,11 +1363,12 @@
       ],
       "name": "envoyer_facture",
       "parameters": {
+        "toolDescription": "Envoie une facture au client par email. POST. L'UUID de la facture est dans l'URL.",
         "method": "POST",
-        "url": "={{ \"https://api.talosprimes.com/api/invoices/\" + $fromAI(\"factureId\", \"UUID\") + \"/send\" }}",
-        "description": "Envoyer une facture par email.",
+        "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à envoyer\") }}/send",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1373,11 +1387,12 @@
       ],
       "name": "facture_payee",
       "parameters": {
+        "toolDescription": "Marque une facture comme payée. POST. L'UUID de la facture est dans l'URL.\nUTILISE quand l'utilisateur indique qu'un paiement a été reçu.",
         "method": "POST",
-        "url": "={{ \"https://api.talosprimes.com/api/invoices/\" + $fromAI(\"factureId\", \"UUID\") + \"/mark-paid\" }}",
-        "description": "Marquer une facture comme payée.",
+        "url": "https://api.talosprimes.com/api/invoices/{{ $fromAI(\"factureId\", \"UUID de la facture à marquer payée\") }}/mark-paid",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1396,11 +1411,11 @@
       ],
       "name": "lister_bons_commande",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "Liste TOUS les bons de commande. Retourne : id, numero (BDC-XXXX), client, montants, statut.",
         "url": "https://api.talosprimes.com/api/bons-commande",
-        "description": "Liste tous les bons de commande.",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1419,14 +1434,15 @@
       ],
       "name": "creer_bon_commande",
       "parameters": {
+        "toolDescription": "CRÉER UN BON DE COMMANDE. OBLIGATOIRE AVANT D'APPELER : 1) rechercher_clients (pour obtenir clientFinalId), 2) lister_articles (pour les prix).",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/bons-commande",
-        "description": "Créer un bon de commande. OBLIGATOIRE AVANT: utiliser rechercher_clients pour le UUID client, et lister_articles pour les détails articles.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0, tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0, lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau: [{\\\"designation\\\":\\\"Pack\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":3000}]')); } catch(e) { return []; } })() }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Utilise OBLIGATOIREMENT rechercher_clients AVANT pour obtenir cet UUID. Ne JAMAIS inventer un UUID.\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT en euros. Calcule: somme de (quantite x prixUnitaireHt) pour chaque ligne.\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage, par defaut 20\")) || 0,\n    lines: (() => { try { return JSON.parse($fromAI(\"bdcLines\", 'Tableau JSON des lignes du bon de commande. IMPORTANT: retourner UNIQUEMENT un tableau JSON valide sans commentaire. Exemple: [{\\\"designation\\\":\\\"Pack Premium\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":3000}]. Chaque objet a: designation (string), quantite (nombre entier), prixUnitaireHt (nombre).')); } catch(e) { return []; } })()\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1445,11 +1461,12 @@
       ],
       "name": "valider_bon_commande",
       "parameters": {
+        "toolDescription": "Valide un bon de commande (brouillon → validé). PUT. UUID du BDC dans l'URL.",
         "method": "PUT",
-        "url": "={{ \"https://api.talosprimes.com/api/bons-commande/\" + $fromAI(\"bdcId\", \"UUID du BDC\") + \"/validate\" }}",
-        "description": "Valider un bon de commande.",
+        "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à valider\") }}/validate",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1468,11 +1485,12 @@
       ],
       "name": "bdc_vers_facture",
       "parameters": {
+        "toolDescription": "Convertit un BDC validé en facture. POST. UUID du BDC dans l'URL.",
         "method": "POST",
-        "url": "={{ \"https://api.talosprimes.com/api/bons-commande/\" + $fromAI(\"bdcId\", \"UUID du BDC\") + \"/convert-to-invoice\" }}",
-        "description": "Convertir un BDC en facture.",
+        "url": "https://api.talosprimes.com/api/bons-commande/{{ $fromAI(\"bdcId\", \"UUID du bon de commande à convertir\") }}/convert-to-invoice",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1491,11 +1509,11 @@
       ],
       "name": "lister_articles",
       "parameters": {
-        "method": "GET",
+        "toolDescription": "LISTER TOUS LES ARTICLES du catalogue. Appelle cet outil pour trouver un article par son code ou sa désignation. Chaque article a: id, code, designation, prixUnitaireHt, tvaTaux, unite. UTILISE CET OUTIL avant de créer un devis pour connaître les prix et codes articles.",
         "url": "https://api.talosprimes.com/api/article-codes",
-        "description": "OUTIL PRINCIPAL pour consulter le catalogue articles. Retourne TOUS les articles avec leurs codes, désignations et prix. TOUJOURS utiliser cet outil AVANT de créer un devis/facture/BDC pour vérifier les détails de l'article.",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1514,14 +1532,15 @@
       ],
       "name": "creer_article",
       "parameters": {
+        "toolDescription": "Crée un nouveau code article dans le catalogue. POST avec body JSON.\nChamps obligatoires : code (string unique), designation (string), prixUnitaireHt (nombre), tvaTaux (nombre, ex: 20), unite (string, ex: \"unité\", \"heure\", \"forfait\")\nExemple: {\"code\":\"AUDIT-01\",\"designation\":\"Audit initial\",\"prixUnitaireHt\":500,\"tvaTaux\":20,\"unite\":\"forfait\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/article-codes",
-        "description": "Créer un nouvel article.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ code: $fromAI(\"code\", \"Code en MAJUSCULES\"), designation: $fromAI(\"designation\", \"Nom de l article\"), prixUnitaireHt: Number($fromAI(\"prix\", \"Prix HT\")) || 0, tvaTaux: Number($fromAI(\"tva\", \"Taux TVA, defaut 20\")) || 0, unite: $fromAI(\"unite\", \"unite, heure, jour, forfait, mois\") }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    code: $fromAI(\"code\", \"Code article unique en MAJUSCULES (ex: AUDIT-01, PACK-BIZ)\"),\n    designation: $fromAI(\"designation\", \"Description/nom de l'article\"),\n    prixUnitaireHt: Number($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT en euros (nombre, ex: 500)\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux de TVA en pourcentage (nombre, ex: 20)\")) || 0,\n    unite: $fromAI(\"unite\", \"Unité de mesure: unité, heure, jour, forfait, mois\")\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1533,7 +1552,7 @@
     {
       "id": "09d4b119b83d441989f6",
       "type": "n8n-nodes-base.gmailTool",
-      "typeVersion": 2.1,
+      "typeVersion": 2.2,
       "position": [
         800,
         3000
@@ -1553,7 +1572,7 @@
     {
       "id": "1a13dcc6086645bcb827",
       "type": "n8n-nodes-base.gmailTool",
-      "typeVersion": 2.1,
+      "typeVersion": 2.2,
       "position": [
         1100,
         3000
@@ -1577,7 +1596,7 @@
     {
       "id": "9e960fe6e2154cbbbd09",
       "type": "n8n-nodes-base.gmailTool",
-      "typeVersion": 2.1,
+      "typeVersion": 2.2,
       "position": [
         1400,
         3000
@@ -1604,14 +1623,15 @@
       ],
       "name": "envoyer_notification",
       "parameters": {
+        "toolDescription": "Envoie un email de notification. POST avec body JSON.\nBody requis : {\"from\":\"TalosPrimes <noreply@talosprimes.com>\",\"to\":\"destinataire@email.com\",\"subject\":\"Objet\",\"html\":\"<p>Contenu HTML</p>\"}",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/notifications",
-        "description": "Envoyer un email de notification via l'API TalosPrimes.",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ from: \"TalosPrimes <noreply@talosprimes.com>\", to: $fromAI(\"to\", \"Email destinataire\"), subject: $fromAI(\"subject\", \"Objet\"), html: $fromAI(\"html\", \"Contenu HTML\") }) }}"
+        "jsonBody": "={{\n  JSON.stringify({\n    from: $fromAI(\"fromEmail\", \"Expéditeur: TalosPrimes <noreply@talosprimes.com>\"),\n    to: $fromAI(\"toEmail\", \"Email du destinataire\"),\n    subject: $fromAI(\"subject\", \"Objet de l'email\"),\n    html: $fromAI(\"htmlContent\", \"Contenu HTML de l'email. Utilise des balises <p>, <h2>, <strong>.\")\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1623,7 +1643,7 @@
     {
       "id": "177fb4483ca04146bc33",
       "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.1,
+      "typeVersion": 1.3,
       "position": [
         2200,
         3000
@@ -1636,7 +1656,6 @@
           "mode": "list",
           "cachedResultName": "TalosPrimes"
         },
-        "operation": "create",
         "start": "={{ $fromAI('Start', 'Date et heure de début au format ISO 8601', 'string') }}",
         "end": "={{ $fromAI('End', 'Date et heure de fin au format ISO 8601', 'string') }}",
         "additionalFields": {
@@ -1654,7 +1673,7 @@
     {
       "id": "bd1ad94ba66940728ee6",
       "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.1,
+      "typeVersion": 1.3,
       "position": [
         2500,
         3000
@@ -1683,7 +1702,7 @@
     {
       "id": "3d8e989332b344528315",
       "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.1,
+      "typeVersion": 1.3,
       "position": [
         2800,
         3000
@@ -1713,7 +1732,7 @@
     {
       "id": "e15d5d23837d4e3b8063",
       "type": "n8n-nodes-base.googleCalendarTool",
-      "typeVersion": 1.1,
+      "typeVersion": 1.3,
       "position": [
         3100,
         3000
@@ -1747,11 +1766,20 @@
       ],
       "name": "qonto_solde",
       "parameters": {
+        "name": "qonto_solde",
+        "description": "Consulter le solde actuel du compte bancaire Qonto. Utilise cet outil quand l'utilisateur demande le solde, la trésorerie, combien il y a sur le compte, etc.",
         "method": "GET",
         "url": "https://api.talosprimes.com/api/qonto/balance",
-        "description": "Consulter le solde bancaire Qonto.",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendQuery": false,
+        "sendBody": false,
+        "options": {},
+        "toolDescription": "Consulte le solde actuel du compte bancaire Qonto. GET sans paramètres.\nRetourne le solde disponible en euros."
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -1770,11 +1798,20 @@
       ],
       "name": "qonto_transactions",
       "parameters": {
+        "name": "qonto_transactions",
+        "description": "Lister les dernières transactions bancaires Qonto. Utilise cet outil quand l'utilisateur demande les derniers mouvements, les virements récents, les dépenses, les entrées/sorties d'argent.",
         "method": "GET",
         "url": "https://api.talosprimes.com/api/qonto/transactions",
-        "description": "Voir les dernières transactions Qonto.",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth"
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendQuery": false,
+        "sendBody": false,
+        "options": {},
+        "toolDescription": "Liste les dernières transactions bancaires Qonto. GET sans paramètres.\nRetourne les transactions récentes avec montant, date, libellé."
       },
       "credentials": {
         "httpHeaderAuth": {
