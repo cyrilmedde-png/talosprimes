@@ -1,0 +1,792 @@
+{
+  "name": "Sub-Agent Documents - TalosPrimes v3",
+  "nodes": [
+    {
+      "id": "1020",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "name": "Workflow Trigger",
+      "parameters": {}
+    },
+    {
+      "id": "1023",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        400,
+        0
+      ],
+      "name": "Agent Documents",
+      "parameters": {
+        "options": {
+          "systemMessage": "Tu es le spécialiste des documents commerciaux pour TalosPrimes : devis, factures et bons de commande.\n\nWORKFLOW OBLIGATOIRE POUR CRÉER UN DOCUMENT :\n1. D'abord chercher le client → utilise chercher_client_pour_document\n2. Puis chercher les articles → utilise lister_articles_catalogue  \n3. Puis créer le document avec les UUID et prix trouvés\n\nOUTILS DISPONIBLES :\n\nRecherche préalable (TOUJOURS en premier) :\n- chercher_client_pour_document : trouver un client par nom → obtenir son UUID\n- lister_articles_catalogue : voir le catalogue pour trouver codes, prix, TVA\n\nDevis :\n- lister_devis, obtenir_devis, creer_devis, envoyer_devis, accepter_devis, devis_vers_facture\n\nFactures :\n- lister_factures, obtenir_facture, creer_facture, envoyer_facture, facture_payee\n\nBons de commande :\n- lister_bons_commande, creer_bon_commande, valider_bon_commande, bdc_vers_facture\n\nRÈGLES :\n- TOUJOURS chercher le client ET l'article AVANT de créer un document\n- Le montantHt = somme de (quantite × prixUnitaireHt) pour chaque ligne\n- Le tvaTaux est un pourcentage (20 pour 20%)\n- Ne JAMAIS inventer un UUID - utiliser ceux retournés par les requêtes\n- Pour les lignes de devis/facture : chaque ligne a designation, quantite, prixUnitaireHt\n- Si l'article est trouvé dans le catalogue, utiliser son prix exact",
+          "maxIterations": 15
+        },
+        "text": "={{ $json.chatInput || $json.query || $json.message || '' }}"
+      }
+    },
+    {
+      "id": "1021",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        200
+      ],
+      "name": "OpenAI Chat Model",
+      "parameters": {
+        "model": "gpt-4o-2024-11-20",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "1022",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        600,
+        200
+      ],
+      "name": "Simple Memory",
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId || 'default' }}",
+        "contextWindowLength": 15
+      }
+    },
+    {
+      "id": "1024",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        0,
+        400
+      ],
+      "name": "chercher_client_pour_document",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, type, nom, prenom, email, telephone, raison_sociale FROM client_finals WHERE nom ILIKE '%' || '{{ $fromAI(\"search\", \"Mot-clé simple: le nom de famille seul\") }}' || '%' OR prenom ILIKE '%' || '{{ $fromAI(\"search\", \"Mot-clé\") }}' || '%' OR raison_sociale ILIKE '%' || '{{ $fromAI(\"search\", \"Mot-clé\") }}' || '%' LIMIT 10",
+        "description": "UTILISER EN PREMIER. Chercher un client par nom pour obtenir son UUID (champ id). Utilise un seul mot-clé.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "1025",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        200,
+        400
+      ],
+      "name": "lister_articles_catalogue",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, code, designation, prix_unitaire_ht, tva_taux, unite FROM article_codes ORDER BY code",
+        "description": "UTILISER AVANT DE CRÉER UN DOCUMENT. Liste tous les articles du catalogue avec code, prix, TVA.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "1026",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        400,
+        400
+      ],
+      "name": "lister_devis",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, numero, description, montant_ht, tva_taux, statut, created_at FROM devis ORDER BY created_at DESC LIMIT 30",
+        "description": "Lister les derniers devis.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "1027",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        600,
+        400
+      ],
+      "name": "obtenir_devis",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.*, json_agg(json_build_object('designation', dl.designation, 'quantite', dl.quantite, 'prix_unitaire_ht', dl.prix_unitaire_ht)) as lignes FROM devis d LEFT JOIN devis_lignes dl ON dl.devis_id = d.id WHERE d.id = '{{ $fromAI(\"devisId\", \"UUID du devis\") }}' GROUP BY d.id",
+        "description": "Obtenir les détails d'un devis par son UUID, incluant ses lignes.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "1028",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        400
+      ],
+      "name": "creer_devis",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/devis",
+        "description": "Créer un devis. AVANT: avoir cherché le client (UUID) et l'article (prix). Le body contient clientFinalId, montantHt, tvaTaux, description, modePaiement, lines.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via chercher_client_pour_document\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT = somme de (quantite x prixUnitaireHt) pour chaque ligne\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA en pourcentage, defaut 20\")) || 0,\n    description: $fromAI(\"description\", \"Description courte du devis\"),\n    modePaiement: $fromAI(\"modePaiement\", \"Mode: virement, cheque, cb, prelevement. Defaut: virement\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Exemple: [{\\\"designation\\\":\\\"Audit\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]')); } catch(e) { return []; } })()\n  })\n}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1029",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        400
+      ],
+      "name": "envoyer_devis",
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://api.talosprimes.com/api/devis/' + $fromAI('devisId', 'UUID du devis') + '/send' }}",
+        "description": "Envoyer un devis au client par email.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1030",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        400
+      ],
+      "name": "accepter_devis",
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://api.talosprimes.com/api/devis/' + $fromAI('devisId', 'UUID du devis') + '/accept' }}",
+        "description": "Accepter/valider un devis (passe en statut accepté).",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1031",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        600
+      ],
+      "name": "devis_vers_facture",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.talosprimes.com/api/devis/' + $fromAI('devisId', 'UUID du devis') + '/convert-to-invoice' }}",
+        "description": "Convertir un devis accepté en facture.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1032",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        200,
+        600
+      ],
+      "name": "lister_factures",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, numero, montant_ht, tva_taux, statut, type, created_at FROM invoices ORDER BY created_at DESC LIMIT 30",
+        "description": "Lister les dernières factures.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "1033",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        400,
+        600
+      ],
+      "name": "obtenir_facture",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT i.*, json_agg(json_build_object('designation', il.designation, 'quantite', il.quantite, 'prix_unitaire_ht', il.prix_unitaire_ht)) as lignes FROM invoices i LEFT JOIN invoice_lignes il ON il.invoice_id = i.id WHERE i.id = '{{ $fromAI(\"factureId\", \"UUID de la facture\") }}' GROUP BY i.id",
+        "description": "Obtenir les détails d'une facture par UUID.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "1034",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        600
+      ],
+      "name": "creer_facture",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/invoices",
+        "description": "Créer une facture. AVANT: avoir cherché le client (UUID) et les prix articles.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0,\n    type: \"facture_client_final\",\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON: [{\\\"designation\\\":\\\"Service\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":2000}]')); } catch(e) { return []; } })()\n  })\n}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1035",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        600
+      ],
+      "name": "envoyer_facture",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.talosprimes.com/api/invoices/' + $fromAI('factureId', 'UUID de la facture') + '/send' }}",
+        "description": "Envoyer une facture au client par email.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1036",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        600
+      ],
+      "name": "facture_payee",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.talosprimes.com/api/invoices/' + $fromAI('factureId', 'UUID de la facture') + '/mark-paid' }}",
+        "description": "Marquer une facture comme payée.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1037",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        0,
+        800
+      ],
+      "name": "lister_bons_commande",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, numero, montant_ht, tva_taux, statut, created_at FROM bons_commande ORDER BY created_at DESC LIMIT 30",
+        "description": "Lister les bons de commande.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "id": "1038",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        800
+      ],
+      "name": "creer_bon_commande",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.talosprimes.com/api/bons-commande",
+        "description": "Créer un bon de commande. AVANT: chercher le client et les articles.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0,\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON: [{\\\"designation\\\":\\\"Pack\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":3000}]')); } catch(e) { return []; } })()\n  })\n}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1039",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        800
+      ],
+      "name": "valider_bon_commande",
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://api.talosprimes.com/api/bons-commande/' + $fromAI('bdcId', 'UUID du bon de commande') + '/validate' }}",
+        "description": "Valider un bon de commande.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1040",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        800
+      ],
+      "name": "bdc_vers_facture",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.talosprimes.com/api/bons-commande/' + $fromAI('bdcId', 'UUID du bon de commande') + '/convert-to-invoice' }}",
+        "description": "Convertir un bon de commande en facture.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "chercher_client_pour_document": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_articles_catalogue": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "envoyer_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "accepter_devis": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "devis_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_factures": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "envoyer_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "facture_payee": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_bons_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "valider_bon_commande": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "bdc_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "650ffd3d-738c-4c0f-acde-fb3c38d8ab00",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "talosprimes-v3"
+  },
+  "tags": [
+    {
+      "name": "TalosPrimes-v3"
+    },
+    {
+      "name": "sub-agent"
+    }
+  ]
+}
