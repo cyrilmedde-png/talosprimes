@@ -11,8 +11,8 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
       "position": [
-        -96,
-        0
+        -200,
+        -200
       ],
       "id": "2cb7e5e9-3201-4c3b-a9dc-c29d5e0beb6b",
       "name": "Telegram Trigger",
@@ -50,8 +50,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        80,
-        0
+        50,
+        -200
       ],
       "id": "n-if-voice",
       "name": "Vérifier Type Message"
@@ -65,8 +65,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        272,
-        -96
+        300,
+        -350
       ],
       "id": "n-get-voice-file",
       "name": "Récupérer Fichier Audio",
@@ -108,8 +108,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
-        -96
+        550,
+        -350
       ],
       "id": "n-whisper",
       "name": "Transcription Whisper",
@@ -149,8 +149,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        624,
-        -96
+        800,
+        -350
       ],
       "id": "n-set-voice",
       "name": "Préparer Contexte (Voix)"
@@ -184,8 +184,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        272,
-        112
+        300,
+        -50
       ],
       "id": "n-set-text",
       "name": "Préparer Contexte (Texte)"
@@ -201,8 +201,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        800,
-        -64
+        1100,
+        -200
       ],
       "id": "2bae6fd5-e937-43f1-8b54-130d5b5999ba",
       "name": "AI Agent"
@@ -220,8 +220,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        -80,
-        160
+        950,
+        100
       ],
       "id": "33a135f9-494b-4c7d-95ed-da6864fc9363",
       "name": "OpenAI Chat Model",
@@ -241,8 +241,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        80,
-        160
+        1250,
+        100
       ],
       "id": "c479c411-a156-4f52-90cf-d17367cd577c",
       "name": "Simple Memory"
@@ -258,8 +258,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1200,
-        80
+        1650,
+        -50
       ],
       "id": "b20cd36a-3538-4a9b-b159-1a18a0af12ec",
       "name": "Reponse",
@@ -297,8 +297,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1024,
-        -64
+        1400,
+        -200
       ],
       "id": "n-if-response",
       "name": "Vérifier Type Réponse"
@@ -332,8 +332,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1200,
-        -176
+        1650,
+        -350
       ],
       "id": "n-tts",
       "name": "Synthèse Vocale (TTS)",
@@ -354,8 +354,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1392,
-        -176
+        1900,
+        -350
       ],
       "id": "n-send-voice",
       "name": "Envoyer Réponse Vocale",
@@ -387,8 +387,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        448,
-        160
+        1100,
+        400
       ],
       "id": "c32a004c-809c-4c21-83ee-a6e298f584f2",
       "name": "Create an event in Google Calendar",
@@ -416,8 +416,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        608,
-        160
+        1350,
+        400
       ],
       "id": "6730d88f-ee25-462f-8886-50c3b2181d74",
       "name": "Get many events in Google Calendar",
@@ -445,8 +445,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        288,
-        160
+        1600,
+        400
       ],
       "id": "48b1ca13-e1f3-47c1-a081-cd0521d2fb83",
       "name": "Update an event in Google Calendar",
@@ -472,8 +472,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        768,
-        160
+        1850,
+        400
       ],
       "id": "943b599b-4ff5-4c30-8a09-bcf7cb02d013",
       "name": "Delete an event in Google Calendar",
@@ -492,8 +492,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        368,
-        336
+        300,
+        400
       ],
       "id": "2733e828-183c-43b5-8f35-12e3bc50ef27",
       "name": "Get many messages in Gmail",
@@ -513,8 +513,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        528,
-        336
+        800,
+        400
       ],
       "id": "f34c8a6d-982e-4d80-b114-d98ab6eeec4e",
       "name": "Delete a message in Gmail",
@@ -538,8 +538,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        688,
-        336
+        550,
+        400
       ],
       "id": "d0d42048-a2d3-4a1b-9bc1-f4b37e7cac92",
       "name": "Send a message in Gmail",
@@ -558,8 +558,8 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.4,
       "position": [
-        -112,
-        -192
+        -200,
+        -500
       ],
       "id": "531a80f4-79e1-449c-abff-79d985b99bcf",
       "name": "When chat message received",
@@ -571,8 +571,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        920,
-        80
+        300,
+        700
       ],
       "parameters": {
         "toolDescription": "Rechercher et lister les clients. Utilise 'search' pour filtrer par nom/prénom/email. Sans 'search', retourne tous les clients.",
@@ -590,8 +590,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1080,
-        80
+        550,
+        700
       ],
       "parameters": {
         "toolDescription": "Obtenir les détails d'un client par son UUID.",
@@ -609,8 +609,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1240,
-        80
+        800,
+        700
       ],
       "parameters": {
         "toolDescription": "Créer un nouveau client.",
@@ -628,8 +628,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        920,
-        220
+        300,
+        950
       ],
       "parameters": {
         "toolDescription": "Lister tous les leads/prospects.",
@@ -647,8 +647,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1080,
-        220
+        550,
+        950
       ],
       "parameters": {
         "toolDescription": "Obtenir un lead par son UUID.",
@@ -666,8 +666,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1240,
-        220
+        800,
+        950
       ],
       "parameters": {
         "toolDescription": "Créer un nouveau lead/prospect.",
@@ -685,8 +685,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1400,
-        220
+        1050,
+        950
       ],
       "parameters": {
         "toolDescription": "Modifier le statut d'un lead.",
@@ -704,8 +704,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        920,
-        360
+        300,
+        1200
       ],
       "parameters": {
         "toolDescription": "Lister tous les codes articles disponibles avec leurs prix et désignations. TOUJOURS appeler cet outil AVANT de créer un devis/facture pour connaître les articles existants.",
@@ -723,8 +723,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1080,
-        360
+        300,
+        1450
       ],
       "parameters": {
         "toolDescription": "CRÉER UN DEVIS. OBLIGATOIRE AVANT : 1) rechercher_clients pour le clientFinalId, 2) lister_articles pour les prix. Le champ lines est un tableau JSON de lignes.",
@@ -732,7 +732,7 @@
         "url": "https://n8n.talosprimes.com/webhook/devis-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client. Obtenu via rechercher_clients.\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT. Somme de quantite x prixUnitaireHt.\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA en %. Par défaut 20.\", \"string\")) || 20, description: $fromAI(\"description\", \"Description courte du devis.\", \"string\"), modePaiement: $fromAI(\"modePaiement\", \"Mode de paiement: virement, cheque, cb, prelevement. Par défaut virement.\", \"string\"), lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Exemple: [{\"designation\":\"Audit\",\"quantite\":1,\"prixUnitaireHt\":1500}]', \"string\")); } catch(e) { return []; } })() }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA en pourcent. Défaut 20\", \"string\")) || 20, description: $fromAI(\"description\", \"Description courte du devis\", \"string\"), modePaiement: $fromAI(\"modePaiement\", \"virement, cheque, cb ou prelevement. Défaut virement\", \"string\") || \"virement\", lines: JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Format: [{\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]', \"string\")) }) }}",
         "options": {}
       }
     },
@@ -742,8 +742,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1240,
-        360
+        550,
+        1450
       ],
       "parameters": {
         "toolDescription": "Lister tous les devis.",
@@ -761,8 +761,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1400,
-        360
+        800,
+        1450
       ],
       "parameters": {
         "toolDescription": "Obtenir un devis par son ID.",
@@ -780,8 +780,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1560,
-        360
+        1050,
+        1450
       ],
       "parameters": {
         "toolDescription": "Envoyer un devis par email.",
@@ -799,8 +799,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1080,
-        500
+        300,
+        1700
       ],
       "parameters": {
         "toolDescription": "CRÉER UNE FACTURE. OBLIGATOIRE AVANT : 1) rechercher_clients pour le clientFinalId, 2) lister_articles pour les prix.",
@@ -808,7 +808,7 @@
         "url": "https://n8n.talosprimes.com/webhook/invoice-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client.\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT.\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA %. Par défaut 20.\", \"string\")) || 20, type: \"facture_client_final\", lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Exemple: [{\"designation\":\"Service\",\"quantite\":1,\"prixUnitaireHt\":2000}]', \"string\")); } catch(e) { return []; } })() }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA %. Défaut 20\", \"string\")) || 20, type: \"facture_client_final\", lines: JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Format: [{\"designation\":\"Nom\",\"quantite\":1,\"prixUnitaireHt\":2000}]', \"string\")) }) }}",
         "options": {}
       }
     },
@@ -818,8 +818,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1240,
-        500
+        550,
+        1700
       ],
       "parameters": {
         "toolDescription": "Lister toutes les factures.",
@@ -837,8 +837,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1400,
-        500
+        800,
+        1700
       ],
       "parameters": {
         "toolDescription": "Obtenir une facture par son ID.",
@@ -856,8 +856,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1560,
-        500
+        1050,
+        1700
       ],
       "parameters": {
         "toolDescription": "Envoyer une facture par email.",
@@ -875,8 +875,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1080,
-        640
+        300,
+        1950
       ],
       "parameters": {
         "toolDescription": "CRÉER UN BON DE COMMANDE. OBLIGATOIRE AVANT : 1) rechercher_clients pour le clientFinalId, 2) lister_articles pour les prix.",
@@ -884,7 +884,7 @@
         "url": "https://n8n.talosprimes.com/webhook/bdc-created",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client.\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT.\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA %. Par défaut 20.\", \"string\")) || 20, lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Exemple: [{\"designation\":\"Pack\",\"quantite\":1,\"prixUnitaireHt\":3000}]', \"string\")); } catch(e) { return []; } })() }) }}",
+        "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\", \"string\"), montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\", \"string\")), tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA %. Défaut 20\", \"string\")) || 20, lines: JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Format: [{\"designation\":\"Nom\",\"quantite\":1,\"prixUnitaireHt\":3000}]', \"string\")) }) }}",
         "options": {}
       }
     },
@@ -894,8 +894,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1240,
-        640
+        550,
+        1950
       ],
       "parameters": {
         "toolDescription": "Lister tous les bons de commande.",
@@ -913,8 +913,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1400,
-        640
+        800,
+        1950
       ],
       "parameters": {
         "toolDescription": "Obtenir un bon de commande par son ID.",
@@ -925,6 +925,166 @@
         "jsonBody": "={{ JSON.stringify({ tenantId: \"00000000-0000-0000-0000-000000000001\", bdcId: $fromAI(\"bdcId\", \"UUID du bon de commande\", \"string\") }) }}",
         "options": {}
       }
+    },
+    {
+      "parameters": {
+        "content": "## 📞 Flow Principal\n\n**Message vocal** → Telegram récupère l'audio → Whisper transcrit en FR → AI Agent → TTS voix homme (onyx) → Audio Telegram\n\n**Message texte** → Directement vers AI Agent → Réponse texte Telegram\n\nLe nœud \"Vérifier Type Message\" route selon voice/text.\nLe nœud \"Vérifier Type Réponse\" renvoie en audio ou texte.",
+        "height": 560,
+        "width": 2300,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        -500
+      ],
+      "id": "sticky-flow",
+      "name": "📞 Flow Principal - Vocal & Texte"
+    },
+    {
+      "parameters": {
+        "content": "## 🧠 IA\n\n**Modèle** : GPT-4.1 mini (OpenAI)\n**Mémoire** : Buffer 100 messages par chat",
+        "height": 180,
+        "width": 500,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        870,
+        20
+      ],
+      "id": "sticky-ai",
+      "name": "🧠 Intelligence Artificielle"
+    },
+    {
+      "parameters": {
+        "content": "## 📧 Gmail\n\nLire, envoyer et supprimer des emails.\nUtilise le compte Gmail via OAuth2.",
+        "height": 180,
+        "width": 700,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        320
+      ],
+      "id": "sticky-gmail",
+      "name": "📧 Gmail"
+    },
+    {
+      "parameters": {
+        "content": "## 📅 Google Calendar\n\nCréer, lire, modifier et supprimer des événements.\nCalendrier : TalosPrimes",
+        "height": 180,
+        "width": 950,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1020,
+        320
+      ],
+      "id": "sticky-calendar",
+      "name": "📅 Google Calendar"
+    },
+    {
+      "parameters": {
+        "content": "## 👥 Clients\n\nRechercher (par nom/email), obtenir détails, créer.\nWebhook : /webhook/clients_list, client_get, client_create",
+        "height": 180,
+        "width": 700,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        620
+      ],
+      "id": "sticky-clients",
+      "name": "👥 Clients"
+    },
+    {
+      "parameters": {
+        "content": "## 🎯 Leads / Prospects\n\nLister, obtenir, créer, modifier statut.\nWebhook : /webhook/leads_list, lead_get, lead_create, lead_update_status",
+        "height": 180,
+        "width": 950,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        870
+      ],
+      "id": "sticky-leads",
+      "name": "🎯 Leads / Prospects"
+    },
+    {
+      "parameters": {
+        "content": "## 📦 Articles\n\nListe des codes articles avec prix.\n⚠️ TOUJOURS lister avant de créer un devis/facture",
+        "height": 180,
+        "width": 350,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        1120
+      ],
+      "id": "sticky-articles",
+      "name": "📦 Articles"
+    },
+    {
+      "parameters": {
+        "content": "## 📋 Devis\n\nCréer, lister, obtenir, envoyer par email.\nWebhook : /webhook/devis-created, devis-list, devis-get, devis-sent",
+        "height": 180,
+        "width": 950,
+        "color": 1
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        1370
+      ],
+      "id": "sticky-devis",
+      "name": "📋 Devis"
+    },
+    {
+      "parameters": {
+        "content": "## 💰 Factures\n\nCréer, lister, obtenir, envoyer par email.\nWebhook : /webhook/invoice-created, invoices-list, invoice-get, invoice-sent",
+        "height": 180,
+        "width": 950,
+        "color": 1
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        1620
+      ],
+      "id": "sticky-factures",
+      "name": "💰 Factures"
+    },
+    {
+      "parameters": {
+        "content": "## 📑 Bons de Commande\n\nCréer, lister, obtenir.\nWebhook : /webhook/bdc-created, bdc-list, bdc-get",
+        "height": 180,
+        "width": 700,
+        "color": 1
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        1870
+      ],
+      "id": "sticky-bdc",
+      "name": "📑 Bons de Commande"
     }
   ],
   "pinData": {},
