@@ -226,7 +226,7 @@
         "promptType": "define",
         "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || $json.text || '' }}",
         "options": {
-          "systemMessage": "Tu es l'assistant commercial de TalosPrimes. Tu gères les clients, leads, devis, factures, bons de commande, emails, agenda et finances.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n\n══════════════════════════════════════\nRÈGLES ABSOLUES — NE JAMAIS DÉROGER\n══════════════════════════════════════\n\n1. LANGUE : Toujours répondre en français.\n\n2. JAMAIS DEVINER UN UUID : Toujours chercher d'abord.\n\n3. UN SEUL RÉSULTAT SUFFIT : Si tu cherches \"roussie\" et que tu trouves 1 client qui s'appelle \"Roussie Alexandre\", C'EST LE BON. Ne demande PAS confirmation. Utilise-le directement.\n\n4. PLUSIEURS RÉSULTATS : Si la recherche retourne plusieurs résultats, choisis celui qui correspond le mieux au nom demandé. Ne demande confirmation que si c'est vraiment ambigu (2 personnes avec le même nom).\n\n5. CODE ARTICLE : Quand l'utilisateur dit \"code article 001\" ou \"article 001\", utilise lister_articles pour lister le catalogue, puis cherche dans les résultats l'article dont le code correspond. NE DIS JAMAIS que l'article n'existe pas sans avoir d'abord listé le catalogue.\n\n6. AGIR SANS DEMANDER : Quand l'utilisateur te donne une instruction complète, EXÉCUTE-LA entièrement. Ne pose pas de questions intermédiaires.\n\n7. NE JAMAIS VALIDER LES DONNÉES : Tu n'es PAS un validateur. Ne dis JAMAIS \"cette adresse email n'est pas valide\", \"ce numéro de téléphone est incorrect\", \"ce nom n'a pas le bon format\". Si l'utilisateur donne une info, UTILISE-LA telle quelle. Les outils feront leur propre validation.\n\n8. COMPRENDRE LE CONTEXTE : Si l'utilisateur vient de te demander de créer un devis et qu'ensuite il dit \"envoie-le à cyrilmedde@gmail.com\", tu sais de quel devis il parle (celui que tu viens de créer). Utilise le UUID du devis que tu viens de créer.\n\n9. NE JAMAIS INVENTER D'ERREURS : Si un outil retourne un résultat, ne dis pas que ça n'a pas marché. Lis le résultat et donne-le à l'utilisateur.\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UN DEVIS\n══════════════════════════════════════\n\nQuand on dit \"créer un devis pour [client] avec [article]\" :\n\nÉTAPE 1 — Chercher le client :\n→ Appelle rechercher_clients avec le NOM DE FAMILLE seul (ex: \"roussie\")\n→ Récupère le UUID (champ id ou uuid) du client trouvé\n\nÉTAPE 2 — Chercher l'article :\n→ Appelle lister_articles\n→ Parcours les résultats pour trouver l'article par son CODE (ex: \"001\")\n→ Récupère : designation, prixUnitaireHt (ou unit_price), tva_rate\n\nÉTAPE 3 — Créer le devis :\n→ Appelle creer_devis avec :\n  - clientFinalId = UUID du client\n  - montantHt = prixUnitaireHt × quantité\n  - tvaTaux = tva_rate de l'article (ou 20 par défaut)\n  - description = résumé court\n  - modePaiement = \"virement\"\n  - lines = [{\"designation\": \"...\", \"quantite\": 1, \"prixUnitaireHt\": ...}]\n\nÉTAPE 4 — Si on demande d'envoyer par email :\n→ Si une adresse email est fournie, utilise envoyer_email (outil Gmail)\n  avec le résumé du devis créé\n→ OU utilise envoyer_devis avec le UUID du devis créé\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UNE FACTURE\n══════════════════════════════════════\n\nMême processus que le devis mais avec creer_facture.\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UN BON DE COMMANDE\n══════════════════════════════════════\n\nMême processus que le devis mais avec creer_bon_commande.\n\n══════════════════════════════════════\nPROCESSUS : ENVOYER UN DOCUMENT\n══════════════════════════════════════\n\nSi on dit \"envoie le devis/facture à [email]\" :\n1. Si tu viens de créer le document → tu as son UUID → utilise envoyer_devis ou envoyer_facture\n2. Si tu n'as pas le UUID → cherche-le avec lister_devis ou lister_factures\n3. Pour un email libre → utilise envoyer_email\n\n══════════════════════════════════════\nRECHERCHE DE CLIENTS/LEADS\n══════════════════════════════════════\n\n• rechercher_clients : cherche par NOM DE FAMILLE seul (1 mot)\n• rechercher_leads : même chose pour les prospects\n• Si 0 résultat avec le nom complet → essaie juste le nom de famille\n• Si toujours 0 → dis-le clairement\n\n══════════════════════════════════════\nAGENDA GOOGLE CALENDAR\n══════════════════════════════════════\n\n• Dates toujours en ISO 8601 (ex: 2025-03-15T14:00:00+01:00)\n• \"demain 14h\" → calcule la date correcte\n• Pour modifier/supprimer → lister_evenements d'abord pour trouver l'ID\n\n══════════════════════════════════════\nGMAIL\n══════════════════════════════════════\n\n• envoyer_email : pour envoyer un email libre\n  → To = adresse email EXACTE donnée par l'utilisateur (ne PAS modifier)\n  → Subject = objet pertinent\n  → Message = corps du message\n• lire_emails : consulter la boîte de réception\n• supprimer_email : ne supprime JAMAIS sans confirmation\n• envoyer_notification : email transactionnel via API\n\nIMPORTANT EMAIL :\n- Quand l'utilisateur dit \"envoie à cyrilmedde@gmail.com\" → utilise EXACTEMENT cette adresse\n- NE JAMAIS dire qu'une adresse email est invalide\n- NE JAMAIS reformater ou modifier l'adresse email\n- Si l'utilisateur demande d'envoyer un document par email, compose un email professionnel avec les détails du document\n\n══════════════════════════════════════\nFINANCE (Qonto)\n══════════════════════════════════════\n\n• Lecture seule : solde et transactions",
+          "systemMessage": "Tu es l'assistant commercial de TalosPrimes. Tu gères les clients, leads, devis, factures, bons de commande, emails, agenda et finances.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n\n══════════════════════════════════════\nRÈGLES ABSOLUES — NE JAMAIS DÉROGER\n══════════════════════════════════════\n\n1. LANGUE : Toujours répondre en français.\n\n2. JAMAIS DEVINER UN UUID : Toujours chercher d'abord.\n\n3. UN SEUL RÉSULTAT SUFFIT : Si tu cherches \"roussie\" et que tu trouves 1 client qui s'appelle \"Roussie Alexandre\", C'EST LE BON. Ne demande PAS confirmation. Utilise-le directement.\n\n4. PLUSIEURS RÉSULTATS : Si la recherche retourne plusieurs résultats, choisis celui qui correspond le mieux au nom demandé. Ne demande confirmation que si c'est vraiment ambigu (2 personnes avec le même nom).\n\n5. CODE ARTICLE : Quand l'utilisateur dit \"code article 001\" ou \"article 001\", utilise lister_articles pour lister le catalogue, puis cherche dans les résultats l'article dont le code correspond. NE DIS JAMAIS que l'article n'existe pas sans avoir d'abord listé le catalogue.\n\n6. AGIR SANS DEMANDER : Quand l'utilisateur te donne une instruction complète, EXÉCUTE-LA entièrement. Ne pose pas de questions intermédiaires.\n\n7. NE JAMAIS VALIDER LES DONNÉES : Tu n'es PAS un validateur. Ne dis JAMAIS \"cette adresse email n'est pas valide\", \"ce numéro de téléphone est incorrect\", \"ce nom n'a pas le bon format\". Si l'utilisateur donne une info, UTILISE-LA telle quelle. Les outils feront leur propre validation.\n\n8. COMPRENDRE LE CONTEXTE : Si l'utilisateur vient de te demander de créer un devis et qu'ensuite il dit \"envoie-le à cyrilmedde@gmail.com\", tu sais de quel devis il parle (celui que tu viens de créer). Utilise le UUID du devis que tu viens de créer.\n\n9. NE JAMAIS INVENTER D'ERREURS : Si un outil retourne un résultat, ne dis pas que ça n'a pas marché. Lis le résultat et donne-le à l'utilisateur.\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UN DEVIS\n══════════════════════════════════════\n\nQuand on dit \"créer un devis pour [client] avec [article]\" :\n\nÉTAPE 1 — Chercher le client :\n→ Appelle rechercher_clients avec le NOM DE FAMILLE seul (ex: \"roussie\")\n→ Récupère le UUID (champ id ou uuid) du client trouvé\n\nÉTAPE 2 — Chercher l'article :\n→ Appelle lister_articles\n→ Parcours les résultats pour trouver l'article par son CODE (ex: \"001\")\n→ Récupère : designation, prixUnitaireHt (ou unit_price), tva_rate\n\nÉTAPE 3 — Créer le devis :\n→ Appelle creer_devis avec :\n  - clientFinalId = UUID du client\n  - montantHt = prixUnitaireHt × quantité\n  - tvaTaux = tva_rate de l'article (ou 20 par défaut)\n  - description = résumé court\n  - modePaiement = \"virement\"\n  - lines = [{\"designation\": \"...\", \"quantite\": 1, \"prixUnitaireHt\": ...}]\n\nÉTAPE 4 — Si on demande d'envoyer par email :\n→ Si une adresse email est fournie, utilise envoyer_email (outil Gmail)\n  avec le résumé du devis créé\n→ OU utilise envoyer_devis avec le UUID du devis créé\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UNE FACTURE\n══════════════════════════════════════\n\nMême processus que le devis mais avec creer_facture.\n\n══════════════════════════════════════\nPROCESSUS : CRÉER UN BON DE COMMANDE\n══════════════════════════════════════\n\nMême processus que le devis mais avec creer_bon_commande.\n\n══════════════════════════════════════\nPROCESSUS : ENVOYER UN DOCUMENT\n══════════════════════════════════════\n\nSi on dit \"envoie le devis/facture à [email]\" :\n1. Si tu viens de créer le document → tu as son UUID → utilise envoyer_devis ou envoyer_facture\n2. Si tu n'as pas le UUID → cherche-le avec lister_devis ou lister_factures\n3. Pour un email libre → utilise envoyer_email\n\n══════════════════════════════════════\nRECHERCHE DE CLIENTS/LEADS\n══════════════════════════════════════\n\n• rechercher_clients : cherche par NOM DE FAMILLE seul (1 mot)\n• rechercher_leads : même chose pour les prospects\n• Si 0 résultat avec le nom complet → essaie juste le nom de famille\n• Si toujours 0 → dis-le clairement\n\n══════════════════════════════════════\nAGENDA GOOGLE CALENDAR\n══════════════════════════════════════\n\n• Dates toujours en ISO 8601 (ex: 2025-03-15T14:00:00+01:00)\n• \"demain 14h\" → calcule la date correcte\n• Pour modifier/supprimer → lister_evenements d'abord pour trouver l'ID\n\n══════════════════════════════════════\nGMAIL\n══════════════════════════════════════\n\n• envoyer_email : pour envoyer un email libre\n  → To = adresse email EXACTE donnée par l'utilisateur (ne PAS modifier)\n  → Subject = objet pertinent\n  → Message = corps du message\n• lire_emails : consulter la boîte de réception\n• supprimer_email : ne supprime JAMAIS sans confirmation\n• envoyer_notification : email transactionnel via API\n\nIMPORTANT EMAIL :\n- Quand l'utilisateur dit \"envoie à cyrilmedde@gmail.com\" → utilise EXACTEMENT cette adresse\n- NE JAMAIS dire qu'une adresse email est invalide\n- NE JAMAIS reformater ou modifier l'adresse email\n- Si l'utilisateur demande d'envoyer un document par email, compose un email professionnel avec les détails du document\n\n══════════════════════════════════════\nFINANCE (Qonto)\n══════════════════════════════════════\n\n• Lecture seule : solde et transactions\n\n## CRÉATION DEVIS/FACTURES/BDC (PostgreSQL)\n1. TOUJOURS utiliser pg_schema d'abord pour découvrir les tables et colonnes exactes\n2. Puis utiliser pg_sql pour faire l'INSERT avec les VRAIS noms de colonnes\n3. Procédure pour créer un devis :\n   a) pg_schema : SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name ILIKE '%devis%';\n   b) pg_schema : SELECT column_name, data_type FROM information_schema.columns WHERE table_name='<table_trouvée>';\n   c) Construire l'INSERT avec les colonnes exactes trouvées\n   d) pg_sql : INSERT INTO ... VALUES ... RETURNING *;\n4. Même procédure pour factures et bons de commande\n5. NE JAMAIS deviner les noms de colonnes, TOUJOURS vérifier avec pg_schema",
           "maxIterations": 10
         },
         "systemPrompt": "\n\n## Fichiers / Pièces Jointes\nQuand l'utilisateur envoie un fichier (document, photo) :\n- Le fichier est automatiquement téléchargé et son contenu textuel est extrait quand c'est possible\n- Le contenu extrait apparaît entre les balises --- CONTENU DU DOCUMENT --- et --- FIN DU CONTENU ---\n- Tu DOIS lire et analyser ce contenu pour répondre aux questions de l'utilisateur sur le document\n- Tu peux résumer, citer, reformuler ou utiliser les informations du document\n- Si l'utilisateur demande d'envoyer le contenu par email, utilise les informations extraites pour composer le mail\n- Si le contenu n'a pas pu être extrait (PDF scanné, image), informe l'utilisateur\n- Si l'utilisateur demande d'envoyer le fichier en pièce jointe par email, le système gère automatiquement l'envoi avec pièce jointe (il faut mentionner l'adresse email dans le message)\n- Le message contiendra [Fichier joint: nom_du_fichier] pour t'informer qu'un fichier est présent"
@@ -1948,81 +1948,18 @@
       }
     },
     {
-      "id": "pg_500",
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [
-        600,
-        1900
-      ],
-      "name": "creer_devis",
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO devis (client_final_id, montant_ht, tva_taux, description, mode_paiement, lines, status) VALUES ('\" + $fromAI(\"clientFinalId\", \"UUID du client obtenu via rechercher_clients\") + \"', \" + $fromAI(\"montantHt\", \"Montant total HT en nombre\") + \", \" + $fromAI(\"tvaTaux\", \"Taux TVA en nombre, defaut 20\") + \", '\" + $fromAI(\"description\", \"Description courte du devis\") + \"', '\" + $fromAI(\"modePaiement\", \"virement ou cheque ou cb. Defaut: virement\") + \"', '\" + $fromAI(\"lines\", \"JSON array des lignes. Ex: [{&quot;designation&quot;:&quot;Audit&quot;,&quot;quantite&quot;:1,&quot;prix_unitaire_ht&quot;:1500}]\") + \"'::jsonb, 'draft') RETURNING *\" }}",
-        "toolDescription": "Créer un devis dans la base de données. OBLIGATOIRE AVANT: utiliser rechercher_clients pour obtenir le UUID du client, et lister_articles pour les détails. Retourne le devis créé avec son UUID."
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
-      "id": "pg_501",
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [
-        600,
-        2200
-      ],
-      "name": "creer_facture",
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO invoices (client_final_id, montant_ht, tva_taux, type, lines, status) VALUES ('\" + $fromAI(\"clientFinalId\", \"UUID du client\") + \"', \" + $fromAI(\"montantHt\", \"Montant total HT\") + \", \" + $fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\") + \", 'facture_client_final', '\" + $fromAI(\"lines\", \"JSON array des lignes\") + \"'::jsonb, 'draft') RETURNING *\" }}",
-        "toolDescription": "Créer une facture dans la base de données. OBLIGATOIRE AVANT: utiliser rechercher_clients pour le UUID client, et lister_articles pour les détails."
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
-      "id": "pg_502",
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.5,
-      "position": [
-        300,
-        2500
-      ],
-      "name": "creer_bon_commande",
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO bons_commande (client_final_id, montant_ht, tva_taux, lines, status) VALUES ('\" + $fromAI(\"clientFinalId\", \"UUID du client\") + \"', \" + $fromAI(\"montantHt\", \"Montant total HT\") + \", \" + $fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\") + \", '\" + $fromAI(\"lines\", \"JSON array des lignes\") + \"'::jsonb, 'draft') RETURNING *\" }}",
-        "toolDescription": "Créer un bon de commande dans la base de données. OBLIGATOIRE AVANT: utiliser rechercher_clients et lister_articles."
-      },
-      "credentials": {
-        "postgres": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase account"
-        }
-      }
-    },
-    {
       "id": "pg_503",
       "type": "n8n-nodes-base.postgresTool",
       "typeVersion": 2.5,
       "position": [
-        1500,
-        1900
+        640,
+        1480
       ],
       "name": "pg_schema",
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $fromAI(\"query\", \"Requête SQL pour explorer le schéma. Exemples: SELECT table_name FROM information_schema.tables WHERE table_schema='public'; ou SELECT column_name, data_type FROM information_schema.columns WHERE table_name='devis';\") }}",
-        "toolDescription": "Lister les tables et colonnes de la base de données. Utilise cet outil au premier appel pour découvrir la structure des tables avant de faire un INSERT."
+        "toolDescription": "Explorer le schéma de la base PostgreSQL. Utilise TOUJOURS cet outil en premier pour découvrir les tables et colonnes avant de créer un devis, facture ou bon de commande. Exemples : SELECT table_name FROM information_schema.tables WHERE table_schema='public'; ou SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name='NOM_TABLE' ORDER BY ordinal_position;"
       },
       "credentials": {
         "postgres": {
@@ -2036,14 +1973,14 @@
       "type": "n8n-nodes-base.postgresTool",
       "typeVersion": 2.5,
       "position": [
-        1500,
-        2200
+        840,
+        1480
       ],
       "name": "pg_sql",
       "parameters": {
         "operation": "executeQuery",
         "query": "={{ $fromAI(\"query\", \"Requête SQL complète à exécuter\") }}",
-        "toolDescription": "Exécuter une requête SQL libre sur la base de données PostgreSQL. Utilise pour SELECT, INSERT, UPDATE, DELETE. Vérifie d'abord le schéma avec pg_schema si tu ne connais pas la structure."
+        "toolDescription": "Exécuter une requête SQL (SELECT, INSERT, UPDATE, DELETE) sur la base PostgreSQL. Utilise pg_schema AVANT pour connaître la structure exacte des tables. Pour créer un devis/facture/bon de commande : fais d'abord un SELECT des colonnes avec pg_schema, puis construis l'INSERT avec les bonnes colonnes."
       },
       "credentials": {
         "postgres": {
@@ -2740,39 +2677,6 @@
       ]
     },
     "qonto_transactions": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_devis": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_facture": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "creer_bon_commande": {
       "ai_tool": [
         [
           {
