@@ -19,6 +19,7 @@ import {
   AlertCircle,
   CheckCircle,
   Loader,
+  Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -210,7 +211,7 @@ export default function CMSPage() {
   const loadTestimonials = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: Testimonial[] }>('/api/landing/testimonials/admin');
+      const data = await fetchApi<{ data: Testimonial[] }>('/api/landing/testimonials/all');
       setTestimonials(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des témoignages: ${error}`, 'error');
@@ -223,7 +224,7 @@ export default function CMSPage() {
   const loadMessages = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: ContactMessage[] }>('/api/landing/contact-messages');
+      const data = await fetchApi<{ data: ContactMessage[] }>('/api/landing/contact');
       setMessages(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des messages: ${error}`, 'error');
@@ -236,7 +237,7 @@ export default function CMSPage() {
   const loadPages = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: CMSPage[] }>('/api/cms-pages');
+      const data = await fetchApi<{ data: CMSPage[] }>('/api/landing/pages/all');
       setPages(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des pages: ${error}`, 'error');
@@ -249,7 +250,7 @@ export default function CMSPage() {
   const loadPlans = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: Plan[] }>('/api/plans');
+      const data = await fetchApi<{ data: Plan[] }>('/api/plans/all');
       setPlans(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des plans: ${error}`, 'error');
@@ -417,7 +418,7 @@ export default function CMSPage() {
   // ============= PAGE OPERATIONS =============
   const createPage = async (data: Partial<CMSPage>) => {
     try {
-      const response = await fetchApi<{ data: CMSPage }>('/api/cms-pages', {
+      const response = await fetchApi<{ data: CMSPage }>('/api/landing/pages', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -431,7 +432,7 @@ export default function CMSPage() {
 
   const updatePage = async (id: string, data: Partial<CMSPage>) => {
     try {
-      const response = await fetchApi<{ data: CMSPage }>(`/api/cms-pages/${id}`, {
+      const response = await fetchApi<{ data: CMSPage }>(`/api/landing/pages/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -446,7 +447,7 @@ export default function CMSPage() {
   const deletePage = async (id: string) => {
     if (!window.confirm('Êtes-vous sûr ?')) return;
     try {
-      await fetchApi(`/api/cms-pages/${id}`, { method: 'DELETE' });
+      await fetchApi(`/api/landing/pages/${id}`, { method: 'DELETE' });
       setPages(pages.filter((p) => p.id !== id));
       addToast('Page supprimée avec succès', 'success');
     } catch (error) {
@@ -498,7 +499,7 @@ export default function CMSPage() {
   const deleteMessage = async (id: string) => {
     if (!window.confirm('Êtes-vous sûr ?')) return;
     try {
-      await fetchApi(`/api/landing/contact-messages/${id}`, { method: 'DELETE' });
+      await fetchApi(`/api/landing/contact/${id}`, { method: 'DELETE' });
       setMessages(messages.filter((m) => m.id !== id));
       addToast('Message supprimé avec succès', 'success');
     } catch (error) {
@@ -930,6 +931,7 @@ export default function CMSPage() {
       <LegalPagesEditor
         content={landingContent}
         onSave={saveLandingContent}
+        fetchApi={fetchApi}
       />
     </div>
   );
@@ -1162,6 +1164,14 @@ function SectionModal({
     section || { titre: '', config: {} }
   );
 
+  const [bgConfig, setBgConfig] = useState({
+    backgroundImage: str((section?.config as Record<string, unknown>)?.backgroundImage),
+    bgColor: str((section?.config as Record<string, unknown>)?.bgColor),
+    bgOverlay: Number((section?.config as Record<string, unknown>)?.bgOverlay) || 0,
+    bgSize: str((section?.config as Record<string, unknown>)?.bgSize) || 'cover',
+    bgPosition: str((section?.config as Record<string, unknown>)?.bgPosition) || 'center',
+  });
+
   const sectionTypes = [
     'hero',
     'stats',
@@ -1177,8 +1187,12 @@ function SectionModal({
   ];
 
   const handleSave = () => {
+    const updatedFormData = {
+      ...formData,
+      config: { ...(formData.config as Record<string, unknown>), ...bgConfig },
+    };
     if (section) {
-      onUpdate(section.id, formData);
+      onUpdate(section.id, updatedFormData);
     } else {
       onCreate(sectionType);
     }
@@ -1226,6 +1240,87 @@ function SectionModal({
               onChange={(e) => setFormData({ ...formData, titre: e.target.value })}
               className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              URL de l'image de fond
+            </label>
+            <input
+              type="text"
+              value={bgConfig.backgroundImage}
+              onChange={(e) => setBgConfig({ ...bgConfig, backgroundImage: e.target.value })}
+              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              placeholder="https://..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Couleur de fond
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="color"
+                value={bgConfig.bgColor}
+                onChange={(e) => setBgConfig({ ...bgConfig, bgColor: e.target.value })}
+                className="w-12 h-10 bg-slate-700 border border-slate-600 rounded cursor-pointer"
+              />
+              <input
+                type="text"
+                value={bgConfig.bgColor}
+                onChange={(e) => setBgConfig({ ...bgConfig, bgColor: e.target.value })}
+                className="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+                placeholder="#000000"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Opacité de l'overlay ({bgConfig.bgOverlay})
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={bgConfig.bgOverlay}
+              onChange={(e) => setBgConfig({ ...bgConfig, bgOverlay: parseFloat(e.target.value) })}
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Taille du fond
+            </label>
+            <select
+              value={bgConfig.bgSize}
+              onChange={(e) => setBgConfig({ ...bgConfig, bgSize: e.target.value })}
+              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+            >
+              <option value="cover">cover</option>
+              <option value="contain">contain</option>
+              <option value="auto">auto</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Position du fond
+            </label>
+            <select
+              value={bgConfig.bgPosition}
+              onChange={(e) => setBgConfig({ ...bgConfig, bgPosition: e.target.value })}
+              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+            >
+              <option value="center">center</option>
+              <option value="top">top</option>
+              <option value="bottom">bottom</option>
+              <option value="left">left</option>
+              <option value="right">right</option>
+            </select>
           </div>
 
           <div className="flex gap-2">
@@ -1928,9 +2023,13 @@ function SeoEditor({ seo, onSave }: SeoEditorProps) {
 interface LegalPagesEditorProps {
   content: LandingContent;
   onSave: (section: string, contenu: ContentValue) => void;
+  fetchApi: <T = { data: unknown }>(
+    url: string,
+    options?: RequestInit
+  ) => Promise<T>;
 }
 
-function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
+function LegalPagesEditor({ content, onSave, fetchApi }: LegalPagesEditorProps) {
   const [mentionsLegales, setMentionsLegales] = useState(
     (content.mentions_legales as string) || ''
   );
@@ -1939,6 +2038,67 @@ function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
   const [confidentialite, setConfidentialite] = useState(
     (content.confidentialite as string) || ''
   );
+  const [generating, setGenerating] = useState<string | null>(null);
+
+  const generateLegalPage = async (pageId: string, setter: (value: string) => void) => {
+    try {
+      setGenerating(pageId);
+      const contactData = content.contact as Record<string, unknown> | undefined;
+      const legalData = content.legal as Record<string, unknown> | undefined;
+      const companyData = content.company as Record<string, unknown> | undefined;
+      const hostingData = content.hosting as Record<string, unknown> | undefined;
+      const insuranceData = content.insurance as Record<string, unknown> | undefined;
+
+      const companyInfo = {
+        contact: {
+          email: str(contactData?.email),
+          phone: str(contactData?.phone),
+          address: str(contactData?.address),
+        },
+        legal: {
+          companyName: str(legalData?.companyName),
+          legalForm: str(legalData?.legalForm),
+          capital: str(legalData?.capital),
+          siret: str(legalData?.siret),
+          tva: str(legalData?.tva),
+          address: str(legalData?.address),
+        },
+        company: {
+          description: str(companyData?.description),
+          supportEmail: str(companyData?.supportEmail),
+          rgpdEmail: str(companyData?.rgpdEmail),
+        },
+        hosting: {
+          provider: str(hostingData?.provider),
+          companyName: str(hostingData?.companyName),
+          address: str(hostingData?.address),
+          phone: str(hostingData?.phone),
+          website: str(hostingData?.website),
+        },
+        insurance: {
+          company: str(insuranceData?.company),
+          policyNumber: str(insuranceData?.policyNumber),
+          coverage: str(insuranceData?.coverage),
+          address: str(insuranceData?.address),
+          phone: str(insuranceData?.phone),
+        },
+      };
+
+      const response = await fetchApi<{ content: string }>(
+        `/api/landing/generate-legal/${pageId}`,
+        {
+          method: 'POST',
+          body: JSON.stringify(companyInfo),
+        }
+      );
+
+      setter(response.content);
+    } catch (error) {
+      console.error(`Erreur lors de la génération de la page légale:`, error);
+    } finally {
+      setGenerating(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1950,12 +2110,29 @@ function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
           rows={6}
           className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white font-mono text-sm mb-4"
         />
-        <button
-          onClick={() => onSave('mentions_legales', mentionsLegales)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
-        >
-          <Save size={18} /> Enregistrer
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => generateLegalPage('mentions-legales', setMentionsLegales)}
+            disabled={generating === 'mentions-legales'}
+            className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            {generating === 'mentions-legales' ? (
+              <>
+                <Loader size={18} className="animate-spin" /> Génération...
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} /> Générer avec l'IA
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => onSave('mentions_legales', mentionsLegales)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            <Save size={18} /> Enregistrer
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
@@ -1966,12 +2143,29 @@ function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
           rows={6}
           className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white font-mono text-sm mb-4"
         />
-        <button
-          onClick={() => onSave('cgu', cgu)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
-        >
-          <Save size={18} /> Enregistrer
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => generateLegalPage('cgu', setCgu)}
+            disabled={generating === 'cgu'}
+            className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            {generating === 'cgu' ? (
+              <>
+                <Loader size={18} className="animate-spin" /> Génération...
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} /> Générer avec l'IA
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => onSave('cgu', cgu)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            <Save size={18} /> Enregistrer
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
@@ -1982,12 +2176,29 @@ function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
           rows={6}
           className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white font-mono text-sm mb-4"
         />
-        <button
-          onClick={() => onSave('cgv', cgv)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
-        >
-          <Save size={18} /> Enregistrer
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => generateLegalPage('cgv', setCgv)}
+            disabled={generating === 'cgv'}
+            className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            {generating === 'cgv' ? (
+              <>
+                <Loader size={18} className="animate-spin" /> Génération...
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} /> Générer avec l'IA
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => onSave('cgv', cgv)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            <Save size={18} /> Enregistrer
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
@@ -1998,12 +2209,29 @@ function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
           rows={6}
           className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white font-mono text-sm mb-4"
         />
-        <button
-          onClick={() => onSave('confidentialite', confidentialite)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
-        >
-          <Save size={18} /> Enregistrer
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => generateLegalPage('confidentialite', setConfidentialite)}
+            disabled={generating === 'confidentialite'}
+            className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            {generating === 'confidentialite' ? (
+              <>
+                <Loader size={18} className="animate-spin" /> Génération...
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} /> Générer avec l'IA
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => onSave('confidentialite', confidentialite)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+          >
+            <Save size={18} /> Enregistrer
+          </button>
+        </div>
       </div>
     </div>
   );

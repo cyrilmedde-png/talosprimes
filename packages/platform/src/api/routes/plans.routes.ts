@@ -163,7 +163,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
         reply.code(200).send({
           success: true,
-          data: { plans },
+          data: plans,
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des plans');
@@ -205,7 +205,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
         reply.code(200).send({
           success: true,
-          data: { plans },
+          data: plans,
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des plans');
@@ -249,7 +249,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
         reply.code(200).send({
           success: true,
-          data: { plan },
+          data: plan,
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -304,7 +304,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
         reply.code(200).send({
           success: true,
-          data: { plan },
+          data: plan,
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération du plan par code');
@@ -356,7 +356,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
         reply.code(201).send({
           success: true,
           message: 'Plan créé avec succès',
-          data: { plan },
+          data: plan,
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -397,7 +397,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
         reply.code(200).send({
           success: true,
           message: 'Plan mis à jour',
-          data: { plan },
+          data: plan,
         });
       } catch (error) {
         if (error instanceof z.ZodError) {

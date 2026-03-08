@@ -140,7 +140,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         const testimonials = await prisma.testimonial.findMany({
           orderBy: { ordre: 'asc' }
         });
-        return reply.send(testimonials);
+        return reply.send({ success: true, data: testimonials });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -291,7 +291,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         const messages = await prisma.contactMessage.findMany({
           orderBy: { createdAt: 'desc' }
         });
-        return reply.send(messages);
+        return reply.send({ success: true, data: messages });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -428,7 +428,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
           orderBy: { ordre: 'asc' },
         });
         reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
-        return reply.send({ success: true, data: { pages } });
+        return reply.send({ success: true, data: pages });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -447,7 +447,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         const pages = await prisma.cmsPage.findMany({
           orderBy: { ordre: 'asc' },
         });
-        return reply.send({ success: true, data: { pages } });
+        return reply.send({ success: true, data: pages });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -485,7 +485,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         }
 
         reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
-        return reply.send({ success: true, data: { page } });
+        return reply.send({ success: true, data: page });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -528,7 +528,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
             ordre: ordre ?? 0,
           },
         });
-        return reply.status(201).send({ success: true, data: { page } });
+        return reply.status(201).send({ success: true, data: page });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -568,7 +568,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         if (ordre !== undefined) data.ordre = ordre;
 
         const page = await prisma.cmsPage.update({ where: { id }, data });
-        return reply.send({ success: true, data: { page } });
+        return reply.send({ success: true, data: page });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -610,7 +610,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
             },
           },
         });
-        return reply.send({ success: true, data: { plans } });
+        return reply.send({ success: true, data: plans });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
