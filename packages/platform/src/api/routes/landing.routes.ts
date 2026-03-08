@@ -72,11 +72,15 @@ export async function landingRoutes(fastify: FastifyInstance) {
         orderBy: { section: 'asc' }
       });
       
-      // Transformer en objet clé-valeur pour faciliter l'accès
-      const contentMap = content.reduce((acc: Record<string, string>, item: typeof content[0]) => {
-        acc[item.section] = item.contenu;
+      // Transformer en objet clé-valeur, en parsant le JSON si possible
+      const contentMap = content.reduce((acc: Record<string, unknown>, item: typeof content[0]) => {
+        try {
+          acc[item.section] = JSON.parse(item.contenu);
+        } catch {
+          acc[item.section] = item.contenu;
+        }
         return acc;
-      }, {} as Record<string, string>);
+      }, {} as Record<string, unknown>);
 
       // Cache 5 min côté navigateur, 1h côté CDN/proxy — le contenu change rarement
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -97,11 +101,14 @@ export async function landingRoutes(fastify: FastifyInstance) {
       const { section } = request.params;
       const { contenu } = request.body;
 
+      // Le frontend peut envoyer un objet ou une string — on stocke toujours en string
+      const contenuStr = typeof contenu === 'string' ? contenu : JSON.stringify(contenu);
+
       try {
         const updated = await prisma.landingContent.upsert({
           where: { section },
-          update: { contenu },
-          create: { section, contenu },
+          update: { contenu: contenuStr },
+          create: { section, contenu: contenuStr },
         });
 
         return reply.send(updated);
