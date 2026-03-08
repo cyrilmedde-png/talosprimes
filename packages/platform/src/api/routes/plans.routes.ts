@@ -163,7 +163,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
         reply.code(200).send({
           success: true,
-          data: plans,
+          data: { plans },
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des plans');
@@ -205,7 +205,7 @@ export async function plansRoutes(fastify: FastifyInstance) {
 
         reply.code(200).send({
           success: true,
-          data: plans,
+          data: { plans },
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur lors de la récupération des plans');
