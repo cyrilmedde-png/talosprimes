@@ -55,15 +55,13 @@ export function DynamicFooter({ config }: { config?: FooterConfig }) {
         </div>
         <div className="pt-8 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <span>{copyright}</span>
-          <div className="flex gap-4">
-            {(config?.legalLinks || [
-              { text: 'Mentions légales', href: '/mentions-legales' },
-              { text: 'Confidentialité', href: '/confidentialite' },
-              { text: 'CGV', href: '/cgv' },
-            ]).map((link, i) => (
-              <Link key={i} href={link.href} className="hover:text-slate-300 transition">{link.text}</Link>
-            ))}
-          </div>
+          {config?.legalLinks && config.legalLinks.length > 0 && (
+            <div className="flex gap-4">
+              {config.legalLinks.map((link, i) => (
+                <Link key={i} href={link.href} className="hover:text-slate-300 transition">{link.text}</Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </footer>
