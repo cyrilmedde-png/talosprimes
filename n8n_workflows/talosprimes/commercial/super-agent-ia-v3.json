@@ -195,7 +195,7 @@
         "promptType": "define",
         "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || '' }}",
         "options": {
-          "systemMessage": "Tu es l'assistant commercial vocal de TalosPrimes. Tu EXÉCUTES les demandes COMPLÈTEMENT sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n🔑 tenantId : 00000000-0000-0000-0000-000000000001\n\n═══ RÈGLE N°1 : EXÉCUTER SANS DEMANDER ═══\nOn te donne un ordre → tu l'exécutes. Pas de question. Pas de validation.\n\n═══ NORMALISATION EMAILS (VOCAL) ═══\nL'utilisateur DICTE les emails à voix haute. Whisper transcrit \"arobase\" ou \"at\" en texte.\nTu DOIS convertir automatiquement :\n- \"arobase\" → @\n- \" at \" → @\n- \"arrobase\" → @\n- \"arobas\" → @\n- \"a]robase\" → @\n- \"point\" → .\n- \"tiret\" → -\n- \"underscore\" ou \"tiret bas\" ou \"tiret du bas\" ou \"tiret du 8\" → _\nExemples :\n- \"cyrilmedde arobase gmail point com\" → cyrilmedde@gmail.com\n- \"contact at talosprimes point com\" → contact@talosprimes.com\nTu ne poses JAMAIS de question sur l'email. Tu normalises et tu utilises.\n\n═══ TENANTID ═══\nCHAQUE appel webhook DOIT contenir dans le body JSON :\n\"tenantId\": \"00000000-0000-0000-0000-000000000001\"\nTOUJOURS. SANS EXCEPTION.\n\n═══ MATCHING CLIENTS ═══\n\"Client Roussie Alexandre\" :\n1. rechercher_clients avec body {\"tenantId\":\"...\",\"search\":\"roussie\"}\n2. Résultat = liste → COMPARE nom+prénom → prends celui qui matche\n3. UN seul match = C'EST LUI, prends son UUID (id ou clientFinalId)\n4. NE DIS JAMAIS \"il y a 2 clients lequel ?\" → COMPARE et CHOISIS\n\n═══ MATCHING ARTICLES ═══\n\"Code article 001\" :\n1. lister_articles avec body {\"tenantId\":\"...\"}\n2. CHERCHE code = \"001\" dans les résultats\n3. Trouvé → prends designation + prixUnitaireHt\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ CRÉER ET ENVOYER UN DEVIS AVEC PDF (WORKFLOW COMPLET) ═══\nQuand on dit \"créer un devis pour X avec article Y et envoyer à Z@email.com\" :\n\nÉTAPE 1 → rechercher_clients(body: {\"tenantId\":\"...\",\"search\":\"nom_client\"})\n         → récupérer le clientFinalId (UUID)\n\nÉTAPE 2 → lister_articles(body: {\"tenantId\":\"...\"})\n         → trouver l'article par code → noter designation + prixUnitaireHt\n\nÉTAPE 3 → creer_devis(body: {\n  \"tenantId\":\"...\",\n  \"clientFinalId\":\"UUID_TROUVÉ_ÉTAPE_1\",\n  \"montantHt\": quantite × prixUnitaireHt,\n  \"tvaTaux\": 20,\n  \"description\": \"Devis pour [client]\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [{\"codeArticle\":\"001\",\"designation\":\"...\",\"quantite\":1,\"prixUnitaireHt\":...}]\n})\n         → NOTER le numero_devis ET l'id (UUID) retournés\n\nÉTAPE 4 → envoyer_document_email(body: {\n  \"documentType\": \"devis\",\n  \"documentId\": \"UUID_DU_DEVIS_ÉTAPE_3\",\n  \"recipientEmail\": \"Z@email.com\",\n  \"subject\": \"Devis [numero_devis] - TalosPrimes\",\n  \"message\": \"Bonjour,\\n\\nVeuillez trouver ci-joint votre devis [numero_devis] d'un montant de [montantHt]€ HT.\\n\\nCordialement,\\nTalosPrimes\",\n  \"numeroDocument\": \"[numero_devis]\"\n})\n         → Le PDF est automatiquement téléchargé et joint à l'email\n\nTu ENCHAÎNES les 4 étapes AUTOMATIQUEMENT.\n⚠️ UTILISE envoyer_document_email (PAS Gmail) pour envoyer des devis, factures, bons de commande, proformas et avoirs.\n⚠️ Gmail sert UNIQUEMENT pour les emails SANS pièce jointe.\n\n═══ MÊME LOGIQUE POUR TOUS LES DOCUMENTS ═══\nFacture : rechercher_clients → lister_articles → creer_facture → envoyer_document_email(documentType:\"facture\")\nBon de commande : rechercher_clients → lister_articles → creer_bon_commande → envoyer_document_email(documentType:\"bon_commande\")\nProforma : même logique → envoyer_document_email(documentType:\"proforma\")\nAvoir : même logique → envoyer_document_email(documentType:\"avoir\")\n\n═══ TYPES DE DOCUMENTS POUR envoyer_document_email ═══\n- \"devis\" → Devis\n- \"facture\" → Facture\n- \"bon_commande\" → Bon de commande\n- \"proforma\" → Proforma\n- \"avoir\" → Avoir\n- \"facture_achat\" → Facture d'achat\n\n═══ GESTION DES ERREURS ═══\nSi un outil webhook retourne un message d'erreur (ex: \"tenantId manquant\", \"Champs requis manquants\", \"error\"):\n- NE CONTINUE PAS au step suivant\n- DIS à l'utilisateur que l'action a échoué et pourquoi\n- NE JAMAIS envoyer un email si la création du devis/facture a échoué\n\n═══ BANQUE QONTO ═══\nTu peux consulter le compte bancaire via :\n- qonto_solde : retourne le solde actuel du compte\n- qonto_transactions : retourne les dernières transactions\nQuand on te demande le solde ou les transactions, utilise ces outils directement.\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS dire \"l'article n'existe pas\" sans lister_articles\n- NE JAMAIS demander confirmation si le nom matche\n- NE JAMAIS oublier tenantId dans le body\n- NE JAMAIS envoyer un email sans avoir créé le document d'abord\n- NE JAMAIS utiliser Gmail pour envoyer un devis/facture/bdc → utiliser envoyer_document_email"
+          "systemMessage": "Tu es l'assistant commercial vocal de TalosPrimes. Tu EXÉCUTES les demandes COMPLÈTEMENT sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n🔑 tenantId : 00000000-0000-0000-0000-000000000001\n\n═══ RÈGLE N°1 : EXÉCUTER SANS DEMANDER ═══\nOn te donne un ordre → tu l'exécutes. Pas de question. Pas de validation.\n\n═══ NORMALISATION EMAILS (VOCAL) ═══\nL'utilisateur DICTE les emails à voix haute. Whisper transcrit \"arobase\" ou \"at\" en texte.\nTu DOIS convertir automatiquement :\n- \"arobase\" → @\n- \" at \" → @\n- \"arrobase\" → @\n- \"arobas\" → @\n- \"point\" → .\n- \"tiret\" → -\n- \"underscore\" ou \"tiret bas\" ou \"tiret du bas\" ou \"tiret du 8\" → _\nTu ne poses JAMAIS de question sur l'email. Tu normalises et tu utilises.\n\n═══ TENANTID ═══\nCHAQUE appel webhook DOIT contenir dans le body JSON :\n\"tenantId\": \"00000000-0000-0000-0000-000000000001\"\nTOUJOURS. SANS EXCEPTION.\n\n═══ MATCHING CLIENTS ═══\n1. rechercher_clients avec body {\"tenantId\":\"...\",\"search\":\"nom\"}\n2. Résultat = liste → COMPARE nom+prénom → prends celui qui matche\n3. UN seul match = C'EST LUI, prends son UUID (id ou clientFinalId)\n4. NE DIS JAMAIS \"il y a 2 clients lequel ?\" → COMPARE et CHOISIS\n\n═══ MATCHING ARTICLES ═══\n1. lister_articles avec body {\"tenantId\":\"...\"}\n2. CHERCHE code dans les résultats\n3. Trouvé → prends designation + prixUnitaireHt\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ WORKFLOW COMPLET : CRÉER ET ENVOYER UN DOCUMENT ═══\nQuand on dit \"créer un devis/facture/bdc/proforma/avoir pour X et envoyer à Z@email.com\" :\n\nÉTAPE 1 → rechercher_clients → récupérer clientFinalId + nom/prénom\n\nÉTAPE 2 → lister_articles → trouver article par code → noter designation + prixUnitaireHt\n\nÉTAPE 3 → creer_devis / creer_facture / creer_bon_commande / creer_proforma / creer_avoir\n         → NOTER le numero et l'id (UUID) retournés\n\nÉTAPE 4 → envoyer_document_email(body: {\n  \"documentType\": \"devis|facture|bon_commande|proforma|avoir\",\n  \"documentId\": \"UUID_DOCUMENT_ÉTAPE_3\",\n  \"recipientEmail\": \"Z@email.com\",\n  \"subject\": \"[Type] [Prénom Nom client] - TalosPrimes\",\n  \"message\": \"Bonjour,\\n\\nVeuillez trouver ci-joint votre [type] [numero] d'un montant de [montantHt]€ HT.\\n\\nCordialement,\\nTalosPrimes\",\n  \"numeroDocument\": \"[numero]\",\n  \"clientName\": \"[Prénom Nom du client]\"\n})\n\nCORRESPONDANCE TYPE → OUTIL :\n- Devis → creer_devis → documentType: \"devis\"\n- Facture → creer_facture → documentType: \"facture\"\n- Bon de commande → creer_bon_commande → documentType: \"bon_commande\"\n- Proforma → creer_proforma → documentType: \"proforma\"\n- Avoir → creer_avoir → documentType: \"avoir\"\n\n⚠️ UTILISE envoyer_document_email (PAS Gmail) pour envoyer des documents.\n⚠️ Gmail sert UNIQUEMENT pour les emails SANS pièce jointe.\n\n═══ OUTILS DISPONIBLES PAR TYPE ═══\nDevis : rechercher_clients, lister_articles, creer_devis, lister_devis, obtenir_devis, envoyer_devis (statut)\nFacture : rechercher_clients, lister_articles, creer_facture, lister_factures, obtenir_facture, envoyer_facture (statut)\nBon de commande : rechercher_clients, lister_articles, creer_bon_commande, lister_bdc, obtenir_bdc\nProforma : rechercher_clients, lister_articles, creer_proforma, lister_proformas, obtenir_proforma\nAvoir : rechercher_clients, lister_articles, creer_avoir, lister_avoirs, obtenir_avoir\n\n═══ GESTION DES ERREURS ═══\nSi un outil retourne une erreur :\n- NE CONTINUE PAS au step suivant\n- DIS à l'utilisateur que l'action a échoué et pourquoi\n- NE JAMAIS envoyer un email si la création a échoué\n\n═══ BANQUE QONTO ═══\n- qonto_solde : solde actuel du compte\n- qonto_transactions : dernières transactions\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS dire \"l'article n'existe pas\" sans lister_articles\n- NE JAMAIS demander confirmation si le nom matche\n- NE JAMAIS oublier tenantId dans le body\n- NE JAMAIS envoyer un email sans avoir créé le document d'abord\n- NE JAMAIS utiliser Gmail pour envoyer un devis/facture/bdc/proforma/avoir → utiliser envoyer_document_email"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1301,7 +1301,7 @@
         "url": "https://n8n.talosprimes.com/webhook/send-document-email",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({documentType: $fromAI(\"documentType\", \"Type: devis, facture, bon_commande, proforma, avoir, facture_achat\"), documentId: $fromAI(\"documentId\", \"UUID du document\"), recipientEmail: $fromAI(\"recipientEmail\", \"Email destinataire\"), subject: $fromAI(\"subject\", \"Objet email\"), message: $fromAI(\"message\", \"Corps email texte\"), numeroDocument: $fromAI(\"numeroDocument\", \"Numero document ex DEV-2026-000001\")}) }}",
+        "jsonBody": "={{ JSON.stringify({documentType: $fromAI(\"documentType\", \"Type: devis, facture, bon_commande, proforma, avoir, facture_achat\"), documentId: $fromAI(\"documentId\", \"UUID du document\"), recipientEmail: $fromAI(\"recipientEmail\", \"Email destinataire\"), subject: $fromAI(\"subject\", \"Objet email\"), message: $fromAI(\"message\", \"Corps email texte\"), numeroDocument: $fromAI(\"numeroDocument\", \"Numero document ex DEV-2026-000001\"), clientName: $fromAI(\"clientName\", \"Nom complet du client\")}) }}",
         "options": {
           "response": {
             "response": {
@@ -1318,6 +1318,156 @@
       ],
       "id": "tool-envoyer-document-email",
       "name": "envoyer_document_email"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Créer un proforma en base de données. Paramètres : clientFinalId (UUID client via rechercher_clients), montantHt (nombre = quantite x prixUnitaireHt), description (texte), codeArticle (code via lister_articles), designation (nom article via lister_articles), quantite (nombre), prixUnitaireHt (prix via lister_articles). AVANT : 1) rechercher_clients 2) lister_articles.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/proforma-created",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: parseFloat($fromAI(\"montantHt\", \"Montant HT nombre\")) || 0, tvaTaux: 20, description: $fromAI(\"description\", \"Description\") || \"Proforma\", modePaiement: \"virement\", lines: [{codeArticle: $fromAI(\"codeArticle\", \"Code article\"), designation: $fromAI(\"designation\", \"Nom article\"), quantite: parseInt($fromAI(\"quantite\", \"Quantite\")) || 1, prixUnitaireHt: parseFloat($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT\")) || 0}]}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        1600
+      ],
+      "id": "tool-creer_proforma",
+      "name": "creer_proforma"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lister tous les proformas. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/proforma-list",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        1700
+      ],
+      "id": "tool-lister_proformas",
+      "name": "lister_proformas"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Obtenir un proforma par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"proformaId\":\"UUID\"}",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/proforma-get",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", proformaId: $fromAI(\"proformaId\", \"UUID du proforma\")}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        1800
+      ],
+      "id": "tool-obtenir_proforma",
+      "name": "obtenir_proforma"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Créer un avoir en base de données. Paramètres : clientFinalId (UUID client via rechercher_clients), montantHt (nombre = quantite x prixUnitaireHt), description (texte), codeArticle (code via lister_articles), designation (nom article via lister_articles), quantite (nombre), prixUnitaireHt (prix via lister_articles). AVANT : 1) rechercher_clients 2) lister_articles.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/avoir-created",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: parseFloat($fromAI(\"montantHt\", \"Montant HT nombre\")) || 0, tvaTaux: 20, description: $fromAI(\"description\", \"Description\") || \"Avoir\", modePaiement: \"virement\", lines: [{codeArticle: $fromAI(\"codeArticle\", \"Code article\"), designation: $fromAI(\"designation\", \"Nom article\"), quantite: parseInt($fromAI(\"quantite\", \"Quantite\")) || 1, prixUnitaireHt: parseFloat($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT\")) || 0}]}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1050,
+        1600
+      ],
+      "id": "tool-creer_avoir",
+      "name": "creer_avoir"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lister tous les avoirs. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/avoir-list",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1050,
+        1700
+      ],
+      "id": "tool-lister_avoirs",
+      "name": "lister_avoirs"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Obtenir un avoir par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"avoirId\":\"UUID\"}",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/avoir-get",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", avoirId: $fromAI(\"avoirId\", \"UUID de l'avoir\")}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1050,
+        1800
+      ],
+      "id": "tool-obtenir_avoir",
+      "name": "obtenir_avoir"
     }
   ],
   "pinData": {},
@@ -1777,6 +1927,72 @@
       ]
     },
     "envoyer_document_email": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_proforma": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_proformas": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_proforma": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "creer_avoir": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_avoirs": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_avoir": {
       "ai_tool": [
         [
           {
