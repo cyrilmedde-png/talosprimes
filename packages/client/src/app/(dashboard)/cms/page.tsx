@@ -119,6 +119,9 @@ interface LandingContent {
   [key: string]: ContentValue;
 }
 
+/** Safely extract a string from unknown JSON values */
+const str = (val: unknown): string => (typeof val === 'string' ? val : '');
+
 const getToken = (): string | null => {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('accessToken') || localStorage.getItem('token');
@@ -1668,7 +1671,7 @@ function NavbarFooterEditor({
               onChange={(e) =>
                 setNavbar({
                   ...navbar,
-                  ctaButton: { ...navbar.ctaButton, text: e.target.value },
+                  ctaButton: { text: e.target.value, href: navbar.ctaButton?.href || '' },
                 })
               }
               className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
@@ -1684,7 +1687,7 @@ function NavbarFooterEditor({
               onChange={(e) =>
                 setNavbar({
                   ...navbar,
-                  ctaButton: { ...navbar.ctaButton, href: e.target.value },
+                  ctaButton: { text: navbar.ctaButton?.text || '', href: e.target.value },
                 })
               }
               className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
@@ -2012,41 +2015,47 @@ interface ConfigurationEditorProps {
 }
 
 function ConfigurationEditor({ content, onSave }: ConfigurationEditorProps) {
+  const contactData = content.contact as JsonRecord | undefined;
+  const legalData = content.legal as JsonRecord | undefined;
+  const companyData = content.company as JsonRecord | undefined;
+  const hostingData = content.hosting as JsonRecord | undefined;
+  const insuranceData = content.insurance as JsonRecord | undefined;
+
   const [contact, setContact] = useState({
-    email: (content.contact as JsonRecord)?.email || '',
-    phone: (content.contact as JsonRecord)?.phone || '',
-    address: (content.contact as JsonRecord)?.address || '',
+    email: str(contactData?.email),
+    phone: str(contactData?.phone),
+    address: str(contactData?.address),
   });
 
   const [legal, setLegal] = useState({
-    companyName: (content.legal as JsonRecord)?.companyName || '',
-    legalForm: (content.legal as JsonRecord)?.legalForm || '',
-    capital: (content.legal as JsonRecord)?.capital || '',
-    siret: (content.legal as JsonRecord)?.siret || '',
-    tva: (content.legal as JsonRecord)?.tva || '',
-    address: (content.legal as JsonRecord)?.address || '',
+    companyName: str(legalData?.companyName),
+    legalForm: str(legalData?.legalForm),
+    capital: str(legalData?.capital),
+    siret: str(legalData?.siret),
+    tva: str(legalData?.tva),
+    address: str(legalData?.address),
   });
 
   const [company, setCompany] = useState({
-    description: (content.company as JsonRecord)?.description || '',
-    supportEmail: (content.company as JsonRecord)?.supportEmail || '',
-    rgpdEmail: (content.company as JsonRecord)?.rgpdEmail || '',
+    description: str(companyData?.description),
+    supportEmail: str(companyData?.supportEmail),
+    rgpdEmail: str(companyData?.rgpdEmail),
   });
 
   const [hosting, setHosting] = useState({
-    provider: (content.hosting as JsonRecord)?.provider || '',
-    companyName: (content.hosting as JsonRecord)?.companyName || '',
-    address: (content.hosting as JsonRecord)?.address || '',
-    phone: (content.hosting as JsonRecord)?.phone || '',
-    website: (content.hosting as JsonRecord)?.website || '',
+    provider: str(hostingData?.provider),
+    companyName: str(hostingData?.companyName),
+    address: str(hostingData?.address),
+    phone: str(hostingData?.phone),
+    website: str(hostingData?.website),
   });
 
   const [insurance, setInsurance] = useState({
-    company: (content.insurance as JsonRecord)?.company || '',
-    policyNumber: (content.insurance as JsonRecord)?.policyNumber || '',
-    coverage: (content.insurance as JsonRecord)?.coverage || '',
-    address: (content.insurance as JsonRecord)?.address || '',
-    phone: (content.insurance as JsonRecord)?.phone || '',
+    company: str(insuranceData?.company),
+    policyNumber: str(insuranceData?.policyNumber),
+    coverage: str(insuranceData?.coverage),
+    address: str(insuranceData?.address),
+    phone: str(insuranceData?.phone),
   });
 
   return (
