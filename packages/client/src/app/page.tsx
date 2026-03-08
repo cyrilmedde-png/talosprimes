@@ -71,13 +71,17 @@ interface Testimonial {
   commentaire: string;
 }
 
-// ─── Data fetching côté serveur (ISR: revalidate toutes les 5 min) ───
+// Force dynamic rendering — ne pas pré-générer pendant le build
+// car le serveur API n'est pas disponible pendant next build
+export const dynamic = 'force-dynamic';
+
+// ─── Data fetching côté serveur ───
 const SERVER_API = process.env.INTERNAL_API_URL || 'http://localhost:3001';
 
 async function getSections(): Promise<LandingSection[]> {
   try {
     const res = await fetch(`${SERVER_API}/api/landing/sections`, {
-      next: { revalidate: 300 },
+      cache: 'no-store',
     });
     if (!res.ok) {
       console.error(`[SSR] landing/sections failed: ${res.status}`);
@@ -94,7 +98,7 @@ async function getSections(): Promise<LandingSection[]> {
 async function getGlobalConfig(): Promise<GlobalConfig> {
   try {
     const res = await fetch(`${SERVER_API}/api/landing/global-config`, {
-      next: { revalidate: 300 },
+      cache: 'no-store',
     });
     if (!res.ok) {
       console.error(`[SSR] landing/global-config failed: ${res.status}`);
@@ -111,7 +115,7 @@ async function getGlobalConfig(): Promise<GlobalConfig> {
 async function getTestimonials(): Promise<Testimonial[]> {
   try {
     const res = await fetch(`${SERVER_API}/api/landing/testimonials`, {
-      next: { revalidate: 300 },
+      cache: 'no-store',
     });
     if (!res.ok) return [];
     const json = await res.json();
@@ -125,7 +129,7 @@ async function getTestimonials(): Promise<Testimonial[]> {
 async function getLandingContent(): Promise<Record<string, string>> {
   try {
     const res = await fetch(`${SERVER_API}/api/landing/content`, {
-      next: { revalidate: 300 },
+      cache: 'no-store',
     });
     if (!res.ok) return {};
     const json = await res.json();
