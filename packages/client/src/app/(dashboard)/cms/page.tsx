@@ -34,7 +34,7 @@ interface Section {
   id: string;
   type: string;
   titre: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   ordre: number;
   actif: boolean;
 }
@@ -105,8 +105,18 @@ interface GlobalConfig {
   };
 }
 
+// Sub-types extracted from GlobalConfig for reuse
+type NavbarConfig = NonNullable<GlobalConfig['navbar']>;
+type FooterConfig = NonNullable<GlobalConfig['footer']>;
+type ThemeConfig = NonNullable<GlobalConfig['theme']>;
+type SeoConfig = NonNullable<GlobalConfig['seo']>;
+
+// Generic JSON value type for section configs and landing content
+type JsonRecord = Record<string, unknown>;
+type ContentValue = string | JsonRecord;
+
 interface LandingContent {
-  [key: string]: string | Record<string, any>;
+  [key: string]: ContentValue;
 }
 
 const getToken = (): string | null => {
@@ -117,7 +127,7 @@ const getToken = (): string | null => {
 const fetchApi = async (
   url: string,
   options?: RequestInit
-): Promise<any> => {
+): Promise<Record<string, unknown>> => {
   const token = getToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -494,7 +504,7 @@ export default function CMSPage() {
   };
 
   // ============= GLOBAL CONFIG OPERATIONS =============
-  const saveNavbar = async (navbar: any) => {
+  const saveNavbar = async (navbar: NavbarConfig) => {
     try {
       await fetchApi('/api/landing/global-config/navbar', {
         method: 'PUT',
@@ -507,7 +517,7 @@ export default function CMSPage() {
     }
   };
 
-  const saveFooter = async (footer: any) => {
+  const saveFooter = async (footer: FooterConfig) => {
     try {
       await fetchApi('/api/landing/global-config/footer', {
         method: 'PUT',
@@ -520,7 +530,7 @@ export default function CMSPage() {
     }
   };
 
-  const saveTheme = async (theme: any) => {
+  const saveTheme = async (theme: ThemeConfig) => {
     try {
       await fetchApi('/api/landing/global-config/theme', {
         method: 'PUT',
@@ -533,7 +543,7 @@ export default function CMSPage() {
     }
   };
 
-  const saveSeo = async (seo: any) => {
+  const saveSeo = async (seo: SeoConfig) => {
     try {
       await fetchApi('/api/landing/global-config/seo', {
         method: 'PUT',
@@ -546,7 +556,7 @@ export default function CMSPage() {
     }
   };
 
-  const saveLandingContent = async (section: string, contenu: any) => {
+  const saveLandingContent = async (section: string, contenu: ContentValue) => {
     try {
       await fetchApi('/api/landing/content', {
         method: 'PUT',
@@ -559,8 +569,8 @@ export default function CMSPage() {
     }
   };
 
-  const getDefaultConfig = (type: string): Record<string, any> => {
-    const configs: Record<string, Record<string, any>> = {
+  const getDefaultConfig = (type: string): JsonRecord => {
+    const configs: Record<string, JsonRecord> = {
       hero: {
         title: 'Titre Hero',
         subtitle: 'Sous-titre',
@@ -1609,8 +1619,8 @@ function PlanModal({ plan, onClose, onCreate, onUpdate }: PlanModalProps) {
 
 interface NavbarFooterEditorProps {
   config: GlobalConfig;
-  onSaveNavbar: (navbar: any) => void;
-  onSaveFooter: (footer: any) => void;
+  onSaveNavbar: (navbar: NavbarConfig) => void;
+  onSaveFooter: (footer: FooterConfig) => void;
 }
 
 function NavbarFooterEditor({
@@ -1618,8 +1628,8 @@ function NavbarFooterEditor({
   onSaveNavbar,
   onSaveFooter,
 }: NavbarFooterEditorProps) {
-  const [navbar, setNavbar] = useState(config.navbar || { logo: '', logoText: '', links: [], ctaButton: {} });
-  const [footer, setFooter] = useState(config.footer || { companyName: '', description: '', columns: [] });
+  const [navbar, setNavbar] = useState<NavbarConfig>(config.navbar || { logo: '', logoText: '', links: [], ctaButton: { text: '', href: '' } });
+  const [footer, setFooter] = useState<FooterConfig>(config.footer || { companyName: '', description: '', columns: [] });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1727,12 +1737,12 @@ function NavbarFooterEditor({
 }
 
 interface ThemeEditorProps {
-  theme: any;
-  onSave: (theme: any) => void;
+  theme: ThemeConfig;
+  onSave: (theme: ThemeConfig) => void;
 }
 
 function ThemeEditor({ theme, onSave }: ThemeEditorProps) {
-  const [formData, setFormData] = useState(theme);
+  const [formData, setFormData] = useState<ThemeConfig>(theme);
 
   return (
     <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
@@ -1845,12 +1855,12 @@ function ThemeEditor({ theme, onSave }: ThemeEditorProps) {
 }
 
 interface SeoEditorProps {
-  seo: any;
-  onSave: (seo: any) => void;
+  seo: SeoConfig;
+  onSave: (seo: SeoConfig) => void;
 }
 
 function SeoEditor({ seo, onSave }: SeoEditorProps) {
-  const [formData, setFormData] = useState(seo);
+  const [formData, setFormData] = useState<SeoConfig>(seo);
 
   return (
     <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 space-y-4">
@@ -1914,7 +1924,7 @@ function SeoEditor({ seo, onSave }: SeoEditorProps) {
 
 interface LegalPagesEditorProps {
   content: LandingContent;
-  onSave: (section: string, contenu: any) => void;
+  onSave: (section: string, contenu: ContentValue) => void;
 }
 
 function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
@@ -1998,45 +2008,45 @@ function LegalPagesEditor({ content, onSave }: LegalPagesEditorProps) {
 
 interface ConfigurationEditorProps {
   content: LandingContent;
-  onSave: (section: string, contenu: any) => void;
+  onSave: (section: string, contenu: ContentValue) => void;
 }
 
 function ConfigurationEditor({ content, onSave }: ConfigurationEditorProps) {
   const [contact, setContact] = useState({
-    email: (content.contact as any)?.email || '',
-    phone: (content.contact as any)?.phone || '',
-    address: (content.contact as any)?.address || '',
+    email: (content.contact as JsonRecord)?.email || '',
+    phone: (content.contact as JsonRecord)?.phone || '',
+    address: (content.contact as JsonRecord)?.address || '',
   });
 
   const [legal, setLegal] = useState({
-    companyName: (content.legal as any)?.companyName || '',
-    legalForm: (content.legal as any)?.legalForm || '',
-    capital: (content.legal as any)?.capital || '',
-    siret: (content.legal as any)?.siret || '',
-    tva: (content.legal as any)?.tva || '',
-    address: (content.legal as any)?.address || '',
+    companyName: (content.legal as JsonRecord)?.companyName || '',
+    legalForm: (content.legal as JsonRecord)?.legalForm || '',
+    capital: (content.legal as JsonRecord)?.capital || '',
+    siret: (content.legal as JsonRecord)?.siret || '',
+    tva: (content.legal as JsonRecord)?.tva || '',
+    address: (content.legal as JsonRecord)?.address || '',
   });
 
   const [company, setCompany] = useState({
-    description: (content.company as any)?.description || '',
-    supportEmail: (content.company as any)?.supportEmail || '',
-    rgpdEmail: (content.company as any)?.rgpdEmail || '',
+    description: (content.company as JsonRecord)?.description || '',
+    supportEmail: (content.company as JsonRecord)?.supportEmail || '',
+    rgpdEmail: (content.company as JsonRecord)?.rgpdEmail || '',
   });
 
   const [hosting, setHosting] = useState({
-    provider: (content.hosting as any)?.provider || '',
-    companyName: (content.hosting as any)?.companyName || '',
-    address: (content.hosting as any)?.address || '',
-    phone: (content.hosting as any)?.phone || '',
-    website: (content.hosting as any)?.website || '',
+    provider: (content.hosting as JsonRecord)?.provider || '',
+    companyName: (content.hosting as JsonRecord)?.companyName || '',
+    address: (content.hosting as JsonRecord)?.address || '',
+    phone: (content.hosting as JsonRecord)?.phone || '',
+    website: (content.hosting as JsonRecord)?.website || '',
   });
 
   const [insurance, setInsurance] = useState({
-    company: (content.insurance as any)?.company || '',
-    policyNumber: (content.insurance as any)?.policyNumber || '',
-    coverage: (content.insurance as any)?.coverage || '',
-    address: (content.insurance as any)?.address || '',
-    phone: (content.insurance as any)?.phone || '',
+    company: (content.insurance as JsonRecord)?.company || '',
+    policyNumber: (content.insurance as JsonRecord)?.policyNumber || '',
+    coverage: (content.insurance as JsonRecord)?.coverage || '',
+    address: (content.insurance as JsonRecord)?.address || '',
+    phone: (content.insurance as JsonRecord)?.phone || '',
   });
 
   return (
