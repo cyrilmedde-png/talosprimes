@@ -23,7 +23,7 @@
       "name": "Agent Documents",
       "parameters": {
         "options": {
-          "systemMessage": "Tu es le spécialiste des documents commerciaux pour TalosPrimes : devis, factures et bons de commande.\n\nWORKFLOW OBLIGATOIRE POUR CRÉER UN DOCUMENT :\n1. D'abord chercher le client → utilise chercher_client_pour_document\n2. Puis chercher les articles → utilise lister_articles_catalogue  \n3. Puis créer le document avec les UUID et prix trouvés\n\nOUTILS DISPONIBLES :\n\nRecherche préalable (TOUJOURS en premier) :\n- chercher_client_pour_document : trouver un client par nom → obtenir son UUID\n- lister_articles_catalogue : voir le catalogue pour trouver codes, prix, TVA\n\nDevis :\n- lister_devis, obtenir_devis, creer_devis, envoyer_devis, accepter_devis, devis_vers_facture\n\nFactures :\n- lister_factures, obtenir_facture, creer_facture, envoyer_facture, facture_payee\n\nBons de commande :\n- lister_bons_commande, creer_bon_commande, valider_bon_commande, bdc_vers_facture\n\nRÈGLES :\n- TOUJOURS chercher le client ET l'article AVANT de créer un document\n- Le montantHt = somme de (quantite × prixUnitaireHt) pour chaque ligne\n- Le tvaTaux est un pourcentage (20 pour 20%)\n- Ne JAMAIS inventer un UUID - utiliser ceux retournés par les requêtes\n- Pour les lignes de devis/facture : chaque ligne a designation, quantite, prixUnitaireHt\n- Si l'article est trouvé dans le catalogue, utiliser son prix exact",
+          "systemMessage": "Tu es le spécialiste des documents commerciaux pour TalosPrimes : devis, factures et bons de commande.\n\nWORKFLOW OBLIGATOIRE POUR CRÉER UN DOCUMENT :\n1. D'abord chercher le client → utilise chercher_client_pour_document\n2. Puis chercher les articles → utilise lister_articles_catalogue  \n3. Puis créer le document avec les UUID et prix trouvés\n\nMULTI-LIGNES : Tu peux (et DOIS) ajouter PLUSIEURS lignes d'articles dans UN SEUL appel. Ne crée JAMAIS plusieurs documents pour ajouter plusieurs articles. Le champ 'lines' accepte un tableau JSON avec autant de lignes que nécessaire.\n\nCONVERSIONS ENTRE DOCUMENTS :\n- Devis → Facture : devis_vers_facture (le devis doit être accepté)\n- Devis → Bon de commande : devis_vers_bdc (le devis doit être accepté)\n- Bon de commande → Facture : bdc_vers_facture\nPour convertir, utilise d'abord obtenir_devis ou obtenir_bon_commande pour vérifier le document, puis lance la conversion.\n\nOUTILS DISPONIBLES :\n\nRecherche préalable (TOUJOURS en premier) :\n- chercher_client_pour_document : trouver un client par nom → obtenir son UUID\n- lister_articles_catalogue : voir le catalogue pour trouver codes, prix, TVA\n\nDevis :\n- lister_devis, obtenir_devis, creer_devis, envoyer_devis, accepter_devis\n- devis_vers_facture : convertir devis accepté → facture\n- devis_vers_bdc : convertir devis accepté → bon de commande\n\nFactures :\n- lister_factures, obtenir_facture, creer_facture, envoyer_facture, facture_payee\n\nBons de commande :\n- lister_bons_commande, obtenir_bon_commande, creer_bon_commande, valider_bon_commande\n- bdc_vers_facture : convertir bon de commande → facture\n\nRÈGLES :\n- TOUJOURS chercher le client ET l'article AVANT de créer un document\n- Le montantHt = somme de (quantite × prixUnitaireHt) pour chaque ligne\n- Le tvaTaux est un pourcentage (20 pour 20%)\n- Ne JAMAIS inventer un UUID - utiliser ceux retournés par les requêtes\n- Pour les lignes : chaque ligne a designation, quantite, prixUnitaireHt\n- Si l'article est trouvé dans le catalogue, utiliser son prix exact\n- TOUJOURS regrouper TOUTES les lignes dans un SEUL appel de création",
           "maxIterations": 15
         },
         "text": "={{ $json.chatInput || $json.query || $json.message || '' }}"
@@ -143,7 +143,7 @@
       "name": "obtenir_devis",
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT d.*, json_agg(json_build_object('designation', dl.designation, 'quantite', dl.quantite, 'prix_unitaire_ht', dl.prix_unitaire_ht)) as lignes FROM devis d LEFT JOIN devis_lignes dl ON dl.devis_id = d.id WHERE d.id = '{{ $fromAI(\"devisId\", \"UUID du devis\") }}' GROUP BY d.id",
+        "query": "SELECT d.*, json_agg(json_build_object('designation', dl.designation, 'quantite', dl.quantite, 'prix_unitaire_ht', dl.prix_unitaire_ht, 'total_ht', dl.total_ht, 'code_article', dl.code_article)) FILTER (WHERE dl.id IS NOT NULL) as lignes FROM devis d LEFT JOIN devis_lines dl ON dl.devis_id = d.id WHERE d.id = '{{ $fromAI(\"devisId\", \"UUID du devis\") }}' GROUP BY d.id",
         "description": "Obtenir les détails d'un devis par son UUID, incluant ses lignes.",
         "descriptionType": "manual"
       },
@@ -166,7 +166,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.talosprimes.com/api/devis",
-        "description": "Créer un devis. AVANT: avoir cherché le client (UUID) et l'article (prix). Le body contient clientFinalId, montantHt, tvaTaux, description, modePaiement, lines.",
+        "description": "Créer un devis avec PLUSIEURS lignes d'articles en une seule fois. AVANT: chercher le client (UUID) et les articles (prix). Le body contient clientFinalId, montantHt, tvaTaux, description, modePaiement, lines (tableau de TOUTES les lignes).",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -180,7 +180,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via chercher_client_pour_document\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT = somme de (quantite x prixUnitaireHt) pour chaque ligne\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA en pourcentage, defaut 20\")) || 0,\n    description: $fromAI(\"description\", \"Description courte du devis\"),\n    modePaiement: $fromAI(\"modePaiement\", \"Mode: virement, cheque, cb, prelevement. Defaut: virement\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON des lignes. Exemple: [{\\\"designation\\\":\\\"Audit\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]')); } catch(e) { return []; } })()\n  })\n}}"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via chercher_client_pour_document\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT = somme de (quantite x prixUnitaireHt) pour chaque ligne\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA en pourcentage, defaut 20\")) || 0,\n    description: $fromAI(\"description\", \"Description courte du devis\"),\n    modePaiement: $fromAI(\"modePaiement\", \"Mode: virement, cheque, cb, prelevement. Defaut: virement\"),\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON de TOUTES les lignes du devis. TOUJOURS mettre TOUTES les lignes dans UN SEUL appel. Exemple avec 3 lignes: [{\\\"designation\\\":\\\"Audit SEO\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500},{\\\"designation\\\":\\\"Redaction contenu\\\",\\\"quantite\\\":5,\\\"prixUnitaireHt\\\":200},{\\\"designation\\\":\\\"Formation\\\",\\\"quantite\\\":2,\\\"prixUnitaireHt\\\":800}]')); } catch(e) { return []; } })()\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -318,7 +318,7 @@
       "name": "obtenir_facture",
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT i.*, json_agg(json_build_object('designation', il.designation, 'quantite', il.quantite, 'prix_unitaire_ht', il.prix_unitaire_ht)) as lignes FROM invoices i LEFT JOIN invoice_lignes il ON il.invoice_id = i.id WHERE i.id = '{{ $fromAI(\"factureId\", \"UUID de la facture\") }}' GROUP BY i.id",
+        "query": "SELECT i.*, json_agg(json_build_object('designation', il.designation, 'quantite', il.quantite, 'prix_unitaire_ht', il.prix_unitaire_ht, 'total_ht', il.total_ht, 'code_article', il.code_article)) FILTER (WHERE il.id IS NOT NULL) as lignes FROM invoices i LEFT JOIN invoice_lines il ON il.invoice_id = i.id WHERE i.id = '{{ $fromAI(\"factureId\", \"UUID de la facture\") }}' GROUP BY i.id",
         "description": "Obtenir les détails d'une facture par UUID.",
         "descriptionType": "manual"
       },
@@ -341,7 +341,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.talosprimes.com/api/invoices",
-        "description": "Créer une facture. AVANT: avoir cherché le client (UUID) et les prix articles.",
+        "description": "Créer une facture avec PLUSIEURS lignes d'articles en une seule fois. AVANT: chercher le client (UUID) et les articles (prix).",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -355,7 +355,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0,\n    type: \"facture_client_final\",\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON: [{\\\"designation\\\":\\\"Service\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":2000}]')); } catch(e) { return []; } })()\n  })\n}}"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0,\n    type: \"facture_client_final\",\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON de TOUTES les lignes. TOUJOURS mettre TOUTES les lignes dans UN SEUL appel. Exemple: [{\\\"designation\\\":\\\"Service A\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":2000},{\\\"designation\\\":\\\"Service B\\\",\\\"quantite\\\":3,\\\"prixUnitaireHt\\\":500}]')); } catch(e) { return []; } })()\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -462,7 +462,7 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.talosprimes.com/api/bons-commande",
-        "description": "Créer un bon de commande. AVANT: chercher le client et les articles.",
+        "description": "Créer un bon de commande avec PLUSIEURS lignes d'articles en une seule fois. AVANT: chercher le client (UUID) et les articles (prix).",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -476,7 +476,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA, defaut 20\")) || 0,\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON: [{\\\"designation\\\":\\\"Pack\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":3000}]')); } catch(e) { return []; } })()\n  })\n}}"
+        "jsonBody": "={{\n  JSON.stringify({\n    clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client obtenu via chercher_client_pour_document\"),\n    montantHt: Number($fromAI(\"montantHt\", \"Montant total HT = somme de (quantite x prixUnitaireHt) pour chaque ligne\")) || 0,\n    tvaTaux: Number($fromAI(\"tvaTaux\", \"Taux TVA en pourcentage, defaut 20\")) || 0,\n    lines: (() => { try { return JSON.parse($fromAI(\"lines\", 'Tableau JSON de TOUTES les lignes du bon de commande. TOUJOURS mettre TOUTES les lignes dans UN SEUL appel. Exemple avec 3 lignes: [{\\\"designation\\\":\\\"Serveur Dell R750\\\",\\\"quantite\\\":2,\\\"prixUnitaireHt\\\":4500},{\\\"designation\\\":\\\"Licence Windows Server\\\",\\\"quantite\\\":2,\\\"prixUnitaireHt\\\":800},{\\\"designation\\\":\\\"Installation et config\\\",\\\"quantite\\\":1,\\\"prixUnitaireHt\\\":1500}]')); } catch(e) { return []; } })()\n  })\n}}"
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -546,6 +546,60 @@
         "httpHeaderAuth": {
           "id": "FLSZWCszgEFfXDoK",
           "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1041",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        800
+      ],
+      "name": "devis_vers_bdc",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.talosprimes.com/api/devis/' + $fromAI('devisId', 'UUID du devis à convertir en bon de commande') + '/convert-to-bdc' }}",
+        "description": "Convertir un devis accepté en bon de commande. Le devis doit avoir le statut 'acceptee'. Les lignes du devis sont automatiquement copiées dans le BDC.",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      }
+    },
+    {
+      "id": "1042",
+      "type": "@n8n/n8n-nodes-langchain.toolPostgres",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        800
+      ],
+      "name": "obtenir_bon_commande",
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bc.*, json_agg(json_build_object('designation', bl.designation, 'quantite', bl.quantite, 'prix_unitaire_ht', bl.prix_unitaire_ht, 'total_ht', bl.total_ht, 'code_article', bl.code_article)) FILTER (WHERE bl.id IS NOT NULL) as lignes FROM bons_commande bc LEFT JOIN bon_commande_lines bl ON bl.bon_commande_id = bc.id WHERE bc.id = '{{ $fromAI(\"bdcId\", \"UUID du bon de commande\") }}' GROUP BY bc.id",
+        "description": "Obtenir les détails d'un bon de commande par son UUID, incluant ses lignes d'articles.",
+        "descriptionType": "manual"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
         }
       }
     }
@@ -761,6 +815,28 @@
       ]
     },
     "bdc_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "devis_vers_bdc": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Documents",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_bon_commande": {
       "ai_tool": [
         [
           {
