@@ -28,11 +28,14 @@ interface LandingSection {
 }
 
 interface NavbarConfig extends JsonRecord {
-  logo?: { text?: string; image?: string | null };
+  logo?: { text?: string; image?: string | null } | string;
+  logoText?: string;
   links?: { text: string; href: string; type?: string }[];
   ctaButton?: { text: string; href: string };
   bgColor?: string;
   sticky?: boolean;
+  showLoginLink?: boolean;
+  loginHref?: string;
 }
 
 interface FooterConfig extends JsonRecord {
@@ -40,6 +43,7 @@ interface FooterConfig extends JsonRecord {
   description?: string;
   columns?: { title: string; links: { text: string; href: string }[] }[];
   copyright?: string;
+  legalLinks?: { text: string; href: string }[];
 }
 
 interface SeoConfig extends JsonRecord {
@@ -150,32 +154,76 @@ function renderSection(
 ) {
   const { type, config, id } = section;
 
+  let inner: React.ReactNode = null;
   switch (type) {
     case 'hero':
-      return <HeroSection key={id} config={config} theme={theme} />;
+      inner = <HeroSection config={config} theme={theme} />;
+      break;
     case 'stats':
-      return <StatsSection key={id} config={config} theme={theme} />;
+      inner = <StatsSection config={config} theme={theme} />;
+      break;
     case 'trust_badges':
-      return <TrustBadgesSection key={id} config={config} theme={theme} />;
+      inner = <TrustBadgesSection config={config} theme={theme} />;
+      break;
     case 'modules':
-      return <ModulesSection key={id} config={config} theme={theme} />;
+      inner = <ModulesSection config={config} theme={theme} />;
+      break;
     case 'agent_ia':
-      return <AgentIASection key={id} config={config} theme={theme} />;
+      inner = <AgentIASection config={config} theme={theme} />;
+      break;
     case 'upcoming':
-      return <UpcomingSection key={id} config={config} theme={theme} />;
+      inner = <UpcomingSection config={config} theme={theme} />;
+      break;
     case 'how_it_works':
-      return <HowItWorksSection key={id} config={config} theme={theme} />;
+      inner = <HowItWorksSection config={config} theme={theme} />;
+      break;
     case 'testimonials':
-      return <TestimonialsSection key={id} config={config} testimonials={testimonials} theme={theme} />;
+      inner = <TestimonialsSection config={config} testimonials={testimonials} theme={theme} />;
+      break;
     case 'contact':
-      return <ContactSection key={id} config={config} contactInfo={contactInfo} theme={theme} />;
+      inner = <ContactSection config={config} contactInfo={contactInfo} theme={theme} />;
+      break;
     case 'cta':
-      return <CTASection key={id} config={config} theme={theme} />;
+      inner = <CTASection config={config} theme={theme} />;
+      break;
     case 'custom_html':
-      return <CustomHTMLSection key={id} config={config} />;
+      inner = <CustomHTMLSection config={config} />;
+      break;
     default:
       return null;
   }
+
+  // ─── Background wrapper (backgroundImage, bgColor, bgOverlay) ───
+  const bgImage = config.backgroundImage as string | undefined;
+  const bgColor = config.bgColor as string | undefined;
+  const bgOverlay = config.bgOverlay as string | undefined;
+  const bgSize = (config.bgSize as string) || 'cover';
+  const bgPosition = (config.bgPosition as string) || 'center';
+  const hasBg = bgImage || bgColor;
+
+  if (!hasBg) {
+    return <div key={id}>{inner}</div>;
+  }
+
+  const wrapperStyle: React.CSSProperties = {
+    position: 'relative',
+    ...(bgColor ? { backgroundColor: bgColor } : {}),
+    ...(bgImage ? {
+      backgroundImage: `url(${bgImage})`,
+      backgroundSize: bgSize,
+      backgroundPosition: bgPosition,
+      backgroundRepeat: 'no-repeat',
+    } : {}),
+  };
+
+  return (
+    <div key={id} style={wrapperStyle}>
+      {bgImage && bgOverlay && (
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: bgOverlay, zIndex: 1 }} />
+      )}
+      <div style={{ position: 'relative', zIndex: 2 }}>{inner}</div>
+    </div>
+  );
 }
 
 // ─── Page ───

@@ -8,6 +8,7 @@ interface FooterConfig {
   description?: string;
   columns?: { title: string; links: { text: string; href: string }[] }[];
   copyright?: string;
+  legalLinks?: { text: string; href: string }[];
 }
 
 export function DynamicFooter({ config }: { config?: FooterConfig }) {
@@ -55,9 +56,13 @@ export function DynamicFooter({ config }: { config?: FooterConfig }) {
         <div className="pt-8 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <span>{copyright}</span>
           <div className="flex gap-4">
-            <Link href="/mentions-legales" className="hover:text-slate-300 transition">Mentions légales</Link>
-            <Link href="/confidentialite" className="hover:text-slate-300 transition">Confidentialité</Link>
-            <Link href="/cgv" className="hover:text-slate-300 transition">CGV</Link>
+            {(config?.legalLinks || [
+              { text: 'Mentions légales', href: '/mentions-legales' },
+              { text: 'Confidentialité', href: '/confidentialite' },
+              { text: 'CGV', href: '/cgv' },
+            ]).map((link, i) => (
+              <Link key={i} href={link.href} className="hover:text-slate-300 transition">{link.text}</Link>
+            ))}
           </div>
         </div>
       </div>

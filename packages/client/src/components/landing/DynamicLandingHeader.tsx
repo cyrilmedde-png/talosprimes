@@ -5,11 +5,14 @@ import Link from 'next/link';
 import { Workflow, Menu, X } from 'lucide-react';
 
 interface NavbarConfig {
-  logo?: { text?: string; image?: string | null };
+  logo?: { text?: string; image?: string | null } | string;
+  logoText?: string;
   links?: { text: string; href: string; type?: string }[];
   ctaButton?: { text: string; href: string };
   bgColor?: string;
   sticky?: boolean;
+  showLoginLink?: boolean;
+  loginHref?: string;
 }
 
 function CtaLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
@@ -24,21 +27,21 @@ function CtaLink({ href, children, className }: { href: string; children: React.
 export function DynamicLandingHeader({ config }: { config?: NavbarConfig }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const logoText = config?.logo?.text || 'TalosPrimes';
-  const links = config?.links || [
-    { text: 'Services', href: '#services' },
-    { text: 'Témoignages', href: '#testimonials' },
-    { text: 'Tarifs', href: '/page/tarifs' },
-    { text: 'Contact', href: '#contact' },
-  ];
+  // logo peut être un objet { text, image } (ancien format) ou une string URL (nouveau format CMS)
+  const logoObj = typeof config?.logo === 'object' && config?.logo ? config.logo : null;
+  const logoImageUrl = typeof config?.logo === 'string' ? config.logo : logoObj?.image || null;
+  const logoText = config?.logoText || logoObj?.text || 'TalosPrimes';
+  const links = config?.links || [];
   const ctaButton = config?.ctaButton || { text: 'Essayer gratuitement', href: '/inscription' };
+  const showLoginLink = config?.showLoginLink !== false;
+  const loginHref = config?.loginHref || '/login';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-100">
       <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 text-slate-900 font-semibold tracking-tight">
-          {config?.logo?.image ? (
-            <img src={config.logo.image} alt={logoText} className="h-8 w-auto" />
+          {logoImageUrl ? (
+            <img src={logoImageUrl} alt={logoText} className="h-8 w-auto" />
           ) : (
             <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
               <Workflow className="w-4.5 h-4.5 text-white" strokeWidth={2} />
@@ -61,8 +64,12 @@ export function DynamicLandingHeader({ config }: { config?: NavbarConfig }) {
               </Link>
             );
           })}
-          <div className="w-px h-5 bg-slate-200 mx-2" />
-          <Link href="/login" className="px-3 py-2 text-slate-600 text-sm font-medium hover:text-slate-900 rounded-lg hover:bg-slate-50 transition">Connexion</Link>
+          {showLoginLink && (
+            <>
+              <div className="w-px h-5 bg-slate-200 mx-2" />
+              <Link href={loginHref} className="px-3 py-2 text-slate-600 text-sm font-medium hover:text-slate-900 rounded-lg hover:bg-slate-50 transition">Connexion</Link>
+            </>
+          )}
           <CtaLink href={ctaButton.href} className="ml-1 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition shadow-sm">
             {ctaButton.text}
           </CtaLink>
@@ -94,9 +101,11 @@ export function DynamicLandingHeader({ config }: { config?: NavbarConfig }) {
             );
           })}
           <div className="border-t border-slate-100 pt-3 mt-3 space-y-2">
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block w-full text-center px-4 py-2.5 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">
-              Connexion
-            </Link>
+            {showLoginLink && (
+              <Link href={loginHref} onClick={() => setMobileMenuOpen(false)} className="block w-full text-center px-4 py-2.5 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">
+                Connexion
+              </Link>
+            )}
             <CtaLink href={ctaButton.href} className="block w-full text-center px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition">
               {ctaButton.text}
             </CtaLink>

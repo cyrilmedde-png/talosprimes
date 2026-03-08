@@ -33,11 +33,35 @@ import {
   Minus,
   EyeIcon,
   Pencil,
+  BarChart3,
+  BadgeCheck,
+  Layers,
+  Bot,
+  Clock,
+  HelpCircle,
+  Mail,
+  Megaphone,
+  type LucideIcon,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAuthStore } from '@/store/auth-store';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+// ─── Labels & icônes pour les types de sections ───
+const sectionTypeMap: Record<string, { label: string; icon: LucideIcon }> = {
+  hero: { label: 'Hero Principal', icon: Sparkles },
+  stats: { label: 'Statistiques', icon: BarChart3 },
+  trust_badges: { label: 'Badges de confiance', icon: BadgeCheck },
+  modules: { label: 'Modules / Services', icon: Layers },
+  agent_ia: { label: 'Agent IA', icon: Bot },
+  upcoming: { label: 'À venir', icon: Clock },
+  how_it_works: { label: 'Comment ça marche', icon: HelpCircle },
+  testimonials: { label: 'Témoignages', icon: MessageSquare },
+  contact: { label: 'Contact', icon: Mail },
+  cta: { label: 'Call to Action', icon: Megaphone },
+  custom_html: { label: 'HTML Custom', icon: Code },
+};
 
 interface Toast {
   id: string;
@@ -97,13 +121,16 @@ interface GlobalConfig {
   navbar?: {
     logo?: string;
     logoText?: string;
-    links?: Array<{ text: string; href: string; type: string }>;
+    links?: Array<{ text: string; href: string; type?: string }>;
     ctaButton?: { text: string; href: string };
+    showLoginLink?: boolean;
+    loginHref?: string;
   };
   footer?: {
     companyName?: string;
     description?: string;
     columns?: Array<{ title: string; links: Array<{ text: string; href: string }> }>;
+    legalLinks?: Array<{ text: string; href: string }>;
   };
   theme?: {
     primaryColor?: string;
@@ -713,9 +740,16 @@ export default function CMSPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
-                        <span className="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded">
-                          {section.type}
-                        </span>
+                        {(() => {
+                          const meta = sectionTypeMap[section.type];
+                          const Icon = meta?.icon || Layout;
+                          return (
+                            <span className="bg-blue-900 text-blue-200 text-xs px-2.5 py-1 rounded flex items-center gap-1.5">
+                              <Icon size={13} />
+                              {meta?.label || section.type}
+                            </span>
+                          );
+                        })()}
                         <h3 className="font-semibold text-white">{section.titre}</h3>
                       </div>
                       <p className="text-sm text-slate-400">Ordre: {section.ordre}</p>
@@ -1740,105 +1774,242 @@ function NavbarFooterEditor({
   onSaveNavbar,
   onSaveFooter,
 }: NavbarFooterEditorProps) {
-  const [navbar, setNavbar] = useState<NavbarConfig>(config.navbar || { logo: '', logoText: '', links: [], ctaButton: { text: '', href: '' } });
-  const [footer, setFooter] = useState<FooterConfig>(config.footer || { companyName: '', description: '', columns: [] });
+  const [navbar, setNavbar] = useState<NavbarConfig>(config.navbar || { logo: '', logoText: '', links: [], ctaButton: { text: '', href: '' }, showLoginLink: true, loginHref: '/login' });
+  const [footer, setFooter] = useState<FooterConfig>(config.footer || { companyName: '', description: '', columns: [], legalLinks: [
+    { text: 'Mentions légales', href: '/mentions-legales' },
+    { text: 'Confidentialité', href: '/confidentialite' },
+    { text: 'CGV', href: '/cgv' },
+  ] });
+
+  // ─── Navbar Links helpers ───
+  const navLinks = navbar.links || [];
+  const updateNavLink = (idx: number, field: 'text' | 'href', val: string) => {
+    const updated = [...navLinks];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setNavbar({ ...navbar, links: updated });
+  };
+  const addNavLink = () => {
+    setNavbar({ ...navbar, links: [...navLinks, { text: '', href: '' }] });
+  };
+  const removeNavLink = (idx: number) => {
+    setNavbar({ ...navbar, links: navLinks.filter((_, i) => i !== idx) });
+  };
+  const moveNavLink = (idx: number, dir: -1 | 1) => {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= navLinks.length) return;
+    const updated = [...navLinks];
+    [updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]];
+    setNavbar({ ...navbar, links: updated });
+  };
+
+  // ─── Footer Legal Links helpers ───
+  const legalLinks = footer.legalLinks || [];
+  const updateLegalLink = (idx: number, field: 'text' | 'href', val: string) => {
+    const updated = [...legalLinks];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setFooter({ ...footer, legalLinks: updated });
+  };
+  const addLegalLink = () => {
+    setFooter({ ...footer, legalLinks: [...legalLinks, { text: '', href: '' }] });
+  };
+  const removeLegalLink = (idx: number) => {
+    setFooter({ ...footer, legalLinks: legalLinks.filter((_, i) => i !== idx) });
+  };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      {/* ═══ NAVBAR ═══ */}
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-        <h3 className="text-xl font-bold text-white mb-4">Navbar</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Logo Text
-            </label>
-            <input
-              type="text"
-              value={navbar.logoText || ''}
-              onChange={(e) => setNavbar({ ...navbar, logoText: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+        <h3 className="text-xl font-bold text-white mb-5">Navbar</h3>
+        <div className="space-y-5">
+          {/* Logo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Logo Text</label>
+              <input
+                type="text"
+                value={navbar.logoText || ''}
+                onChange={(e) => setNavbar({ ...navbar, logoText: e.target.value })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm"
+                placeholder="TalosPrimes"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Logo URL (image)</label>
+              <input
+                type="text"
+                value={navbar.logo || ''}
+                onChange={(e) => setNavbar({ ...navbar, logo: e.target.value })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm"
+                placeholder="https://..."
+              />
+            </div>
           </div>
+
+          {/* Liens de navigation */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Logo URL
-            </label>
-            <input
-              type="text"
-              value={navbar.logo || ''}
-              onChange={(e) => setNavbar({ ...navbar, logo: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-slate-300">Liens de navigation</label>
+              <button
+                onClick={addNavLink}
+                className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition"
+              >
+                <Plus size={14} /> Ajouter un lien
+              </button>
+            </div>
+            {navLinks.length === 0 && (
+              <p className="text-xs text-slate-500 italic mb-2">Aucun lien configuré. Ajoutez-en pour les afficher dans la navbar.</p>
+            )}
+            <div className="space-y-2">
+              {navLinks.map((link, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-slate-700/50 rounded p-2">
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => moveNavLink(idx, -1)} disabled={idx === 0}
+                      className="text-slate-400 hover:text-white disabled:opacity-20 transition"><ArrowUp size={12} /></button>
+                    <button onClick={() => moveNavLink(idx, 1)} disabled={idx === navLinks.length - 1}
+                      className="text-slate-400 hover:text-white disabled:opacity-20 transition"><ArrowDown size={12} /></button>
+                  </div>
+                  <input
+                    type="text"
+                    value={link.text}
+                    onChange={(e) => updateNavLink(idx, 'text', e.target.value)}
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm"
+                    placeholder="Texte du lien"
+                  />
+                  <input
+                    type="text"
+                    value={link.href}
+                    onChange={(e) => updateNavLink(idx, 'href', e.target.value)}
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm"
+                    placeholder="#section ou /page/slug"
+                  />
+                  <button onClick={() => removeNavLink(idx)} className="text-red-400 hover:text-red-300 p-1 transition">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              CTA Button Text
-            </label>
-            <input
-              type="text"
-              value={navbar.ctaButton?.text || ''}
-              onChange={(e) =>
-                setNavbar({
-                  ...navbar,
-                  ctaButton: { text: e.target.value, href: navbar.ctaButton?.href || '' },
-                })
-              }
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+
+          {/* CTA Button */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Bouton CTA - Texte</label>
+              <input
+                type="text"
+                value={navbar.ctaButton?.text || ''}
+                onChange={(e) => setNavbar({ ...navbar, ctaButton: { text: e.target.value, href: navbar.ctaButton?.href || '' } })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm"
+                placeholder="Essayer gratuitement"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Bouton CTA - Lien</label>
+              <input
+                type="text"
+                value={navbar.ctaButton?.href || ''}
+                onChange={(e) => setNavbar({ ...navbar, ctaButton: { text: navbar.ctaButton?.text || '', href: e.target.value } })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm"
+                placeholder="/inscription"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              CTA Button Link
+
+          {/* Lien Connexion */}
+          <div className="flex items-center gap-4 bg-slate-700/30 rounded p-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={navbar.showLoginLink !== false}
+                onChange={(e) => setNavbar({ ...navbar, showLoginLink: e.target.checked })}
+                className="rounded"
+              />
+              <span className="text-sm text-slate-300">Afficher le lien Connexion</span>
             </label>
-            <input
-              type="text"
-              value={navbar.ctaButton?.href || ''}
-              onChange={(e) =>
-                setNavbar({
-                  ...navbar,
-                  ctaButton: { text: navbar.ctaButton?.text || '', href: e.target.value },
-                })
-              }
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+            {navbar.showLoginLink !== false && (
+              <input
+                type="text"
+                value={navbar.loginHref || '/login'}
+                onChange={(e) => setNavbar({ ...navbar, loginHref: e.target.value })}
+                className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm"
+                placeholder="/login"
+              />
+            )}
           </div>
+
           <button
             onClick={() => onSaveNavbar(navbar)}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2.5 transition flex items-center justify-center gap-2 font-medium"
           >
             <Save size={18} /> Enregistrer Navbar
           </button>
         </div>
       </div>
 
+      {/* ═══ FOOTER ═══ */}
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-        <h3 className="text-xl font-bold text-white mb-4">Footer</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Nom Entreprise
-            </label>
-            <input
-              type="text"
-              value={footer.companyName || ''}
-              onChange={(e) => setFooter({ ...footer, companyName: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+        <h3 className="text-xl font-bold text-white mb-5">Footer</h3>
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Nom Entreprise</label>
+              <input
+                type="text"
+                value={footer.companyName || ''}
+                onChange={(e) => setFooter({ ...footer, companyName: e.target.value })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Description</label>
+              <input
+                type="text"
+                value={footer.description || ''}
+                onChange={(e) => setFooter({ ...footer, description: e.target.value })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm"
+              />
+            </div>
           </div>
+
+          {/* Liens légaux du footer */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Description
-            </label>
-            <textarea
-              value={footer.description || ''}
-              onChange={(e) => setFooter({ ...footer, description: e.target.value })}
-              rows={3}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-slate-300">Liens légaux (bas de page)</label>
+              <button
+                onClick={addLegalLink}
+                className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition"
+              >
+                <Plus size={14} /> Ajouter
+              </button>
+            </div>
+            <div className="space-y-2">
+              {legalLinks.map((link, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-slate-700/50 rounded p-2">
+                  <input
+                    type="text"
+                    value={link.text}
+                    onChange={(e) => updateLegalLink(idx, 'text', e.target.value)}
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm"
+                    placeholder="Mentions légales"
+                  />
+                  <input
+                    type="text"
+                    value={link.href}
+                    onChange={(e) => updateLegalLink(idx, 'href', e.target.value)}
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm"
+                    placeholder="/mentions-legales"
+                  />
+                  <button onClick={() => removeLegalLink(idx)} className="text-red-400 hover:text-red-300 p-1 transition">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
+
           <button
             onClick={() => onSaveFooter(footer)}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2.5 transition flex items-center justify-center gap-2 font-medium"
           >
             <Save size={18} /> Enregistrer Footer
           </button>
