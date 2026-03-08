@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Settings,
   FileText,
-  BarChart3,
   MessageSquare,
   Image,
   Lock,
