@@ -682,4 +682,185 @@ export async function landingRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // ===== LANDING SECTIONS (Page builder - sections configurables) =====
+
+  // GET /api/landing/sections - Sections actives triées par ordre (PUBLIC, cached)
+  fastify.get('/api/landing/sections', async (_request, reply) => {
+    try {
+      const sections = await prisma.landingSection.findMany({
+        where: { actif: true },
+        orderBy: { ordre: 'asc' },
+      });
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+      return reply.send({ success: true, data: { sections } });
+    } catch (error) {
+      fastify.log.error(error);
+      return ApiError.internal(reply, 'Erreur lors de la récupération des sections');
+    }
+  });
+
+  // GET /api/landing/sections/all - Toutes les sections même inactives (ADMIN)
+  fastify.get('/api/landing/sections/all',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (_request, reply) => {
+      try {
+        const sections = await prisma.landingSection.findMany({
+          orderBy: { ordre: 'asc' },
+        });
+        return reply.send({ success: true, data: { sections } });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la récupération des sections');
+      }
+    }
+  );
+
+  // POST /api/landing/sections - Créer une section (ADMIN)
+  fastify.post<{ Body: { type: string; titre?: string; config?: Record<string, unknown>; ordre?: number; actif?: boolean } }>(
+    '/api/landing/sections',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const { type, titre, config, ordre, actif } = request.body;
+      if (!type) return ApiError.badRequest(reply, 'Le type de section est requis');
+
+      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations'];
+      if (!validTypes.includes(type)) return ApiError.badRequest(reply, `Type invalide. Types autorisés: ${validTypes.join(', ')}`);
+
+      try {
+        // Si pas d'ordre spécifié, mettre en dernier
+        let finalOrdre = ordre ?? 0;
+        if (!ordre && ordre !== 0) {
+          const lastSection = await prisma.landingSection.findFirst({ orderBy: { ordre: 'desc' } });
+          finalOrdre = (lastSection?.ordre ?? -1) + 1;
+        }
+
+        const section = await prisma.landingSection.create({
+          data: {
+            type,
+            titre: titre || null,
+            config: config || {},
+            ordre: finalOrdre,
+            actif: actif ?? true,
+          },
+        });
+        return reply.status(201).send({ success: true, data: { section } });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la création de la section');
+      }
+    }
+  );
+
+  // PUT /api/landing/sections/:id - Modifier une section (ADMIN)
+  fastify.put<{ Params: { id: string }; Body: Partial<{ type: string; titre: string; config: Record<string, unknown>; ordre: number; actif: boolean }> }>(
+    '/api/landing/sections/:id',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { type, titre, config, ordre, actif } = request.body;
+
+      try {
+        const data: Record<string, unknown> = {};
+        if (type !== undefined) data.type = type;
+        if (titre !== undefined) data.titre = titre;
+        if (config !== undefined) data.config = config;
+        if (ordre !== undefined) data.ordre = ordre;
+        if (actif !== undefined) data.actif = actif;
+
+        const section = await prisma.landingSection.update({
+          where: { id },
+          data,
+        });
+        return reply.send({ success: true, data: { section } });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la modification de la section');
+      }
+    }
+  );
+
+  // PUT /api/landing/sections/reorder - Réordonner les sections (ADMIN)
+  fastify.put<{ Body: { items: Array<{ id: string; ordre: number }> } }>(
+    '/api/landing/sections/reorder',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const { items } = request.body;
+      if (!items || !Array.isArray(items)) return ApiError.badRequest(reply, 'items requis (tableau de {id, ordre})');
+
+      try {
+        await prisma.$transaction(
+          items.map(item => prisma.landingSection.update({
+            where: { id: item.id },
+            data: { ordre: item.ordre },
+          }))
+        );
+
+        const sections = await prisma.landingSection.findMany({ orderBy: { ordre: 'asc' } });
+        return reply.send({ success: true, data: { sections } });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors du réordonnement');
+      }
+    }
+  );
+
+  // DELETE /api/landing/sections/:id - Supprimer une section (ADMIN)
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/landing/sections/:id',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const { id } = request.params;
+      try {
+        await prisma.landingSection.delete({ where: { id } });
+        return reply.send({ success: true, message: 'Section supprimée' });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la suppression');
+      }
+    }
+  );
+
+  // ===== LANDING GLOBAL CONFIG (navbar, footer, seo, theme) =====
+
+  // GET /api/landing/global-config - Toutes les configs globales (PUBLIC, cached)
+  fastify.get('/api/landing/global-config', async (_request, reply) => {
+    try {
+      const configs = await prisma.landingGlobalConfig.findMany();
+      const configMap = configs.reduce((acc: Record<string, unknown>, item) => {
+        acc[item.section] = item.config;
+        return acc;
+      }, {});
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+      return reply.send({ success: true, data: configMap });
+    } catch (error) {
+      fastify.log.error(error);
+      return ApiError.internal(reply, 'Erreur lors de la récupération de la config');
+    }
+  });
+
+  // PUT /api/landing/global-config/:section - Modifier une config globale (ADMIN)
+  fastify.put<{ Params: { section: string }; Body: { config: Record<string, unknown> } }>(
+    '/api/landing/global-config/:section',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const { section } = request.params;
+      const { config } = request.body;
+
+      const validSections = ['navbar', 'footer', 'seo', 'theme'];
+      if (!validSections.includes(section)) return ApiError.badRequest(reply, `Section invalide. Sections autorisées: ${validSections.join(', ')}`);
+
+      try {
+        const updated = await prisma.landingGlobalConfig.upsert({
+          where: { section },
+          update: { config },
+          create: { section, config },
+        });
+        return reply.send({ success: true, data: updated });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la mise à jour de la config');
+      }
+    }
+  );
 }

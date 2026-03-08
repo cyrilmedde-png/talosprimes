@@ -157,7 +157,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Plans & Modules', href: '/plans', icon: BanknotesIcon },
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
       { name: 'Notifications', href: '/notifications', icon: BellIcon },
-      { name: 'CMS Landing Page', href: '/dashboard/cms', icon: PencilSquareIcon },
+      { name: 'CMS Landing Page', href: '/cms', icon: PencilSquareIcon },
     ],
   },
   {
@@ -220,7 +220,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
 
   const navGroups = useMemo(() => {
     // Items réservés à l'admin (pas visibles pour les clients finaux)
-    const adminOnlyItems = ['/plans', '/dashboard/cms'];
+    const adminOnlyItems = ['/plans', '/cms'];
 
     return allNavGroups
       .filter((group) => {

@@ -1130,6 +1130,33 @@ model CmsPage {
   @@map("cms_pages")
 }
 
+// LandingSection (sections configurables de la landing page)
+model LandingSection {
+  id        String   @id @default(uuid()) @db.Uuid
+  type      String   // "hero", "stats", "modules", "agent_ia", "how_it_works", "testimonials", "upcoming", "cta", "contact", "trust_badges", "custom_html", "integrations"
+  titre     String?  // Titre interne (pour le dashboard)
+  config    Json     @default("{}") // Toute la config de la section (textes, couleurs, items, etc.)
+  ordre     Int      @default(0)
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([ordre])
+  @@index([actif])
+  @@map("landing_sections")
+}
+
+// LandingGlobalConfig (config globale: navbar, footer, seo, theme)
+model LandingGlobalConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  section   String   @unique // "navbar", "footer", "seo", "theme"
+  config    Json     @default("{}") // Toute la config
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([section])
+  @@map("landing_global_config")
+}
+
 // ContactMessage (messages de contact)
 model ContactMessage {
   id          String   @id @default(uuid()) @db.Uuid
