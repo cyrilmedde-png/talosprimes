@@ -694,7 +694,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         orderBy: { ordre: 'asc' },
       });
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
-      return reply.send({ success: true, data: { sections } });
+      return reply.send({ success: true, data: sections });
     } catch (error) {
       fastify.log.error(error);
       return ApiError.internal(reply, 'Erreur lors de la récupération des sections');
@@ -709,7 +709,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         const sections = await prisma.landingSection.findMany({
           orderBy: { ordre: 'asc' },
         });
-        return reply.send({ success: true, data: { sections } });
+        return reply.send({ success: true, data: sections });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply, 'Erreur lors de la récupération des sections');
@@ -745,7 +745,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
             actif: actif ?? true,
           },
         });
-        return reply.status(201).send({ success: true, data: { section } });
+        return reply.status(201).send({ success: true, data: section });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply, 'Erreur lors de la création de la section');
@@ -773,7 +773,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
           where: { id },
           data,
         });
-        return reply.send({ success: true, data: { section } });
+        return reply.send({ success: true, data: section });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply, 'Erreur lors de la modification de la section');
@@ -798,7 +798,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         );
 
         const sections = await prisma.landingSection.findMany({ orderBy: { ordre: 'asc' } });
-        return reply.send({ success: true, data: { sections } });
+        return reply.send({ success: true, data: sections });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply, 'Erreur lors du réordonnement');
