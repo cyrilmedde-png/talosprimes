@@ -700,7 +700,7 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Créer un nouveau lead/prospect.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\",\"telephone\":\"0612345678\",\"source\":\"admin\"}\n\nRÈGLES : tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\", source TOUJOURS \"admin\". Tous les champs obligatoires.",
+        "toolDescription": "Créer un lead/prospect. Paramètres : nom, prenom, email, telephone. Tous obligatoires.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_create",
         "sendBody": true,
@@ -712,16 +712,7 @@
             }
           }
         },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet du lead\") }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", nom: $fromAI(\"nom\", \"Nom de famille\"), prenom: $fromAI(\"prenom\", \"Prenom\"), email: $fromAI(\"email\", \"Email\"), telephone: $fromAI(\"telephone\", \"Telephone\"), source: \"admin\"}) }}"
       }
     },
     {
@@ -784,7 +775,7 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN DEVIS en base de données.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_DU_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description du devis\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nRÈGLES :\n- tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\"\n- clientFinalId = UUID obtenu via rechercher_clients\n- montantHt = NOMBRE (quantite × prixUnitaireHt)\n- lines = TABLEAU avec au moins 1 article\n- Toutes les clés entre guillemets doubles\n- Les nombres SANS guillemets\n- PAS de virgule finale\n\nAVANT d'appeler cet outil :\n1) rechercher_clients → clientFinalId\n2) lister_articles → codeArticle, designation, prixUnitaireHt",
+        "toolDescription": "Créer un devis en base de données. Paramètres : clientFinalId (UUID client via rechercher_clients), montantHt (nombre = quantite x prixUnitaireHt), description (texte), codeArticle (code via lister_articles), designation (nom article via lister_articles), quantite (nombre), prixUnitaireHt (prix via lister_articles). AVANT : 1) rechercher_clients 2) lister_articles.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-created",
         "sendBody": true,
@@ -796,16 +787,7 @@
             }
           }
         },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet du devis\") }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: parseFloat($fromAI(\"montantHt\", \"Montant HT nombre\")) || 0, tvaTaux: 20, description: $fromAI(\"description\", \"Description\") || \"Devis\", modePaiement: \"virement\", lines: [{codeArticle: $fromAI(\"codeArticle\", \"Code article\"), designation: $fromAI(\"designation\", \"Nom article\"), quantite: parseInt($fromAI(\"quantite\", \"Quantite\")) || 1, prixUnitaireHt: parseFloat($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT\")) || 0}]}) }}"
       }
     },
     {
@@ -893,7 +875,7 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "CRÉER UNE FACTURE en base de données.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_DU_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description facture\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nRÈGLES : tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\", clientFinalId = UUID, montantHt = NOMBRE, lines = TABLEAU.\nAVANT : 1) rechercher_clients 2) lister_articles",
+        "toolDescription": "Créer une facture en base de données. Paramètres : clientFinalId (UUID client), montantHt (nombre), description (texte), codeArticle, designation, quantite, prixUnitaireHt. AVANT : 1) rechercher_clients 2) lister_articles.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-created",
         "sendBody": true,
@@ -905,16 +887,7 @@
             }
           }
         },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet de la facture\") }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: parseFloat($fromAI(\"montantHt\", \"Montant HT nombre\")) || 0, tvaTaux: 20, description: $fromAI(\"description\", \"Description\") || \"Facture\", modePaiement: \"virement\", lines: [{codeArticle: $fromAI(\"codeArticle\", \"Code article\"), designation: $fromAI(\"designation\", \"Nom article\"), quantite: parseInt($fromAI(\"quantite\", \"Quantite\")) || 1, prixUnitaireHt: parseFloat($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT\")) || 0}]}) }}"
       }
     },
     {
@@ -1002,7 +975,7 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN BON DE COMMANDE en base de données.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_DU_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description BDC\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nRÈGLES : tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\", clientFinalId = UUID, montantHt = NOMBRE, lines = TABLEAU.\nAVANT : 1) rechercher_clients 2) lister_articles",
+        "toolDescription": "Créer un bon de commande en base de données. Paramètres : clientFinalId (UUID client), montantHt (nombre), description (texte), codeArticle, designation, quantite, prixUnitaireHt. AVANT : 1) rechercher_clients 2) lister_articles.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-created",
         "sendBody": true,
@@ -1014,16 +987,7 @@
             }
           }
         },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet du bon de commande\") }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", clientFinalId: $fromAI(\"clientFinalId\", \"UUID du client\"), montantHt: parseFloat($fromAI(\"montantHt\", \"Montant HT nombre\")) || 0, tvaTaux: 20, description: $fromAI(\"description\", \"Description\") || \"Bon de commande\", modePaiement: \"virement\", lines: [{codeArticle: $fromAI(\"codeArticle\", \"Code article\"), designation: $fromAI(\"designation\", \"Nom article\"), quantite: parseInt($fromAI(\"quantite\", \"Quantite\")) || 1, prixUnitaireHt: parseFloat($fromAI(\"prixUnitaireHt\", \"Prix unitaire HT\")) || 0}]}) }}"
       }
     },
     {
