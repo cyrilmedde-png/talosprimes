@@ -11,7 +11,8 @@ export default function ConfidentialitePage() {
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content`)
       .then((r) => r.json())
-      .then((data) => {
+      .then((json) => {
+        const data = json.data || json;
         setContent(data.confidentialite || '');
         setLoading(false);
       })

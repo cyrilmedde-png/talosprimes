@@ -84,7 +84,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
       // Cache 5 min côté navigateur, 1h côté CDN/proxy — le contenu change rarement
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
-      return reply.send(contentMap);
+      return reply.send({ success: true, data: contentMap });
     } catch (error) {
       fastify.log.error(error);
       return ApiError.internal(reply, 'Erreur lors de la récupération du contenu');
@@ -492,7 +492,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
         }
 
         reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
-        return reply.send({ success: true, data: page });
+        return reply.send({ success: true, data: { page } });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);

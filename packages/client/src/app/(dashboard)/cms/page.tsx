@@ -553,7 +553,7 @@ export default function CMSPage() {
     try {
       await fetchApi('/api/landing/global-config/navbar', {
         method: 'PUT',
-        body: JSON.stringify(navbar),
+        body: JSON.stringify({ config: navbar }),
       });
       setGlobalConfig({ ...globalConfig, navbar });
       addToast('Navbar sauvegardée avec succès', 'success');
@@ -566,7 +566,7 @@ export default function CMSPage() {
     try {
       await fetchApi('/api/landing/global-config/footer', {
         method: 'PUT',
-        body: JSON.stringify(footer),
+        body: JSON.stringify({ config: footer }),
       });
       setGlobalConfig({ ...globalConfig, footer });
       addToast('Footer sauvegardé avec succès', 'success');
@@ -579,7 +579,7 @@ export default function CMSPage() {
     try {
       await fetchApi('/api/landing/global-config/theme', {
         method: 'PUT',
-        body: JSON.stringify(theme),
+        body: JSON.stringify({ config: theme }),
       });
       setGlobalConfig({ ...globalConfig, theme });
       addToast('Thème sauvegardé avec succès', 'success');
@@ -592,7 +592,7 @@ export default function CMSPage() {
     try {
       await fetchApi('/api/landing/global-config/seo', {
         method: 'PUT',
-        body: JSON.stringify(seo),
+        body: JSON.stringify({ config: seo }),
       });
       setGlobalConfig({ ...globalConfig, seo });
       addToast('SEO sauvegardé avec succès', 'success');
