@@ -828,7 +828,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.get('/api/landing/global-config', async (_request, reply) => {
     try {
       const configs = await prisma.landingGlobalConfig.findMany();
-      const configMap = configs.reduce((acc: Record<string, unknown>, item) => {
+      const configMap = configs.reduce((acc: Record<string, unknown>, item: { section: string; config: unknown }) => {
         acc[item.section] = item.config;
         return acc;
       }, {});
