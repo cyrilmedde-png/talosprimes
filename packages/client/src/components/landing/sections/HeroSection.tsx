@@ -27,7 +27,7 @@ function CtaLink({ href, children, className }: { href: string; children: React.
   );
 }
 
-export function HeroSection({ config, theme }: { config: HeroConfig; theme?: ThemeConfig }) {
+export function HeroSection({ config }: { config: HeroConfig; theme?: ThemeConfig }) {
   const primaryLink = config.ctaPrimary?.link || '/inscription';
   const secondaryLink = config.ctaSecondary?.link || '#services';
   const BadgeIcon = config.badge?.icon ? (iconMap[config.badge.icon] || Bot) : Bot;

@@ -158,9 +158,6 @@ export default async function LandingPage() {
     address: content.config_contact_address,
   };
 
-  // SEO meta (utilisé par le layout ou metadata export)
-  const seo = globalConfig.seo;
-
   return (
     <div className="min-h-screen bg-white text-slate-800 antialiased">
       {/* ─── HEADER dynamique ─── */}
