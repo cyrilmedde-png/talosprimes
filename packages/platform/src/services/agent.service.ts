@@ -310,6 +310,139 @@ const AGENT_TOOLS: Array<{
   {
     type: 'function',
     function: {
+      name: 'list_devis',
+      description: 'Lister les devis du tenant. Filtres optionnels: statut (brouillon, envoyee, acceptee, refusee, expiree, facturee, commandee), clientFinalId, limit.',
+      parameters: {
+        type: 'object',
+        properties: {
+          statut: { type: 'string', enum: ['brouillon', 'envoyee', 'acceptee', 'refusee', 'expiree', 'facturee', 'commandee'] },
+          clientFinalId: { type: 'string', description: 'UUID du client' },
+          limit: { type: 'string', description: 'Nombre max (ex: 20)' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_devis',
+      description: 'Créer un devis avec une ou plusieurs lignes d\'articles. Le montant total est calculé automatiquement depuis les lignes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          clientFinalId: { type: 'string', description: 'UUID du client' },
+          description: { type: 'string', description: 'Description générale du devis (optionnel)' },
+          tvaTaux: { type: 'string', description: 'Taux de TVA en % (défaut: 20)' },
+          modePaiement: { type: 'string', description: 'Mode de paiement (optionnel)' },
+          dateValidite: { type: 'string', description: 'Date de validité ISO 8601 (optionnel, défaut: +30 jours)' },
+          lines: { type: 'string', description: 'JSON array des lignes: [{"designation":"Prestation X","quantite":2,"prixUnitaireHt":100,"codeArticle":"ART01"}]. Chaque ligne nécessite au minimum designation et prixUnitaireHt.' },
+        },
+        required: ['clientFinalId', 'lines'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_bons_commande',
+      description: 'Lister les bons de commande du tenant. Filtres optionnels: statut (brouillon, valide, facture, annule), clientFinalId, limit.',
+      parameters: {
+        type: 'object',
+        properties: {
+          statut: { type: 'string', enum: ['brouillon', 'valide', 'facture', 'annule'] },
+          clientFinalId: { type: 'string', description: 'UUID du client' },
+          limit: { type: 'string', description: 'Nombre max (ex: 20)' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_bon_commande',
+      description: 'Créer un bon de commande avec une ou plusieurs lignes d\'articles. Le montant total est calculé automatiquement depuis les lignes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          clientFinalId: { type: 'string', description: 'UUID du client' },
+          description: { type: 'string', description: 'Description générale (optionnel)' },
+          tvaTaux: { type: 'string', description: 'Taux de TVA en % (défaut: 20)' },
+          modePaiement: { type: 'string', description: 'Mode de paiement (optionnel)' },
+          dateValidite: { type: 'string', description: 'Date de validité ISO 8601 (optionnel, défaut: +30 jours)' },
+          devisId: { type: 'string', description: 'UUID du devis source (optionnel, pour lier le BC à un devis)' },
+          lines: { type: 'string', description: 'JSON array des lignes: [{"designation":"Prestation X","quantite":2,"prixUnitaireHt":100,"codeArticle":"ART01"}]. Chaque ligne nécessite au minimum designation et prixUnitaireHt.' },
+        },
+        required: ['clientFinalId', 'lines'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_facture',
+      description: 'Créer une facture avec une ou plusieurs lignes d\'articles. Le montant total est calculé automatiquement depuis les lignes. Pour convertir un devis ou BC en facture, utiliser plutôt convert_devis_to_facture ou convert_bdc_to_facture.',
+      parameters: {
+        type: 'object',
+        properties: {
+          clientFinalId: { type: 'string', description: 'UUID du client' },
+          description: { type: 'string', description: 'Description générale (optionnel)' },
+          tvaTaux: { type: 'string', description: 'Taux de TVA en % (défaut: 20)' },
+          modePaiement: { type: 'string', description: 'Mode de paiement (optionnel)' },
+          dateEcheance: { type: 'string', description: 'Date d\'échéance ISO 8601 (optionnel, défaut: +30 jours)' },
+          type: { type: 'string', description: 'Type de facture', enum: ['facture_entreprise', 'facture_client_final', 'facture_achat'] },
+          lines: { type: 'string', description: 'JSON array des lignes: [{"designation":"Prestation X","quantite":2,"prixUnitaireHt":100,"codeArticle":"ART01"}]. Chaque ligne nécessite au minimum designation et prixUnitaireHt.' },
+        },
+        required: ['clientFinalId', 'lines'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'convert_devis_to_bdc',
+      description: 'Convertir un devis accepté en bon de commande. Le devis doit avoir le statut "acceptee". Les lignes du devis sont copiées dans le BC.',
+      parameters: {
+        type: 'object',
+        properties: {
+          devisId: { type: 'string', description: 'UUID du devis à convertir' },
+        },
+        required: ['devisId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'convert_devis_to_facture',
+      description: 'Convertir un devis accepté directement en facture. Le devis doit avoir le statut "acceptee". Les lignes du devis sont copiées dans la facture.',
+      parameters: {
+        type: 'object',
+        properties: {
+          devisId: { type: 'string', description: 'UUID du devis à convertir' },
+        },
+        required: ['devisId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'convert_bdc_to_facture',
+      description: 'Convertir un bon de commande en facture. Le BC ne doit pas être déjà facturé ou annulé. Les lignes du BC sont copiées dans la facture.',
+      parameters: {
+        type: 'object',
+        properties: {
+          bdcId: { type: 'string', description: 'UUID du bon de commande à convertir' },
+        },
+        required: ['bdcId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'qonto_transactions',
       description: 'Lister les mouvements bancaires Qonto (entrées et sorties d\'argent). Optionnel: settledAtFrom, settledAtTo (ISO 8601), side (credit ou debit), perPage. Lecture seule.',
       parameters: {
@@ -746,6 +879,448 @@ async function executeTool(
         if (!event) return serializeForModel({ error: 'Événement non trouvé ou pas dans ce tenant', id });
         await prisma.agentCalendarEvent.delete({ where: { id } });
         return serializeForModel({ success: true, message: 'Événement supprimé' });
+      }
+
+      case 'list_devis': {
+        const statut = args.statut as string | undefined;
+        const clientFinalId = args.clientFinalId as string | undefined;
+        const limit = args.limit ? Math.min(Number(args.limit) || 20, 100) : 20;
+        const devisList = await prisma.devis.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(statut ? { statut: statut as 'brouillon' | 'envoyee' | 'acceptee' | 'refusee' | 'expiree' | 'facturee' | 'commandee' } : {}),
+            ...(clientFinalId ? { clientFinalId } : {}),
+          },
+          orderBy: { dateDevis: 'desc' },
+          take: limit,
+          select: {
+            id: true,
+            numeroDevis: true,
+            dateDevis: true,
+            dateValidite: true,
+            montantHt: true,
+            montantTtc: true,
+            statut: true,
+            clientFinalId: true,
+            description: true,
+          },
+        });
+        return serializeForModel({ count: devisList.length, devis: devisList });
+      }
+
+      case 'create_devis': {
+        const clientFinalId = args.clientFinalId as string;
+        if (!clientFinalId) return serializeForModel({ error: 'clientFinalId requis' });
+
+        // Parse lines
+        let lines: Array<{ designation: string; quantite?: number; prixUnitaireHt: number; codeArticle?: string }> = [];
+        try {
+          const parsed = typeof args.lines === 'string' ? JSON.parse(args.lines) : args.lines;
+          lines = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return serializeForModel({ error: 'Format lines invalide. Attendu: JSON array [{"designation":"...", "prixUnitaireHt": 100}]' });
+        }
+        if (lines.length === 0) return serializeForModel({ error: 'Au moins une ligne d\'article est requise' });
+
+        // Validate each line
+        for (const line of lines) {
+          if (!line.designation || !line.prixUnitaireHt) {
+            return serializeForModel({ error: 'Chaque ligne nécessite designation et prixUnitaireHt' });
+          }
+        }
+
+        const tvaTaux = args.tvaTaux ? Number(args.tvaTaux) : 20;
+        const montantHt = lines.reduce((sum, l) => sum + (l.quantite || 1) * l.prixUnitaireHt, 0);
+        const montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;
+
+        // Generate devis number
+        const year = new Date().getFullYear();
+        const lastDevis = await prisma.devis.findFirst({
+          where: { tenantId, numeroDevis: { startsWith: `DEV-${year}-` } },
+          orderBy: { numeroDevis: 'desc' },
+        });
+        const lastNum = lastDevis ? parseInt(lastDevis.numeroDevis.split('-')[2] || '0') : 0;
+        const numeroDevis = `DEV-${year}-${String(lastNum + 1).padStart(6, '0')}`;
+
+        const dateDevis = new Date();
+        const dateValidite = args.dateValidite ? new Date(args.dateValidite as string) : new Date(dateDevis.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const devis = await prisma.devis.create({
+          data: {
+            tenantId,
+            clientFinalId,
+            numeroDevis,
+            dateDevis,
+            dateValidite,
+            montantHt,
+            montantTtc,
+            tvaTaux,
+            description: (args.description as string) || null,
+            modePaiement: (args.modePaiement as string) || null,
+            statut: 'brouillon',
+            lines: {
+              create: lines.map((l, i) => ({
+                codeArticle: l.codeArticle || null,
+                designation: l.designation,
+                quantite: l.quantite || 1,
+                prixUnitaireHt: l.prixUnitaireHt,
+                totalHt: (l.quantite || 1) * l.prixUnitaireHt,
+                ordre: i,
+              })),
+            },
+          },
+          include: { lines: true },
+        });
+        return serializeForModel({ success: true, message: `Devis ${numeroDevis} créé avec ${lines.length} ligne(s)`, devis });
+      }
+
+      case 'list_bons_commande': {
+        const statut = args.statut as string | undefined;
+        const clientFinalId = args.clientFinalId as string | undefined;
+        const limit = args.limit ? Math.min(Number(args.limit) || 20, 100) : 20;
+        const bdcs = await prisma.bonCommande.findMany({
+          where: {
+            tenantId,
+            deletedAt: null,
+            ...(statut ? { statut: statut as 'brouillon' | 'valide' | 'facture' | 'annule' } : {}),
+            ...(clientFinalId ? { clientFinalId } : {}),
+          },
+          orderBy: { dateBdc: 'desc' },
+          take: limit,
+          select: {
+            id: true,
+            numeroBdc: true,
+            dateBdc: true,
+            dateValidite: true,
+            montantHt: true,
+            montantTtc: true,
+            statut: true,
+            clientFinalId: true,
+            devisId: true,
+            description: true,
+          },
+        });
+        return serializeForModel({ count: bdcs.length, bonsCommande: bdcs });
+      }
+
+      case 'create_bon_commande': {
+        const clientFinalId = args.clientFinalId as string;
+        if (!clientFinalId) return serializeForModel({ error: 'clientFinalId requis' });
+
+        let lines: Array<{ designation: string; quantite?: number; prixUnitaireHt: number; codeArticle?: string }> = [];
+        try {
+          const parsed = typeof args.lines === 'string' ? JSON.parse(args.lines) : args.lines;
+          lines = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return serializeForModel({ error: 'Format lines invalide. Attendu: JSON array [{"designation":"...", "prixUnitaireHt": 100}]' });
+        }
+        if (lines.length === 0) return serializeForModel({ error: 'Au moins une ligne d\'article est requise' });
+
+        for (const line of lines) {
+          if (!line.designation || !line.prixUnitaireHt) {
+            return serializeForModel({ error: 'Chaque ligne nécessite designation et prixUnitaireHt' });
+          }
+        }
+
+        const tvaTaux = args.tvaTaux ? Number(args.tvaTaux) : 20;
+        const montantHt = lines.reduce((sum, l) => sum + (l.quantite || 1) * l.prixUnitaireHt, 0);
+        const montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;
+
+        const year = new Date().getFullYear();
+        const lastBdc = await prisma.bonCommande.findFirst({
+          where: { tenantId, numeroBdc: { startsWith: `BDC-${year}-` } },
+          orderBy: { numeroBdc: 'desc' },
+        });
+        const lastNum = lastBdc ? parseInt(lastBdc.numeroBdc.split('-')[2] || '0') : 0;
+        const numeroBdc = `BDC-${year}-${String(lastNum + 1).padStart(6, '0')}`;
+
+        const dateBdc = new Date();
+        const dateValidite = args.dateValidite ? new Date(args.dateValidite as string) : new Date(dateBdc.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const bdc = await prisma.bonCommande.create({
+          data: {
+            tenantId,
+            clientFinalId,
+            numeroBdc,
+            dateBdc,
+            dateValidite,
+            montantHt,
+            montantTtc,
+            tvaTaux,
+            description: (args.description as string) || null,
+            modePaiement: (args.modePaiement as string) || null,
+            devisId: (args.devisId as string) || null,
+            statut: 'brouillon',
+            lines: {
+              create: lines.map((l, i) => ({
+                codeArticle: l.codeArticle || null,
+                designation: l.designation,
+                quantite: l.quantite || 1,
+                prixUnitaireHt: l.prixUnitaireHt,
+                totalHt: (l.quantite || 1) * l.prixUnitaireHt,
+                ordre: i,
+              })),
+            },
+          },
+          include: { lines: true },
+        });
+        return serializeForModel({ success: true, message: `Bon de commande ${numeroBdc} créé avec ${lines.length} ligne(s)`, bonCommande: bdc });
+      }
+
+      case 'create_facture': {
+        const clientFinalId = args.clientFinalId as string;
+        if (!clientFinalId) return serializeForModel({ error: 'clientFinalId requis' });
+
+        let lines: Array<{ designation: string; quantite?: number; prixUnitaireHt: number; codeArticle?: string }> = [];
+        try {
+          const parsed = typeof args.lines === 'string' ? JSON.parse(args.lines) : args.lines;
+          lines = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return serializeForModel({ error: 'Format lines invalide. Attendu: JSON array [{"designation":"...", "prixUnitaireHt": 100}]' });
+        }
+        if (lines.length === 0) return serializeForModel({ error: 'Au moins une ligne d\'article est requise' });
+
+        for (const line of lines) {
+          if (!line.designation || !line.prixUnitaireHt) {
+            return serializeForModel({ error: 'Chaque ligne nécessite designation et prixUnitaireHt' });
+          }
+        }
+
+        const tvaTaux = args.tvaTaux ? Number(args.tvaTaux) : 20;
+        const montantHt = lines.reduce((sum, l) => sum + (l.quantite || 1) * l.prixUnitaireHt, 0);
+        const montantTtc = Math.round(montantHt * (1 + tvaTaux / 100) * 100) / 100;
+        const invoiceType = (args.type as string) || 'facture_client_final';
+
+        const year = new Date().getFullYear();
+        const lastInv = await prisma.invoice.findFirst({
+          where: { tenantId, numeroFacture: { startsWith: `INV-${year}-` } },
+          orderBy: { numeroFacture: 'desc' },
+        });
+        const lastNum = lastInv ? parseInt(lastInv.numeroFacture.split('-')[2] || '0') : 0;
+        const numeroFacture = `INV-${year}-${String(lastNum + 1).padStart(6, '0')}`;
+
+        const dateFacture = new Date();
+        const dateEcheance = args.dateEcheance ? new Date(args.dateEcheance as string) : new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const invoice = await prisma.invoice.create({
+          data: {
+            tenantId,
+            clientFinalId,
+            type: invoiceType as 'facture_entreprise' | 'facture_client_final' | 'facture_achat',
+            numeroFacture,
+            dateFacture,
+            dateEcheance,
+            montantHt,
+            montantTtc,
+            tvaTaux,
+            description: (args.description as string) || null,
+            modePaiement: (args.modePaiement as string) || null,
+            statut: 'brouillon',
+            lines: {
+              create: lines.map((l, i) => ({
+                codeArticle: l.codeArticle || null,
+                designation: l.designation,
+                quantite: l.quantite || 1,
+                prixUnitaireHt: l.prixUnitaireHt,
+                totalHt: (l.quantite || 1) * l.prixUnitaireHt,
+                ordre: i,
+              })),
+            },
+          },
+          include: { lines: true },
+        });
+        return serializeForModel({ success: true, message: `Facture ${numeroFacture} créée avec ${lines.length} ligne(s)`, facture: invoice });
+      }
+
+      case 'convert_devis_to_bdc': {
+        const devisId = args.devisId as string;
+        if (!devisId) return serializeForModel({ error: 'devisId requis' });
+
+        const devis = await prisma.devis.findFirst({
+          where: { id: devisId, tenantId, deletedAt: null },
+          include: { lines: { orderBy: { ordre: 'asc' } } },
+        });
+        if (!devis) return serializeForModel({ error: 'Devis non trouvé', devisId });
+        if (devis.statut !== 'acceptee') {
+          return serializeForModel({ error: `Le devis doit être au statut "acceptee" pour être converti en BC (statut actuel: ${devis.statut})` });
+        }
+
+        const year = new Date().getFullYear();
+        const lastBdc = await prisma.bonCommande.findFirst({
+          where: { tenantId, numeroBdc: { startsWith: `BDC-${year}-` } },
+          orderBy: { numeroBdc: 'desc' },
+        });
+        const lastNum = lastBdc ? parseInt(lastBdc.numeroBdc.split('-')[2] || '0') : 0;
+        const numeroBdc = `BDC-${year}-${String(lastNum + 1).padStart(6, '0')}`;
+
+        const [bdc] = await prisma.$transaction([
+          prisma.bonCommande.create({
+            data: {
+              tenantId,
+              clientFinalId: devis.clientFinalId,
+              numeroBdc,
+              dateBdc: new Date(),
+              dateValidite: devis.dateValidite,
+              montantHt: devis.montantHt,
+              montantTtc: devis.montantTtc,
+              tvaTaux: devis.tvaTaux,
+              description: devis.description,
+              modePaiement: devis.modePaiement,
+              devisId: devis.id,
+              statut: 'brouillon',
+              lines: {
+                create: devis.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: unknown; totalHt: unknown }, i: number) => ({
+                  codeArticle: l.codeArticle,
+                  designation: l.designation,
+                  quantite: l.quantite,
+                  prixUnitaireHt: l.prixUnitaireHt,
+                  totalHt: l.totalHt,
+                  ordre: i,
+                })),
+              },
+            },
+            include: { lines: true },
+          }),
+          prisma.devis.update({
+            where: { id: devisId },
+            data: { statut: 'commandee' },
+          }),
+        ]);
+        return serializeForModel({ success: true, message: `Devis ${devis.numeroDevis} converti en bon de commande ${numeroBdc}`, bonCommande: bdc });
+      }
+
+      case 'convert_devis_to_facture': {
+        const devisId = args.devisId as string;
+        if (!devisId) return serializeForModel({ error: 'devisId requis' });
+
+        const devis = await prisma.devis.findFirst({
+          where: { id: devisId, tenantId, deletedAt: null },
+          include: { lines: { orderBy: { ordre: 'asc' } } },
+        });
+        if (!devis) return serializeForModel({ error: 'Devis non trouvé', devisId });
+        if (devis.statut !== 'acceptee') {
+          return serializeForModel({ error: `Le devis doit être au statut "acceptee" pour être converti en facture (statut actuel: ${devis.statut})` });
+        }
+
+        const year = new Date().getFullYear();
+        const lastInv = await prisma.invoice.findFirst({
+          where: { tenantId, numeroFacture: { startsWith: `INV-${year}-` } },
+          orderBy: { numeroFacture: 'desc' },
+        });
+        const lastNum = lastInv ? parseInt(lastInv.numeroFacture.split('-')[2] || '0') : 0;
+        const numeroFacture = `INV-${year}-${String(lastNum + 1).padStart(6, '0')}`;
+
+        const dateFacture = new Date();
+        const dateEcheance = new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const [invoice] = await prisma.$transaction([
+          prisma.invoice.create({
+            data: {
+              tenantId,
+              clientFinalId: devis.clientFinalId,
+              type: 'facture_client_final',
+              numeroFacture,
+              dateFacture,
+              dateEcheance,
+              montantHt: devis.montantHt,
+              montantTtc: devis.montantTtc,
+              tvaTaux: devis.tvaTaux,
+              description: devis.description,
+              modePaiement: devis.modePaiement,
+              statut: 'brouillon',
+              lines: {
+                create: devis.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: unknown; totalHt: unknown }, i: number) => ({
+                  codeArticle: l.codeArticle,
+                  designation: l.designation,
+                  quantite: l.quantite,
+                  prixUnitaireHt: l.prixUnitaireHt,
+                  totalHt: l.totalHt,
+                  ordre: i,
+                })),
+              },
+            },
+            include: { lines: true },
+          }),
+          prisma.devis.update({
+            where: { id: devisId },
+            data: { statut: 'facturee', invoiceId: undefined },
+          }),
+        ]);
+        // Link devis to invoice
+        await prisma.devis.update({
+          where: { id: devisId },
+          data: { invoiceId: invoice.id },
+        });
+        return serializeForModel({ success: true, message: `Devis ${devis.numeroDevis} converti en facture ${numeroFacture}`, facture: invoice });
+      }
+
+      case 'convert_bdc_to_facture': {
+        const bdcId = args.bdcId as string;
+        if (!bdcId) return serializeForModel({ error: 'bdcId requis' });
+
+        const bdc = await prisma.bonCommande.findFirst({
+          where: { id: bdcId, tenantId, deletedAt: null },
+          include: { lines: { orderBy: { ordre: 'asc' } } },
+        });
+        if (!bdc) return serializeForModel({ error: 'Bon de commande non trouvé', bdcId });
+        if (bdc.statut === 'facture') {
+          return serializeForModel({ error: 'Ce bon de commande est déjà facturé' });
+        }
+        if (bdc.statut === 'annule') {
+          return serializeForModel({ error: 'Ce bon de commande est annulé et ne peut pas être converti' });
+        }
+
+        const year = new Date().getFullYear();
+        const lastInv = await prisma.invoice.findFirst({
+          where: { tenantId, numeroFacture: { startsWith: `INV-${year}-` } },
+          orderBy: { numeroFacture: 'desc' },
+        });
+        const lastNum = lastInv ? parseInt(lastInv.numeroFacture.split('-')[2] || '0') : 0;
+        const numeroFacture = `INV-${year}-${String(lastNum + 1).padStart(6, '0')}`;
+
+        const dateFacture = new Date();
+        const dateEcheance = new Date(dateFacture.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const [invoice] = await prisma.$transaction([
+          prisma.invoice.create({
+            data: {
+              tenantId,
+              clientFinalId: bdc.clientFinalId,
+              type: 'facture_client_final',
+              numeroFacture,
+              dateFacture,
+              dateEcheance,
+              montantHt: bdc.montantHt,
+              montantTtc: bdc.montantTtc,
+              tvaTaux: bdc.tvaTaux,
+              description: bdc.description,
+              modePaiement: bdc.modePaiement,
+              statut: 'brouillon',
+              lines: {
+                create: bdc.lines.map((l: { codeArticle: string | null; designation: string; quantite: number; prixUnitaireHt: unknown; totalHt: unknown }, i: number) => ({
+                  codeArticle: l.codeArticle,
+                  designation: l.designation,
+                  quantite: l.quantite,
+                  prixUnitaireHt: l.prixUnitaireHt,
+                  totalHt: l.totalHt,
+                  ordre: i,
+                })),
+              },
+            },
+            include: { lines: true },
+          }),
+          prisma.bonCommande.update({
+            where: { id: bdcId },
+            data: { statut: 'facture' },
+          }),
+        ]);
+        // Link BDC to invoice
+        await prisma.bonCommande.update({
+          where: { id: bdcId },
+          data: { invoiceId: invoice.id },
+        });
+        return serializeForModel({ success: true, message: `Bon de commande ${bdc.numeroBdc} converti en facture ${numeroFacture}`, facture: invoice });
       }
 
       case 'qonto_transactions': {
