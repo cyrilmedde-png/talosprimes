@@ -124,10 +124,10 @@ const getToken = (): string | null => {
   return localStorage.getItem('accessToken') || localStorage.getItem('token');
 };
 
-const fetchApi = async (
+const fetchApi = async <T = { data: unknown }>(
   url: string,
   options?: RequestInit
-): Promise<Record<string, unknown>> => {
+): Promise<T> => {
   const token = getToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -194,7 +194,7 @@ export default function CMSPage() {
   const loadSections = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi('/api/landing/sections/all');
+      const data = await fetchApi<{ data: Section[] }>('/api/landing/sections/all');
       setSections(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des sections: ${error}`, 'error');
@@ -207,7 +207,7 @@ export default function CMSPage() {
   const loadTestimonials = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi('/api/landing/testimonials/admin');
+      const data = await fetchApi<{ data: Testimonial[] }>('/api/landing/testimonials/admin');
       setTestimonials(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des témoignages: ${error}`, 'error');
@@ -220,7 +220,7 @@ export default function CMSPage() {
   const loadMessages = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi('/api/landing/contact-messages');
+      const data = await fetchApi<{ data: ContactMessage[] }>('/api/landing/contact-messages');
       setMessages(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des messages: ${error}`, 'error');
@@ -233,7 +233,7 @@ export default function CMSPage() {
   const loadPages = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi('/api/cms-pages');
+      const data = await fetchApi<{ data: CMSPage[] }>('/api/cms-pages');
       setPages(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des pages: ${error}`, 'error');
@@ -246,7 +246,7 @@ export default function CMSPage() {
   const loadPlans = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi('/api/plans');
+      const data = await fetchApi<{ data: Plan[] }>('/api/plans');
       setPlans(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des plans: ${error}`, 'error');
@@ -259,7 +259,7 @@ export default function CMSPage() {
   const loadGlobalConfig = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi('/api/landing/global-config');
+      const data = await fetchApi<{ data: GlobalConfig }>('/api/landing/global-config');
       setGlobalConfig(data.data || {});
     } catch (error) {
       addToast(`Erreur lors du chargement de la configuration: ${error}`, 'error');
@@ -272,7 +272,7 @@ export default function CMSPage() {
   const loadLandingContent = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi('/api/landing/content');
+      const data = await fetchApi<{ data: LandingContent }>('/api/landing/content');
       setLandingContent(data.data || {});
     } catch (error) {
       addToast(`Erreur lors du chargement du contenu: ${error}`, 'error');
@@ -298,7 +298,7 @@ export default function CMSPage() {
     try {
       const config = getDefaultConfig(type);
       const ordre = sections.length + 1;
-      const data = await fetchApi('/api/landing/sections', {
+      const data = await fetchApi<{ data: Section }>('/api/landing/sections', {
         method: 'POST',
         body: JSON.stringify({
           type,
@@ -318,7 +318,7 @@ export default function CMSPage() {
 
   const updateSection = async (id: string, updates: Partial<Section>) => {
     try {
-      const data = await fetchApi(`/api/landing/sections/${id}`, {
+      const data = await fetchApi<{ data: Section }>(`/api/landing/sections/${id}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
@@ -374,7 +374,7 @@ export default function CMSPage() {
   // ============= TESTIMONIAL OPERATIONS =============
   const createTestimonial = async (data: Partial<Testimonial>) => {
     try {
-      const response = await fetchApi('/api/landing/testimonials', {
+      const response = await fetchApi<{ data: Testimonial }>('/api/landing/testimonials', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -388,7 +388,7 @@ export default function CMSPage() {
 
   const updateTestimonial = async (id: string, data: Partial<Testimonial>) => {
     try {
-      const response = await fetchApi(`/api/landing/testimonials/${id}`, {
+      const response = await fetchApi<{ data: Testimonial }>(`/api/landing/testimonials/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -414,7 +414,7 @@ export default function CMSPage() {
   // ============= PAGE OPERATIONS =============
   const createPage = async (data: Partial<CMSPage>) => {
     try {
-      const response = await fetchApi('/api/cms-pages', {
+      const response = await fetchApi<{ data: CMSPage }>('/api/cms-pages', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -428,7 +428,7 @@ export default function CMSPage() {
 
   const updatePage = async (id: string, data: Partial<CMSPage>) => {
     try {
-      const response = await fetchApi(`/api/cms-pages/${id}`, {
+      const response = await fetchApi<{ data: CMSPage }>(`/api/cms-pages/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -454,7 +454,7 @@ export default function CMSPage() {
   // ============= PLAN OPERATIONS =============
   const createPlan = async (data: Partial<Plan>) => {
     try {
-      const response = await fetchApi('/api/plans', {
+      const response = await fetchApi<{ data: Plan }>('/api/plans', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -468,7 +468,7 @@ export default function CMSPage() {
 
   const updatePlan = async (id: string, data: Partial<Plan>) => {
     try {
-      const response = await fetchApi(`/api/plans/${id}`, {
+      const response = await fetchApi<{ data: Plan }>(`/api/plans/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
