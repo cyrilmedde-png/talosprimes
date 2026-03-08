@@ -34,7 +34,7 @@
       ],
       "parameters": {
         "options": {
-          "systemMessage": "Tu es l'assistant IA de TalosPrimes, un ERP/CRM SaaS pour les entrepreneurs.\n\nTu gères :\n- Les leads (prospects) : création, recherche, modification de statut, suppression\n- Les clients (B2B/B2C) : création, recherche, modification, suppression\n- Les articles (catalogue) : création, listage\n- Les devis : création, listage, envoi, acceptation, conversion en facture\n- Les factures : création, listage, envoi, marquage payée\n- Les bons de commande : création, listage, validation, conversion en facture\n- La consultation du solde et transactions Qonto\n\nRègles importantes :\n- Toujours utiliser le tenant_id du contexte utilisateur\n- Confirmer les actions destructives (suppression) avant exécution\n- Donner des réponses concises et structurées\n- En cas d'erreur, expliquer clairement le problème",
+          "systemMessage": "Tu es l'assistant IA de TalosPrimes, un ERP/CRM SaaS pour les entrepreneurs.\n\nTu gères :\n- Les leads (prospects) : création, recherche, modification de statut, suppression\n- Les clients (B2B/B2C) : création, recherche, modification, suppression\n- Les articles (catalogue) : création, listage\n- Les devis : création avec plusieurs lignes d'articles, listage, envoi, acceptation, conversion en bon de commande ou en facture\n- Les factures : création avec plusieurs lignes d'articles, listage, envoi, marquage payée\n- Les bons de commande : création avec plusieurs lignes d'articles, listage, validation, conversion en facture\n- La consultation du solde et transactions Qonto\n\nCréation de devis, factures et bons de commande :\n- Tu peux créer un document avec PLUSIEURS lignes d'articles en une seule fois\n- Le paramètre 'lignes' doit être un tableau JSON contenant toutes les lignes\n- Chaque ligne a : designation (description de l'article), quantite (nombre), prix_unitaire_ht (prix unitaire HT)\n- Exemple : [{\"designation\": \"Prestation web\", \"quantite\": 1, \"prix_unitaire_ht\": 500}, {\"designation\": \"Maintenance mensuelle\", \"quantite\": 3, \"prix_unitaire_ht\": 150}]\n- Les montants HT, TVA (20%) et TTC sont calculés automatiquement\n\nConversions de documents :\n- Devis → Bon de commande : utilise sw_devis_vers_bdc (le devis passe en statut 'commandee')\n- Devis → Facture : utilise sw_devis_vers_facture (le devis passe en statut 'facturee')\n- Bon de commande → Facture : utilise sw_bdc_vers_facture (le BDC passe en statut 'facture')\n- Les lignes sont automatiquement copiées lors des conversions\n\nRègles importantes :\n- Toujours utiliser le tenant_id du contexte utilisateur\n- Confirmer les actions destructives (suppression) avant exécution\n- Donner des réponses concises et structurées\n- En cas d'erreur, expliquer clairement le problème",
           "maxIterations": 10,
           "returnIntermediateSteps": false
         }
@@ -736,7 +736,7 @@
       ],
       "parameters": {
         "workflowId": "__SW_CREER_DEVIS_ID__",
-        "description": "Crée un devis avec auto-numérotation DEV-XXXX, lignes et calcul TTC. Paramètres : tenant_id, client_final_id, lignes (description, quantite, prix_unitaire_ht).",
+        "description": "Crée un devis avec auto-numérotation DEV-XXXX et PLUSIEURS lignes d'articles. Calcul automatique HT/TVA/TTC. Paramètres : tenant_id, client_final_id, lignes (tableau JSON avec designation, quantite, prix_unitaire_ht pour chaque article).",
         "responsePropertyName": "response"
       },
       "_meta": {
@@ -755,7 +755,7 @@
       ],
       "parameters": {
         "workflowId": "__SW_CREER_FACTURE_ID__",
-        "description": "Crée une facture avec auto-numérotation FAC-XXXX. Paramètres : tenant_id, client_final_id, lignes.",
+        "description": "Crée une facture avec auto-numérotation FAC-XXXX et PLUSIEURS lignes d'articles. Calcul automatique HT/TVA/TTC. Paramètres : tenant_id, client_final_id, lignes (tableau JSON avec designation, quantite, prix_unitaire_ht).",
         "responsePropertyName": "response"
       },
       "_meta": {
@@ -774,7 +774,7 @@
       ],
       "parameters": {
         "workflowId": "__SW_CREER_BDC_ID__",
-        "description": "Crée un bon de commande avec auto-numérotation BDC-XXXX. Paramètres : tenant_id, client_final_id, lignes.",
+        "description": "Crée un bon de commande avec auto-numérotation BDC-XXXX et PLUSIEURS lignes d'articles. Calcul automatique HT/TVA/TTC. Paramètres : tenant_id, client_final_id, lignes (tableau JSON avec designation, quantite, prix_unitaire_ht).",
         "responsePropertyName": "response"
       },
       "_meta": {
@@ -794,6 +794,25 @@
       "parameters": {
         "workflowId": "__SW_DEVIS_VERS_FACTURE_ID__",
         "description": "Convertit un devis accepté en facture. Copie les lignes, crée la facture, met à jour le statut du devis. Paramètres : tenant_id, devis_id.",
+        "responsePropertyName": "response"
+      },
+      "_meta": {
+        "category": "WRITE_COMPLEX",
+        "connectionType": "ai_tool"
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "name": "sw_devis_vers_bdc",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        700
+      ],
+      "parameters": {
+        "workflowId": "__SW_DEVIS_VERS_BDC_ID__",
+        "description": "Convertit un devis accepté en bon de commande. Copie les lignes du devis, crée le BDC, met à jour le statut du devis à 'commandee'. Paramètres : tenant_id, devis_id.",
         "responsePropertyName": "response"
       },
       "_meta": {
@@ -1242,6 +1261,17 @@
       ]
     },
     "sw_devis_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent TalosPrimes",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sw_devis_vers_bdc": {
       "ai_tool": [
         [
           {

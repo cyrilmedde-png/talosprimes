@@ -1,8 +1,8 @@
 {
-  "name": "SW - BDC vers Facture",
+  "name": "SW - Devis vers BDC",
   "nodes": [
     {
-      "id": "f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c",
+      "id": "fd2cce5a-aa11-4c3d-8e9f-2a1b5c9d8f0e",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
@@ -13,7 +13,7 @@
       "parameters": {}
     },
     {
-      "id": "a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d",
+      "id": "a7f4b5c3-bb22-4a9c-8f3b-1c5d7e9f0a2b",
       "name": "Validation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -37,7 +37,7 @@
               }
             },
             {
-              "leftValue": "={{ $json.bdc_id }}",
+              "leftValue": "={{ $json.devis_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -50,7 +50,7 @@
       }
     },
     {
-      "id": "b3c4d5e6-f7a8-4b9c-0d1e-2f3a4b5c6d7e",
+      "id": "b9c8e7f6-cc33-3c2b-1a0f-9e8d7c6b5a4f",
       "name": "Erreur Validation",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -64,9 +64,9 @@
         "assignments": {
           "assignments": [
             {
-              "id": "err-bdc-facture-01",
+              "id": "err-devis-bdc-01",
               "name": "error",
-              "value": "Champs requis manquants: tenant_id, bdc_id",
+              "value": "Champs requis manquants: tenant_id, devis_id",
               "type": "string"
             }
           ]
@@ -74,8 +74,8 @@
       }
     },
     {
-      "id": "c4d5e6f7-a8b9-4c0d-1e2f-3a4b5c6d7e8f",
-      "name": "Get BDC",
+      "id": "c2d5e9f8-dd44-4c5d-8e9f-0a1b2c3d4e5f",
+      "name": "Get Devis",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
@@ -84,7 +84,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT bc.*, json_agg(json_build_object('designation', bcl.designation, 'quantite', bcl.quantite, 'prix_unitaire_ht', bcl.prix_unitaire_ht, 'total_ht', bcl.total_ht, 'ordre', bcl.ordre, 'code_article', bcl.code_article)) as lignes FROM bons_commande bc LEFT JOIN bon_commande_lines bcl ON bcl.bon_commande_id = bc.id WHERE bc.tenant_id = '{{ $json.tenant_id }}' AND bc.id = '{{ $json.bdc_id }}' GROUP BY bc.id"
+        "query": "SELECT d.*, json_agg(json_build_object('designation', dl.designation, 'quantite', dl.quantite, 'prix_unitaire_ht', dl.prix_unitaire_ht, 'total_ht', dl.total_ht, 'ordre', dl.ordre, 'code_article', dl.code_article)) as lignes FROM devis d LEFT JOIN devis_lines dl ON dl.devis_id = d.id WHERE d.tenant_id = '{{ $json.tenant_id }}' AND d.id = '{{ $json.devis_id }}' GROUP BY d.id"
       },
       "credentials": {
         "postgres": {
@@ -94,8 +94,8 @@
       }
     },
     {
-      "id": "d5e6f7a8-b9c0-4d1e-2f3a-4b5c6d7e8f9a",
-      "name": "Get Next FAC Numero",
+      "id": "d3f6a9b2-ee55-4d7f-9a0b-5c2d3e4f5a6b",
+      "name": "Get Next BDC Numero",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
@@ -104,7 +104,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM 5) AS INTEGER)), 0) + 1 as next_num FROM invoices WHERE tenant_id = '{{ $json.tenant_id }}'"
+        "query": "SELECT COALESCE(MAX(CAST(SUBSTRING(numero FROM 5) AS INTEGER)), 0) + 1 as next_num FROM bons_commande WHERE tenant_id = '{{ $json.tenant_id }}'"
       },
       "credentials": {
         "postgres": {
@@ -114,8 +114,8 @@
       }
     },
     {
-      "id": "e6f7a8b9-c0d1-4e2f-3a4b-5c6d7e8f9a0b",
-      "name": "Create Facture from BDC",
+      "id": "e4a7b1c5-ff66-4e9c-3a0b-6d5f7a8b9c0d",
+      "name": "Create BDC from Devis",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
@@ -124,7 +124,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH new_facture AS (INSERT INTO invoices (id, type, tenant_id, numero, client_final_id, montant_ht, tva, montant_ttc, statut, created_at) VALUES (gen_random_uuid(), 'vente', '{{ $json.tenant_id }}', 'FAC-' || LPAD({{ $json.next_num }}::text, 4, '0'), '{{ $json.client_final_id }}', {{ $json.montant_ht }}, {{ $json.tva }}, {{ $json.montant_ttc }}, 'brouillon', NOW()) RETURNING *), update_bdc AS (UPDATE bons_commande SET statut = 'facture', invoice_id = (SELECT id FROM new_facture), updated_at = NOW() WHERE id = '{{ $json.bdc_id }}') SELECT * FROM new_facture"
+        "query": "WITH new_bdc AS (INSERT INTO bons_commande (id, tenant_id, numero, client_final_id, devis_id, montant_ht, tva, montant_ttc, statut, created_at) VALUES (gen_random_uuid(), '{{ $json.tenant_id }}', 'BDC-' || LPAD({{ $json.next_num }}::text, 4, '0'), '{{ $json.client_final_id }}', '{{ $('Execute Workflow Trigger').item.json.devis_id }}'::uuid, {{ $json.montant_ht }}, {{ $json.tva }}, {{ $json.montant_ttc }}, 'brouillon', NOW()) RETURNING *), update_devis AS (UPDATE devis SET statut = 'commandee', updated_at = NOW() WHERE id = '{{ $('Execute Workflow Trigger').item.json.devis_id }}'::uuid) SELECT * FROM new_bdc"
       },
       "credentials": {
         "postgres": {
@@ -134,8 +134,8 @@
       }
     },
     {
-      "id": "f7a8b9c0-d1e2-4f3a-4b5c-6d7e8f9a0b1c",
-      "name": "Copy Lines to Invoice",
+      "id": "f5b8c2d6-0077-5f0d-4b1c-7e6a8d9f0a1b",
+      "name": "Copy Lines to BDC",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
@@ -144,7 +144,7 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO invoice_lines (id, invoice_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) SELECT gen_random_uuid(), '{{ $json.id }}'::uuid, bcl.code_article, bcl.designation, bcl.quantite, bcl.prix_unitaire_ht, bcl.total_ht, bcl.ordre FROM bon_commande_lines bcl WHERE bcl.bon_commande_id = '{{ $('Get BDC').item.json.id }}' RETURNING *"
+        "query": "INSERT INTO bon_commande_lines (id, bon_commande_id, code_article, designation, quantite, prix_unitaire_ht, total_ht, ordre) SELECT gen_random_uuid(), '{{ $json.id }}'::uuid, dl.code_article, dl.designation, dl.quantite, dl.prix_unitaire_ht, dl.total_ht, dl.ordre FROM devis_lines dl WHERE dl.devis_id = '{{ $('Execute Workflow Trigger').item.json.devis_id }}'::uuid RETURNING *"
       },
       "credentials": {
         "postgres": {
@@ -170,7 +170,7 @@
       "main": [
         [
           {
-            "node": "Get BDC",
+            "node": "Get Devis",
             "type": "main",
             "index": 0
           }
@@ -184,33 +184,33 @@
         ]
       ]
     },
-    "Get BDC": {
+    "Get Devis": {
       "main": [
         [
           {
-            "node": "Get Next FAC Numero",
+            "node": "Get Next BDC Numero",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Next FAC Numero": {
+    "Get Next BDC Numero": {
       "main": [
         [
           {
-            "node": "Create Facture from BDC",
+            "node": "Create BDC from Devis",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Create Facture from BDC": {
+    "Create BDC from Devis": {
       "main": [
         [
           {
-            "node": "Copy Lines to Invoice",
+            "node": "Copy Lines to BDC",
             "type": "main",
             "index": 0
           }
@@ -231,6 +231,6 @@
     }
   ],
   "meta": {
-    "description": "Convertit un bon de commande en facture avec copie des lignes"
+    "description": "Convertit un devis en bon de commande avec copie des lignes"
   }
 }
