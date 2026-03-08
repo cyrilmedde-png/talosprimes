@@ -603,9 +603,9 @@ export default function CMSPage() {
 
   const saveLandingContent = async (section: string, contenu: ContentValue) => {
     try {
-      await fetchApi('/api/landing/content', {
+      await fetchApi(`/api/landing/content/${section}`, {
         method: 'PUT',
-        body: JSON.stringify({ section, contenu }),
+        body: JSON.stringify({ contenu }),
       });
       setLandingContent({ ...landingContent, [section]: contenu });
       addToast('Contenu sauvegardé avec succès', 'success');
