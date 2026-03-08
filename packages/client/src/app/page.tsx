@@ -55,7 +55,8 @@ async function getSections(): Promise<LandingSection[]> {
       console.error(`[SSR] landing/sections failed: ${res.status}`);
       return [];
     }
-    return res.json();
+    const json = await res.json();
+    return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
   } catch (err) {
     console.error('[SSR] landing/sections error:', err);
     return [];
@@ -71,7 +72,8 @@ async function getGlobalConfig(): Promise<GlobalConfig> {
       console.error(`[SSR] landing/global-config failed: ${res.status}`);
       return {};
     }
-    return res.json();
+    const json = await res.json();
+    return json.data || json || {};
   } catch (err) {
     console.error('[SSR] landing/global-config error:', err);
     return {};
@@ -84,7 +86,8 @@ async function getTestimonials(): Promise<Testimonial[]> {
       next: { revalidate: 300 },
     });
     if (!res.ok) return [];
-    return res.json();
+    const json = await res.json();
+    return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
   } catch {
     return [];
   }
@@ -97,7 +100,8 @@ async function getLandingContent(): Promise<Record<string, string>> {
       next: { revalidate: 300 },
     });
     if (!res.ok) return {};
-    return res.json();
+    const json = await res.json();
+    return json.data || json || {};
   } catch {
     return {};
   }
