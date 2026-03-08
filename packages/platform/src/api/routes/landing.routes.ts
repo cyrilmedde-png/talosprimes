@@ -3,6 +3,7 @@ import { prisma } from '../../config/database.js';
 import { generateLegalContent } from '../../services/openai.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { ApiError } from '../../utils/api-errors.js';
+import type { InputJsonValue } from '../../types/prisma-helpers.js';
 
 // Templates pour génération IA
 const legalTemplates = {
@@ -739,7 +740,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
           data: {
             type,
             titre: titre || null,
-            config: (config || {}) as any,
+            config: (config || {}) as InputJsonValue,
             ordre: finalOrdre,
             actif: actif ?? true,
           },
@@ -853,8 +854,8 @@ export async function landingRoutes(fastify: FastifyInstance) {
       try {
         const updated = await prisma.landingGlobalConfig.upsert({
           where: { section },
-          update: { config: config as any },
-          create: { section, config: config as any },
+          update: { config: config as InputJsonValue },
+          create: { section, config: config as InputJsonValue },
         });
         return reply.send({ success: true, data: updated });
       } catch (error) {
