@@ -739,7 +739,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
           data: {
             type,
             titre: titre || null,
-            config: config || {},
+            config: (config || {}) as any,
             ordre: finalOrdre,
             actif: actif ?? true,
           },
@@ -853,8 +853,8 @@ export async function landingRoutes(fastify: FastifyInstance) {
       try {
         const updated = await prisma.landingGlobalConfig.upsert({
           where: { section },
-          update: { config },
-          create: { section, config },
+          update: { config: config as any },
+          create: { section, config: config as any },
         });
         return reply.send({ success: true, data: updated });
       } catch (error) {
