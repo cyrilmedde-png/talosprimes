@@ -5,7 +5,6 @@ import {
   Settings,
   FileText,
   MessageSquare,
-  Image,
   Lock,
   DollarSign,
   Layout,
