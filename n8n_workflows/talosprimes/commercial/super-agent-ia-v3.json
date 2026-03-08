@@ -700,7 +700,7 @@
         950
       ],
       "parameters": {
-        "toolDescription": "Créer un nouveau lead/prospect. POST vers le webhook.\n\nTu DOIS fournir UN SEUL paramètre 'body' contenant du JSON VALIDE :\n{\n  \"tenantId\": \"00000000-0000-0000-0000-000000000001\",\n  \"nom\": \"Dupont\",\n  \"prenom\": \"Jean\",\n  \"email\": \"jean@example.com\",\n  \"telephone\": \"0612345678\",\n  \"source\": \"admin\"\n}\n\nRÈGLES :\n- tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\"\n- Tous les champs sont OBLIGATOIRES\n- source est TOUJOURS \"admin\"\n- Toutes les clés et valeurs entre GUILLEMETS DOUBLES",
+        "toolDescription": "Créer un nouveau lead/prospect.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@example.com\",\"telephone\":\"0612345678\",\"source\":\"admin\"}\n\nRÈGLES : tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\", source TOUJOURS \"admin\". Tous les champs obligatoires.",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/lead_create",
         "sendBody": true,
@@ -720,7 +720,8 @@
               "value": "application/json"
             }
           ]
-        }
+        },
+        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet du lead\") }}"
       }
     },
     {
@@ -783,7 +784,7 @@
         1450
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN DEVIS en base de données. POST vers le webhook.\n\nTu DOIS fournir UN SEUL paramètre 'body' contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\n  \"tenantId\": \"00000000-0000-0000-0000-000000000001\",\n  \"clientFinalId\": \"UUID_DU_CLIENT\",\n  \"montantHt\": 1500,\n  \"tvaTaux\": 20,\n  \"description\": \"Description du devis\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\n      \"codeArticle\": \"001\",\n      \"designation\": \"Nom de l article\",\n      \"quantite\": 1,\n      \"prixUnitaireHt\": 1500\n    }\n  ]\n}\n\nRÈGLES STRICTES :\n- tenantId est TOUJOURS \"00000000-0000-0000-0000-000000000001\"\n- clientFinalId : UUID obtenu via rechercher_clients\n- montantHt : NOMBRE (pas de texte), calcul = quantite × prixUnitaireHt\n- tvaTaux : TOUJOURS 20\n- lines : TABLEAU avec au moins 1 objet article\n- codeArticle et designation : obtenus via lister_articles\n- Toutes les clés ET valeurs texte entre GUILLEMETS DOUBLES\n- montantHt, quantite, prixUnitaireHt sont des NOMBRES sans guillemets\n- PAS de virgule après le dernier élément\n- PAS de commentaire dans le JSON\n\nAVANT d'appeler cet outil tu DOIS avoir fait :\n1) rechercher_clients → clientFinalId\n2) lister_articles → codeArticle, designation, prixUnitaireHt",
+        "toolDescription": "CRÉER UN DEVIS en base de données.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_DU_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description du devis\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nRÈGLES :\n- tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\"\n- clientFinalId = UUID obtenu via rechercher_clients\n- montantHt = NOMBRE (quantite × prixUnitaireHt)\n- lines = TABLEAU avec au moins 1 article\n- Toutes les clés entre guillemets doubles\n- Les nombres SANS guillemets\n- PAS de virgule finale\n\nAVANT d'appeler cet outil :\n1) rechercher_clients → clientFinalId\n2) lister_articles → codeArticle, designation, prixUnitaireHt",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/devis-created",
         "sendBody": true,
@@ -803,7 +804,8 @@
               "value": "application/json"
             }
           ]
-        }
+        },
+        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet du devis\") }}"
       }
     },
     {
@@ -891,7 +893,7 @@
         1700
       ],
       "parameters": {
-        "toolDescription": "CRÉER UNE FACTURE en base de données. POST vers le webhook.\n\nTu DOIS fournir UN SEUL paramètre 'body' contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\n  \"tenantId\": \"00000000-0000-0000-0000-000000000001\",\n  \"clientFinalId\": \"UUID_DU_CLIENT\",\n  \"montantHt\": 1500,\n  \"tvaTaux\": 20,\n  \"description\": \"Description de la facture\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\n      \"codeArticle\": \"001\",\n      \"designation\": \"Nom de l article\",\n      \"quantite\": 1,\n      \"prixUnitaireHt\": 1500\n    }\n  ]\n}\n\nRÈGLES STRICTES :\n- tenantId est TOUJOURS \"00000000-0000-0000-0000-000000000001\"\n- clientFinalId : UUID obtenu via rechercher_clients\n- montantHt : NOMBRE, calcul = quantite × prixUnitaireHt\n- lines : TABLEAU avec au moins 1 objet article\n- Toutes les clés entre GUILLEMETS DOUBLES\n- montantHt, quantite, prixUnitaireHt sont des NOMBRES sans guillemets\n\nAVANT d'appeler : 1) rechercher_clients 2) lister_articles",
+        "toolDescription": "CRÉER UNE FACTURE en base de données.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_DU_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description facture\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nRÈGLES : tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\", clientFinalId = UUID, montantHt = NOMBRE, lines = TABLEAU.\nAVANT : 1) rechercher_clients 2) lister_articles",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/invoice-created",
         "sendBody": true,
@@ -911,7 +913,8 @@
               "value": "application/json"
             }
           ]
-        }
+        },
+        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet de la facture\") }}"
       }
     },
     {
@@ -999,7 +1002,7 @@
         1950
       ],
       "parameters": {
-        "toolDescription": "CRÉER UN BON DE COMMANDE en base de données. POST vers le webhook.\n\nTu DOIS fournir UN SEUL paramètre 'body' contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\n  \"tenantId\": \"00000000-0000-0000-0000-000000000001\",\n  \"clientFinalId\": \"UUID_DU_CLIENT\",\n  \"montantHt\": 1500,\n  \"tvaTaux\": 20,\n  \"description\": \"Description du bon de commande\",\n  \"modePaiement\": \"virement\",\n  \"lines\": [\n    {\n      \"codeArticle\": \"001\",\n      \"designation\": \"Nom de l article\",\n      \"quantite\": 1,\n      \"prixUnitaireHt\": 1500\n    }\n  ]\n}\n\nRÈGLES STRICTES :\n- tenantId est TOUJOURS \"00000000-0000-0000-0000-000000000001\"\n- clientFinalId : UUID obtenu via rechercher_clients\n- montantHt : NOMBRE, calcul = quantite × prixUnitaireHt\n- lines : TABLEAU avec au moins 1 objet article\n- Toutes les clés entre GUILLEMETS DOUBLES\n- montantHt, quantite, prixUnitaireHt sont des NOMBRES sans guillemets\n\nAVANT d'appeler : 1) rechercher_clients 2) lister_articles",
+        "toolDescription": "CRÉER UN BON DE COMMANDE en base de données.\n\nTu DOIS fournir le paramètre \"body\" contenant du JSON VALIDE avec EXACTEMENT ces champs :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientFinalId\":\"UUID_DU_CLIENT\",\"montantHt\":1500,\"tvaTaux\":20,\"description\":\"Description BDC\",\"modePaiement\":\"virement\",\"lines\":[{\"codeArticle\":\"001\",\"designation\":\"Nom article\",\"quantite\":1,\"prixUnitaireHt\":1500}]}\n\nRÈGLES : tenantId TOUJOURS \"00000000-0000-0000-0000-000000000001\", clientFinalId = UUID, montantHt = NOMBRE, lines = TABLEAU.\nAVANT : 1) rechercher_clients 2) lister_articles",
         "method": "POST",
         "url": "https://n8n.talosprimes.com/webhook/bdc-created",
         "sendBody": true,
@@ -1019,7 +1022,8 @@
               "value": "application/json"
             }
           ]
-        }
+        },
+        "jsonBody": "={{ $fromAI(\"body\", \"Body JSON complet du bon de commande\") }}"
       }
     },
     {
