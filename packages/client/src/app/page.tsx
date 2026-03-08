@@ -16,20 +16,48 @@ import {
 } from '@/components/landing/sections';
 
 // ─── Types ───
+type JsonRecord = Record<string, unknown>;
+
 interface LandingSection {
   id: string;
   type: string;
   titre: string | null;
-  config: any;
+  config: JsonRecord;
   ordre: number;
   actif: boolean;
 }
 
+interface NavbarConfig extends JsonRecord {
+  logo?: { text?: string; image?: string | null };
+  links?: { text: string; href: string; type?: string }[];
+  ctaButton?: { text: string; href: string };
+  bgColor?: string;
+  sticky?: boolean;
+}
+
+interface FooterConfig extends JsonRecord {
+  companyName?: string;
+  description?: string;
+  columns?: { title: string; links: { text: string; href: string }[] }[];
+  copyright?: string;
+}
+
+interface SeoConfig extends JsonRecord {
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImage?: string;
+}
+
+interface ThemeConfig extends JsonRecord {
+  primaryColor?: string;
+  secondaryColor?: string;
+}
+
 interface GlobalConfig {
-  navbar?: any;
-  footer?: any;
-  seo?: any;
-  theme?: any;
+  navbar?: NavbarConfig;
+  footer?: FooterConfig;
+  seo?: SeoConfig;
+  theme?: ThemeConfig;
 }
 
 interface Testimonial {
@@ -112,8 +140,8 @@ function renderSection(
   section: LandingSection,
   { testimonials, theme, contactInfo }: {
     testimonials: Testimonial[];
-    theme?: any;
-    contactInfo?: any;
+    theme?: ThemeConfig;
+    contactInfo?: JsonRecord;
   }
 ) {
   const { type, config, id } = section;

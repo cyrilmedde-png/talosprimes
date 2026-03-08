@@ -21,7 +21,7 @@ function CtaLink({ href, children, className }: { href: string; children: React.
   );
 }
 
-export function CTASection({ config }: { config: CTAConfig; theme?: any }) {
+export function CTASection({ config }: { config: CTAConfig; theme?: Record<string, unknown> }) {
   const SecondaryIcon = config.ctaSecondary?.icon ? (iconMap[config.ctaSecondary.icon] || null) : null;
 
   return (

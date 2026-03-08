@@ -18,7 +18,7 @@ interface ModulesConfig {
   items?: ModuleItem[];
 }
 
-export function ModulesSection({ config }: { config: ModulesConfig; theme?: any }) {
+export function ModulesSection({ config }: { config: ModulesConfig; theme?: Record<string, unknown> }) {
   const items = config.items || [];
   const BadgeIcon = config.badge?.icon ? (iconMap[config.badge.icon] || Sparkles) : Sparkles;
 

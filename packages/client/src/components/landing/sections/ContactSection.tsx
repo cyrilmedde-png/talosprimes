@@ -18,7 +18,7 @@ export function ContactSection({
 }: {
   config: ContactConfig;
   contactInfo?: { email?: string; phone?: string; address?: string };
-  theme?: any;
+  theme?: Record<string, unknown>;
 }) {
   const email = config.email || contactInfo?.email || 'contact@talosprimes.com';
   const phone = config.phone || contactInfo?.phone || '+33 1 23 45 67 89';

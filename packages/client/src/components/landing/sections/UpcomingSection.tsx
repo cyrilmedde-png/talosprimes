@@ -11,7 +11,7 @@ interface UpcomingConfig {
   bgColor?: string;
 }
 
-export function UpcomingSection({ config }: { config: UpcomingConfig; theme?: any }) {
+export function UpcomingSection({ config }: { config: UpcomingConfig; theme?: Record<string, unknown> }) {
   const items = config.items || [];
   const BadgeIcon = config.badge?.icon ? (iconMap[config.badge.icon] || TrendingUp) : TrendingUp;
 

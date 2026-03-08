@@ -16,7 +16,7 @@ interface HowItWorksConfig {
   steps?: Step[];
 }
 
-export function HowItWorksSection({ config }: { config: HowItWorksConfig; theme?: any }) {
+export function HowItWorksSection({ config }: { config: HowItWorksConfig; theme?: Record<string, unknown> }) {
   const steps = config.steps || [];
 
   return (

@@ -24,7 +24,7 @@ export function TestimonialsSection({
 }: {
   config: TestimonialsConfig;
   testimonials?: Testimonial[];
-  theme?: any;
+  theme?: Record<string, unknown>;
 }) {
   if (testimonials.length === 0) return null;
 

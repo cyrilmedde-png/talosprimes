@@ -13,7 +13,7 @@ interface AgentIAConfig {
   bgGradient?: string;
 }
 
-export function AgentIASection({ config }: { config: AgentIAConfig; theme?: any }) {
+export function AgentIASection({ config }: { config: AgentIAConfig; theme?: Record<string, unknown> }) {
   const features = config.features || [];
   const messages = config.chatMessages || [];
   const BadgeIcon = config.badge?.icon ? (iconMap[config.badge.icon] || Brain) : Brain;

@@ -4,7 +4,7 @@ interface StatsConfig {
   items?: { value: string; label: string }[];
 }
 
-export function StatsSection({ config }: { config: StatsConfig; theme?: any }) {
+export function StatsSection({ config }: { config: StatsConfig; theme?: Record<string, unknown> }) {
   const items = config.items || [];
   if (items.length === 0) return null;
 

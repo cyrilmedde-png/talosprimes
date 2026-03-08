@@ -8,7 +8,7 @@ interface TrustBadgesConfig {
   bgColor?: string;
 }
 
-export function TrustBadgesSection({ config }: { config: TrustBadgesConfig; theme?: any }) {
+export function TrustBadgesSection({ config }: { config: TrustBadgesConfig; theme?: Record<string, unknown> }) {
   const items = config.items || [];
   if (items.length === 0) return null;
 
