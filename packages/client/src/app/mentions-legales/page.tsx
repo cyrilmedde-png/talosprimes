@@ -13,7 +13,7 @@ export default function MentionsLegalesPage() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/landing/content`)
       .then((r) => r.json())
       .then((data) => {
-        setContent(data.legal_mentions_legales || '');
+        setContent(data.mentions_legales || '');
         setLoading(false);
       })
       .catch((err) => {
