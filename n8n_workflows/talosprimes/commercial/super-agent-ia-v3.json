@@ -1311,7 +1311,7 @@
         }
       },
       "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 1.1,
+      "typeVersion": 4.3,
       "position": [
         1050,
         2100
