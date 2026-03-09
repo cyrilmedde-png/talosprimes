@@ -22,17 +22,31 @@ import {
   Sparkles,
   Bold,
   Italic,
+  Underline,
+  Strikethrough,
   Heading1,
   Heading2,
   Heading3,
   List,
   ListOrdered,
+  ListChecks,
   Link2,
   Quote,
   Code,
+  FileCode,
   Minus,
   EyeIcon,
   Pencil,
+  Image,
+  Table,
+  Highlighter,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Superscript,
+  Subscript,
+  Undo2,
+  Redo2,
   BarChart3,
   BadgeCheck,
   Layers,
@@ -1294,21 +1308,72 @@ function MarkdownEditor({ value, onChange, rows = 12, placeholder }: MarkdownEdi
     onChange(newValue);
   };
 
+  const insertBlock = (block: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const pos = textarea.selectionStart;
+    const before = pos > 0 && value[pos - 1] !== '\n' ? '\n\n' : pos > 0 ? '\n' : '';
+    const newValue = value.substring(0, pos) + before + block + '\n\n' + value.substring(pos);
+    onChange(newValue);
+    setTimeout(() => { textarea.focus(); }, 0);
+  };
+
+  const [history, setHistory] = React.useState<string[]>([value]);
+  const [historyIdx, setHistoryIdx] = React.useState(0);
+
+  const pushHistory = React.useCallback((v: string) => {
+    setHistory(h => { const next = [...h.slice(0, historyIdx + 1), v]; return next.slice(-50); });
+    setHistoryIdx(i => i + 1);
+  }, [historyIdx]);
+
+  const undo = () => {
+    if (historyIdx > 0) { const idx = historyIdx - 1; setHistoryIdx(idx); onChange(history[idx]); }
+  };
+  const redo = () => {
+    if (historyIdx < history.length - 1) { const idx = historyIdx + 1; setHistoryIdx(idx); onChange(history[idx]); }
+  };
+
+  // Track changes for undo/redo
+  const prevValueRef = React.useRef(value);
+  React.useEffect(() => {
+    if (value !== prevValueRef.current && value !== history[historyIdx]) {
+      pushHistory(value);
+    }
+    prevValueRef.current = value;
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const tools = [
+    { icon: Undo2, label: 'Annuler', action: undo },
+    { icon: Redo2, label: 'Rétablir', action: redo },
+    { sep: true },
     { icon: Bold, label: 'Gras', action: () => insertMarkdown('**', '**', 'texte gras') },
     { icon: Italic, label: 'Italique', action: () => insertMarkdown('*', '*', 'texte italique') },
+    { icon: Underline, label: 'Souligné', action: () => insertMarkdown('<u>', '</u>', 'texte souligné') },
+    { icon: Strikethrough, label: 'Barré', action: () => insertMarkdown('~~', '~~', 'texte barré') },
+    { icon: Highlighter, label: 'Surligné', action: () => insertMarkdown('<mark>', '</mark>', 'texte surligné') },
     { sep: true },
     { icon: Heading1, label: 'Titre 1', action: () => insertLine('# ') },
     { icon: Heading2, label: 'Titre 2', action: () => insertLine('## ') },
     { icon: Heading3, label: 'Titre 3', action: () => insertLine('### ') },
     { sep: true },
+    { icon: AlignLeft, label: 'Aligner à gauche', action: () => insertMarkdown('<div style="text-align:left">', '</div>', 'texte') },
+    { icon: AlignCenter, label: 'Centrer', action: () => insertMarkdown('<div style="text-align:center">', '</div>', 'texte centré') },
+    { icon: AlignRight, label: 'Aligner à droite', action: () => insertMarkdown('<div style="text-align:right">', '</div>', 'texte') },
+    { sep: true },
     { icon: List, label: 'Liste', action: () => insertLine('- ') },
     { icon: ListOrdered, label: 'Liste numérotée', action: () => insertLine('1. ') },
+    { icon: ListChecks, label: 'Liste de tâches', action: () => insertLine('- [ ] ') },
     { icon: Quote, label: 'Citation', action: () => insertLine('> ') },
     { sep: true },
     { icon: Link2, label: 'Lien', action: () => insertMarkdown('[', '](https://)', 'texte du lien') },
-    { icon: Code, label: 'Code', action: () => insertMarkdown('`', '`', 'code') },
-    { icon: Minus, label: 'Séparateur', action: () => { onChange(value + '\n\n---\n\n'); } },
+    { icon: Image, label: 'Image', action: () => insertMarkdown('![', '](https://url-image.jpg)', 'alt text') },
+    { icon: Table, label: 'Tableau', action: () => insertBlock('| Colonne 1 | Colonne 2 | Colonne 3 |\n|-----------|-----------|----------|\n| Cellule   | Cellule   | Cellule  |\n| Cellule   | Cellule   | Cellule  |') },
+    { sep: true },
+    { icon: Code, label: 'Code inline', action: () => insertMarkdown('`', '`', 'code') },
+    { icon: FileCode, label: 'Bloc de code', action: () => insertBlock('```\n// votre code ici\n```') },
+    { icon: Superscript, label: 'Exposant', action: () => insertMarkdown('<sup>', '</sup>', 'texte') },
+    { icon: Subscript, label: 'Indice', action: () => insertMarkdown('<sub>', '</sub>', 'texte') },
+    { icon: Minus, label: 'Séparateur', action: () => insertBlock('---') },
   ];
 
   return (
