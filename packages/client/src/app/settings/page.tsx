@@ -118,7 +118,7 @@ function SettingsContent() {
   // Ouvrir l'onglet depuis l'URL (?tab=facturation)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf' || tab === 'codesArticles' || tab === 'systeme' || tab === 'securite') {
+    if (tab === 'facturation' || tab === 'entreprise' || tab === 'utilisateurs' || tab === 'agent' || tab === 'configPdf' || tab === 'codesArticles' || tab === 'securite') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -439,17 +439,7 @@ function SettingsContent() {
             Sécurité
           </button>
           )}
-          <button
-            onClick={() => setActiveTab('systeme')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'systeme'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
-            }`}
-          >
-            <WrenchScrewdriverIcon className="h-5 w-5 inline mr-2" />
-            Système
-          </button>
+          {/* Onglet Système masqué pour le moment */}
         </nav>
       </div>
 
