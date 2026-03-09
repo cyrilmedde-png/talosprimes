@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nif (!id) {\n  throw new Error('id is required');\n}\n\nvar query = 'SELECT d.*, em.prenom || \\' \\' || em.nom as membreNom FROM rh_documents d LEFT JOIN equipe_members em ON d.member_id = em.id WHERE d.id = \\'' + esc(id) + '\\' AND d.tenant_id = \\'' + esc(tenantId) + '\\'';\n\nreturn {query: query};"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nif (!id) {\n  throw new Error('id is required');\n}\n\nvar query = 'SELECT d.*, em.prenom || \\' \\' || em.nom as membreNom FROM rh_documents d LEFT JOIN equipe_members em ON d.member_id = em.id WHERE d.id = \\'' + esc(id) + '\\' AND d.tenant_id = \\'' + esc(tenantId) + '\\'';\n\nreturn [{json: {query: query}}];"
       },
       "id": "Parser",
       "name": "Parser",

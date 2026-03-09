@@ -1,5 +1,5 @@
 {
-  "name": "RH - Cong\u00e9s List (/rh/conges/list)",
+  "name": "RH - Congés List (/rh/conges/list)",
   "nodes": [
     {
       "parameters": {
@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar memberId = data.memberId || null;\nvar type = data.type || null;\nvar statut = data.statut || null;\nvar dateFrom = data.dateFrom || null;\nvar dateTo = data.dateTo || null;\n\nvar whereClauses = ['tenant_id = \\'\\' + esc(tenantId) + '\\''];\nif (memberId) whereClauses.push('member_id = \\'\\' + esc(memberId) + '\\'');\nif (type) whereClauses.push('type = \\'\\' + esc(type) + '\\'');\nif (statut) whereClauses.push('statut = \\'\\' + esc(statut) + '\\'');\nif (dateFrom) whereClauses.push('date_debut >= \\'\\' + esc(dateFrom) + '\\'');\nif (dateTo) whereClauses.push('date_fin <= \\'\\' + esc(dateTo) + '\\'');\n\nvar query = 'SELECT c.*, em.prenom || \\' \\' || em.nom as membreNom FROM rh_conges c LEFT JOIN equipe_members em ON c.member_id = em.id WHERE ' + whereClauses.join(' AND ') + ' ORDER BY c.date_debut DESC';\n\nreturn {query: query};"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar memberId = data.memberId || null;\nvar type = data.type || null;\nvar statut = data.statut || null;\nvar dateFrom = data.dateFrom || null;\nvar dateTo = data.dateTo || null;\n\nvar whereClauses = [\"c.tenant_id = '\" + esc(tenantId) + \"'\"];\nif (memberId) whereClauses.push(\"c.member_id = '\" + esc(memberId) + \"'\");\nif (type) whereClauses.push(\"c.type = '\" + esc(type) + \"'\");\nif (statut) whereClauses.push(\"c.statut = '\" + esc(statut) + \"'\");\nif (dateFrom) whereClauses.push(\"c.date_debut >= '\" + esc(dateFrom) + \"'\");\nif (dateTo) whereClauses.push(\"c.date_fin <= '\" + esc(dateTo) + \"'\");\n\nvar query = \"SELECT c.*, em.prenom || ' ' || em.nom as membreNom FROM rh_conges c LEFT JOIN equipe_members em ON c.member_id = em.id WHERE \" + whereClauses.join(' AND ') + \" ORDER BY c.date_debut DESC\";\n\nreturn [{json: {query: query}}];"
       },
       "id": "Parser",
       "name": "Parser",

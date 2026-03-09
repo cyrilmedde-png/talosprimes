@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar id = data.id ? esc(String(data.id)) : null;\nif (!id) throw new Error('Missing id');\n\nvar query = \"SELECT f.*, (SELECT COUNT(*) FROM rh_inscriptions_formations WHERE formation_id = f.id) as participants_inscrits FROM rh_formations f WHERE f.id = '\" + id + \"' AND f.tenant_id = '\" + esc(tenantId) + \"'\";\n\nreturn { query: query };"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nvar id = data.id ? esc(String(data.id)) : null;\nif (!id) throw new Error('Missing id');\n\nvar query = \"SELECT f.*, (SELECT COUNT(*) FROM rh_inscriptions_formations WHERE formation_id = f.id) as participants_inscrits FROM rh_formations f WHERE f.id = '\" + id + \"' AND f.tenant_id = '\" + esc(tenantId) + \"'\";\n\nreturn [{json: {query: query}}];"
       },
       "id": "Parser",
       "name": "Parser",

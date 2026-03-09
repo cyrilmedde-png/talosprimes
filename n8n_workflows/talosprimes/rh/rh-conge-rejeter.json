@@ -1,5 +1,5 @@
 {
-  "name": "RH - Cong\u00e9 Rejeter (/rh/conge/rejeter)",
+  "name": "RH - Congé Rejeter (/rh/conge/rejeter)",
   "nodes": [
     {
       "parameters": {
@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || '');\nvar userId = String(data.userId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nif (!id || !userId) {\n  throw new Error('id and userId are required');\n}\n\nvar query = 'UPDATE rh_conges SET statut = \\'rejete\\', approuve_par = \\'' + esc(userId) + '\\', date_reponse = NOW() WHERE id = \\'' + esc(id) + '\\' AND tenant_id = \\'' + esc(tenantId) + '\\' RETURNING *';\n\nreturn {query: query};"
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || '');\nvar userId = String(data.userId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) {\n  throw new Error('Invalid tenantId');\n}\n\nif (!id || !userId) {\n  throw new Error('id and userId are required');\n}\n\nvar query = 'UPDATE rh_conges SET statut = \\'rejete\\', approuve_par = \\'' + esc(userId) + '\\', date_reponse = NOW() WHERE id = \\'' + esc(id) + '\\' AND tenant_id = \\'' + esc(tenantId) + '\\' RETURNING *';\n\nreturn [{json: {query: query}}];"
       },
       "id": "Parser",
       "name": "Parser",
