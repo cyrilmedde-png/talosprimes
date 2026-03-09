@@ -1,0 +1,260 @@
+{
+  "name": "Tickets - Agent Tools (webhooks)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tickets_list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "tk-wh-list",
+      "name": "Webhook Lister Tickets",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.talosprimes.com/api/tickets?statut={{ $json.body.statut || '' }}&priorite={{ $json.body.priorite || '' }}&categorie={{ $json.body.categorie || '' }}&page={{ $json.body.page || 1 }}&limit=20",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "tk-req-list",
+      "name": "GET /api/tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 200],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "tk-resp-list",
+      "name": "Respond List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [560, 200]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tickets_get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "tk-wh-get",
+      "name": "Webhook Obtenir Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.talosprimes.com/api/tickets/{{ $json.body.ticketId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "tk-req-get",
+      "name": "GET /api/tickets/:id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 400],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "tk-resp-get",
+      "name": "Respond Get",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [560, 400]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tickets_stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "tk-wh-stats",
+      "name": "Webhook Stats Tickets",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 600]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.talosprimes.com/api/tickets/stats",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "tk-req-stats",
+      "name": "GET /api/tickets/stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 600],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "tk-resp-stats",
+      "name": "Respond Stats",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [560, 600]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tickets_update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "tk-wh-update",
+      "name": "Webhook Modifier Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 800]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.talosprimes.com/api/tickets/{{ $json.body.ticketId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body.data || {}) }}",
+        "options": {
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "tk-req-update",
+      "name": "PATCH /api/tickets/:id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 800],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "tk-resp-update",
+      "name": "Respond Update",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [560, 800]
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tickets_reply",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "tk-wh-reply",
+      "name": "Webhook Repondre Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 1000]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.talosprimes.com/api/tickets/{{ $json.body.ticketId }}/reply",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({message: $json.body.message, interne: $json.body.interne || false}) }}",
+        "options": {
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "tk-req-reply",
+      "name": "POST /api/tickets/:id/reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 1000],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "tk-resp-reply",
+      "name": "Respond Reply",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [560, 1000]
+    },
+
+    {
+      "parameters": {
+        "content": "## 🎫 Tickets - Agent Tools\n\nWebhooks utilisés par le Super Agent IA v3 pour gérer les tickets de support.\n\n**Endpoints :**\n- `tickets_list` — Lister les tickets (filtre: statut, priorite, categorie)\n- `tickets_get` — Obtenir un ticket par ID avec ses réponses\n- `tickets_stats` — Statistiques (compteurs par statut)\n- `tickets_update` — Modifier statut/priorité/catégorie d'un ticket\n- `tickets_reply` — Répondre à un ticket\n\n⚠️ **Remplacer ADMIN_AUTH_CREDENTIAL_ID** par l'ID du credential Header Auth avec le JWT admin",
+        "width": 500,
+        "height": 340
+      },
+      "id": "tk-note",
+      "name": "Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [620, 160]
+    }
+  ],
+  "connections": {
+    "Webhook Lister Tickets": { "main": [[{ "node": "GET /api/tickets", "type": "main", "index": 0 }]] },
+    "GET /api/tickets": { "main": [[{ "node": "Respond List", "type": "main", "index": 0 }]] },
+    "Webhook Obtenir Ticket": { "main": [[{ "node": "GET /api/tickets/:id", "type": "main", "index": 0 }]] },
+    "GET /api/tickets/:id": { "main": [[{ "node": "Respond Get", "type": "main", "index": 0 }]] },
+    "Webhook Stats Tickets": { "main": [[{ "node": "GET /api/tickets/stats", "type": "main", "index": 0 }]] },
+    "GET /api/tickets/stats": { "main": [[{ "node": "Respond Stats", "type": "main", "index": 0 }]] },
+    "Webhook Modifier Ticket": { "main": [[{ "node": "PATCH /api/tickets/:id", "type": "main", "index": 0 }]] },
+    "PATCH /api/tickets/:id": { "main": [[{ "node": "Respond Update", "type": "main", "index": 0 }]] },
+    "Webhook Repondre Ticket": { "main": [[{ "node": "POST /api/tickets/:id/reply", "type": "main", "index": 0 }]] },
+    "POST /api/tickets/:id/reply": { "main": [[{ "node": "Respond Reply", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 5,
+  "pinData": {}
+}

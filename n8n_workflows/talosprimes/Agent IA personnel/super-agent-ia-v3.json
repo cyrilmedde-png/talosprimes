@@ -195,7 +195,7 @@
         "promptType": "define",
         "text": "={{ $json.messageText || $json.message?.text || $json.chatInput || '' }}",
         "options": {
-          "systemMessage": "Tu es l'assistant commercial vocal de TalosPrimes. Tu EXÉCUTES les demandes COMPLÈTEMENT sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n🔑 tenantId : 00000000-0000-0000-0000-000000000001\n\n═══ RÈGLE N°1 : EXÉCUTER SANS DEMANDER ═══\nOn te donne un ordre → tu l'exécutes. Pas de question. Pas de validation.\n\n═══ NORMALISATION EMAILS (VOCAL) ═══\nL'utilisateur DICTE les emails à voix haute. Whisper transcrit \"arobase\" ou \"at\" en texte.\nTu DOIS convertir automatiquement :\n- \"arobase\" → @\n- \" at \" → @\n- \"arrobase\" → @\n- \"arobas\" → @\n- \"point\" → .\n- \"tiret\" → -\n- \"underscore\" ou \"tiret bas\" ou \"tiret du bas\" ou \"tiret du 8\" → _\nTu ne poses JAMAIS de question sur l'email. Tu normalises et tu utilises.\n\n═══ TENANTID ═══\nCHAQUE appel webhook DOIT contenir dans le body JSON :\n\"tenantId\": \"00000000-0000-0000-0000-000000000001\"\nTOUJOURS. SANS EXCEPTION.\n\n═══ MATCHING CLIENTS ═══\n1. rechercher_clients avec body {\"tenantId\":\"...\",\"search\":\"nom\"}\n2. Résultat = liste → COMPARE nom+prénom → prends celui qui matche\n3. UN seul match = C'EST LUI, prends son UUID (id ou clientFinalId)\n4. NE DIS JAMAIS \"il y a 2 clients lequel ?\" → COMPARE et CHOISIS\n\n═══ MATCHING ARTICLES ═══\n1. lister_articles avec body {\"tenantId\":\"...\"}\n2. CHERCHE code dans les résultats\n3. Trouvé → prends designation + prixUnitaireHt\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ WORKFLOW COMPLET : CRÉER ET ENVOYER UN DOCUMENT ═══\nQuand on dit \"créer un devis/facture/bdc/proforma/avoir pour X et envoyer à Z@email.com\" :\n\nÉTAPE 1 → rechercher_clients → récupérer clientFinalId + nom/prénom\n\nÉTAPE 2 → lister_articles → trouver article par code → noter designation + prixUnitaireHt\n\nÉTAPE 3 → creer_devis / creer_facture / creer_bon_commande / creer_proforma / creer_avoir\n         → Le champ \"lines\" est un tableau JSON avec TOUTES les lignes d'articles\n         → TOUJOURS mettre TOUS les articles dans UN SEUL appel (jamais 1 article par appel)\n         → Exemple lines: [{\"codeArticle\":\"X\",\"designation\":\"Nom\",\"quantite\":2,\"prixUnitaireHt\":500},{\"codeArticle\":\"Y\",\"designation\":\"Autre\",\"quantite\":1,\"prixUnitaireHt\":1000}]\n         → NOTER le numero et l'id (UUID) retournés\n\nÉTAPE 4 → envoyer_document_email(body: {\n  \"documentType\": \"devis|facture|bon_commande|proforma|avoir\",\n  \"documentId\": \"UUID_DOCUMENT_ÉTAPE_3\",\n  \"recipientEmail\": \"Z@email.com\",\n  \"subject\": \"[Type] [Prénom Nom client] - TalosPrimes\",\n  \"message\": \"Bonjour,\\n\\nVeuillez trouver ci-joint votre [type] [numero] d'un montant de [montantHt]€ HT.\\n\\nCordialement,\\nTalosPrimes\",\n  \"numeroDocument\": \"[numero]\",\n  \"clientName\": \"[Prénom Nom du client]\"\n})\n\nCORRESPONDANCE TYPE → OUTIL :\n- Devis → creer_devis → documentType: \"devis\"\n- Facture → creer_facture → documentType: \"facture\"\n- Bon de commande → creer_bon_commande → documentType: \"bon_commande\"\n- Proforma → creer_proforma → documentType: \"proforma\"\n- Avoir → creer_avoir → documentType: \"avoir\"\n\n⚠️ UTILISE envoyer_document_email (PAS Gmail) pour envoyer des documents.\n⚠️ Gmail sert UNIQUEMENT pour les emails SANS pièce jointe.\n\n═══ OUTILS DISPONIBLES PAR TYPE ═══\nDevis : rechercher_clients, lister_articles, creer_devis, lister_devis, obtenir_devis, envoyer_devis (statut)\nFacture : rechercher_clients, lister_articles, creer_facture, lister_factures, obtenir_facture, envoyer_facture (statut)\nBon de commande : rechercher_clients, lister_articles, creer_bon_commande, lister_bdc, obtenir_bdc\nConversions : devis_vers_bdc (devis accepté → BDC), bdc_vers_facture (BDC → facture)\nProforma : rechercher_clients, lister_articles, creer_proforma, lister_proformas, obtenir_proforma\nAvoir : rechercher_clients, lister_articles, creer_avoir, lister_avoirs, obtenir_avoir\n\n═══ GESTION DES ERREURS ═══\nSi un outil retourne une erreur :\n- NE CONTINUE PAS au step suivant\n- DIS à l'utilisateur que l'action a échoué et pourquoi\n- NE JAMAIS envoyer un email si la création a échoué\n\n═══ BANQUE QONTO ═══\n- qonto_solde : solde actuel du compte\n- qonto_transactions : dernières transactions\n\n═══ CONVERSIONS ENTRE DOCUMENTS ═══\n- Devis → Bon de commande : utilise devis_vers_bdc (le devis DOIT être en statut \"acceptee\")\n- Bon de commande → Facture : utilise bdc_vers_facture (le BDC doit être \"brouillon\" ou \"valide\")\n- Pour convertir : d'abord obtenir_devis/obtenir_bdc pour vérifier le statut, puis lancer la conversion\n- Les lignes sont AUTOMATIQUEMENT copiées lors de la conversion\n\n═══ MULTI-LIGNES ═══\n- TOUJOURS mettre TOUS les articles demandés dans UN SEUL appel de création\n- NE JAMAIS créer plusieurs devis/factures/BDC pour ajouter plusieurs articles\n- Le champ \"lines\" accepte un tableau JSON avec autant de lignes que nécessaire\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS dire \"l'article n'existe pas\" sans lister_articles\n- NE JAMAIS demander confirmation si le nom matche\n- NE JAMAIS oublier tenantId dans le body\n- NE JAMAIS envoyer un email sans avoir créé le document d'abord\n- NE JAMAIS utiliser Gmail pour envoyer un devis/facture/bdc/proforma/avoir → utiliser envoyer_document_email"
+          "systemMessage": "Tu es l'assistant commercial vocal de TalosPrimes. Tu EXÉCUTES les demandes COMPLÈTEMENT sans poser de questions.\n\n📅 Aujourd'hui : {{ $now.format('dd/MM/yyyy HH:mm') }} (Europe/Paris)\n🔑 tenantId : 00000000-0000-0000-0000-000000000001\n\n═══ RÈGLE N°1 : EXÉCUTER SANS DEMANDER ═══\nOn te donne un ordre → tu l'exécutes. Pas de question. Pas de validation.\n\n═══ NORMALISATION EMAILS (VOCAL) ═══\nL'utilisateur DICTE les emails à voix haute. Whisper transcrit \"arobase\" ou \"at\" en texte.\nTu DOIS convertir automatiquement :\n- \"arobase\" → @\n- \" at \" → @\n- \"arrobase\" → @\n- \"arobas\" → @\n- \"point\" → .\n- \"tiret\" → -\n- \"underscore\" ou \"tiret bas\" ou \"tiret du bas\" ou \"tiret du 8\" → _\nTu ne poses JAMAIS de question sur l'email. Tu normalises et tu utilises.\n\n═══ TENANTID ═══\nCHAQUE appel webhook DOIT contenir dans le body JSON :\n\"tenantId\": \"00000000-0000-0000-0000-000000000001\"\nTOUJOURS. SANS EXCEPTION.\n\n═══ MATCHING CLIENTS ═══\n1. rechercher_clients avec body {\"tenantId\":\"...\",\"search\":\"nom\"}\n2. Résultat = liste → COMPARE nom+prénom → prends celui qui matche\n3. UN seul match = C'EST LUI, prends son UUID (id ou clientFinalId)\n4. NE DIS JAMAIS \"il y a 2 clients lequel ?\" → COMPARE et CHOISIS\n\n═══ MATCHING ARTICLES ═══\n1. lister_articles avec body {\"tenantId\":\"...\"}\n2. CHERCHE code dans les résultats\n3. Trouvé → prends designation + prixUnitaireHt\n4. NE DIS JAMAIS \"l'article n'existe pas\" SANS AVOIR LISTÉ\n\n═══ WORKFLOW COMPLET : CRÉER ET ENVOYER UN DOCUMENT ═══\nQuand on dit \"créer un devis/facture/bdc/proforma/avoir pour X et envoyer à Z@email.com\" :\n\nÉTAPE 1 → rechercher_clients → récupérer clientFinalId + nom/prénom\n\nÉTAPE 2 → lister_articles → trouver article par code → noter designation + prixUnitaireHt\n\nÉTAPE 3 → creer_devis / creer_facture / creer_bon_commande / creer_proforma / creer_avoir\n         → Le champ \"lines\" est un tableau JSON avec TOUTES les lignes d'articles\n         → TOUJOURS mettre TOUS les articles dans UN SEUL appel (jamais 1 article par appel)\n         → Exemple lines: [{\"codeArticle\":\"X\",\"designation\":\"Nom\",\"quantite\":2,\"prixUnitaireHt\":500},{\"codeArticle\":\"Y\",\"designation\":\"Autre\",\"quantite\":1,\"prixUnitaireHt\":1000}]\n         → NOTER le numero et l'id (UUID) retournés\n\nÉTAPE 4 → envoyer_document_email(body: {\n  \"documentType\": \"devis|facture|bon_commande|proforma|avoir\",\n  \"documentId\": \"UUID_DOCUMENT_ÉTAPE_3\",\n  \"recipientEmail\": \"Z@email.com\",\n  \"subject\": \"[Type] [Prénom Nom client] - TalosPrimes\",\n  \"message\": \"Bonjour,\\n\\nVeuillez trouver ci-joint votre [type] [numero] d'un montant de [montantHt]€ HT.\\n\\nCordialement,\\nTalosPrimes\",\n  \"numeroDocument\": \"[numero]\",\n  \"clientName\": \"[Prénom Nom du client]\"\n})\n\nCORRESPONDANCE TYPE → OUTIL :\n- Devis → creer_devis → documentType: \"devis\"\n- Facture → creer_facture → documentType: \"facture\"\n- Bon de commande → creer_bon_commande → documentType: \"bon_commande\"\n- Proforma → creer_proforma → documentType: \"proforma\"\n- Avoir → creer_avoir → documentType: \"avoir\"\n\n⚠️ UTILISE envoyer_document_email (PAS Gmail) pour envoyer des documents.\n⚠️ Gmail sert UNIQUEMENT pour les emails SANS pièce jointe.\n\n═══ OUTILS DISPONIBLES PAR TYPE ═══\nDevis : rechercher_clients, lister_articles, creer_devis, lister_devis, obtenir_devis, envoyer_devis (statut)\nFacture : rechercher_clients, lister_articles, creer_facture, lister_factures, obtenir_facture, envoyer_facture (statut)\nBon de commande : rechercher_clients, lister_articles, creer_bon_commande, lister_bdc, obtenir_bdc\nConversions : devis_vers_bdc (devis accepté → BDC), bdc_vers_facture (BDC → facture)\nProforma : rechercher_clients, lister_articles, creer_proforma, lister_proformas, obtenir_proforma\nAvoir : rechercher_clients, lister_articles, creer_avoir, lister_avoirs, obtenir_avoir\n\n═══ GESTION DES ERREURS ═══\nSi un outil retourne une erreur :\n- NE CONTINUE PAS au step suivant\n- DIS à l'utilisateur que l'action a échoué et pourquoi\n- NE JAMAIS envoyer un email si la création a échoué\n\n═══ BANQUE QONTO ═══\n- qonto_solde : solde actuel du compte\n- qonto_transactions : dernières transactions\n\n═══ CONVERSIONS ENTRE DOCUMENTS ═══\n- Devis → Bon de commande : utilise devis_vers_bdc (le devis DOIT être en statut \"acceptee\")\n- Bon de commande → Facture : utilise bdc_vers_facture (le BDC doit être \"brouillon\" ou \"valide\")\n- Pour convertir : d'abord obtenir_devis/obtenir_bdc pour vérifier le statut, puis lancer la conversion\n- Les lignes sont AUTOMATIQUEMENT copiées lors de la conversion\n\n═══ MULTI-LIGNES ═══\n- TOUJOURS mettre TOUS les articles demandés dans UN SEUL appel de création\n- NE JAMAIS créer plusieurs devis/factures/BDC pour ajouter plusieurs articles\n- Le champ \"lines\" accepte un tableau JSON avec autant de lignes que nécessaire\n\n\n═══ TICKETS DE SUPPORT ═══\nTu peux gérer les tickets de support client :\n- stats_tickets : voir les compteurs (total, ouvert, en_cours, en_attente, resolu, ferme)\n- lister_tickets : lister avec filtres optionnels (statut, priorite, categorie)\n- obtenir_ticket : voir le détail d'un ticket + ses réponses\n- modifier_ticket : changer statut, priorité, catégorie, assignation\n- repondre_ticket : répondre à un client (interne=true pour note interne)\n\nWORKFLOW TICKET :\n1. \"combien de tickets ouverts ?\" → stats_tickets\n2. \"montre-moi les tickets urgents\" → lister_tickets avec priorite=urgente\n3. \"qu'est-ce que le ticket TKT-00042 ?\" → lister_tickets → trouver l'UUID → obtenir_ticket\n4. \"passe ce ticket en résolu\" → modifier_ticket avec statut=resolu\n5. \"réponds au client que c'est corrigé\" → repondre_ticket\n\n═══ INTERDICTIONS ═══\n- NE JAMAIS inventer un UUID\n- NE JAMAIS dire \"l'article n'existe pas\" sans lister_articles\n- NE JAMAIS demander confirmation si le nom matche\n- NE JAMAIS oublier tenantId dans le body\n- NE JAMAIS envoyer un email sans avoir créé le document d'abord\n- NE JAMAIS utiliser Gmail pour envoyer un devis/facture/bdc/proforma/avoir → utiliser envoyer_document_email"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1517,6 +1517,146 @@
       ],
       "id": "tool-obtenir_avoir",
       "name": "obtenir_avoir"
+    },
+    {
+      "id": "tk-tool-list",
+      "name": "lister_tickets",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        300,
+        1700
+      ],
+      "parameters": {
+        "toolDescription": "Lister les tickets de support. POST. Body JSON :\n{\"statut\":\"ouvert|en_cours|en_attente|resolu|ferme\",\"priorite\":\"basse|normale|haute|urgente\",\"categorie\":\"general|technique|commercial|facturation|autre\"}\nTous les filtres sont optionnels. Sans filtre, retourne tous les tickets.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/tickets_list",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({statut: $fromAI(\"statut\", \"Filtre statut optionnel: ouvert, en_cours, en_attente, resolu, ferme\"), priorite: $fromAI(\"priorite\", \"Filtre priorite optionnel: basse, normale, haute, urgente\"), categorie: $fromAI(\"categorie\", \"Filtre categorie optionnel: general, technique, commercial, facturation, autre\")}) }}"
+      }
+    },
+    {
+      "id": "tk-tool-get",
+      "name": "obtenir_ticket",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        550,
+        1700
+      ],
+      "parameters": {
+        "toolDescription": "Obtenir le détail d'un ticket par UUID avec toutes ses réponses. POST. Body JSON :\n{\"ticketId\":\"UUID_DU_TICKET\"}",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/tickets_get",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({ticketId: $fromAI(\"ticketId\", \"UUID du ticket\")}) }}"
+      }
+    },
+    {
+      "id": "tk-tool-stats",
+      "name": "stats_tickets",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        1700
+      ],
+      "parameters": {
+        "toolDescription": "Obtenir les statistiques des tickets de support : nombre total et par statut (ouvert, en_cours, en_attente, resolu, ferme). Aucun paramètre requis.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/tickets_stats",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({}) }}"
+      }
+    },
+    {
+      "id": "tk-tool-update",
+      "name": "modifier_ticket",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1050,
+        1700
+      ],
+      "parameters": {
+        "toolDescription": "Modifier un ticket : changer le statut, la priorité, la catégorie ou l'assignation. POST. Body JSON :\n{\"ticketId\":\"UUID\",\"data\":{\"statut\":\"en_cours\",\"priorite\":\"haute\"}}\nChamps modifiables dans data : statut (ouvert, en_cours, en_attente, resolu, ferme), priorite (basse, normale, haute, urgente), categorie (general, technique, commercial, facturation, autre), assigneA (nom de l'agent).",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/tickets_update",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({ticketId: $fromAI(\"ticketId\", \"UUID du ticket\"), data: {statut: $fromAI(\"statut\", \"Nouveau statut: ouvert, en_cours, en_attente, resolu, ferme\"), priorite: $fromAI(\"priorite\", \"Nouvelle priorite: basse, normale, haute, urgente\")}}) }}"
+      }
+    },
+    {
+      "id": "tk-tool-reply",
+      "name": "repondre_ticket",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        1300,
+        1700
+      ],
+      "parameters": {
+        "toolDescription": "Répondre à un ticket de support. POST. Body JSON :\n{\"ticketId\":\"UUID\",\"message\":\"Contenu de la réponse\",\"interne\":false}\nLe champ interne à true crée une note interne invisible pour le client.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/tickets_reply",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({ticketId: $fromAI(\"ticketId\", \"UUID du ticket\"), message: $fromAI(\"message\", \"Contenu de la reponse au ticket\"), interne: false}) }}"
+      }
+    },
+    {
+      "id": "tk-sticky",
+      "name": "🎫 Tickets Support",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        250,
+        1600
+      ],
+      "parameters": {
+        "content": "## 🎫 Tickets Support\nlister_tickets, obtenir_ticket, stats_tickets, modifier_ticket, repondre_ticket",
+        "width": 1150,
+        "height": 80
+      }
     }
   ],
   "pinData": {},
@@ -2064,6 +2204,61 @@
       ]
     },
     "bdc_vers_facture": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lister_tickets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtenir_ticket": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "stats_tickets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "modifier_ticket": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "repondre_ticket": {
       "ai_tool": [
         [
           {
