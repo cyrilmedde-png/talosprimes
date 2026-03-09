@@ -11,8 +11,8 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
       "position": [
-        -200,
-        -200
+        0,
+        -400
       ],
       "id": "2cb7e5e9-3201-4c3b-a9dc-c29d5e0beb6b",
       "name": "Telegram Trigger",
@@ -50,8 +50,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        50,
-        -200
+        250,
+        -400
       ],
       "id": "n-if-voice",
       "name": "Vérifier Type Message"
@@ -65,8 +65,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        300,
-        -350
+        500,
+        -550
       ],
       "id": "n-get-voice-file",
       "name": "Récupérer Fichier Audio",
@@ -108,8 +108,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        550,
-        -350
+        750,
+        -550
       ],
       "id": "n-whisper",
       "name": "Transcription Whisper",
@@ -149,8 +149,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        800,
-        -350
+        1000,
+        -550
       ],
       "id": "n-set-voice",
       "name": "Préparer Contexte (Voix)"
@@ -184,8 +184,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        300,
-        -50
+        500,
+        -250
       ],
       "id": "n-set-text",
       "name": "Préparer Contexte (Texte)"
@@ -201,8 +201,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1100,
-        -200
+        1300,
+        -400
       ],
       "id": "2bae6fd5-e937-43f1-8b54-130d5b5999ba",
       "name": "AI Agent"
@@ -220,8 +220,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        950,
-        100
+        1150,
+        -100
       ],
       "id": "33a135f9-494b-4c7d-95ed-da6864fc9363",
       "name": "OpenAI Chat Model",
@@ -241,8 +241,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        1250,
-        100
+        1450,
+        -100
       ],
       "id": "c479c411-a156-4f52-90cf-d17367cd577c",
       "name": "Simple Memory"
@@ -258,8 +258,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1650,
-        -50
+        1850,
+        -250
       ],
       "id": "b20cd36a-3538-4a9b-b159-1a18a0af12ec",
       "name": "Reponse",
@@ -297,8 +297,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1400,
-        -200
+        1600,
+        -400
       ],
       "id": "n-if-response",
       "name": "Vérifier Type Réponse"
@@ -332,8 +332,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1650,
-        -350
+        1850,
+        -550
       ],
       "id": "n-tts",
       "name": "Synthèse Vocale (TTS)",
@@ -354,8 +354,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1900,
-        -350
+        2100,
+        -550
       ],
       "id": "n-send-voice",
       "name": "Envoyer Réponse Vocale",
@@ -386,8 +386,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        1100,
-        400
+        900,
+        420
       ],
       "id": "c32a004c-809c-4c21-83ee-a6e298f584f2",
       "name": "Create an event in Google Calendar",
@@ -415,8 +415,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        1350,
-        400
+        1150,
+        420
       ],
       "id": "6730d88f-ee25-462f-8886-50c3b2181d74",
       "name": "Get many events in Google Calendar",
@@ -444,8 +444,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        1600,
-        400
+        1400,
+        420
       ],
       "id": "48b1ca13-e1f3-47c1-a081-cd0521d2fb83",
       "name": "Update an event in Google Calendar",
@@ -471,8 +471,8 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        1850,
-        400
+        1650,
+        420
       ],
       "id": "943b599b-4ff5-4c30-8a09-bcf7cb02d013",
       "name": "Delete an event in Google Calendar",
@@ -491,8 +491,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        300,
-        400
+        50,
+        420
       ],
       "id": "2733e828-183c-43b5-8f35-12e3bc50ef27",
       "name": "Get many messages in Gmail",
@@ -512,8 +512,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        800,
-        400
+        550,
+        420
       ],
       "id": "f34c8a6d-982e-4d80-b114-d98ab6eeec4e",
       "name": "Delete a message in Gmail",
@@ -537,8 +537,8 @@
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
       "position": [
-        550,
-        400
+        300,
+        420
       ],
       "id": "d0d42048-a2d3-4a1b-9bc1-f4b37e7cac92",
       "name": "Send a message in Gmail",
@@ -558,7 +558,7 @@
       "typeVersion": 1.4,
       "position": [
         -200,
-        -500
+        -400
       ],
       "id": "531a80f4-79e1-449c-abff-79d985b99bcf",
       "name": "When chat message received",
@@ -570,8 +570,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        300,
-        700
+        50,
+        770
       ],
       "parameters": {
         "toolDescription": "Rechercher/lister les clients. POST. Body JSON obligatoire :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"search\":\"terme de recherche\"}\nSi pas de filtre, envoie juste : {\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}\nLe champ search filtre par nom, prénom ou email.",
@@ -595,8 +595,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        550,
-        700
+        300,
+        770
       ],
       "parameters": {
         "toolDescription": "Obtenir un client par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"clientId\":\"UUID_DU_CLIENT\"}",
@@ -620,8 +620,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        700
+        550,
+        770
       ],
       "parameters": {
         "toolDescription": "Créer un nouveau client. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"type\":\"b2c\",\"nom\":\"Dupont\",\"prenom\":\"Jean\",\"email\":\"jean@test.com\",\"telephone\":\"0612345678\"}\nLes champs type, nom, prenom et email sont obligatoires.",
@@ -645,8 +645,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        300,
-        950
+        50,
+        1070
       ],
       "parameters": {
         "toolDescription": "Lister tous les leads/prospects. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
@@ -670,8 +670,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        550,
-        950
+        300,
+        1070
       ],
       "parameters": {
         "toolDescription": "Obtenir un lead par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"UUID_DU_LEAD\"}",
@@ -695,8 +695,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        950
+        550,
+        1070
       ],
       "parameters": {
         "toolDescription": "Créer un lead/prospect. Paramètres : nom, prenom, email, telephone. Tous obligatoires.",
@@ -720,8 +720,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        950
+        800,
+        1070
       ],
       "parameters": {
         "toolDescription": "Modifier le statut d'un lead. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"leadId\":\"UUID_DU_LEAD\",\"statut\":\"qualifié\"}",
@@ -745,8 +745,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        300,
-        1200
+        50,
+        1370
       ],
       "parameters": {
         "toolDescription": "Lister tous les codes articles avec prix et désignations. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}\nTOUJOURS appeler cet outil AVANT de créer un devis ou une facture.",
@@ -770,8 +770,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        300,
-        1450
+        50,
+        1650
       ],
       "parameters": {
         "toolDescription": "Créer un devis en base de données. Paramètres : clientFinalId (UUID client via rechercher_clients), montantHt (nombre = quantite x prixUnitaireHt), description (texte), codeArticle (code via lister_articles), designation (nom article via lister_articles), quantite (nombre), prixUnitaireHt (prix via lister_articles). AVANT : 1) rechercher_clients 2) lister_articles.",
@@ -795,8 +795,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        550,
-        1450
+        300,
+        1650
       ],
       "parameters": {
         "toolDescription": "Lister tous les devis. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
@@ -820,8 +820,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1450
+        550,
+        1650
       ],
       "parameters": {
         "toolDescription": "Obtenir un devis par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
@@ -845,8 +845,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        1450
+        800,
+        1650
       ],
       "parameters": {
         "toolDescription": "Marquer un devis comme envoyé. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DU_DEVIS\"}",
@@ -870,8 +870,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        300,
-        1700
+        50,
+        1950
       ],
       "parameters": {
         "toolDescription": "Créer une facture en base de données. Paramètres : clientFinalId (UUID client), montantHt (nombre), description (texte), codeArticle, designation, quantite, prixUnitaireHt. AVANT : 1) rechercher_clients 2) lister_articles.",
@@ -895,8 +895,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        550,
-        1700
+        300,
+        1950
       ],
       "parameters": {
         "toolDescription": "Lister toutes les factures. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
@@ -920,8 +920,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1700
+        550,
+        1950
       ],
       "parameters": {
         "toolDescription": "Obtenir une facture par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
@@ -945,8 +945,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        1700
+        800,
+        1950
       ],
       "parameters": {
         "toolDescription": "Marquer une facture comme envoyée. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"invoiceId\":\"UUID_FACTURE\"}",
@@ -970,8 +970,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        300,
-        1950
+        50,
+        2250
       ],
       "parameters": {
         "toolDescription": "Créer un bon de commande en base de données. Paramètres : clientFinalId (UUID client), montantHt (nombre), description (texte), codeArticle, designation, quantite, prixUnitaireHt. AVANT : 1) rechercher_clients 2) lister_articles.",
@@ -995,8 +995,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        550,
-        1950
+        300,
+        2250
       ],
       "parameters": {
         "toolDescription": "Lister tous les bons de commande. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\"}",
@@ -1020,8 +1020,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1950
+        550,
+        2250
       ],
       "parameters": {
         "toolDescription": "Obtenir un bon de commande par UUID. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"bdcId\":\"UUID_BDC\"}",
@@ -1045,8 +1045,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1000,
-        1950
+        800,
+        2250
       ],
       "parameters": {
         "toolDescription": "Convertir un devis ACCEPTÉ en bon de commande. Le devis DOIT avoir le statut 'acceptee'. Les lignes du devis sont automatiquement copiées dans le BDC. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"devisId\":\"UUID_DEVIS\"}",
@@ -1070,8 +1070,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1200,
-        1950
+        1050,
+        2250
       ],
       "parameters": {
         "toolDescription": "Convertir un bon de commande en facture. Le BDC doit être en statut 'brouillon' ou 'valide'. Les lignes du BDC sont automatiquement copiées dans la facture. POST. Body JSON :\n{\"tenantId\":\"00000000-0000-0000-0000-000000000001\",\"bdcId\":\"UUID_BDC\"}",
@@ -1092,15 +1092,15 @@
     {
       "parameters": {
         "content": "## 📞 Flow Principal\n\n**Message vocal** → Telegram récupère l'audio → Whisper transcrit en FR → AI Agent → TTS voix homme (onyx) → Audio Telegram\n\n**Message texte** → Directement vers AI Agent → Réponse texte Telegram\n\nLe nœud \"Vérifier Type Message\" route selon voice/text.\nLe nœud \"Vérifier Type Réponse\" renvoie en audio ou texte.",
-        "height": 560,
-        "width": 2300,
+        "height": 400,
+        "width": 2500,
         "color": 4
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -280,
-        -500
+        -300,
+        -600
       ],
       "id": "sticky-flow",
       "name": "📞 Flow Principal - Vocal & Texte"
@@ -1108,15 +1108,15 @@
     {
       "parameters": {
         "content": "## 🧠 IA\n\n**Modèle** : GPT-4.1 mini (OpenAI)\n**Mémoire** : Buffer 100 messages par chat",
-        "height": 180,
+        "height": 350,
         "width": 500,
         "color": 6
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        870,
-        20
+        1100,
+        -300
       ],
       "id": "sticky-ai",
       "name": "🧠 Intelligence Artificielle"
@@ -1124,15 +1124,15 @@
     {
       "parameters": {
         "content": "## 📧 Gmail\n\nLire, envoyer et supprimer des emails.\nUtilise le compte Gmail via OAuth2.",
-        "height": 180,
-        "width": 700,
+        "height": 200,
+        "width": 750,
         "color": 2
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
-        320
+        0,
+        300
       ],
       "id": "sticky-gmail",
       "name": "📧 Gmail"
@@ -1140,15 +1140,15 @@
     {
       "parameters": {
         "content": "## 📅 Google Calendar\n\nCréer, lire, modifier et supprimer des événements.\nCalendrier : TalosPrimes",
-        "height": 180,
-        "width": 950,
+        "height": 200,
+        "width": 1050,
         "color": 3
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1020,
-        320
+        850,
+        300
       ],
       "id": "sticky-calendar",
       "name": "📅 Google Calendar"
@@ -1156,15 +1156,15 @@
     {
       "parameters": {
         "content": "## 👥 Clients\n\nRechercher (par nom/email), obtenir détails, créer.\nWebhook : /webhook/clients_list, client_get, client_create",
-        "height": 180,
-        "width": 700,
+        "height": 200,
+        "width": 800,
         "color": 5
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
-        620
+        0,
+        650
       ],
       "id": "sticky-clients",
       "name": "👥 Clients"
@@ -1172,15 +1172,15 @@
     {
       "parameters": {
         "content": "## 🎯 Leads / Prospects\n\nLister, obtenir, créer, modifier statut.\nWebhook : /webhook/leads_list, lead_get, lead_create, lead_update_status",
-        "height": 180,
-        "width": 950,
+        "height": 200,
+        "width": 1050,
         "color": 5
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
-        870
+        0,
+        950
       ],
       "id": "sticky-leads",
       "name": "🎯 Leads / Prospects"
@@ -1188,15 +1188,15 @@
     {
       "parameters": {
         "content": "## 📦 Articles\n\nListe des codes articles avec prix.\n⚠️ TOUJOURS lister avant de créer un devis/facture",
-        "height": 180,
-        "width": 350,
+        "height": 200,
+        "width": 500,
         "color": 6
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
-        1120
+        0,
+        1250
       ],
       "id": "sticky-articles",
       "name": "📦 Articles"
@@ -1204,15 +1204,15 @@
     {
       "parameters": {
         "content": "## 📋 Devis\n\nCréer, lister, obtenir, envoyer par email.\nWebhook : /webhook/devis-created, devis-list, devis-get, devis-sent",
-        "height": 180,
-        "width": 950,
+        "height": 200,
+        "width": 1050,
         "color": 1
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
-        1370
+        0,
+        1530
       ],
       "id": "sticky-devis",
       "name": "📋 Devis"
@@ -1220,15 +1220,15 @@
     {
       "parameters": {
         "content": "## 💰 Factures\n\nCréer, lister, obtenir, envoyer par email.\nWebhook : /webhook/invoice-created, invoices-list, invoice-get, invoice-sent",
-        "height": 180,
-        "width": 950,
+        "height": 200,
+        "width": 1050,
         "color": 1
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
-        1620
+        0,
+        1830
       ],
       "id": "sticky-factures",
       "name": "💰 Factures"
@@ -1236,15 +1236,15 @@
     {
       "parameters": {
         "content": "## 📑 Bons de Commande\n\nCréer, lister, obtenir.\nWebhook : /webhook/bdc-created, bdc-list, bdc-get",
-        "height": 180,
-        "width": 700,
+        "height": 200,
+        "width": 1300,
         "color": 1
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        220,
-        1870
+        0,
+        2130
       ],
       "id": "sticky-bdc",
       "name": "📑 Bons de Commande"
@@ -1276,8 +1276,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        700,
-        1700
+        50,
+        3150
       ],
       "id": "n-qonto-solde",
       "name": "qonto_solde",
@@ -1315,8 +1315,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        900,
-        1700
+        300,
+        3150
       ],
       "id": "n-qonto-transactions",
       "name": "qonto_transactions",
@@ -1329,19 +1329,19 @@
     },
     {
       "parameters": {
-        "content": "## 💰 Qonto (Banque)\nSolde du compte et transactions récentes",
+        "content": "## 💰 🏦 Qonto (Banque)\nSolde du compte et transactions récentes",
         "color": 2,
-        "width": 350,
-        "height": 120
+        "width": 550,
+        "height": 200
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        640,
-        1620
+        0,
+        3030
       ],
       "id": "n-sticky-qonto",
-      "name": "Qonto"
+      "name": "🏦 Qonto"
     },
     {
       "parameters": {
@@ -1362,8 +1362,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        2100
+        50,
+        3700
       ],
       "id": "tool-envoyer-document-email",
       "name": "envoyer_document_email"
@@ -1387,8 +1387,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1600
+        50,
+        2550
       ],
       "id": "tool-creer_proforma",
       "name": "creer_proforma"
@@ -1412,8 +1412,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1700
+        300,
+        2550
       ],
       "id": "tool-lister_proformas",
       "name": "lister_proformas"
@@ -1437,8 +1437,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1800
+        550,
+        2550
       ],
       "id": "tool-obtenir_proforma",
       "name": "obtenir_proforma"
@@ -1462,8 +1462,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        1600
+        50,
+        2850
       ],
       "id": "tool-creer_avoir",
       "name": "creer_avoir"
@@ -1487,8 +1487,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        1700
+        300,
+        2850
       ],
       "id": "tool-lister_avoirs",
       "name": "lister_avoirs"
@@ -1512,8 +1512,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        1800
+        550,
+        2850
       ],
       "id": "tool-obtenir_avoir",
       "name": "obtenir_avoir"
@@ -1524,8 +1524,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        300,
-        1700
+        50,
+        3450
       ],
       "parameters": {
         "toolDescription": "Lister les tickets de support. POST. Body JSON :\n{\"statut\":\"ouvert|en_cours|en_attente|resolu|ferme\",\"priorite\":\"basse|normale|haute|urgente\",\"categorie\":\"general|technique|commercial|facturation|autre\"}\nTous les filtres sont optionnels. Sans filtre, retourne tous les tickets.",
@@ -1549,8 +1549,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        550,
-        1700
+        300,
+        3450
       ],
       "parameters": {
         "toolDescription": "Obtenir le détail d'un ticket par UUID avec toutes ses réponses. POST. Body JSON :\n{\"ticketId\":\"UUID_DU_TICKET\"}",
@@ -1574,8 +1574,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        800,
-        1700
+        550,
+        3450
       ],
       "parameters": {
         "toolDescription": "Obtenir les statistiques des tickets de support : nombre total et par statut (ouvert, en_cours, en_attente, resolu, ferme). Aucun paramètre requis.",
@@ -1599,8 +1599,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1050,
-        1700
+        800,
+        3450
       ],
       "parameters": {
         "toolDescription": "Modifier un ticket : changer le statut, la priorité, la catégorie ou l'assignation. POST. Body JSON :\n{\"ticketId\":\"UUID\",\"data\":{\"statut\":\"en_cours\",\"priorite\":\"haute\"}}\nChamps modifiables dans data : statut (ouvert, en_cours, en_attente, resolu, ferme), priorite (basse, normale, haute, urgente), categorie (general, technique, commercial, facturation, autre), assigneA (nom de l'agent).",
@@ -1624,8 +1624,8 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        1300,
-        1700
+        1050,
+        3450
       ],
       "parameters": {
         "toolDescription": "Répondre à un ticket de support. POST. Body JSON :\n{\"ticketId\":\"UUID\",\"message\":\"Contenu de la réponse\",\"interne\":false}\nLe champ interne à true crée une note interne invisible pour le client.",
@@ -1649,14 +1649,59 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        250,
-        1600
+        0,
+        3330
       ],
       "parameters": {
         "content": "## 🎫 Tickets Support\nlister_tickets, obtenir_ticket, stats_tickets, modifier_ticket, repondre_ticket",
-        "width": 1150,
-        "height": 80
+        "width": 1300,
+        "height": 200
       }
+    },
+    {
+      "parameters": {
+        "content": "## 📄 Proformas\ncreer_proforma, lister_proformas, obtenir_proforma",
+        "width": 800,
+        "height": 200
+      },
+      "id": "sticky-proformas",
+      "name": "📄 Proformas",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        2430
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 📝 Avoirs\ncreer_avoir, lister_avoirs, obtenir_avoir",
+        "width": 800,
+        "height": 200
+      },
+      "id": "sticky-avoirs",
+      "name": "📝 Avoirs",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        2730
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 📨 Envoi Documents\nenvoyer_document_email (devis, factures, BDC, proformas, avoirs)",
+        "width": 700,
+        "height": 200
+      },
+      "id": "sticky-email-doc",
+      "name": "📨 Envoi Documents",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        3600
+      ]
     }
   ],
   "pinData": {},
