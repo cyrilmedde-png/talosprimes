@@ -300,15 +300,17 @@ export default function BonsCommandePage() {
           codeArticle: l.codeArticle || null,
           designation: l.designation.trim(),
           quantite: Math.max(1, Math.round(parseFloat(l.quantite.replace(',', '.')) || 1)),
-          prixUnitaireHt: parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0,
+          prixUnitaireHt: Math.max(0, parseFloat(l.prixUnitaireHT.replace(',', '.')) || 0),
         }));
 
+      // Toujours envoyer les lignes (même vide) pour que le backend sache
+      // quelles lignes conserver — sinon le backend ne touche pas aux lignes
       const res = await apiClient.bonsCommande.update(bdcId, {
         clientFinalId: editForm.clientFinalId || undefined,
         tvaTaux: parseFloat(editForm.tvaTaux.replace(',', '.')) || 20,
         modePaiement: editForm.modePaiement || undefined,
         description: editForm.description || undefined,
-        lines: apiLines.length > 0 ? apiLines : undefined,
+        lines: apiLines,
       });
 
       if (res.success) {

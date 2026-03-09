@@ -44,7 +44,7 @@ const lineSchema = z.object({
   codeArticle: z.string().optional().nullable(),
   designation: z.string().min(1),
   quantite: z.number().int().positive().default(1),
-  prixUnitaireHt: z.number().positive(),
+  prixUnitaireHt: z.number().min(0),
 });
 
 // Accepte les dates au format ISO datetime (2026-02-18T00:00:00Z) ou date simple (2026-02-18)
@@ -731,7 +731,10 @@ export async function bonsCommandeRoutes(fastify: FastifyInstance) {
       const montantTtc = Number((montantHt * (1 + tvaTaux / 100)).toFixed(2));
 
       const updated = await prisma.$transaction(async (tx: TransactionClient) => {
-        await tx.bonCommandeLine.deleteMany({ where: { bonCommandeId: params.id } });
+        // Ne supprimer les anciennes lignes QUE si on en reçoit de nouvelles
+        if (lines.length > 0) {
+          await tx.bonCommandeLine.deleteMany({ where: { bonCommandeId: params.id } });
+        }
 
         return tx.bonCommande.update({
           where: { id: params.id },
