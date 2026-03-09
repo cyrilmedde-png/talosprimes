@@ -1202,6 +1202,356 @@ interface SectionModalProps {
   onUpdate: (id: string, updates: Partial<Section>) => void;
 }
 
+// ─── Helpers for typed array manipulation ───
+function arrPush<T>(arr: T[], item: T): T[] { return [...arr, item]; }
+function arrRemove<T>(arr: T[], idx: number): T[] { return arr.filter((_, i) => i !== idx); }
+function arrUpdate<T>(arr: T[], idx: number, patch: Partial<T>): T[] {
+  return arr.map((item, i) => i === idx ? { ...item, ...patch } : item);
+}
+
+// ─── Reusable field input components for section config editor ───
+function FieldInput({ label, value, onChange, placeholder, type = 'text' }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm" placeholder={placeholder} />
+    </div>
+  );
+}
+
+function FieldTextarea({ label, value, onChange, rows = 2 }: {
+  label: string; value: string; onChange: (v: string) => void; rows?: number;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows}
+        className="w-full bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm" />
+    </div>
+  );
+}
+
+function FieldToggle({ label, checked, onChange }: {
+  label: string; checked: boolean; onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="rounded" />
+      <span className="text-sm text-slate-300">{label}</span>
+    </label>
+  );
+}
+
+function ItemListHeader({ label, onAdd }: { label: string; onAdd: () => void }) {
+  return (
+    <div className="flex items-center justify-between mb-2 mt-3">
+      <span className="text-sm font-medium text-slate-300">{label}</span>
+      <button onClick={onAdd} className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition">
+        <Plus size={13} /> Ajouter
+      </button>
+    </div>
+  );
+}
+
+// ─── Per-section-type config editors ───
+function HeroConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const badge = (config.badge as { text?: string; actif?: boolean }) || {};
+  const ctaP = (config.ctaPrimary as { text?: string; link?: string }) || {};
+  const ctaS = (config.ctaSecondary as { text?: string; link?: string }) || {};
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <div className="grid grid-cols-2 gap-3">
+        <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
+        <FieldToggle label="Badge actif" checked={!!badge.actif} onChange={(v) => onChange({ ...config, badge: { ...badge, actif: v } })} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FieldInput label="CTA Primaire - Texte" value={str(ctaP.text)} onChange={(v) => onChange({ ...config, ctaPrimary: { ...ctaP, text: v } })} />
+        <FieldInput label="CTA Primaire - Lien" value={str(ctaP.link)} onChange={(v) => onChange({ ...config, ctaPrimary: { ...ctaP, link: v } })} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FieldInput label="CTA Secondaire - Texte" value={str(ctaS.text)} onChange={(v) => onChange({ ...config, ctaSecondary: { ...ctaS, text: v } })} />
+        <FieldInput label="CTA Secondaire - Lien" value={str(ctaS.link)} onChange={(v) => onChange({ ...config, ctaSecondary: { ...ctaS, link: v } })} />
+      </div>
+      <FieldInput label="Gradient de fond" value={str(config.bgGradient)} onChange={(v) => onChange({ ...config, bgGradient: v })} placeholder="from-blue-500 to-purple-500" />
+    </div>
+  );
+}
+
+function StatsConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const items = (config.items as { value?: string; label?: string; suffix?: string }[]) || [];
+  return (
+    <div>
+      <ItemListHeader label={`Statistiques (${items.length})`} onAdd={() => onChange({ ...config, items: arrPush(items, { value: '', label: '', suffix: '' }) })} />
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="flex gap-2 items-start bg-slate-700/50 rounded p-2">
+            <div className="flex-1 grid grid-cols-3 gap-2">
+              <FieldInput label="Valeur" value={str(item.value)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, value: v }) })} placeholder="190+" />
+              <FieldInput label="Label" value={str(item.label)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, label: v }) })} placeholder="Workflows" />
+              <FieldInput label="Suffixe" value={str(item.suffix)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, suffix: v }) })} />
+            </div>
+            <button onClick={() => onChange({ ...config, items: arrRemove(items, i) })} className="text-red-400 hover:text-red-300 p-1 mt-4"><Trash2 size={14} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TrustBadgesConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const items = (config.items as { icon?: string; text?: string }[]) || [];
+  return (
+    <div>
+      <ItemListHeader label={`Badges (${items.length})`} onAdd={() => onChange({ ...config, items: arrPush(items, { icon: '', text: '' }) })} />
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="flex gap-2 items-start bg-slate-700/50 rounded p-2">
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              <FieldInput label="Icône" value={str(item.icon)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, icon: v }) })} placeholder="Shield, Award..." />
+              <FieldInput label="Texte" value={str(item.text)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, text: v }) })} />
+            </div>
+            <button onClick={() => onChange({ ...config, items: arrRemove(items, i) })} className="text-red-400 hover:text-red-300 p-1 mt-4"><Trash2 size={14} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ModulesConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const badge = (config.badge as { text?: string; icon?: string }) || {};
+  const items = (config.items as { icon?: string; title?: string; description?: string; features?: string[]; color?: string }[]) || [];
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <div className="grid grid-cols-2 gap-3">
+        <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
+        <FieldInput label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
+      </div>
+      <ItemListHeader label={`Modules (${items.length})`} onAdd={() => onChange({ ...config, items: arrPush(items, { icon: '', title: '', description: '', features: [], color: '' }) })} />
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div key={i} className="bg-slate-700/50 rounded p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400 font-medium">Module #{i + 1}</span>
+              <button onClick={() => onChange({ ...config, items: arrRemove(items, i) })} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <FieldInput label="Icône" value={str(item.icon)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, icon: v }) })} placeholder="BarChart3, Users..." />
+              <FieldInput label="Couleur" value={str(item.color)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, color: v }) })} placeholder="blue, emerald..." />
+            </div>
+            <FieldInput label="Titre" value={str(item.title)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, title: v }) })} />
+            <FieldTextarea label="Description" value={str(item.description)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, description: v }) })} />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-slate-500">Features</span>
+                <button onClick={() => {
+                  const feats = [...(item.features || []), ''];
+                  onChange({ ...config, items: arrUpdate(items, i, { ...item, features: feats }) });
+                }} className="text-xs text-blue-400 hover:text-blue-300"><Plus size={12} className="inline" /> Ajouter</button>
+              </div>
+              {(item.features || []).map((f, fi) => (
+                <div key={fi} className="flex gap-1 mb-1">
+                  <input type="text" value={f} onChange={(e) => {
+                    const feats = [...(item.features || [])];
+                    feats[fi] = e.target.value;
+                    onChange({ ...config, items: arrUpdate(items, i, { ...item, features: feats }) });
+                  }} className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs" />
+                  <button onClick={() => {
+                    const feats = (item.features || []).filter((_, k) => k !== fi);
+                    onChange({ ...config, items: arrUpdate(items, i, { ...item, features: feats }) });
+                  }} className="text-red-400 hover:text-red-300"><Trash2 size={12} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AgentIAConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const badge = (config.badge as { text?: string; icon?: string }) || {};
+  const features = (config.features as { icon?: string; text?: string }[]) || [];
+  const chatMessages = (config.chatMessages as { role?: string; text?: string }[]) || [];
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Titre highlight" value={str(config.titleHighlight)} onChange={(v) => onChange({ ...config, titleHighlight: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <div className="grid grid-cols-2 gap-3">
+        <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
+        <FieldInput label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
+      </div>
+      <FieldInput label="Gradient de fond" value={str(config.bgGradient)} onChange={(v) => onChange({ ...config, bgGradient: v })} />
+      <ItemListHeader label={`Features (${features.length})`} onAdd={() => onChange({ ...config, features: arrPush(features, { icon: '', text: '' }) })} />
+      <div className="space-y-2">
+        {features.map((f, i) => (
+          <div key={i} className="flex gap-2 items-start bg-slate-700/50 rounded p-2">
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              <FieldInput label="Icône" value={str(f.icon)} onChange={(v) => onChange({ ...config, features: arrUpdate(features, i, { ...f, icon: v }) })} />
+              <FieldInput label="Texte" value={str(f.text)} onChange={(v) => onChange({ ...config, features: arrUpdate(features, i, { ...f, text: v }) })} />
+            </div>
+            <button onClick={() => onChange({ ...config, features: arrRemove(features, i) })} className="text-red-400 hover:text-red-300 p-1 mt-4"><Trash2 size={14} /></button>
+          </div>
+        ))}
+      </div>
+      <ItemListHeader label={`Messages Chat (${chatMessages.length})`} onAdd={() => onChange({ ...config, chatMessages: arrPush(chatMessages, { role: 'user', text: '' }) })} />
+      <div className="space-y-2">
+        {chatMessages.map((m, i) => (
+          <div key={i} className="flex gap-2 items-start bg-slate-700/50 rounded p-2">
+            <select value={str(m.role)} onChange={(e) => onChange({ ...config, chatMessages: arrUpdate(chatMessages, i, { ...m, role: e.target.value }) })}
+              className="bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-white text-xs w-24">
+              <option value="user">User</option>
+              <option value="assistant">IA</option>
+            </select>
+            <input type="text" value={str(m.text)} onChange={(e) => onChange({ ...config, chatMessages: arrUpdate(chatMessages, i, { ...m, text: e.target.value }) })}
+              className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-white text-sm" />
+            <button onClick={() => onChange({ ...config, chatMessages: arrRemove(chatMessages, i) })} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={14} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const badge = (config.badge as { text?: string; icon?: string } | string) || {};
+  const badgeObj = typeof badge === 'string' ? { text: badge } : badge;
+  const items = (config.items as { icon?: string; title?: string; description?: string; badge?: string }[]) || [];
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldInput label="Badge" value={str(badgeObj.text || (typeof badge === 'string' ? badge : ''))} onChange={(v) => onChange({ ...config, badge: v })} />
+      <ItemListHeader label={`Éléments (${items.length})`} onAdd={() => onChange({ ...config, items: arrPush(items, { icon: '', title: '', description: '', badge: '' }) })} />
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="bg-slate-700/50 rounded p-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">#{i + 1}</span>
+              <button onClick={() => onChange({ ...config, items: arrRemove(items, i) })} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <FieldInput label="Icône" value={str(item.icon)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, icon: v }) })} />
+              <FieldInput label="Badge" value={str(item.badge)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, badge: v }) })} />
+            </div>
+            <FieldInput label="Titre" value={str(item.title)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, title: v }) })} />
+            <FieldTextarea label="Description" value={str(item.description)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, description: v }) })} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HowItWorksConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const steps = (config.steps as { number?: number; title?: string; description?: string; icon?: string }[]) || [];
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <ItemListHeader label={`Étapes (${steps.length})`} onAdd={() => onChange({ ...config, steps: arrPush(steps, { number: steps.length + 1, title: '', description: '', icon: '' }) })} />
+      <div className="space-y-2">
+        {steps.map((step, i) => (
+          <div key={i} className="bg-slate-700/50 rounded p-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">Étape {i + 1}</span>
+              <button onClick={() => onChange({ ...config, steps: arrRemove(steps, i) })} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <FieldInput label="Icône" value={str(step.icon)} onChange={(v) => onChange({ ...config, steps: arrUpdate(steps, i, { ...step, icon: v }) })} />
+              <FieldInput label="Titre" value={str(step.title)} onChange={(v) => onChange({ ...config, steps: arrUpdate(steps, i, { ...step, title: v }) })} />
+            </div>
+            <FieldTextarea label="Description" value={str(step.description)} onChange={(v) => onChange({ ...config, steps: arrUpdate(steps, i, { ...step, description: v }) })} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TestimonialsConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <p className="text-xs text-slate-500 italic">Les témoignages se gèrent dans l'onglet « Témoignages » du CMS.</p>
+    </div>
+  );
+}
+
+function ContactConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const rappelIA = (config.rappelIA as { title?: string; description?: string; actif?: boolean }) || {};
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <div className="bg-slate-700/30 rounded p-3 space-y-2">
+        <span className="text-xs font-medium text-slate-400">Rappel IA (Bulle de rappel)</span>
+        <FieldToggle label="Activer le rappel IA" checked={!!rappelIA.actif} onChange={(v) => onChange({ ...config, rappelIA: { ...rappelIA, actif: v } })} />
+        {rappelIA.actif && (
+          <>
+            <FieldInput label="Titre rappel" value={str(rappelIA.title)} onChange={(v) => onChange({ ...config, rappelIA: { ...rappelIA, title: v } })} />
+            <FieldInput label="Description rappel" value={str(rappelIA.description)} onChange={(v) => onChange({ ...config, rappelIA: { ...rappelIA, description: v } })} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CTAConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  const ctaP = (config.ctaPrimary as { text?: string; link?: string; icon?: string }) || {};
+  const ctaS = (config.ctaSecondary as { text?: string; link?: string; icon?: string }) || {};
+  return (
+    <div className="space-y-3">
+      <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
+      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldInput label="Gradient de fond" value={str(config.bgGradient)} onChange={(v) => onChange({ ...config, bgGradient: v })} placeholder="from-blue-500 to-purple-500" />
+      <div className="grid grid-cols-2 gap-3">
+        <FieldInput label="CTA Primaire - Texte" value={str(ctaP.text)} onChange={(v) => onChange({ ...config, ctaPrimary: { ...ctaP, text: v } })} />
+        <FieldInput label="CTA Primaire - Lien" value={str(ctaP.link)} onChange={(v) => onChange({ ...config, ctaPrimary: { ...ctaP, link: v } })} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FieldInput label="CTA Secondaire - Texte" value={str(ctaS.text)} onChange={(v) => onChange({ ...config, ctaSecondary: { ...ctaS, text: v } })} />
+        <FieldInput label="CTA Secondaire - Lien" value={str(ctaS.link)} onChange={(v) => onChange({ ...config, ctaSecondary: { ...ctaS, link: v } })} />
+      </div>
+    </div>
+  );
+}
+
+function CustomHTMLConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
+  return (
+    <div className="space-y-3">
+      <FieldTextarea label="HTML" value={str(config.html)} onChange={(v) => onChange({ ...config, html: v })} rows={8} />
+      <FieldInput label="Classe CSS de fond" value={str(config.bgColor)} onChange={(v) => onChange({ ...config, bgColor: v })} placeholder="bg-white" />
+    </div>
+  );
+}
+
+// Map type → config editor component
+const sectionConfigEditors: Record<string, React.FC<{ config: JsonRecord; onChange: (c: JsonRecord) => void }>> = {
+  hero: HeroConfigEditor,
+  stats: StatsConfigEditor,
+  trust_badges: TrustBadgesConfigEditor,
+  modules: ModulesConfigEditor,
+  agent_ia: AgentIAConfigEditor,
+  upcoming: UpcomingConfigEditor,
+  how_it_works: HowItWorksConfigEditor,
+  testimonials: TestimonialsConfigEditor,
+  contact: ContactConfigEditor,
+  cta: CTAConfigEditor,
+  custom_html: CustomHTMLConfigEditor,
+};
+
 function SectionModal({
   section,
   sectionType,
@@ -1210,13 +1560,19 @@ function SectionModal({
   onCreate,
   onUpdate,
 }: SectionModalProps) {
+  const currentType = section?.type || sectionType;
   const [formData, setFormData] = useState<Partial<Section>>(
     section || { titre: '', config: {} }
   );
+  const [sectionConfig, setSectionConfig] = useState<JsonRecord>(() => {
+    const raw = (section?.config || {}) as JsonRecord;
+    // strip background keys — those go in bgConfig
+    const { backgroundImage: _bi, bgColor: _bc, bgOverlay: _bo, bgSize: _bs, bgPosition: _bp, ...rest } = raw;
+    return rest;
+  });
 
   const [bgConfig, setBgConfig] = useState(() => {
     const raw = section?.config as Record<string, unknown> | undefined;
-    // Parse bgOverlay: could be a number (legacy) or rgba string like "rgba(0,0,0,0.5)"
     let overlayNum = 0;
     const rawOverlay = raw?.bgOverlay;
     if (typeof rawOverlay === 'number') {
@@ -1234,182 +1590,130 @@ function SectionModal({
     };
   });
 
+  const [activePanel, setActivePanel] = useState<'content' | 'background'>('content');
+
   const sectionTypes = [
-    'hero',
-    'stats',
-    'trust_badges',
-    'modules',
-    'agent_ia',
-    'how_it_works',
-    'testimonials',
-    'upcoming',
-    'cta',
-    'contact',
-    'custom_html',
+    'hero', 'stats', 'trust_badges', 'modules', 'agent_ia',
+    'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'custom_html',
   ];
 
   const handleSave = () => {
-    // Convert numeric overlay to CSS rgba string
-    const overlayValue = bgConfig.bgOverlay
-      ? `rgba(0,0,0,${bgConfig.bgOverlay})`
-      : '';
-    const mergedBg = {
-      ...bgConfig,
-      bgOverlay: overlayValue,
-    };
-    const updatedFormData = {
-      ...formData,
-      config: { ...(formData.config as Record<string, unknown>), ...mergedBg },
+    const overlayValue = bgConfig.bgOverlay ? `rgba(0,0,0,${bgConfig.bgOverlay})` : '';
+    const mergedConfig = {
+      ...sectionConfig,
+      backgroundImage: bgConfig.backgroundImage || undefined,
+      bgColor: bgConfig.bgColor || undefined,
+      bgOverlay: overlayValue || undefined,
+      bgSize: bgConfig.bgSize,
+      bgPosition: bgConfig.bgPosition,
     };
     if (section) {
-      onUpdate(section.id, updatedFormData);
+      onUpdate(section.id, { ...formData, config: mergedConfig });
     } else {
-      onCreate(sectionType, {
-        titre: formData.titre || undefined,
-        config: mergedBg,
-      });
+      onCreate(sectionType, { titre: formData.titre || undefined, config: mergedConfig });
     }
   };
 
+  const ConfigEditor = sectionConfigEditors[currentType];
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full max-h-96 overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">
-            {section ? 'Éditer la section' : 'Ajouter une section'}
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
-            <X size={24} />
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl p-6 max-w-3xl w-full max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-4 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            {(() => {
+              const meta = sectionTypeMap[currentType];
+              const Icon = meta?.icon || Layout;
+              return <Icon size={20} className="text-blue-400" />;
+            })()}
+            <h2 className="text-xl font-bold text-white">
+              {section ? `Éditer : ${sectionTypeMap[currentType]?.label || currentType}` : 'Ajouter une section'}
+            </h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
+        </div>
+
+        {/* Type selector for new sections */}
+        {!section && (
+          <div className="mb-4 flex-shrink-0">
+            <label className="block text-sm font-medium text-slate-300 mb-2">Type de section</label>
+            <select value={sectionType} onChange={(e) => setSectionType(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white">
+              {sectionTypes.map((type) => (
+                <option key={type} value={type}>{sectionTypeMap[type]?.label || type}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Titre */}
+        <div className="mb-3 flex-shrink-0">
+          <FieldInput label="Titre de la section" value={formData.titre || ''} onChange={(v) => setFormData({ ...formData, titre: v })} />
+        </div>
+
+        {/* Tabs Contenu / Background */}
+        <div className="flex gap-2 mb-3 flex-shrink-0">
+          <button onClick={() => setActivePanel('content')}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition ${activePanel === 'content' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:text-white'}`}>
+            Contenu
+          </button>
+          <button onClick={() => setActivePanel('background')}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition ${activePanel === 'background' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:text-white'}`}>
+            Fond / Background
           </button>
         </div>
 
-        <div className="space-y-4">
-          {!section && (
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Type de section
-              </label>
-              <select
-                value={sectionType}
-                onChange={(e) => setSectionType(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-              >
-                {sectionTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {sectionTypeMap[type]?.label || type}
-                  </option>
-                ))}
-              </select>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          {activePanel === 'content' ? (
+            ConfigEditor ? (
+              <ConfigEditor config={sectionConfig} onChange={setSectionConfig} />
+            ) : (
+              <p className="text-slate-400 text-sm italic">Aucun éditeur disponible pour le type « {currentType} ».</p>
+            )
+          ) : (
+            <div className="space-y-4">
+              <FieldInput label="URL de l'image de fond" value={bgConfig.backgroundImage} onChange={(v) => setBgConfig({ ...bgConfig, backgroundImage: v })} placeholder="https://..." />
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Couleur de fond</label>
+                <div className="flex gap-2">
+                  <input type="color" value={bgConfig.bgColor || '#000000'} onChange={(e) => setBgConfig({ ...bgConfig, bgColor: e.target.value })} className="w-12 h-10 bg-slate-700 border border-slate-600 rounded cursor-pointer" />
+                  <input type="text" value={bgConfig.bgColor} onChange={(e) => setBgConfig({ ...bgConfig, bgColor: e.target.value })} className="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white" placeholder="#000000" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Opacité overlay ({bgConfig.bgOverlay})</label>
+                <input type="range" min="0" max="1" step="0.1" value={bgConfig.bgOverlay} onChange={(e) => setBgConfig({ ...bgConfig, bgOverlay: parseFloat(e.target.value) })} className="w-full" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Taille du fond</label>
+                  <select value={bgConfig.bgSize} onChange={(e) => setBgConfig({ ...bgConfig, bgSize: e.target.value })} className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white">
+                    <option value="cover">cover</option><option value="contain">contain</option><option value="auto">auto</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Position du fond</label>
+                  <select value={bgConfig.bgPosition} onChange={(e) => setBgConfig({ ...bgConfig, bgPosition: e.target.value })} className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white">
+                    <option value="center">center</option><option value="top">top</option><option value="bottom">bottom</option><option value="left">left</option><option value="right">right</option>
+                  </select>
+                </div>
+              </div>
             </div>
           )}
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Titre
-            </label>
-            <input
-              type="text"
-              value={formData.titre || ''}
-              onChange={(e) => setFormData({ ...formData, titre: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              URL de l'image de fond
-            </label>
-            <input
-              type="text"
-              value={bgConfig.backgroundImage}
-              onChange={(e) => setBgConfig({ ...bgConfig, backgroundImage: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-              placeholder="https://..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Couleur de fond
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                value={bgConfig.bgColor}
-                onChange={(e) => setBgConfig({ ...bgConfig, bgColor: e.target.value })}
-                className="w-12 h-10 bg-slate-700 border border-slate-600 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={bgConfig.bgColor}
-                onChange={(e) => setBgConfig({ ...bgConfig, bgColor: e.target.value })}
-                className="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-                placeholder="#000000"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Opacité de l'overlay ({bgConfig.bgOverlay})
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={bgConfig.bgOverlay}
-              onChange={(e) => setBgConfig({ ...bgConfig, bgOverlay: parseFloat(e.target.value) })}
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Taille du fond
-            </label>
-            <select
-              value={bgConfig.bgSize}
-              onChange={(e) => setBgConfig({ ...bgConfig, bgSize: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            >
-              <option value="cover">cover</option>
-              <option value="contain">contain</option>
-              <option value="auto">auto</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Position du fond
-            </label>
-            <select
-              value={bgConfig.bgPosition}
-              onChange={(e) => setBgConfig({ ...bgConfig, bgPosition: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            >
-              <option value="center">center</option>
-              <option value="top">top</option>
-              <option value="bottom">bottom</option>
-              <option value="left">left</option>
-              <option value="right">right</option>
-            </select>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 transition flex items-center justify-center gap-2"
-            >
-              <Save size={18} /> Enregistrer
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded px-4 py-2 transition"
-            >
-              Annuler
-            </button>
-          </div>
+        {/* Footer buttons */}
+        <div className="flex gap-2 mt-4 flex-shrink-0">
+          <button onClick={handleSave}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2.5 transition flex items-center justify-center gap-2 font-medium">
+            <Save size={18} /> Enregistrer
+          </button>
+          <button onClick={onClose}
+            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded px-4 py-2.5 transition">
+            Annuler
+          </button>
         </div>
       </div>
     </div>
@@ -1841,6 +2145,37 @@ function NavbarFooterEditor({
     setFooter({ ...footer, legalLinks: legalLinks.filter((_, i) => i !== idx) });
   };
 
+  // ─── Footer Columns helpers ───
+  const columns = footer.columns || [];
+  const addColumn = () => {
+    setFooter({ ...footer, columns: [...columns, { title: '', links: [] }] });
+  };
+  const removeColumn = (idx: number) => {
+    setFooter({ ...footer, columns: columns.filter((_, i) => i !== idx) });
+  };
+  const updateColumnTitle = (idx: number, title: string) => {
+    const updated = [...columns];
+    updated[idx] = { ...updated[idx], title };
+    setFooter({ ...footer, columns: updated });
+  };
+  const addColumnLink = (colIdx: number) => {
+    const updated = [...columns];
+    updated[colIdx] = { ...updated[colIdx], links: [...updated[colIdx].links, { text: '', href: '' }] };
+    setFooter({ ...footer, columns: updated });
+  };
+  const removeColumnLink = (colIdx: number, linkIdx: number) => {
+    const updated = [...columns];
+    updated[colIdx] = { ...updated[colIdx], links: updated[colIdx].links.filter((_, i) => i !== linkIdx) };
+    setFooter({ ...footer, columns: updated });
+  };
+  const updateColumnLink = (colIdx: number, linkIdx: number, field: 'text' | 'href', val: string) => {
+    const updated = [...columns];
+    const links = [...updated[colIdx].links];
+    links[linkIdx] = { ...links[linkIdx], [field]: val };
+    updated[colIdx] = { ...updated[colIdx], links };
+    setFooter({ ...footer, columns: updated });
+  };
+
   return (
     <div className="space-y-6">
       {/* ═══ NAVBAR ═══ */}
@@ -1993,6 +2328,69 @@ function NavbarFooterEditor({
                 onChange={(e) => setFooter({ ...footer, description: e.target.value })}
                 className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm"
               />
+            </div>
+          </div>
+
+          {/* Colonnes du footer */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-slate-300">Colonnes du footer</label>
+              <button
+                onClick={addColumn}
+                className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition"
+              >
+                <Plus size={14} /> Ajouter une colonne
+              </button>
+            </div>
+            {columns.length === 0 && (
+              <p className="text-xs text-slate-500 italic mb-2">Aucune colonne configurée. Ajoutez-en pour afficher des liens dans le footer.</p>
+            )}
+            <div className="space-y-4">
+              {columns.map((col, colIdx) => (
+                <div key={colIdx} className="bg-slate-700/30 rounded-lg p-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={col.title}
+                      onChange={(e) => updateColumnTitle(colIdx, e.target.value)}
+                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-sm font-medium"
+                      placeholder="Titre de la colonne"
+                    />
+                    <button onClick={() => removeColumn(colIdx)} className="text-red-400 hover:text-red-300 p-1.5 transition" title="Supprimer la colonne">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className="space-y-1.5 pl-2">
+                    {col.links.map((link, linkIdx) => (
+                      <div key={linkIdx} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={link.text}
+                          onChange={(e) => updateColumnLink(colIdx, linkIdx, 'text', e.target.value)}
+                          className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs"
+                          placeholder="Texte du lien"
+                        />
+                        <input
+                          type="text"
+                          value={link.href}
+                          onChange={(e) => updateColumnLink(colIdx, linkIdx, 'href', e.target.value)}
+                          className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs"
+                          placeholder="#section ou /page"
+                        />
+                        <button onClick={() => removeColumnLink(colIdx, linkIdx)} className="text-red-400 hover:text-red-300">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => addColumnLink(colIdx)}
+                      className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition mt-1"
+                    >
+                      <Plus size={12} /> Ajouter un lien
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
