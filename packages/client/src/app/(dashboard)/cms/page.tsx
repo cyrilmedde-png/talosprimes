@@ -1259,6 +1259,107 @@ function FieldToggle({ label, checked, onChange }: {
   );
 }
 
+// ─── Icon names available in iconMap.ts ───
+const ICON_NAMES = [
+  'FileText', 'Calculator', 'Users', 'Bot', 'UserCheck', 'HardHat', 'Briefcase',
+  'ClipboardList', 'Zap', 'Shield', 'Lock', 'Landmark', 'CreditCard', 'Layers',
+  'Sparkles', 'TrendingUp', 'Receipt', 'PenTool', 'Smartphone', 'Globe',
+  'BarChart3', 'Banknote', 'Brain', 'MessageSquare', 'PhoneCall', 'Mail',
+  'BookOpen', 'Calendar', 'Bell', 'BadgeCheck', 'Headphones', 'Star',
+  'CheckCircle', 'ArrowRight', 'ChevronDown', 'MapPin', 'Phone',
+];
+
+// ─── Tailwind gradient color presets for module cards ───
+const COLOR_PRESETS = [
+  { value: 'from-blue-500 to-blue-600', label: 'Bleu' },
+  { value: 'from-emerald-500 to-emerald-600', label: 'Émeraude' },
+  { value: 'from-violet-500 to-violet-600', label: 'Violet' },
+  { value: 'from-amber-500 to-amber-600', label: 'Ambre' },
+  { value: 'from-rose-500 to-rose-600', label: 'Rose' },
+  { value: 'from-cyan-500 to-cyan-600', label: 'Cyan' },
+  { value: 'from-indigo-500 to-indigo-600', label: 'Indigo' },
+  { value: 'from-orange-500 to-orange-600', label: 'Orange' },
+  { value: 'from-teal-500 to-teal-600', label: 'Teal' },
+  { value: 'from-pink-500 to-pink-600', label: 'Pink' },
+  { value: 'from-slate-700 to-slate-800', label: 'Sombre' },
+  { value: 'from-red-500 to-red-600', label: 'Rouge' },
+];
+
+function FieldIconPicker({ label, value, onChange }: {
+  label: string; value: string; onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const filtered = ICON_NAMES.filter(n => n.toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div className="relative">
+      <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm text-left flex items-center justify-between hover:border-slate-500 transition"
+      >
+        <span className={value ? 'text-white' : 'text-slate-500'}>{value || 'Choisir une icône…'}</span>
+        <svg className={`w-4 h-4 text-slate-400 transition ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 w-full bg-slate-700 border border-slate-600 rounded-lg shadow-xl max-h-52 overflow-hidden">
+          <div className="p-2 border-b border-slate-600">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher…"
+              className="w-full bg-slate-800 border border-slate-600 rounded px-2.5 py-1.5 text-white text-xs focus:outline-none focus:border-blue-500"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto p-1">
+            {filtered.map(name => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => { onChange(name); setOpen(false); setSearch(''); }}
+                className={`w-full text-left px-2.5 py-1.5 text-xs rounded transition ${
+                  name === value ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+            {filtered.length === 0 && <p className="text-xs text-slate-500 p-2 text-center">Aucun résultat</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldColorPicker({ label, value, onChange }: {
+  label: string; value: string; onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>
+      <select
+        value={COLOR_PRESETS.find(p => p.value === value) ? value : '__custom__'}
+        onChange={(e) => { if (e.target.value !== '__custom__') onChange(e.target.value); }}
+        className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white text-sm mb-1"
+      >
+        {COLOR_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+        {!COLOR_PRESETS.find(c => c.value === value) && value && <option value="__custom__">Personnalisé</option>}
+      </select>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-white text-xs"
+        placeholder="from-blue-500 to-blue-600"
+      />
+    </div>
+  );
+}
+
 function ItemListHeader({ label, onAdd }: { label: string; onAdd: () => void }) {
   return (
     <div className="flex items-center justify-between mb-2 mt-3">
@@ -1494,7 +1595,7 @@ function ModulesConfigEditor({ config, onChange }: { config: JsonRecord; onChang
       <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <div className="grid grid-cols-2 gap-3">
         <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
-        <FieldInput label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
+        <FieldIconPicker label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
       </div>
       <ItemListHeader label={`Modules (${items.length})`} onAdd={() => onChange({ ...config, items: arrPush(items, { icon: '', title: '', description: '', features: [], color: '' }) })} />
       <div className="space-y-3">
@@ -1505,8 +1606,8 @@ function ModulesConfigEditor({ config, onChange }: { config: JsonRecord; onChang
               <button onClick={() => onChange({ ...config, items: arrRemove(items, i) })} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <FieldInput label="Icône" value={str(item.icon)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, icon: v }) })} placeholder="BarChart3, Users..." />
-              <FieldInput label="Couleur" value={str(item.color)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, color: v }) })} placeholder="blue, emerald..." />
+              <FieldIconPicker label="Icône" value={str(item.icon)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, icon: v }) })} />
+              <FieldColorPicker label="Couleur" value={str(item.color)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, color: v }) })} />
             </div>
             <FieldInput label="Titre" value={str(item.title)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, title: v }) })} />
             <FieldTextarea label="Description" value={str(item.description)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, description: v }) })} />
@@ -1550,7 +1651,7 @@ function AgentIAConfigEditor({ config, onChange }: { config: JsonRecord; onChang
       <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <div className="grid grid-cols-2 gap-3">
         <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
-        <FieldInput label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
+        <FieldIconPicker label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
       </div>
       <FieldInput label="Gradient de fond" value={str(config.bgGradient)} onChange={(v) => onChange({ ...config, bgGradient: v })} />
       <ItemListHeader label={`Features (${features.length})`} onAdd={() => onChange({ ...config, features: arrPush(features, { icon: '', text: '' }) })} />
@@ -1558,7 +1659,7 @@ function AgentIAConfigEditor({ config, onChange }: { config: JsonRecord; onChang
         {features.map((f, i) => (
           <div key={i} className="flex gap-2 items-start bg-slate-700/50 rounded p-2">
             <div className="flex-1 grid grid-cols-2 gap-2">
-              <FieldInput label="Icône" value={str(f.icon)} onChange={(v) => onChange({ ...config, features: arrUpdate(features, i, { ...f, icon: v }) })} />
+              <FieldIconPicker label="Icône" value={str(f.icon)} onChange={(v) => onChange({ ...config, features: arrUpdate(features, i, { ...f, icon: v }) })} />
               <FieldInput label="Texte" value={str(f.text)} onChange={(v) => onChange({ ...config, features: arrUpdate(features, i, { ...f, text: v }) })} />
             </div>
             <button onClick={() => onChange({ ...config, features: arrRemove(features, i) })} className="text-red-400 hover:text-red-300 p-1 mt-4"><Trash2 size={14} /></button>
@@ -1602,7 +1703,7 @@ function UpcomingConfigEditor({ config, onChange }: { config: JsonRecord; onChan
               <button onClick={() => onChange({ ...config, items: arrRemove(items, i) })} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <FieldInput label="Icône" value={str(item.icon)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, icon: v }) })} />
+              <FieldIconPicker label="Icône" value={str(item.icon)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, icon: v }) })} />
               <FieldInput label="Badge" value={str(item.badge)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, badge: v }) })} />
             </div>
             <FieldInput label="Titre" value={str(item.title)} onChange={(v) => onChange({ ...config, items: arrUpdate(items, i, { ...item, title: v }) })} />
@@ -1629,7 +1730,7 @@ function HowItWorksConfigEditor({ config, onChange }: { config: JsonRecord; onCh
               <button onClick={() => onChange({ ...config, steps: arrRemove(steps, i) })} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <FieldInput label="Icône" value={str(step.icon)} onChange={(v) => onChange({ ...config, steps: arrUpdate(steps, i, { ...step, icon: v }) })} />
+              <FieldIconPicker label="Icône" value={str(step.icon)} onChange={(v) => onChange({ ...config, steps: arrUpdate(steps, i, { ...step, icon: v }) })} />
               <FieldInput label="Titre" value={str(step.title)} onChange={(v) => onChange({ ...config, steps: arrUpdate(steps, i, { ...step, title: v }) })} />
             </div>
             <FieldTextarea label="Description" value={str(step.description)} onChange={(v) => onChange({ ...config, steps: arrUpdate(steps, i, { ...step, description: v }) })} />
