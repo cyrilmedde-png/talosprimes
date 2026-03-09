@@ -249,7 +249,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId || '6296082748' }}",
+        "chatId": "={{ (function() { try { return $('Préparer Contexte (Voix)').first().json.chatId } catch(e) { try { return $('Préparer Contexte (Texte)').first().json.chatId } catch(e2) { return '6296082748' } } })() }}",
         "text": "={{ $json.output }}",
         "additionalFields": {
           "appendAttribution": false
@@ -347,7 +347,7 @@
     {
       "parameters": {
         "operation": "sendAudio",
-        "chatId": "={{ $('Préparer Contexte (Voix)').first()?.json?.chatId || $('Préparer Contexte (Texte)').first()?.json?.chatId }}",
+        "chatId": "={{ (function() { try { return $('Préparer Contexte (Voix)').first().json.chatId } catch(e) { try { return $('Préparer Contexte (Texte)').first().json.chatId } catch(e2) { return '6296082748' } } })() }}",
         "binaryData": true,
         "additionalFields": {}
       },
