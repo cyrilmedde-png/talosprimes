@@ -1223,7 +1223,13 @@ model TwilioConfig {
   niche             String   @default("saas_gestion") // Secteur d'activité du tenant
   businessHours     String?  @map("business_hours") @db.Text
   systemPromptAddon String?  @map("system_prompt_addon") @db.Text
+  systemPrompt      String?  @map("system_prompt") @db.Text // Prompt système complet (override)
   knowledgeBase     String?  @map("knowledge_base") @db.Text
+  welcomeMessage    String?  @map("welcome_message") // Message d'accueil vocal
+  voiceName         String   @default("Polly.Lea-Neural") @map("voice_name") // Voix TTS
+  language          String   @default("fr-FR") // Langue reconnaissance vocale
+  maxTokens         Int      @default(150) @map("max_tokens") // Tokens max réponse IA
+  temperature       Float    @default(0.3) // Température IA (0-1)
   dispatchDelay     Int      @default(30) @map("dispatch_delay") // Minutes
   basePrice         String?  @map("base_price") // Prix indicatif en toutes lettres
   humanContact      String?  @map("human_contact") // Contact humain backup

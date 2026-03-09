@@ -31,6 +31,12 @@ interface TwilioConfig {
   authToken?: string;
   phoneNumber?: string;
   webhookUrl?: string;
+  systemPrompt?: string | null;
+  welcomeMessage?: string | null;
+  voiceName?: string;
+  language?: string;
+  maxTokens?: number;
+  temperature?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -60,6 +66,12 @@ export default function ConfigurationPage() {
     active: false,
     accountSid: '',
     authToken: '',
+    systemPrompt: '' as string | null,
+    welcomeMessage: '' as string | null,
+    voiceName: 'Polly.Lea-Neural',
+    language: 'fr-FR',
+    maxTokens: 150,
+    temperature: 0.3,
   });
 
   useEffect(() => {
@@ -92,6 +104,12 @@ export default function ConfigurationPage() {
           active: configData.active || false,
           accountSid: configData.accountSid || '',
           authToken: configData.authToken || '',
+          systemPrompt: configData.systemPrompt || '',
+          welcomeMessage: configData.welcomeMessage || '',
+          voiceName: configData.voiceName || 'Polly.Lea-Neural',
+          language: configData.language || 'fr-FR',
+          maxTokens: configData.maxTokens || 150,
+          temperature: configData.temperature || 0.3,
         });
       }
 
@@ -115,14 +133,17 @@ export default function ConfigurationPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target as HTMLInputElement;
+    const step = (e.target as HTMLInputElement).step;
     setFormData({
       ...formData,
       [name]:
         type === 'checkbox'
           ? (e.target as HTMLInputElement).checked
           : type === 'number'
-            ? parseInt(value) || 0
-            : value,
+            ? step ? parseFloat(value) || 0 : parseInt(value) || 0
+            : type === 'range'
+              ? parseFloat(value) || 0
+              : value,
     });
   };
 
@@ -185,6 +206,12 @@ export default function ConfigurationPage() {
         active: config.active || false,
         accountSid: config.accountSid || '',
         authToken: config.authToken || '',
+        systemPrompt: config.systemPrompt || '',
+        welcomeMessage: config.welcomeMessage || '',
+        voiceName: config.voiceName || 'Polly.Lea-Neural',
+        language: config.language || 'fr-FR',
+        maxTokens: config.maxTokens || 150,
+        temperature: config.temperature || 0.3,
       });
     }
     setEditing(false);
@@ -554,6 +581,75 @@ export default function ConfigurationPage() {
           </div>
         </div>
 
+        {/* Message d'accueil & Voix */}
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
+          <div className="flex items-center gap-2 mb-4">
+            {!editing && <LockClosedIcon className="h-4 w-4 text-gray-500" />}
+            <h2 className="text-lg font-bold text-white">Message d&apos;accueil &amp; Voix</h2>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Message d&apos;accueil
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Le message que l&apos;agent prononce quand un appelant décroche. Laissez vide pour le message par défaut.
+            </p>
+            <input
+              type="text"
+              name="welcomeMessage"
+              value={formData.welcomeMessage || ''}
+              onChange={handleInputChange}
+              disabled={!editing}
+              placeholder="Ex: TalosPrimes, bonjour ! Comment puis-je vous aider ?"
+              className={inputClass}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Voix TTS</label>
+              <select
+                name="voiceName"
+                value={formData.voiceName}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className={inputClass}
+              >
+                <option value="Polly.Lea-Neural">Léa (Française, Neural)</option>
+                <option value="Polly.Celine">Céline (Française)</option>
+                <option value="Polly.Mathieu-Neural">Mathieu (Français, Neural)</option>
+                <option value="Polly.Remi-Neural">Rémi (Français, Neural)</option>
+                <option value="Polly.Liam-Neural">Liam (Canadien-Français, Neural)</option>
+                <option value="Polly.Gabrielle-Neural">Gabrielle (Canadienne-Française, Neural)</option>
+                <option value="Google.fr-FR-Wavenet-A">Google Wavenet A (Française)</option>
+                <option value="Google.fr-FR-Wavenet-C">Google Wavenet C (Française)</option>
+                <option value="Google.fr-FR-Wavenet-D">Google Wavenet D (Français)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Langue</label>
+              <select
+                name="language"
+                value={formData.language}
+                onChange={handleInputChange}
+                disabled={!editing}
+                className={inputClass}
+              >
+                <option value="fr-FR">Français (France)</option>
+                <option value="fr-CA">Français (Canada)</option>
+                <option value="en-US">English (US)</option>
+                <option value="en-GB">English (UK)</option>
+                <option value="es-ES">Español</option>
+                <option value="de-DE">Deutsch</option>
+                <option value="it-IT">Italiano</option>
+                <option value="pt-BR">Português (Brasil)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Intelligence */}
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
           <div className="flex items-center gap-2 mb-4">
@@ -562,7 +658,30 @@ export default function ConfigurationPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Prompt addon</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Prompt système complet
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Si rempli, remplace entièrement le prompt par défaut de l&apos;agent. Laissez vide pour utiliser le prompt automatique.
+            </p>
+            <textarea
+              name="systemPrompt"
+              value={formData.systemPrompt || ''}
+              onChange={handleInputChange}
+              disabled={!editing}
+              placeholder="Laissez vide pour le prompt par défaut. Sinon, écrivez ici le prompt système complet de l'agent..."
+              rows={8}
+              className={textareaClass}
+            />
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Instructions supplémentaires (addon)
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Ajoutées au prompt par défaut. Ignorées si un prompt complet est défini ci-dessus.
+            </p>
             <textarea
               name="systemPromptAddon"
               value={formData.systemPromptAddon}
@@ -576,8 +695,11 @@ export default function ConfigurationPage() {
 
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Base de connaissances
+              Base de connaissances (texte)
             </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Contexte et informations clés. Utilisé en complément de la base structurée (onglet Base de connaissances).
+            </p>
             <textarea
               name="knowledgeBase"
               value={formData.knowledgeBase}
@@ -587,6 +709,50 @@ export default function ConfigurationPage() {
               rows={5}
               className={textareaClass}
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Tokens max par réponse : {formData.maxTokens}
+              </label>
+              <input
+                type="range"
+                name="maxTokens"
+                value={formData.maxTokens}
+                onChange={handleInputChange}
+                disabled={!editing}
+                min="50"
+                max="500"
+                step="10"
+                className="w-full accent-indigo-500"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>50 (court)</span>
+                <span>500 (long)</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Température (créativité) : {formData.temperature.toFixed(1)}
+              </label>
+              <input
+                type="range"
+                name="temperature"
+                value={formData.temperature}
+                onChange={handleInputChange}
+                disabled={!editing}
+                min="0"
+                max="1"
+                step="0.1"
+                className="w-full accent-indigo-500"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0 (précis)</span>
+                <span>1 (créatif)</span>
+              </div>
+            </div>
           </div>
         </div>
 
