@@ -1256,6 +1256,103 @@ function ItemListHeader({ label, onAdd }: { label: string; onAdd: () => void }) 
   );
 }
 
+// ============= MARKDOWN EDITOR (moved up for reuse in config editors) =============
+interface MarkdownEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  rows?: number;
+  placeholder?: string;
+}
+
+function MarkdownEditor({ value, onChange, rows = 12, placeholder }: MarkdownEditorProps) {
+  const [preview, setPreview] = useState(false);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const insertMarkdown = (before: string, after: string = '', defaultText: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = value.substring(start, end) || defaultText;
+    const newValue = value.substring(0, start) + before + selected + after + value.substring(end);
+    onChange(newValue);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+    }, 0);
+  };
+
+  const insertLine = (prefix: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const lineEnd = value.indexOf('\n', start);
+    const end = lineEnd === -1 ? value.length : lineEnd;
+    const line = value.substring(lineStart, end);
+    const newValue = value.substring(0, lineStart) + prefix + line + value.substring(end);
+    onChange(newValue);
+  };
+
+  const tools = [
+    { icon: Bold, label: 'Gras', action: () => insertMarkdown('**', '**', 'texte gras') },
+    { icon: Italic, label: 'Italique', action: () => insertMarkdown('*', '*', 'texte italique') },
+    { sep: true },
+    { icon: Heading1, label: 'Titre 1', action: () => insertLine('# ') },
+    { icon: Heading2, label: 'Titre 2', action: () => insertLine('## ') },
+    { icon: Heading3, label: 'Titre 3', action: () => insertLine('### ') },
+    { sep: true },
+    { icon: List, label: 'Liste', action: () => insertLine('- ') },
+    { icon: ListOrdered, label: 'Liste numérotée', action: () => insertLine('1. ') },
+    { icon: Quote, label: 'Citation', action: () => insertLine('> ') },
+    { sep: true },
+    { icon: Link2, label: 'Lien', action: () => insertMarkdown('[', '](https://)', 'texte du lien') },
+    { icon: Code, label: 'Code', action: () => insertMarkdown('`', '`', 'code') },
+    { icon: Minus, label: 'Séparateur', action: () => { onChange(value + '\n\n---\n\n'); } },
+  ];
+
+  return (
+    <div className="border border-slate-600 rounded-lg overflow-hidden">
+      <div className="bg-slate-700 border-b border-slate-600 px-2 py-1.5 flex items-center gap-0.5 flex-wrap">
+        {tools.map((tool, i) =>
+          'sep' in tool ? (
+            <div key={i} className="w-px h-5 bg-slate-500 mx-1" />
+          ) : (
+            <button key={i} type="button" onClick={tool.action} title={tool.label}
+              className="p-1.5 hover:bg-slate-600 rounded text-slate-300 hover:text-white transition">
+              {tool.icon && <tool.icon size={15} />}
+            </button>
+          )
+        )}
+        <div className="flex-1" />
+        <button type="button" onClick={() => setPreview(!preview)}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${preview ? 'bg-blue-600 text-white' : 'bg-slate-600 text-slate-300 hover:text-white'}`}>
+          {preview ? <><Pencil size={13} /> Éditer</> : <><EyeIcon size={13} /> Aperçu</>}
+        </button>
+      </div>
+      {preview ? (
+        <div className="bg-slate-800 p-4 min-h-[200px] prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-slate-300 prose-a:text-blue-400 prose-strong:text-white prose-li:text-slate-300 prose-blockquote:border-slate-500 prose-blockquote:text-slate-400 prose-code:text-emerald-400">
+          {value ? <ReactMarkdown>{value}</ReactMarkdown> : <p className="text-slate-500 italic">Aucun contenu à prévisualiser</p>}
+        </div>
+      ) : (
+        <textarea ref={textareaRef} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
+          className="w-full bg-slate-800 px-4 py-3 text-white font-mono text-sm resize-y focus:outline-none focus:ring-0 border-0" />
+      )}
+    </div>
+  );
+}
+
+function FieldMarkdown({ label, value, onChange, rows = 4 }: {
+  label: string; value: string; onChange: (v: string) => void; rows?: number;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>
+      <MarkdownEditor value={value} onChange={onChange} rows={rows} />
+    </div>
+  );
+}
+
 // ─── Per-section-type config editors ───
 function HeroConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (c: JsonRecord) => void }) {
   const badge = (config.badge as { text?: string; actif?: boolean }) || {};
@@ -1264,7 +1361,7 @@ function HeroConfigEditor({ config, onChange }: { config: JsonRecord; onChange: 
   return (
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <div className="grid grid-cols-2 gap-3">
         <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
         <FieldToggle label="Badge actif" checked={!!badge.actif} onChange={(v) => onChange({ ...config, badge: { ...badge, actif: v } })} />
@@ -1329,7 +1426,7 @@ function ModulesConfigEditor({ config, onChange }: { config: JsonRecord; onChang
   return (
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <div className="grid grid-cols-2 gap-3">
         <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
         <FieldInput label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
@@ -1385,7 +1482,7 @@ function AgentIAConfigEditor({ config, onChange }: { config: JsonRecord; onChang
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
       <FieldInput label="Titre highlight" value={str(config.titleHighlight)} onChange={(v) => onChange({ ...config, titleHighlight: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <div className="grid grid-cols-2 gap-3">
         <FieldInput label="Badge texte" value={str(badge.text)} onChange={(v) => onChange({ ...config, badge: { ...badge, text: v } })} />
         <FieldInput label="Badge icône" value={str(badge.icon)} onChange={(v) => onChange({ ...config, badge: { ...badge, icon: v } })} />
@@ -1429,7 +1526,7 @@ function UpcomingConfigEditor({ config, onChange }: { config: JsonRecord; onChan
   return (
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <FieldInput label="Badge" value={str(badgeObj.text || (typeof badge === 'string' ? badge : ''))} onChange={(v) => onChange({ ...config, badge: v })} />
       <ItemListHeader label={`Éléments (${items.length})`} onAdd={() => onChange({ ...config, items: arrPush(items, { icon: '', title: '', description: '', badge: '' }) })} />
       <div className="space-y-2">
@@ -1457,7 +1554,7 @@ function HowItWorksConfigEditor({ config, onChange }: { config: JsonRecord; onCh
   return (
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <ItemListHeader label={`Étapes (${steps.length})`} onAdd={() => onChange({ ...config, steps: arrPush(steps, { number: steps.length + 1, title: '', description: '', icon: '' }) })} />
       <div className="space-y-2">
         {steps.map((step, i) => (
@@ -1482,7 +1579,7 @@ function TestimonialsConfigEditor({ config, onChange }: { config: JsonRecord; on
   return (
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <p className="text-xs text-slate-500 italic">Les témoignages se gèrent dans l'onglet « Témoignages » du CMS.</p>
     </div>
   );
@@ -1493,7 +1590,7 @@ function ContactConfigEditor({ config, onChange }: { config: JsonRecord; onChang
   return (
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <div className="bg-slate-700/30 rounded p-3 space-y-2">
         <span className="text-xs font-medium text-slate-400">Rappel IA (Bulle de rappel)</span>
         <FieldToggle label="Activer le rappel IA" checked={!!rappelIA.actif} onChange={(v) => onChange({ ...config, rappelIA: { ...rappelIA, actif: v } })} />
@@ -1514,7 +1611,7 @@ function CTAConfigEditor({ config, onChange }: { config: JsonRecord; onChange: (
   return (
     <div className="space-y-3">
       <FieldInput label="Titre" value={str(config.title)} onChange={(v) => onChange({ ...config, title: v })} />
-      <FieldInput label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} />
+      <FieldMarkdown label="Sous-titre" value={str(config.subtitle)} onChange={(v) => onChange({ ...config, subtitle: v })} rows={4} />
       <FieldInput label="Gradient de fond" value={str(config.bgGradient)} onChange={(v) => onChange({ ...config, bgGradient: v })} placeholder="from-blue-500 to-purple-500" />
       <div className="grid grid-cols-2 gap-3">
         <FieldInput label="CTA Primaire - Texte" value={str(ctaP.text)} onChange={(v) => onChange({ ...config, ctaPrimary: { ...ctaP, text: v } })} />
@@ -2624,115 +2721,6 @@ function SeoEditor({ seo, onSave }: SeoEditorProps) {
       >
         <Save size={18} /> Enregistrer SEO
       </button>
-    </div>
-  );
-}
-
-// ============= MARKDOWN EDITOR COMPONENT =============
-interface MarkdownEditorProps {
-  value: string;
-  onChange: (value: string) => void;
-  rows?: number;
-  placeholder?: string;
-}
-
-function MarkdownEditor({ value, onChange, rows = 12, placeholder }: MarkdownEditorProps) {
-  const [preview, setPreview] = useState(false);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-
-  const insertMarkdown = (before: string, after: string = '', defaultText: string = '') => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = value.substring(start, end) || defaultText;
-    const newValue = value.substring(0, start) + before + selected + after + value.substring(end);
-    onChange(newValue);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
-    }, 0);
-  };
-
-  const insertLine = (prefix: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-    const lineEnd = value.indexOf('\n', start);
-    const end = lineEnd === -1 ? value.length : lineEnd;
-    const line = value.substring(lineStart, end);
-    const newValue = value.substring(0, lineStart) + prefix + line + value.substring(end);
-    onChange(newValue);
-  };
-
-  const tools = [
-    { icon: Bold, label: 'Gras', action: () => insertMarkdown('**', '**', 'texte gras') },
-    { icon: Italic, label: 'Italique', action: () => insertMarkdown('*', '*', 'texte italique') },
-    { sep: true },
-    { icon: Heading1, label: 'Titre 1', action: () => insertLine('# ') },
-    { icon: Heading2, label: 'Titre 2', action: () => insertLine('## ') },
-    { icon: Heading3, label: 'Titre 3', action: () => insertLine('### ') },
-    { sep: true },
-    { icon: List, label: 'Liste', action: () => insertLine('- ') },
-    { icon: ListOrdered, label: 'Liste numérotée', action: () => insertLine('1. ') },
-    { icon: Quote, label: 'Citation', action: () => insertLine('> ') },
-    { sep: true },
-    { icon: Link2, label: 'Lien', action: () => insertMarkdown('[', '](https://)', 'texte du lien') },
-    { icon: Code, label: 'Code', action: () => insertMarkdown('`', '`', 'code') },
-    { icon: Minus, label: 'Séparateur', action: () => { onChange(value + '\n\n---\n\n'); } },
-  ];
-
-  return (
-    <div className="border border-slate-600 rounded-lg overflow-hidden">
-      {/* Toolbar */}
-      <div className="bg-slate-700 border-b border-slate-600 px-2 py-1.5 flex items-center gap-0.5 flex-wrap">
-        {tools.map((tool, i) =>
-          'sep' in tool ? (
-            <div key={i} className="w-px h-5 bg-slate-500 mx-1" />
-          ) : (
-            <button
-              key={i}
-              type="button"
-              onClick={tool.action}
-              title={tool.label}
-              className="p-1.5 hover:bg-slate-600 rounded text-slate-300 hover:text-white transition"
-            >
-              {tool.icon && <tool.icon size={15} />}
-            </button>
-          )
-        )}
-        <div className="flex-1" />
-        <button
-          type="button"
-          onClick={() => setPreview(!preview)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition ${
-            preview ? 'bg-blue-600 text-white' : 'bg-slate-600 text-slate-300 hover:text-white'
-          }`}
-        >
-          {preview ? <><Pencil size={13} /> Éditer</> : <><EyeIcon size={13} /> Aperçu</>}
-        </button>
-      </div>
-
-      {/* Content */}
-      {preview ? (
-        <div className="bg-slate-800 p-4 min-h-[200px] prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-slate-300 prose-a:text-blue-400 prose-strong:text-white prose-li:text-slate-300 prose-blockquote:border-slate-500 prose-blockquote:text-slate-400 prose-code:text-emerald-400">
-          {value ? (
-            <ReactMarkdown>{value}</ReactMarkdown>
-          ) : (
-            <p className="text-slate-500 italic">Aucun contenu à prévisualiser</p>
-          )}
-        </div>
-      ) : (
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          rows={rows}
-          placeholder={placeholder}
-          className="w-full bg-slate-800 px-4 py-3 text-white font-mono text-sm resize-y focus:outline-none focus:ring-0 border-0"
-        />
-      )}
     </div>
   );
 }
