@@ -80,23 +80,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         return ApiError.unauthorized(reply);
       }
 
-      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
-        const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
-          tenantId,
-          'twilio_config_get',
-          {}
-        );
-        if (!res.success) {
-          fastify.log.error({ error: res.error, tenantId }, 'Erreur n8n twilio_config_get');
-          return reply.status(500).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
-      }
-
-      // Appel depuis n8n (callback) → lecture BDD directe
+      // Lecture BDD directe (Prisma) — plus fiable que le passage par n8n pour du CRUD simple
       const config = await prisma.twilioConfig.findUnique({
         where: { tenantId },
       });
@@ -144,23 +128,7 @@ export async function twilioConfigRoutes(fastify: FastifyInstance) {
         throw error;
       }
 
-      if (!fromN8n && tenantId && env.USE_N8N_COMMANDS) {
-        const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
-          tenantId,
-          'twilio_config_update',
-          body
-        );
-        if (!res.success) {
-          fastify.log.error({ error: res.error, tenantId }, 'Erreur n8n twilio_config_update');
-          return reply.status(500).send({ success: false, error: res.error || 'Erreur n8n' });
-        }
-        return reply.status(200).send({
-          success: true,
-          data: res.data,
-        });
-      }
-
-      // Appel depuis n8n (callback) → mise à jour BDD directe
+      // Mise à jour BDD directe (Prisma) — plus fiable que le passage par n8n pour du CRUD simple
       const updateData: Record<string, unknown> = { ...body };
       const config = await prisma.twilioConfig.upsert({
         where: { tenantId: tenantId! },

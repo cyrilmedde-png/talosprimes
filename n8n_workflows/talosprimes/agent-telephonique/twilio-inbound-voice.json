@@ -619,7 +619,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT * FROM twilio_configs WHERE phone_number LIKE '%' || RIGHT('\" + ($('02. Parser Twilio').first().json.to || '') + \"', 9) || '%' LIMIT 1\" }}"
+        "query": "={{ \"SELECT * FROM (SELECT *, 1 as priority FROM twilio_configs WHERE phone_number LIKE '%' || RIGHT('\" + ($('02. Parser Twilio').first().json.to || 'X') + \"', 9) || '%' UNION ALL SELECT *, 2 as priority FROM twilio_configs) sub ORDER BY priority ASC LIMIT 1\" }}"
       },
       "id": "02b. Load Config",
       "name": "02b. Load Config",

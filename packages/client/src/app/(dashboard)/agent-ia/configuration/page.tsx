@@ -108,8 +108,8 @@ export default function ConfigurationPage() {
           welcomeMessage: configData.welcomeMessage || '',
           voiceName: configData.voiceName || 'Polly.Lea-Neural',
           language: configData.language || 'fr-FR',
-          maxTokens: configData.maxTokens || 150,
-          temperature: configData.temperature || 0.3,
+          maxTokens: configData.maxTokens ?? 150,
+          temperature: configData.temperature ?? 0.3,
         });
       }
 
@@ -210,8 +210,8 @@ export default function ConfigurationPage() {
         welcomeMessage: config.welcomeMessage || '',
         voiceName: config.voiceName || 'Polly.Lea-Neural',
         language: config.language || 'fr-FR',
-        maxTokens: config.maxTokens || 150,
-        temperature: config.temperature || 0.3,
+        maxTokens: config.maxTokens ?? 150,
+        temperature: config.temperature ?? 0.3,
       });
     }
     setEditing(false);
