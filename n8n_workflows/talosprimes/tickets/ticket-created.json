@@ -11,7 +11,10 @@
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [100, 200]
+      "position": [
+        100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -21,7 +24,10 @@
       "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [300, 200]
+      "position": [
+        300,
+        200
+      ]
     },
     {
       "parameters": {
@@ -34,8 +40,16 @@
       "name": "03. Email Confirmation",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [500, 100],
-      "disabled": true
+      "position": [
+        500,
+        100
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CREDENTIAL_ID",
+          "name": "TalosPrimes SMTP"
+        }
+      }
     },
     {
       "parameters": {
@@ -48,8 +62,16 @@
       "name": "04. Notif Admin",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [500, 300],
-      "disabled": true
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CREDENTIAL_ID",
+          "name": "TalosPrimes SMTP"
+        }
+      }
     },
     {
       "parameters": {
@@ -60,13 +82,52 @@
       "name": "05. Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [700, 200]
+      "position": [
+        700,
+        200
+      ]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
-    "02. Parser": { "main": [[{ "node": "03. Email Confirmation", "type": "main", "index": 0 }, { "node": "04. Notif Admin", "type": "main", "index": 0 }, { "node": "05. Response", "type": "main", "index": 0 }]] }
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Email Confirmation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "04. Notif Admin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "05. Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "tickets" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "tickets"
+    }
+  ]
 }

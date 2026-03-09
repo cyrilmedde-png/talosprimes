@@ -1615,7 +1615,7 @@
             }
           }
         },
-        "jsonBody": "={{ JSON.stringify({ticketId: $fromAI(\"ticketId\", \"UUID du ticket\"), data: {statut: $fromAI(\"statut\", \"Nouveau statut: ouvert, en_cours, en_attente, resolu, ferme\"), priorite: $fromAI(\"priorite\", \"Nouvelle priorite: basse, normale, haute, urgente\")}}) }}"
+        "jsonBody": "={{ JSON.stringify({ticketId: $fromAI('ticketId', 'UUID du ticket'), statut: $fromAI('statut', 'Nouveau statut: ouvert, en_cours, en_attente, resolu, ferme'), priorite: $fromAI('priorite', 'Nouvelle priorite: basse, normale, haute, urgente')}) }}"
       }
     },
     {

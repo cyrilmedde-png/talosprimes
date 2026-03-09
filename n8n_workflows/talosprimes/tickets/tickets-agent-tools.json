@@ -154,7 +154,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.body.data || {}) }}",
+        "jsonBody": "={{ JSON.stringify($json.body.data || {statut: $json.body.statut, priorite: $json.body.priorite, categorie: $json.body.categorie, assigneA: $json.body.assigneA}) }}",
         "options": {
           "response": { "response": { "responseFormat": "text" } }
         }
