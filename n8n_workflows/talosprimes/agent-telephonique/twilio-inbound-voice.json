@@ -42,7 +42,7 @@
           "conditions": [
             {
               "id": "7e6c6ac2-d2e7-43a0-a1d5-258f94c0310c",
-              "leftValue": "={{ $json.isCallback }}",
+              "leftValue": "={{ $('02. Parser Twilio').first().json.isCallback }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",

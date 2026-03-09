@@ -339,15 +339,17 @@ export default function CMSPage() {
   }, [activeTab, loadSections, loadTestimonials, loadMessages, loadPages, loadPlans, loadGlobalConfig, loadLandingContent]);
 
   // ============= SECTION OPERATIONS =============
-  const createSection = async (type: string) => {
+  const createSection = async (type: string, overrides?: { titre?: string; config?: Record<string, unknown> }) => {
     try {
-      const config = getDefaultConfig(type);
+      const defaultConfig = getDefaultConfig(type);
+      const config = overrides?.config ? { ...defaultConfig, ...overrides.config } : defaultConfig;
       const ordre = sections.length + 1;
+      const titre = overrides?.titre || `Nouvelle section ${sectionTypeMap[type]?.label || type}`;
       const data = await fetchApi<{ data: Section }>('/api/landing/sections', {
         method: 'POST',
         body: JSON.stringify({
           type,
-          titre: `Nouvelle section ${type}`,
+          titre,
           config,
           ordre,
           actif: true,
@@ -1196,7 +1198,7 @@ interface SectionModalProps {
   sectionType: string;
   setSectionType: (type: string) => void;
   onClose: () => void;
-  onCreate: (type: string) => void;
+  onCreate: (type: string, overrides?: { titre?: string; config?: Record<string, unknown> }) => void;
   onUpdate: (id: string, updates: Partial<Section>) => void;
 }
 
@@ -1212,12 +1214,24 @@ function SectionModal({
     section || { titre: '', config: {} }
   );
 
-  const [bgConfig, setBgConfig] = useState({
-    backgroundImage: str((section?.config as Record<string, unknown>)?.backgroundImage),
-    bgColor: str((section?.config as Record<string, unknown>)?.bgColor),
-    bgOverlay: Number((section?.config as Record<string, unknown>)?.bgOverlay) || 0,
-    bgSize: str((section?.config as Record<string, unknown>)?.bgSize) || 'cover',
-    bgPosition: str((section?.config as Record<string, unknown>)?.bgPosition) || 'center',
+  const [bgConfig, setBgConfig] = useState(() => {
+    const raw = section?.config as Record<string, unknown> | undefined;
+    // Parse bgOverlay: could be a number (legacy) or rgba string like "rgba(0,0,0,0.5)"
+    let overlayNum = 0;
+    const rawOverlay = raw?.bgOverlay;
+    if (typeof rawOverlay === 'number') {
+      overlayNum = rawOverlay;
+    } else if (typeof rawOverlay === 'string') {
+      const match = rawOverlay.match(/rgba?\([\d,\s]+,\s*([\d.]+)\)/);
+      overlayNum = match ? parseFloat(match[1]) : (parseFloat(rawOverlay) || 0);
+    }
+    return {
+      backgroundImage: str(raw?.backgroundImage),
+      bgColor: str(raw?.bgColor),
+      bgOverlay: overlayNum,
+      bgSize: str(raw?.bgSize) || 'cover',
+      bgPosition: str(raw?.bgPosition) || 'center',
+    };
   });
 
   const sectionTypes = [
@@ -1235,14 +1249,25 @@ function SectionModal({
   ];
 
   const handleSave = () => {
+    // Convert numeric overlay to CSS rgba string
+    const overlayValue = bgConfig.bgOverlay
+      ? `rgba(0,0,0,${bgConfig.bgOverlay})`
+      : '';
+    const mergedBg = {
+      ...bgConfig,
+      bgOverlay: overlayValue,
+    };
     const updatedFormData = {
       ...formData,
-      config: { ...(formData.config as Record<string, unknown>), ...bgConfig },
+      config: { ...(formData.config as Record<string, unknown>), ...mergedBg },
     };
     if (section) {
       onUpdate(section.id, updatedFormData);
     } else {
-      onCreate(sectionType);
+      onCreate(sectionType, {
+        titre: formData.titre || undefined,
+        config: mergedBg,
+      });
     }
   };
 
@@ -1271,7 +1296,7 @@ function SectionModal({
               >
                 {sectionTypes.map((type) => (
                   <option key={type} value={type}>
-                    {type}
+                    {sectionTypeMap[type]?.label || type}
                   </option>
                 ))}
               </select>
