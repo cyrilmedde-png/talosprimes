@@ -97,6 +97,9 @@ function SettingsContent() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Détecter si on est sur le client demo (cacher certains onglets)
+  const isDemo = typeof window !== 'undefined' && window.location.hostname.startsWith('demo.');
+
   // Codes articles
   const [articleCodes, setArticleCodes] = useState<ArticleCode[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(false);
@@ -423,6 +426,7 @@ function SettingsContent() {
             <QueueListIcon className="h-5 w-5 inline mr-2" />
             Codes Articles
           </button>
+          {!isDemo && (
           <button
             onClick={() => setActiveTab('securite')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -434,6 +438,7 @@ function SettingsContent() {
             <LockClosedIcon className="h-5 w-5 inline mr-2" />
             Sécurité
           </button>
+          )}
           <button
             onClick={() => setActiveTab('systeme')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
