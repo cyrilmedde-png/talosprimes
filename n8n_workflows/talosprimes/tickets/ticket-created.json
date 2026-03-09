@@ -1,0 +1,72 @@
+{
+  "name": "ticket-created",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ticket-created",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nreturn [{ json: {\n  ticketId: body.ticketId || body.data?.ticketId,\n  numero: body.numero || body.data?.numero,\n  nom: body.nom || body.data?.nom,\n  prenom: body.prenom || body.data?.prenom,\n  email: body.email || body.data?.email,\n  telephone: body.telephone || body.data?.telephone || '',\n  entreprise: body.entreprise || body.data?.entreprise || '',\n  sujet: body.sujet || body.data?.sujet,\n  message: body.message || body.data?.message,\n  categorie: body.categorie || body.data?.categorie || 'general',\n  priorite: body.priorite || body.data?.priorite || 'normale'\n} }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Ticket {{ $json.numero }} - Confirmation de votre demande",
+        "text": "=Bonjour {{ $json.prenom }},\n\nNous avons bien reçu votre demande de support.\n\nNuméro de ticket : {{ $json.numero }}\nSujet : {{ $json.sujet }}\nCatégorie : {{ $json.categorie }}\nPriorité : {{ $json.priorite }}\n\nNotre équipe va traiter votre demande dans les plus brefs délais.\n\nVous pouvez suivre l'avancement de votre ticket sur notre site.\n\nCordialement,\nL'équipe TalosPrimes"
+      },
+      "id": "03. Email Confirmation",
+      "name": "03. Email Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [500, 100],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "admin@talosprimes.com",
+        "subject": "=🎫 Nouveau ticket {{ $json.numero }} - {{ $json.sujet }}",
+        "text": "=Nouveau ticket de support reçu :\n\nNuméro : {{ $json.numero }}\nDemandeur : {{ $json.prenom }} {{ $json.nom }} ({{ $json.email }})\nEntreprise : {{ $json.entreprise }}\nTéléphone : {{ $json.telephone }}\n\nSujet : {{ $json.sujet }}\nCatégorie : {{ $json.categorie }}\nPriorité : {{ $json.priorite }}\n\nMessage :\n{{ $json.message }}\n\n---\nRépondez depuis le dashboard : /tickets"
+      },
+      "id": "04. Notif Admin",
+      "name": "04. Notif Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Ticket notification envoyée\" }"
+      },
+      "id": "05. Response",
+      "name": "05. Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 200]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Email Confirmation", "type": "main", "index": 0 }, { "node": "04. Notif Admin", "type": "main", "index": 0 }, { "node": "05. Response", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "tickets" }]
+}

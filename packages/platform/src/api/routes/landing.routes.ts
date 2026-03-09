@@ -871,4 +871,349 @@ export async function landingRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // ===================================================================
+  // ===================== SYSTÈME DE TICKETING ========================
+  // ===================================================================
+
+  // Helper : génère un numéro de ticket unique TKT-00001, TKT-00002, ...
+  async function generateTicketNumber(): Promise<string> {
+    const last = await prisma.ticket.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { numero: true },
+    });
+    const lastNum = last ? parseInt(last.numero.replace('TKT-', ''), 10) : 0;
+    return `TKT-${String(lastNum + 1).padStart(5, '0')}`;
+  }
+
+  // ─── POST /api/tickets — Créer un ticket (PUBLIC, rate limit) ───
+  interface CreateTicketBody {
+    nom: string;
+    prenom: string;
+    email: string;
+    telephone?: string;
+    entreprise?: string;
+    sujet: string;
+    message: string;
+    categorie?: string;
+    priorite?: string;
+  }
+
+  fastify.post<{ Body: CreateTicketBody }>(
+    '/api/tickets',
+    {
+      config: {
+        rateLimit: { max: 5, timeWindow: '1 minute' },
+      },
+    },
+    async (request, reply) => {
+      const { nom, prenom, email, telephone, entreprise, sujet, message, categorie, priorite } = request.body;
+
+      if (!nom || !prenom || !email || !sujet || !message) {
+        return ApiError.badRequest(reply, 'Les champs nom, prénom, email, sujet et message sont requis');
+      }
+
+      try {
+        const numero = await generateTicketNumber();
+
+        const ticket = await prisma.ticket.create({
+          data: {
+            numero,
+            nom,
+            prenom,
+            email,
+            telephone: telephone || null,
+            entreprise: entreprise || null,
+            sujet,
+            message,
+            categorie: categorie || 'general',
+            priorite: priorite || 'normale',
+          },
+        });
+
+        // Déclencher webhook n8n pour notification
+        try {
+          await n8nService.triggerWorkflow('system', 'ticket_created', {
+            ticketId: ticket.id,
+            numero: ticket.numero,
+            nom,
+            prenom,
+            email,
+            telephone,
+            entreprise,
+            sujet,
+            message,
+            categorie: ticket.categorie,
+            priorite: ticket.priorite,
+          });
+        } catch (n8nErr) {
+          fastify.log.warn({ error: n8nErr }, '[Ticketing] Webhook n8n non déclenché');
+        }
+
+        return reply.status(201).send({
+          success: true,
+          data: { numero: ticket.numero, id: ticket.id },
+          message: `Votre ticket ${ticket.numero} a été créé. Vous recevrez une réponse par email.`,
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ─── GET /api/tickets — Lister tous les tickets (ADMIN) ───
+  fastify.get<{ Querystring: { statut?: string; priorite?: string; categorie?: string; page?: string; limit?: string } }>(
+    '/api/tickets',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      const { statut, priorite, categorie, page = '1', limit = '20' } = request.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const take = parseInt(limit);
+
+      const where: Record<string, unknown> = {};
+      if (statut) where.statut = statut;
+      if (priorite) where.priorite = priorite;
+      if (categorie) where.categorie = categorie;
+
+      try {
+        const [tickets, total] = await Promise.all([
+          prisma.ticket.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: { replies: { orderBy: { createdAt: 'asc' } } },
+            skip,
+            take,
+          }),
+          prisma.ticket.count({ where }),
+        ]);
+
+        return reply.send({
+          success: true,
+          data: tickets,
+          pagination: { total, page: parseInt(page), limit: take, pages: Math.ceil(total / take) },
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ─── GET /api/tickets/stats — Statistiques tickets (ADMIN) ───
+  fastify.get(
+    '/api/tickets/stats',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (_request, reply) => {
+      try {
+        const [total, ouvert, enCours, enAttente, resolu, ferme] = await Promise.all([
+          prisma.ticket.count(),
+          prisma.ticket.count({ where: { statut: 'ouvert' } }),
+          prisma.ticket.count({ where: { statut: 'en_cours' } }),
+          prisma.ticket.count({ where: { statut: 'en_attente' } }),
+          prisma.ticket.count({ where: { statut: 'resolu' } }),
+          prisma.ticket.count({ where: { statut: 'ferme' } }),
+        ]);
+
+        return reply.send({
+          success: true,
+          data: { total, ouvert, enCours, enAttente, resolu, ferme },
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ─── GET /api/tickets/:id — Détails d'un ticket (ADMIN) ───
+  fastify.get<{ Params: { id: string } }>(
+    '/api/tickets/:id',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      try {
+        const ticket = await prisma.ticket.findUnique({
+          where: { id: request.params.id },
+          include: { replies: { orderBy: { createdAt: 'asc' } } },
+        });
+        if (!ticket) return ApiError.notFound(reply, 'Ticket non trouvé');
+        return reply.send({ success: true, data: ticket });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ─── GET /api/tickets/track/:numero — Suivi public d'un ticket par numéro ───
+  fastify.get<{ Params: { numero: string } }>(
+    '/api/tickets/track/:numero',
+    async (request, reply) => {
+      try {
+        const ticket = await prisma.ticket.findUnique({
+          where: { numero: request.params.numero.toUpperCase() },
+          select: {
+            numero: true,
+            sujet: true,
+            statut: true,
+            priorite: true,
+            categorie: true,
+            createdAt: true,
+            updatedAt: true,
+            resolvedAt: true,
+            replies: {
+              where: { interne: false },
+              select: { auteur: true, message: true, createdAt: true },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        });
+        if (!ticket) return ApiError.notFound(reply, 'Ticket non trouvé');
+        return reply.send({ success: true, data: ticket });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ─── PATCH /api/tickets/:id — Mettre à jour un ticket (ADMIN) ───
+  fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>(
+    '/api/tickets/:id',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      const { statut, priorite, categorie, assigneA, tags } = request.body as {
+        statut?: string; priorite?: string; categorie?: string; assigneA?: string; tags?: string[];
+      };
+
+      const data: Record<string, unknown> = {};
+      if (statut) data.statut = statut;
+      if (priorite) data.priorite = priorite;
+      if (categorie) data.categorie = categorie;
+      if (assigneA !== undefined) data.assigneA = assigneA;
+      if (tags) data.tags = tags;
+
+      // Si le statut passe à "resolu", marquer la date de résolution
+      if (statut === 'resolu') data.resolvedAt = new Date();
+      // Si réouvert, reset la date de résolution
+      if (statut === 'ouvert' || statut === 'en_cours') data.resolvedAt = null;
+
+      try {
+        const ticket = await prisma.ticket.update({
+          where: { id: request.params.id },
+          data,
+          include: { replies: { orderBy: { createdAt: 'asc' } } },
+        });
+
+        // Notifier via n8n si changement de statut
+        if (statut) {
+          try {
+            await n8nService.triggerWorkflow('system', 'ticket_status_changed', {
+              ticketId: ticket.id,
+              numero: ticket.numero,
+              email: ticket.email,
+              nom: ticket.nom,
+              prenom: ticket.prenom,
+              sujet: ticket.sujet,
+              ancienStatut: '',
+              nouveauStatut: statut,
+            });
+          } catch (n8nErr) {
+            fastify.log.warn({ error: n8nErr }, '[Ticketing] Webhook n8n status change non déclenché');
+          }
+        }
+
+        return reply.send({ success: true, data: ticket });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ─── POST /api/tickets/:id/reply — Ajouter une réponse (ADMIN) ───
+  fastify.post<{ Params: { id: string }; Body: { message: string; interne?: boolean } }>(
+    '/api/tickets/:id/reply',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      const { message, interne } = request.body;
+      if (!message) return ApiError.badRequest(reply, 'Le message est requis');
+
+      try {
+        const ticket = await prisma.ticket.findUnique({ where: { id: request.params.id } });
+        if (!ticket) return ApiError.notFound(reply, 'Ticket non trouvé');
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const user = (request as any).user;
+
+        const ticketReply = await prisma.ticketReply.create({
+          data: {
+            ticketId: ticket.id,
+            auteur: user?.prenom ? `${user.prenom} ${user.nom}` : 'Admin',
+            email: user?.email || 'admin@talosprimes.com',
+            message,
+            interne: interne || false,
+          },
+        });
+
+        // Mettre le ticket en "en_cours" s'il était "ouvert"
+        if (ticket.statut === 'ouvert') {
+          await prisma.ticket.update({
+            where: { id: ticket.id },
+            data: { statut: 'en_cours' },
+          });
+        }
+
+        // Notifier le demandeur via n8n (sauf note interne)
+        if (!interne) {
+          try {
+            await n8nService.triggerWorkflow('system', 'ticket_reply', {
+              ticketId: ticket.id,
+              numero: ticket.numero,
+              email: ticket.email,
+              nom: ticket.nom,
+              prenom: ticket.prenom,
+              sujet: ticket.sujet,
+              reponse: message,
+              auteur: ticketReply.auteur,
+            });
+          } catch (n8nErr) {
+            fastify.log.warn({ error: n8nErr }, '[Ticketing] Webhook n8n reply non déclenché');
+          }
+        }
+
+        return reply.status(201).send({ success: true, data: ticketReply });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ─── DELETE /api/tickets/:id — Supprimer un ticket (ADMIN) ───
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/tickets/:id',
+    {
+      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+    },
+    async (request, reply) => {
+      try {
+        await prisma.ticket.delete({ where: { id: request.params.id } });
+        return reply.send({ success: true, message: 'Ticket supprimé' });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
 }

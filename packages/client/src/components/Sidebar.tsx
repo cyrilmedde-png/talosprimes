@@ -36,6 +36,7 @@ import {
   BuildingOffice2Icon,
   ChartBarIcon,
   GiftIcon,
+  TicketIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -158,6 +159,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
       { name: 'Notifications', href: '/notifications', icon: BellIcon },
       { name: 'CMS Landing Page', href: '/cms', icon: PencilSquareIcon },
+      { name: 'Tickets Support', href: '/tickets', icon: TicketIcon },
     ],
   },
   {
@@ -220,7 +222,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
 
   const navGroups = useMemo(() => {
     // Items réservés à l'admin (pas visibles pour les clients finaux)
-    const adminOnlyItems = ['/plans', '/cms'];
+    const adminOnlyItems = ['/plans', '/cms', '/tickets'];
 
     return allNavGroups
       .filter((group) => {

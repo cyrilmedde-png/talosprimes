@@ -1,0 +1,58 @@
+{
+  "name": "ticket-status-changed",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ticket-status-changed",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nreturn [{ json: {\n  ticketId: body.ticketId || body.data?.ticketId,\n  numero: body.numero || body.data?.numero,\n  email: body.email || body.data?.email,\n  nom: body.nom || body.data?.nom,\n  prenom: body.prenom || body.data?.prenom,\n  sujet: body.sujet || body.data?.sujet,\n  nouveauStatut: body.nouveauStatut || body.data?.nouveauStatut\n} }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Ticket {{ $json.numero }} - Mise à jour du statut",
+        "text": "=Bonjour {{ $json.prenom }},\n\nLe statut de votre ticket {{ $json.numero }} a été mis à jour.\n\nSujet : {{ $json.sujet }}\nNouveau statut : {{ $json.nouveauStatut }}\n\nVous pouvez suivre votre ticket sur notre site.\n\nCordialement,\nL'équipe TalosPrimes"
+      },
+      "id": "03. Email Demandeur",
+      "name": "03. Email Demandeur",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [500, 200],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      },
+      "id": "04. Response",
+      "name": "04. Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 200]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]] },
+    "02. Parser": { "main": [[{ "node": "03. Email Demandeur", "type": "main", "index": 0 }, { "node": "04. Response", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "tickets" }]
+}

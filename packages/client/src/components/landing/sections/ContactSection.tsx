@@ -1,7 +1,9 @@
 'use client';
 
-import { Mail, Phone, MapPin, Sparkles } from 'lucide-react';
+import { Mail, Phone, MapPin, Sparkles, TicketIcon } from 'lucide-react';
 import { LandingContactForm } from '@/components/landing/LandingContactForm';
+import { LandingTicketForm } from '@/components/landing/LandingTicketForm';
+import { useState } from 'react';
 
 interface ContactConfig {
   title?: string;
@@ -10,6 +12,7 @@ interface ContactConfig {
   phone?: string;
   address?: string;
   rappelIA?: { title?: string; description?: string; actif?: boolean };
+  ticketing?: { actif?: boolean; titre?: string };
 }
 
 export function ContactSection({
@@ -24,6 +27,9 @@ export function ContactSection({
   const phone = config.phone || contactInfo?.phone || '+33 1 23 45 67 89';
   const address = config.address || contactInfo?.address || '123 Avenue de la Tech\n75001 Paris';
 
+  const ticketingActif = config.ticketing?.actif !== false; // actif par défaut
+  const [formMode, setFormMode] = useState<'contact' | 'ticket'>(ticketingActif ? 'ticket' : 'contact');
+
   return (
     <section id="contact" className="py-24 px-6">
       <div className="max-w-4xl mx-auto">
@@ -36,7 +42,37 @@ export function ContactSection({
           </p>
         </div>
         <div className="grid md:grid-cols-5 gap-8">
-          <LandingContactForm className="md:col-span-3 space-y-3" />
+          <div className="md:col-span-3">
+            {/* Toggle Contact / Ticket si ticketing actif */}
+            {ticketingActif && (
+              <div className="flex rounded-lg border border-slate-200 overflow-hidden mb-4">
+                <button
+                  type="button"
+                  onClick={() => setFormMode('ticket')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium transition flex items-center justify-center gap-2 ${
+                    formMode === 'ticket' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <TicketIcon size={15} /> {config.ticketing?.titre || 'Ouvrir un ticket'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormMode('contact')}
+                  className={`flex-1 px-4 py-2 text-sm font-medium transition flex items-center justify-center gap-2 ${
+                    formMode === 'contact' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Mail size={15} /> Message rapide
+                </button>
+              </div>
+            )}
+
+            {formMode === 'contact' ? (
+              <LandingContactForm className="space-y-3" />
+            ) : (
+              <LandingTicketForm className="" />
+            )}
+          </div>
           <div className="md:col-span-2 space-y-3">
             <div className="flex gap-4 p-4 rounded-xl border border-slate-200/80 bg-white">
               <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">

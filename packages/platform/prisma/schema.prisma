@@ -1174,6 +1174,52 @@ model ContactMessage {
   @@map("contact_messages")
 }
 
+// ==================== SYSTÈME DE TICKETING ====================
+
+// Ticket (tickets de support depuis la landing page)
+model Ticket {
+  id          String        @id @default(uuid()) @db.Uuid
+  numero      String        @unique                       // ex: TKT-00042
+  nom         String                                       // nom du demandeur
+  prenom      String                                       // prénom du demandeur
+  email       String                                       // email du demandeur
+  telephone   String?                                      // téléphone (optionnel)
+  entreprise  String?                                      // entreprise (optionnel)
+  sujet       String                                       // objet du ticket
+  message     String        @db.Text                       // description détaillée
+  categorie   String        @default("general")            // general, technique, commercial, facturation, autre
+  priorite    String        @default("normale")            // basse, normale, haute, urgente
+  statut      String        @default("ouvert")             // ouvert, en_cours, en_attente, resolu, ferme
+  assigneA    String?       @map("assigne_a")              // email ou nom de l'assigné (admin)
+  tags        String[]      @default([])                   // tags libres
+  replies     TicketReply[]
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  resolvedAt  DateTime?     @map("resolved_at")
+
+  @@index([statut])
+  @@index([priorite])
+  @@index([categorie])
+  @@index([email])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+// TicketReply (réponses sur un ticket)
+model TicketReply {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  auteur    String                                         // nom de l'auteur (admin ou demandeur)
+  email     String                                         // email de l'auteur
+  message   String   @db.Text
+  interne   Boolean  @default(false)                       // note interne (non visible par le demandeur)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("ticket_replies")
+}
+
 // AgentCalendarEvent (agenda géré par l'agent IA, par tenant)
 model AgentCalendarEvent {
   id          String    @id @default(uuid()) @db.Uuid
