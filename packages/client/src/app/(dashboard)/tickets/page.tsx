@@ -13,6 +13,11 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  Archive,
+  Inbox,
 } from 'lucide-react';
 import { getAccessToken } from '@/lib/auth';
 
@@ -60,18 +65,18 @@ interface TicketStats {
 
 // ─── Constantes ───
 const STATUTS = [
-  { value: 'ouvert', label: 'Ouvert', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { value: 'en_cours', label: 'En cours', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-  { value: 'en_attente', label: 'En attente', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { value: 'resolu', label: 'Résolu', color: 'bg-green-100 text-green-700 border-green-200' },
-  { value: 'ferme', label: 'Fermé', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+  { value: 'ouvert', label: 'Ouvert', color: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+  { value: 'en_cours', label: 'En cours', color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' },
+  { value: 'en_attente', label: 'En attente', color: 'bg-orange-500/15 text-orange-400 border-orange-500/30' },
+  { value: 'resolu', label: 'Résolu', color: 'bg-green-500/15 text-green-400 border-green-500/30' },
+  { value: 'ferme', label: 'Fermé', color: 'bg-gray-500/15 text-gray-400 border-gray-500/30' },
 ];
 
 const PRIORITES = [
-  { value: 'basse', label: 'Basse', color: 'text-slate-400' },
-  { value: 'normale', label: 'Normale', color: 'text-blue-500' },
-  { value: 'haute', label: 'Haute', color: 'text-orange-500' },
-  { value: 'urgente', label: 'Urgente', color: 'text-red-600 font-semibold' },
+  { value: 'basse', label: 'Basse', color: 'text-gray-400' },
+  { value: 'normale', label: 'Normale', color: 'text-blue-400' },
+  { value: 'haute', label: 'Haute', color: 'text-orange-400' },
+  { value: 'urgente', label: 'Urgente', color: 'text-red-400 font-semibold' },
 ];
 
 const CATEGORIES = [
@@ -81,6 +86,15 @@ const CATEGORIES = [
   { value: 'facturation', label: 'Facturation' },
   { value: 'autre', label: 'Autre' },
 ];
+
+const STAT_CARDS = [
+  { key: 'total', label: 'Total', icon: TicketIcon, gradient: 'from-gray-700/50 to-gray-800/50', text: 'text-white' },
+  { key: 'ouvert', label: 'Ouverts', icon: Inbox, gradient: 'from-blue-600/20 to-blue-700/10', text: 'text-blue-400' },
+  { key: 'enCours', label: 'En cours', icon: Clock, gradient: 'from-yellow-600/20 to-yellow-700/10', text: 'text-yellow-400' },
+  { key: 'enAttente', label: 'En attente', icon: AlertCircle, gradient: 'from-orange-600/20 to-orange-700/10', text: 'text-orange-400' },
+  { key: 'resolu', label: 'Résolus', icon: CheckCircle2, gradient: 'from-green-600/20 to-green-700/10', text: 'text-green-400' },
+  { key: 'ferme', label: 'Fermés', icon: Archive, gradient: 'from-gray-600/20 to-gray-700/10', text: 'text-gray-400' },
+] as const;
 
 function fetchApi(path: string, options?: RequestInit) {
   const token = getAccessToken();
@@ -163,7 +177,6 @@ export default function TicketsPage() {
     if (data.success) {
       setReplyText('');
       setReplyInterne(false);
-      // Refresh ticket
       const fresh = await fetchApi(`/api/tickets/${selectedTicket.id}`);
       if (fresh.success) setSelectedTicket(fresh.data);
       loadTickets();
@@ -182,64 +195,67 @@ export default function TicketsPage() {
 
   const getStatutBadge = (statut: string) => {
     const s = STATUTS.find(s => s.value === statut);
-    return s ? `${s.color} border` : 'bg-slate-100 text-slate-600 border-slate-200 border';
+    return s ? `${s.color} border` : 'bg-gray-500/15 text-gray-400 border-gray-500/30 border';
   };
 
   const getPrioriteBadge = (priorite: string) => {
     const p = PRIORITES.find(p => p.value === priorite);
-    return p?.color || 'text-slate-400';
+    return p?.color || 'text-gray-400';
   };
 
   return (
     <div className="min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-          <TicketIcon className="w-7 h-7 text-blue-600" /> Tickets Support
+        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+            <TicketIcon className="w-5 h-5 text-indigo-400" />
+          </div>
+          Tickets Support
         </h1>
-        <p className="text-slate-500 text-sm mt-1">Gestion des demandes et tickets de support</p>
+        <p className="text-gray-400 text-sm mt-1 ml-12">Gestion des demandes et tickets de support</p>
       </div>
 
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          {[
-            { label: 'Total', value: stats.total, color: 'bg-slate-100 text-slate-700' },
-            { label: 'Ouverts', value: stats.ouvert, color: 'bg-blue-50 text-blue-700' },
-            { label: 'En cours', value: stats.enCours, color: 'bg-yellow-50 text-yellow-700' },
-            { label: 'En attente', value: stats.enAttente, color: 'bg-orange-50 text-orange-700' },
-            { label: 'Résolus', value: stats.resolu, color: 'bg-green-50 text-green-700' },
-            { label: 'Fermés', value: stats.ferme, color: 'bg-slate-50 text-slate-600' },
-          ].map((s) => (
-            <div key={s.label} className={`${s.color} rounded-xl p-3 text-center`}>
-              <div className="text-2xl font-bold">{s.value}</div>
-              <div className="text-xs font-medium opacity-80">{s.label}</div>
-            </div>
-          ))}
+          {STAT_CARDS.map((s) => {
+            const Icon = s.icon;
+            const val = stats[s.key as keyof TicketStats];
+            return (
+              <div key={s.key} className={`bg-gradient-to-br ${s.gradient} border border-gray-700/50 rounded-xl p-3 text-center`}>
+                <div className="flex items-center justify-center mb-1">
+                  <Icon size={16} className={`${s.text} opacity-70`} />
+                </div>
+                <div className={`text-2xl font-bold ${s.text}`}>{val}</div>
+                <div className="text-xs font-medium text-gray-400">{s.label}</div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4 items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
           <input type="text" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/50 outline-none" />
         </div>
-        <div className="flex items-center gap-1.5 text-sm text-slate-500">
+        <div className="flex items-center gap-1.5 text-sm text-gray-400">
           <Filter size={14} />
           <select value={filterStatut} onChange={e => { setFilterStatut(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm">
+            className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-gray-300 outline-none focus:border-indigo-500/50">
             <option value="">Tous statuts</option>
             {STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           <select value={filterPriorite} onChange={e => { setFilterPriorite(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm">
+            className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-gray-300 outline-none focus:border-indigo-500/50">
             <option value="">Toutes priorités</option>
             {PRIORITES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
           <select value={filterCategorie} onChange={e => { setFilterCategorie(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm">
+            className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-gray-300 outline-none focus:border-indigo-500/50">
             <option value="">Toutes catégories</option>
             {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
@@ -251,25 +267,25 @@ export default function TicketsPage() {
         {/* Ticket List */}
         <div className={`${selectedTicket ? 'w-1/2 hidden lg:block' : 'w-full'} space-y-2`}>
           {loading ? (
-            <div className="text-center py-12 text-slate-400"><Loader className="animate-spin mx-auto" size={24} /></div>
+            <div className="text-center py-12 text-gray-500"><Loader className="animate-spin mx-auto" size={24} /></div>
           ) : filteredTickets.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <TicketIcon className="mx-auto mb-3 opacity-50" size={40} />
+            <div className="text-center py-12 text-gray-500">
+              <TicketIcon className="mx-auto mb-3 opacity-40" size={40} />
               <p>Aucun ticket trouvé</p>
             </div>
           ) : (
             filteredTickets.map(ticket => (
               <div key={ticket.id}
                 onClick={() => setSelectedTicket(ticket)}
-                className={`p-4 rounded-xl border cursor-pointer transition hover:shadow-sm ${
+                className={`p-4 rounded-xl border cursor-pointer transition-all ${
                   selectedTicket?.id === ticket.id
-                    ? 'border-blue-300 bg-blue-50/50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
+                    ? 'border-indigo-500/50 bg-indigo-500/10 shadow-lg shadow-indigo-500/5'
+                    : 'border-gray-700/50 bg-gray-800/60 hover:border-gray-600 hover:bg-gray-800/80'
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-500">{ticket.numero}</span>
+                    <span className="font-mono text-xs font-bold text-gray-400">{ticket.numero}</span>
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getStatutBadge(ticket.statut)}`}>
                       {STATUTS.find(s => s.value === ticket.statut)?.label || ticket.statut}
                     </span>
@@ -278,15 +294,15 @@ export default function TicketsPage() {
                     {PRIORITES.find(p => p.value === ticket.priorite)?.label}
                   </span>
                 </div>
-                <h4 className="font-medium text-slate-900 text-sm mb-1 truncate">{ticket.sujet}</h4>
-                <div className="flex items-center gap-3 text-xs text-slate-400">
+                <h4 className="font-medium text-white text-sm mb-1 truncate">{ticket.sujet}</h4>
+                <div className="flex items-center gap-3 text-xs text-gray-500">
                   <span className="flex items-center gap-1"><User size={12} /> {ticket.prenom} {ticket.nom}</span>
                   <span>{ticket.email}</span>
                   {ticket.replies.length > 0 && (
-                    <span className="flex items-center gap-1"><MessageSquare size={12} /> {ticket.replies.length}</span>
+                    <span className="flex items-center gap-1 text-indigo-400"><MessageSquare size={12} /> {ticket.replies.length}</span>
                   )}
                 </div>
-                <div className="text-xs text-slate-400 mt-1">
+                <div className="text-xs text-gray-600 mt-1">
                   {new Date(ticket.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
@@ -297,12 +313,12 @@ export default function TicketsPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-3">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-30">
+                className="p-1.5 rounded border border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-30 transition">
                 <ChevronLeft size={16} />
               </button>
-              <span className="text-sm text-slate-500">Page {page} / {totalPages}</span>
+              <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-30">
+                className="p-1.5 rounded border border-gray-700 text-gray-400 hover:bg-gray-800 disabled:opacity-30 transition">
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -311,110 +327,110 @@ export default function TicketsPage() {
 
         {/* Ticket Detail */}
         {selectedTicket && (
-          <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col max-h-[80vh]">
+          <div className="flex-1 bg-gray-800/80 border border-gray-700/50 rounded-xl overflow-hidden flex flex-col max-h-[80vh]">
             {/* Detail Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="p-4 border-b border-gray-700/50 flex items-center justify-between shrink-0">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono font-bold text-slate-600">{selectedTicket.numero}</span>
+                  <span className="font-mono font-bold text-gray-300">{selectedTicket.numero}</span>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getStatutBadge(selectedTicket.statut)}`}>
                     {STATUTS.find(s => s.value === selectedTicket.statut)?.label}
                   </span>
                 </div>
-                <h3 className="font-semibold text-slate-900">{selectedTicket.sujet}</h3>
+                <h3 className="font-semibold text-white">{selectedTicket.sujet}</h3>
               </div>
               <div className="flex items-center gap-1.5">
                 <button onClick={() => deleteTicket(selectedTicket.id)}
-                  className="p-1.5 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition" title="Supprimer">
+                  className="p-1.5 rounded text-red-400/60 hover:bg-red-500/10 hover:text-red-400 transition" title="Supprimer">
                   <Trash2 size={16} />
                 </button>
                 <button onClick={() => setSelectedTicket(null)}
-                  className="p-1.5 rounded text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition lg:hidden">
+                  className="p-1.5 rounded text-gray-500 hover:bg-gray-700 hover:text-gray-300 transition lg:hidden">
                   <X size={16} />
                 </button>
               </div>
             </div>
 
             {/* Info */}
-            <div className="p-4 border-b border-slate-100 grid grid-cols-2 gap-3 text-sm shrink-0">
+            <div className="p-4 border-b border-gray-700/50 grid grid-cols-2 gap-3 text-sm shrink-0">
               <div>
-                <span className="text-xs text-slate-400 block">Demandeur</span>
-                <span className="font-medium text-slate-800">{selectedTicket.prenom} {selectedTicket.nom}</span>
+                <span className="text-xs text-gray-500 block">Demandeur</span>
+                <span className="font-medium text-white">{selectedTicket.prenom} {selectedTicket.nom}</span>
               </div>
               <div>
-                <span className="text-xs text-slate-400 block">Email</span>
-                <a href={`mailto:${selectedTicket.email}`} className="text-blue-600 hover:underline">{selectedTicket.email}</a>
+                <span className="text-xs text-gray-500 block">Email</span>
+                <a href={`mailto:${selectedTicket.email}`} className="text-indigo-400 hover:underline">{selectedTicket.email}</a>
               </div>
               {selectedTicket.telephone && (
                 <div>
-                  <span className="text-xs text-slate-400 block">Téléphone</span>
-                  <span className="text-slate-800">{selectedTicket.telephone}</span>
+                  <span className="text-xs text-gray-500 block">Téléphone</span>
+                  <span className="text-gray-300">{selectedTicket.telephone}</span>
                 </div>
               )}
               {selectedTicket.entreprise && (
                 <div>
-                  <span className="text-xs text-slate-400 block">Entreprise</span>
-                  <span className="text-slate-800">{selectedTicket.entreprise}</span>
+                  <span className="text-xs text-gray-500 block">Entreprise</span>
+                  <span className="text-gray-300">{selectedTicket.entreprise}</span>
                 </div>
               )}
               <div>
-                <span className="text-xs text-slate-400 block mb-1">Statut</span>
+                <span className="text-xs text-gray-500 block mb-1">Statut</span>
                 <select value={selectedTicket.statut}
                   onChange={e => updateTicket(selectedTicket.id, { statut: e.target.value })}
-                  className="border border-slate-200 rounded px-2 py-1 text-xs">
+                  className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-indigo-500/50">
                   {STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
               <div>
-                <span className="text-xs text-slate-400 block mb-1">Priorité</span>
+                <span className="text-xs text-gray-500 block mb-1">Priorité</span>
                 <select value={selectedTicket.priorite}
                   onChange={e => updateTicket(selectedTicket.id, { priorite: e.target.value })}
-                  className="border border-slate-200 rounded px-2 py-1 text-xs">
+                  className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-indigo-500/50">
                   {PRIORITES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </div>
             </div>
 
             {/* Message original */}
-            <div className="p-4 border-b border-slate-100 shrink-0">
-              <p className="text-xs text-slate-400 mb-1 font-medium">Message original</p>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedTicket.message}</p>
+            <div className="p-4 border-b border-gray-700/50 shrink-0">
+              <p className="text-xs text-gray-500 mb-1 font-medium">Message original</p>
+              <p className="text-sm text-gray-300 whitespace-pre-wrap">{selectedTicket.message}</p>
             </div>
 
             {/* Replies */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {selectedTicket.replies.map(r => (
-                <div key={r.id} className={`rounded-lg p-3 ${r.interne ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50'}`}>
+                <div key={r.id} className={`rounded-lg p-3 ${r.interne ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-gray-700/50 border border-gray-600/30'}`}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-slate-900">
-                      {r.auteur} {r.interne && <span className="text-xs text-amber-600 ml-1">(note interne)</span>}
+                    <span className="text-sm font-medium text-white">
+                      {r.auteur} {r.interne && <span className="text-xs text-amber-400 ml-1">(note interne)</span>}
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-gray-500">
                       {new Date(r.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{r.message}</p>
+                  <p className="text-sm text-gray-300 whitespace-pre-wrap">{r.message}</p>
                 </div>
               ))}
               {selectedTicket.replies.length === 0 && (
-                <p className="text-center text-sm text-slate-400 py-4">Aucune réponse pour le moment</p>
+                <p className="text-center text-sm text-gray-600 py-4">Aucune réponse pour le moment</p>
               )}
             </div>
 
             {/* Reply form */}
-            <div className="p-3 border-t border-slate-100 shrink-0">
+            <div className="p-3 border-t border-gray-700/50 shrink-0">
               <div className="flex gap-2">
                 <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
                   placeholder="Votre réponse..." rows={2}
-                  className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                  className="flex-1 bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 resize-none outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/50" />
                 <div className="flex flex-col gap-1">
                   <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm flex items-center gap-1.5">
+                    className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition disabled:opacity-50 text-sm flex items-center gap-1.5">
                     {sending ? <Loader size={14} className="animate-spin" /> : <Send size={14} />} Envoyer
                   </button>
-                  <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
                     <input type="checkbox" checked={replyInterne} onChange={e => setReplyInterne(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-slate-300" />
+                      className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-700" />
                     Note interne
                   </label>
                 </div>

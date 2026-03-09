@@ -4,6 +4,7 @@ import { generateLegalContent } from '../../services/openai.service.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { ApiError } from '../../utils/api-errors.js';
 import type { InputJsonValue } from '../../types/prisma-helpers.js';
+import { n8nOrAuthMiddleware, requireRole } from '../../middleware/auth.middleware.js';
 
 // Templates pour génération IA
 const legalTemplates = {
@@ -966,7 +967,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: { statut?: string; priorite?: string; categorie?: string; page?: string; limit?: string } }>(
     '/api/tickets',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+      preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { statut, priorite, categorie, page = '1', limit = '20' } = request.query;
@@ -1006,7 +1007,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/tickets/stats',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+      preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (_request, reply) => {
       try {
@@ -1034,7 +1035,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>(
     '/api/tickets/:id',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+      preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       try {
@@ -1087,7 +1088,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>(
     '/api/tickets/:id',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+      preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { statut, priorite, categorie, assigneA, tags } = request.body as {
@@ -1143,7 +1144,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.post<{ Params: { id: string }; Body: { message: string; interne?: boolean } }>(
     '/api/tickets/:id/reply',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+      preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       const { message, interne } = request.body;
@@ -1204,7 +1205,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>(
     '/api/tickets/:id',
     {
-      preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
+      preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
       try {

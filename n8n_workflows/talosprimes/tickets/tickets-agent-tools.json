@@ -30,7 +30,7 @@
       "typeVersion": 4.2,
       "position": [340, 200],
       "credentials": {
-        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+        "httpHeaderAuth": { "id": "N8N_SECRET_CREDENTIAL_ID", "name": "TalosPrimes N8N Secret" }
       }
     },
     {
@@ -74,7 +74,7 @@
       "typeVersion": 4.2,
       "position": [340, 400],
       "credentials": {
-        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+        "httpHeaderAuth": { "id": "N8N_SECRET_CREDENTIAL_ID", "name": "TalosPrimes N8N Secret" }
       }
     },
     {
@@ -118,7 +118,7 @@
       "typeVersion": 4.2,
       "position": [340, 600],
       "credentials": {
-        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+        "httpHeaderAuth": { "id": "N8N_SECRET_CREDENTIAL_ID", "name": "TalosPrimes N8N Secret" }
       }
     },
     {
@@ -165,7 +165,7 @@
       "typeVersion": 4.2,
       "position": [340, 800],
       "credentials": {
-        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+        "httpHeaderAuth": { "id": "N8N_SECRET_CREDENTIAL_ID", "name": "TalosPrimes N8N Secret" }
       }
     },
     {
@@ -212,7 +212,7 @@
       "typeVersion": 4.2,
       "position": [340, 1000],
       "credentials": {
-        "httpHeaderAuth": { "id": "ADMIN_AUTH_CREDENTIAL_ID", "name": "TalosPrimes Admin JWT" }
+        "httpHeaderAuth": { "id": "N8N_SECRET_CREDENTIAL_ID", "name": "TalosPrimes N8N Secret" }
       }
     },
     {
@@ -229,9 +229,9 @@
 
     {
       "parameters": {
-        "content": "## 🎫 Tickets - Agent Tools\n\nWebhooks utilisés par le Super Agent IA v3 pour gérer les tickets de support.\n\n**Endpoints :**\n- `tickets_list` — Lister les tickets (filtre: statut, priorite, categorie)\n- `tickets_get` — Obtenir un ticket par ID avec ses réponses\n- `tickets_stats` — Statistiques (compteurs par statut)\n- `tickets_update` — Modifier statut/priorité/catégorie d'un ticket\n- `tickets_reply` — Répondre à un ticket\n\n⚠️ **Remplacer ADMIN_AUTH_CREDENTIAL_ID** par l'ID du credential Header Auth avec le JWT admin",
-        "width": 500,
-        "height": 340
+        "content": "## 🎫 Tickets - Agent Tools\n\nWebhooks utilisés par le Super Agent IA v3 pour gérer les tickets de support.\n\n**Endpoints :**\n- `tickets_list` — Lister les tickets (filtre: statut, priorite, categorie)\n- `tickets_get` — Obtenir un ticket par ID avec ses réponses\n- `tickets_stats` — Statistiques (compteurs par statut)\n- `tickets_update` — Modifier statut/priorité/catégorie d'un ticket\n- `tickets_reply` — Répondre à un ticket\n\n**Configuration :**\n1. Créer un credential **Header Auth** dans n8n :\n   - Name: `X-TalosPrimes-N8N-Secret`\n   - Value: la valeur de `N8N_WEBHOOK_SECRET` dans votre `.env`\n2. Remplacer `N8N_SECRET_CREDENTIAL_ID` par l'ID réel du credential créé",
+      "width": 500,
+      "height": 380
       },
       "id": "tk-note",
       "name": "Info",
