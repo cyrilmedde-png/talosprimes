@@ -378,10 +378,9 @@
         "start": "={{ $fromAI('Start', ``, 'string') }}",
         "end": "={{ $fromAI('End', ``, 'string') }}",
         "additionalFields": {
-          "attendees": [
-            "={{ $fromAI('attendees0_Attendees', ``, 'string') }}"
-          ],
-          "summary": "={{ $fromAI('Summary', ``, 'string') }}"
+          "summary": "={{ $fromAI('Summary', ``, 'string') }}",
+          "description": "={{ $fromAI('Description', `Description ou détails de l'événement (optionnel)`, 'string') }}",
+          "location": "={{ $fromAI('Location', `Lieu de l'événement (optionnel)`, 'string') }}"
         }
       },
       "type": "n8n-nodes-base.googleCalendarTool",
