@@ -221,6 +221,7 @@ export default function ConfigurationPage() {
   const [showPromptPreview, setShowPromptPreview] = useState(false);
   const [outboundNumber, setOutboundNumber] = useState('');
   const [outboundReason, setOutboundReason] = useState('');
+  const [generatingKB, setGeneratingKB] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({ ...defaultFormData });
 
@@ -355,6 +356,132 @@ export default function ConfigurationPage() {
     }
     setEditing(false);
     setError(null);
+  };
+
+  const generateKnowledgeBase = () => {
+    setGeneratingKB(true);
+    const name = formData.companyName || 'TalosPrimes';
+    const price = formData.basePrice || 'sur demande';
+    const hours = formData.businessHours || 'Lundi-Vendredi 9h-18h';
+    const contact = formData.humanContact || 'contact@talosprimes.com';
+
+    const kb = `=== PRÉSENTATION DE ${name.toUpperCase()} ===
+${name} est une plateforme SaaS de gestion d'entreprise tout-en-un, orchestrée par l'intelligence artificielle et l'automatisation (190+ workflows). Notre mission : permettre aux entreprises de garder leurs logiciels existants tout en automatisant le reste.
+
+Slogan : "Gardez votre logiciel, on automatise le reste."
+
+=== NOS MODULES & SERVICES ===
+
+1. FACTURATION & COMMERCIAL
+   - Factures, Devis, Proformas, Avoirs, Bons de commande
+   - Génération PDF automatique et envoi par email
+   - Suivi des paiements et relances automatiques
+   - Conversion devis → facture en un clic
+
+2. CRM & GESTION CLIENTS
+   - Gestion des leads (nouveau → contacté → qualifié → converti)
+   - Fiches clients B2B et B2C complètes
+   - Suivi des interactions et historique
+   - Onboarding client automatisé
+
+3. COMPTABILITÉ AUTOMATISÉE
+   - Écritures comptables, Grand Livre, Balance
+   - Bilan et Compte de Résultat
+   - Gestion TVA et déclarations
+   - Rapprochement bancaire (intégration Qonto)
+   - Agent IA comptable pour assistance
+
+4. RESSOURCES HUMAINES
+   - Contrats, Paie, Congés
+   - Formations, Évaluations, Entretiens
+   - Gestion documentaire RH
+
+5. GESTION DE PROJETS
+   - Tableau de bord projets
+   - Gestion des tâches et suivi
+   - Module BTP : chantiers et situations
+
+6. AGENT IA TÉLÉPHONIQUE
+   - Réception d'appels intelligente 24h/24
+   - Prise de rendez-vous automatique
+   - Qualification et transfert d'appels
+   - Détection du sentiment (positif, neutre, frustré)
+   - Envoi de SMS et emails
+   - Intégration calendrier Google
+
+7. PARTENARIATS & REVENUS
+   - Gestion des partenaires et commissions
+   - Suivi MRR (revenus récurrents)
+
+=== TARIFS & OFFRES ===
+
+OFFRE DE LANCEMENT (limité aux 10 premiers clients) :
+- Installation Agent IA : 1 290€ HT (au lieu de 1 490€)
+- Premier mois d'abonnement : OFFERT (valeur 299€)
+- Économie totale : 499€
+
+TARIF STANDARD :
+- Installation Agent IA : 1 490€ HT (une fois)
+- Abonnement mensuel : 299€/mois HT (sans engagement, préavis 30 jours)
+- Tarif de base affiché : ${price}
+
+PACKS PRÉ-CONFIGURÉS :
+- Pack Essentiel : 1 990€ HT + 299€/mois (Agent IA + 1 automatisation)
+- Pack Business : 3 990€ HT + 349€/mois (Agent IA + 3 automatisations + dashboard)
+- Pack Premium : sur devis + 499€/mois (Agent IA + automatisations illimitées + support prioritaire)
+
+AUTOMATISATIONS (exemples) :
+- Automatisation emails/notifications : à partir de 490€ setup + 29€/mois
+- Agent IA téléphonique : 1 690€ setup + 199€/mois
+- CRM pipeline commercial : 1 190€ setup + 79€/mois
+- Comptabilité automatisée : 1 990€ setup + 169€/mois
+- Pack transformation digitale PME : 4 990€ setup + 499€/mois
+
+Réduction annuelle : -10% sur tout engagement annuel
+
+=== INTÉGRATIONS ===
+Nous nous connectons à plus de 60 logiciels dans 13 secteurs :
+- Automobile (KeplerVO, Sage Apimécanique)
+- BTP (Sage Batigest, Obat, Batappli)
+- Immobilier (Apimo, Adaptimmo)
+- Transport/VTC (Chauffleet, LeCab)
+- Restauration (Lightspeed, Innovorder)
+- Santé (Doctolib, Weda)
+- E-commerce (Shopify, PrestaShop, WooCommerce)
+- Comptabilité (Pennylane, Sage 100, Qonto)
+- Et bien d'autres...
+
+=== FAQ ===
+
+Q: Faut-il changer de logiciel ?
+R: Non ! On s'intègre à vos outils existants. "Gardez votre logiciel, on automatise le reste."
+
+Q: Y a-t-il un engagement ?
+R: Non, nos abonnements sont sans engagement avec un préavis de 30 jours.
+
+Q: Comment fonctionne l'Agent IA téléphonique ?
+R: L'agent répond automatiquement aux appels, qualifie les demandes, prend des rendez-vous, et peut transférer à un humain si nécessaire. Il fonctionne 24h/24.
+
+Q: Quels sont les délais de mise en place ?
+R: Automatisation simple : 2-3 jours. Moyenne : 5-7 jours. Complexe : 10-15 jours.
+
+Q: Proposez-vous une démonstration ?
+R: Oui ! Contactez-nous pour une démo personnalisée gratuite.
+
+Q: Les données sont-elles sécurisées ?
+R: Oui, nous sommes conformes RGPD avec chiffrement des données, isolation multi-tenant, et traçabilité complète des consentements.
+
+Q: Quel support proposez-vous ?
+R: Support technique inclus dans l'abonnement. Support prioritaire pour les packs Business et Premium.
+
+=== INFORMATIONS PRATIQUES ===
+- Horaires : ${hours}
+- Contact humain : ${contact}
+- Site web : https://talosprimes.com
+- Pour toute demande de devis personnalisé, nous pouvons planifier un rendez-vous.`;
+
+    setFormData(prev => ({ ...prev, knowledgeBase: kb }));
+    setTimeout(() => setGeneratingKB(false), 800);
   };
 
   const handleTestCall = async () => {
@@ -728,13 +855,35 @@ export default function ConfigurationPage() {
                   hint="Tarifs détaillés, liste des services, FAQ, infos clés... Plus c'est complet, mieux l'agent répond."
                   warning={!formData.knowledgeBase ? 'Base vide — l\'agent ne pourra répondre qu\'avec les infos basiques (nom, prix, horaires)' : undefined}
                 />
+                {editing && !formData.knowledgeBase && (
+                  <button
+                    type="button"
+                    onClick={generateKnowledgeBase}
+                    disabled={generatingKB}
+                    className="mb-3 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-indigo-900/30 disabled:opacity-60"
+                  >
+                    <SparklesIcon className="h-4 w-4" />
+                    {generatingKB ? 'Analyse de la plateforme...' : 'Générer avec l\'IA — Analyser la plateforme'}
+                  </button>
+                )}
+                {editing && formData.knowledgeBase && (
+                  <button
+                    type="button"
+                    onClick={generateKnowledgeBase}
+                    disabled={generatingKB}
+                    className="mb-3 flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-medium transition-all border border-gray-600/30"
+                  >
+                    <ArrowPathIcon className="h-3.5 w-3.5" />
+                    {generatingKB ? 'Régénération...' : 'Régénérer depuis la plateforme'}
+                  </button>
+                )}
                 <textarea
                   name="knowledgeBase"
                   value={formData.knowledgeBase}
                   onChange={handleInput}
                   disabled={!editing}
-                  placeholder={"Exemple :\n\nNos offres :\n- Starter : 49€/mois — CRM + facturation\n- Pro : 99€/mois — CRM + facturation + agent IA\n- Enterprise : sur devis\n\nNos services :\n- Gestion commerciale (devis, factures)\n- CRM et suivi clients\n- Agent IA téléphonique\n- Comptabilité automatisée\n\nFAQ :\n- Période d'essai : 14 jours gratuits\n- Engagement : sans engagement\n- Support : par email ou téléphone"}
-                  rows={12}
+                  placeholder={"Cliquez sur \"Générer avec l'IA\" pour pré-remplir automatiquement depuis votre plateforme, ou saisissez manuellement :\n\nNos offres :\n- Starter : 49€/mois — CRM + facturation\n- Pro : 99€/mois — CRM + facturation + agent IA\n\nNos services :\n- Gestion commerciale\n- CRM et suivi clients\n- Agent IA téléphonique"}
+                  rows={16}
                   className={textareaCls}
                 />
                 <p className="text-xs text-gray-500 mt-1.5">
