@@ -121,14 +121,34 @@ interface CMSPageData {
   publie: boolean;
 }
 
+interface PlanModule {
+  moduleCode?: string;
+  module?: {
+    id: string;
+    code: string;
+    nomAffiche: string;
+    categorie: string;
+    icone: string;
+  };
+  limiteUsage?: number | null;
+}
+
 interface Plan {
   id: string;
+  code: string;
   nom: string;
-  description: string;
-  prix: number;
-  features: string[];
-  populaire: boolean;
-  ordre: number;
+  description: string | null;
+  prixMensuel: number;
+  prixAnnuel: number | null;
+  stripeProductId: string | null;
+  stripePriceIdMensuel: string | null;
+  stripePriceIdAnnuel: string | null;
+  essaiJours: number;
+  ordreAffichage: number;
+  actif: boolean;
+  couleur: string | null;
+  planModules?: PlanModule[];
+  _count?: { clientSubscriptions: number };
 }
 
 interface GlobalConfig {
@@ -306,8 +326,8 @@ export default function CMSPage() {
   const loadPlans = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: Plan[] }>('/api/plans/all');
-      setPlans(data.data || []);
+      const data = await fetchApi<{ data: { plans: Plan[] } }>('/api/plans/all');
+      setPlans(data.data?.plans || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des plans: ${error}`, 'error');
     } finally {
@@ -517,9 +537,21 @@ export default function CMSPage() {
   // ============= PLAN OPERATIONS =============
   const createPlan = async (data: Partial<Plan>) => {
     try {
+      // Envoyer uniquement les champs attendus par l'API
+      const payload = {
+        code: data.code,
+        nom: data.nom,
+        description: data.description || undefined,
+        prixMensuel: data.prixMensuel ?? 0,
+        prixAnnuel: data.prixAnnuel ?? undefined,
+        essaiJours: data.essaiJours ?? 0,
+        ordreAffichage: data.ordreAffichage ?? 0,
+        actif: data.actif ?? true,
+        couleur: data.couleur || undefined,
+      };
       const response = await fetchApi<{ data: Plan }>('/api/plans', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       setPlans([...plans, response.data]);
       setShowPlanModal(false);
@@ -531,12 +563,24 @@ export default function CMSPage() {
 
   const updatePlan = async (id: string, data: Partial<Plan>) => {
     try {
+      // Envoyer uniquement les champs modifiables
+      const payload: Record<string, unknown> = {};
+      if (data.nom !== undefined) payload.nom = data.nom;
+      if (data.description !== undefined) payload.description = data.description;
+      if (data.prixMensuel !== undefined) payload.prixMensuel = data.prixMensuel;
+      if (data.prixAnnuel !== undefined) payload.prixAnnuel = data.prixAnnuel;
+      if (data.essaiJours !== undefined) payload.essaiJours = data.essaiJours;
+      if (data.ordreAffichage !== undefined) payload.ordreAffichage = data.ordreAffichage;
+      if (data.actif !== undefined) payload.actif = data.actif;
+      if (data.couleur !== undefined) payload.couleur = data.couleur;
+
       const response = await fetchApi<{ data: Plan }>(`/api/plans/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       setPlans(plans.map((p) => (p.id === id ? response.data : p)));
       setEditingPlan(null);
+      setShowPlanModal(false);
       addToast('Plan mis à jour avec succès', 'success');
     } catch (error) {
       addToast(`Erreur lors de la mise à jour: ${error}`, 'error');
@@ -544,7 +588,7 @@ export default function CMSPage() {
   };
 
   const deletePlan = async (id: string) => {
-    if (!window.confirm('Êtes-vous sûr ?')) return;
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce plan ?')) return;
     try {
       await fetchApi(`/api/plans/${id}`, { method: 'DELETE' });
       setPlans(plans.filter((p) => p.id !== id));
@@ -1157,13 +1201,32 @@ export default function CMSPage() {
               className="bg-slate-800 p-6 rounded-lg border border-slate-700 hover:border-slate-600 transition"
             >
               <div className="mb-4">
-                <h3 className="text-lg font-bold text-white mb-2">{plan.nom}</h3>
-                <p className="text-slate-400 text-sm mb-3">{plan.description}</p>
-                <p className="text-2xl font-bold text-blue-400 mb-3">{plan.prix}€</p>
-                {plan.populaire && (
-                  <span className="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded">
-                    Populaire
-                  </span>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-lg font-bold text-white">{plan.nom}</h3>
+                  <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">{plan.code}</span>
+                  {!plan.actif && (
+                    <span className="bg-red-900 text-red-200 text-xs px-2 py-0.5 rounded">Inactif</span>
+                  )}
+                </div>
+                <p className="text-slate-400 text-sm mb-3">{plan.description || '—'}</p>
+                <p className="text-2xl font-bold text-blue-400 mb-1">{plan.prixMensuel}€<span className="text-sm font-normal text-slate-400">/mois</span></p>
+                {plan.prixAnnuel != null && (
+                  <p className="text-sm text-slate-400 mb-2">{plan.prixAnnuel}€/an</p>
+                )}
+                {plan.essaiJours > 0 && (
+                  <p className="text-xs text-green-400 mb-2">{plan.essaiJours} jours d&apos;essai</p>
+                )}
+                {plan.planModules && plan.planModules.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {plan.planModules.map((pm, idx) => (
+                      <span key={idx} className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded">
+                        {pm.module?.nomAffiche || pm.moduleCode || 'Module'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {plan._count && plan._count.clientSubscriptions > 0 && (
+                  <p className="text-xs text-slate-500 mt-2">{plan._count.clientSubscriptions} abonnement(s)</p>
                 )}
               </div>
               {editMode && (
@@ -2302,7 +2365,7 @@ interface PlanModalProps {
 
 function PlanModal({ plan, onClose, onCreate, onUpdate }: PlanModalProps) {
   const [formData, setFormData] = useState<Partial<Plan>>(
-    plan || { nom: '', description: '', prix: 0, features: [], populaire: false, ordre: 0 }
+    plan || { code: '', nom: '', description: '', prixMensuel: 0, prixAnnuel: null, essaiJours: 0, ordreAffichage: 0, actif: true, couleur: '' }
   );
 
   const handleSave = () => {
@@ -2313,25 +2376,9 @@ function PlanModal({ plan, onClose, onCreate, onUpdate }: PlanModalProps) {
     }
   };
 
-  const addFeature = () => {
-    const features = formData.features || [];
-    setFormData({ ...formData, features: [...features, ''] });
-  };
-
-  const removeFeature = (idx: number) => {
-    const features = formData.features || [];
-    setFormData({ ...formData, features: features.filter((_, i) => i !== idx) });
-  };
-
-  const updateFeature = (idx: number, value: string) => {
-    const features = formData.features || [];
-    features[idx] = value;
-    setFormData({ ...formData, features });
-  };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full max-h-96 overflow-y-auto">
+      <div className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-white">
             {plan ? 'Éditer le plan' : 'Ajouter un plan'}
@@ -2342,22 +2389,30 @@ function PlanModal({ plan, onClose, onCreate, onUpdate }: PlanModalProps) {
         </div>
 
         <div className="space-y-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Nom
-            </label>
-            <input
-              type="text"
-              value={formData.nom || ''}
-              onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Code</label>
+              <input
+                type="text"
+                value={formData.code || ''}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                placeholder="ex: starter, pro, enterprise"
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Nom</label>
+              <input
+                type="text"
+                value={formData.nom || ''}
+                onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Description
-            </label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
             <textarea
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -2366,56 +2421,68 @@ function PlanModal({ plan, onClose, onCreate, onUpdate }: PlanModalProps) {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Prix (€)
-            </label>
-            <input
-              type="number"
-              value={formData.prix || 0}
-              onChange={(e) => setFormData({ ...formData, prix: parseFloat(e.target.value) })}
-              className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Prix Mensuel (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.prixMensuel ?? 0}
+                onChange={(e) => setFormData({ ...formData, prixMensuel: parseFloat(e.target.value) || 0 })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Prix Annuel (€) <span className="text-slate-500">optionnel</span></label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.prixAnnuel ?? ''}
+                onChange={(e) => setFormData({ ...formData, prixAnnuel: e.target.value ? parseFloat(e.target.value) : null })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Fonctionnalités
-            </label>
-            <div className="space-y-2">
-              {(formData.features || []).map((feature, idx) => (
-                <div key={idx} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={feature}
-                    onChange={(e) => updateFeature(idx, e.target.value)}
-                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
-                  />
-                  <button
-                    onClick={() => removeFeature(idx)}
-                    className="px-3 py-2 bg-red-900 hover:bg-red-800 text-red-200 rounded"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={addFeature}
-                className="w-full px-3 py-2 border border-slate-600 border-dashed rounded text-slate-300 hover:text-slate-200 hover:border-slate-500 transition"
-              >
-                <Plus size={16} className="inline mr-1" /> Ajouter une fonctionnalité
-              </button>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Jours d&apos;essai</label>
+              <input
+                type="number"
+                value={formData.essaiJours ?? 0}
+                onChange={(e) => setFormData({ ...formData, essaiJours: parseInt(e.target.value) || 0 })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Ordre d&apos;affichage</label>
+              <input
+                type="number"
+                value={formData.ordreAffichage ?? 0}
+                onChange={(e) => setFormData({ ...formData, ordreAffichage: parseInt(e.target.value) || 0 })}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Couleur</label>
+              <input
+                type="text"
+                value={formData.couleur || ''}
+                onChange={(e) => setFormData({ ...formData, couleur: e.target.value })}
+                placeholder="ex: #3b82f6"
+                className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white"
+              />
             </div>
           </div>
 
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={formData.populaire || false}
-              onChange={(e) => setFormData({ ...formData, populaire: e.target.checked })}
+              checked={formData.actif ?? true}
+              onChange={(e) => setFormData({ ...formData, actif: e.target.checked })}
               className="rounded"
             />
-            <span className="text-slate-300">Populaire</span>
+            <span className="text-slate-300">Actif</span>
           </label>
         </div>
 
