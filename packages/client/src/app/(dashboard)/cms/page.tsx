@@ -518,6 +518,7 @@ export default function CMSPage() {
       });
       setPages(pages.map((p) => (p.id === id ? response.data : p)));
       setEditingPage(null);
+      setShowPageModal(false);
       addToast('Page mise à jour avec succès', 'success');
     } catch (error) {
       addToast(`Erreur lors de la mise à jour: ${error}`, 'error');
