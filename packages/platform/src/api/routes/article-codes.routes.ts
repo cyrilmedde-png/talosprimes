@@ -59,19 +59,31 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         }
 
         if (!fromN8n && tenantId) {
-          const res = await n8nService.callWorkflowReturn<{ articles: unknown[] }>(
-            tenantId,
-            'article_codes_list',
-            {}
-          );
-          const raw = res.data as { articles?: unknown[] };
-          const articles = Array.isArray(raw.articles)
-            ? raw.articles.map((art) => normalizeArticleCodeFromN8n(art as Record<string, unknown>))
-            : [];
-          return reply.status(200).send({
-            success: true,
-            data: { articles },
-          });
+          try {
+            const res = await n8nService.callWorkflowReturn<{ articles: unknown[] }>(
+              tenantId,
+              'article_codes_list',
+              {}
+            );
+            const raw = res.data as { articles?: unknown[] };
+            const articles = Array.isArray(raw.articles)
+              ? raw.articles.map((art) => normalizeArticleCodeFromN8n(art as Record<string, unknown>))
+              : [];
+            return reply.status(200).send({
+              success: true,
+              data: { articles },
+            });
+          } catch {
+            // Fallback Prisma si n8n échoue
+            const articles = await prisma.articleCode.findMany({
+              where: { tenantId },
+              orderBy: { code: 'asc' },
+            });
+            return reply.status(200).send({
+              success: true,
+              data: { articles },
+            });
+          }
         }
 
         // Appel depuis n8n (callback) → lecture BDD directe
@@ -119,20 +131,24 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         }
 
         if (!fromN8n) {
-          const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
-            tenantId,
-            'article_code_create',
-            { ...body, tenantId }
-          );
+          try {
+            const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
+              tenantId,
+              'article_code_create',
+              { ...body, tenantId }
+            );
 
-          return reply.status(201).send({
-            success: true,
-            message: 'Code article créé via n8n',
-            data: res.data,
-          });
+            return reply.status(201).send({
+              success: true,
+              message: 'Code article créé via n8n',
+              data: res.data,
+            });
+          } catch {
+            // Fallback Prisma si n8n échoue
+          }
         }
 
-        // Appel depuis n8n (callback du workflow) : persister en base
+        // Persister en base (callback n8n ou fallback)
         const article = await prisma.articleCode.create({
           data: {
             tenantId,
@@ -197,23 +213,27 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
 
         if (!fromN8n) {
           if (!tenantId) return ApiError.unauthorized(reply, 'Tenant manquant');
-          const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
-            tenantId,
-            'article_code_update',
-            {
-              articleCodeId: params.id,
-              ...body,
-            }
-          );
+          try {
+            const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
+              tenantId,
+              'article_code_update',
+              {
+                articleCodeId: params.id,
+                ...body,
+              }
+            );
 
-          return reply.status(200).send({
-            success: true,
-            message: 'Code article mis à jour via n8n',
-            data: res.data,
-          });
+            return reply.status(200).send({
+              success: true,
+              message: 'Code article mis à jour via n8n',
+              data: res.data,
+            });
+          } catch {
+            // Fallback Prisma si n8n échoue
+          }
         }
 
-        // Appel depuis n8n (callback du workflow) : persister en base
+        // Persister en base (callback n8n ou fallback)
         const article = await prisma.articleCode.update({
           where: { id: params.id },
           data: {
@@ -239,6 +259,123 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
           return ApiError.conflict(reply, 'Ce code article existe déjà');
         }
         fastify.log.error(error, 'Erreur modification code article');
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // POST /api/article-codes/import - Import CSV
+  fastify.post(
+    '/import',
+    {
+      preHandler: [n8nOrAuthMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+      try {
+        const tenantId = request.tenantId;
+        if (!tenantId) {
+          return ApiError.unauthorized(reply);
+        }
+
+        // Vérifier droits
+        if (request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+          return ApiError.forbidden(reply);
+        }
+
+        const body = request.body as { csv?: string };
+        if (!body.csv || typeof body.csv !== 'string') {
+          return reply.code(400).send({
+            success: false,
+            error: 'Le champ "csv" est requis (texte CSV brut)',
+          });
+        }
+
+        const lines = body.csv.split('\n').map((l) => l.trim()).filter(Boolean);
+        if (lines.length < 2) {
+          return reply.code(400).send({
+            success: false,
+            error: 'Le CSV doit contenir au moins un en-tête et une ligne de données',
+          });
+        }
+
+        // Parse header
+        const header = lines[0].toLowerCase().split(/[;,]/).map((h) => h.trim());
+        const codeIdx = header.findIndex((h) => h === 'code');
+        const desIdx = header.findIndex((h) => ['designation', 'désignation', 'description', 'libelle', 'libellé'].includes(h));
+        const prixIdx = header.findIndex((h) => ['prixunitaireht', 'prix_unitaire_ht', 'prix', 'pu_ht', 'puht', 'prix_ht'].includes(h));
+        const tvaIdx = header.findIndex((h) => ['tvataux', 'tva_taux', 'tva', 'taux_tva'].includes(h));
+        const uniteIdx = header.findIndex((h) => ['unite', 'unité', 'unit'].includes(h));
+
+        if (codeIdx === -1 || desIdx === -1) {
+          return reply.code(400).send({
+            success: false,
+            error: 'Le CSV doit contenir au minimum les colonnes "code" et "designation"',
+          });
+        }
+
+        const separator = lines[0].includes(';') ? ';' : ',';
+        let created = 0;
+        let updated = 0;
+        const errors: Array<{ row: number; message: string }> = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(separator).map((c) => c.trim().replace(/^["']|["']$/g, ''));
+
+          const code = cols[codeIdx]?.trim();
+          const designation = cols[desIdx]?.trim();
+
+          if (!code || !designation) {
+            errors.push({ row: i + 1, message: 'Code ou désignation manquant' });
+            continue;
+          }
+
+          const prixRaw = prixIdx >= 0 ? cols[prixIdx]?.trim().replace(',', '.') : undefined;
+          const tvaRaw = tvaIdx >= 0 ? cols[tvaIdx]?.trim().replace(',', '.') : undefined;
+          const unite = uniteIdx >= 0 ? cols[uniteIdx]?.trim() : undefined;
+
+          const prixUnitaireHt = prixRaw && !isNaN(Number(prixRaw)) ? Number(prixRaw) : undefined;
+          const tvaTaux = tvaRaw && !isNaN(Number(tvaRaw)) ? Number(tvaRaw) : undefined;
+
+          try {
+            const existing = await prisma.articleCode.findFirst({
+              where: { tenantId, code },
+            });
+
+            if (existing) {
+              await prisma.articleCode.update({
+                where: { id: existing.id },
+                data: {
+                  designation,
+                  ...(prixUnitaireHt !== undefined && { prixUnitaireHt }),
+                  ...(tvaTaux !== undefined && { tvaTaux }),
+                  ...(unite && { unite }),
+                },
+              });
+              updated++;
+            } else {
+              await prisma.articleCode.create({
+                data: {
+                  tenantId,
+                  code,
+                  designation,
+                  ...(prixUnitaireHt !== undefined && { prixUnitaireHt }),
+                  ...(tvaTaux !== undefined && { tvaTaux }),
+                  ...(unite && { unite }),
+                },
+              });
+              created++;
+            }
+          } catch (rowError) {
+            errors.push({ row: i + 1, message: `Erreur: ${(rowError as Error).message}` });
+          }
+        }
+
+        return reply.status(200).send({
+          success: true,
+          data: { created, updated, errors, totalProcessed: lines.length - 1 },
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur import CSV codes articles');
         return ApiError.internal(reply);
       }
     }
@@ -277,22 +414,26 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
 
         if (!fromN8n) {
           if (!tenantId) return ApiError.unauthorized(reply, 'Tenant manquant');
-          const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
-            tenantId,
-            'article_code_delete',
-            {
-              articleCodeId: params.id,
-            }
-          );
+          try {
+            const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+              tenantId,
+              'article_code_delete',
+              {
+                articleCodeId: params.id,
+              }
+            );
 
-          return reply.status(200).send({
-            success: true,
-            message: 'Code article supprimé via n8n',
-            data: res.data,
-          });
+            return reply.status(200).send({
+              success: true,
+              message: 'Code article supprimé via n8n',
+              data: res.data,
+            });
+          } catch {
+            // Fallback Prisma si n8n échoue
+          }
         }
 
-        // Appel depuis n8n (callback du workflow) : supprimer en base
+        // Supprimer en base (callback n8n ou fallback)
         await prisma.articleCode.delete({ where: { id: params.id } });
 
         return reply.status(200).send({

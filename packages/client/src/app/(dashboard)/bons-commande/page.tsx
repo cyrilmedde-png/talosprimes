@@ -597,7 +597,7 @@ export default function BonsCommandePage() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-700/70 text-gray-300">
                       <tr>
-                        <th className="px-3 py-2 text-left w-28 font-medium">Code Art.</th>
+                        <th className="px-3 py-2 text-left w-56 font-medium">Article</th>
                         <th className="px-3 py-2 text-left font-medium">Désignation</th>
                         <th className="px-3 py-2 text-right w-20">Qté</th>
                         <th className="px-3 py-2 text-right w-28">Prix unit. HT</th>
@@ -629,7 +629,7 @@ export default function BonsCommandePage() {
                               >
                                 <option value="">—</option>
                                 {articleCodes.filter((a) => a.actif).map((a) => (
-                                  <option key={a.id} value={a.code}>{a.code}</option>
+                                  <option key={a.id} value={a.code}>{a.code} — {a.designation}</option>
                                 ))}
                               </select>
                             </td>
@@ -769,7 +769,7 @@ export default function BonsCommandePage() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-700/70 text-gray-300">
                       <tr>
-                        <th className="px-3 py-2 text-left w-28 font-medium">Code Art.</th>
+                        <th className="px-3 py-2 text-left w-56 font-medium">Article</th>
                         <th className="px-3 py-2 text-left font-medium">Désignation</th>
                         <th className="px-3 py-2 text-right w-20">Qté</th>
                         <th className="px-3 py-2 text-right w-28">Prix unit. HT</th>
@@ -801,7 +801,7 @@ export default function BonsCommandePage() {
                               >
                                 <option value="">—</option>
                                 {articleCodes.filter((a) => a.actif).map((a) => (
-                                  <option key={a.id} value={a.code}>{a.code}</option>
+                                  <option key={a.id} value={a.code}>{a.code} — {a.designation}</option>
                                 ))}
                               </select>
                             </td>

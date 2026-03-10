@@ -37,6 +37,7 @@ import {
   ChartBarIcon,
   GiftIcon,
   TicketIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -63,13 +64,14 @@ const allNavGroups: NavGroup[] = [
   {
     label: 'Facturation',
     icon: BanknotesIcon,
-    requiredModules: ['facturation', 'devis', 'bons_commande', 'avoirs', 'proformas'],
+    requiredModules: ['facturation', 'devis', 'bons_commande', 'avoirs', 'proformas', 'articles'],
     items: [
       { name: 'Factures', href: '/factures', icon: BanknotesIcon },
       { name: 'Devis', href: '/devis', icon: DocumentTextIcon },
       { name: 'Proformas', href: '/proforma', icon: DocumentCheckIcon },
       { name: 'Avoirs', href: '/avoir', icon: ReceiptRefundIcon },
       { name: 'Bons de commande', href: '/bons-commande', icon: DocumentDuplicateIcon },
+      { name: 'Articles', href: '/articles', icon: TagIcon },
     ],
   },
   {

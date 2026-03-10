@@ -484,6 +484,11 @@ export const apiClient = {
       }),
     delete: (id: string) =>
       authenticatedFetch<{ success: boolean; message: string }>(`/api/article-codes/${id}`, { method: 'DELETE' }),
+    import: (csv: string) =>
+      authenticatedFetch<{ success: boolean; data: { created: number; updated: number; errors: Array<{ row: number; message: string }>; totalProcessed: number } }>('/api/article-codes/import', {
+        method: 'POST',
+        body: JSON.stringify({ csv }),
+      }),
   },
 
   // Bons de commande
