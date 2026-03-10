@@ -1,0 +1,217 @@
+{
+  "name": "stock-site-deleted",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "stock-site-deleted",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nvar payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nvar data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nvar tenantId=g(data,'tenantId','tenant_id')||g(payload,'tenantId','tenant_id')||g(raw,'tenantId');\nvar siteId=g(data,'siteId','site_id')||g(payload,'siteId','site_id');\nif(!tenantId||!siteId)return [{json:{_error:true,message:'tenantId et siteId requis'}}];\nreturn [{json:{tenantId,siteId}}];"
+      },
+      "id": "parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "1157aebc-e8ef-4bcf-a71e-87c3d790e0ed",
+              "leftValue": "={{ String($json._error || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
+      },
+      "id": "respond-err",
+      "name": "04. Repondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        860,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var p = $('02. Parser').first().json;\nvar query = `DELETE FROM stock_sites WHERE id = '${p.siteId}' AND tenant_id = '${p.tenantId}' RETURNING id`;\nreturn [{json:{query}}];"
+      },
+      "id": "build-delete",
+      "name": "05. Construire DELETE",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "pg-delete",
+      "name": "06. Executer DELETE",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $input.all();\nif (!items || items.length === 0) {\n  return [{json:{success:false,error:'Site non supprime'}}];\n}\nvar row=$input.first().json;\nvar deletedId=row[0]?.id||null;\nif(!deletedId)return [{json:{success:false,error:'Site non supprime'}}];\nreturn [{json:{success:true,data:{id:deletedId}}}];"
+      },
+      "id": "format",
+      "name": "07. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond-ok",
+      "name": "08. Repondre succes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Construire DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Construire DELETE": {
+      "main": [
+        [
+          {
+            "node": "06. Executer DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Executer DELETE": {
+      "main": [
+        [
+          {
+            "node": "07. Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Formater reponse": {
+      "main": [
+        [
+          {
+            "node": "08. Repondre succes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

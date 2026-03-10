@@ -350,6 +350,13 @@ model Tenant {
   agentKnowledgeEntries AgentKnowledgeEntry[]
   // Marketing
   marketingPosts        MarketingPost[]
+  // Gestion de Stock
+  stockSites            StockSite[]
+  stockLevels           StockLevel[]
+  stockMovements        StockMovement[]
+  stockTransfers        StockTransfer[]
+  inventories           Inventory[]
+  stockAlerts           StockAlert[]
   @@index([emailContact])
   @@index([statut])
   @@map("tenants")
@@ -679,6 +686,13 @@ model ArticleCode {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Gestion de Stock
+  stockLevels       StockLevel[]
+  stockMovements    StockMovement[]
+  transferLines     StockTransferLine[]
+  inventoryItems    InventoryItem[]
+  stockAlerts       StockAlert[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -2420,5 +2434,211 @@ model MarketingPost {
   @@index([datePublication])
   @@index([tenantId, plateforme, datePublication])
   @@map("marketing_posts")
+}
+
+// ============================================================
+// GESTION DE STOCK - Module multi-sites
+// ============================================================
+
+// Site / Entrepôt
+model StockSite {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  code              String    @map("code")
+  designation       String    @map("designation")
+  adresse           String?   @map("adresse") @db.Text
+  telephone         String?   @map("telephone")
+  email             String?   @map("email")
+  responsable       String?   @map("responsable")
+  statut            String    @default("actif") @map("statut")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stockLevels       StockLevel[]
+  movementsOnSite   StockMovement[]
+  inventories       Inventory[]
+  transfersFrom     StockTransfer[] @relation("TransferFromSite")
+  transfersTo       StockTransfer[] @relation("TransferToSite")
+  stockAlerts       StockAlert[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([statut])
+  @@map("stock_sites")
+}
+
+// Niveau de stock par article et par site
+model StockLevel {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  articleId           String    @map("article_id") @db.Uuid
+  siteId              String    @map("site_id") @db.Uuid
+  quantite            Decimal   @default(0) @map("quantite") @db.Decimal(12, 2)
+  quantiteReservee    Decimal   @default(0) @map("quantite_reservee") @db.Decimal(12, 2)
+  seuilMinimum        Decimal?  @map("seuil_minimum") @db.Decimal(12, 2)
+  seuilMaximum        Decimal?  @map("seuil_maximum") @db.Decimal(12, 2)
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tenant              Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  article             ArticleCode @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  site                StockSite   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, articleId, siteId])
+  @@index([tenantId])
+  @@index([siteId])
+  @@index([articleId])
+  @@map("stock_levels")
+}
+
+// Journal des mouvements de stock
+model StockMovement {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  articleId         String    @map("article_id") @db.Uuid
+  siteId            String    @map("site_id") @db.Uuid
+  typeOperation     String    @map("type_operation")
+  quantite          Decimal   @map("quantite") @db.Decimal(12, 2)
+  quantiteAvant     Decimal   @map("quantite_avant") @db.Decimal(12, 2)
+  quantiteApres     Decimal   @map("quantite_apres") @db.Decimal(12, 2)
+  referenceType     String?   @map("reference_type")
+  referenceId       String?   @map("reference_id") @db.Uuid
+  motif             String?   @map("motif") @db.Text
+  utilisateurNom    String?   @map("utilisateur_nom")
+  dateOperation     DateTime  @default(now()) @map("date_operation")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  article           ArticleCode @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  site              StockSite   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([articleId])
+  @@index([siteId])
+  @@index([typeOperation])
+  @@index([dateOperation])
+  @@map("stock_movements")
+}
+
+// Transfert inter-sites
+enum StockTransferStatut {
+  en_cours
+  confirme
+  recu
+  annule
+}
+
+model StockTransfer {
+  id                String               @id @default(uuid()) @db.Uuid
+  tenantId          String               @map("tenant_id") @db.Uuid
+  numero            String               @map("numero")
+  siteFromId        String               @map("site_from_id") @db.Uuid
+  siteToId          String               @map("site_to_id") @db.Uuid
+  statut            StockTransferStatut  @default(en_cours) @map("statut")
+  dateCreation      DateTime             @default(now()) @map("date_creation")
+  dateEnvoi         DateTime?            @map("date_envoi")
+  dateReception     DateTime?            @map("date_reception")
+  notes             String?              @map("notes") @db.Text
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  siteFrom          StockSite            @relation("TransferFromSite", fields: [siteFromId], references: [id], onDelete: Cascade)
+  siteTo            StockSite            @relation("TransferToSite", fields: [siteToId], references: [id], onDelete: Cascade)
+  lines             StockTransferLine[]
+
+  @@unique([tenantId, numero])
+  @@index([tenantId])
+  @@index([statut])
+  @@map("stock_transfers")
+}
+
+// Lignes de transfert
+model StockTransferLine {
+  id                String    @id @default(uuid()) @db.Uuid
+  transferId        String    @map("transfer_id") @db.Uuid
+  articleId         String    @map("article_id") @db.Uuid
+  quantiteEnvoyee   Decimal   @map("quantite_envoyee") @db.Decimal(12, 2)
+  quantiteRecue     Decimal?  @map("quantite_recue") @db.Decimal(12, 2)
+
+  transfer          StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  article           ArticleCode   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([articleId])
+  @@map("stock_transfer_lines")
+}
+
+// Session d'inventaire
+enum InventoryStatut {
+  en_cours
+  finalisee
+  validee
+}
+
+model Inventory {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenantId          String           @map("tenant_id") @db.Uuid
+  numero            String           @map("numero")
+  siteId            String           @map("site_id") @db.Uuid
+  dateDebut         DateTime         @map("date_debut")
+  dateFin           DateTime?        @map("date_fin")
+  statut            InventoryStatut  @default(en_cours) @map("statut")
+  responsable       String?          @map("responsable")
+  ecartTotal        Decimal          @default(0) @map("ecart_total") @db.Decimal(12, 2)
+  notes             String?          @map("notes") @db.Text
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  site              StockSite        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  items             InventoryItem[]
+
+  @@unique([tenantId, numero])
+  @@index([tenantId])
+  @@index([siteId])
+  @@index([statut])
+  @@map("inventories")
+}
+
+// Ligne d'inventaire
+model InventoryItem {
+  id                String    @id @default(uuid()) @db.Uuid
+  inventoryId       String    @map("inventory_id") @db.Uuid
+  articleId         String    @map("article_id") @db.Uuid
+  quantiteSysteme   Decimal   @map("quantite_systeme") @db.Decimal(12, 2)
+  quantiteComptee   Decimal?  @map("quantite_comptee") @db.Decimal(12, 2)
+  ecart             Decimal?  @map("ecart") @db.Decimal(12, 2)
+  notes             String?   @map("notes") @db.Text
+
+  inventory         Inventory   @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  article           ArticleCode @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryId])
+  @@index([articleId])
+  @@map("inventory_items")
+}
+
+// Alerte de stock
+model StockAlert {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  articleId         String    @map("article_id") @db.Uuid
+  siteId            String    @map("site_id") @db.Uuid
+  typeAlerte        String    @map("type_alerte")
+  statut            String    @default("active") @map("statut")
+  dateAlerte        DateTime  @default(now()) @map("date_alerte")
+  dateResolution    DateTime? @map("date_resolution")
+  notes             String?   @map("notes") @db.Text
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  article           ArticleCode @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  site              StockSite   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([articleId])
+  @@index([siteId])
+  @@index([statut])
+  @@map("stock_alerts")
 }
 

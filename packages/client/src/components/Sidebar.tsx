@@ -38,6 +38,8 @@ import {
   GiftIcon,
   TicketIcon,
   TagIcon,
+  CubeIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -149,6 +151,20 @@ const allNavGroups: NavGroup[] = [
       { name: 'Dashboard', href: '/btp', icon: WrenchScrewdriverIcon },
       { name: 'Chantiers', href: '/btp/chantiers', icon: DocumentTextIcon },
       { name: 'Situations', href: '/btp/situations', icon: DocumentDuplicateIcon },
+    ],
+  },
+  {
+    label: 'Gestion de Stock',
+    icon: CubeIcon,
+    requiredModules: ['gestion_stock'],
+    items: [
+      { name: 'Dashboard Stock', href: '/gestion-stock', icon: ChartBarIcon },
+      { name: 'Entrepôts', href: '/gestion-stock/sites', icon: BuildingOffice2Icon },
+      { name: 'Niveaux', href: '/gestion-stock/niveaux', icon: ClipboardDocumentListIcon },
+      { name: 'Mouvements', href: '/gestion-stock/mouvements', icon: ArrowPathIcon },
+      { name: 'Transferts', href: '/gestion-stock/transferts', icon: TruckIcon },
+      { name: 'Inventaires', href: '/gestion-stock/inventaires', icon: DocumentCheckIcon },
+      { name: 'Alertes', href: '/gestion-stock/alertes', icon: BellIcon },
     ],
   },
   {

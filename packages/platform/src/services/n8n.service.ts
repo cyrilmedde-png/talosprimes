@@ -253,6 +253,24 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   agent_knowledge_create: 'agent-knowledge-create',
   agent_knowledge_update: 'agent-knowledge-update',
   agent_knowledge_delete: 'agent-knowledge-delete',
+
+  // Gestion de Stock
+  stock_sites_list: 'stock-sites-list',
+  stock_site_create: 'stock-site-created',
+  stock_site_update: 'stock-site-updated',
+  stock_site_delete: 'stock-site-deleted',
+  stock_levels_list: 'stock-levels-list',
+  stock_movements_list: 'stock-movements-list',
+  stock_movement_create: 'stock-movement-created',
+  stock_transfers_list: 'stock-transfers-list',
+  stock_transfer_create: 'stock-transfer-created',
+  stock_transfer_confirm: 'stock-transfer-confirmed',
+  stock_transfer_receive: 'stock-transfer-received',
+  stock_inventories_list: 'stock-inventories-list',
+  stock_inventory_create: 'stock-inventory-created',
+  stock_inventory_finalize: 'stock-inventory-finalized',
+  stock_alerts_list: 'stock-alerts-list',
+  stock_dashboard: 'stock-dashboard-metrics',
 };
 
 /**

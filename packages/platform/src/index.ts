@@ -42,6 +42,7 @@ import { rapprochementRoutes } from './api/routes/rapprochement.routes.js';
 import { encryptionRoutes } from './api/routes/encryption.routes.js';
 import { partnersRoutes } from './api/routes/partners.routes.js';
 import { revenueRoutes } from './api/routes/revenue.routes.js';
+import { stockManagementRoutes } from './api/routes/stock-management.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -354,6 +355,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes revenus & commissions
 await fastify.register(async (fastify) => {
   await fastify.register(revenueRoutes, { prefix: '/api/revenue' });
+});
+
+// Enregistrer les routes gestion de stock
+await fastify.register(async (fastify) => {
+  await fastify.register(stockManagementRoutes, { prefix: '/api/stock' });
 });
 
 // Route de test

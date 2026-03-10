@@ -1,0 +1,217 @@
+{
+  "name": "stock-levels-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "stock-levels-list",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nvar payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nvar data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nvar tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nif(!tenantId)return [{json:{_error:true,message:'tenantId requis'}}];\nreturn [{json:{tenantId}}];"
+      },
+      "id": "parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "78b147cd-bca7-4526-9dcc-492b08d59383",
+              "leftValue": "={{ String($json._error || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
+      },
+      "id": "respond-err",
+      "name": "04. Repondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        860,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var p = $('02. Parser').first().json;\nvar query = `SELECT COALESCE(json_agg(row_to_json(sub)), '[]'::json) AS levels FROM (SELECT sl.id, sl.tenant_id, sl.article_id, sl.site_id, sl.quantity, sl.min_level, sl.max_level, sl.created_at, sl.updated_at, ac.code, ac.designation, ss.code as site_code FROM stock_levels sl JOIN article_codes ac ON sl.article_id = ac.id JOIN stock_sites ss ON sl.site_id = ss.id WHERE sl.tenant_id = '${p.tenantId}'::uuid ORDER BY ac.code ASC, ss.code ASC) sub`;\nreturn [{json:{query}}];"
+      },
+      "id": "build-query",
+      "name": "05. Construire requete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('05. Construire requete').first().json.query }}"
+      },
+      "id": "pg-list",
+      "name": "06. SELECT stock_levels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $input.all();\nif (!items || items.length === 0 || Object.keys(items[0].json||{}).length === 0) {\n  return [{json:{levels:[]}}];\n}\nvar row=$input.first().json;\nvar levels=row.levels||[];\nif(typeof levels==='string')levels=JSON.parse(levels);\nreturn [{json:{levels}}];"
+      },
+      "id": "format",
+      "name": "07. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond-ok",
+      "name": "08. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Construire requete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Construire requete": {
+      "main": [
+        [
+          {
+            "node": "06. SELECT stock_levels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. SELECT stock_levels": {
+      "main": [
+        [
+          {
+            "node": "07. Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Formater reponse": {
+      "main": [
+        [
+          {
+            "node": "08. Repondre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

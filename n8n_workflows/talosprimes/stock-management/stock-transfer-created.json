@@ -1,0 +1,217 @@
+{
+  "name": "stock-transfer-created",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "stock-transfer-created",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw=$input.first().json;\nfunction pj(x){if(typeof x!=='string')return x;try{return JSON.parse(x)}catch(e){return null}}\nfunction isO(v){return v!==null&&typeof v==='object'&&!Array.isArray(v)}\nfunction g(o,k1,k2){if(!isO(o))return null;var v=o[k1];if(v!=null&&v!=='')return v;if(k2){v=o[k2];if(v!=null&&v!=='')return v}return null}\nvar payload=isO(raw)?raw:{};\nif(isO(raw)&&raw.body!==undefined)payload=typeof raw.body==='string'?pj(raw.body):raw.body;\nif(!isO(payload))payload={};\nvar data=isO(payload.data)?payload.data:payload;\nif(!isO(data))data=payload;\nvar tenantId=g(payload,'tenantId')||g(data,'tenantId')||g(raw,'tenantId');\nvar siteFromId=g(data,'siteFromId','site_from_id')||g(payload,'siteFromId','site_from_id');\nvar siteToId=g(data,'siteToId','site_to_id')||g(payload,'siteToId','site_to_id');\nvar lines=g(data,'lines')||g(payload,'lines');\nif(!tenantId||!siteFromId||!siteToId||!lines)return [{json:{_error:true,message:'tenantId, siteFromId, siteToId et lines requis'}}];\nif(!Array.isArray(lines))return [{json:{_error:true,message:'lines doit etre un tableau'}}];\nreturn [{json:{tenantId,siteFromId,siteToId,lines}}];"
+      },
+      "id": "parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "9d1093d4-18db-40f4-b8df-46d64e881b79",
+              "leftValue": "={{ String($json._error || '') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"{{ $json.message }}\"}"
+      },
+      "id": "respond-err",
+      "name": "04. Repondre erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        860,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var p = $('02. Parser').first().json;\nvar linesValues = [];\nvar transferId = 'gen_random_uuid()';\np.lines.forEach(function(line, idx) {\n  var articleId = line.article_id || line.articleId;\n  var quantity = Number(line.quantity || 0);\n  linesValues.push(`(gen_random_uuid(), '${p.tenantId}', ${transferId}, '${articleId}', ${quantity}, 'attente', NOW(), NOW())`);\n});\nvar linesClause = linesValues.join(',\\n');\nvar query = `BEGIN TRANSACTION;\nWITH new_transfer AS (\n  INSERT INTO stock_transfers (id, tenant_id, site_from_id, site_to_id, statut, date_transfer, created_at, updated_at)\n  VALUES (gen_random_uuid(), '${p.tenantId}', '${p.siteFromId}', '${p.siteToId}', 'creee', NOW(), NOW(), NOW())\n  RETURNING id\n)\nINSERT INTO stock_transfer_lines (id, tenant_id, transfer_id, article_id, quantity, statut, created_at, updated_at)\nSELECT gen_random_uuid(), '${p.tenantId}', new_transfer.id, * FROM new_transfer;\nCOMMIT;`;\nreturn [{json:{query}}];"
+      },
+      "id": "build-insert",
+      "name": "05. Construire INSERT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "pg-insert",
+      "name": "06. Executer INSERT",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json:{success:true,data:{message:'Transfert de stock cree'}}}];"
+      },
+      "id": "format",
+      "name": "07. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond-ok",
+      "name": "08. Repondre succes",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Construire INSERT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Repondre erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Construire INSERT": {
+      "main": [
+        [
+          {
+            "node": "06. Executer INSERT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Executer INSERT": {
+      "main": [
+        [
+          {
+            "node": "07. Formater reponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Formater reponse": {
+      "main": [
+        [
+          {
+            "node": "08. Repondre succes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

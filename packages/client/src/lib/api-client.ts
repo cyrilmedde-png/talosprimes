@@ -90,6 +90,15 @@ async function authenticatedFetch<T>(
   return response.json();
 }
 
+// Gestion de Stock types
+interface StockSite { id: string; tenantId: string; code: string; designation: string; adresse?: string | null; telephone?: string | null; email?: string | null; responsable?: string | null; statut: string; createdAt: string; updatedAt: string; _count?: { stockLevels: number; movementsOnSite: number } }
+interface StockLevel { id: string; tenantId: string; articleId: string; siteId: string; quantite: number; quantiteReservee: number; seuilMinimum?: number | null; seuilMaximum?: number | null; article: { code: string; designation: string; prixUnitaireHt?: number | null; unite?: string | null }; site: { code: string; designation: string } }
+interface StockMovement { id: string; tenantId: string; articleId: string; siteId: string; typeOperation: string; quantite: number; quantiteAvant: number; quantiteApres: number; referenceType?: string | null; motif?: string | null; utilisateurNom?: string | null; dateOperation: string; article: { code: string; designation: string }; site: { code: string; designation: string } }
+interface StockTransfer { id: string; tenantId: string; numero: string; siteFromId: string; siteToId: string; statut: string; dateCreation: string; dateEnvoi?: string | null; dateReception?: string | null; notes?: string | null; siteFrom: { code: string; designation: string }; siteTo: { code: string; designation: string }; lines: Array<{ id: string; articleId: string; quantiteEnvoyee: number; quantiteRecue?: number | null; article: { code: string; designation: string } }> }
+interface StockInventory { id: string; tenantId: string; numero: string; siteId: string; dateDebut: string; dateFin?: string | null; statut: string; responsable?: string | null; ecartTotal: number; notes?: string | null; site: { code: string; designation: string }; items?: Array<{ id: string; articleId: string; quantiteSysteme: number; quantiteComptee?: number | null; ecart?: number | null; article: { code: string; designation: string; unite?: string | null } }>; _count?: { items: number } }
+interface StockAlert { id: string; tenantId: string; articleId: string; siteId: string; typeAlerte: string; statut: string; dateAlerte: string; article: { code: string; designation: string }; site: { code: string; designation: string } }
+interface StockDashboard { totalSites: number; totalArticles: number; totalAlertesActives: number; transfertsEnCours: number; inventairesEnCours: number; valeurTotale: number; recentMovements: StockMovement[] }
+
 /**
  * API Client - Fonctions pour les différentes routes
  */
@@ -1387,6 +1396,77 @@ export const apiClient = {
       const q = qp.toString();
       return authenticatedFetch<{ success: boolean; data: { events: unknown[] } }>(`/api/revenue/events${q ? `?${q}` : ''}`);
     },
+  },
+
+  // Gestion de Stock
+  stockSites: {
+    list: () => authenticatedFetch<{ success: boolean; data: { sites: StockSite[] } }>('/api/stock/sites'),
+    get: (id: string) => authenticatedFetch<{ success: boolean; data: { site: StockSite } }>(`/api/stock/sites/${id}`),
+    create: (data: { code: string; designation: string; adresse?: string | null; telephone?: string | null; email?: string | null; responsable?: string | null }) =>
+      authenticatedFetch<{ success: boolean; data: { site: StockSite } }>('/api/stock/sites', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<{ code: string; designation: string; adresse: string | null; telephone: string | null; email: string | null; responsable: string | null; statut: string }>) =>
+      authenticatedFetch<{ success: boolean; data: { site: StockSite } }>(`/api/stock/sites/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => authenticatedFetch<{ success: boolean }>(`/api/stock/sites/${id}`, { method: 'DELETE' }),
+  },
+
+  stockLevels: {
+    list: (params?: { siteId?: string; articleId?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.siteId) q.append('siteId', params.siteId);
+      if (params?.articleId) q.append('articleId', params.articleId);
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { levels: StockLevel[] } }>(`/api/stock/levels${qs ? `?${qs}` : ''}`);
+    },
+  },
+
+  stockMovements: {
+    list: (params?: { siteId?: string; articleId?: string; typeOperation?: string; dateFrom?: string; dateTo?: string; page?: string; limit?: string }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v) q.append(k, v); });
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { movements: StockMovement[]; total: number } }>(`/api/stock/movements${qs ? `?${qs}` : ''}`);
+    },
+    createManual: (data: { articleId: string; siteId: string; typeOperation: string; quantite: number; motif?: string | null }) =>
+      authenticatedFetch<{ success: boolean; data: { movement: StockMovement } }>('/api/stock/movements/manual', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  stockTransfers: {
+    list: (params?: { statut?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.statut) q.append('statut', params.statut);
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { transfers: StockTransfer[] } }>(`/api/stock/transfers${qs ? `?${qs}` : ''}`);
+    },
+    get: (id: string) => authenticatedFetch<{ success: boolean; data: { transfer: StockTransfer } }>(`/api/stock/transfers/${id}`),
+    create: (data: { siteFromId: string; siteToId: string; notes?: string | null; lines: Array<{ articleId: string; quantite: number }> }) =>
+      authenticatedFetch<{ success: boolean; data: { transfer: StockTransfer } }>('/api/stock/transfers', { method: 'POST', body: JSON.stringify(data) }),
+    confirm: (id: string) => authenticatedFetch<{ success: boolean }>(`/api/stock/transfers/${id}/confirm`, { method: 'POST' }),
+    receive: (id: string, data?: { lines?: Array<{ lineId: string; quantiteRecue: number }> }) =>
+      authenticatedFetch<{ success: boolean }>(`/api/stock/transfers/${id}/receive`, { method: 'POST', body: JSON.stringify(data || {}) }),
+  },
+
+  stockInventories: {
+    list: () => authenticatedFetch<{ success: boolean; data: { inventories: StockInventory[] } }>('/api/stock/inventories'),
+    get: (id: string) => authenticatedFetch<{ success: boolean; data: { inventory: StockInventory } }>(`/api/stock/inventories/${id}`),
+    create: (data: { siteId: string; dateDebut: string; responsable?: string | null; notes?: string | null }) =>
+      authenticatedFetch<{ success: boolean; data: { inventory: StockInventory } }>('/api/stock/inventories', { method: 'POST', body: JSON.stringify(data) }),
+    updateItems: (id: string, data: { items: Array<{ articleId: string; quantiteComptee: number; notes?: string | null }> }) =>
+      authenticatedFetch<{ success: boolean }>(`/api/stock/inventories/${id}/items`, { method: 'PUT', body: JSON.stringify(data) }),
+    finalize: (id: string) => authenticatedFetch<{ success: boolean }>(`/api/stock/inventories/${id}/finalize`, { method: 'POST' }),
+  },
+
+  stockAlerts: {
+    list: (params?: { statut?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.statut) q.append('statut', params.statut);
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { alerts: StockAlert[] } }>(`/api/stock/alerts${qs ? `?${qs}` : ''}`);
+    },
+    resolve: (id: string) => authenticatedFetch<{ success: boolean }>(`/api/stock/alerts/${id}/resolve`, { method: 'PUT' }),
+  },
+
+  stockDashboard: {
+    get: () => authenticatedFetch<{ success: boolean; data: { dashboard: StockDashboard } }>('/api/stock/dashboard'),
   },
 };
 
