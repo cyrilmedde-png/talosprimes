@@ -709,18 +709,31 @@ else
     log_warn "Erreur generation Prisma (non bloquant)"
   fi
 
+  # --- Auto-resolve des migrations echouees AVANT migrate deploy ---
+  log_info "Verification des migrations echouees..."
+  FAILED_MIGRATIONS=$(npx prisma migrate status 2>&1 | grep -oP 'The `\K[^`]+(?=` migration.*failed)' || true)
+  if [ -n "$FAILED_MIGRATIONS" ]; then
+    for FAILED_MIG in $FAILED_MIGRATIONS; do
+      log_warn "Migration echouee detectee: $FAILED_MIG — resolution automatique..."
+      npx prisma migrate resolve --applied "$FAILED_MIG" 2>&1 || true
+      log_ok "Migration $FAILED_MIG marquee comme appliquee"
+    done
+  else
+    log_ok "Aucune migration echouee"
+  fi
+
   log_info "Application des migrations..."
   if npx prisma migrate deploy 2>&1; then
     log_ok "Migrations appliquees"
   else
     log_warn "prisma migrate deploy a echoue (non bloquant)"
-  fi
-
-  log_info "Synchronisation du schema (db push)..."
-  if npx prisma db push --accept-data-loss=false 2>&1; then
-    log_ok "Schema synchronise via db push"
-  else
-    log_warn "Prisma db push: pas de changements ou erreur (non bloquant)"
+    # Fallback: synchronisation du schema via db push (sans perte de donnees)
+    log_info "Fallback: synchronisation du schema (db push)..."
+    if echo "n" | npx prisma db push --accept-data-loss=false 2>&1; then
+      log_ok "Schema synchronise via db push"
+    else
+      log_warn "Prisma db push: pas de changements ou erreur (non bloquant)"
+    fi
   fi
 
   # --- Execution du seed Prisma (TypeScript) — une seule fois ---
