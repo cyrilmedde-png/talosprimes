@@ -877,7 +877,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   // ===================== SYSTÈME DE TICKETING ========================
   // ===================================================================
 
-  // Helper : génère un numéro de ticket unique TKT-00001, TKT-00002, ...
+  // Helper : génère un numéro de ticket unique TKT-00001, TKT-00002, ... (global, séquence unique)
   async function generateTicketNumber(): Promise<string> {
     const last = await prisma.ticket.findFirst({
       orderBy: { createdAt: 'desc' },
@@ -886,6 +886,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     const lastNum = last ? parseInt(last.numero.replace('TKT-', ''), 10) : 0;
     return `TKT-${String(lastNum + 1).padStart(5, '0')}`;
   }
+
 
   // ─── POST /api/tickets — Créer un ticket (PUBLIC, rate limit) ───
   interface CreateTicketBody {
@@ -898,6 +899,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     message: string;
     categorie?: string;
     priorite?: string;
+    tenantId?: string;
   }
 
   fastify.post<{ Body: CreateTicketBody }>(
@@ -908,17 +910,21 @@ export async function landingRoutes(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const { nom, prenom, email, telephone, entreprise, sujet, message, categorie, priorite } = request.body;
+      const { nom, prenom, email, telephone, entreprise, sujet, message, categorie, priorite, tenantId: bodyTenantId } = request.body;
 
       if (!nom || !prenom || !email || !sujet || !message) {
         return ApiError.badRequest(reply, 'Les champs nom, prénom, email, sujet et message sont requis');
       }
+
+      // Déterminer le tenantId : depuis le body (landing client) ou fallback admin
+      const ticketTenantId = bodyTenantId || '00000000-0000-0000-0000-000000000001';
 
       try {
         const numero = await generateTicketNumber();
 
         const ticket = await prisma.ticket.create({
           data: {
+            tenantId: ticketTenantId,
             numero,
             nom,
             prenom,
@@ -963,18 +969,21 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // ─── GET /api/tickets — Lister tous les tickets (ADMIN) ───
+  // ─── GET /api/tickets — Lister les tickets du tenant (ADMIN) ───
   fastify.get<{ Querystring: { statut?: string; priorite?: string; categorie?: string; page?: string; limit?: string } }>(
     '/api/tickets',
     {
       preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
       const { statut, priorite, categorie, page = '1', limit = '20' } = request.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
       const take = parseInt(limit);
 
-      const where: Record<string, unknown> = {};
+      const where: Record<string, unknown> = { tenantId };
       if (statut) where.statut = statut;
       if (priorite) where.priorite = priorite;
       if (categorie) where.categorie = categorie;
@@ -1003,21 +1012,24 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // ─── GET /api/tickets/stats — Statistiques tickets (ADMIN) ───
+  // ─── GET /api/tickets/stats — Statistiques tickets du tenant (ADMIN) ───
   fastify.get(
     '/api/tickets/stats',
     {
       preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
-    async (_request, reply) => {
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
       try {
         const [total, ouvert, enCours, enAttente, resolu, ferme] = await Promise.all([
-          prisma.ticket.count(),
-          prisma.ticket.count({ where: { statut: 'ouvert' } }),
-          prisma.ticket.count({ where: { statut: 'en_cours' } }),
-          prisma.ticket.count({ where: { statut: 'en_attente' } }),
-          prisma.ticket.count({ where: { statut: 'resolu' } }),
-          prisma.ticket.count({ where: { statut: 'ferme' } }),
+          prisma.ticket.count({ where: { tenantId } }),
+          prisma.ticket.count({ where: { tenantId, statut: 'ouvert' } }),
+          prisma.ticket.count({ where: { tenantId, statut: 'en_cours' } }),
+          prisma.ticket.count({ where: { tenantId, statut: 'en_attente' } }),
+          prisma.ticket.count({ where: { tenantId, statut: 'resolu' } }),
+          prisma.ticket.count({ where: { tenantId, statut: 'ferme' } }),
         ]);
 
         return reply.send({
@@ -1031,16 +1043,19 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // ─── GET /api/tickets/:id — Détails d'un ticket (ADMIN) ───
+  // ─── GET /api/tickets/:id — Détails d'un ticket du tenant (ADMIN) ───
   fastify.get<{ Params: { id: string } }>(
     '/api/tickets/:id',
     {
       preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
       try {
-        const ticket = await prisma.ticket.findUnique({
-          where: { id: request.params.id },
+        const ticket = await prisma.ticket.findFirst({
+          where: { id: request.params.id, tenantId },
           include: { replies: { orderBy: { createdAt: 'asc' } } },
         });
         if (!ticket) return ApiError.notFound(reply, 'Ticket non trouvé');
@@ -1084,16 +1099,23 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // ─── PATCH /api/tickets/:id — Mettre à jour un ticket (ADMIN) ───
+  // ─── PATCH /api/tickets/:id — Mettre à jour un ticket du tenant (ADMIN) ───
   fastify.patch<{ Params: { id: string }; Body: Record<string, unknown> }>(
     '/api/tickets/:id',
     {
       preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
       const { statut, priorite, categorie, assigneA, tags } = request.body as {
         statut?: string; priorite?: string; categorie?: string; assigneA?: string; tags?: string[];
       };
+
+      // Vérifier que le ticket appartient au tenant
+      const existing = await prisma.ticket.findFirst({ where: { id: request.params.id, tenantId } });
+      if (!existing) return ApiError.notFound(reply, 'Ticket non trouvé');
 
       const data: Record<string, unknown> = {};
       if (statut) data.statut = statut;
@@ -1147,11 +1169,14 @@ export async function landingRoutes(fastify: FastifyInstance) {
       preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
       const { message, interne } = request.body;
       if (!message) return ApiError.badRequest(reply, 'Le message est requis');
 
       try {
-        const ticket = await prisma.ticket.findUnique({ where: { id: request.params.id } });
+        const ticket = await prisma.ticket.findFirst({ where: { id: request.params.id, tenantId } });
         if (!ticket) return ApiError.notFound(reply, 'Ticket non trouvé');
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1201,14 +1226,21 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // ─── DELETE /api/tickets/:id — Supprimer un ticket (ADMIN) ───
+  // ─── DELETE /api/tickets/:id — Supprimer un ticket du tenant (ADMIN) ───
   fastify.delete<{ Params: { id: string } }>(
     '/api/tickets/:id',
     {
       preHandler: [n8nOrAuthMiddleware, requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
       try {
+        // Vérifier que le ticket appartient au tenant avant suppression
+        const ticket = await prisma.ticket.findFirst({ where: { id: request.params.id, tenantId } });
+        if (!ticket) return ApiError.notFound(reply, 'Ticket non trouvé');
+
         await prisma.ticket.delete({ where: { id: request.params.id } });
         return reply.send({ success: true, message: 'Ticket supprimé' });
       } catch (error) {

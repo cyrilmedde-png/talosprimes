@@ -357,6 +357,7 @@ model Tenant {
   stockTransfers        StockTransfer[]
   inventories           Inventory[]
   stockAlerts           StockAlert[]
+  tickets               Ticket[]
   @@index([emailContact])
   @@index([statut])
   @@map("tenants")
@@ -1195,6 +1196,7 @@ model ContactMessage {
 // Ticket (tickets de support depuis la landing page)
 model Ticket {
   id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid     // isolation multi-tenant
   numero      String        @unique                       // ex: TKT-00042
   nom         String                                       // nom du demandeur
   prenom      String                                       // prénom du demandeur
@@ -1213,6 +1215,9 @@ model Ticket {
   updatedAt   DateTime      @updatedAt @map("updated_at")
   resolvedAt  DateTime?     @map("resolved_at")
 
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
   @@index([statut])
   @@index([priorite])
   @@index([categorie])
