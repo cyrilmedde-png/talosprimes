@@ -58,6 +58,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { useAuthStore } from '@/store/auth-store';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -1648,7 +1649,7 @@ function MarkdownEditor({ value, onChange, rows = 12, placeholder }: MarkdownEdi
       </div>
       {preview ? (
         <div className="bg-slate-800 p-4 min-h-[200px] prose prose-invert prose-sm max-w-none prose-headings:text-white prose-p:text-slate-300 prose-a:text-blue-400 prose-strong:text-white prose-li:text-slate-300 prose-blockquote:border-slate-500 prose-blockquote:text-slate-400 prose-code:text-emerald-400">
-          {value ? <ReactMarkdown>{value}</ReactMarkdown> : <p className="text-slate-500 italic">Aucun contenu à prévisualiser</p>}
+          {value ? <ReactMarkdown rehypePlugins={[rehypeRaw]}>{value}</ReactMarkdown> : <p className="text-slate-500 italic">Aucun contenu à prévisualiser</p>}
         </div>
       ) : (
         <textarea ref={textareaRef} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}

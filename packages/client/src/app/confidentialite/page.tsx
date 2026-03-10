@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { LegalPageLayout } from '@/components/LegalPageLayout';
 
 export default function ConfidentialitePage() {
@@ -32,7 +33,7 @@ export default function ConfidentialitePage() {
         </div>
       ) : content ? (
         <div className="prose prose-slate prose-sm max-w-none prose-headings:text-slate-900 prose-headings:font-semibold prose-p:text-slate-600 prose-p:leading-relaxed prose-a:text-slate-900 prose-a:underline prose-a:underline-offset-2">
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
         </div>
       ) : (
         <p className="text-slate-500 text-center py-16">

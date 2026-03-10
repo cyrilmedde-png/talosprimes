@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Workflow, Check, Loader2, ArrowRight, Sparkles, Phone, Mail } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 
 interface CmsPage {
   id: string;
@@ -148,8 +149,8 @@ export default function DynamicCmsPage() {
                 {!(slug === 'tarifs' && plans.length > 0) && (
                   <h1 className="text-4xl font-bold text-gray-900 mb-8">{page.titre}</h1>
                 )}
-                <div className="max-w-none text-gray-800 leading-relaxed [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-gray-900 [&_h1]:mt-10 [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-gray-900 [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-gray-900 [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_hr]:my-8 [&_hr]:border-gray-200 [&_a]:text-indigo-600 [&_a]:underline">
-                  <ReactMarkdown>{page.contenu}</ReactMarkdown>
+                <div className="max-w-none text-gray-800 leading-relaxed [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-gray-900 [&_h1]:mt-10 [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-gray-900 [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-gray-900 [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_hr]:my-8 [&_hr]:border-gray-200 [&_a]:text-indigo-600 [&_a]:underline [&_mark]:bg-yellow-200 [&_mark]:px-1 [&_mark]:rounded [&_u]:underline">
+                  <ReactMarkdown rehypePlugins={[rehypeRaw]}>{page.contenu}</ReactMarkdown>
                 </div>
               </div>
             )}
