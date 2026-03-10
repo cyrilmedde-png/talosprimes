@@ -166,6 +166,16 @@ const ALL_MODULES: ModuleDef[] = [
     ordreAffichage: 41,
   },
 
+  // ─── Support ─────────────────────────────────
+  {
+    code: 'ticketing',
+    nomAffiche: 'Ticketing Support',
+    description: 'Système de tickets : création depuis la landing page, suivi, réponses, statuts, priorités, notifications email automatiques',
+    categorie: 'Support',
+    icone: 'TicketIcon',
+    ordreAffichage: 50,
+  },
+
   // ─── Système ──────────────────────────────────
   {
     code: 'logs',
