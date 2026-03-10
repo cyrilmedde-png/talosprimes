@@ -212,6 +212,7 @@ export default function CMSPage() {
   const [activeTab, setActiveTab] = useState('sections');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   const [sections, setSections] = useState<Section[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
@@ -340,8 +341,9 @@ export default function CMSPage() {
     }
   }, []);
 
-  // Load data when tab changes
+  // Load data when tab changes & reset edit mode
   useEffect(() => {
+    setEditMode(false);
     if (activeTab === 'sections') loadSections();
     else if (activeTab === 'testimonials') loadTestimonials();
     else if (activeTab === 'messages') loadMessages();
@@ -715,12 +717,14 @@ export default function CMSPage() {
           >
             <Eye size={18} /> Prévisualiser
           </button>
-          <button
-            onClick={() => setShowSectionModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-          >
-            <Plus size={18} /> Ajouter une section
-          </button>
+          {editMode && (
+            <button
+              onClick={() => setShowSectionModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+            >
+              <Plus size={18} /> Ajouter une section
+            </button>
+          )}
         </div>
       </div>
 
@@ -738,22 +742,24 @@ export default function CMSPage() {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => moveSection(section.id, 'up')}
-                        disabled={idx === 0}
-                        className="p-1 hover:bg-slate-700 disabled:opacity-30 rounded"
-                      >
-                        <ArrowUp size={16} />
-                      </button>
-                      <button
-                        onClick={() => moveSection(section.id, 'down')}
-                        disabled={idx === sections.length - 1}
-                        className="p-1 hover:bg-slate-700 disabled:opacity-30 rounded"
-                      >
-                        <ArrowDown size={16} />
-                      </button>
-                    </div>
+                    {editMode && (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => moveSection(section.id, 'up')}
+                          disabled={idx === 0}
+                          className="p-1 hover:bg-slate-700 disabled:opacity-30 rounded"
+                        >
+                          <ArrowUp size={16} />
+                        </button>
+                        <button
+                          onClick={() => moveSection(section.id, 'down')}
+                          disabled={idx === sections.length - 1}
+                          className="p-1 hover:bg-slate-700 disabled:opacity-30 rounded"
+                        >
+                          <ArrowDown size={16} />
+                        </button>
+                      </div>
+                    )}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-1">
                         {(() => {
@@ -773,31 +779,38 @@ export default function CMSPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingSection(section);
-                      setShowSectionModal(true);
-                    }}
-                    className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => updateSection(section.id, { actif: !section.actif })}
-                    className={`px-3 py-2 rounded transition text-sm font-medium ${
-                      section.actif
-                        ? 'bg-green-900 text-green-200'
-                        : 'bg-red-900 text-red-200'
-                    }`}
-                  >
+                  <span className={`px-3 py-2 rounded text-sm font-medium ${
+                    section.actif
+                      ? 'bg-green-900 text-green-200'
+                      : 'bg-red-900 text-red-200'
+                  }`}>
                     {section.actif ? 'Actif' : 'Inactif'}
-                  </button>
-                  <button
-                    onClick={() => deleteSection(section.id)}
-                    className="p-2 bg-red-900 hover:bg-red-800 text-red-200 rounded transition"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  </span>
+                  {editMode && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingSection(section);
+                          setShowSectionModal(true);
+                        }}
+                        className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => updateSection(section.id, { actif: !section.actif })}
+                        className="px-3 py-2 rounded transition text-sm font-medium bg-slate-700 hover:bg-slate-600 text-white"
+                      >
+                        {section.actif ? 'Désactiver' : 'Activer'}
+                      </button>
+                      <button
+                        onClick={() => deleteSection(section.id)}
+                        className="p-2 bg-red-900 hover:bg-red-800 text-red-200 rounded transition"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -828,6 +841,7 @@ export default function CMSPage() {
         config={globalConfig}
         onSaveNavbar={saveNavbar}
         onSaveFooter={saveFooter}
+        disabled={!editMode}
       />
     </div>
   );
@@ -838,6 +852,7 @@ export default function CMSPage() {
       <ThemeEditor
         theme={globalConfig.theme || {}}
         onSave={saveTheme}
+        disabled={!editMode}
       />
     </div>
   );
@@ -848,6 +863,7 @@ export default function CMSPage() {
       <SeoEditor
         seo={globalConfig.seo || {}}
         onSave={saveSeo}
+        disabled={!editMode}
       />
     </div>
   );
@@ -856,15 +872,17 @@ export default function CMSPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Témoignages</h2>
-        <button
-          onClick={() => {
-            setEditingTestimonial(null);
-            setShowTestimonialModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-        >
-          <Plus size={18} /> Ajouter un témoignage
-        </button>
+        {editMode && (
+          <button
+            onClick={() => {
+              setEditingTestimonial(null);
+              setShowTestimonialModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          >
+            <Plus size={18} /> Ajouter un témoignage
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -882,7 +900,7 @@ export default function CMSPage() {
                 <th className="px-4 py-3 text-left">Poste</th>
                 <th className="px-4 py-3 text-left">Note</th>
                 <th className="px-4 py-3 text-left">Affiche</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                {editMode && <th className="px-4 py-3 text-left">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
@@ -894,34 +912,44 @@ export default function CMSPage() {
                   <td className="px-4 py-3">{t.poste}</td>
                   <td className="px-4 py-3">{t.note}/5</td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => updateTestimonial(t.id, { affiche: !t.affiche })}
-                      className={`px-2 py-1 rounded text-xs ${
+                    {editMode ? (
+                      <button
+                        onClick={() => updateTestimonial(t.id, { affiche: !t.affiche })}
+                        className={`px-2 py-1 rounded text-xs ${
+                          t.affiche ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
+                        }`}
+                      >
+                        {t.affiche ? 'Oui' : 'Non'}
+                      </button>
+                    ) : (
+                      <span className={`px-2 py-1 rounded text-xs ${
                         t.affiche ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
-                      }`}
-                    >
-                      {t.affiche ? 'Oui' : 'Non'}
-                    </button>
+                      }`}>
+                        {t.affiche ? 'Oui' : 'Non'}
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingTestimonial(t);
-                          setShowTestimonialModal(true);
-                        }}
-                        className="p-1 hover:bg-slate-700 rounded"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => deleteTestimonial(t.id)}
-                        className="p-1 hover:bg-red-900 rounded text-red-400"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+                  {editMode && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingTestimonial(t);
+                            setShowTestimonialModal(true);
+                          }}
+                          className="p-1 hover:bg-slate-700 rounded"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => deleteTestimonial(t.id)}
+                          className="p-1 hover:bg-red-900 rounded text-red-400"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -961,7 +989,7 @@ export default function CMSPage() {
                 <th className="px-4 py-3 text-left">Sujet</th>
                 <th className="px-4 py-3 text-left">Message</th>
                 <th className="px-4 py-3 text-left">Date</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                {editMode && <th className="px-4 py-3 text-left">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
@@ -972,14 +1000,16 @@ export default function CMSPage() {
                   <td className="px-4 py-3">{m.sujet}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{m.message}</td>
                   <td className="px-4 py-3">{new Date(m.date).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => deleteMessage(m.id)}
-                      className="p-1 hover:bg-red-900 rounded text-red-400"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+                  {editMode && (
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => deleteMessage(m.id)}
+                        className="p-1 hover:bg-red-900 rounded text-red-400"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -996,6 +1026,7 @@ export default function CMSPage() {
         content={landingContent}
         onSave={saveLandingContent}
         fetchApi={fetchApi}
+        disabled={!editMode}
       />
     </div>
   );
@@ -1004,15 +1035,17 @@ export default function CMSPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Pages CMS</h2>
-        <button
-          onClick={() => {
-            setEditingPage(null);
-            setShowPageModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-        >
-          <Plus size={18} /> Ajouter une page
-        </button>
+        {editMode && (
+          <button
+            onClick={() => {
+              setEditingPage(null);
+              setShowPageModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          >
+            <Plus size={18} /> Ajouter une page
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -1027,7 +1060,7 @@ export default function CMSPage() {
                 <th className="px-4 py-3 text-left">Titre</th>
                 <th className="px-4 py-3 text-left">Slug</th>
                 <th className="px-4 py-3 text-left">Publiée</th>
-                <th className="px-4 py-3 text-left">Actions</th>
+                {editMode && <th className="px-4 py-3 text-left">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
@@ -1036,34 +1069,44 @@ export default function CMSPage() {
                   <td className="px-4 py-3">{p.titre}</td>
                   <td className="px-4 py-3 text-slate-400">{p.slug}</td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => updatePage(p.id, { publie: !p.publie })}
-                      className={`px-2 py-1 rounded text-xs ${
+                    {editMode ? (
+                      <button
+                        onClick={() => updatePage(p.id, { publie: !p.publie })}
+                        className={`px-2 py-1 rounded text-xs ${
+                          p.publie ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
+                        }`}
+                      >
+                        {p.publie ? 'Oui' : 'Non'}
+                      </button>
+                    ) : (
+                      <span className={`px-2 py-1 rounded text-xs ${
                         p.publie ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
-                      }`}
-                    >
-                      {p.publie ? 'Oui' : 'Non'}
-                    </button>
+                      }`}>
+                        {p.publie ? 'Oui' : 'Non'}
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingPage(p);
-                          setShowPageModal(true);
-                        }}
-                        className="p-1 hover:bg-slate-700 rounded"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => deletePage(p.id)}
-                        className="p-1 hover:bg-red-900 rounded text-red-400"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+                  {editMode && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingPage(p);
+                            setShowPageModal(true);
+                          }}
+                          className="p-1 hover:bg-slate-700 rounded"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => deletePage(p.id)}
+                          className="p-1 hover:bg-red-900 rounded text-red-400"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -1089,15 +1132,17 @@ export default function CMSPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Tarifs</h2>
-        <button
-          onClick={() => {
-            setEditingPlan(null);
-            setShowPlanModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-        >
-          <Plus size={18} /> Ajouter un plan
-        </button>
+        {editMode && (
+          <button
+            onClick={() => {
+              setEditingPlan(null);
+              setShowPlanModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+          >
+            <Plus size={18} /> Ajouter un plan
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -1121,23 +1166,25 @@ export default function CMSPage() {
                   </span>
                 )}
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setEditingPlan(plan);
-                    setShowPlanModal(true);
-                  }}
-                  className="flex-1 p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition text-sm"
-                >
-                  <Edit2 size={16} className="inline mr-1" /> Éditer
-                </button>
-                <button
-                  onClick={() => deletePlan(plan.id)}
-                  className="flex-1 p-2 bg-red-900 hover:bg-red-800 text-red-200 rounded transition text-sm"
-                >
-                  <Trash2 size={16} className="inline mr-1" /> Supprimer
-                </button>
-              </div>
+              {editMode && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingPlan(plan);
+                      setShowPlanModal(true);
+                    }}
+                    className="flex-1 p-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition text-sm"
+                  >
+                    <Edit2 size={16} className="inline mr-1" /> Éditer
+                  </button>
+                  <button
+                    onClick={() => deletePlan(plan.id)}
+                    className="flex-1 p-2 bg-red-900 hover:bg-red-800 text-red-200 rounded transition text-sm"
+                  >
+                    <Trash2 size={16} className="inline mr-1" /> Supprimer
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1163,6 +1210,7 @@ export default function CMSPage() {
       <ConfigurationEditor
         content={landingContent}
         onSave={saveLandingContent}
+        disabled={!editMode}
       />
     </div>
   );
@@ -1172,6 +1220,41 @@ export default function CMSPage() {
       <h1 className="text-3xl font-bold mb-6">Gestionnaire CMS</h1>
 
       {renderTabs()}
+
+      {/* ═══ Bandeau mode lecture / édition ═══ */}
+      <div className={`mb-4 p-3 rounded-lg border flex items-center justify-between ${
+        editMode
+          ? 'bg-amber-900/30 border-amber-700'
+          : 'bg-slate-800 border-slate-700'
+      }`}>
+        <div className="flex items-center gap-2 text-sm">
+          {editMode ? (
+            <>
+              <Edit2 size={16} className="text-amber-400" />
+              <span className="text-amber-300 font-medium">Mode édition actif — les modifications sont possibles</span>
+            </>
+          ) : (
+            <>
+              <Lock size={16} className="text-green-400" />
+              <span className="text-green-300 font-medium">Données verrouillées — cliquez sur Modifier pour éditer</span>
+            </>
+          )}
+        </div>
+        <button
+          onClick={() => setEditMode(!editMode)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            editMode
+              ? 'bg-green-700 hover:bg-green-600 text-white'
+              : 'bg-amber-600 hover:bg-amber-500 text-white'
+          }`}
+        >
+          {editMode ? (
+            <><Lock size={16} /> Verrouiller</>
+          ) : (
+            <><Edit2 size={16} /> Modifier</>
+          )}
+        </button>
+      </div>
 
       {activeTab === 'sections' && renderSectionsTab()}
       {activeTab === 'navbar' && renderNavbarTab()}
@@ -2359,12 +2442,14 @@ interface NavbarFooterEditorProps {
   config: GlobalConfig;
   onSaveNavbar: (navbar: NavbarConfig) => void;
   onSaveFooter: (footer: FooterConfig) => void;
+  disabled?: boolean;
 }
 
 function NavbarFooterEditor({
   config,
   onSaveNavbar,
   onSaveFooter,
+  disabled = false,
 }: NavbarFooterEditorProps) {
   const [navbar, setNavbar] = useState<NavbarConfig>(config.navbar || { logo: '', logoText: '', links: [], ctaButton: { text: '', href: '' }, showLoginLink: true, loginHref: '/login' });
   const [footer, setFooter] = useState<FooterConfig>(config.footer || { companyName: '', description: '', columns: [], legalLinks: [
@@ -2440,7 +2525,7 @@ function NavbarFooterEditor({
   };
 
   return (
-    <div className="space-y-6">
+    <fieldset disabled={disabled} className={`space-y-6 ${disabled ? 'opacity-75' : ''}`}>
       {/* ═══ NAVBAR ═══ */}
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
         <h3 className="text-xl font-bold text-white mb-5">Navbar</h3>
@@ -2701,20 +2786,21 @@ function NavbarFooterEditor({
           </button>
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 }
 
 interface ThemeEditorProps {
   theme: ThemeConfig;
   onSave: (theme: ThemeConfig) => void;
+  disabled?: boolean;
 }
 
-function ThemeEditor({ theme, onSave }: ThemeEditorProps) {
+function ThemeEditor({ theme, onSave, disabled = false }: ThemeEditorProps) {
   const [formData, setFormData] = useState<ThemeConfig>(theme);
 
   return (
-    <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
+    <fieldset disabled={disabled} className={`bg-slate-800 p-6 rounded-lg border border-slate-700 ${disabled ? 'opacity-75' : ''}`}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -2819,20 +2905,21 @@ function ThemeEditor({ theme, onSave }: ThemeEditorProps) {
       >
         <Save size={18} /> Enregistrer Thème
       </button>
-    </div>
+    </fieldset>
   );
 }
 
 interface SeoEditorProps {
   seo: SeoConfig;
   onSave: (seo: SeoConfig) => void;
+  disabled?: boolean;
 }
 
-function SeoEditor({ seo, onSave }: SeoEditorProps) {
+function SeoEditor({ seo, onSave, disabled = false }: SeoEditorProps) {
   const [formData, setFormData] = useState<SeoConfig>(seo);
 
   return (
-    <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 space-y-4">
+    <fieldset disabled={disabled} className={`bg-slate-800 p-6 rounded-lg border border-slate-700 space-y-4 ${disabled ? 'opacity-75' : ''}`}>
       <div>
         <label className="block text-sm font-medium text-slate-300 mb-2">
           Meta Title
@@ -2887,7 +2974,7 @@ function SeoEditor({ seo, onSave }: SeoEditorProps) {
       >
         <Save size={18} /> Enregistrer SEO
       </button>
-    </div>
+    </fieldset>
   );
 }
 
@@ -2898,9 +2985,10 @@ interface LegalPagesEditorProps {
     url: string,
     options?: RequestInit
   ) => Promise<T>;
+  disabled?: boolean;
 }
 
-function LegalPagesEditor({ content, onSave, fetchApi }: LegalPagesEditorProps) {
+function LegalPagesEditor({ content, onSave, fetchApi, disabled = false }: LegalPagesEditorProps) {
   const [mentionsLegales, setMentionsLegales] = useState(
     (content.mentions_legales as string) || ''
   );
@@ -2972,7 +3060,7 @@ function LegalPagesEditor({ content, onSave, fetchApi }: LegalPagesEditorProps) 
   };
 
   return (
-    <div className="space-y-6">
+    <fieldset disabled={disabled} className={`space-y-6 ${disabled ? 'opacity-75' : ''}`}>
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
         <h3 className="text-lg font-bold text-white mb-4">Mentions Légales</h3>
         <div className="mb-4">
@@ -3092,16 +3180,17 @@ function LegalPagesEditor({ content, onSave, fetchApi }: LegalPagesEditorProps) 
           </button>
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 }
 
 interface ConfigurationEditorProps {
   content: LandingContent;
   onSave: (section: string, contenu: ContentValue) => void;
+  disabled?: boolean;
 }
 
-function ConfigurationEditor({ content, onSave }: ConfigurationEditorProps) {
+function ConfigurationEditor({ content, onSave, disabled = false }: ConfigurationEditorProps) {
   const contactData = content.contact as JsonRecord | undefined;
   const legalData = content.legal as JsonRecord | undefined;
   const companyData = content.company as JsonRecord | undefined;
@@ -3146,7 +3235,7 @@ function ConfigurationEditor({ content, onSave }: ConfigurationEditorProps) {
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <fieldset disabled={disabled} className={`grid grid-cols-1 lg:grid-cols-2 gap-6 ${disabled ? 'opacity-75' : ''}`}>
       <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
         <h3 className="text-lg font-bold text-white mb-4">Contact</h3>
         <div className="space-y-4 mb-4">
@@ -3416,6 +3505,6 @@ function ConfigurationEditor({ content, onSave }: ConfigurationEditorProps) {
           </button>
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 }
