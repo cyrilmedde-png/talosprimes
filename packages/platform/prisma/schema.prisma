@@ -348,6 +348,8 @@ model Tenant {
   rhInscriptions        RhInscriptionFormation[]
   rhEvaluations         RhEvaluation[]
   agentKnowledgeEntries AgentKnowledgeEntry[]
+  // Marketing
+  marketingPosts        MarketingPost[]
   @@index([emailContact])
   @@index([statut])
   @@map("tenants")
@@ -2367,5 +2369,56 @@ model RevenueEvent {
   @@index([mois])
   @@index([type])
   @@map("revenue_events")
+}
+
+// ============================================
+// MARKETING
+// ============================================
+
+enum MarketingPlateforme {
+  tiktok
+  instagram
+  facebook
+}
+
+enum MarketingContentType {
+  module_presentation
+  astuce
+  temoignage
+  promo
+}
+
+enum MarketingPostStatus {
+  planifie
+  publie
+  erreur
+}
+
+model MarketingPost {
+  id                String                @id @default(uuid()) @db.Uuid
+  tenantId          String                @map("tenant_id") @db.Uuid
+  plateforme        MarketingPlateforme
+  type              MarketingContentType
+  sujet             String                @db.VarChar(255)
+  contenuTexte      String?               @map("contenu_texte") @db.Text
+  contenuVisuelUrl  String?               @map("contenu_visuel_url") @db.Text
+  hashtags          String?               @db.Text
+  datePublication   DateTime              @default(now()) @map("date_publication")
+  status            MarketingPostStatus   @default(planifie)
+  postExternalId    String?               @map("post_external_id") @db.VarChar(255)
+  engagementData    Json?                 @map("engagement_data")
+  semaineCycle      Int?                  @map("semaine_cycle")
+  erreurDetail      String?               @map("erreur_detail") @db.Text
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([plateforme])
+  @@index([status])
+  @@index([datePublication])
+  @@index([tenantId, plateforme, datePublication])
+  @@map("marketing_posts")
 }
 
