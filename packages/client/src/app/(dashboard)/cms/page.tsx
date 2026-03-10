@@ -339,7 +339,7 @@ export default function CMSPage() {
   const loadGlobalConfig = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: GlobalConfig }>('/api/landing/global-config');
+      const data = await fetchApi<{ data: GlobalConfig }>(`/api/landing/global-config?_t=${Date.now()}`);
       setGlobalConfig(data.data || {});
     } catch (error) {
       addToast(`Erreur lors du chargement de la configuration: ${error}`, 'error');
@@ -613,12 +613,14 @@ export default function CMSPage() {
   // ============= GLOBAL CONFIG OPERATIONS =============
   const saveNavbar = async (navbar: NavbarConfig) => {
     try {
-      await fetchApi('/api/landing/global-config/navbar', {
+      const res = await fetchApi<{ success: boolean }>('/api/landing/global-config/navbar', {
         method: 'PUT',
         body: JSON.stringify({ config: navbar }),
       });
-      setGlobalConfig({ ...globalConfig, navbar });
-      addToast('Navbar sauvegardée avec succès', 'success');
+      if (res.success) {
+        setGlobalConfig((prev) => ({ ...prev, navbar }));
+        addToast('Navbar sauvegardée avec succès', 'success');
+      }
     } catch (error) {
       addToast(`Erreur lors de la sauvegarde: ${error}`, 'error');
     }
@@ -626,12 +628,14 @@ export default function CMSPage() {
 
   const saveFooter = async (footer: FooterConfig) => {
     try {
-      await fetchApi('/api/landing/global-config/footer', {
+      const res = await fetchApi<{ success: boolean }>('/api/landing/global-config/footer', {
         method: 'PUT',
         body: JSON.stringify({ config: footer }),
       });
-      setGlobalConfig({ ...globalConfig, footer });
-      addToast('Footer sauvegardé avec succès', 'success');
+      if (res.success) {
+        setGlobalConfig((prev) => ({ ...prev, footer }));
+        addToast('Footer sauvegardé avec succès', 'success');
+      }
     } catch (error) {
       addToast(`Erreur lors de la sauvegarde: ${error}`, 'error');
     }
@@ -2518,12 +2522,20 @@ function NavbarFooterEditor({
   onSaveFooter,
   disabled = false,
 }: NavbarFooterEditorProps) {
-  const [navbar, setNavbar] = useState<NavbarConfig>(config.navbar || { logo: '', logoText: '', links: [], ctaButton: { text: '', href: '' }, showLoginLink: true, loginHref: '/login' });
-  const [footer, setFooter] = useState<FooterConfig>(config.footer || { companyName: '', description: '', columns: [], legalLinks: [
+  const defaultNavbar: NavbarConfig = { logo: '', logoText: '', links: [], ctaButton: { text: '', href: '' }, showLoginLink: true, loginHref: '/login' };
+  const defaultFooter: FooterConfig = { companyName: '', description: '', columns: [], legalLinks: [
     { text: 'Mentions légales', href: '/mentions-legales' },
     { text: 'Confidentialité', href: '/confidentialite' },
     { text: 'CGV', href: '/cgv' },
-  ] });
+  ] };
+  const [navbar, setNavbar] = useState<NavbarConfig>(config.navbar || defaultNavbar);
+  const [footer, setFooter] = useState<FooterConfig>(config.footer || defaultFooter);
+
+  // Sync state when config prop changes (async load from API)
+  useEffect(() => {
+    if (config.navbar) setNavbar(config.navbar);
+    if (config.footer) setFooter(config.footer);
+  }, [config]);
 
   // ─── Navbar Links helpers ───
   const navLinks = navbar.links || [];
