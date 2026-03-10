@@ -27,9 +27,6 @@ CREATE POLICY "allow_postgres" ON "client_finals" FOR ALL TO postgres USING (tru
 ALTER TABLE "client_spaces" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_postgres" ON "client_spaces" FOR ALL TO postgres USING (true) WITH CHECK (true);
 
-ALTER TABLE "client_modules" ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_postgres" ON "client_modules" FOR ALL TO postgres USING (true) WITH CHECK (true);
-
 ALTER TABLE "client_subscriptions" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_postgres" ON "client_subscriptions" FOR ALL TO postgres USING (true) WITH CHECK (true);
 
