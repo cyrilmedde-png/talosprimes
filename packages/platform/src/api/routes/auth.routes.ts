@@ -15,13 +15,25 @@ import { ApiError } from '../../utils/api-errors.js';
 import { N8nService } from '../../services/n8n.service.js';
 
 // Tous les modules — utilisé pour les tenants admin (pas de ClientSpace)
-const ALL_MODULES = [
-  'clients', 'leads', 'facturation', 'devis', 'bons_commande',
-  'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
-  'articles', 'logs', 'notifications',
-  'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
-  'partenaire',
-];
+// Chargé dynamiquement depuis la DB pour toujours inclure les nouveaux modules
+let _allModulesCache: string[] | null = null;
+let _allModulesCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getAllModules(): Promise<string[]> {
+  const now = Date.now();
+  if (_allModulesCache && now - _allModulesCacheTime < CACHE_TTL) {
+    return _allModulesCache;
+  }
+  const modules = await prisma.moduleMetier.findMany({
+    where: { actif: true },
+    select: { code: true },
+    orderBy: { ordreAffichage: 'asc' },
+  });
+  _allModulesCache = modules.map((m: { code: string }) => m.code);
+  _allModulesCacheTime = now;
+  return _allModulesCache!;
+}
 
 // Schema de validation pour le login
 const loginSchema = z.object({
@@ -80,7 +92,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           where: { clientTenantId: user.tenantId },
           select: { modulesActives: true },
         });
-        const modulesActifs = space ? space.modulesActives : ALL_MODULES;
+        const modulesActifs = space ? space.modulesActives : await getAllModules();
 
         // Retourner les tokens et les infos utilisateur
         reply.code(200).send({
@@ -165,7 +177,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         select: { modulesActives: true },
       });
       const isClientUser = !!space;
-      const modulesActifs = space ? space.modulesActives : ALL_MODULES;
+      const modulesActifs = space ? space.modulesActives : await getAllModules();
 
       reply.code(200).send({
         success: true,
