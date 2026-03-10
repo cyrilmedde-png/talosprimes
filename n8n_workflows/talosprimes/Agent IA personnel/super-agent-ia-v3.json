@@ -1702,6 +1702,81 @@
         0,
         3600
       ]
+    },
+    {
+      "id": "tool-marketing-publish",
+      "name": "publier_marketing",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        50,
+        1550
+      ],
+      "parameters": {
+        "toolDescription": "Déclencher une publication marketing immédiate sur les réseaux sociaux (Facebook, Instagram, TikTok). POST.\n\nBody JSON optionnel pour personnaliser :\n{\"sujet\":\"thème spécifique\", \"angle\":\"message principal\", \"content_type\":\"module_presentation|astuce|temoignage\", \"format_visuel\":\"carousel|image|video\"}\n\nSi aucun paramètre, publie selon le calendrier éditorial rotatif actuel.\nRetourne le résultat de la publication sur les 3 plateformes.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/marketing-publish-now",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({sujet: $fromAI(\"sujet\", \"Sujet de la publication (optionnel, laisser vide pour le calendrier éditorial)\"), angle: $fromAI(\"angle\", \"Angle/message principal (optionnel)\"), content_type: $fromAI(\"content_type\", \"Type: module_presentation, astuce, ou temoignage (optionnel)\")}) }}"
+      }
+    },
+    {
+      "id": "tool-marketing-status",
+      "name": "statut_marketing",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        50,
+        1680
+      ],
+      "parameters": {
+        "toolDescription": "Consulter les dernières publications marketing et leurs statistiques. GET.\nRetourne les posts récents avec leur statut (publié/erreur), plateforme, date et engagement.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/marketing-status",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\", limit: $fromAI(\"limit\", \"Nombre de publications à afficher (défaut: 10)\")}) }}"
+      }
+    },
+    {
+      "id": "tool-marketing-calendar",
+      "name": "calendrier_marketing",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        50,
+        1810
+      ],
+      "parameters": {
+        "toolDescription": "Voir le calendrier éditorial marketing. Affiche le planning des publications prévues pour les prochaines semaines.\nCycle de 4 semaines :\n- Semaine 1 : Commercial (Clients, CRM, Témoignage artisan)\n- Semaine 2 : Facturation (Devis, Compta, ROI)\n- Semaine 3 : IA & Automation (Agent Léa, Astuces, Démo)\n- Semaine 4 : Métiers (BTP/Projets, RH/Équipe, Partenariat)\nPublications : Lundi (Présentation), Mercredi (Astuce), Vendredi (Témoignage) à 10h.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/marketing-calendar",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({tenantId: \"00000000-0000-0000-0000-000000000001\"}) }}"
+      }
     }
   ],
   "pinData": {},
@@ -2304,6 +2379,39 @@
       ]
     },
     "repondre_ticket": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "publier_marketing": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "statut_marketing": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calendrier_marketing": {
       "ai_tool": [
         [
           {

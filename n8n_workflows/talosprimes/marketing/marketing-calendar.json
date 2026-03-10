@@ -1,0 +1,76 @@
+{
+  "name": "Marketing - Calendrier Éditorial",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "marketing-calendar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-calendar",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Retourner le calendrier éditorial\nconst now = new Date();\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\nconst currentCycleWeek = ((weekNumber - 1) % 4) + 1;\n\nconst calendar = {\n  current_week: currentCycleWeek,\n  cycle: [\n    {\n      semaine: 1, theme: \"Commercial\",\n      publications: [\n        { jour: \"Lundi\", type: \"Présentation module\", sujet: \"Module Clients + Leads\", format: \"Carousel\" },\n        { jour: \"Mercredi\", type: \"Astuce\", sujet: \"Astuce CRM\", format: \"Image + texte\" },\n        { jour: \"Vendredi\", type: \"Témoignage\", sujet: \"Témoignage artisan\", format: \"Vidéo / Reels\" }\n      ]\n    },\n    {\n      semaine: 2, theme: \"Facturation\",\n      publications: [\n        { jour: \"Lundi\", type: \"Présentation module\", sujet: \"Module Facturation + Devis\", format: \"Carousel\" },\n        { jour: \"Mercredi\", type: \"Astuce\", sujet: \"Astuce compta\", format: \"Image + texte\" },\n        { jour: \"Vendredi\", type: \"Témoignage\", sujet: \"ROI client\", format: \"Vidéo / Reels\" }\n      ]\n    },\n    {\n      semaine: 3, theme: \"IA & Automation\",\n      publications: [\n        { jour: \"Lundi\", type: \"Présentation module\", sujet: \"Agent Téléphonique IA (Léa)\", format: \"Carousel\" },\n        { jour: \"Mercredi\", type: \"Astuce\", sujet: \"Astuce automation\", format: \"Image + texte\" },\n        { jour: \"Vendredi\", type: \"Témoignage\", sujet: \"Démo live\", format: \"Vidéo / Reels\" }\n      ]\n    },\n    {\n      semaine: 4, theme: \"Métiers spécifiques\",\n      publications: [\n        { jour: \"Lundi\", type: \"Présentation module\", sujet: \"Modules BTP + Projets\", format: \"Carousel\" },\n        { jour: \"Mercredi\", type: \"Astuce\", sujet: \"Astuce RH/Équipe\", format: \"Image + texte\" },\n        { jour: \"Vendredi\", type: \"Témoignage\", sujet: \"Partenariat\", format: \"Vidéo / Reels\" }\n      ]\n    }\n  ],\n  horaire: \"10h00 (Europe/Paris)\",\n  jours: \"Lundi, Mercredi, Vendredi\"\n};\n\nreturn [{ json: { success: true, data: calendar } }];"
+      },
+      "id": "gen-calendar",
+      "name": "Générer Calendrier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "resp-calendar",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        740,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Générer Calendrier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Générer Calendrier": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

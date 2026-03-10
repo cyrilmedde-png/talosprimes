@@ -1,0 +1,632 @@
+{
+  "name": "Marketing Auto-Publish 3x/semaine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1,3,5"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron Marketing",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sélecteur de thème rotatif\n// Détermine le contenu selon le jour et la semaine\n\nconst now = new Date();\nconst dayOfWeek = now.getDay(); // 1=Lundi, 3=Mercredi, 5=Vendredi\n\n// Calculer le numéro de semaine dans le cycle de 4 semaines\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\nconst cycleWeek = ((weekNumber - 1) % 4) + 1; // 1 à 4\n\n// Thèmes par semaine\nconst themes = {\n  1: { // Commercial\n    name: \"Commercial\",\n    1: { type: \"module_presentation\", sujet: \"Module Clients + Leads\", angle: \"Gérez vos prospects en un clic\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce CRM\", angle: \"3 erreurs qui vous font perdre des clients\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Témoignage artisan\", angle: \"Comment doubler ses leads en 30 jours\", format: \"video\" }\n  },\n  2: { // Facturation\n    name: \"Facturation\",\n    1: { type: \"module_presentation\", sujet: \"Module Facturation + Devis\", angle: \"Facturez en 30 secondes\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce compta\", angle: \"TVA auto, écritures auto : zéro saisie\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"ROI client\", angle: \"2h/semaine gagnées grâce à l'automatisation\", format: \"video\" }\n  },\n  3: { // IA & Automation\n    name: \"IA & Automation\",\n    1: { type: \"module_presentation\", sujet: \"Agent Téléphonique IA\", angle: \"Votre secrétaire IA qui répond 24h/24\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce automation\", angle: \"5 tâches à automatiser dès aujourd'hui\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Démo live\", angle: \"Appel en direct à l'agent IA\", format: \"video\" }\n  },\n  4: { // Métiers spécifiques\n    name: \"Métiers spécifiques\",\n    1: { type: \"module_presentation\", sujet: \"Modules BTP + Projets\", angle: \"Gérez vos chantiers de A à Z\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce RH/Équipe\", angle: \"Pointages, congés, paie : tout automatisé\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Partenariat\", angle: \"Devenez partenaire — 10% de commission\", format: \"video\" }\n  }\n};\n\nconst weekTheme = themes[cycleWeek];\nconst dayContent = weekTheme[dayOfWeek] || weekTheme[1]; // fallback lundi\n\nreturn [{\n  json: {\n    cycle_week: cycleWeek,\n    week_theme: weekTheme.name,\n    day_of_week: dayOfWeek,\n    content_type: dayContent.type,\n    sujet: dayContent.sujet,\n    angle: dayContent.angle,\n    format_visuel: dayContent.format,\n    date_publication: now.toISOString(),\n    brand_name: \"TalosPrimes\",\n    brand_description: \"Plateforme SaaS de gestion tout-en-un pour TPE/PME, artisans et BTP. Modules: Facturation, Devis, CRM Clients, Leads, Agent IA téléphonique (Léa), Comptabilité, Gestion Équipe, Projets, BTP, Tickets.\",\n    brand_url: \"https://talosprimes.com\",\n    target_audience: \"TPE/PME, artisans, entreprises BTP en France\"\n  }\n}];"
+      },
+      "id": "theme-selector",
+      "name": "Sélecteur Thème",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "Tu es un expert en marketing digital et community management.\n\nMarque: {{$json.brand_name}}\nDescription: {{$json.brand_description}}\nURL: {{$json.brand_url}}\nCible: {{$json.target_audience}}\n\nTu dois générer le contenu pour une publication sur 3 plateformes.\nThème de la semaine: {{$json.week_theme}}\nSujet: {{$json.sujet}}\nAngle: {{$json.angle}}\nType: {{$json.content_type}}\nFormat visuel: {{$json.format_visuel}}\n\nGénère un JSON valide avec cette structure exacte:\n{\n  \"tiktok\": {\n    \"caption\": \"texte court, décontracté, émojis, 150 chars max\",\n    \"hashtags\": [\"5 à 8 hashtags tendance\"]\n  },\n  \"instagram\": {\n    \"caption\": \"texte pro mais accessible, 300-500 chars\",\n    \"hashtags\": [\"15 à 20 hashtags ciblés\"]\n  },\n  \"facebook\": {\n    \"text\": \"texte informatif, 200-400 chars, inclure le lien {{$json.brand_url}}\",\n    \"hashtags\": [\"3 à 5 hashtags\"]\n  },\n  \"visual_prompt\": \"description détaillée pour générer le visuel (en anglais, style professionnel, couleurs #E8A838, #1A1A2E)\"\n}\n\nIMPORTANT: Réponds UNIQUEMENT avec le JSON, sans markdown, sans backticks."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 1500
+        }
+      },
+      "id": "openai-generate",
+      "name": "Générer Contenu IA",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        640,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-api",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser la réponse OpenAI et structurer les données\nconst input = $input.first().json;\nlet content;\n\ntry {\n  // La réponse OpenAI est dans message.content\n  const rawText = input.message?.content || input.text || JSON.stringify(input);\n\n  // Nettoyer le texte (enlever backticks markdown si présents)\n  let cleanText = rawText.trim();\n  if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);\n  if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);\n  if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);\n  cleanText = cleanText.trim();\n\n  content = JSON.parse(cleanText);\n} catch (e) {\n  return [{\n    json: {\n      error: true,\n      message: \"Erreur parsing réponse IA: \" + e.message,\n      raw: input\n    }\n  }];\n}\n\n// Récupérer les données du thème (propagées depuis le node précédent via l'input initial)\nconst theme = $('Sélecteur Thème').first().json;\n\nreturn [{\n  json: {\n    success: true,\n    theme: theme,\n    tiktok: content.tiktok || {},\n    instagram: content.instagram || {},\n    facebook: content.facebook || {},\n    visual_prompt: content.visual_prompt || \"\",\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "content-parser",
+      "name": "Parser Contenu",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la publication Facebook via Meta Graph API\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    page_id: \"{{$env.META_PAGE_ID}}\",\n    published: true\n  }\n}];"
+      },
+      "id": "fb-prepare",
+      "name": "Préparer Facebook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $json.page_id }}/feed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "link",
+              "value": "={{ $json.link }}"
+            },
+            {
+              "name": "published",
+              "value": "={{ $json.published }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $env.META_PAGE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fb-publish",
+      "name": "Publier Facebook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la publication Instagram via Meta Graph API\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    ig_user_id: \"{{ $env.INSTAGRAM_USER_ID }}\",\n    // Pour Instagram, il faut d'abord créer un media container puis le publier\n    // Étape 1: Créer le container avec l'image URL\n    image_url: \"{{ $env.DEFAULT_IMAGE_URL }}\" // URL de l'image à publier\n  }\n}];"
+      },
+      "id": "ig-prepare",
+      "name": "Préparer Instagram",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $json.ig_user_id }}/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image_url",
+              "value": "={{ $json.image_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.caption }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $env.META_PAGE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ig-container",
+      "name": "IG Créer Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.INSTAGRAM_USER_ID }}/media_publish",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $env.META_PAGE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ig-publish",
+      "name": "Publier Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la publication TikTok\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst tt = data.tiktok || {};\nconst hashtags = (tt.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (tt.caption || data.theme?.angle || '') + ' ' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"tiktok\",\n    title: caption.substring(0, 150),\n    // TikTok Content Posting API nécessite un video_url ou photo_images\n    // Le workflow doit être adapté selon le type de contenu\n    privacy_level: \"PUBLIC_TO_EVERYONE\",\n    disable_comment: false\n  }\n}];"
+      },
+      "id": "tiktok-prepare",
+      "name": "Préparer TikTok",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://open.tiktokapis.com/v2/post/publish/content/init/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.TIKTOK_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=UTF-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"post_info\": {\n    \"title\": \"{{ $json.title }}\",\n    \"privacy_level\": \"{{ $json.privacy_level }}\",\n    \"disable_comment\": {{ $json.disable_comment }}\n  },\n  \"source_info\": {\n    \"source\": \"PULL_FROM_URL\",\n    \"video_url\": \"{{ $env.DEFAULT_VIDEO_URL }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "tiktok-publish",
+      "name": "Publier TikTok",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collecter les résultats des 3 plateformes\nconst items = $input.all();\nconst results = items.map(item => item.json);\n\nconst theme = $('Sélecteur Thème').first().json;\nconst content = $('Parser Contenu').first().json;\n\nconst summary = {\n  date: new Date().toISOString(),\n  theme: theme.week_theme,\n  sujet: theme.sujet,\n  angle: theme.angle,\n  type: theme.content_type,\n  platforms: {}\n};\n\nfor (const r of results) {\n  if (r.platform) {\n    summary.platforms[r.platform] = {\n      success: !r.error,\n      post_id: r.id || r.post_id || null,\n      error: r.error || null\n    };\n  }\n}\n\nreturn [{ json: summary }];"
+      },
+      "id": "merge-results",
+      "name": "Merger Résultats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO marketing_posts (\n  tenant_id, plateforme, type, sujet, contenu_texte,\n  date_publication, status, post_external_id\n)\nSELECT\n  '{{ $json.theme }}'::text,\n  platform,\n  '{{ $json.type }}'::text,\n  '{{ $json.sujet }}'::text,\n  '{{ $json.angle }}'::text,\n  NOW(),\n  CASE WHEN success THEN 'publie' ELSE 'erreur' END,\n  post_id\nFROM (\n  SELECT 'facebook' as platform,\n    {{ $json.platforms.facebook.success || false }} as success,\n    '{{ $json.platforms.facebook.post_id || \"\" }}' as post_id\n  UNION ALL\n  SELECT 'instagram',\n    {{ $json.platforms.instagram.success || false }},\n    '{{ $json.platforms.instagram.post_id || \"\" }}'\n  UNION ALL\n  SELECT 'tiktok',\n    {{ $json.platforms.tiktok.success || false }},\n    '{{ $json.platforms.tiktok.post_id || \"\" }}'\n) sub;",
+        "options": {}
+      },
+      "id": "log-db",
+      "name": "Log en Base",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1980,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater la notification Telegram\nconst data = $input.first().json;\n\nconst platformEmojis = {\n  facebook: '📘',\n  instagram: '📸',\n  tiktok: '🎵'\n};\n\nlet message = `🚀 *Publication Marketing*\\n`;\nmessage += `📅 ${data.date?.split('T')[0] || 'N/A'}\\n`;\nmessage += `📝 Thème: ${data.theme || 'N/A'}\\n`;\nmessage += `💡 Sujet: ${data.sujet || 'N/A'}\\n\\n`;\n\nconst platforms = data.platforms || {};\nfor (const [platform, result] of Object.entries(platforms)) {\n  const emoji = platformEmojis[platform] || '📱';\n  const status = result.success ? '✅' : '❌';\n  message += `${emoji} ${platform}: ${status}`;\n  if (result.post_id) message += ` (ID: ${result.post_id})`;\n  if (result.error) message += ` — ${result.error}`;\n  message += '\\n';\n}\n\nmessage += `\\nTalosPrimes — Votre gestion, automatisée.`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
+      },
+      "id": "notif-prepare",
+      "name": "Préparer Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parseMode": "Markdown"
+        }
+      },
+      "id": "notif-telegram",
+      "name": "Envoyer Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2420,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gestion d'erreur — notification Telegram\nconst error = $input.first().json;\n\nconst message = `❌ *ERREUR Marketing Workflow*\\n\\n`\n  + `📅 ${new Date().toISOString().split('T')[0]}\\n`\n  + `⚠️ ${error.message || JSON.stringify(error).substring(0, 500)}\\n\\n`\n  + `Vérifiez les credentials et les API dans n8n.`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parseMode": "Markdown"
+        }
+      },
+      "id": "error-telegram",
+      "name": "Telegram Erreur",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1320,
+        720
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "marketing-publish-now",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-marketing",
+      "name": "Webhook Marketing",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser les paramètres du webhook\n// Permet de forcer un thème/sujet spécifique via l'API\nconst body = $input.first().json.body || $input.first().json;\n\nconst now = new Date();\nconst dayOfWeek = now.getDay();\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\nconst cycleWeek = ((weekNumber - 1) % 4) + 1;\n\n// Thèmes par défaut\nconst themes = {\n  1: { name: \"Commercial\",\n    1: { type: \"module_presentation\", sujet: \"Module Clients + Leads\", angle: \"Gérez vos prospects en un clic\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce CRM\", angle: \"3 erreurs qui vous font perdre des clients\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Témoignage artisan\", angle: \"Comment doubler ses leads en 30 jours\", format: \"video\" }\n  },\n  2: { name: \"Facturation\",\n    1: { type: \"module_presentation\", sujet: \"Module Facturation + Devis\", angle: \"Facturez en 30 secondes\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce compta\", angle: \"TVA auto, écritures auto : zéro saisie\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"ROI client\", angle: \"2h/semaine gagnées grâce à l'automatisation\", format: \"video\" }\n  },\n  3: { name: \"IA & Automation\",\n    1: { type: \"module_presentation\", sujet: \"Agent Téléphonique IA\", angle: \"Votre secrétaire IA qui répond 24h/24\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce automation\", angle: \"5 tâches à automatiser dès aujourd'hui\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Démo live\", angle: \"Appel en direct à l'agent IA\", format: \"video\" }\n  },\n  4: { name: \"Métiers spécifiques\",\n    1: { type: \"module_presentation\", sujet: \"Modules BTP + Projets\", angle: \"Gérez vos chantiers de A à Z\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce RH/Équipe\", angle: \"Pointages, congés, paie : tout automatisé\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Partenariat\", angle: \"Devenez partenaire — 10% de commission\", format: \"video\" }\n  }\n};\n\n// Utiliser les paramètres du webhook si fournis, sinon valeurs par défaut\nconst forcedWeek = body.cycle_week || cycleWeek;\nconst forcedDay = body.day_of_week || dayOfWeek || 1;\nconst weekTheme = themes[forcedWeek] || themes[1];\nconst dayContent = weekTheme[forcedDay] || weekTheme[1];\n\nreturn [{\n  json: {\n    cycle_week: forcedWeek,\n    week_theme: body.week_theme || weekTheme.name,\n    day_of_week: forcedDay,\n    content_type: body.content_type || dayContent.type,\n    sujet: body.sujet || dayContent.sujet,\n    angle: body.angle || dayContent.angle,\n    format_visuel: body.format_visuel || dayContent.format,\n    date_publication: now.toISOString(),\n    brand_name: \"TalosPrimes\",\n    brand_description: \"Plateforme SaaS de gestion tout-en-un pour TPE/PME, artisans et BTP. Modules: Facturation, Devis, CRM Clients, Leads, Agent IA téléphonique (Léa), Comptabilité, Gestion Équipe, Projets, BTP, Tickets.\",\n    brand_url: \"https://talosprimes.com\",\n    target_audience: \"TPE/PME, artisans, entreprises BTP en France\",\n    source: \"webhook_manual\"\n  }\n}];"
+      },
+      "id": "webhook-parser",
+      "name": "Parser Webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Réponse au webhook après publication\nconst theme = $('Sélecteur Thème').first()?.json || $('Parser Webhook').first()?.json || {};\nconst results = $input.first().json;\n\nreturn [{\n  json: {\n    success: true,\n    message: \"Publication marketing lancée\",\n    theme: theme.week_theme || \"N/A\",\n    sujet: theme.sujet || \"N/A\",\n    platforms: results.platforms || {},\n    date: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "webhook-respond-prepare",
+      "name": "Préparer Réponse Webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "webhook-respond",
+      "name": "Respond Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2420,
+        520
+      ]
+    }
+  ],
+  "connections": {
+    "Cron Marketing": {
+      "main": [
+        [
+          {
+            "node": "Sélecteur Thème",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sélecteur Thème": {
+      "main": [
+        [
+          {
+            "node": "Générer Contenu IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Générer Contenu IA": {
+      "main": [
+        [
+          {
+            "node": "Parser Contenu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Contenu": {
+      "main": [
+        [
+          {
+            "node": "Préparer Facebook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer Instagram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer TikTok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Facebook": {
+      "main": [
+        [
+          {
+            "node": "Publier Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publier Facebook": {
+      "main": [
+        [
+          {
+            "node": "Merger Résultats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Instagram": {
+      "main": [
+        [
+          {
+            "node": "IG Créer Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IG Créer Container": {
+      "main": [
+        [
+          {
+            "node": "Publier Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publier Instagram": {
+      "main": [
+        [
+          {
+            "node": "Merger Résultats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer TikTok": {
+      "main": [
+        [
+          {
+            "node": "Publier TikTok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publier TikTok": {
+      "main": [
+        [
+          {
+            "node": "Merger Résultats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merger Résultats": {
+      "main": [
+        [
+          {
+            "node": "Log en Base",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer Réponse Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log en Base": {
+      "main": [
+        [
+          {
+            "node": "Préparer Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Notification": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Telegram Erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Marketing": {
+      "main": [
+        [
+          {
+            "node": "Parser Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parser Webhook": {
+      "main": [
+        [
+          {
+            "node": "Générer Contenu IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer Réponse Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "marketing"
+    }
+  ]
+}
