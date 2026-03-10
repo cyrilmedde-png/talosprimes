@@ -113,7 +113,7 @@ interface ContactMessage {
   date: string;
 }
 
-interface CMSPage {
+interface CMSPageData {
   id: string;
   titre: string;
   slug: string;
@@ -216,7 +216,7 @@ export default function CMSPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
-  const [pages, setPages] = useState<CMSPage[]>([]);
+  const [pages, setPages] = useState<CMSPageData[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [globalConfig, setGlobalConfig] = useState<GlobalConfig>({});
   const [landingContent, setLandingContent] = useState<LandingContent>({});
@@ -229,7 +229,7 @@ export default function CMSPage() {
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
 
   const [showPageModal, setShowPageModal] = useState(false);
-  const [editingPage, setEditingPage] = useState<CMSPage | null>(null);
+  const [editingPage, setEditingPage] = useState<CMSPageData | null>(null);
 
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -292,7 +292,7 @@ export default function CMSPage() {
   const loadPages = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: CMSPage[] }>('/api/landing/pages/all');
+      const data = await fetchApi<{ data: CMSPageData[] }>('/api/landing/pages/all');
       setPages(data.data || []);
     } catch (error) {
       addToast(`Erreur lors du chargement des pages: ${error}`, 'error');
@@ -473,9 +473,9 @@ export default function CMSPage() {
   };
 
   // ============= PAGE OPERATIONS =============
-  const createPage = async (data: Partial<CMSPage>) => {
+  const createPage = async (data: Partial<CMSPageData>) => {
     try {
-      const response = await fetchApi<{ data: CMSPage }>('/api/landing/pages', {
+      const response = await fetchApi<{ data: CMSPageData }>('/api/landing/pages', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -487,9 +487,9 @@ export default function CMSPage() {
     }
   };
 
-  const updatePage = async (id: string, data: Partial<CMSPage>) => {
+  const updatePage = async (id: string, data: Partial<CMSPageData>) => {
     try {
-      const response = await fetchApi<{ data: CMSPage }>(`/api/landing/pages/${id}`, {
+      const response = await fetchApi<{ data: CMSPageData }>(`/api/landing/pages/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       });
@@ -2121,14 +2121,14 @@ function TestimonialModal({
 }
 
 interface PageModalProps {
-  page: CMSPage | null;
+  page: CMSPageData | null;
   onClose: () => void;
-  onCreate: (data: Partial<CMSPage>) => void;
-  onUpdate: (id: string, data: Partial<CMSPage>) => void;
+  onCreate: (data: Partial<CMSPageData>) => void;
+  onUpdate: (id: string, data: Partial<CMSPageData>) => void;
 }
 
 function PageModal({ page, onClose, onCreate, onUpdate }: PageModalProps) {
-  const [formData, setFormData] = useState<Partial<CMSPage>>(
+  const [formData, setFormData] = useState<Partial<CMSPageData>>(
     page || { titre: '', slug: '', contenu: '', publie: false }
   );
 
