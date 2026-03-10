@@ -59,31 +59,19 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         }
 
         if (!fromN8n && tenantId) {
-          try {
-            const res = await n8nService.callWorkflowReturn<{ articles: unknown[] }>(
-              tenantId,
-              'article_codes_list',
-              {}
-            );
-            const raw = res.data as { articles?: unknown[] };
-            const articles = Array.isArray(raw.articles)
-              ? raw.articles.map((art) => normalizeArticleCodeFromN8n(art as Record<string, unknown>))
-              : [];
-            return reply.status(200).send({
-              success: true,
-              data: { articles },
-            });
-          } catch {
-            // Fallback Prisma si n8n échoue
-            const articles = await prisma.articleCode.findMany({
-              where: { tenantId },
-              orderBy: { code: 'asc' },
-            });
-            return reply.status(200).send({
-              success: true,
-              data: { articles },
-            });
-          }
+          const res = await n8nService.callWorkflowReturn<{ articles: unknown[] }>(
+            tenantId,
+            'article_codes_list',
+            {}
+          );
+          const raw = res.data as { articles?: unknown[] };
+          const articles = Array.isArray(raw.articles)
+            ? raw.articles.map((art) => normalizeArticleCodeFromN8n(art as Record<string, unknown>))
+            : [];
+          return reply.status(200).send({
+            success: true,
+            data: { articles },
+          });
         }
 
         // Appel depuis n8n (callback) → lecture BDD directe
@@ -131,24 +119,20 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         }
 
         if (!fromN8n) {
-          try {
-            const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
-              tenantId,
-              'article_code_create',
-              { ...body, tenantId }
-            );
+          const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
+            tenantId,
+            'article_code_create',
+            { ...body, tenantId }
+          );
 
-            return reply.status(201).send({
-              success: true,
-              message: 'Code article créé via n8n',
-              data: res.data,
-            });
-          } catch {
-            // Fallback Prisma si n8n échoue
-          }
+          return reply.status(201).send({
+            success: true,
+            message: 'Code article créé via n8n',
+            data: res.data,
+          });
         }
 
-        // Persister en base (callback n8n ou fallback)
+        // Appel depuis n8n (callback du workflow) : persister en base
         const article = await prisma.articleCode.create({
           data: {
             tenantId,
@@ -213,27 +197,23 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
 
         if (!fromN8n) {
           if (!tenantId) return ApiError.unauthorized(reply, 'Tenant manquant');
-          try {
-            const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
-              tenantId,
-              'article_code_update',
-              {
-                articleCodeId: params.id,
-                ...body,
-              }
-            );
+          const res = await n8nService.callWorkflowReturn<{ article: unknown }>(
+            tenantId,
+            'article_code_update',
+            {
+              articleCodeId: params.id,
+              ...body,
+            }
+          );
 
-            return reply.status(200).send({
-              success: true,
-              message: 'Code article mis à jour via n8n',
-              data: res.data,
-            });
-          } catch {
-            // Fallback Prisma si n8n échoue
-          }
+          return reply.status(200).send({
+            success: true,
+            message: 'Code article mis à jour via n8n',
+            data: res.data,
+          });
         }
 
-        // Persister en base (callback n8n ou fallback)
+        // Appel depuis n8n (callback du workflow) : persister en base
         const article = await prisma.articleCode.update({
           where: { id: params.id },
           data: {
@@ -259,6 +239,68 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
           return ApiError.conflict(reply, 'Ce code article existe déjà');
         }
         fastify.log.error(error, 'Erreur modification code article');
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // DELETE /api/article-codes/:id
+  fastify.delete(
+    '/:id',
+    {
+      preHandler: [n8nOrAuthMiddleware],
+    },
+    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
+      try {
+        const fromN8n = request.isN8nRequest === true;
+        const params = paramsSchema.parse(request.params);
+
+        const tenantId = request.tenantId;
+
+        if (!tenantId && !fromN8n) {
+          return ApiError.unauthorized(reply);
+        }
+
+        // Vérifier droits si pas n8n
+        if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
+          return ApiError.forbidden(reply);
+        }
+
+        // Vérifier que le code article existe et appartient au tenant
+        const existing = await prisma.articleCode.findFirst({
+          where: { id: params.id, tenantId },
+        });
+
+        if (!existing) {
+          return ApiError.notFound(reply, 'Code article');
+        }
+
+        if (!fromN8n) {
+          if (!tenantId) return ApiError.unauthorized(reply, 'Tenant manquant');
+          const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
+            tenantId,
+            'article_code_delete',
+            {
+              articleCodeId: params.id,
+            }
+          );
+
+          return reply.status(200).send({
+            success: true,
+            message: 'Code article supprimé via n8n',
+            data: res.data,
+          });
+        }
+
+        // Appel depuis n8n (callback du workflow) : supprimer en base
+        await prisma.articleCode.delete({ where: { id: params.id } });
+
+        return reply.status(200).send({
+          success: true,
+          message: 'Code article supprimé',
+        });
+      } catch (error) {
+        fastify.log.error(error, 'Erreur suppression code article');
         return ApiError.internal(reply);
       }
     }
@@ -376,72 +418,6 @@ export async function articleCodesRoutes(fastify: FastifyInstance) {
         });
       } catch (error) {
         fastify.log.error(error, 'Erreur import CSV codes articles');
-        return ApiError.internal(reply);
-      }
-    }
-  );
-
-  // DELETE /api/article-codes/:id
-  fastify.delete(
-    '/:id',
-    {
-      preHandler: [n8nOrAuthMiddleware],
-    },
-    async (request: FastifyRequest & { tenantId?: string; user?: { role: string } }, reply: FastifyReply) => {
-      try {
-        const fromN8n = request.isN8nRequest === true;
-        const params = paramsSchema.parse(request.params);
-
-        const tenantId = request.tenantId;
-
-        if (!tenantId && !fromN8n) {
-          return ApiError.unauthorized(reply);
-        }
-
-        // Vérifier droits si pas n8n
-        if (!fromN8n && request.user?.role !== 'super_admin' && request.user?.role !== 'admin') {
-          return ApiError.forbidden(reply);
-        }
-
-        // Vérifier que le code article existe et appartient au tenant
-        const existing = await prisma.articleCode.findFirst({
-          where: { id: params.id, tenantId },
-        });
-
-        if (!existing) {
-          return ApiError.notFound(reply, 'Code article');
-        }
-
-        if (!fromN8n) {
-          if (!tenantId) return ApiError.unauthorized(reply, 'Tenant manquant');
-          try {
-            const res = await n8nService.callWorkflowReturn<{ success: boolean }>(
-              tenantId,
-              'article_code_delete',
-              {
-                articleCodeId: params.id,
-              }
-            );
-
-            return reply.status(200).send({
-              success: true,
-              message: 'Code article supprimé via n8n',
-              data: res.data,
-            });
-          } catch {
-            // Fallback Prisma si n8n échoue
-          }
-        }
-
-        // Supprimer en base (callback n8n ou fallback)
-        await prisma.articleCode.delete({ where: { id: params.id } });
-
-        return reply.status(200).send({
-          success: true,
-          message: 'Code article supprimé',
-        });
-      } catch (error) {
-        fastify.log.error(error, 'Erreur suppression code article');
         return ApiError.internal(reply);
       }
     }
