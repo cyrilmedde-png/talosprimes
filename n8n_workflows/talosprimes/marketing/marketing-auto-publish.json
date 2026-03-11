@@ -376,7 +376,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "marketing-publish-now",
+        "path": "marketing-auto-publish",
         "responseMode": "responseNode",
         "options": {}
       },
