@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+import { getCurrentUser, isAuthenticated } from '@/lib/auth';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function DashboardLayout({
   children,
@@ -12,12 +14,26 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [topBarVisible, setTopBarVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const setModulesActifs = useAuthStore((s) => s.setModulesActifs);
+  const setUser = useAuthStore((s) => s.setUser);
+  const setIsClientUser = useAuthStore((s) => s.setIsClientUser);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Charger les modules actifs au démarrage du layout (persiste après refresh)
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    getCurrentUser().then(({ user, modulesActifs, isClientUser }) => {
+      if (user) setUser(user);
+      if (modulesActifs) setModulesActifs(modulesActifs);
+      setIsClientUser(isClientUser);
+    }).catch(() => { /* token expiré, le middleware redirigera */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
