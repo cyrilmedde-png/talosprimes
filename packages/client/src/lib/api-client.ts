@@ -90,6 +90,10 @@ async function authenticatedFetch<T>(
   return response.json();
 }
 
+// Marketing Digital types
+interface MarketingPost { id: string; tenantId: string; plateforme: 'facebook' | 'instagram' | 'tiktok'; type: 'module_presentation' | 'astuce' | 'temoignage' | 'promo'; sujet: string; contenuTexte?: string | null; contenuVisuelUrl?: string | null; hashtags?: string | null; datePublication: string; status: 'planifie' | 'publie' | 'erreur'; postExternalId?: string | null; engagementData?: Record<string, unknown> | null; semaineCycle?: number | null; erreurDetail?: string | null; createdAt: string; updatedAt: string }
+interface MarketingStats { totalPosts: number; parPlateforme: Array<{ plateforme: string; count: number }>; parStatus: Array<{ status: string; count: number }>; parType: Array<{ type: string; count: number }>; recentPosts: MarketingPost[] }
+
 // Gestion de Stock types
 interface StockSite { id: string; tenantId: string; code: string; designation: string; adresse?: string | null; telephone?: string | null; email?: string | null; responsable?: string | null; statut: string; createdAt: string; updatedAt: string; _count?: { stockLevels: number; movementsOnSite: number } }
 interface StockLevel { id: string; tenantId: string; articleId: string; siteId: string; quantite: number; quantiteReservee: number; seuilMinimum?: number | null; seuilMaximum?: number | null; article: { code: string; designation: string; prixUnitaireHt?: number | null; unite?: string | null }; site: { code: string; designation: string } }
@@ -1396,6 +1400,26 @@ export const apiClient = {
       const q = qp.toString();
       return authenticatedFetch<{ success: boolean; data: { events: unknown[] } }>(`/api/revenue/events${q ? `?${q}` : ''}`);
     },
+  },
+
+  // Marketing Digital
+  marketing: {
+    listPosts: (params?: { plateforme?: string; status?: string; type?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.append(k, String(v)); });
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { posts: MarketingPost[]; total: number; page: number; limit: number; totalPages: number } }>(`/api/marketing/posts${qs ? `?${qs}` : ''}`);
+    },
+    getPost: (id: string) => authenticatedFetch<{ success: boolean; data: { post: MarketingPost } }>(`/api/marketing/posts/${id}`),
+    createPost: (data: { plateforme: string; type: string; sujet: string; contenuTexte?: string | null; contenuVisuelUrl?: string | null; hashtags?: string | null; datePublication?: string; semaineCycle?: number | null }) =>
+      authenticatedFetch<{ success: boolean; data: { post: MarketingPost } }>('/api/marketing/posts', { method: 'POST', body: JSON.stringify(data) }),
+    updatePost: (id: string, data: Partial<{ plateforme: string; type: string; sujet: string; contenuTexte: string | null; contenuVisuelUrl: string | null; hashtags: string | null; datePublication: string; status: string; postExternalId: string | null; engagementData: Record<string, unknown> | null; semaineCycle: number | null; erreurDetail: string | null }>) =>
+      authenticatedFetch<{ success: boolean; data: { post: MarketingPost } }>(`/api/marketing/posts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deletePost: (id: string) => authenticatedFetch<{ success: boolean; message: string }>(`/api/marketing/posts/${id}`, { method: 'DELETE' }),
+    getStats: () => authenticatedFetch<{ success: boolean; data: { stats: MarketingStats } }>('/api/marketing/stats'),
+    getCalendar: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/marketing/calendar'),
+    triggerPublish: () => authenticatedFetch<{ success: boolean; data: unknown; message: string }>('/api/marketing/publish', { method: 'POST' }),
+    getStatus: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/marketing/status'),
   },
 
   // Gestion de Stock

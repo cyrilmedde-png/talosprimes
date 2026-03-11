@@ -40,6 +40,7 @@ import {
   TagIcon,
   CubeIcon,
   TruckIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -165,6 +166,16 @@ const allNavGroups: NavGroup[] = [
       { name: 'Transferts', href: '/gestion-stock/transferts', icon: TruckIcon },
       { name: 'Inventaires', href: '/gestion-stock/inventaires', icon: DocumentCheckIcon },
       { name: 'Alertes', href: '/gestion-stock/alertes', icon: BellIcon },
+    ],
+  },
+  {
+    label: 'Marketing Digital',
+    icon: MegaphoneIcon,
+    requiredModules: ['marketing_digital'],
+    items: [
+      { name: 'Dashboard', href: '/marketing', icon: ChartBarIcon },
+      { name: 'Publications', href: '/marketing/publications', icon: MegaphoneIcon },
+      { name: 'Calendrier', href: '/marketing/calendrier', icon: CalendarIcon },
     ],
   },
   {

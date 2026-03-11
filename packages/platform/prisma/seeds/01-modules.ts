@@ -165,6 +165,14 @@ const ALL_MODULES: ModuleDef[] = [
     icone: 'BellIcon',
     ordreAffichage: 41,
   },
+  {
+    code: 'marketing_digital',
+    nomAffiche: 'Marketing Digital',
+    description: 'Publication automatique sur Facebook, Instagram et TikTok : calendrier éditorial, statistiques, IA générative',
+    categorie: 'IA & Communication',
+    icone: 'MegaphoneIcon',
+    ordreAffichage: 42,
+  },
 
   // ─── Support ─────────────────────────────────
   {

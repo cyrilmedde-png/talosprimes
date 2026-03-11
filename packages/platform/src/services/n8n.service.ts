@@ -271,6 +271,10 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   stock_inventory_finalize: 'stock-inventory-finalized',
   stock_alerts_list: 'stock-alerts-list',
   stock_dashboard: 'stock-dashboard-metrics',
+  // Marketing Digital
+  marketing_auto_publish: 'marketing-auto-publish',
+  marketing_status: 'marketing-status',
+  marketing_calendar: 'marketing-calendar',
 };
 
 /**
