@@ -304,7 +304,32 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
     datePublication: '',
   });
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
+    if (!form.sujet.trim()) { setError('Entrez un sujet avant de générer'); return; }
+    setGenerating(true);
+    setError(null);
+    try {
+      const response = await apiClient.marketing.generateContent({
+        plateforme: form.plateforme,
+        type: form.type,
+        sujet: form.sujet,
+      });
+      if (response.success && response.data) {
+        setForm(f => ({
+          ...f,
+          contenuTexte: response.data.contenuTexte || f.contenuTexte,
+          hashtags: response.data.hashtags || f.hashtags,
+        }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération IA');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,13 +403,35 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
           </div>
 
           <div>
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={generating || !form.sujet.trim()}
+              className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
+            >
+              {generating ? (
+                <>
+                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                  Génération en cours...
+                </>
+              ) : (
+                <>
+                  <span>✨</span>
+                  Générer avec l&apos;IA
+                </>
+              )}
+            </button>
+            <p className="text-gray-500 text-xs mt-1 text-center">Remplissez le sujet ci-dessus puis cliquez pour générer le texte et les hashtags</p>
+          </div>
+
+          <div>
             <label className="block text-gray-400 text-sm mb-1">Contenu texte</label>
             <textarea
               value={form.contenuTexte}
               onChange={e => setForm(f => ({ ...f, contenuTexte: e.target.value }))}
               rows={4}
               className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm resize-none"
-              placeholder="Texte de la publication (optionnel, l'IA peut le générer)"
+              placeholder="Texte de la publication"
             />
           </div>
 

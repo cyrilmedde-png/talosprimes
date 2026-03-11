@@ -4,6 +4,7 @@ import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
+import { env } from '../../config/env.js';
 
 // ===== ZOD SCHEMAS =====
 
@@ -25,6 +26,12 @@ const updatePostSchema = createPostSchema.partial().extend({
   postExternalId: z.string().optional().nullable(),
   engagementData: z.record(z.unknown()).optional().nullable(),
   erreurDetail: z.string().optional().nullable(),
+});
+
+const generateContentSchema = z.object({
+  plateforme: z.enum(['facebook', 'instagram', 'tiktok']),
+  type: z.enum(['module_presentation', 'astuce', 'temoignage', 'promo']),
+  sujet: z.string().min(1).max(255),
 });
 
 const listPostsQuery = z.object({
@@ -296,6 +303,81 @@ export async function marketingRoutes(fastify: FastifyInstance) {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erreur workflow n8n';
         return ApiError.internal(reply, `Erreur lors de la publication : ${message}`);
+      }
+    }
+  );
+
+  // ── POST /generate — Générer du contenu avec l'IA ──────────────
+  fastify.post(
+    '/generate',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: AuthRequest, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+
+      if (!env.OPENAI_API_KEY) {
+        return ApiError.internal(reply, 'Clé OpenAI non configurée sur le serveur');
+      }
+
+      const { plateforme, type, sujet } = generateContentSchema.parse(request.body);
+
+      const systemPrompt = `Tu es un expert en marketing digital et community management pour TalosPrimes, une plateforme SaaS de gestion tout-en-un pour TPE/PME, artisans et BTP. Tu réponds UNIQUEMENT avec du JSON valide, sans markdown, sans backticks.`;
+
+      const userPrompt = `Plateforme: ${plateforme}
+Type de contenu: ${type}
+Sujet: ${sujet}
+
+Génère un JSON valide avec cette structure exacte:
+{
+  "contenuTexte": "texte de la publication adapté à ${plateforme} (${plateforme === 'tiktok' ? '150 chars max, décontracté, émojis' : plateforme === 'instagram' ? '300-500 chars, pro mais accessible' : '200-400 chars, informatif, inclure https://talosprimes.com'})",
+  "hashtags": "#hashtag1 #hashtag2 #hashtag3 (${plateforme === 'instagram' ? '15-20 hashtags' : plateforme === 'tiktok' ? '5-8 hashtags tendance' : '3-5 hashtags'})"
+}`;
+
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            temperature: 0.8,
+            max_tokens: 800,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          const errBody = await response.text();
+          return ApiError.internal(reply, `Erreur OpenAI (${response.status}): ${errBody.substring(0, 200)}`);
+        }
+
+        const result = await response.json() as { choices: Array<{ message: { content: string } }> };
+        const rawText = result.choices?.[0]?.message?.content || '';
+
+        // Nettoyer le texte (enlever backticks markdown si présents)
+        let cleanText = rawText.trim();
+        if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);
+        if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);
+        if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);
+        cleanText = cleanText.trim();
+
+        const generated = JSON.parse(cleanText) as { contenuTexte: string; hashtags: string };
+
+        return reply.send({
+          success: true,
+          data: {
+            contenuTexte: generated.contenuTexte || '',
+            hashtags: generated.hashtags || '',
+          },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erreur génération IA';
+        return ApiError.internal(reply, `Erreur IA : ${message}`);
       }
     }
   );

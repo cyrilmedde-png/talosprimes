@@ -1420,6 +1420,8 @@ export const apiClient = {
     getCalendar: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/marketing/calendar'),
     triggerPublish: () => authenticatedFetch<{ success: boolean; data: unknown; message: string }>('/api/marketing/publish', { method: 'POST' }),
     getStatus: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/marketing/status'),
+    generateContent: (data: { plateforme: string; type: string; sujet: string }) =>
+      authenticatedFetch<{ success: boolean; data: { contenuTexte: string; hashtags: string } }>('/api/marketing/generate', { method: 'POST', body: JSON.stringify(data) }),
   },
 
   // Gestion de Stock
