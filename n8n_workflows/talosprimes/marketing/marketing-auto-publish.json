@@ -16,7 +16,10 @@
       "name": "Cron Marketing",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [200, 300]
+      "position": [
+        200,
+        300
+      ]
     },
     {
       "parameters": {
@@ -26,7 +29,10 @@
       "name": "Sélecteur Thème",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 300]
+      "position": [
+        420,
+        300
+      ]
     },
     {
       "parameters": {
@@ -58,7 +64,10 @@
       "name": "Générer Contenu IA",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [640, 300],
+      "position": [
+        640,
+        300
+      ],
       "credentials": {
         "openAiApi": {
           "id": "MmpYHYAt746xfTrB",
@@ -74,7 +83,10 @@
       "name": "Parser Contenu",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [860, 300]
+      "position": [
+        860,
+        300
+      ]
     },
     {
       "parameters": {
@@ -84,7 +96,10 @@
       "name": "Préparer Facebook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 100]
+      "position": [
+        1100,
+        100
+      ]
     },
     {
       "parameters": {
@@ -94,14 +109,25 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "message", "value": "={{ $json.message }}" },
-            { "name": "link", "value": "={{ $json.link }}" },
-            { "name": "access_token", "value": "={{ $json.meta_access_token }}" }
+            {
+              "name": "message",
+              "value": "={{ $json.message }}"
+            },
+            {
+              "name": "link",
+              "value": "={{ $json.link }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $json.meta_access_token }}"
+            }
           ]
         },
         "options": {
           "response": {
-            "response": { "fullResponse": true }
+            "response": {
+              "fullResponse": true
+            }
           }
         }
       },
@@ -109,7 +135,10 @@
       "name": "Publier Facebook",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 100]
+      "position": [
+        1320,
+        100
+      ]
     },
     {
       "parameters": {
@@ -119,7 +148,10 @@
       "name": "Résultat Facebook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1540, 100]
+      "position": [
+        1540,
+        100
+      ]
     },
     {
       "parameters": {
@@ -129,7 +161,11 @@
       "name": "Préparer LinkedIn",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 700]
+      "position": [
+        1100,
+        700
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -139,10 +175,22 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $json.linkedin_token }}" },
-            { "name": "LinkedIn-Version", "value": "202401" },
-            { "name": "X-Restli-Protocol-Version", "value": "2.0.0" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.linkedin_token }}"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202401"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -150,7 +198,9 @@
         "jsonBody": "={\n  \"author\": \"{{ $json.author }}\",\n  \"commentary\": {{ JSON.stringify($json.commentary) }},\n  \"visibility\": \"PUBLIC\",\n  \"distribution\": {\n    \"feedDistribution\": \"MAIN_FEED\",\n    \"targetEntities\": [],\n    \"thirdPartyDistributionChannels\": []\n  },\n  \"content\": {\n    \"article\": {\n      \"source\": \"{{ $json.brand_url }}\",\n      \"title\": \"TalosPrimes\",\n      \"description\": \"Plateforme de gestion tout-en-un pour TPE/PME\"\n    }\n  },\n  \"lifecycleState\": \"PUBLISHED\",\n  \"isReshareDisabledByAuthor\": false\n}",
         "options": {
           "response": {
-            "response": { "fullResponse": true }
+            "response": {
+              "fullResponse": true
+            }
           }
         }
       },
@@ -158,7 +208,11 @@
       "name": "Publier LinkedIn",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 700]
+      "position": [
+        1320,
+        700
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -168,7 +222,11 @@
       "name": "Résultat LinkedIn",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1540, 700]
+      "position": [
+        1540,
+        700
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -178,7 +236,10 @@
       "name": "Préparer Instagram",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300],
+      "position": [
+        1100,
+        300
+      ],
       "disabled": true
     },
     {
@@ -189,15 +250,29 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "image_url", "value": "={{ $json.default_image_url }}" },
-            { "name": "caption", "value": "={{ $json.caption }}" },
-            { "name": "media_type", "value": "IMAGE" },
-            { "name": "access_token", "value": "={{ $json.meta_access_token }}" }
+            {
+              "name": "image_url",
+              "value": "={{ $json.default_image_url }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $json.caption }}"
+            },
+            {
+              "name": "media_type",
+              "value": "IMAGE"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $json.meta_access_token }}"
+            }
           ]
         },
         "options": {
           "response": {
-            "response": { "fullResponse": true }
+            "response": {
+              "fullResponse": true
+            }
           }
         }
       },
@@ -205,7 +280,10 @@
       "name": "IG Créer Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1320, 300],
+      "position": [
+        1320,
+        300
+      ],
       "disabled": true
     },
     {
@@ -216,13 +294,21 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            { "name": "creation_id", "value": "={{ $json.body?.id || $json.id }}" },
-            { "name": "access_token", "value": "={{ $('Préparer Instagram').first().json.meta_access_token }}" }
+            {
+              "name": "creation_id",
+              "value": "={{ $json.body?.id || $json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $('Préparer Instagram').first().json.meta_access_token }}"
+            }
           ]
         },
         "options": {
           "response": {
-            "response": { "fullResponse": true }
+            "response": {
+              "fullResponse": true
+            }
           }
         }
       },
@@ -230,7 +316,10 @@
       "name": "Publier Instagram",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1540, 300],
+      "position": [
+        1540,
+        300
+      ],
       "disabled": true
     },
     {
@@ -241,7 +330,10 @@
       "name": "Résultat Instagram",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1760, 300]
+      "position": [
+        1760,
+        300
+      ]
     },
     {
       "parameters": {
@@ -251,7 +343,10 @@
       "name": "Préparer TikTok",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 500]
+      "position": [
+        1100,
+        500
+      ]
     },
     {
       "parameters": {
@@ -261,7 +356,10 @@
       "name": "Merger Résultats",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1980, 400]
+      "position": [
+        1980,
+        400
+      ]
     },
     {
       "parameters": {
@@ -271,7 +369,10 @@
       "name": "Préparer SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2200, 400]
+      "position": [
+        2200,
+        400
+      ]
     },
     {
       "parameters": {
@@ -283,7 +384,10 @@
       "name": "Log en Base",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2400, 400],
+      "position": [
+        2400,
+        400
+      ],
       "credentials": {
         "postgres": {
           "id": "6Kosza77d9Ld32mw",
@@ -299,7 +403,10 @@
       "name": "Préparer Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2620, 400]
+      "position": [
+        2620,
+        400
+      ]
     },
     {
       "parameters": {
@@ -313,7 +420,10 @@
       "name": "Envoyer Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [2840, 400],
+      "position": [
+        2840,
+        400
+      ],
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -329,7 +439,10 @@
       "name": "Error Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 920]
+      "position": [
+        1100,
+        920
+      ]
     },
     {
       "parameters": {
@@ -343,7 +456,10 @@
       "name": "Telegram Erreur",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1320, 920],
+      "position": [
+        1320,
+        920
+      ],
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -362,7 +478,10 @@
       "name": "Webhook Marketing",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 520]
+      "position": [
+        200,
+        520
+      ]
     },
     {
       "parameters": {
@@ -372,7 +491,10 @@
       "name": "Parser Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [420, 520]
+      "position": [
+        420,
+        520
+      ]
     },
     {
       "parameters": {
@@ -382,7 +504,10 @@
       "name": "Préparer Réponse Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2620, 620]
+      "position": [
+        2620,
+        620
+      ]
     },
     {
       "parameters": {
@@ -393,7 +518,10 @@
       "name": "Respond Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2840, 620]
+      "position": [
+        2840,
+        620
+      ]
     },
     {
       "parameters": {
@@ -410,7 +538,10 @@
       "name": "Contenu fourni ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [540, 720]
+      "position": [
+        540,
+        720
+      ]
     },
     {
       "parameters": {
@@ -420,7 +551,10 @@
       "name": "Publier Manuel Direct",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [760, 720]
+      "position": [
+        760,
+        720
+      ]
     },
     {
       "parameters": {
@@ -432,7 +566,10 @@
                   {
                     "leftValue": "={{ $json.platform }}",
                     "rightValue": "facebook",
-                    "operator": { "type": "string", "operation": "equals" }
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
                 ]
               },
@@ -445,7 +582,10 @@
                   {
                     "leftValue": "={{ $json.platform }}",
                     "rightValue": "linkedin",
-                    "operator": { "type": "string", "operation": "equals" }
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
                   }
                 ]
               },
@@ -460,101 +600,168 @@
       "name": "Router Plateforme",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
-      "position": [980, 720]
+      "position": [
+        980,
+        720
+      ]
     }
   ],
   "connections": {
     "Cron Marketing": {
       "main": [
         [
-          { "node": "Sélecteur Thème", "type": "main", "index": 0 }
+          {
+            "node": "Sélecteur Thème",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Sélecteur Thème": {
       "main": [
         [
-          { "node": "Générer Contenu IA", "type": "main", "index": 0 }
+          {
+            "node": "Générer Contenu IA",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Générer Contenu IA": {
       "main": [
         [
-          { "node": "Parser Contenu", "type": "main", "index": 0 }
+          {
+            "node": "Parser Contenu",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Parser Contenu": {
       "main": [
         [
-          { "node": "Préparer Facebook", "type": "main", "index": 0 },
-          { "node": "Préparer Instagram", "type": "main", "index": 0 },
-          { "node": "Préparer TikTok", "type": "main", "index": 0 },
-          { "node": "Préparer LinkedIn", "type": "main", "index": 0 }
+          {
+            "node": "Préparer Facebook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer Instagram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer TikTok",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer LinkedIn",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Préparer Facebook": {
       "main": [
         [
-          { "node": "Publier Facebook", "type": "main", "index": 0 }
+          {
+            "node": "Publier Facebook",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Publier Facebook": {
       "main": [
         [
-          { "node": "Résultat Facebook", "type": "main", "index": 0 }
+          {
+            "node": "Résultat Facebook",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Résultat Facebook": {
       "main": [
         [
-          { "node": "Merger Résultats", "type": "main", "index": 0 }
+          {
+            "node": "Merger Résultats",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Préparer LinkedIn": {
       "main": [
         [
-          { "node": "Publier LinkedIn", "type": "main", "index": 0 }
+          {
+            "node": "Publier LinkedIn",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Publier LinkedIn": {
       "main": [
         [
-          { "node": "Résultat LinkedIn", "type": "main", "index": 0 }
+          {
+            "node": "Résultat LinkedIn",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Résultat LinkedIn": {
       "main": [
         [
-          { "node": "Merger Résultats", "type": "main", "index": 0 }
+          {
+            "node": "Merger Résultats",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Préparer Instagram": {
       "main": [
         [
-          { "node": "IG Créer Container", "type": "main", "index": 0 }
+          {
+            "node": "IG Créer Container",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "IG Créer Container": {
       "main": [
         [
-          { "node": "Publier Instagram", "type": "main", "index": 0 }
+          {
+            "node": "Publier Instagram",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Publier Instagram": {
       "main": [
         [
-          { "node": "Résultat Instagram", "type": "main", "index": 0 }
+          {
+            "node": "Résultat Instagram",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -566,91 +773,151 @@
     "Préparer TikTok": {
       "main": [
         [
-          { "node": "Merger Résultats", "type": "main", "index": 0 }
+          {
+            "node": "Merger Résultats",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Merger Résultats": {
       "main": [
         [
-          { "node": "Préparer SQL", "type": "main", "index": 0 },
-          { "node": "Préparer Réponse Webhook", "type": "main", "index": 0 }
+          {
+            "node": "Préparer SQL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer Réponse Webhook",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Préparer SQL": {
       "main": [
         [
-          { "node": "Log en Base", "type": "main", "index": 0 }
+          {
+            "node": "Log en Base",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Log en Base": {
       "main": [
         [
-          { "node": "Préparer Notification", "type": "main", "index": 0 }
+          {
+            "node": "Préparer Notification",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Préparer Notification": {
       "main": [
         [
-          { "node": "Envoyer Telegram", "type": "main", "index": 0 }
+          {
+            "node": "Envoyer Telegram",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Error Handler": {
       "main": [
         [
-          { "node": "Telegram Erreur", "type": "main", "index": 0 }
+          {
+            "node": "Telegram Erreur",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Webhook Marketing": {
       "main": [
         [
-          { "node": "Parser Webhook", "type": "main", "index": 0 }
+          {
+            "node": "Parser Webhook",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Parser Webhook": {
       "main": [
         [
-          { "node": "Contenu fourni ?", "type": "main", "index": 0 }
+          {
+            "node": "Contenu fourni ?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Contenu fourni ?": {
       "main": [
         [
-          { "node": "Publier Manuel Direct", "type": "main", "index": 0 }
+          {
+            "node": "Publier Manuel Direct",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Générer Contenu IA", "type": "main", "index": 0 }
+          {
+            "node": "Générer Contenu IA",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Publier Manuel Direct": {
       "main": [
         [
-          { "node": "Router Plateforme", "type": "main", "index": 0 }
+          {
+            "node": "Router Plateforme",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Router Plateforme": {
       "main": [
         [
-          { "node": "Publier Facebook", "type": "main", "index": 0 }
+          {
+            "node": "Publier Facebook",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Publier LinkedIn", "type": "main", "index": 0 }
+          {
+            "node": "Publier LinkedIn",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Préparer Réponse Webhook": {
       "main": [
         [
-          { "node": "Respond Webhook", "type": "main", "index": 0 }
+          {
+            "node": "Respond Webhook",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     }
@@ -662,6 +929,8 @@
     "callerPolicy": "workflowsFromSameOwner"
   },
   "tags": [
-    { "name": "marketing" }
+    {
+      "name": "marketing"
+    }
   ]
 }
