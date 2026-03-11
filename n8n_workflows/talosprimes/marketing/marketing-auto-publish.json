@@ -105,6 +105,7 @@
       "parameters": {
         "method": "POST",
         "url": "=https://graph.facebook.com/v21.0/{{ $json.meta_page_id }}/feed",
+        "authentication": "none",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -169,6 +170,7 @@
       "parameters": {
         "method": "POST",
         "url": "=https://graph.facebook.com/v21.0/{{ $json.instagram_user_id }}/media",
+        "authentication": "none",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -211,6 +213,7 @@
       "parameters": {
         "method": "POST",
         "url": "=https://graph.facebook.com/v21.0/{{ $json.body.ig_user_id || $('Préparer Instagram').first().json.instagram_user_id }}/media_publish",
+        "authentication": "none",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
