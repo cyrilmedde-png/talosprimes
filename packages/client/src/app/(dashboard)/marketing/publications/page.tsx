@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import Link from 'next/link';
+import { Eye, Pencil, Trash2, Send, Loader2 } from 'lucide-react';
 
 interface MarketingPost {
   id: string;
@@ -274,34 +275,34 @@ export default function PublicationsPage() {
                       <div className="flex items-center gap-1 justify-end">
                         <button
                           onClick={() => setViewPost(post)}
-                          className="px-2 py-1 text-gray-400 hover:text-cyan-400 hover:bg-cyan-900/20 rounded text-xs transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-cyan-400 hover:bg-cyan-900/20 rounded transition-colors"
                           title="Voir les détails"
                         >
-                          Voir
+                          <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setEditPost(post)}
-                          className="px-2 py-1 text-gray-400 hover:text-yellow-400 hover:bg-yellow-900/20 rounded text-xs transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-yellow-400 hover:bg-yellow-900/20 rounded transition-colors"
                           title="Modifier"
                         >
-                          Modifier
+                          <Pencil className="w-4 h-4" />
                         </button>
                         {post.status === 'planifie' && (
                           <button
                             onClick={() => publishPost(post.id)}
                             disabled={publishing === post.id}
-                            className="px-2 py-1 text-gray-400 hover:text-green-400 hover:bg-green-900/20 rounded text-xs transition-colors disabled:opacity-50"
+                            className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-green-900/20 rounded transition-colors disabled:opacity-50"
                             title="Publier maintenant"
                           >
-                            {publishing === post.id ? '...' : 'Publier'}
+                            {publishing === post.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                           </button>
                         )}
                         <button
                           onClick={() => setDeleteConfirm(post.id)}
-                          className="px-2 py-1 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded text-xs transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
                           title="Supprimer"
                         >
-                          Supprimer
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     )}
