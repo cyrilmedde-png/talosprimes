@@ -78,7 +78,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE call_logs SET\n  conversation_log = '{{ $json.conversation_log }}'::jsonb,\n  transcript = {{ $json.transcript ? \"'\" + $json.transcript + \"'\" : 'NULL' }},\n  notes = {{ $json.notes ? \"'\" + $json.notes + \"'\" : 'NULL' }},\n  caller_name = {{ $json.caller_name ? \"'\" + $json.caller_name + \"'\" : 'NULL' }},\n  caller_email = {{ $json.caller_email ? \"'\" + $json.caller_email + \"'\" : 'NULL' }},\n  caller_address = {{ $json.caller_address ? \"'\" + $json.caller_address + \"'\" : 'NULL' }},\n  is_encrypted = true,\n  encrypted_at = NOW()\nWHERE id = '{{ $json.id }}'",
+        "query": "UPDATE call_logs SET\n  conversation_log = {{ $json.conversation_log ? \"'\" + $json.conversation_log + \"'\" : 'NULL' }},\n  transcript = {{ $json.transcript ? \"'\" + $json.transcript + \"'\" : 'NULL' }},\n  notes = {{ $json.notes ? \"'\" + $json.notes + \"'\" : 'NULL' }},\n  caller_name = {{ $json.caller_name ? \"'\" + $json.caller_name + \"'\" : 'NULL' }},\n  caller_email = {{ $json.caller_email ? \"'\" + $json.caller_email + \"'\" : 'NULL' }},\n  caller_address = {{ $json.caller_address ? \"'\" + $json.caller_address + \"'\" : 'NULL' }},\n  is_encrypted = true,\n  encrypted_at = NOW()\nWHERE id = '{{ $json.id }}'",
         "options": {}
       },
       "id": "update-encrypted",
