@@ -164,7 +164,8 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -207,7 +208,8 @@
       "position": [
         1320,
         300
-      ]
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -242,7 +244,8 @@
       "position": [
         1540,
         300
-      ]
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -272,7 +275,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Collecter les résultats des 3 plateformes\nconst items = $input.all();\n\nconst theme = ((() => { try { return $('Sélecteur Thème').first()?.json; } catch(e) {} try { return $('Parser Webhook').first()?.json; } catch(e) {} return {}; })());\n\nconst summary = {\n  date: new Date().toISOString(),\n  theme: theme.week_theme || 'N/A',\n  sujet: theme.sujet || 'N/A',\n  angle: theme.angle || 'N/A',\n  type: theme.content_type || 'N/A',\n  tenant_id: '00000000-0000-0000-0000-000000000001',\n  platforms: {}\n};\n\nfor (const item of items) {\n  const r = item.json;\n  if (r.platform) {\n    summary.platforms[r.platform] = {\n      success: !!r.success,\n      post_id: r.post_id || null,\n      error: r.error || null\n    };\n  }\n}\n\nreturn [{ json: summary }];"
+        "jsCode": "// Collecter les résultats des 3 plateformes (Instagram peut être omis s'il est désactivé)\nconst items = $input.all();\n\nconst theme = ((() => { try { return $('Sélecteur Thème').first()?.json; } catch(e) {} try { return $('Parser Webhook').first()?.json; } catch(e) {} return {}; })());\n\n// Récupérer infos du chemin manuel si disponible\nconst manuelInfo = ((() => { try { return $('Publier Manuel Direct').first()?.json; } catch(e) { return null; } })());\n\nconst summary = {\n  date: new Date().toISOString(),\n  theme: manuelInfo?.week_theme || theme.week_theme || 'N/A',\n  sujet: manuelInfo?.sujet || theme.sujet || 'N/A',\n  angle: theme.angle || manuelInfo?.message?.substring(0, 50) || 'N/A',\n  type: manuelInfo?.content_type || theme.content_type || 'N/A',\n  tenant_id: '00000000-0000-0000-0000-000000000001',\n  platforms: {}\n};\n\nfor (const item of items) {\n  const r = item.json;\n  if (r.platform) {\n    summary.platforms[r.platform] = {\n      success: !!r.success,\n      post_id: r.post_id || null,\n      error: r.error || null\n    };\n  }\n}\n\n// Ajouter les entrées manquantes pour la cohérence\nif (!summary.platforms.instagram) {\n  summary.platforms.instagram = {\n    success: false,\n    post_id: null,\n    error: 'Instagram désactivé'\n  };\n}\nif (!summary.platforms.tiktok) {\n  summary.platforms.tiktok = {\n    success: false,\n    post_id: null,\n    error: 'TikTok non disponible'\n  };\n}\n\nreturn [{ json: summary }];"
       },
       "id": "merge-results",
       "name": "Merger Résultats",
@@ -467,10 +470,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater le contenu utilisateur comme si c'était la sortie du Parser Contenu\nconst data = $input.first().json;\nconst text = data.user_content || '';\nconst hashtags = data.user_hashtags ? data.user_hashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h) : [];\n\nreturn [{\n  json: {\n    success: true,\n    theme: {\n      week_theme: data.week_theme,\n      sujet: data.sujet,\n      angle: data.angle || data.sujet,\n      content_type: data.content_type\n    },\n    tiktok: {\n      caption: text.substring(0, 150),\n      hashtags: hashtags.slice(0, 8)\n    },\n    instagram: {\n      caption: text,\n      hashtags: hashtags.slice(0, 20)\n    },\n    facebook: {\n      text: text,\n      hashtags: hashtags.slice(0, 5)\n    },\n    visual_prompt: '',\n    generated_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Publication manuelle : envoyer le texte EXACT de l'utilisateur\n// Sans reformatage, sans IA, tel quel.\nconst data = $input.first().json;\nconst text = data.user_content || '';\nconst hashtags = data.user_hashtags || '';\n\n// Construire le message final : texte tel quel + hashtags si fournis\nlet message = text;\nif (hashtags.trim()) {\n  const formattedHashtags = hashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n  message += '\\n\\n' + formattedHashtags;\n}\n\n// Config Meta (même que Préparer Facebook)\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725'\n};\n\nreturn [{\n  json: {\n    platform: 'facebook',\n    message: message,\n    link: 'https://talosprimes.com',\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    // Infos pour le log\n    sujet: data.sujet || 'Publication manuelle',\n    content_type: data.content_type || 'manuel',\n    week_theme: 'Manuel'\n  }\n}];"
       },
       "id": "manual-content",
-      "name": "Formater Contenu Manuel",
+      "name": "Publier Manuel Direct",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -602,13 +605,7 @@
     },
     "Résultat Instagram": {
       "main": [
-        [
-          {
-            "node": "Merger Résultats",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     },
     "Préparer TikTok": {
@@ -708,7 +705,7 @@
       "main": [
         [
           {
-            "node": "Formater Contenu Manuel",
+            "node": "Publier Manuel Direct",
             "type": "main",
             "index": 0
           }
@@ -722,21 +719,11 @@
         ]
       ]
     },
-    "Formater Contenu Manuel": {
+    "Publier Manuel Direct": {
       "main": [
         [
           {
-            "node": "Préparer Facebook",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer Instagram",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer TikTok",
+            "node": "Publier Facebook",
             "type": "main",
             "index": 0
           }
