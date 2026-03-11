@@ -70,7 +70,7 @@
       ],
       "credentials": {
         "openAiApi": {
-          "id": "openai-account",
+          "id": "MmpYHYAt746xfTrB",
           "name": "OpenAi account"
         }
       }
@@ -296,7 +296,7 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "OGqj65ZoFRileCck",
+          "id": "6Kosza77d9Ld32mw",
           "name": "Supabase Postgres"
         }
       }
