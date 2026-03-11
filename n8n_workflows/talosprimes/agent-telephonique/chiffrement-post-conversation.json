@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Double chiffrement AES-256-GCM\nconst crypto = require('crypto');\n\nconst ALGORITHM = 'aes-256-gcm';\nconst IV_LENGTH = 16;\n\nfunction hexToBuffer(hex) {\n  return Buffer.from(hex, 'hex');\n}\n\nfunction encryptLayer(data, keyHex) {\n  const key = hexToBuffer(keyHex);\n  const iv = crypto.randomBytes(IV_LENGTH);\n  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);\n  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);\n  const authTag = cipher.getAuthTag();\n  return { iv, authTag, ciphertext: encrypted };\n}\n\nfunction doubleEncrypt(plaintext, keyA, keyB) {\n  const data = Buffer.from(plaintext, 'utf-8');\n  const layer1 = encryptLayer(data, keyA);\n  const layer2 = encryptLayer(layer1.ciphertext, keyB);\n  return Buffer.concat([\n    layer1.iv, layer1.authTag,\n    layer2.iv, layer2.authTag,\n    layer2.ciphertext\n  ]).toString('base64');\n}\n\nfunction encryptField(value, keyA, keyB) {\n  if (value === null || value === undefined) return null;\n  const str = typeof value === 'string' ? value : JSON.stringify(value);\n  return doubleEncrypt(str, keyA, keyB);\n}\n\n// Récupérer les clés depuis les variables d'environnement n8n\nconst keyA = $env.ENCRYPTION_KEY_A;\nif (!keyA) throw new Error('ENCRYPTION_KEY_A manquante dans les env vars n8n');\n\nconst keyB = $env.ENCRYPTION_KEY_B;\nif (!keyB) throw new Error('ENCRYPTION_KEY_B manquante dans les env vars n8n');\n\n// Récupérer les CallLogs non chiffrés\nconst callLogs = $('Get Unencrypted CallLogs').all();\nconst results = [];\n\nfor (const item of callLogs) {\n  const row = item.json;\n  results.push({\n    json: {\n      id: row.id,\n      conversation_log: encryptField(row.conversation_log, keyA, keyB),\n      transcript: encryptField(row.transcript, keyA, keyB),\n      notes: encryptField(row.notes, keyA, keyB),\n      caller_name: encryptField(row.caller_name, keyA, keyB),\n      caller_email: encryptField(row.caller_email, keyA, keyB),\n      caller_address: encryptField(row.caller_address, keyA, keyB),\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "// Double chiffrement AES-256-GCM pour call_logs\nconst crypto = require('crypto');\nconst ALGORITHM = 'aes-256-gcm';\nconst IV_LENGTH = 16;\n\nfunction hexToBuffer(hex) { return Buffer.from(hex, 'hex'); }\n\nfunction encryptLayer(data, keyHex) {\n  const key = hexToBuffer(keyHex);\n  const iv = crypto.randomBytes(IV_LENGTH);\n  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);\n  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);\n  return { iv, authTag: cipher.getAuthTag(), ciphertext: encrypted };\n}\n\nfunction doubleEncrypt(plaintext, keyA, keyB) {\n  const data = Buffer.from(plaintext, 'utf-8');\n  const l1 = encryptLayer(data, keyA);\n  const l2 = encryptLayer(l1.ciphertext, keyB);\n  return Buffer.concat([l1.iv, l1.authTag, l2.iv, l2.authTag, l2.ciphertext]).toString('base64');\n}\n\nfunction encryptField(value, keyA, keyB) {\n  if (value === null || value === undefined) return null;\n  const str = typeof value === 'string' ? value : JSON.stringify(value);\n  return doubleEncrypt(str, keyA, keyB);\n}\n\nfunction esc(val) {\n  if (val === null || val === undefined) return 'NULL';\n  return \"'\" + String(val).replace(/'/g, \"''\") + \"'\";\n}\n\nconst keyA = $env.ENCRYPTION_KEY_A;\nif (!keyA) throw new Error('ENCRYPTION_KEY_A manquante');\nconst keyB = $env.ENCRYPTION_KEY_B;\nif (!keyB) throw new Error('ENCRYPTION_KEY_B manquante');\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const row = item.json;\n  if (!row || !row.id) continue;\n  const encLog = encryptField(row.conversation_log, keyA, keyB);\n  const encTranscript = encryptField(row.transcript, keyA, keyB);\n  const encNotes = encryptField(row.notes, keyA, keyB);\n  const encName = encryptField(row.caller_name, keyA, keyB);\n  const encEmail = encryptField(row.caller_email, keyA, keyB);\n  const encAddr = encryptField(row.caller_address, keyA, keyB);\n  const query = `UPDATE call_logs SET conversation_log = ${esc(encLog)}, transcript = ${esc(encTranscript)}, notes = ${esc(encNotes)}, caller_name = ${esc(encName)}, caller_email = ${esc(encEmail)}, caller_address = ${esc(encAddr)}, is_encrypted = true, encrypted_at = NOW() WHERE id = ${esc(row.id)}`;\n  results.push({ json: { id: row.id, query, source: 'call' } });\n}\n\n// Retourne tableau vide si rien a chiffrer → le noeud suivant ne s'execute pas\nreturn results;"
       },
       "id": "encrypt-data",
       "name": "Double Encrypt",
@@ -78,7 +78,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE call_logs SET\n  conversation_log = {{ $json.conversation_log ? \"'\" + $json.conversation_log + \"'\" : 'NULL' }},\n  transcript = {{ $json.transcript ? \"'\" + $json.transcript + \"'\" : 'NULL' }},\n  notes = {{ $json.notes ? \"'\" + $json.notes + \"'\" : 'NULL' }},\n  caller_name = {{ $json.caller_name ? \"'\" + $json.caller_name + \"'\" : 'NULL' }},\n  caller_email = {{ $json.caller_email ? \"'\" + $json.caller_email + \"'\" : 'NULL' }},\n  caller_address = {{ $json.caller_address ? \"'\" + $json.caller_address + \"'\" : 'NULL' }},\n  is_encrypted = true,\n  encrypted_at = NOW()\nWHERE id = '{{ $json.id }}'",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "update-encrypted",
@@ -113,7 +113,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst ALGORITHM = 'aes-256-gcm';\nconst IV_LENGTH = 16;\n\nfunction hexToBuffer(hex) { return Buffer.from(hex, 'hex'); }\nfunction encryptLayer(data, keyHex) {\n  const key = hexToBuffer(keyHex);\n  const iv = crypto.randomBytes(IV_LENGTH);\n  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);\n  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);\n  return { iv, authTag: cipher.getAuthTag(), ciphertext: encrypted };\n}\nfunction doubleEncrypt(plaintext, keyA, keyB) {\n  const data = Buffer.from(plaintext, 'utf-8');\n  const l1 = encryptLayer(data, keyA);\n  const l2 = encryptLayer(l1.ciphertext, keyB);\n  return Buffer.concat([l1.iv, l1.authTag, l2.iv, l2.authTag, l2.ciphertext]).toString('base64');\n}\n\n// Clés depuis variables d'environnement n8n\nconst keyA = $env.ENCRYPTION_KEY_A;\nif (!keyA) throw new Error('ENCRYPTION_KEY_A manquante');\nconst keyB = $env.ENCRYPTION_KEY_B;\nif (!keyB) throw new Error('ENCRYPTION_KEY_B manquante');\n\nconst smsLogs = $('Get Unencrypted SMS').all();\nconst results = [];\nfor (const item of smsLogs) {\n  results.push({\n    json: {\n      id: item.json.id,\n      body: doubleEncrypt(item.json.body, keyA, keyB)\n    }\n  });\n}\nreturn results.length > 0 ? results : [{ json: { skip: true } }];"
+        "jsCode": "// Double chiffrement AES-256-GCM pour sms_logs\nconst crypto = require('crypto');\nconst ALGORITHM = 'aes-256-gcm';\nconst IV_LENGTH = 16;\n\nfunction hexToBuffer(hex) { return Buffer.from(hex, 'hex'); }\n\nfunction encryptLayer(data, keyHex) {\n  const key = hexToBuffer(keyHex);\n  const iv = crypto.randomBytes(IV_LENGTH);\n  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);\n  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);\n  return { iv, authTag: cipher.getAuthTag(), ciphertext: encrypted };\n}\n\nfunction doubleEncrypt(plaintext, keyA, keyB) {\n  const data = Buffer.from(plaintext, 'utf-8');\n  const l1 = encryptLayer(data, keyA);\n  const l2 = encryptLayer(l1.ciphertext, keyB);\n  return Buffer.concat([l1.iv, l1.authTag, l2.iv, l2.authTag, l2.ciphertext]).toString('base64');\n}\n\nfunction esc(val) {\n  if (val === null || val === undefined) return 'NULL';\n  return \"'\" + String(val).replace(/'/g, \"''\") + \"'\";\n}\n\nconst keyA = $env.ENCRYPTION_KEY_A;\nif (!keyA) throw new Error('ENCRYPTION_KEY_A manquante');\nconst keyB = $env.ENCRYPTION_KEY_B;\nif (!keyB) throw new Error('ENCRYPTION_KEY_B manquante');\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const row = item.json;\n  if (!row || !row.id || !row.body) continue;\n  const encBody = doubleEncrypt(row.body, keyA, keyB);\n  const query = `UPDATE sms_logs SET body = ${esc(encBody)}, is_encrypted = true, encrypted_at = NOW() WHERE id = ${esc(row.id)}`;\n  results.push({ json: { id: row.id, query, source: 'sms' } });\n}\n\n// Retourne tableau vide si rien a chiffrer → le noeud suivant ne s'execute pas\nreturn results;"
       },
       "id": "encrypt-sms",
       "name": "Encrypt SMS",
@@ -123,37 +123,15 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [
-            {
-              "id": "check-skip",
-              "leftValue": "={{ $json.skip }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "notEquals" }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "sms-has-data",
-      "name": "SMS Has Data?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [1420, 500]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE sms_logs SET\n  body = '{{ $json.body }}',\n  is_encrypted = true,\n  encrypted_at = NOW()\nWHERE id = '{{ $json.id }}'",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "update-sms-encrypted",
       "name": "Update SMS Encrypted",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1660, 400],
+      "position": [1420, 500],
       "credentials": {
         "postgres": {
           "id": "6Kosza77d9Ld32mw",
@@ -163,13 +141,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Compter le total chiffré\nconst callResults = $('Update Encrypted').all();\nconst smsResults = $('Update SMS Encrypted').all();\n\nconst callCount = callResults.length;\nconst smsCount = smsResults.filter(r => !r.json.skip).length;\n\nreturn [{\n  json: {\n    callCount,\n    smsCount,\n    total: callCount + smsCount,\n    message: `Chiffrement termine : ${callCount} appels + ${smsCount} SMS`\n  }\n}];"
+        "jsCode": "// Compter le total chiffre depuis les items recus des deux chemins\nconst items = $input.all();\nconst total = items.length;\n\nreturn [{\n  json: {\n    total,\n    message: `Chiffrement termine : ${total} enregistrement(s) chiffre(s)`\n  }\n}];"
       },
       "id": "count-results",
       "name": "Count Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1900, 300]
+      "position": [1660, 300]
     },
     {
       "parameters": {
@@ -191,7 +169,7 @@
       "name": "Any Encrypted?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [2140, 300]
+      "position": [1900, 300]
     },
     {
       "parameters": {
@@ -205,7 +183,7 @@
       "name": "Telegram Notify",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [2380, 200],
+      "position": [2140, 200],
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -255,6 +233,13 @@
         ]
       ]
     },
+    "Update Encrypted": {
+      "main": [
+        [
+          { "node": "Count Results", "type": "main", "index": 0 }
+        ]
+      ]
+    },
     "Get Unencrypted SMS": {
       "main": [
         [
@@ -265,22 +250,7 @@
     "Encrypt SMS": {
       "main": [
         [
-          { "node": "SMS Has Data?", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "SMS Has Data?": {
-      "main": [
-        [
           { "node": "Update SMS Encrypted", "type": "main", "index": 0 }
-        ],
-        []
-      ]
-    },
-    "Update Encrypted": {
-      "main": [
-        [
-          { "node": "Count Results", "type": "main", "index": 0 }
         ]
       ]
     },
