@@ -16,10 +16,7 @@
       "name": "Cron Marketing",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        200,
-        300
-      ]
+      "position": [200, 300]
     },
     {
       "parameters": {
@@ -29,10 +26,7 @@
       "name": "Sélecteur Thème",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        420,
-        300
-      ]
+      "position": [420, 300]
     },
     {
       "parameters": {
@@ -51,7 +45,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.8,\n  \"max_tokens\": 1500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un expert en marketing digital et community management. Tu réponds UNIQUEMENT avec du JSON valide, sans markdown, sans backticks.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Marque: {{ $json.brand_name }}\\nDescription: {{ $json.brand_description }}\\nURL: {{ $json.brand_url }}\\nCible: {{ $json.target_audience }}\\n\\nThème de la semaine: {{ $json.week_theme }}\\nSujet: {{ $json.sujet }}\\nAngle: {{ $json.angle }}\\nType: {{ $json.content_type }}\\nFormat visuel: {{ $json.format_visuel }}\\n\\nGénère un JSON valide avec cette structure exacte:\\n{\\n  \\\"tiktok\\\": {\\n    \\\"caption\\\": \\\"texte court, décontracté, émojis, 150 chars max\\\",\\n    \\\"hashtags\\\": [\\\"5 à 8 hashtags tendance\\\"]\\n  },\\n  \\\"instagram\\\": {\\n    \\\"caption\\\": \\\"texte pro mais accessible, 300-500 chars\\\",\\n    \\\"hashtags\\\": [\\\"15 à 20 hashtags ciblés\\\"]\\n  },\\n  \\\"facebook\\\": {\\n    \\\"text\\\": \\\"texte informatif, 200-400 chars, inclure le lien {{ $json.brand_url }}\\\",\\n    \\\"hashtags\\\": [\\\"3 à 5 hashtags\\\"]\\n  },\\n  \\\"visual_prompt\\\": \\\"description détaillée pour générer le visuel (en anglais, style professionnel, couleurs #E8A838, #1A1A2E)\\\"\\n}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.8,\n  \"max_tokens\": 2000,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un expert en marketing digital et community management. Tu réponds UNIQUEMENT avec du JSON valide, sans markdown, sans backticks.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Marque: {{ $json.brand_name }}\\nDescription: {{ $json.brand_description }}\\nURL: {{ $json.brand_url }}\\nCible: {{ $json.target_audience }}\\n\\nThème de la semaine: {{ $json.week_theme }}\\nSujet: {{ $json.sujet }}\\nAngle: {{ $json.angle }}\\nType: {{ $json.content_type }}\\nFormat visuel: {{ $json.format_visuel }}\\n\\nGénère un JSON valide avec cette structure exacte:\\n{\\n  \\\"tiktok\\\": {\\n    \\\"caption\\\": \\\"texte court, décontracté, émojis, 150 chars max\\\",\\n    \\\"hashtags\\\": [\\\"5 à 8 hashtags tendance\\\"]\\n  },\\n  \\\"instagram\\\": {\\n    \\\"caption\\\": \\\"texte pro mais accessible, 300-500 chars\\\",\\n    \\\"hashtags\\\": [\\\"15 à 20 hashtags ciblés\\\"]\\n  },\\n  \\\"facebook\\\": {\\n    \\\"text\\\": \\\"texte informatif, 200-400 chars, inclure le lien {{ $json.brand_url }}\\\",\\n    \\\"hashtags\\\": [\\\"3 à 5 hashtags\\\"]\\n  },\\n  \\\"linkedin\\\": {\\n    \\\"commentary\\\": \\\"texte professionnel et expert, ton business/corporate, 300-600 chars, pas d'émojis excessifs, mentionner la valeur ajoutée pour les entreprises\\\",\\n    \\\"hashtags\\\": [\\\"5 à 10 hashtags professionnels B2B\\\"]\\n  },\\n  \\\"visual_prompt\\\": \\\"description détaillée pour générer le visuel (en anglais, style professionnel, couleurs #E8A838, #1A1A2E)\\\"\\n}\"\n    }\n  ]\n}",
         "options": {
           "response": {
             "response": {
@@ -64,10 +58,7 @@
       "name": "Générer Contenu IA",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        640,
-        300
-      ],
+      "position": [640, 300],
       "credentials": {
         "openAiApi": {
           "id": "MmpYHYAt746xfTrB",
@@ -77,29 +68,23 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser la réponse OpenAI API\nconst input = $input.first().json;\nlet content;\n\ntry {\n  // L'API OpenAI retourne: { choices: [{ message: { content: '...' } }] }\n  const rawText = input.choices?.[0]?.message?.content || input.message?.content || input.text || input.content || JSON.stringify(input);\n\n  // Nettoyer le texte (enlever backticks markdown si présents)\n  let cleanText = rawText.trim();\n  if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);\n  if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);\n  if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);\n  cleanText = cleanText.trim();\n\n  content = JSON.parse(cleanText);\n} catch (e) {\n  return [{\n    json: {\n      error: true,\n      message: \"Erreur parsing réponse IA: \" + e.message,\n      raw: JSON.stringify(input).substring(0, 500)\n    }\n  }];\n}\n\nconst theme = ((() => { try { return $('Sélecteur Thème').first()?.json; } catch(e) {} try { return $('Parser Webhook').first()?.json; } catch(e) {} return {}; })());\n\nreturn [{\n  json: {\n    success: true,\n    theme: theme,\n    tiktok: content.tiktok || {},\n    instagram: content.instagram || {},\n    facebook: content.facebook || {},\n    visual_prompt: content.visual_prompt || \"\",\n    generated_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Parser la réponse OpenAI API\nconst input = $input.first().json;\nlet content;\n\ntry {\n  const rawText = input.choices?.[0]?.message?.content || input.message?.content || input.text || input.content || JSON.stringify(input);\n  let cleanText = rawText.trim();\n  if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);\n  if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);\n  if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);\n  cleanText = cleanText.trim();\n  content = JSON.parse(cleanText);\n} catch (e) {\n  return [{\n    json: {\n      error: true,\n      message: \"Erreur parsing réponse IA: \" + e.message,\n      raw: JSON.stringify(input).substring(0, 500)\n    }\n  }];\n}\n\nconst theme = ((() => { try { return $('Sélecteur Thème').first()?.json; } catch(e) {} try { return $('Parser Webhook').first()?.json; } catch(e) {} return {}; })());\n\nreturn [{\n  json: {\n    success: true,\n    theme: theme,\n    tiktok: content.tiktok || {},\n    instagram: content.instagram || {},\n    facebook: content.facebook || {},\n    linkedin: content.linkedin || {},\n    visual_prompt: content.visual_prompt || \"\",\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "content-parser",
       "name": "Parser Contenu",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        860,
-        300
-      ]
+      "position": [860, 300]
     },
     {
       "parameters": {
-        "jsCode": "// ========================================\n// CONFIGURATION META / FACEBOOK / INSTAGRAM\n// ========================================\n// Remplacez ces valeurs par vos vrais tokens.\n// Cela remplace les $env qui ne fonctionnent pas.\n// ========================================\n\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
+        "jsCode": "// ========================================\n// CONFIGURATION META / FACEBOOK / INSTAGRAM\n// ========================================\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
       },
       "id": "fb-prepare",
       "name": "Préparer Facebook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        100
-      ]
+      "position": [1100, 100]
     },
     {
       "parameters": {
@@ -109,25 +94,14 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "message",
-              "value": "={{ $json.message }}"
-            },
-            {
-              "name": "link",
-              "value": "={{ $json.link }}"
-            },
-            {
-              "name": "access_token",
-              "value": "={{ $json.meta_access_token }}"
-            }
+            { "name": "message", "value": "={{ $json.message }}" },
+            { "name": "link", "value": "={{ $json.link }}" },
+            { "name": "access_token", "value": "={{ $json.meta_access_token }}" }
           ]
         },
         "options": {
           "response": {
-            "response": {
-              "fullResponse": true
-            }
+            "response": { "fullResponse": true }
           }
         }
       },
@@ -135,10 +109,7 @@
       "name": "Publier Facebook",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1320,
-        100
-      ]
+      "position": [1320, 100]
     },
     {
       "parameters": {
@@ -148,23 +119,66 @@
       "name": "Résultat Facebook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1540,
-        100
-      ]
+      "position": [1540, 100]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la publication Instagram via Meta Graph API\n// Récupère les config Meta depuis le noeud Préparer Facebook (même source)\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\n// ========================================\n// CONFIGURATION META (même que Facebook)\n// ========================================\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
+        "jsCode": "// ========================================\n// CONFIGURATION LINKEDIN (Page Entreprise)\n// ========================================\nconst LINKEDIN_CONFIG = {\n  ACCESS_TOKEN: 'A_REMPLACER_PAR_TOKEN_LINKEDIN',\n  ORG_ID: 'A_REMPLACER_PAR_ORG_ID'\n};\n\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'linkedin', success: false, post_id: null, error: data.message } }];\n\nconst li = data.linkedin || {};\nconst hashtags = (li.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst commentary = ((li.commentary || data.theme?.angle || '') + '\\n\\n' + hashtags).substring(0, 1300);\n\nreturn [{\n  json: {\n    platform: \"linkedin\",\n    commentary: commentary,\n    author: `urn:li:organization:${LINKEDIN_CONFIG.ORG_ID}`,\n    linkedin_token: LINKEDIN_CONFIG.ACCESS_TOKEN,\n    brand_url: \"https://talosprimes.com\",\n    sujet: data.theme?.sujet || 'N/A'\n  }\n}];"
+      },
+      "id": "li-prepare",
+      "name": "Préparer LinkedIn",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/posts",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.linkedin_token }}" },
+            { "name": "LinkedIn-Version", "value": "202401" },
+            { "name": "X-Restli-Protocol-Version", "value": "2.0.0" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"author\": \"{{ $json.author }}\",\n  \"commentary\": {{ JSON.stringify($json.commentary) }},\n  \"visibility\": \"PUBLIC\",\n  \"distribution\": {\n    \"feedDistribution\": \"MAIN_FEED\",\n    \"targetEntities\": [],\n    \"thirdPartyDistributionChannels\": []\n  },\n  \"content\": {\n    \"article\": {\n      \"source\": \"{{ $json.brand_url }}\",\n      \"title\": \"TalosPrimes\",\n      \"description\": \"Plateforme de gestion tout-en-un pour TPE/PME\"\n    }\n  },\n  \"lifecycleState\": \"PUBLISHED\",\n  \"isReshareDisabledByAuthor\": false\n}",
+        "options": {
+          "response": {
+            "response": { "fullResponse": true }
+          }
+        }
+      },
+      "id": "li-publish",
+      "name": "Publier LinkedIn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater le résultat LinkedIn\nconst resp = $input.first().json;\nconst statusCode = resp.statusCode || 200;\nconst headers = resp.headers || {};\nconst body = resp.body || resp;\n\n// LinkedIn retourne le post URN dans le header x-restli-id ou dans le body\nconst postId = headers['x-restli-id'] || headers['x-linkedin-id'] || body.id || null;\n\nreturn [{\n  json: {\n    platform: \"linkedin\",\n    success: statusCode >= 200 && statusCode < 300,\n    post_id: postId,\n    error: statusCode >= 400 ? (body.message || body.serviceErrorCode || JSON.stringify(body).substring(0, 200)) : null\n  }\n}];"
+      },
+      "id": "li-result",
+      "name": "Résultat LinkedIn",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Préparer la publication Instagram via Meta Graph API\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
       },
       "id": "ig-prepare",
       "name": "Préparer Instagram",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ],
+      "position": [1100, 300],
       "disabled": true
     },
     {
@@ -175,29 +189,15 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "image_url",
-              "value": "={{ $json.default_image_url }}"
-            },
-            {
-              "name": "caption",
-              "value": "={{ $json.caption }}"
-            },
-            {
-              "name": "media_type",
-              "value": "IMAGE"
-            },
-            {
-              "name": "access_token",
-              "value": "={{ $json.meta_access_token }}"
-            }
+            { "name": "image_url", "value": "={{ $json.default_image_url }}" },
+            { "name": "caption", "value": "={{ $json.caption }}" },
+            { "name": "media_type", "value": "IMAGE" },
+            { "name": "access_token", "value": "={{ $json.meta_access_token }}" }
           ]
         },
         "options": {
           "response": {
-            "response": {
-              "fullResponse": true
-            }
+            "response": { "fullResponse": true }
           }
         }
       },
@@ -205,10 +205,7 @@
       "name": "IG Créer Container",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1320,
-        300
-      ],
+      "position": [1320, 300],
       "disabled": true
     },
     {
@@ -219,21 +216,13 @@
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
-            {
-              "name": "creation_id",
-              "value": "={{ $json.body?.id || $json.id }}"
-            },
-            {
-              "name": "access_token",
-              "value": "={{ $('Préparer Instagram').first().json.meta_access_token }}"
-            }
+            { "name": "creation_id", "value": "={{ $json.body?.id || $json.id }}" },
+            { "name": "access_token", "value": "={{ $('Préparer Instagram').first().json.meta_access_token }}" }
           ]
         },
         "options": {
           "response": {
-            "response": {
-              "fullResponse": true
-            }
+            "response": { "fullResponse": true }
           }
         }
       },
@@ -241,10 +230,7 @@
       "name": "Publier Instagram",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1540,
-        300
-      ],
+      "position": [1540, 300],
       "disabled": true
     },
     {
@@ -255,49 +241,37 @@
       "name": "Résultat Instagram",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1760,
-        300
-      ]
+      "position": [1760, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer TikTok (placeholder — nécessite app review)\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'tiktok', success: false, post_id: null, error: data.message } }];\n\nconst tt = data.tiktok || {};\nconst hashtags = (tt.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (tt.caption || data.theme?.angle || '') + ' ' + hashtags;\n\n// TikTok app est encore en Draft — on skip la publication réelle\n// et on log juste le contenu généré\nreturn [{\n  json: {\n    platform: \"tiktok\",\n    success: false,\n    post_id: null,\n    error: \"TikTok app en cours de review — publication différée\",\n    caption_generated: caption.substring(0, 150)\n  }\n}];"
+        "jsCode": "// Préparer TikTok (placeholder — nécessite app review)\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'tiktok', success: false, post_id: null, error: data.message } }];\n\nconst tt = data.tiktok || {};\nconst hashtags = (tt.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (tt.caption || data.theme?.angle || '') + ' ' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"tiktok\",\n    success: false,\n    post_id: null,\n    error: \"TikTok app en cours de review — publication différée\",\n    caption_generated: caption.substring(0, 150)\n  }\n}];"
       },
       "id": "tiktok-prepare",
       "name": "Préparer TikTok",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        500
-      ]
+      "position": [1100, 500]
     },
     {
       "parameters": {
-        "jsCode": "// Collecter les résultats des 3 plateformes (Instagram peut être omis s'il est désactivé)\nconst items = $input.all();\n\nconst theme = ((() => { try { return $('Sélecteur Thème').first()?.json; } catch(e) {} try { return $('Parser Webhook').first()?.json; } catch(e) {} return {}; })());\n\n// Récupérer infos du chemin manuel si disponible\nconst manuelInfo = ((() => { try { return $('Publier Manuel Direct').first()?.json; } catch(e) { return null; } })());\n\nconst summary = {\n  date: new Date().toISOString(),\n  theme: manuelInfo?.week_theme || theme.week_theme || 'N/A',\n  sujet: manuelInfo?.sujet || theme.sujet || 'N/A',\n  angle: theme.angle || manuelInfo?.message?.substring(0, 50) || 'N/A',\n  type: manuelInfo?.content_type || theme.content_type || 'N/A',\n  tenant_id: '00000000-0000-0000-0000-000000000001',\n  platforms: {}\n};\n\nfor (const item of items) {\n  const r = item.json;\n  if (r.platform) {\n    summary.platforms[r.platform] = {\n      success: !!r.success,\n      post_id: r.post_id || null,\n      error: r.error || null\n    };\n  }\n}\n\n// Ne PAS ajouter de fausses entrées pour les plateformes désactivées\n// On ne log que les plateformes réellement utilisées\n\nreturn [{ json: summary }];"
+        "jsCode": "// Collecter les résultats de toutes les plateformes\nconst items = $input.all();\n\nconst theme = ((() => { try { return $('Sélecteur Thème').first()?.json; } catch(e) {} try { return $('Parser Webhook').first()?.json; } catch(e) {} return {}; })());\n\nconst manuelInfo = ((() => { try { return $('Publier Manuel Direct').first()?.json; } catch(e) { return null; } })());\n\nconst summary = {\n  date: new Date().toISOString(),\n  theme: manuelInfo?.week_theme || theme.week_theme || 'N/A',\n  sujet: manuelInfo?.sujet || theme.sujet || 'N/A',\n  angle: theme.angle || manuelInfo?.message?.substring(0, 50) || 'N/A',\n  type: manuelInfo?.content_type || theme.content_type || 'N/A',\n  tenant_id: '00000000-0000-0000-0000-000000000001',\n  platforms: {}\n};\n\nfor (const item of items) {\n  const r = item.json;\n  if (r.platform) {\n    summary.platforms[r.platform] = {\n      success: !!r.success,\n      post_id: r.post_id || null,\n      error: r.error || null\n    };\n  }\n}\n\nreturn [{ json: summary }];"
       },
       "id": "merge-results",
       "name": "Merger Résultats",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1980,
-        300
-      ]
+      "position": [1980, 400]
     },
     {
       "parameters": {
-        "jsCode": "// Préparer les données pour insertion SQL avec échappement des quotes\nconst data = $input.first().json;\n\nfunction esc(val) {\n  if (val === null || val === undefined) return 'NULL';\n  return \"'\" + String(val).replace(/'/g, \"''\") + \"'\";\n}\n\n// Ne logger que les plateformes réellement présentes dans les résultats\nconst platforms = Object.keys(data.platforms || {});\nif (platforms.length === 0) platforms.push('facebook');\nconst rows = platforms.map(p => {\n  const result = data.platforms?.[p] || {};\n  const status = result.success ? 'publie' : 'erreur';\n  const postId = result.post_id ? esc(result.post_id) : 'NULL';\n  return `(gen_random_uuid(), ${esc(data.tenant_id)}::uuid, ${esc(p)}, ${esc(data.type)}, ${esc(data.sujet)}, ${esc(data.angle)}, NOW(), ${esc(status)}, ${postId}, NOW(), NOW())`;\n});\n\nconst query = `INSERT INTO marketing_posts (id, tenant_id, plateforme, type, sujet, contenu_texte, date_publication, status, post_external_id, created_at, updated_at)\nVALUES\n  ${rows.join(',\\n  ')}\nON CONFLICT DO NOTHING;`;\n\nreturn [{ json: { query } }];"
+        "jsCode": "// Préparer les données pour insertion SQL\nconst data = $input.first().json;\n\nfunction esc(val) {\n  if (val === null || val === undefined) return 'NULL';\n  return \"'\" + String(val).replace(/'/g, \"''\") + \"'\";\n}\n\nconst platforms = Object.keys(data.platforms || {});\nif (platforms.length === 0) platforms.push('facebook');\nconst rows = platforms.map(p => {\n  const result = data.platforms?.[p] || {};\n  const status = result.success ? 'publie' : 'erreur';\n  const postId = result.post_id ? esc(result.post_id) : 'NULL';\n  return `(gen_random_uuid(), ${esc(data.tenant_id)}::uuid, ${esc(p)}, ${esc(data.type)}, ${esc(data.sujet)}, ${esc(data.angle)}, NOW(), ${esc(status)}, ${postId}, NOW(), NOW())`;\n});\n\nconst query = `INSERT INTO marketing_posts (id, tenant_id, plateforme, type, sujet, contenu_texte, date_publication, status, post_external_id, created_at, updated_at)\nVALUES\n  ${rows.join(',\\n  ')}\nON CONFLICT DO NOTHING;`;\n\nreturn [{ json: { query } }];"
       },
       "id": "log-db-prepare",
       "name": "Préparer SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2200,
-        300
-      ]
+      "position": [2200, 400]
     },
     {
       "parameters": {
@@ -309,10 +283,7 @@
       "name": "Log en Base",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        2400,
-        300
-      ],
+      "position": [2400, 400],
       "credentials": {
         "postgres": {
           "id": "6Kosza77d9Ld32mw",
@@ -322,16 +293,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la notification Telegram\nconst data = ((() => { try { return $('Merger Résultats').first().json; } catch(e) { return $input.first().json; } })());\n\nconst platformEmojis = { facebook: '📘', instagram: '📸', tiktok: '🎵' };\n\nlet message = `🚀 *Publication Marketing*\\n`;\nmessage += `📅 ${data.date?.split('T')[0] || 'N/A'}\\n`;\nmessage += `📝 Thème: ${data.theme || 'N/A'}\\n`;\nmessage += `💡 Sujet: ${data.sujet || 'N/A'}\\n\\n`;\n\nconst platforms = data.platforms || {};\nfor (const [platform, result] of Object.entries(platforms)) {\n  const emoji = platformEmojis[platform] || '📱';\n  const status = result.success ? '✅' : '❌';\n  message += `${emoji} ${platform}: ${status}`;\n  if (result.post_id) message += ` (ID: ${result.post_id})`;\n  if (result.error) message += ` — ${result.error}`;\n  message += '\\n';\n}\n\nmessage += `\\n_TalosPrimes — Votre gestion, automatisée._`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
+        "jsCode": "// Formater la notification Telegram\nconst data = ((() => { try { return $('Merger Résultats').first().json; } catch(e) { return $input.first().json; } })());\n\nconst platformEmojis = { facebook: '📘', instagram: '📸', tiktok: '🎵', linkedin: '🔗' };\n\nlet message = `🚀 *Publication Marketing*\\n`;\nmessage += `📅 ${data.date?.split('T')[0] || 'N/A'}\\n`;\nmessage += `📝 Thème: ${data.theme || 'N/A'}\\n`;\nmessage += `💡 Sujet: ${data.sujet || 'N/A'}\\n\\n`;\n\nconst platforms = data.platforms || {};\nfor (const [platform, result] of Object.entries(platforms)) {\n  const emoji = platformEmojis[platform] || '📱';\n  const status = result.success ? '✅' : '❌';\n  message += `${emoji} ${platform}: ${status}`;\n  if (result.post_id) message += ` (ID: ${result.post_id})`;\n  if (result.error) message += ` — ${result.error}`;\n  message += '\\n';\n}\n\nmessage += `\\n_TalosPrimes — Votre gestion, automatisée._`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
       },
       "id": "notif-prepare",
       "name": "Préparer Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2620,
-        300
-      ]
+      "position": [2620, 400]
     },
     {
       "parameters": {
@@ -345,10 +313,7 @@
       "name": "Envoyer Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [
-        2840,
-        300
-      ],
+      "position": [2840, 400],
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -364,10 +329,7 @@
       "name": "Error Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1100,
-        720
-      ]
+      "position": [1100, 920]
     },
     {
       "parameters": {
@@ -381,10 +343,7 @@
       "name": "Telegram Erreur",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [
-        1320,
-        720
-      ],
+      "position": [1320, 920],
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -403,23 +362,17 @@
       "name": "Webhook Marketing",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        200,
-        520
-      ]
+      "position": [200, 520]
     },
     {
       "parameters": {
-        "jsCode": "// Parser les paramètres du webhook\nconst body = $input.first().json.body || $input.first().json;\n\nconst now = new Date();\nconst dayOfWeek = now.getDay();\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\nconst cycleWeek = ((weekNumber - 1) % 4) + 1;\n\nconst themes = {\n  1: { name: \"Commercial\",\n    1: { type: \"module_presentation\", sujet: \"Module Clients + Leads\", angle: \"Gérez vos prospects en un clic\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce CRM\", angle: \"3 erreurs qui vous font perdre des clients\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Témoignage artisan\", angle: \"Comment doubler ses leads en 30 jours\", format: \"video\" }\n  },\n  2: { name: \"Facturation\",\n    1: { type: \"module_presentation\", sujet: \"Module Facturation + Devis\", angle: \"Facturez en 30 secondes\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce compta\", angle: \"TVA auto, écritures auto : zéro saisie\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"ROI client\", angle: \"2h/semaine gagnées grâce à l'automatisation\", format: \"video\" }\n  },\n  3: { name: \"IA & Automation\",\n    1: { type: \"module_presentation\", sujet: \"Agent Téléphonique IA\", angle: \"Votre secrétaire IA qui répond 24h/24\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce automation\", angle: \"5 tâches à automatiser dès aujourd'hui\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Démo live\", angle: \"Appel en direct à l'agent IA\", format: \"video\" }\n  },\n  4: { name: \"Métiers spécifiques\",\n    1: { type: \"module_presentation\", sujet: \"Modules BTP + Projets\", angle: \"Gérez vos chantiers de A à Z\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce RH/Équipe\", angle: \"Pointages, congés, paie : tout automatisé\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Partenariat\", angle: \"Devenez partenaire — 10% de commission\", format: \"video\" }\n  }\n};\n\nconst forcedWeek = body.cycle_week || cycleWeek;\nconst forcedDay = body.day_of_week || dayOfWeek || 1;\nconst weekTheme = themes[forcedWeek] || themes[1];\nconst dayContent = weekTheme[forcedDay] || weekTheme[1];\n\n// Contenu utilisateur (si fourni depuis l'UI)\nconst userContent = body.contenu_texte || '';\nconst userHashtags = body.hashtags || '';\nconst userPlateforme = body.plateforme || '';\n\nreturn [{\n  json: {\n    cycle_week: forcedWeek,\n    week_theme: body.week_theme || weekTheme.name,\n    day_of_week: forcedDay,\n    content_type: body.type || body.content_type || dayContent.type,\n    sujet: body.sujet || dayContent.sujet,\n    angle: body.angle || dayContent.angle,\n    format_visuel: body.format_visuel || dayContent.format,\n    date_publication: now.toISOString(),\n    brand_name: \"TalosPrimes\",\n    brand_description: \"Plateforme SaaS de gestion tout-en-un pour TPE/PME, artisans et BTP.\",\n    brand_url: \"https://talosprimes.com\",\n    target_audience: \"TPE/PME, artisans, entreprises BTP en France\",\n    source: \"webhook_manual\",\n    has_user_content: !!userContent,\n    user_content: userContent,\n    user_hashtags: userHashtags,\n    user_plateforme: userPlateforme\n  }\n}];"
+        "jsCode": "// Parser les paramètres du webhook\nconst body = $input.first().json.body || $input.first().json;\n\nconst now = new Date();\nconst dayOfWeek = now.getDay();\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\nconst cycleWeek = ((weekNumber - 1) % 4) + 1;\n\nconst themes = {\n  1: { name: \"Commercial\",\n    1: { type: \"module_presentation\", sujet: \"Module Clients + Leads\", angle: \"Gérez vos prospects en un clic\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce CRM\", angle: \"3 erreurs qui vous font perdre des clients\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Témoignage artisan\", angle: \"Comment doubler ses leads en 30 jours\", format: \"video\" }\n  },\n  2: { name: \"Facturation\",\n    1: { type: \"module_presentation\", sujet: \"Module Facturation + Devis\", angle: \"Facturez en 30 secondes\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce compta\", angle: \"TVA auto, écritures auto : zéro saisie\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"ROI client\", angle: \"2h/semaine gagnées grâce à l'automatisation\", format: \"video\" }\n  },\n  3: { name: \"IA & Automation\",\n    1: { type: \"module_presentation\", sujet: \"Agent Téléphonique IA\", angle: \"Votre secrétaire IA qui répond 24h/24\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce automation\", angle: \"5 tâches à automatiser dès aujourd'hui\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Démo live\", angle: \"Appel en direct à l'agent IA\", format: \"video\" }\n  },\n  4: { name: \"Métiers spécifiques\",\n    1: { type: \"module_presentation\", sujet: \"Modules BTP + Projets\", angle: \"Gérez vos chantiers de A à Z\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce RH/Équipe\", angle: \"Pointages, congés, paie : tout automatisé\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Partenariat\", angle: \"Devenez partenaire — 10% de commission\", format: \"video\" }\n  }\n};\n\nconst forcedWeek = body.cycle_week || cycleWeek;\nconst forcedDay = body.day_of_week || dayOfWeek || 1;\nconst weekTheme = themes[forcedWeek] || themes[1];\nconst dayContent = weekTheme[forcedDay] || weekTheme[1];\n\nconst userContent = body.contenu_texte || '';\nconst userHashtags = body.hashtags || '';\nconst userPlateforme = body.plateforme || '';\n\nreturn [{\n  json: {\n    cycle_week: forcedWeek,\n    week_theme: body.week_theme || weekTheme.name,\n    day_of_week: forcedDay,\n    content_type: body.type || body.content_type || dayContent.type,\n    sujet: body.sujet || dayContent.sujet,\n    angle: body.angle || dayContent.angle,\n    format_visuel: body.format_visuel || dayContent.format,\n    date_publication: now.toISOString(),\n    brand_name: \"TalosPrimes\",\n    brand_description: \"Plateforme SaaS de gestion tout-en-un pour TPE/PME, artisans et BTP.\",\n    brand_url: \"https://talosprimes.com\",\n    target_audience: \"TPE/PME, artisans, entreprises BTP en France\",\n    source: \"webhook_manual\",\n    has_user_content: !!userContent,\n    user_content: userContent,\n    user_hashtags: userHashtags,\n    user_plateforme: userPlateforme\n  }\n}];"
       },
       "id": "webhook-parser",
       "name": "Parser Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        420,
-        520
-      ]
+      "position": [420, 520]
     },
     {
       "parameters": {
@@ -429,10 +382,7 @@
       "name": "Préparer Réponse Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2620,
-        520
-      ]
+      "position": [2620, 620]
     },
     {
       "parameters": {
@@ -443,10 +393,7 @@
       "name": "Respond Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [
-        2840,
-        520
-      ]
+      "position": [2840, 620]
     },
     {
       "parameters": {
@@ -463,143 +410,151 @@
       "name": "Contenu fourni ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        540,
-        720
-      ]
+      "position": [540, 720]
     },
     {
       "parameters": {
-        "jsCode": "// Publication manuelle : envoyer le texte EXACT de l'utilisateur\n// Sans reformatage, sans IA, tel quel.\nconst data = $input.first().json;\nconst text = data.user_content || '';\nconst hashtags = data.user_hashtags || '';\n\n// Construire le message final : texte tel quel + hashtags si fournis\nlet message = text;\nif (hashtags.trim()) {\n  const formattedHashtags = hashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n  message += '\\n\\n' + formattedHashtags;\n}\n\n// Config Meta (même que Préparer Facebook)\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725'\n};\n\nreturn [{\n  json: {\n    platform: 'facebook',\n    message: message,\n    link: 'https://talosprimes.com',\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    // Infos pour le log\n    sujet: data.sujet || 'Publication manuelle',\n    content_type: data.content_type || 'manuel',\n    week_theme: 'Manuel'\n  }\n}];"
+        "jsCode": "// Publication manuelle : envoyer le texte EXACT sur Facebook ET LinkedIn\nconst data = $input.first().json;\nconst text = data.user_content || '';\nconst hashtags = data.user_hashtags || '';\n\nlet message = text;\nlet formattedHashtags = '';\nif (hashtags.trim()) {\n  formattedHashtags = hashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n  message += '\\n\\n' + formattedHashtags;\n}\n\n// Config\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725'\n};\nconst LINKEDIN_CONFIG = {\n  ACCESS_TOKEN: 'A_REMPLACER_PAR_TOKEN_LINKEDIN',\n  ORG_ID: 'A_REMPLACER_PAR_ORG_ID'\n};\n\nconst items = [];\n\n// Item Facebook\nitems.push({\n  json: {\n    platform: 'facebook',\n    message: message,\n    link: 'https://talosprimes.com',\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    sujet: data.sujet || 'Publication manuelle',\n    content_type: data.content_type || 'manuel',\n    week_theme: 'Manuel'\n  }\n});\n\n// Item LinkedIn\nitems.push({\n  json: {\n    platform: 'linkedin',\n    commentary: message.substring(0, 1300),\n    author: `urn:li:organization:${LINKEDIN_CONFIG.ORG_ID}`,\n    linkedin_token: LINKEDIN_CONFIG.ACCESS_TOKEN,\n    brand_url: 'https://talosprimes.com',\n    sujet: data.sujet || 'Publication manuelle',\n    content_type: data.content_type || 'manuel',\n    week_theme: 'Manuel'\n  }\n});\n\nreturn items;"
       },
       "id": "manual-content",
       "name": "Publier Manuel Direct",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        760,
-        620
-      ]
+      "position": [760, 720]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "facebook",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "facebook"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.platform }}",
+                    "rightValue": "linkedin",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "linkedin"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "router-platform",
+      "name": "Router Plateforme",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [980, 720]
     }
   ],
   "connections": {
     "Cron Marketing": {
       "main": [
         [
-          {
-            "node": "Sélecteur Thème",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Sélecteur Thème", "type": "main", "index": 0 }
         ]
       ]
     },
     "Sélecteur Thème": {
       "main": [
         [
-          {
-            "node": "Générer Contenu IA",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Générer Contenu IA", "type": "main", "index": 0 }
         ]
       ]
     },
     "Générer Contenu IA": {
       "main": [
         [
-          {
-            "node": "Parser Contenu",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Parser Contenu", "type": "main", "index": 0 }
         ]
       ]
     },
     "Parser Contenu": {
       "main": [
         [
-          {
-            "node": "Préparer Facebook",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer Instagram",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer TikTok",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Préparer Facebook", "type": "main", "index": 0 },
+          { "node": "Préparer Instagram", "type": "main", "index": 0 },
+          { "node": "Préparer TikTok", "type": "main", "index": 0 },
+          { "node": "Préparer LinkedIn", "type": "main", "index": 0 }
         ]
       ]
     },
     "Préparer Facebook": {
       "main": [
         [
-          {
-            "node": "Publier Facebook",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Publier Facebook", "type": "main", "index": 0 }
         ]
       ]
     },
     "Publier Facebook": {
       "main": [
         [
-          {
-            "node": "Résultat Facebook",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Résultat Facebook", "type": "main", "index": 0 }
         ]
       ]
     },
     "Résultat Facebook": {
       "main": [
         [
-          {
-            "node": "Merger Résultats",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Merger Résultats", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Préparer LinkedIn": {
+      "main": [
+        [
+          { "node": "Publier LinkedIn", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Publier LinkedIn": {
+      "main": [
+        [
+          { "node": "Résultat LinkedIn", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Résultat LinkedIn": {
+      "main": [
+        [
+          { "node": "Merger Résultats", "type": "main", "index": 0 }
         ]
       ]
     },
     "Préparer Instagram": {
       "main": [
         [
-          {
-            "node": "IG Créer Container",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "IG Créer Container", "type": "main", "index": 0 }
         ]
       ]
     },
     "IG Créer Container": {
       "main": [
         [
-          {
-            "node": "Publier Instagram",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Publier Instagram", "type": "main", "index": 0 }
         ]
       ]
     },
     "Publier Instagram": {
       "main": [
         [
-          {
-            "node": "Résultat Instagram",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Résultat Instagram", "type": "main", "index": 0 }
         ]
       ]
     },
@@ -611,133 +566,91 @@
     "Préparer TikTok": {
       "main": [
         [
-          {
-            "node": "Merger Résultats",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Merger Résultats", "type": "main", "index": 0 }
         ]
       ]
     },
     "Merger Résultats": {
       "main": [
         [
-          {
-            "node": "Préparer SQL",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer Réponse Webhook",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Préparer SQL", "type": "main", "index": 0 },
+          { "node": "Préparer Réponse Webhook", "type": "main", "index": 0 }
         ]
       ]
     },
     "Préparer SQL": {
       "main": [
         [
-          {
-            "node": "Log en Base",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Log en Base", "type": "main", "index": 0 }
         ]
       ]
     },
     "Log en Base": {
       "main": [
         [
-          {
-            "node": "Préparer Notification",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Préparer Notification", "type": "main", "index": 0 }
         ]
       ]
     },
     "Préparer Notification": {
       "main": [
         [
-          {
-            "node": "Envoyer Telegram",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Envoyer Telegram", "type": "main", "index": 0 }
         ]
       ]
     },
     "Error Handler": {
       "main": [
         [
-          {
-            "node": "Telegram Erreur",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Telegram Erreur", "type": "main", "index": 0 }
         ]
       ]
     },
     "Webhook Marketing": {
       "main": [
         [
-          {
-            "node": "Parser Webhook",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Parser Webhook", "type": "main", "index": 0 }
         ]
       ]
     },
     "Parser Webhook": {
       "main": [
         [
-          {
-            "node": "Contenu fourni ?",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Contenu fourni ?", "type": "main", "index": 0 }
         ]
       ]
     },
     "Contenu fourni ?": {
       "main": [
         [
-          {
-            "node": "Publier Manuel Direct",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Publier Manuel Direct", "type": "main", "index": 0 }
         ],
         [
-          {
-            "node": "Générer Contenu IA",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Générer Contenu IA", "type": "main", "index": 0 }
         ]
       ]
     },
     "Publier Manuel Direct": {
       "main": [
         [
-          {
-            "node": "Publier Facebook",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Router Plateforme", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Router Plateforme": {
+      "main": [
+        [
+          { "node": "Publier Facebook", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Publier LinkedIn", "type": "main", "index": 0 }
         ]
       ]
     },
     "Préparer Réponse Webhook": {
       "main": [
         [
-          {
-            "node": "Respond Webhook",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "Respond Webhook", "type": "main", "index": 0 }
         ]
       ]
     }
@@ -749,8 +662,6 @@
     "callerPolicy": "workflowsFromSameOwner"
   },
   "tags": [
-    {
-      "name": "marketing"
-    }
+    { "name": "marketing" }
   ]
 }
