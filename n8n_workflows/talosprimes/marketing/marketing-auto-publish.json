@@ -36,33 +36,42 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.8,\n  \"max_tokens\": 1500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un expert en marketing digital et community management. Tu réponds UNIQUEMENT avec du JSON valide, sans markdown, sans backticks.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Marque: {{ $json.brand_name }}\\nDescription: {{ $json.brand_description }}\\nURL: {{ $json.brand_url }}\\nCible: {{ $json.target_audience }}\\n\\nThème de la semaine: {{ $json.week_theme }}\\nSujet: {{ $json.sujet }}\\nAngle: {{ $json.angle }}\\nType: {{ $json.content_type }}\\nFormat visuel: {{ $json.format_visuel }}\\n\\nGénère un JSON valide avec cette structure exacte:\\n{\\n  \\\"tiktok\\\": {\\n    \\\"caption\\\": \\\"texte court, décontracté, émojis, 150 chars max\\\",\\n    \\\"hashtags\\\": [\\\"5 à 8 hashtags tendance\\\"]\\n  },\\n  \\\"instagram\\\": {\\n    \\\"caption\\\": \\\"texte pro mais accessible, 300-500 chars\\\",\\n    \\\"hashtags\\\": [\\\"15 à 20 hashtags ciblés\\\"]\\n  },\\n  \\\"facebook\\\": {\\n    \\\"text\\\": \\\"texte informatif, 200-400 chars, inclure le lien {{ $json.brand_url }}\\\",\\n    \\\"hashtags\\\": [\\\"3 à 5 hashtags\\\"]\\n  },\\n  \\\"visual_prompt\\\": \\\"description détaillée pour générer le visuel (en anglais, style professionnel, couleurs #E8A838, #1A1A2E)\\\"\\n}\"\n    }\n  ]\n}",
-        "options": {}
+        "resource": "chat",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "=Tu es un expert en marketing digital et community management. Tu réponds UNIQUEMENT avec du JSON valide, sans markdown, sans backticks."
+            },
+            {
+              "role": "user",
+              "content": "=Marque: {{ $json.brand_name }}\nDescription: {{ $json.brand_description }}\nURL: {{ $json.brand_url }}\nCible: {{ $json.target_audience }}\n\nThème de la semaine: {{ $json.week_theme }}\nSujet: {{ $json.sujet }}\nAngle: {{ $json.angle }}\nType: {{ $json.content_type }}\nFormat visuel: {{ $json.format_visuel }}\n\nGénère un JSON valide avec cette structure exacte:\n{\n  \"tiktok\": {\n    \"caption\": \"texte court, décontracté, émojis, 150 chars max\",\n    \"hashtags\": [\"5 à 8 hashtags tendance\"]\n  },\n  \"instagram\": {\n    \"caption\": \"texte pro mais accessible, 300-500 chars\",\n    \"hashtags\": [\"15 à 20 hashtags ciblés\"]\n  },\n  \"facebook\": {\n    \"text\": \"texte informatif, 200-400 chars, inclure le lien {{ $json.brand_url }}\",\n    \"hashtags\": [\"3 à 5 hashtags\"]\n  },\n  \"visual_prompt\": \"description détaillée pour générer le visuel (en anglais, style professionnel, couleurs #E8A838, #1A1A2E)\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 1500
+        }
       },
       "id": "openai-generate",
       "name": "Générer Contenu IA",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
       "position": [
         640,
         300
       ],
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "openai-bearer",
-          "name": "OpenAI Bearer"
+        "openAiApi": {
+          "id": "openai-account",
+          "name": "OpenAi account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Parser la réponse OpenAI API standard\nconst input = $input.first().json;\nlet content;\n\ntry {\n  // Réponse standard OpenAI /v1/chat/completions\n  const rawText = input.choices?.[0]?.message?.content || input.message?.content || input.text || JSON.stringify(input);\n\n  // Nettoyer le texte (enlever backticks markdown si présents)\n  let cleanText = rawText.trim();\n  if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);\n  if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);\n  if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);\n  cleanText = cleanText.trim();\n\n  content = JSON.parse(cleanText);\n} catch (e) {\n  return [{\n    json: {\n      error: true,\n      message: \"Erreur parsing réponse IA: \" + e.message,\n      raw: JSON.stringify(input).substring(0, 500)\n    }\n  }];\n}\n\nconst theme = $('Sélecteur Thème').first()?.json || $('Parser Webhook').first()?.json || {};\n\nreturn [{\n  json: {\n    success: true,\n    theme: theme,\n    tiktok: content.tiktok || {},\n    instagram: content.instagram || {},\n    facebook: content.facebook || {},\n    visual_prompt: content.visual_prompt || \"\",\n    generated_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Parser la réponse OpenAI (node natif n8n ou API standard)\nconst input = $input.first().json;\nlet content;\n\ntry {\n  // Le node OpenAI natif retourne le texte dans input.message.content ou input.text\n  // L'API standard retourne dans input.choices[0].message.content\n  const rawText = input.message?.content || input.text || input.choices?.[0]?.message?.content || input.content || JSON.stringify(input);\n\n  // Nettoyer le texte (enlever backticks markdown si présents)\n  let cleanText = rawText.trim();\n  if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);\n  if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);\n  if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);\n  cleanText = cleanText.trim();\n\n  content = JSON.parse(cleanText);\n} catch (e) {\n  return [{\n    json: {\n      error: true,\n      message: \"Erreur parsing réponse IA: \" + e.message,\n      raw: JSON.stringify(input).substring(0, 500)\n    }\n  }];\n}\n\nconst theme = $('Sélecteur Thème').first()?.json || $('Parser Webhook').first()?.json || {};\n\nreturn [{\n  json: {\n    success: true,\n    theme: theme,\n    tiktok: content.tiktok || {},\n    instagram: content.instagram || {},\n    facebook: content.facebook || {},\n    visual_prompt: content.visual_prompt || \"\",\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "content-parser",
       "name": "Parser Contenu",
