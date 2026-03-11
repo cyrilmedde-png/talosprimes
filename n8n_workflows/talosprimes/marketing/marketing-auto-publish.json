@@ -285,8 +285,21 @@
     },
     {
       "parameters": {
+        "jsCode": "// Préparer les données pour insertion SQL avec échappement des quotes\nconst data = $input.first().json;\n\nfunction esc(val) {\n  if (val === null || val === undefined) return 'NULL';\n  return \"'\" + String(val).replace(/'/g, \"''\") + \"'\";\n}\n\nconst platforms = ['facebook', 'instagram', 'tiktok'];\nconst rows = platforms.map(p => {\n  const result = data.platforms?.[p] || {};\n  const status = result.success ? 'publie' : 'erreur';\n  const postId = result.post_id ? esc(result.post_id) : 'NULL';\n  return `(gen_random_uuid(), ${esc(data.tenant_id)}::uuid, ${esc(p)}, ${esc(data.type)}, ${esc(data.sujet)}, ${esc(data.angle)}, NOW(), ${esc(status)}, ${postId}, NOW(), NOW())`;\n});\n\nconst query = `INSERT INTO marketing_posts (id, tenant_id, plateforme, type, sujet, contenu_texte, date_publication, status, post_external_id, created_at, updated_at)\nVALUES\n  ${rows.join(',\\n  ')}\nON CONFLICT DO NOTHING;`;\n\nreturn [{ json: { query } }];"
+      },
+      "id": "log-db-prepare",
+      "name": "Préparer SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO marketing_posts (id, tenant_id, plateforme, type, sujet, contenu_texte, date_publication, status, post_external_id, created_at, updated_at)\nVALUES\n  (gen_random_uuid(), '{{ $json.tenant_id }}'::uuid, 'facebook', '{{ $json.type }}', '{{ $json.sujet }}', '{{ $json.angle }}', NOW(), {{ $json.platforms.facebook?.success ? \"'publie'\" : \"'erreur'\" }}, {{ $json.platforms.facebook?.post_id ? \"'\" + $json.platforms.facebook.post_id + \"'\" : \"NULL\" }}, NOW(), NOW()),\n  (gen_random_uuid(), '{{ $json.tenant_id }}'::uuid, 'instagram', '{{ $json.type }}', '{{ $json.sujet }}', '{{ $json.angle }}', NOW(), {{ $json.platforms.instagram?.success ? \"'publie'\" : \"'erreur'\" }}, {{ $json.platforms.instagram?.post_id ? \"'\" + $json.platforms.instagram.post_id + \"'\" : \"NULL\" }}, NOW(), NOW()),\n  (gen_random_uuid(), '{{ $json.tenant_id }}'::uuid, 'tiktok', '{{ $json.type }}', '{{ $json.sujet }}', '{{ $json.angle }}', NOW(), {{ $json.platforms.tiktok?.success ? \"'publie'\" : \"'erreur'\" }}, {{ $json.platforms.tiktok?.post_id ? \"'\" + $json.platforms.tiktok.post_id + \"'\" : \"NULL\" }}, NOW(), NOW())\nON CONFLICT DO NOTHING;",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "log-db",
@@ -294,7 +307,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2200,
+        2400,
         300
       ],
       "credentials": {
@@ -306,14 +319,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la notification Telegram\nconst data = $input.first().json;\n\nconst platformEmojis = { facebook: '📘', instagram: '📸', tiktok: '🎵' };\n\nlet message = `🚀 *Publication Marketing*\\n`;\nmessage += `📅 ${data.date?.split('T')[0] || 'N/A'}\\n`;\nmessage += `📝 Thème: ${data.theme || 'N/A'}\\n`;\nmessage += `💡 Sujet: ${data.sujet || 'N/A'}\\n\\n`;\n\nconst platforms = data.platforms || {};\nfor (const [platform, result] of Object.entries(platforms)) {\n  const emoji = platformEmojis[platform] || '📱';\n  const status = result.success ? '✅' : '❌';\n  message += `${emoji} ${platform}: ${status}`;\n  if (result.post_id) message += ` (ID: ${result.post_id})`;\n  if (result.error) message += ` — ${result.error}`;\n  message += '\\n';\n}\n\nmessage += `\\n_TalosPrimes — Votre gestion, automatisée._`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
+        "jsCode": "// Formater la notification Telegram\nconst data = ((() => { try { return $('Merger Résultats').first().json; } catch(e) { return $input.first().json; } })());\n\nconst platformEmojis = { facebook: '📘', instagram: '📸', tiktok: '🎵' };\n\nlet message = `🚀 *Publication Marketing*\\n`;\nmessage += `📅 ${data.date?.split('T')[0] || 'N/A'}\\n`;\nmessage += `📝 Thème: ${data.theme || 'N/A'}\\n`;\nmessage += `💡 Sujet: ${data.sujet || 'N/A'}\\n\\n`;\n\nconst platforms = data.platforms || {};\nfor (const [platform, result] of Object.entries(platforms)) {\n  const emoji = platformEmojis[platform] || '📱';\n  const status = result.success ? '✅' : '❌';\n  message += `${emoji} ${platform}: ${status}`;\n  if (result.post_id) message += ` (ID: ${result.post_id})`;\n  if (result.error) message += ` — ${result.error}`;\n  message += '\\n';\n}\n\nmessage += `\\n_TalosPrimes — Votre gestion, automatisée._`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
       },
       "id": "notif-prepare",
       "name": "Préparer Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2420,
+        2620,
         300
       ]
     },
@@ -330,7 +343,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2640,
+        2840,
         300
       ],
       "credentials": {
@@ -414,7 +427,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2420,
+        2620,
         520
       ]
     },
@@ -428,7 +441,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2640,
+        2840,
         520
       ]
     }
@@ -580,12 +593,23 @@
       "main": [
         [
           {
-            "node": "Log en Base",
+            "node": "Préparer SQL",
             "type": "main",
             "index": 0
           },
           {
             "node": "Préparer Réponse Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer SQL": {
+      "main": [
+        [
+          {
+            "node": "Log en Base",
             "type": "main",
             "index": 0
           }
