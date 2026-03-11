@@ -90,7 +90,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ========================================\n// CONFIGURATION META / FACEBOOK / INSTAGRAM\n// ========================================\n// Remplacez ces valeurs par vos vrais tokens.\n// Cela remplace les $env qui ne fonctionnent pas.\n// ========================================\n\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'VOTRE_META_PAGE_ACCESS_TOKEN_ICI',\n  PAGE_ID: 'VOTRE_META_PAGE_ID_ICI',\n  INSTAGRAM_USER_ID: 'VOTRE_INSTAGRAM_USER_ID_ICI',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
+        "jsCode": "// ========================================\n// CONFIGURATION META / FACEBOOK / INSTAGRAM\n// ========================================\n// Remplacez ces valeurs par vos vrais tokens.\n// Cela remplace les $env qui ne fonctionnent pas.\n// ========================================\n\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
       },
       "id": "fb-prepare",
       "name": "Préparer Facebook",
@@ -155,7 +155,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la publication Instagram via Meta Graph API\n// Récupère les config Meta depuis le noeud Préparer Facebook (même source)\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\n// ========================================\n// CONFIGURATION META (même que Facebook)\n// ========================================\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'VOTRE_META_PAGE_ACCESS_TOKEN_ICI',\n  INSTAGRAM_USER_ID: 'VOTRE_INSTAGRAM_USER_ID_ICI',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
+        "jsCode": "// Préparer la publication Instagram via Meta Graph API\n// Récupère les config Meta depuis le noeud Préparer Facebook (même source)\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\n// ========================================\n// CONFIGURATION META (même que Facebook)\n// ========================================\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
       },
       "id": "ig-prepare",
       "name": "Préparer Instagram",
@@ -407,7 +407,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser les paramètres du webhook\nconst body = $input.first().json.body || $input.first().json;\n\nconst now = new Date();\nconst dayOfWeek = now.getDay();\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\nconst cycleWeek = ((weekNumber - 1) % 4) + 1;\n\nconst themes = {\n  1: { name: \"Commercial\",\n    1: { type: \"module_presentation\", sujet: \"Module Clients + Leads\", angle: \"Gérez vos prospects en un clic\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce CRM\", angle: \"3 erreurs qui vous font perdre des clients\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Témoignage artisan\", angle: \"Comment doubler ses leads en 30 jours\", format: \"video\" }\n  },\n  2: { name: \"Facturation\",\n    1: { type: \"module_presentation\", sujet: \"Module Facturation + Devis\", angle: \"Facturez en 30 secondes\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce compta\", angle: \"TVA auto, écritures auto : zéro saisie\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"ROI client\", angle: \"2h/semaine gagnées grâce à l'automatisation\", format: \"video\" }\n  },\n  3: { name: \"IA & Automation\",\n    1: { type: \"module_presentation\", sujet: \"Agent Téléphonique IA\", angle: \"Votre secrétaire IA qui répond 24h/24\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce automation\", angle: \"5 tâches à automatiser dès aujourd'hui\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Démo live\", angle: \"Appel en direct à l'agent IA\", format: \"video\" }\n  },\n  4: { name: \"Métiers spécifiques\",\n    1: { type: \"module_presentation\", sujet: \"Modules BTP + Projets\", angle: \"Gérez vos chantiers de A à Z\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce RH/Équipe\", angle: \"Pointages, congés, paie : tout automatisé\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Partenariat\", angle: \"Devenez partenaire — 10% de commission\", format: \"video\" }\n  }\n};\n\nconst forcedWeek = body.cycle_week || cycleWeek;\nconst forcedDay = body.day_of_week || dayOfWeek || 1;\nconst weekTheme = themes[forcedWeek] || themes[1];\nconst dayContent = weekTheme[forcedDay] || weekTheme[1];\n\nreturn [{\n  json: {\n    cycle_week: forcedWeek,\n    week_theme: body.week_theme || weekTheme.name,\n    day_of_week: forcedDay,\n    content_type: body.content_type || dayContent.type,\n    sujet: body.sujet || dayContent.sujet,\n    angle: body.angle || dayContent.angle,\n    format_visuel: body.format_visuel || dayContent.format,\n    date_publication: now.toISOString(),\n    brand_name: \"TalosPrimes\",\n    brand_description: \"Plateforme SaaS de gestion tout-en-un pour TPE/PME, artisans et BTP.\",\n    brand_url: \"https://talosprimes.com\",\n    target_audience: \"TPE/PME, artisans, entreprises BTP en France\",\n    source: \"webhook_manual\"\n  }\n}];"
+        "jsCode": "// Parser les paramètres du webhook\nconst body = $input.first().json.body || $input.first().json;\n\nconst now = new Date();\nconst dayOfWeek = now.getDay();\nconst startOfYear = new Date(now.getFullYear(), 0, 1);\nconst weekNumber = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);\nconst cycleWeek = ((weekNumber - 1) % 4) + 1;\n\nconst themes = {\n  1: { name: \"Commercial\",\n    1: { type: \"module_presentation\", sujet: \"Module Clients + Leads\", angle: \"Gérez vos prospects en un clic\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce CRM\", angle: \"3 erreurs qui vous font perdre des clients\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Témoignage artisan\", angle: \"Comment doubler ses leads en 30 jours\", format: \"video\" }\n  },\n  2: { name: \"Facturation\",\n    1: { type: \"module_presentation\", sujet: \"Module Facturation + Devis\", angle: \"Facturez en 30 secondes\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce compta\", angle: \"TVA auto, écritures auto : zéro saisie\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"ROI client\", angle: \"2h/semaine gagnées grâce à l'automatisation\", format: \"video\" }\n  },\n  3: { name: \"IA & Automation\",\n    1: { type: \"module_presentation\", sujet: \"Agent Téléphonique IA\", angle: \"Votre secrétaire IA qui répond 24h/24\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce automation\", angle: \"5 tâches à automatiser dès aujourd'hui\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Démo live\", angle: \"Appel en direct à l'agent IA\", format: \"video\" }\n  },\n  4: { name: \"Métiers spécifiques\",\n    1: { type: \"module_presentation\", sujet: \"Modules BTP + Projets\", angle: \"Gérez vos chantiers de A à Z\", format: \"carousel\" },\n    3: { type: \"astuce\", sujet: \"Astuce RH/Équipe\", angle: \"Pointages, congés, paie : tout automatisé\", format: \"image\" },\n    5: { type: \"temoignage\", sujet: \"Partenariat\", angle: \"Devenez partenaire — 10% de commission\", format: \"video\" }\n  }\n};\n\nconst forcedWeek = body.cycle_week || cycleWeek;\nconst forcedDay = body.day_of_week || dayOfWeek || 1;\nconst weekTheme = themes[forcedWeek] || themes[1];\nconst dayContent = weekTheme[forcedDay] || weekTheme[1];\n\n// Contenu utilisateur (si fourni depuis l'UI)\nconst userContent = body.contenu_texte || '';\nconst userHashtags = body.hashtags || '';\nconst userPlateforme = body.plateforme || '';\n\nreturn [{\n  json: {\n    cycle_week: forcedWeek,\n    week_theme: body.week_theme || weekTheme.name,\n    day_of_week: forcedDay,\n    content_type: body.type || body.content_type || dayContent.type,\n    sujet: body.sujet || dayContent.sujet,\n    angle: body.angle || dayContent.angle,\n    format_visuel: body.format_visuel || dayContent.format,\n    date_publication: now.toISOString(),\n    brand_name: \"TalosPrimes\",\n    brand_description: \"Plateforme SaaS de gestion tout-en-un pour TPE/PME, artisans et BTP.\",\n    brand_url: \"https://talosprimes.com\",\n    target_audience: \"TPE/PME, artisans, entreprises BTP en France\",\n    source: \"webhook_manual\",\n    has_user_content: !!userContent,\n    user_content: userContent,\n    user_hashtags: userHashtags,\n    user_plateforme: userPlateforme\n  }\n}];"
       },
       "id": "webhook-parser",
       "name": "Parser Webhook",
@@ -443,6 +443,39 @@
       "position": [
         2840,
         520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_user_content }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-user-content",
+      "name": "Contenu fourni ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        540,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formater le contenu utilisateur comme si c'était la sortie du Parser Contenu\nconst data = $input.first().json;\nconst text = data.user_content || '';\nconst hashtags = data.user_hashtags ? data.user_hashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h) : [];\n\nreturn [{\n  json: {\n    success: true,\n    theme: {\n      week_theme: data.week_theme,\n      sujet: data.sujet,\n      angle: data.angle || data.sujet,\n      content_type: data.content_type\n    },\n    tiktok: {\n      caption: text.substring(0, 150),\n      hashtags: hashtags.slice(0, 8)\n    },\n    instagram: {\n      caption: text,\n      hashtags: hashtags.slice(0, 20)\n    },\n    facebook: {\n      text: text,\n      hashtags: hashtags.slice(0, 5)\n    },\n    visual_prompt: '',\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "manual-content",
+      "name": "Formater Contenu Manuel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        620
       ]
     }
   ],
@@ -664,7 +697,46 @@
       "main": [
         [
           {
+            "node": "Contenu fourni ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contenu fourni ?": {
+      "main": [
+        [
+          {
+            "node": "Formater Contenu Manuel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Générer Contenu IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater Contenu Manuel": {
+      "main": [
+        [
+          {
+            "node": "Préparer Facebook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer Instagram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer TikTok",
             "type": "main",
             "index": 0
           }

@@ -296,8 +296,14 @@ export async function marketingRoutes(fastify: FastifyInstance) {
       if (!tenantId) return ApiError.unauthorized(reply);
 
       try {
+        const body = request.body as Record<string, unknown> || {};
         const result = await n8nService.callWorkflowReturn(tenantId, 'marketing_auto_publish', {
           manual: true,
+          ...(body.contenuTexte ? { contenu_texte: body.contenuTexte } : {}),
+          ...(body.hashtags ? { hashtags: body.hashtags } : {}),
+          ...(body.sujet ? { sujet: body.sujet } : {}),
+          ...(body.type ? { type: body.type } : {}),
+          ...(body.plateforme ? { plateforme: body.plateforme } : {}),
         });
         return reply.send({ success: true, data: result, message: 'Publication déclenchée' });
       } catch (error) {

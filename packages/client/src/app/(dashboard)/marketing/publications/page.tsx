@@ -431,7 +431,13 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
       // Si pas de date → déclencher la publication automatique via n8n
       if (shouldAutoPublish) {
         try {
-          await apiClient.marketing.triggerPublish();
+          await apiClient.marketing.triggerPublish({
+            plateforme: form.plateforme,
+            type: form.type,
+            sujet: form.sujet,
+            contenuTexte: form.contenuTexte || undefined,
+            hashtags: form.hashtags || undefined,
+          });
         } catch {
           // Silently fail — the post is created, publish will retry
         }
