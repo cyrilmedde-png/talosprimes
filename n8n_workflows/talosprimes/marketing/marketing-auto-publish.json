@@ -36,28 +36,34 @@
     },
     {
       "parameters": {
-        "resource": "chat",
-        "model": "gpt-4o-mini",
-        "messages": {
-          "values": [
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
             {
-              "content": "=Tu es un expert en marketing digital et community management. Tu réponds UNIQUEMENT avec du JSON valide, sans markdown, sans backticks."
-            },
-            {
-              "role": "user",
-              "content": "=Marque: {{ $json.brand_name }}\nDescription: {{ $json.brand_description }}\nURL: {{ $json.brand_url }}\nCible: {{ $json.target_audience }}\n\nThème de la semaine: {{ $json.week_theme }}\nSujet: {{ $json.sujet }}\nAngle: {{ $json.angle }}\nType: {{ $json.content_type }}\nFormat visuel: {{ $json.format_visuel }}\n\nGénère un JSON valide avec cette structure exacte:\n{\n  \"tiktok\": {\n    \"caption\": \"texte court, décontracté, émojis, 150 chars max\",\n    \"hashtags\": [\"5 à 8 hashtags tendance\"]\n  },\n  \"instagram\": {\n    \"caption\": \"texte pro mais accessible, 300-500 chars\",\n    \"hashtags\": [\"15 à 20 hashtags ciblés\"]\n  },\n  \"facebook\": {\n    \"text\": \"texte informatif, 200-400 chars, inclure le lien {{ $json.brand_url }}\",\n    \"hashtags\": [\"3 à 5 hashtags\"]\n  },\n  \"visual_prompt\": \"description détaillée pour générer le visuel (en anglais, style professionnel, couleurs #E8A838, #1A1A2E)\"\n}"
+              "name": "Content-Type",
+              "value": "application/json"
             }
           ]
         },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.8,\n  \"max_tokens\": 1500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un expert en marketing digital et community management. Tu réponds UNIQUEMENT avec du JSON valide, sans markdown, sans backticks.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Marque: {{ $json.brand_name }}\\nDescription: {{ $json.brand_description }}\\nURL: {{ $json.brand_url }}\\nCible: {{ $json.target_audience }}\\n\\nThème de la semaine: {{ $json.week_theme }}\\nSujet: {{ $json.sujet }}\\nAngle: {{ $json.angle }}\\nType: {{ $json.content_type }}\\nFormat visuel: {{ $json.format_visuel }}\\n\\nGénère un JSON valide avec cette structure exacte:\\n{\\n  \\\"tiktok\\\": {\\n    \\\"caption\\\": \\\"texte court, décontracté, émojis, 150 chars max\\\",\\n    \\\"hashtags\\\": [\\\"5 à 8 hashtags tendance\\\"]\\n  },\\n  \\\"instagram\\\": {\\n    \\\"caption\\\": \\\"texte pro mais accessible, 300-500 chars\\\",\\n    \\\"hashtags\\\": [\\\"15 à 20 hashtags ciblés\\\"]\\n  },\\n  \\\"facebook\\\": {\\n    \\\"text\\\": \\\"texte informatif, 200-400 chars, inclure le lien {{ $json.brand_url }}\\\",\\n    \\\"hashtags\\\": [\\\"3 à 5 hashtags\\\"]\\n  },\\n  \\\"visual_prompt\\\": \\\"description détaillée pour générer le visuel (en anglais, style professionnel, couleurs #E8A838, #1A1A2E)\\\"\\n}\"\n    }\n  ]\n}",
         "options": {
-          "temperature": 0.8,
-          "maxTokens": 1500
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
         }
       },
       "id": "openai-generate",
       "name": "Générer Contenu IA",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.8,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         640,
         300
@@ -71,7 +77,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parser la réponse OpenAI (node natif n8n ou API standard)\nconst input = $input.first().json;\nlet content;\n\ntry {\n  // Le node OpenAI natif retourne le texte dans input.message.content ou input.text\n  // L'API standard retourne dans input.choices[0].message.content\n  const rawText = input.message?.content || input.text || input.choices?.[0]?.message?.content || input.content || JSON.stringify(input);\n\n  // Nettoyer le texte (enlever backticks markdown si présents)\n  let cleanText = rawText.trim();\n  if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);\n  if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);\n  if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);\n  cleanText = cleanText.trim();\n\n  content = JSON.parse(cleanText);\n} catch (e) {\n  return [{\n    json: {\n      error: true,\n      message: \"Erreur parsing réponse IA: \" + e.message,\n      raw: JSON.stringify(input).substring(0, 500)\n    }\n  }];\n}\n\nconst theme = $('Sélecteur Thème').first()?.json || $('Parser Webhook').first()?.json || {};\n\nreturn [{\n  json: {\n    success: true,\n    theme: theme,\n    tiktok: content.tiktok || {},\n    instagram: content.instagram || {},\n    facebook: content.facebook || {},\n    visual_prompt: content.visual_prompt || \"\",\n    generated_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Parser la réponse OpenAI API\nconst input = $input.first().json;\nlet content;\n\ntry {\n  // L'API OpenAI retourne: { choices: [{ message: { content: '...' } }] }\n  const rawText = input.choices?.[0]?.message?.content || input.message?.content || input.text || input.content || JSON.stringify(input);\n\n  // Nettoyer le texte (enlever backticks markdown si présents)\n  let cleanText = rawText.trim();\n  if (cleanText.startsWith('```json')) cleanText = cleanText.slice(7);\n  if (cleanText.startsWith('```')) cleanText = cleanText.slice(3);\n  if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3);\n  cleanText = cleanText.trim();\n\n  content = JSON.parse(cleanText);\n} catch (e) {\n  return [{\n    json: {\n      error: true,\n      message: \"Erreur parsing réponse IA: \" + e.message,\n      raw: JSON.stringify(input).substring(0, 500)\n    }\n  }];\n}\n\nconst theme = $('Sélecteur Thème').first()?.json || $('Parser Webhook').first()?.json || {};\n\nreturn [{\n  json: {\n    success: true,\n    theme: theme,\n    tiktok: content.tiktok || {},\n    instagram: content.instagram || {},\n    facebook: content.facebook || {},\n    visual_prompt: content.visual_prompt || \"\",\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "content-parser",
       "name": "Parser Contenu",
@@ -84,7 +90,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la publication Facebook via Meta Graph API\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\"\n  }\n}];"
+        "jsCode": "// ========================================\n// CONFIGURATION META / FACEBOOK / INSTAGRAM\n// ========================================\n// Remplacez ces valeurs par vos vrais tokens.\n// Cela remplace les $env qui ne fonctionnent pas.\n// ========================================\n\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'VOTRE_META_PAGE_ACCESS_TOKEN_ICI',\n  PAGE_ID: 'VOTRE_META_PAGE_ID_ICI',\n  INSTAGRAM_USER_ID: 'VOTRE_INSTAGRAM_USER_ID_ICI',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
       },
       "id": "fb-prepare",
       "name": "Préparer Facebook",
@@ -98,7 +104,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v21.0/{{ $env.META_PAGE_ID }}/feed",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.meta_page_id }}/feed",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -112,7 +118,7 @@
             },
             {
               "name": "access_token",
-              "value": "={{ $env.META_PAGE_ACCESS_TOKEN }}"
+              "value": "={{ $json.meta_access_token }}"
             }
           ]
         },
@@ -148,7 +154,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la publication Instagram via Meta Graph API\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption\n  }\n}];"
+        "jsCode": "// Préparer la publication Instagram via Meta Graph API\n// Récupère les config Meta depuis le noeud Préparer Facebook (même source)\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\n// ========================================\n// CONFIGURATION META (même que Facebook)\n// ========================================\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'VOTRE_META_PAGE_ACCESS_TOKEN_ICI',\n  INSTAGRAM_USER_ID: 'VOTRE_INSTAGRAM_USER_ID_ICI',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
       },
       "id": "ig-prepare",
       "name": "Préparer Instagram",
@@ -162,13 +168,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v21.0/{{ $env.INSTAGRAM_USER_ID }}/media",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.instagram_user_id }}/media",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
               "name": "image_url",
-              "value": "={{ $env.DEFAULT_IMAGE_URL }}"
+              "value": "={{ $json.default_image_url }}"
             },
             {
               "name": "caption",
@@ -180,7 +186,7 @@
             },
             {
               "name": "access_token",
-              "value": "={{ $env.META_PAGE_ACCESS_TOKEN }}"
+              "value": "={{ $json.meta_access_token }}"
             }
           ]
         },
@@ -204,7 +210,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v21.0/{{ $env.INSTAGRAM_USER_ID }}/media_publish",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.body.ig_user_id || $('Préparer Instagram').first().json.instagram_user_id }}/media_publish",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -214,7 +220,7 @@
             },
             {
               "name": "access_token",
-              "value": "={{ $env.META_PAGE_ACCESS_TOKEN }}"
+              "value": "={{ $('Préparer Instagram').first().json.meta_access_token }}"
             }
           ]
         },
