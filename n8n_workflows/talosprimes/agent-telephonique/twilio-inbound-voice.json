@@ -583,7 +583,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ (function() { var from9 = ($(\"02. Parser Twilio\").first().json.from || \"X\").replace(/[^0-9]/g, \"\").slice(-9); var to9 = ($(\"02. Parser Twilio\").first().json.to || \"X\").replace(/[^0-9]/g, \"\").slice(-9); var sid = ($(\"02. Parser Twilio\").first().json.callSid || \"\").replace(/[^a-zA-Z0-9]/g, \"\"); return \"WITH sess AS (SELECT tc.tenant_id, cf.id as client_id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale FROM twilio_configs tc LEFT JOIN client_finals cf ON cf.telephone LIKE '%' || '\" + from9 + \"' || '%' WHERE tc.phone_number LIKE '%' || '\" + to9 + \"' || '%' LIMIT 1), kb AS (SELECT categorie, titre, contenu FROM agent_knowledge_entries WHERE tenant_id = (SELECT tenant_id FROM sess) AND actif = true ORDER BY categorie, ordre, created_at DESC LIMIT 20), hist AS (SELECT notes FROM call_logs WHERE notes LIKE '%CallSid:' || '\" + sid + \"' || '%' ORDER BY created_at ASC LIMIT 3) SELECT 'session' as _type, tenant_id, client_id as id, nom, prenom, email, telephone, raison_sociale, NULL as categorie, NULL as titre, NULL as contenu, NULL as notes FROM sess UNION ALL SELECT 'kb', NULL, NULL, NULL, NULL, NULL, NULL, NULL, categorie, titre, contenu, NULL FROM kb UNION ALL SELECT 'history', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, notes FROM hist\"; })() }}",
+        "query": "={{ (function() { var from9 = ($(\"02. Parser Twilio\").first().json.from || \"X\").replace(/[^0-9]/g, \"\").slice(-9); var to9 = ($(\"02. Parser Twilio\").first().json.to || \"X\").replace(/[^0-9]/g, \"\").slice(-9); var sid = ($(\"02. Parser Twilio\").first().json.callSid || \"\").replace(/[^a-zA-Z0-9]/g, \"\"); return \"WITH sess AS (SELECT tc.tenant_id, cf.id as client_id, cf.nom, cf.prenom, cf.email, cf.telephone, cf.raison_sociale FROM twilio_configs tc LEFT JOIN client_finals cf ON cf.telephone LIKE '%' || '\" + from9 + \"' || '%' WHERE tc.phone_number LIKE '%' || '\" + to9 + \"' || '%' LIMIT 1), kb AS (SELECT categorie, titre, contenu, reponse_vocale, mots_cles FROM agent_knowledge_entries WHERE tenant_id = (SELECT tenant_id FROM sess) AND actif = true ORDER BY categorie, ordre, created_at DESC LIMIT 20), hist AS (SELECT notes FROM call_logs WHERE notes LIKE '%CallSid:' || '\" + sid + \"' || '%' ORDER BY created_at ASC LIMIT 3) SELECT 'session' as _type, tenant_id, client_id as id, nom, prenom, email, telephone, raison_sociale, NULL as categorie, NULL as titre, NULL as contenu, NULL as reponse_vocale, NULL as mots_cles FROM sess UNION ALL SELECT 'kb', NULL, NULL, NULL, NULL, NULL, NULL, NULL, categorie, titre, contenu, reponse_vocale, mots_cles FROM kb UNION ALL SELECT 'history', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, notes FROM hist\"; })() }}",
         "options": {
           "alwaysOutputData": true
         }
@@ -606,6 +606,63 @@
       "settings": {
         "continueOnFail": true
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fast Match \u2014 check if speech matches a KB entry with reponse_vocale\n// Skip OpenAI entirely for pre-computed answers (~2s instead of ~7s)\nvar prev = $('10. Detect Admin').first().json;\nvar speechResult = (prev.speechResult || '').toLowerCase().trim();\nvar cfg = $('02b. Load Config').first().json || {};\n\nif (!speechResult || speechResult.length < 3) {\n  return [{json: { fastMatch: false, speechResult: prev.speechResult, callSid: prev.callSid, from: prev.from }}];\n}\n\n// Parse KB rows from combined query\nvar kbRows = [];\ntry {\n  var allRows = $('11x. Combined Query').all();\n  for (var i = 0; i < allRows.length; i++) {\n    var r = allRows[i].json || allRows[i];\n    if (r._type === 'kb' && r.contenu) kbRows.push(r);\n  }\n} catch(e) {}\n\n// Try to match by mots_cles\nvar bestMatch = null;\nvar bestScore = 0;\n\nfor (var i = 0; i < kbRows.length; i++) {\n  var row = kbRows[i];\n  // We need reponse_vocale \u2014 check from the extended query\n  // For now, build match from mots_cles\n  var motsCles = String(row.mots_cles || row.titre || '').toLowerCase();\n  var keywords = motsCles.split(',').map(function(k) { return k.trim(); }).filter(function(k) { return k.length > 2; });\n  \n  var score = 0;\n  for (var j = 0; j < keywords.length; j++) {\n    if (speechResult.indexOf(keywords[j]) !== -1) {\n      score += keywords[j].length; // longer keyword = better match\n    }\n  }\n  \n  if (score > bestScore) {\n    bestScore = score;\n    bestMatch = row;\n  }\n}\n\n// Require minimum match quality (at least 4 chars matched)\nif (bestMatch && bestScore >= 4 && bestMatch.reponse_vocale) {\n  return [{json: {\n    fastMatch: true,\n    aiReply: bestMatch.reponse_vocale,\n    matchedTitle: bestMatch.titre,\n    matchScore: bestScore,\n    speechResult: prev.speechResult,\n    callSid: prev.callSid,\n    from: prev.from\n  }}];\n}\n\nreturn [{json: { fastMatch: false, speechResult: prev.speechResult, callSid: prev.callSid, from: prev.from }}];"
+      },
+      "id": "11y. Fast Match",
+      "name": "11y. Fast Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "fast-match-check-001",
+              "leftValue": "={{ $json.fastMatch }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "11z. Is Fast Match?",
+      "name": "11z. Is Fast Match?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fast TwiML \u2014 build response from cached reponse_vocale, skip OpenAI\nvar match = $json;\nvar cfg = $('02b. Load Config').first().json || {};\nvar voice = cfg.voice_name || 'Polly.Lea-Neural';\nvar language = cfg.language || 'fr-FR';\nvar callbackUrl = '/webhook/twilio-inbound-voice';\n\nvar aiReply = String(match.aiReply || '')\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n\nvar twiml = '<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?><Response>';\ntwiml += '<Gather input=\\\"speech\\\" speechTimeout=\\\"auto\\\" timeout=\\\"10\\\" enhanced=\\\"true\\\" bargeIn=\\\"true\\\" action=\\\"' + callbackUrl + '\\\" method=\\\"POST\\\">';\ntwiml += '<Say language=\\\"' + language + '\\\" voice=\\\"' + voice + '\\\">' + aiReply + '</Say>';\ntwiml += '</Gather>';\ntwiml += '<Say language=\\\"' + language + '\\\" voice=\\\"' + voice + '\\\">Je suis toujours l\u00e0 si vous avez d\\'autres questions.</Say>';\ntwiml += '<Gather input=\\\"speech\\\" speechTimeout=\\\"auto\\\" timeout=\\\"15\\\" enhanced=\\\"true\\\" bargeIn=\\\"true\\\" action=\\\"' + callbackUrl + '\\\" method=\\\"POST\\\">';\ntwiml += '<Say language=\\\"' + language + '\\\" voice=\\\"' + voice + '\\\">N\\'h\u00e9sitez pas \u00e0 me poser votre question.</Say>';\ntwiml += '</Gather>';\ntwiml += '<Say language=\\\"' + language + '\\\" voice=\\\"' + voice + '\\\">Merci de votre appel, au revoir !</Say>';\ntwiml += '</Response>';\n\nreturn [{json: {\n  twiml: twiml,\n  callSid: match.callSid || '',\n  from: match.from || '',\n  to: '',\n  tenantId: cfg.tenant_id || '',\n  aiReply: match.aiReply || '',\n  speechResult: match.speechResult || '',\n  isProspect: false,\n  needsEscalation: false,\n  fastMatch: true,\n  matchedTitle: match.matchedTitle || ''\n}}];"
+      },
+      "id": "11w. Fast TwiML",
+      "name": "11w. Fast TwiML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        500
+      ]
     }
   ],
   "connections": {
@@ -876,7 +933,51 @@
       "main": [
         [
           {
+            "node": "11y. Fast Match",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "12. Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11y. Fast Match": {
+      "main": [
+        [
+          {
+            "node": "11z. Is Fast Match?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11z. Is Fast Match?": {
+      "main": [
+        [
+          {
+            "node": "11w. Fast TwiML",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "11w. Fast TwiML": {
+      "main": [
+        [
+          {
+            "node": "15. Log Call",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "16. Respond TwiML",
             "type": "main",
             "index": 0
           }

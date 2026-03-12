@@ -1,0 +1,108 @@
+{
+  "name": "Notifications Temps Réel",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notifications-temps-reel",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "id": "wh-notif-001",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parser le payload\nconst raw = $input.item.json;\nconst payload = raw?.body || raw;\nconst event = payload?.event || 'unknown';\nconst data = payload?.data || {};\n\n// Emojis par type\nconst emojis = {\n  'lead.created': '\\u{1F195}',\n  'lead.status_changed': '\\u{1F504}',\n  'lead.deleted': '\\u{1F5D1}',\n  'lead.converted': '\\u{1F389}',\n  'client.created': '\\u{1F464}',\n  'client.updated': '\\u{270F}',\n  'client.deleted': '\\u{274C}'\n};\n\nconst emoji = emojis[event] || '\\u{1F4E2}';\nlet message = '';\n\nswitch (event) {\n  case 'lead.created':\n    message = emoji + ' Nouveau lead\\n\\nNom: ' + (data.firstName || '') + ' ' + (data.lastName || '') + '\\nEmail: ' + (data.email || 'N/A') + '\\nTelephone: ' + (data.phone || 'N/A') + '\\nSource: ' + (data.source || 'N/A');\n    break;\n  case 'lead.status_changed':\n    message = emoji + ' Lead mis a jour\\n\\nNom: ' + (data.firstName || '') + ' ' + (data.lastName || '') + '\\nStatut: ' + (data.oldStatus || '?') + ' -> ' + (data.newStatus || '?');\n    break;\n  case 'lead.deleted':\n    message = emoji + ' Lead supprime\\n\\nNom: ' + (data.firstName || '') + ' ' + (data.lastName || '') + '\\nEmail: ' + (data.email || 'N/A');\n    break;\n  case 'lead.converted':\n    message = emoji + ' Lead converti en client !\\n\\nNom: ' + (data.firstName || '') + ' ' + (data.lastName || '') + '\\nEmail: ' + (data.email || 'N/A');\n    break;\n  case 'client.created':\n    message = emoji + ' Nouveau client\\n\\nNom: ' + (data.name || data.company || 'N/A') + '\\nEmail: ' + (data.email || 'N/A') + '\\nTelephone: ' + (data.phone || 'N/A');\n    break;\n  case 'client.updated':\n    message = emoji + ' Client mis a jour\\n\\nNom: ' + (data.name || data.company || 'N/A') + '\\nChamps: ' + (Array.isArray(data.updatedFields) ? data.updatedFields.join(', ') : 'N/A');\n    break;\n  case 'client.deleted':\n    message = emoji + ' Client supprime\\n\\nNom: ' + (data.name || data.company || 'N/A') + '\\nEmail: ' + (data.email || 'N/A');\n    break;\n  default:\n    message = '\\u{1F4E2} Evenement: ' + event + '\\n\\n' + JSON.stringify(data, null, 2).substring(0, 500);\n}\n\nreturn [{ json: { message: message, event: event, chatId: payload?.chatId || '6296082748' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "id": "code-notif-001",
+      "name": "Formater Notification"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parseMode": "None"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        300
+      ],
+      "id": "tg-notif-001",
+      "name": "Envoyer Telegram",
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        920,
+        300
+      ],
+      "id": "resp-notif-001",
+      "name": "ACK Response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Formater Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formater Notification": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoyer Telegram": {
+      "main": [
+        [
+          {
+            "node": "ACK Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

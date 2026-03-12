@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boucherie Martin — Viandes de qualité depuis 1985</title>
+  <style>
+    /* ============================================================
+       TEMPLATE LANDING PAGE — TALOSPRIMES
+       Variables de personnalisation en haut du CSS
+       ============================================================ */
+    :root {
+      /* === COULEURS (à modifier selon le client) === */
+      --primary: #8B1A1A;        /* Couleur principale */
+      --primary-light: #B22222;  /* Variante claire */
+      --primary-dark: #5C1010;   /* Variante foncée */
+      --accent: #D4A017;         /* Couleur d'accentuation (CTA) */
+      --accent-hover: #B8860B;   /* Hover bouton */
+      --bg-light: #FFF8F0;       /* Fond clair */
+      --bg-dark: #1a1a1a;        /* Fond sombre */
+      --text: #333333;           /* Texte principal */
+      --text-light: #666666;     /* Texte secondaire */
+      --white: #ffffff;
+      --shadow: rgba(0,0,0,0.1);
+
+      /* === TYPO === */
+      --font-heading: 'Georgia', serif;
+      --font-body: 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+      /* === ARRONDIS === */
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      color: var(--text);
+      line-height: 1.6;
+      background: var(--white);
+      overflow-x: hidden;
+    }
+    img { max-width: 100%; height: auto; display: block; }
+    a { text-decoration: none; color: inherit; }
+
+    /* ============================================================
+       NAVBAR
+       ============================================================ */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(255,255,255,0.97);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 1px 20px var(--shadow);
+      padding: 0 2rem;
+      height: 72px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .navbar-brand {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex; align-items: center; gap: .6rem;
+    }
+    .navbar-brand .icon { font-size: 1.8rem; }
+    .navbar-links { display: flex; gap: 2rem; list-style: none; }
+    .navbar-links a {
+      font-weight: 500; font-size: .95rem; color: var(--text);
+      transition: color .2s;
+    }
+    .navbar-links a:hover { color: var(--primary); }
+    .navbar-cta {
+      background: var(--accent); color: var(--white);
+      padding: .6rem 1.5rem; border-radius: 50px;
+      font-weight: 600; font-size: .9rem;
+      transition: all .2s;
+    }
+    .navbar-cta:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+    /* Mobile nav */
+    .mobile-toggle { display: none; background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+    @media (max-width: 768px) {
+      .navbar-links, .navbar-cta { display: none; }
+      .mobile-toggle { display: block; }
+    }
+
+    /* ============================================================
+       HERO
+       ============================================================ */
+    .hero {
+      min-height: 100vh;
+      display: flex; align-items: center;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+      position: relative;
+      overflow: hidden;
+      padding: 100px 2rem 60px;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .hero-content {
+      max-width: 1200px; margin: 0 auto; width: 100%;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
+      align-items: center;
+      position: relative; z-index: 1;
+    }
+    .hero-text { color: var(--white); }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      padding: .4rem 1rem;
+      border-radius: 50px;
+      font-size: .85rem;
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .hero-title {
+      font-family: var(--font-heading);
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      line-height: 1.15;
+      margin-bottom: 1.2rem;
+    }
+    .hero-title span { color: var(--accent); }
+    .hero-desc {
+      font-size: 1.15rem;
+      opacity: .9;
+      margin-bottom: 2rem;
+      max-width: 500px;
+    }
+    .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .9rem 2rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all .25s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--white);
+      box-shadow: 0 4px 20px rgba(212,160,23,0.4);
+    }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 6px 25px rgba(212,160,23,0.5); }
+    .btn-outline {
+      background: transparent;
+      color: var(--white);
+      border: 2px solid rgba(255,255,255,0.4);
+    }
+    .btn-outline:hover { border-color: var(--white); background: rgba(255,255,255,0.1); }
+
+    .hero-visual {
+      display: flex; justify-content: center; align-items: center;
+    }
+    .hero-card {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 420px;
+    }
+    .hero-card h3 {
+      color: var(--white);
+      font-family: var(--font-heading);
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    .stat-item {
+      background: rgba(255,255,255,0.08);
+      border-radius: var(--radius-sm);
+      padding: 1.2rem;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2rem; font-weight: 800;
+      color: var(--accent);
+      font-family: var(--font-heading);
+    }
+    .stat-label { font-size: .8rem; color: rgba(255,255,255,0.7); margin-top: .3rem; }
+
+    @media (max-width: 768px) {
+      .hero-content { grid-template-columns: 1fr; text-align: center; }
+      .hero-desc { margin-left: auto; margin-right: auto; }
+      .hero-actions { justify-content: center; }
+      .hero-visual { margin-top: 2rem; }
+    }
+
+    /* ============================================================
+       SECTION COMMON
+       ============================================================ */
+    section { padding: 5rem 2rem; }
+    .section-header { text-align: center; margin-bottom: 3.5rem; }
+    .section-tag {
+      display: inline-block;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: .6rem;
+    }
+    .section-title {
+      font-family: var(--font-heading);
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      color: var(--text);
+      margin-bottom: .8rem;
+    }
+    .section-desc {
+      color: var(--text-light);
+      font-size: 1.05rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    /* ============================================================
+       SERVICES / PRODUITS
+       ============================================================ */
+    .services { background: var(--bg-light); }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+    .service-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: 0 4px 20px var(--shadow);
+      transition: all .3s;
+      border: 1px solid transparent;
+    }
+    .service-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    .service-icon {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.2rem;
+    }
+    .service-card h3 {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      margin-bottom: .6rem;
+      color: var(--text);
+    }
+    .service-card p { color: var(--text-light); font-size: .95rem; }
+
+    /* ============================================================
+       POURQUOI NOUS
+       ============================================================ */
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 2rem;
+    }
+    .why-item { text-align: center; padding: 1.5rem; }
+    .why-icon {
+      width: 70px; height: 70px;
+      background: var(--bg-light);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem;
+      margin: 0 auto 1rem;
+    }
+    .why-item h3 {
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      margin-bottom: .5rem;
+    }
+    .why-item p { color: var(--text-light); font-size: .9rem; }
+
+    /* ============================================================
+       TÉMOIGNAGES
+       ============================================================ */
+    .testimonials { background: var(--bg-light); }
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+    }
+    .testimonial-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: 0 4px 20px var(--shadow);
+      position: relative;
+    }
+    .testimonial-card::before {
+      content: '"';
+      font-family: var(--font-heading);
+      font-size: 4rem;
+      color: var(--primary);
+      opacity: .15;
+      position: absolute;
+      top: .5rem; left: 1.2rem;
+      line-height: 1;
+    }
+    .testimonial-text {
+      font-style: italic;
+      color: var(--text);
+      margin-bottom: 1.2rem;
+      font-size: .95rem;
+      position: relative; z-index: 1;
+    }
+    .testimonial-author {
+      display: flex; align-items: center; gap: .8rem;
+    }
+    .testimonial-avatar {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+      font-weight: 700;
+      font-size: .9rem;
+    }
+    .testimonial-name { font-weight: 600; font-size: .9rem; }
+    .testimonial-role { font-size: .8rem; color: var(--text-light); }
+    .stars { color: var(--accent); font-size: .85rem; margin-bottom: .6rem; }
+
+    /* ============================================================
+       CTA SECTION
+       ============================================================ */
+    .cta-section {
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      text-align: center;
+      color: var(--white);
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M20 20c4.4 0 8-3.6 8-8s-3.6-8-8-8-8 3.6-8 8 3.6 8 8 8zm0 4c-5.3 0-16 2.7-16 8v4h32v-4c0-5.3-10.7-8-16-8z'/%3E%3C/g%3E%3C/svg%3E");
+    }
+    .cta-content { position: relative; z-index: 1; }
+    .cta-title {
+      font-family: var(--font-heading);
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      margin-bottom: 1rem;
+    }
+    .cta-desc {
+      opacity: .9; font-size: 1.1rem;
+      max-width: 550px; margin: 0 auto 2rem;
+    }
+    .cta-form {
+      display: flex; gap: .8rem;
+      max-width: 480px; margin: 0 auto;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .cta-form input {
+      flex: 1; min-width: 220px;
+      padding: .9rem 1.2rem;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50px;
+      background: rgba(255,255,255,0.1);
+      color: var(--white);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .cta-form input::placeholder { color: rgba(255,255,255,0.6); }
+    .cta-form input:focus { border-color: var(--accent); }
+    .cta-form .btn-primary { white-space: nowrap; }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .footer {
+      background: var(--bg-dark);
+      color: rgba(255,255,255,0.7);
+      padding: 3rem 2rem 1.5rem;
+    }
+    .footer-grid {
+      max-width: 1200px; margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    .footer h4 {
+      color: var(--white); font-size: 1rem;
+      margin-bottom: .8rem;
+      font-family: var(--font-heading);
+    }
+    .footer-links { list-style: none; }
+    .footer-links li { margin-bottom: .4rem; }
+    .footer-links a { font-size: .9rem; transition: color .2s; }
+    .footer-links a:hover { color: var(--accent); }
+    .footer-bottom {
+      text-align: center;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: .8rem;
+    }
+    .footer-bottom a { color: var(--accent); }
+
+    /* ============================================================
+       ANIMATIONS
+       ============================================================ */
+    .fade-in {
+      opacity: 0; transform: translateY(30px);
+      transition: all .6s ease-out;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* Horaires */
+    .hours-table { width: 100%; font-size: .9rem; }
+    .hours-table td { padding: .3rem 0; }
+    .hours-table td:last-child { text-align: right; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       NAVBAR
+       ============================================================ -->
+  <nav class="navbar">
+    <a href="#" class="navbar-brand">
+      <span class="icon">🥩</span>
+      Boucherie Martin
+    </a>
+    <ul class="navbar-links">
+      <li><a href="#services">Nos Produits</a></li>
+      <li><a href="#pourquoi">Notre Savoir-Faire</a></li>
+      <li><a href="#avis">Avis Clients</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <a href="#contact" class="navbar-cta">Commander</a>
+    <button class="mobile-toggle" onclick="document.querySelector('.navbar-links').classList.toggle('show')">☰</button>
+  </nav>
+
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-text">
+        <div class="hero-badge">🏆 Artisan boucher depuis 1985</div>
+        <h1 class="hero-title">
+          Des viandes d'exception,<br>
+          <span>sélectionnées avec passion</span>
+        </h1>
+        <p class="hero-desc">
+          Boucherie artisanale au cœur de Lyon. Nos viandes proviennent de
+          producteurs locaux engagés dans une agriculture responsable et respectueuse.
+        </p>
+        <div class="hero-actions">
+          <a href="#contact" class="btn btn-primary">📞 Nous contacter</a>
+          <a href="#services" class="btn btn-outline">Voir nos produits →</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-card">
+          <h3>🏅 En quelques chiffres</h3>
+          <div class="stat-grid">
+            <div class="stat-item">
+              <div class="stat-number">38</div>
+              <div class="stat-label">Années d'expérience</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">15k+</div>
+              <div class="stat-label">Clients satisfaits</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">100%</div>
+              <div class="stat-label">Viande française</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">4.9</div>
+              <div class="stat-label">Note Google ⭐</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SERVICES / PRODUITS
+       ============================================================ -->
+  <section id="services" class="services">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Nos spécialités</div>
+        <h2 class="section-title">Une sélection rigoureuse pour votre table</h2>
+        <p class="section-desc">Chaque pièce est choisie avec soin auprès de nos éleveurs partenaires, pour vous offrir le meilleur goût et la meilleure qualité.</p>
+      </div>
+      <div class="services-grid">
+        <div class="service-card fade-in">
+          <div class="service-icon">🥩</div>
+          <h3>Bœuf d'exception</h3>
+          <p>Races sélectionnées (Charolaise, Limousine, Aubrac), maturées sur os pour un goût incomparable. Entrecôte, faux-filet, côte de bœuf.</p>
+        </div>
+        <div class="service-card fade-in">
+          <div class="service-icon">🐑</div>
+          <h3>Agneau & Veau</h3>
+          <p>Agneaux de nos pâturages régionaux, veaux élevés sous la mère. Gigot, carré d'agneau, côtes de veau.</p>
+        </div>
+        <div class="service-card fade-in">
+          <div class="service-icon">🐔</div>
+          <h3>Volailles fermières</h3>
+          <p>Poulets Label Rouge, pintades, canards. Élevés en plein air par nos producteurs locaux partenaires.</p>
+        </div>
+        <div class="service-card fade-in">
+          <div class="service-icon">🍖</div>
+          <h3>Charcuterie maison</h3>
+          <p>Saucissons, terrines, pâtés et rillettes préparés artisanalement dans notre atelier. Recettes traditionnelles lyonnaises.</p>
+        </div>
+        <div class="service-card fade-in">
+          <div class="service-icon">🎄</div>
+          <h3>Plateaux festifs</h3>
+          <p>Commandez vos plateaux pour repas de fête, barbecues et réceptions. Compositions sur mesure pour tous les événements.</p>
+        </div>
+        <div class="service-card fade-in">
+          <div class="service-icon">🚚</div>
+          <h3>Livraison à domicile</h3>
+          <p>Service de livraison réfrigérée dans tout Lyon et sa périphérie. Commandez avant 14h, livré le lendemain.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       POURQUOI NOUS
+       ============================================================ -->
+  <section id="pourquoi">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Notre engagement</div>
+        <h2 class="section-title">Pourquoi choisir la Boucherie Martin ?</h2>
+      </div>
+      <div class="why-grid">
+        <div class="why-item fade-in">
+          <div class="why-icon">🌿</div>
+          <h3>Circuit court</h3>
+          <p>Nos éleveurs sont à moins de 150 km. Traçabilité complète de la ferme à votre assiette.</p>
+        </div>
+        <div class="why-item fade-in">
+          <div class="why-icon">👨‍🍳</div>
+          <h3>Savoir-faire artisanal</h3>
+          <p>3 générations de bouchers passionnés. Découpe sur mesure et conseils personnalisés.</p>
+        </div>
+        <div class="why-item fade-in">
+          <div class="why-icon">♻️</div>
+          <h3>Démarche responsable</h3>
+          <p>Emballages recyclables, lutte contre le gaspillage. Nous prenons soin de la planète.</p>
+        </div>
+        <div class="why-item fade-in">
+          <div class="why-icon">💰</div>
+          <h3>Prix juste</h3>
+          <p>Rémunération équitable des producteurs et prix accessibles pour nos clients.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       TÉMOIGNAGES
+       ============================================================ -->
+  <section id="avis" class="testimonials">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Témoignages</div>
+        <h2 class="section-title">Ce que disent nos clients</h2>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card fade-in">
+          <div class="stars">★★★★★</div>
+          <p class="testimonial-text">La meilleure boucherie de Lyon, sans hésiter. La côte de bœuf maturée 30 jours est une tuerie. Le service est toujours souriant et les conseils de cuisson sont précieux.</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">SL</div>
+            <div>
+              <div class="testimonial-name">Sophie Laurent</div>
+              <div class="testimonial-role">Cliente fidèle depuis 12 ans</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card fade-in">
+          <div class="stars">★★★★★</div>
+          <p class="testimonial-text">J'ai commandé un plateau barbecue pour 20 personnes. Tout était parfait : qualité, quantité et présentation. Mes invités étaient ravis !</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">MT</div>
+            <div>
+              <div class="testimonial-name">Marc Thierry</div>
+              <div class="testimonial-role">Restaurateur</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card fade-in">
+          <div class="stars">★★★★★</div>
+          <p class="testimonial-text">Depuis que j'ai découvert la Boucherie Martin, je ne vais plus ailleurs. Les produits sont exceptionnels et le rapport qualité-prix est imbattable.</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">JD</div>
+            <div>
+              <div class="testimonial-name">Julie Dupont</div>
+              <div class="testimonial-role">Habitante du 6ème</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       CTA / CONTACT
+       ============================================================ -->
+  <section id="contact" class="cta-section">
+    <div class="cta-content">
+      <h2 class="cta-title">Envie de goûter la différence ?</h2>
+      <p class="cta-desc">Passez nous voir en boutique ou commandez en ligne. Livraison réfrigérée sous 24h dans tout Lyon.</p>
+      <div class="cta-form">
+        <input type="email" placeholder="Votre adresse email">
+        <button class="btn btn-primary">Recevoir nos offres</button>
+      </div>
+      <p style="margin-top: 1.5rem; font-size: .95rem; opacity: .8;">
+        📍 42 Rue de la République, 69002 Lyon &nbsp;|&nbsp; 📞 04 78 42 00 00
+      </p>
+      <p style="margin-top: .5rem; font-size: .85rem; opacity: .6;">
+        Lun-Sam : 7h30-19h30 &nbsp;|&nbsp; Dimanche : 8h-13h
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="footer">
+    <div class="footer-grid">
+      <div>
+        <h4>🥩 Boucherie Martin</h4>
+        <p style="font-size: .85rem; line-height: 1.6;">
+          Artisan boucher depuis 1985.<br>
+          Qualité, traçabilité et passion<br>
+          au service de votre table.
+        </p>
+      </div>
+      <div>
+        <h4>Navigation</h4>
+        <ul class="footer-links">
+          <li><a href="#services">Nos Produits</a></li>
+          <li><a href="#pourquoi">Notre Savoir-Faire</a></li>
+          <li><a href="#avis">Avis Clients</a></li>
+          <li><a href="#contact">Commander</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Informations</h4>
+        <ul class="footer-links">
+          <li><a href="#">Mentions légales</a></li>
+          <li><a href="#">Politique de confidentialité</a></li>
+          <li><a href="#">CGV</a></li>
+          <li><a href="#">Plan du site</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Horaires</h4>
+        <table class="hours-table">
+          <tr><td>Lundi - Samedi</td><td>7h30 - 19h30</td></tr>
+          <tr><td>Dimanche</td><td>8h - 13h</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2026 Boucherie Martin — Tous droits réservés · Site créé par <a href="#">TalosPrimes</a>
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       SCROLL ANIMATION
+       ============================================================ -->
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>

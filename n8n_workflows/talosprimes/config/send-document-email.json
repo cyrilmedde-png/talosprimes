@@ -1,0 +1,241 @@
+{
+  "name": "send-document-email",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "send-document-email",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.documentType) throw new Error('documentType is required');\nif (!body.documentId) throw new Error('documentId is required');\nif (!body.recipientEmail) throw new Error('recipientEmail is required');\n\nvar typeMap = {\n  'devis': '/api/devis/',\n  'facture': '/api/invoices/',\n  'bon_commande': '/api/bons-commande/',\n  'proforma': '/api/proforma/',\n  'avoir': '/api/avoir/',\n  'facture_achat': '/api/invoices/'\n};\n\nvar prefix = typeMap[body.documentType];\nif (!prefix) throw new Error('documentType invalide: ' + body.documentType + '. Valeurs: devis, facture, bon_commande, proforma, avoir, facture_achat');\n\nvar pdfUrl = 'https://api.talosprimes.com' + prefix + body.documentId + '/pdf';\n\nvar typeLabels = {\n  'devis': 'Devis',\n  'facture': 'Facture',\n  'bon_commande': 'Bon de commande',\n  'proforma': 'Proforma',\n  'avoir': 'Avoir',\n  'facture_achat': 'Facture d\\'achat'\n};\n\nreturn [{ json: {\n  documentType: body.documentType,\n  documentId: body.documentId,\n  recipientEmail: body.recipientEmail,\n  subject: body.subject || (typeLabels[body.documentType] + ' - TalosPrimes'),\n  message: body.message || ('Bonjour,\\n\\nVeuillez trouver ci-joint votre ' + typeLabels[body.documentType].toLowerCase() + '.\\n\\nCordialement,\\nTalosPrimes'),\n  pdfUrl: pdfUrl,\n  fileName: (typeLabels[body.documentType] || 'Document') + ' ' + (body.clientName || body.numeroDocument || body.documentId) + '.pdf',\n  typeLabel: typeLabels[body.documentType],\n  numeroDocument: body.numeroDocument || ''\n} }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "val-doc-type",
+              "leftValue": "={{ $json.pdfUrl }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.pdfUrl }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "05. Download PDF",
+      "name": "05. Download PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FLSZWCszgEFfXDoK",
+          "name": "API TalosPrimes"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "var parser = $('02. Parser').first().json;\n\n// Build HTML email (sans signature)\nvar msg = parser.message || 'Veuillez trouver ci-joint votre document.';\nvar paragraphs = msg.split('\\n\\n');\nvar htmlParagraphs = paragraphs.map(function(p) {\n  var escaped = p.replace(/\\n/g, '<br>');\n  return '<p style=\"margin:0 0 14px 0;line-height:1.6;font-size:14px;\">' + escaped + '</p>';\n}).join('');\n\nvar htmlMessage = '<div style=\"font-family:Segoe UI,Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;\">'\n  + '<div style=\"padding:0 0 20px 0;\">' + htmlParagraphs + '</div>'\n  + '</div>';\n\n// Get binary data from input (direct pipeline from Download PDF)\nvar downloadItem = $input.first();\nvar binaryData = downloadItem.binary || {};\nvar finalBinary = {};\n\nvar keys = Object.keys(binaryData);\nif (keys.length > 0) {\n  var firstKey = keys[0];\n  // Use direct reference - do NOT copy with Object.assign (loses n8n internal binary ID)\n  finalBinary.data = binaryData[firstKey];\n  finalBinary.data.fileName = parser.fileName;\n  finalBinary.data.mimeType = 'application/pdf';\n} else {\n  throw new Error('Le PDF n\\'a pas pu être téléchargé - aucune donnée binaire reçue du noeud Download PDF');\n}\n\nreturn [{\n  json: {\n    toEmail: parser.recipientEmail,\n    subject: parser.subject,\n    message: htmlMessage,\n    fileName: parser.fileName,\n    documentType: parser.documentType,\n    documentId: parser.documentId\n  },\n  binary: finalBinary\n}];"
+      },
+      "id": "06. Préparer Email",
+      "name": "06. Préparer Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.toEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.message }}",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "id": "07. Gmail Envoyer PJ",
+      "name": "07. Gmail Envoyer PJ",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1100, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "jzveDrdzJcs9iv7R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var email = $('07. Gmail Envoyer PJ').first().json;\nvar parser = $('02. Parser').first().json;\n\nreturn [{ json: {\n  success: true,\n  message: parser.typeLabel + ' envoyé(e) par email à ' + parser.recipientEmail + ' avec pièce jointe PDF',\n  emailId: email.id || null,\n  recipientEmail: parser.recipientEmail,\n  documentType: parser.documentType,\n  documentId: parser.documentId,\n  fileName: parser.fileName\n} }];"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "09. Respond",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Download PDF": {
+      "main": [
+        [
+          {
+            "node": "06. Préparer Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Préparer Email": {
+      "main": [
+        [
+          {
+            "node": "07. Gmail Envoyer PJ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Gmail Envoyer PJ": {
+      "main": [
+        [
+          {
+            "node": "08. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}

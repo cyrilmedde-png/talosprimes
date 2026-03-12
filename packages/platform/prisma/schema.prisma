@@ -2618,8 +2618,9 @@ model AgentKnowledgeEntry {
   tenantId  String                 @map("tenant_id") @db.Uuid
   categorie AgentKnowledgeCategory @default(faq)
   titre     String
-  contenu   String                 @db.Text
-  motsCles  String?                @map("mots_cles")
+  contenu        String                 @db.Text
+  reponseVocale  String?                @map("reponse_vocale") @db.Text
+  motsCles       String?                @map("mots_cles")
   actif     Boolean                @default(true)
   ordre     Int                    @default(0)
   createdAt DateTime               @default(now()) @map("created_at")
