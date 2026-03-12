@@ -794,6 +794,170 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/lettrage', { method: 'POST', body: JSON.stringify(data) }),
   },
 
+  // Conformité France
+  conformite: {
+    // Dashboard conformité
+    dashboard: () =>
+      authenticatedFetch<ConformiteResponse>('/api/conformite/dashboard'),
+
+    // FEC
+    fec: {
+      generer: (data: { exerciceId: string; siren: string }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/fec/generer', { method: 'POST', body: JSON.stringify(data) }),
+      liste: (params?: { exerciceId?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.exerciceId) qp.append('exerciceId', params.exerciceId);
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/fec/liste${q ? `?${q}` : ''}`);
+      },
+      exporter: (fecId: string) =>
+        authenticatedFetch<ConformiteResponse>(`/api/conformite/fec/exporter?fecId=${fecId}`),
+      valider: (fecId: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/fec/valider', { method: 'POST', body: JSON.stringify({ fecId }) }),
+    },
+
+    // Périodes comptables
+    periodes: {
+      generer: (exerciceId: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/periodes/generer', { method: 'POST', body: JSON.stringify({ exerciceId }) }),
+      liste: (exerciceId: string) =>
+        authenticatedFetch<ConformiteResponse>(`/api/conformite/periodes?exerciceId=${exerciceId}`),
+      cloturer: (periodeId: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/periodes/cloturer', { method: 'POST', body: JSON.stringify({ periodeId }) }),
+    },
+
+    // Piste d'audit fiable
+    pisteAudit: {
+      liste: (params?: { chaineFluide?: string; documentType?: string; page?: number; limit?: number }) => {
+        const qp = new URLSearchParams();
+        if (params?.chaineFluide) qp.append('chaineFluide', params.chaineFluide);
+        if (params?.documentType) qp.append('documentType', params.documentType);
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/piste-audit${q ? `?${q}` : ''}`);
+      },
+      create: (data: {
+        chaineFluide: string;
+        etape: 'devis' | 'bon_commande' | 'bon_livraison' | 'facture' | 'ecriture_comptable' | 'paiement' | 'avoir';
+        documentType: string;
+        documentId: string;
+        documentRef: string;
+        dateDocument: string;
+        montantHt: number;
+        montantTtc: number;
+        hashDocument: string;
+        etapePrecedenteId?: string;
+        metadata?: string;
+      }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/piste-audit', { method: 'POST', body: JSON.stringify(data) }),
+      chaine: (chaineFluide: string) =>
+        authenticatedFetch<ConformiteResponse>(`/api/conformite/piste-audit/chaine/${chaineFluide}`),
+    },
+
+    // Archivage légal
+    archives: {
+      liste: (params?: { exerciceId?: string; typeArchive?: string; page?: number; limit?: number }) => {
+        const qp = new URLSearchParams();
+        if (params?.exerciceId) qp.append('exerciceId', params.exerciceId);
+        if (params?.typeArchive) qp.append('typeArchive', params.typeArchive);
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/archives${q ? `?${q}` : ''}`);
+      },
+      creer: (data: { exerciceId: string; typeArchive: 'fec' | 'grand_livre' | 'balance' | 'bilan' | 'journal' | 'tva' }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/archives/creer', { method: 'POST', body: JSON.stringify(data) }),
+      verifierIntegrite: (archiveId: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/archives/verifier-integrite', { method: 'POST', body: JSON.stringify({ archiveId }) }),
+    },
+
+    // Facturation électronique Factur-X
+    facturx: {
+      generer: (data: { invoiceId: string; profil?: 'minimum' | 'basic' | 'en16931'; formatXml?: 'CII' | 'UBL' }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/facturx/generer', { method: 'POST', body: JSON.stringify(data) }),
+      liste: (params?: { statutTransmission?: string; page?: number; limit?: number }) => {
+        const qp = new URLSearchParams();
+        if (params?.statutTransmission) qp.append('statutTransmission', params.statutTransmission);
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/facturx${q ? `?${q}` : ''}`);
+      },
+      transmettre: (data: { factureElectroniqueId: string; plateformeType: 'chorus_pro' | 'pdp' }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/facturx/transmettre', { method: 'POST', body: JSON.stringify(data) }),
+      statut: (factureElectroniqueId: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/facturx/statut', { method: 'POST', body: JSON.stringify({ factureElectroniqueId }) }),
+    },
+
+    // E-Reporting
+    eReporting: {
+      generer: (data: { periodeDebut: string; periodeFin: string; typeTransaction: 'b2c_france' | 'b2b_international' | 'b2c_international' }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/e-reporting/generer', { method: 'POST', body: JSON.stringify(data) }),
+      liste: (params?: { statut?: string; typeTransaction?: string; page?: number; limit?: number }) => {
+        const qp = new URLSearchParams();
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.typeTransaction) qp.append('typeTransaction', params.typeTransaction);
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/e-reporting${q ? `?${q}` : ''}`);
+      },
+      transmettre: (data: { eReportingId: string; plateformeType: 'chorus_pro' | 'pdp' }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/e-reporting/transmettre', { method: 'POST', body: JSON.stringify(data) }),
+    },
+
+    // EDI-TVA
+    ediTva: {
+      generer: (data: { declarationTvaId: string; regimeTva: 'reel_normal' | 'reel_simplifie' | 'mini_reel'; formulaireCerfa: 'CA3' | 'CA12' }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/edi-tva/generer', { method: 'POST', body: JSON.stringify(data) }),
+      liste: (params?: { statutTransmission?: string; page?: number; limit?: number }) => {
+        const qp = new URLSearchParams();
+        if (params?.statutTransmission) qp.append('statutTransmission', params.statutTransmission);
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/edi-tva${q ? `?${q}` : ''}`);
+      },
+      transmettre: (ediTvaId: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/edi-tva/transmettre', { method: 'POST', body: JSON.stringify({ ediTvaId }) }),
+    },
+
+    // API Sirene
+    sirene: {
+      verifier: (siret: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/sirene/verifier', { method: 'POST', body: JSON.stringify({ siret }) }),
+      verifierLot: (sirets: string[]) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/sirene/verifier-lot', { method: 'POST', body: JSON.stringify({ sirets }) }),
+      historique: (params?: { siret?: string; page?: number; limit?: number }) => {
+        const qp = new URLSearchParams();
+        if (params?.siret) qp.append('siret', params.siret);
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/sirene/historique${q ? `?${q}` : ''}`);
+      },
+    },
+
+    // DAS2
+    das2: {
+      generer: (data: { exerciceId: string; annee: number; seuilMinimum?: number }) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/das2/generer', { method: 'POST', body: JSON.stringify(data) }),
+      liste: (params?: { statut?: string; page?: number; limit?: number }) => {
+        const qp = new URLSearchParams();
+        if (params?.statut) qp.append('statut', params.statut);
+        if (params?.page) qp.append('page', params.page.toString());
+        if (params?.limit) qp.append('limit', params.limit.toString());
+        const q = qp.toString();
+        return authenticatedFetch<ConformiteResponse>(`/api/conformite/das2${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<ConformiteResponse>(`/api/conformite/das2/${id}`),
+      transmettre: (das2Id: string) =>
+        authenticatedFetch<ConformiteResponse>('/api/conformite/das2/transmettre', { method: 'POST', body: JSON.stringify({ das2Id }) }),
+    },
+  },
+
   // Logs
   logs: {
     list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
@@ -1585,6 +1749,112 @@ export interface LogStats {
     leads: { total: number; errors: number; succeeded: number };
     clients: { total: number; errors: number; succeeded: number };
   };
+}
+
+// Type réponse API conformité France
+type ConformiteResponse = { success: boolean; data?: Record<string, unknown>; error?: string };
+
+// Types conformité détaillés
+export interface FichierFec {
+  id: string;
+  exerciceId: string;
+  nomFichier: string;
+  siren: string;
+  dateGeneration: string;
+  dateDebut: string;
+  dateFin: string;
+  nbEcritures: number;
+  nbLignes: number;
+  hashSha256: string;
+  tailleFichier: number;
+  statut: 'genere' | 'valide' | 'exporte';
+}
+
+export interface PisteAuditEntry {
+  id: string;
+  chaineFluide: string;
+  etape: 'devis' | 'bon_commande' | 'bon_livraison' | 'facture' | 'ecriture_comptable' | 'paiement' | 'avoir';
+  documentType: string;
+  documentId: string;
+  documentRef: string;
+  dateDocument: string;
+  montantHt: number;
+  montantTtc: number;
+  hashDocument: string;
+  etapePrecedenteId: string | null;
+  createdAt: string;
+}
+
+export interface FactureElectronique {
+  id: string;
+  invoiceId: string;
+  profil: 'minimum' | 'basic' | 'en16931';
+  formatXml: 'CII' | 'UBL';
+  plateformeType: string | null;
+  statutTransmission: 'non_transmis' | 'en_cours' | 'transmis' | 'accepte' | 'refuse';
+  dateTransmission: string | null;
+  identifiantFlux: string | null;
+}
+
+export interface EReportingEntry {
+  id: string;
+  periodeDebut: string;
+  periodeFin: string;
+  typeTransaction: 'b2c_france' | 'b2b_international' | 'b2c_international';
+  nbTransactions: number;
+  montantHtTotal: number;
+  montantTvaTotal: number;
+  montantTtcTotal: number;
+  statut: 'brouillon' | 'valide' | 'transmis' | 'rejete';
+  dateTransmission: string | null;
+}
+
+export interface EdiTvaEntry {
+  id: string;
+  declarationTvaId: string;
+  periodeDebut: string;
+  periodeFin: string;
+  regimeTva: string;
+  formulaireCerfa: string;
+  ligneTvaDue: number;
+  ligneCreditTva: number;
+  statutTransmission: string;
+  dateTransmission: string | null;
+}
+
+export interface VerificationSireneEntry {
+  id: string;
+  siret: string;
+  siren: string;
+  denominationRs: string | null;
+  adresseSiege: string | null;
+  codePostal: string | null;
+  ville: string | null;
+  codeAPE: string | null;
+  tvaIntracom: string | null;
+  estActif: boolean;
+  dateVerification: string;
+}
+
+export interface Das2Entry {
+  id: string;
+  exerciceId: string;
+  annee: number;
+  seuilMinimum: number;
+  statut: 'brouillon' | 'valide' | 'transmis';
+  dateTransmission: string | null;
+}
+
+export interface PeriodeComptableEntry {
+  id: string;
+  exerciceId: string;
+  code: string;
+  mois: number;
+  annee: number;
+  dateDebut: string;
+  dateFin: string;
+  cloture: boolean;
+  dateCloture: string | null;
 }
 
 // Type pour les codes articles

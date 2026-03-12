@@ -41,6 +41,7 @@ import {
   CubeIcon,
   TruckIcon,
   MegaphoneIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -92,6 +93,16 @@ const allNavGroups: NavGroup[] = [
       { name: 'Rapprochement', href: '/comptabilite/rapprochement', icon: ArrowPathIcon },
       { name: 'Agent IA Comptable', href: '/comptabilite/ia', icon: SparklesIcon },
       { name: 'Clôture', href: '/comptabilite/cloture', icon: LockClosedIcon },
+      { name: '── Conformité ──', href: '/conformite', icon: ShieldCheckIcon },
+      { name: 'FEC', href: '/conformite/fec', icon: DocumentTextIcon },
+      { name: 'Factur-X', href: '/conformite/facturx', icon: DocumentCheckIcon },
+      { name: 'E-Reporting', href: '/conformite/e-reporting', icon: ChartBarIcon },
+      { name: 'EDI-TVA', href: '/conformite/edi-tva', icon: CurrencyEuroIcon },
+      { name: 'DAS2', href: '/conformite/das2', icon: BanknotesIcon },
+      { name: 'Piste d\'Audit', href: '/conformite/piste-audit', icon: ArrowPathIcon },
+      { name: 'Archivage Légal', href: '/conformite/archives', icon: LockClosedIcon },
+      { name: 'Vérif. Sirene', href: '/conformite/sirene', icon: BuildingOffice2Icon },
+      { name: 'Périodes', href: '/conformite/periodes', icon: CalendarIcon },
     ],
   },
   {

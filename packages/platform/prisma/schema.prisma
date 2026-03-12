@@ -324,6 +324,15 @@ model Tenant {
   declarationsTva       DeclarationTva[]
   immobilisations       Immobilisation[]
   comptaIaLogs          ComptaIaLog[]
+  periodesComptables    PeriodeComptable[]
+  fichiersFec           FichierFec[]
+  pistesAudit           PisteAudit[]
+  archivesComptables    ArchiveComptable[]
+  facturesElectroniques FactureElectronique[]
+  eReportings           EReporting[]
+  ediTva                EdiTva[]
+  declarationsDas2      DeclarationDas2[]
+  verificationsSirene   VerificationSirene[]
   clientSpaces          ClientSpace[]
   // Gestion d'équipe
   equipeMembers         EquipeMember[]
@@ -1684,6 +1693,330 @@ model ComptaIaLog {
   @@index([action])
   @@index([createdAt])
   @@map("compta_ia_logs")
+}
+
+// ── Enums conformité française ─────────────────────────────
+
+enum FecStatut {
+  genere
+  valide
+  exporte
+}
+
+enum EReportingStatut {
+  brouillon
+  valide
+  transmis
+  rejete
+}
+
+enum EReportingType {
+  b2c_france
+  b2b_international
+  b2c_international
+}
+
+enum FacturXProfil {
+  minimum
+  basic
+  en16931
+}
+
+enum PisteAuditEtape {
+  devis
+  bon_commande
+  bon_livraison
+  facture
+  ecriture_comptable
+  paiement
+  avoir
+}
+
+enum Das2Statut {
+  brouillon
+  valide
+  transmis
+}
+
+enum ArchiveStatut {
+  actif
+  verrouille
+  archive
+}
+
+// ── Période Comptable (mois fiscal) ────────────────────────
+
+model PeriodeComptable {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  exerciceId  String   @map("exercice_id") @db.Uuid
+  code        String   @map("code") // ex: "2025-01", "2025-02"
+  mois        Int      @map("mois") // 1-12
+  annee       Int      @map("annee")
+  dateDebut   DateTime @map("date_debut") @db.Date
+  dateFin     DateTime @map("date_fin") @db.Date
+  cloture     Boolean  @default(false) @map("cloture")
+  dateCloture DateTime? @map("date_cloture") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, exerciceId, mois])
+  @@index([tenantId])
+  @@index([exerciceId])
+  @@index([cloture])
+  @@map("periodes_comptables")
+}
+
+// ── FEC – Fichier des Écritures Comptables ─────────────────
+
+model FichierFec {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  exerciceId    String    @map("exercice_id") @db.Uuid
+  nomFichier    String    @map("nom_fichier") // ex: "FEC20251231.txt"
+  siren         String    @map("siren") // SIREN 9 chiffres obligatoire
+  dateGeneration DateTime @map("date_generation") @db.Timestamptz(6)
+  dateDebut     DateTime  @map("date_debut") @db.Date
+  dateFin       DateTime  @map("date_fin") @db.Date
+  nbEcritures   Int       @map("nb_ecritures")
+  nbLignes      Int       @map("nb_lignes")
+  hashSha256    String    @map("hash_sha256") // Intégrité du fichier
+  tailleFichier Int       @map("taille_fichier") // En octets
+  statut        FecStatut @default(genere) @map("statut")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([exerciceId])
+  @@index([statut])
+  @@map("fichiers_fec")
+}
+
+// ── Piste d'Audit Fiable (PAF) ─────────────────────────────
+
+model PisteAudit {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  chaineFluide  String           @map("chaine_fluide") // Identifiant unique de la chaîne (ex: "PAF-2025-000042")
+  etape         PisteAuditEtape  @map("etape")
+  documentType  String           @map("document_type") // "devis", "facture", "avoir", etc.
+  documentId    String           @map("document_id") @db.Uuid
+  documentRef   String           @map("document_ref") // Référence humaine (ex: "FAC-2025-000012")
+  dateDocument  DateTime         @map("date_document") @db.Date
+  montantHt     Decimal          @map("montant_ht") @db.Decimal(15, 2)
+  montantTtc    Decimal          @map("montant_ttc") @db.Decimal(15, 2)
+  hashDocument  String           @map("hash_document") // SHA-256 du document PDF
+  etapePrecedenteId String?      @map("etape_precedente_id") @db.Uuid // Lien vers l'étape précédente
+  metadata      String?          @map("metadata") @db.Text // JSON sérialisé des détails
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([chaineFluide])
+  @@index([documentType, documentId])
+  @@index([etape])
+  @@map("piste_audit")
+}
+
+// ── Archive Légale ─────────────────────────────────────────
+
+model ArchiveComptable {
+  id                String        @id @default(uuid()) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  exerciceId        String        @map("exercice_id") @db.Uuid
+  typeArchive       String        @map("type_archive") // "fec", "grand_livre", "balance", "bilan", "journal", "tva"
+  nomFichier        String        @map("nom_fichier")
+  hashSha256        String        @map("hash_sha256")
+  tailleFichier     Int           @map("taille_fichier")
+  horodatage        DateTime      @map("horodatage") @db.Timestamptz(6)
+  dateExpirationMin DateTime      @map("date_expiration_min") @db.Date // 6 ans fiscal
+  dateExpirationMax DateTime      @map("date_expiration_max") @db.Date // 10 ans commercial
+  statut            ArchiveStatut @default(actif) @map("statut")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([exerciceId])
+  @@index([typeArchive])
+  @@index([statut])
+  @@index([dateExpirationMin])
+  @@map("archives_comptables")
+}
+
+// ── Facturation Électronique (Factur-X / Chorus Pro) ───────
+
+model FactureElectronique {
+  id                String        @id @default(uuid()) @db.Uuid
+  tenantId          String        @map("tenant_id") @db.Uuid
+  invoiceId         String        @map("invoice_id") @db.Uuid
+  profil            FacturXProfil @default(minimum) @map("profil")
+  formatXml         String        @default("CII") @map("format_xml") // "CII" ou "UBL"
+  xmlContent        String?       @map("xml_content") @db.Text
+  pdfFacturxPath    String?       @map("pdf_facturx_path") // Chemin PDF hybride
+  hashPdf           String?       @map("hash_pdf")
+  plateformeId      String?       @map("plateforme_id") // ID Chorus Pro ou PDP
+  plateformeType    String?       @map("plateforme_type") // "chorus_pro", "pdp"
+  statutTransmission String       @default("non_transmis") @map("statut_transmission") // non_transmis, en_cours, transmis, accepte, refuse
+  dateTransmission  DateTime?     @map("date_transmission") @db.Timestamptz(6)
+  identifiantFlux   String?       @map("identifiant_flux") // ID retour plateforme
+  codeRetour        String?       @map("code_retour")
+  messageRetour     String?       @map("message_retour") @db.Text
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, invoiceId])
+  @@index([tenantId])
+  @@index([statutTransmission])
+  @@index([plateformeType])
+  @@map("factures_electroniques")
+}
+
+// ── E-Reporting ────────────────────────────────────────────
+
+model EReporting {
+  id                String           @id @default(uuid()) @db.Uuid
+  tenantId          String           @map("tenant_id") @db.Uuid
+  periodeDebut      DateTime         @map("periode_debut") @db.Date
+  periodeFin        DateTime         @map("periode_fin") @db.Date
+  typeTransaction   EReportingType   @map("type_transaction")
+  nbTransactions    Int              @map("nb_transactions")
+  montantHtTotal    Decimal          @map("montant_ht_total") @db.Decimal(15, 2)
+  montantTvaTotal   Decimal          @map("montant_tva_total") @db.Decimal(15, 2)
+  montantTtcTotal   Decimal          @map("montant_ttc_total") @db.Decimal(15, 2)
+  statut            EReportingStatut @default(brouillon) @map("statut")
+  dateTransmission  DateTime?        @map("date_transmission") @db.Timestamptz(6)
+  identifiantFlux   String?          @map("identifiant_flux")
+  plateformeType    String?          @map("plateforme_type") // "chorus_pro", "pdp"
+  codeRetour        String?          @map("code_retour")
+  messageRetour     String?          @map("message_retour") @db.Text
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([periodeFin])
+  @@index([statut])
+  @@index([typeTransaction])
+  @@map("e_reportings")
+}
+
+// ── EDI-TVA (Télédéclaration) ──────────────────────────────
+
+model EdiTva {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  declarationTvaId  String   @map("declaration_tva_id") @db.Uuid
+  periodeDebut      DateTime @map("periode_debut") @db.Date
+  periodeFin        DateTime @map("periode_fin") @db.Date
+  regimeTva         String   @map("regime_tva") // "reel_normal", "reel_simplifie", "mini_reel"
+  formulaireCerfa   String   @map("formulaire_cerfa") // "CA3", "CA12"
+  // Lignes cerfa CA3
+  ligneCA           Decimal  @default(0) @map("ligne_ca") @db.Decimal(15, 2)
+  ligneBaseHt20     Decimal  @default(0) @map("ligne_base_ht_20") @db.Decimal(15, 2)
+  ligneBaseHt10     Decimal  @default(0) @map("ligne_base_ht_10") @db.Decimal(15, 2)
+  ligneBaseHt55     Decimal  @default(0) @map("ligne_base_ht_5_5") @db.Decimal(15, 2)
+  ligneBaseHt21     Decimal  @default(0) @map("ligne_base_ht_2_1") @db.Decimal(15, 2)
+  ligneTvaCollectee20 Decimal @default(0) @map("ligne_tva_collectee_20") @db.Decimal(15, 2)
+  ligneTvaCollectee10 Decimal @default(0) @map("ligne_tva_collectee_10") @db.Decimal(15, 2)
+  ligneTvaCollectee55 Decimal @default(0) @map("ligne_tva_collectee_5_5") @db.Decimal(15, 2)
+  ligneTvaCollectee21 Decimal @default(0) @map("ligne_tva_collectee_2_1") @db.Decimal(15, 2)
+  ligneTvaDeductibleImmo Decimal @default(0) @map("ligne_tva_deductible_immo") @db.Decimal(15, 2)
+  ligneTvaDeductibleBs   Decimal @default(0) @map("ligne_tva_deductible_bs") @db.Decimal(15, 2)
+  ligneCreditTvaAnterior Decimal @default(0) @map("ligne_credit_tva_anterior") @db.Decimal(15, 2)
+  ligneTvaDue            Decimal @default(0) @map("ligne_tva_due") @db.Decimal(15, 2)
+  ligneCreditTva         Decimal @default(0) @map("ligne_credit_tva") @db.Decimal(15, 2)
+  // Transmission
+  formatEdi         String   @default("EDIFACT") @map("format_edi")
+  statutTransmission String  @default("brouillon") @map("statut_transmission") // brouillon, genere, transmis, accepte, rejete
+  dateTransmission  DateTime? @map("date_transmission") @db.Timestamptz(6)
+  identifiantDepot  String?  @map("identifiant_depot")
+  codeRetour        String?  @map("code_retour")
+  messageRetour     String?  @map("message_retour") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([periodeFin])
+  @@index([statutTransmission])
+  @@map("edi_tva")
+}
+
+// ── DAS2 – Déclaration Honoraires ──────────────────────────
+
+model DeclarationDas2 {
+  id            String     @id @default(uuid()) @db.Uuid
+  tenantId      String     @map("tenant_id") @db.Uuid
+  exerciceId    String     @map("exercice_id") @db.Uuid
+  annee         Int        @map("annee")
+  seuilMinimum  Decimal    @default(1200) @map("seuil_minimum") @db.Decimal(15, 2)
+  statut        Das2Statut @default(brouillon) @map("statut")
+  dateTransmission DateTime? @map("date_transmission") @db.Timestamptz(6)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  beneficiaires Das2Beneficiaire[]
+
+  @@unique([tenantId, annee])
+  @@index([tenantId])
+  @@index([statut])
+  @@map("declarations_das2")
+}
+
+model Das2Beneficiaire {
+  id              String   @id @default(uuid()) @db.Uuid
+  declarationId   String   @map("declaration_id") @db.Uuid
+  denominationRs  String   @map("denomination_rs") // Raison sociale
+  siret           String?  @map("siret")
+  adresse         String?  @map("adresse") @db.Text
+  montantHonoraires Decimal @map("montant_honoraires") @db.Decimal(15, 2)
+  montantTva      Decimal  @default(0) @map("montant_tva") @db.Decimal(15, 2)
+  naturePrestation String  @map("nature_prestation") // "honoraires", "commissions", "courtages", "redevances"
+  avantagesNature Decimal  @default(0) @map("avantages_nature") @db.Decimal(15, 2)
+  indemnites      Decimal  @default(0) @map("indemnites") @db.Decimal(15, 2)
+
+  declaration DeclarationDas2 @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+
+  @@index([declarationId])
+  @@index([montantHonoraires])
+  @@map("das2_beneficiaires")
+}
+
+// ── Vérification Sirene / API Entreprise ───────────────────
+
+model VerificationSirene {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  siret           String   @map("siret")
+  siren           String   @map("siren")
+  denominationRs  String?  @map("denomination_rs")
+  adresseSiege    String?  @map("adresse_siege") @db.Text
+  codePostal      String?  @map("code_postal")
+  ville           String?  @map("ville")
+  codeAPE         String?  @map("code_ape")
+  formeJuridique  String?  @map("forme_juridique")
+  tvaIntracom     String?  @map("tva_intracom")
+  effectif        String?  @map("effectif")
+  dateCreation    String?  @map("date_creation")
+  estActif        Boolean  @default(true) @map("est_actif")
+  sourceApi       String   @map("source_api") // "api_sirene", "api_entreprise"
+  dateVerification DateTime @map("date_verification") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([siret])
+  @@index([siren])
+  @@map("verifications_sirene")
 }
 
 // ═══════════════════════════════════════════════════════════════

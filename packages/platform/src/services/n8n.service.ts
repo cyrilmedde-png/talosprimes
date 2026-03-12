@@ -271,6 +271,47 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   stock_inventory_finalize: 'stock-inventory-finalized',
   stock_alerts_list: 'stock-alerts-list',
   stock_dashboard: 'stock-dashboard-metrics',
+  // Conformité France – FEC
+  compta_fec_generer: 'compta-fec-generer',
+  compta_fec_liste: 'compta-fec-liste',
+  compta_fec_exporter: 'compta-fec-exporter',
+  compta_fec_valider: 'compta-fec-valider',
+  // Conformité France – Périodes comptables
+  compta_periodes_generer: 'compta-periodes-generer',
+  compta_periodes_liste: 'compta-periodes-liste',
+  compta_periode_cloturer: 'compta-periode-cloturer',
+  // Conformité France – Piste d'Audit Fiable
+  compta_piste_audit_liste: 'compta-piste-audit-liste',
+  compta_piste_audit_create: 'compta-piste-audit-create',
+  compta_piste_audit_chaine: 'compta-piste-audit-chaine',
+  // Conformité France – Archivage légal
+  compta_archives_liste: 'compta-archives-liste',
+  compta_archive_creer: 'compta-archive-creer',
+  compta_archive_verifier: 'compta-archive-verifier',
+  // Conformité France – Factur-X
+  compta_facturx_generer: 'compta-facturx-generer',
+  compta_facturx_liste: 'compta-facturx-liste',
+  compta_facturx_transmettre: 'compta-facturx-transmettre',
+  compta_facturx_statut: 'compta-facturx-statut',
+  // Conformité France – E-Reporting
+  compta_ereporting_generer: 'compta-ereporting-generer',
+  compta_ereporting_liste: 'compta-ereporting-liste',
+  compta_ereporting_transmettre: 'compta-ereporting-transmettre',
+  // Conformité France – EDI-TVA
+  compta_edi_tva_generer: 'compta-edi-tva-generer',
+  compta_edi_tva_liste: 'compta-edi-tva-liste',
+  compta_edi_tva_transmettre: 'compta-edi-tva-transmettre',
+  // Conformité France – API Sirene
+  compta_sirene_verifier: 'compta-sirene-verifier',
+  compta_sirene_verifier_lot: 'compta-sirene-verifier-lot',
+  compta_sirene_historique: 'compta-sirene-historique',
+  // Conformité France – DAS2
+  compta_das2_generer: 'compta-das2-generer',
+  compta_das2_liste: 'compta-das2-liste',
+  compta_das2_get: 'compta-das2-get',
+  compta_das2_transmettre: 'compta-das2-transmettre',
+  // Conformité France – Dashboard
+  compta_conformite_dashboard: 'compta-conformite-dashboard',
   // Marketing Digital
   marketing_auto_publish: 'marketing-auto-publish',
   marketing_status: 'marketing-status',

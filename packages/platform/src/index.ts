@@ -28,6 +28,7 @@ import { twilioConfigRoutes } from './api/routes/twilio-config.routes.js';
 import { smsRoutes } from './api/routes/sms.routes.js';
 import { questionnairesRoutes } from './api/routes/questionnaires.routes.js';
 import { comptabiliteRoutes } from './api/routes/comptabilite.routes.js';
+import { conformiteFranceRoutes } from './api/routes/conformite-france.routes.js';
 import { clientSpacesRoutes } from './api/routes/client-spaces.routes.js';
 import { plansRoutes } from './api/routes/plans.routes.js';
 import { clientModulesRoutes } from './api/routes/client-modules.routes.js';
@@ -291,6 +292,9 @@ await fastify.register(async (fastify) => {
 
   // Comptabilité
   await fastify.register(comptabiliteRoutes, { prefix: '/api/comptabilite' });
+
+  // Conformité France (FEC, PAF, Factur-X, e-reporting, EDI-TVA, Sirene, DAS2)
+  await fastify.register(conformiteFranceRoutes, { prefix: '/api/conformite' });
 });
 
 // Enregistrer les routes espaces clients
