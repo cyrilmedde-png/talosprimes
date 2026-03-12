@@ -1238,9 +1238,11 @@ print(json.dumps(wf))
         fi
 
         # --- REACTIVATION DE TOUS LES WORKFLOWS ---
-        # n8n peut marquer des workflows comme "actifs" sans enregistrer les webhooks.
-        # Le cycle deactivate/activate force n8n a re-enregistrer tous les webhooks.
-        log_info "Reactivation de tous les workflows (enregistrement webhooks)..."
+        # n8n v2.x bug: les endpoints activate/deactivate ne re-enregistrent pas
+        # les webhooks. Il faut faire un PUT complet (sauvegarde) du workflow
+        # avec active=true pour forcer le re-enregistrement, comme le fait l'UI
+        # quand on "bouge un noeud + publier".
+        log_info "Reactivation de tous les workflows (re-enregistrement webhooks)..."
         python3 -c "
 import json, urllib.request, os, sys, time
 
@@ -1251,19 +1253,21 @@ if not api_url or not api_key:
     print('SKIP: N8N_API_URL ou N8N_API_KEY non defini')
     sys.exit(0)
 
-# Recuperer tous les workflows
+headers = {'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'}
+
+# Recuperer la liste de tous les workflows
 all_workflows = []
 cursor = ''
 for _ in range(20):
     url = f'{api_url}/api/v1/workflows?limit=250'
     if cursor:
         url += f'&cursor={cursor}'
-    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
+    req = urllib.request.Request(url, headers=headers)
     try:
         resp = urllib.request.urlopen(req, timeout=15)
         data = json.loads(resp.read())
     except Exception as e:
-        print(f'Erreur API: {e}')
+        print(f'Erreur API liste: {e}')
         break
     wfs = data.get('data', [])
     all_workflows.extend(wfs)
@@ -1271,47 +1275,56 @@ for _ in range(20):
     if not cursor or not wfs:
         break
 
-# Filtrer les workflows actifs
 active_wfs = [w for w in all_workflows if w.get('active')]
 total = len(all_workflows)
 active_count = len(active_wfs)
-print(f'{active_count}/{total} workflows actifs a reactiver...')
+print(f'{active_count}/{total} workflows actifs a republier...')
 
-# Deactivate puis reactivate chaque workflow actif
 ok = 0
 errors = 0
 for w in active_wfs:
     wid = w['id']
     wname = w.get('name', wid)
     try:
-        # Deactivate
-        req_deact = urllib.request.Request(
-            f'{api_url}/api/v1/workflows/{wid}/deactivate',
-            method='POST',
-            headers={'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'},
-            data=b'{}'
+        # 1) GET le workflow complet (avec nodes, connections, settings)
+        req_get = urllib.request.Request(
+            f'{api_url}/api/v1/workflows/{wid}',
+            headers=headers
         )
-        urllib.request.urlopen(req_deact, timeout=10)
-        time.sleep(0.2)
+        resp = urllib.request.urlopen(req_get, timeout=15)
+        full_wf = json.loads(resp.read())
 
-        # Reactivate
+        # 2) PUT le workflow complet avec active=true
+        #    Ca force n8n a re-enregistrer les webhooks
+        full_wf['active'] = True
+        body = json.dumps(full_wf).encode('utf-8')
+        req_put = urllib.request.Request(
+            f'{api_url}/api/v1/workflows/{wid}',
+            method='PUT',
+            headers=headers,
+            data=body
+        )
+        urllib.request.urlopen(req_put, timeout=15)
+
+        # 3) POST activate pour s'assurer que le flag est bien mis
         req_act = urllib.request.Request(
             f'{api_url}/api/v1/workflows/{wid}/activate',
             method='POST',
-            headers={'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'},
+            headers=headers,
             data=b'{}'
         )
         urllib.request.urlopen(req_act, timeout=10)
+
         ok += 1
     except Exception as e:
         errors += 1
         print(f'  ERREUR {wname}: {e}')
-    time.sleep(0.1)
+    time.sleep(0.15)
 
 if errors == 0:
-    print(f'{ok}/{active_count} workflows reactives avec succes')
+    print(f'{ok}/{active_count} workflows republies avec succes')
 else:
-    print(f'{ok}/{active_count} workflows reactives, {errors} erreurs')
+    print(f'{ok}/{active_count} workflows republies, {errors} erreurs')
 " 2>&1 | while IFS= read -r line; do
           if echo "$line" | grep -q "ERREUR"; then
             log_warn "$line"
