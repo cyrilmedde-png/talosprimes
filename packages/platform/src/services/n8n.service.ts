@@ -688,21 +688,39 @@ export class N8nService {
       const alreadyActive = allWorkflows.length - inactiveWorkflows.length;
       const totalActive = alreadyActive + successCount;
 
-      // 3. Redémarrer n8n pour enregistrer les webhooks
-      // Le restart est OBLIGATOIRE car l'API ne register pas les webhooks (bug #21614)
-      logger.info('[n8n] Redémarrage de n8n pour enregistrer les webhooks...');
+      // 3. Re-enregistrer les webhooks via docker compose up + apply-webhook-patch.sh
+      // Le restart simple ne suffit PAS (bug #21614). Il faut:
+      //   a) docker compose up -d (recrée le container si nécessaire)
+      //   b) apply-webhook-patch.sh (patch le code n8n pour le webhook registration)
+      //   c) Le patch redémarre n8n automatiquement
+      logger.info('[n8n] Re-enregistrement des webhooks via patch...');
 
       const { exec } = await import('child_process');
       const { promisify } = await import('util');
       const execAsync = promisify(exec);
 
+      const N8N_COMPOSE_DIR = '/home/root/n8n-agent';
+      const patchScript = `${N8N_COMPOSE_DIR}/apply-webhook-patch.sh`;
+
       try {
-        await execAsync('docker restart n8n', { timeout: 30_000 });
+        // docker compose up -d pour s'assurer que le container est frais
+        await execAsync(`cd ${N8N_COMPOSE_DIR} && docker compose up -d n8n`, { timeout: 30_000 });
+        // Attendre que n8n démarre
+        await new Promise(resolve => setTimeout(resolve, 5_000));
+        // Appliquer le patch webhook
+        try {
+          await execAsync(patchScript, { timeout: 30_000 });
+          logger.info('[n8n] Patch webhook appliqué');
+        } catch {
+          // Fallback: restart simple si le patch n'existe pas
+          logger.warn('[n8n] apply-webhook-patch.sh non trouvé, fallback docker restart');
+          await execAsync('docker restart n8n', { timeout: 30_000 });
+        }
       } catch (restartErr) {
-        logger.error({ error: restartErr }, '[n8n] Erreur docker restart');
+        logger.error({ error: restartErr }, '[n8n] Erreur re-enregistrement webhooks');
         return {
           success: false,
-          message: `${totalActive}/${allWorkflows.length} workflows activés en DB mais docker restart échoué — webhooks non enregistrés`,
+          message: `${totalActive}/${allWorkflows.length} workflows activés en DB mais re-enregistrement échoué — webhooks non enregistrés`,
           count: totalActive,
         };
       }

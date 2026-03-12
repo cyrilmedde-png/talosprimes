@@ -1228,112 +1228,27 @@ print(json.dumps(wf))
           log_warn "Workflows n8n: $N8N_SUCCESS/$N8N_TOTAL OK, $N8N_SKIPPED skip, $N8N_ERRORS erreurs"
         fi
 
-        # --- RESTART n8n si des workflows ont ete modifies ---
+        # --- RE-ENREGISTREMENT DES WEBHOOKS ---
+        # n8n bug #21614: l'API activate/deactivate NE re-enregistre PAS les webhooks.
+        # Seul docker compose up + apply-webhook-patch.sh + restart fonctionne.
+        # On ne touche PAS aux workflows via l'API (ca casse les webhooks existants).
         if [ "$N8N_SUCCESS" -gt 0 ]; then
-          log_info "Restart n8n pour enregistrer les webhooks..."
-          docker restart n8n > /dev/null 2>&1 || true
+          log_info "Workflows modifies — re-enregistrement des webhooks via patch..."
+          cd "$N8N_COMPOSE_DIR"
+          docker compose up -d n8n 2>/dev/null || docker start n8n 2>/dev/null || true
+          cd "$PROJECT_DIR"
+          sleep 5
+          if [ -f "$N8N_COMPOSE_DIR/apply-webhook-patch.sh" ]; then
+            "$N8N_COMPOSE_DIR/apply-webhook-patch.sh" > /dev/null 2>&1 || true
+            log_ok "Patch webhook applique"
+          else
+            log_warn "apply-webhook-patch.sh introuvable dans $N8N_COMPOSE_DIR — restart simple"
+            docker restart n8n > /dev/null 2>&1 || true
+          fi
           wait_for_n8n 60
         else
           log_info "Aucun workflow synchronise — pas de restart n8n"
         fi
-
-        # --- REACTIVATION DE TOUS LES WORKFLOWS ---
-        # n8n v2.x bug: les endpoints activate/deactivate ne re-enregistrent pas
-        # les webhooks. Il faut faire un PUT complet (sauvegarde) du workflow
-        # avec active=true pour forcer le re-enregistrement, comme le fait l'UI
-        # quand on "bouge un noeud + publier".
-        log_info "Reactivation de tous les workflows (re-enregistrement webhooks)..."
-        python3 -c "
-import json, urllib.request, os, sys, time
-
-api_url = os.environ.get('N8N_API_URL', '')
-api_key = os.environ.get('N8N_API_KEY', '')
-
-if not api_url or not api_key:
-    print('SKIP: N8N_API_URL ou N8N_API_KEY non defini')
-    sys.exit(0)
-
-headers = {'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'}
-
-# Recuperer la liste de tous les workflows
-all_workflows = []
-cursor = ''
-for _ in range(20):
-    url = f'{api_url}/api/v1/workflows?limit=250'
-    if cursor:
-        url += f'&cursor={cursor}'
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        resp = urllib.request.urlopen(req, timeout=15)
-        data = json.loads(resp.read())
-    except Exception as e:
-        print(f'Erreur API liste: {e}')
-        break
-    wfs = data.get('data', [])
-    all_workflows.extend(wfs)
-    cursor = data.get('nextCursor', '')
-    if not cursor or not wfs:
-        break
-
-active_wfs = [w for w in all_workflows if w.get('active')]
-total = len(all_workflows)
-active_count = len(active_wfs)
-print(f'{active_count}/{total} workflows actifs a republier...')
-
-ok = 0
-errors = 0
-for w in active_wfs:
-    wid = w['id']
-    wname = w.get('name', wid)
-    try:
-        # 1) GET le workflow complet (avec nodes, connections, settings)
-        req_get = urllib.request.Request(
-            f'{api_url}/api/v1/workflows/{wid}',
-            headers=headers
-        )
-        resp = urllib.request.urlopen(req_get, timeout=15)
-        full_wf = json.loads(resp.read())
-
-        # 2) PUT le workflow complet avec active=true
-        #    Ca force n8n a re-enregistrer les webhooks
-        full_wf['active'] = True
-        body = json.dumps(full_wf).encode('utf-8')
-        req_put = urllib.request.Request(
-            f'{api_url}/api/v1/workflows/{wid}',
-            method='PUT',
-            headers=headers,
-            data=body
-        )
-        urllib.request.urlopen(req_put, timeout=15)
-
-        # 3) POST activate pour s'assurer que le flag est bien mis
-        req_act = urllib.request.Request(
-            f'{api_url}/api/v1/workflows/{wid}/activate',
-            method='POST',
-            headers=headers,
-            data=b'{}'
-        )
-        urllib.request.urlopen(req_act, timeout=10)
-
-        ok += 1
-    except Exception as e:
-        errors += 1
-        print(f'  ERREUR {wname}: {e}')
-    time.sleep(0.15)
-
-if errors == 0:
-    print(f'{ok}/{active_count} workflows republies avec succes')
-else:
-    print(f'{ok}/{active_count} workflows republies, {errors} erreurs')
-" 2>&1 | while IFS= read -r line; do
-          if echo "$line" | grep -q "ERREUR"; then
-            log_warn "$line"
-          elif echo "$line" | grep -q "SKIP"; then
-            log_info "$line"
-          else
-            log_ok "$line"
-          fi
-        done
 
         # --- VERIFICATION FINALE ---
         log_info "Verification finale..."
