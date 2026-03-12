@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!body.siret || !/^\\d{14}$/.test(body.siret)) {\n  throw new Error('Invalid SIRET format (must be 14 digits)');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  siret: body.siret\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!body.siret || !/^\\d{14}$/.test(body.siret)) {\n  throw new Error('Invalid SIRET format (must be 14 digits)');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  siret: body.siret\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -32,19 +32,28 @@
     {
       "parameters": {
         "conditions": {
-          "options": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "key": "tenantId",
-              "value": "",
-              "operation": "notEmpty"
+              "id": "740f1504-c9ad-41de-be88-ff6c18d61fb8",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         200
@@ -52,8 +61,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId or SIRET\"}"
+        "responseBody": "={\"success\": false, \"message\": \"Invalid tenantId or SIRET\"}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -93,24 +102,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "INSERT INTO verifications_sirene (id, tenant_id, siret, siren, denomination, adresse, code_postal, ville, code_naf, tranche_effectif, date_creation_etablissement, etat_administratif, resultat_verification, date_verification, source_api, metadata) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'valide', NOW(), 'insee_sirene', $12) RETURNING *",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}",
-          "{{ $node[\"06. Query API\"].json.siret }}",
-          "{{ $node[\"06. Query API\"].json.siren }}",
-          "{{ $node[\"06. Query API\"].json.denomination }}",
-          "{{ $node[\"06. Query API\"].json.adresse }}",
-          "{{ $node[\"06. Query API\"].json.code_postal }}",
-          "{{ $node[\"06. Query API\"].json.ville }}",
-          "{{ $node[\"06. Query API\"].json.code_naf }}",
-          "{{ $node[\"06. Query API\"].json.tranche_effectif }}",
-          "{{ $node[\"06. Query API\"].json.date_creation_etablissement }}",
-          "{{ $node[\"06. Query API\"].json.etat_administratif }}",
-          "{{ JSON.stringify($node[\"06. Query API\"].json) }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"INSERT INTO verifications_sirene (id, tenant_id, siret, siren, denomination, adresse, code_postal, ville, code_naf, tranche_effectif, date_creation_etablissement, etat_administratif, resultat_verification, date_verification, source_api, metadata) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.siret + \"', '\" + $json.siren + \"', '\" + $json.denomination + \"', '\" + $json.adresse + \"', '\" + $json.code_postal + \"', '\" + $json.ville + \"', '\" + $json.code_naf + \"', '\" + $json.tranche_effectif + \"', '\" + $json.tenantId + \"'0, '\" + $json.tenantId + \"'1, 'valide', NOW(), 'insee_sirene', '\" + $json.tenantId + \"'2) RETURNING *\" }}"
       },
       "credentials": {
         "postgres": {
@@ -125,7 +117,9 @@
       "position": [
         1100,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -142,7 +136,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ JSON.stringify($node[\"08. Format Response\"].json) }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "09. Respond",
       "name": "09. Respond",
@@ -258,5 +252,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-sirene-verifier"
 }

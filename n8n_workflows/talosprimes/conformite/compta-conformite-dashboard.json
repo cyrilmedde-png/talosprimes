@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -32,19 +32,28 @@
     {
       "parameters": {
         "conditions": {
-          "options": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "key": "tenantId",
-              "value": "",
-              "operation": "notEmpty"
+              "id": "03100962-3bc8-4112-b7fb-3f6a1ba4f04c",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         200
@@ -52,8 +61,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+        "responseBody": "={\"success\": false, \"message\": \"Invalid tenantId\"}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,13 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'valide' THEN 1 END) as valides, MAX(date_generation) as dernier_fec FROM fichiers_fec WHERE tenant_id = $1",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'valide' THEN 1 END) as valides, MAX(date_generation) as dernier_fec FROM fichiers_fec WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -88,18 +91,14 @@
       "position": [
         700,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'signe' THEN 1 END) as signes FROM factures_electroniques WHERE tenant_id = $1",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'signe' THEN 1 END) as signes FROM factures_electroniques WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -114,18 +113,14 @@
       "position": [
         900,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmis' THEN 1 END) as transmis FROM e_reportings WHERE tenant_id = $1",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmis' THEN 1 END) as transmis FROM e_reportings WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -140,18 +135,14 @@
       "position": [
         1100,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmise' THEN 1 END) as transmises FROM edi_tva WHERE tenant_id = $1",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmise' THEN 1 END) as transmises FROM edi_tva WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -166,18 +157,14 @@
       "position": [
         1300,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmise' THEN 1 END) as transmises FROM declarations_das2 WHERE tenant_id = $1",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmise' THEN 1 END) as transmises FROM declarations_das2 WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -192,18 +179,14 @@
       "position": [
         1500,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN date_expiration < NOW() THEN 1 END) as expires FROM archives_comptables WHERE tenant_id = $1",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT COUNT(*) as total, COUNT(CASE WHEN date_expiration < NOW() THEN 1 END) as expires FROM archives_comptables WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -218,18 +201,14 @@
       "position": [
         1700,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'ouverte' THEN 1 END) as ouvertes, COUNT(CASE WHEN statut = 'fermee' THEN 1 END) as fermees FROM periodes_comptables WHERE tenant_id = $1",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'ouverte' THEN 1 END) as ouvertes, COUNT(CASE WHEN statut = 'fermee' THEN 1 END) as fermees FROM periodes_comptables WHERE tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -244,7 +223,9 @@
       "position": [
         1900,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -274,7 +255,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ JSON.stringify($node[\"13. Format Response\"].json) }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "14. Respond",
       "name": "14. Respond",
@@ -445,5 +426,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-conformite-dashboard"
 }

@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nif (!uuidRegex.test(body.factureId)) {\n  throw new Error('Invalid factureId format');\n}\n\nconst profils = ['MINIMUM', 'BASIC', 'EN16931'];\nconst profil = body.profil || 'MINIMUM';\nif (!profils.includes(profil)) {\n  throw new Error('Invalid profil: must be MINIMUM, BASIC, or EN16931');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  factureId: body.factureId,\n  profil: profil\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nif (!uuidRegex.test(body.factureId)) {\n  throw new Error('Invalid factureId format');\n}\n\nconst profils = ['MINIMUM', 'BASIC', 'EN16931'];\nconst profil = body.profil || 'MINIMUM';\nif (!profils.includes(profil)) {\n  throw new Error('Invalid profil: must be MINIMUM, BASIC, or EN16931');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  factureId: body.factureId,\n  profil: profil\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -52,8 +52,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Invalid tenantId or factureId\"\n}"
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Invalid tenantId or factureId\"\n}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,7 +67,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT f.*, c.nom, c.siret, c.adresse, c.code_postal, c.ville, c.pays, c.numero_tva FROM factures f LEFT JOIN clients c ON f.client_id = c.id WHERE f.id = '{{ $json.factureId }}' AND f.tenant_id = '{{ $json.tenantId }}'",
+        "query": "={{ \"SELECT f.*, c.nom, c.siret, c.adresse, c.code_postal, c.ville, c.pays, c.numero_tva FROM factures f LEFT JOIN clients c ON f.client_id = c.id WHERE f.id = '{{ $json.factureId }}' AND f.tenant_id = '{{ $json.tenantId }}'\" }}",
         "options": {}
       },
       "credentials": {
@@ -87,7 +87,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM lignes_facture WHERE facture_id = '{{ $json.factureId }}' ORDER BY ordre",
+        "query": "={{ \"SELECT * FROM lignes_facture WHERE facture_id = '{{ $json.factureId }}' ORDER BY ordre\" }}",
         "options": {}
       },
       "credentials": {
@@ -107,7 +107,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT nom_entreprise, siret, numero_tva, adresse, code_postal, ville, pays, email FROM tenants WHERE id = '{{ $json.tenantId }}'",
+        "query": "={{ \"SELECT nom_entreprise, siret, numero_tva, adresse, code_postal, ville, pays, email FROM tenants WHERE id = '{{ $json.tenantId }}'\" }}",
         "options": {}
       },
       "credentials": {
@@ -140,7 +140,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO factures_electroniques (id, tenant_id, facture_id, format, profil, xml_content, statut, date_generation, metadata)\nVALUES (gen_random_uuid(), '{{ $json.tenantId }}', '{{ $json.factureId }}', 'Factur-X', '{{ $json.profil }}', '{{ $json.xmlContent }}', 'generee', NOW(), '{\"lignesCount\": {{ $json.lignesCount }}}'::jsonb)\nRETURNING id, date_generation;",
+        "query": "={{ \"INSERT INTO factures_electroniques (id, tenant_id, facture_id, format, profil, xml_content, statut, date_generation, metadata)\nVALUES (gen_random_uuid(), '{{ $json.tenantId }}', '{{ $json.factureId }}', 'Factur-X', '{{ $json.profil }}', '{{ $json.xmlContent }}', 'generee', NOW(), '{\\\"lignesCount\\\": {{ $json.lignesCount }}}'::jsonb)\nRETURNING id, date_generation;\" }}",
         "options": {}
       },
       "credentials": {
@@ -172,7 +172,8 @@
     },
     {
       "parameters": {
-        "options": {}
+        "options": {},
+        "respondWith": "allIncomingItems"
       },
       "id": "11. Respond",
       "name": "11. Respond",
@@ -298,5 +299,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-facturx-generer"
 }

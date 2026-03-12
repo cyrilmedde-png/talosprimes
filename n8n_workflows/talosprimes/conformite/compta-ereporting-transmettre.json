@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!body.ereportingId || !uuidRegex.test(body.ereportingId)) {\n  throw new Error('Invalid or missing ereportingId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  ereportingId: body.ereportingId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!body.ereportingId || !uuidRegex.test(body.ereportingId)) {\n  throw new Error('Invalid or missing ereportingId');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  ereportingId: body.ereportingId\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -32,19 +32,28 @@
     {
       "parameters": {
         "conditions": {
-          "options": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "key": "tenantId",
-              "value": "",
-              "operation": "notEmpty"
+              "id": "614d599e-e256-4b90-9a87-083ba658a452",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         200
@@ -52,8 +61,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId or ereportingId\"}"
+        "responseBody": "={\"success\": false, \"message\": \"Invalid tenantId or ereportingId\"}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,14 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT * FROM e_reportings WHERE id = $1 AND tenant_id = $2",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.ereportingId }}",
-          "{{ $node[\"02. Parser\"].json.tenantId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT * FROM e_reportings WHERE id = '\" + $json.ereportingId + \"' AND tenant_id = '\" + $json.tenantId + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -89,7 +91,9 @@
       "position": [
         700,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -107,13 +111,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "UPDATE e_reportings SET statut = 'transmis', date_transmission = NOW() WHERE id = $1 RETURNING *",
-        "queryParams": [
-          "{{ $node[\"06. Prepare Payload\"].json.ereportingId }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"UPDATE e_reportings SET statut = 'transmis', date_transmission = NOW() WHERE id = '\" + $json.ereportingId + \"' RETURNING *\" }}"
       },
       "credentials": {
         "postgres": {
@@ -128,20 +126,14 @@
       "position": [
         1100,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "INSERT INTO pistes_audit (id, tenant_id, action, entite, entite_id, donnees, date_action) VALUES (gen_random_uuid(), $1, 'TRANSMISSION_EREPORTING', 'e_reportings', $2, $3, NOW())",
-        "queryParams": [
-          "{{ $node[\"06. Prepare Payload\"].json.tenantId }}",
-          "{{ $node[\"06. Prepare Payload\"].json.ereportingId }}",
-          "{{ JSON.stringify($node[\"06. Prepare Payload\"].json.payload) }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"INSERT INTO pistes_audit (id, tenant_id, action, entite, entite_id, donnees, date_action) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', 'TRANSMISSION_EREPORTING', 'e_reportings', '\" + $json.ereportingId + \"', '\" + $json.payload) + \"', NOW())\" }}"
       },
       "credentials": {
         "postgres": {
@@ -156,7 +148,9 @@
       "position": [
         1300,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -173,7 +167,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ JSON.stringify($node[\"09. Format Response\"].json) }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "10. Respond",
       "name": "10. Respond",
@@ -300,5 +294,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-ereporting-transmettre"
 }

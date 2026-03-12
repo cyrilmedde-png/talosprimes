@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nif (!uuidRegex.test(body.archiveId)) {\n  throw new Error('Invalid archiveId format');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  archiveId: body.archiveId\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nif (!uuidRegex.test(body.archiveId)) {\n  throw new Error('Invalid archiveId format');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  archiveId: body.archiveId\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -52,8 +52,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Invalid tenantId or archiveId\"\n}"
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Invalid tenantId or archiveId\"\n}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,7 +67,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM archives_comptables WHERE id = '{{ $json.archiveId }}' AND tenant_id = '{{ $json.tenantId }}'",
+        "query": "={{ \"SELECT * FROM archives_comptables WHERE id = '{{ $json.archiveId }}' AND tenant_id = '{{ $json.tenantId }}'\" }}",
         "options": {}
       },
       "credentials": {
@@ -100,7 +100,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE archives_comptables\nSET statut = CASE WHEN {{ $json.hashValid }} AND NOT {{ $json.isExpired }} THEN 'verifie' ELSE 'erreur' END,\n    metadata = jsonb_set(metadata, '{verification}', '{\"hashValid\": {{ $json.hashValid }}, \"isExpired\": {{ $json.isExpired }}, \"verifiedAt\": \"{{ new Date().toISOString() }}\"}'::jsonb)\nWHERE id = '{{ $json.archiveId }}' AND tenant_id = '{{ $json.tenantId }}'\nRETURNING id, statut, metadata;",
+        "query": "={{ \"UPDATE archives_comptables\nSET statut = CASE WHEN {{ $json.hashValid }} AND NOT {{ $json.isExpired }} THEN 'verifie' ELSE 'erreur' END,\n    metadata = jsonb_set(metadata, '{verification}', '{\\\"hashValid\\\": {{ $json.hashValid }}, \\\"isExpired\\\": {{ $json.isExpired }}, \\\"verifiedAt\\\": \\\"{{ new Date().toISOString() }}\\\"}'::jsonb)\nWHERE id = '{{ $json.archiveId }}' AND tenant_id = '{{ $json.tenantId }}'\nRETURNING id, statut, metadata;\" }}",
         "options": {}
       },
       "credentials": {
@@ -132,7 +132,8 @@
     },
     {
       "parameters": {
-        "options": {}
+        "options": {},
+        "respondWith": "allIncomingItems"
       },
       "id": "09. Respond",
       "name": "09. Respond",
@@ -238,5 +239,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-archive-verifier"
 }

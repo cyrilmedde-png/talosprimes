@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  periodeDebut: body.periodeDebut,\n  periodeFin: body.periodeFin,\n  typeDeclaration: body.typeDeclaration\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  periodeDebut: body.periodeDebut,\n  periodeFin: body.periodeFin,\n  typeDeclaration: body.typeDeclaration\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -32,19 +32,28 @@
     {
       "parameters": {
         "conditions": {
-          "options": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "key": "tenantId",
-              "value": "",
-              "operation": "notEmpty"
+              "id": "1609bb54-c0be-4ac7-937f-099af385d20c",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         200
@@ -52,8 +61,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+        "responseBody": "={\"success\": false, \"message\": \"Invalid tenantId\"}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,15 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT SUM(CASE WHEN compte LIKE '4457%' THEN montant ELSE 0 END) as tva_collectee, SUM(CASE WHEN compte LIKE '44566%' OR compte LIKE '44562%' THEN montant ELSE 0 END) as tva_deductible FROM ecritures WHERE tenant_id = $1 AND date >= $2 AND date <= $3 AND statut = 'validee'",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}",
-          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
-          "{{ $node[\"02. Parser\"].json.periodeFin }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT SUM(CASE WHEN compte LIKE '4457%' THEN montant ELSE 0 END) as tva_collectee, SUM(CASE WHEN compte LIKE '44566%' OR compte LIKE '44562%' THEN montant ELSE 0 END) as tva_deductible FROM ecritures WHERE tenant_id = '\" + $json.tenantId + \"' AND date >= '\" + $json.periodeDebut + \"' AND date <= '\" + $json.periodeFin + \"' AND statut = 'validee'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -90,7 +91,9 @@
       "position": [
         700,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -108,20 +111,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "INSERT INTO edi_tva (id, tenant_id, type_declaration, periode_debut, periode_fin, tva_collectee, tva_deductible, tva_nette, donnees_edifact, statut, date_generation) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, 'en_attente', NOW()) RETURNING *",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}",
-          "{{ $node[\"02. Parser\"].json.typeDeclaration }}",
-          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
-          "{{ $node[\"02. Parser\"].json.periodeFin }}",
-          "{{ $node[\"06. Build EDIFACT\"].json.tva_collectee }}",
-          "{{ $node[\"06. Build EDIFACT\"].json.tva_deductible }}",
-          "{{ $node[\"06. Build EDIFACT\"].json.tva_nette }}",
-          "{{ JSON.stringify($node[\"06. Build EDIFACT\"].json.edifact_message) }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"INSERT INTO edi_tva (id, tenant_id, type_declaration, periode_debut, periode_fin, tva_collectee, tva_deductible, tva_nette, donnees_edifact, statut, date_generation) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.typeDeclaration + \"', '\" + $json.periodeDebut + \"', '\" + $json.periodeFin + \"', '\" + $json.tva_collectee + \"', '\" + $json.tva_deductible + \"', '\" + $json.tva_nette + \"', '\" + $json.edifact_message) + \"', 'en_attente', NOW()) RETURNING *\" }}"
       },
       "credentials": {
         "postgres": {
@@ -136,7 +126,9 @@
       "position": [
         1100,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -153,7 +145,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ JSON.stringify($node[\"08. Format Response\"].json) }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "09. Respond",
       "name": "09. Respond",
@@ -269,5 +261,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-edi-tva-generer"
 }

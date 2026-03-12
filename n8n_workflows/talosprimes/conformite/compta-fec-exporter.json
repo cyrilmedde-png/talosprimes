@@ -78,7 +78,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"Validation failed - invalid tenantId\" }"
+        "responseBody": "=={ \"success\": false, \"error\": \"Validation failed - invalid tenantId\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -295,5 +295,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-fec-exporter"
 }

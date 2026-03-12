@@ -87,7 +87,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={ \"success\": false, \"error\": \"tenantId et periodeId requis\" }"
+        "responseBody": "=={ \"success\": false, \"error\": \"tenantId et periodeId requis\" }"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -176,7 +176,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: false, error: $json.nb_brouillons + \" écritures en brouillon, veuillez les valider d'abord\" } }}"
+        "responseBody": "=={{ { success: false, error: $json.nb_brouillons + \" écritures en brouillon, veuillez les valider d'abord\" } }}"
       },
       "id": "07b. Respond Brouillon Error",
       "name": "07b. Respond Brouillon Error",
@@ -343,5 +343,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "Compta - Periode Cloturer (compta-periode-cloturer)"
 }

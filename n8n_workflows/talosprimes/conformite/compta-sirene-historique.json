@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  siret: body.siret || null,\n  page: body.page || 1,\n  limit: body.limit || 20\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  siret: body.siret || null,\n  page: body.page || 1,\n  limit: body.limit || 20\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -32,19 +32,28 @@
     {
       "parameters": {
         "conditions": {
-          "options": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "key": "tenantId",
-              "value": "",
-              "operation": "notEmpty"
+              "id": "7c13e822-42e8-48bb-93cb-962fcdc70eeb",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         200
@@ -52,8 +61,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+        "responseBody": "={\"success\": false, \"message\": \"Invalid tenantId\"}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,16 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT id, tenant_id, siret, siren, denomination, adresse, code_postal, ville, code_naf, tranche_effectif, date_creation_etablissement, etat_administratif, resultat_verification, date_verification FROM verifications_sirene WHERE tenant_id = $1 AND ($2::text IS NULL OR siret = $2) ORDER BY date_verification DESC LIMIT $3 OFFSET $4",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}",
-          "{{ $node[\"02. Parser\"].json.siret }}",
-          "{{ $node[\"02. Parser\"].json.limit }}",
-          "{{ ($node[\"02. Parser\"].json.page - 1) * $node[\"02. Parser\"].json.limit }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT id, tenant_id, siret, siren, denomination, adresse, code_postal, ville, code_naf, tranche_effectif, date_creation_etablissement, etat_administratif, resultat_verification, date_verification FROM verifications_sirene WHERE tenant_id = '\" + $json.tenantId + \"' AND ('\" + $json.siret + \"'::text IS NULL OR siret = '\" + $json.siret + \"') ORDER BY date_verification DESC LIMIT '\" + $json.limit + \"' OFFSET '\" + $json.limit + \"'\" }}"
       },
       "credentials": {
         "postgres": {
@@ -91,7 +91,9 @@
       "position": [
         700,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -108,7 +110,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ JSON.stringify($node[\"06. Format Response\"].json) }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "07. Respond",
       "name": "07. Respond",
@@ -202,5 +204,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-sirene-historique"
 }

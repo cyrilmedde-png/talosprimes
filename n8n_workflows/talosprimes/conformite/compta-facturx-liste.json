@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nconst profils = ['MINIMUM', 'BASIC', 'EN16931'];\nconst statuts = ['generee', 'transmise', 'acceptee', 'refusee'];\n\nreturn {\n  tenantId: body.tenantId,\n  profil: body.profil || null,\n  statut: body.statut || null,\n  page: body.page || 1,\n  limit: body.limit || 50\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nconst profils = ['MINIMUM', 'BASIC', 'EN16931'];\nconst statuts = ['generee', 'transmise', 'acceptee', 'refusee'];\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  profil: body.profil || null,\n  statut: body.statut || null,\n  page: body.page || 1,\n  limit: body.limit || 50\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -52,8 +52,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Invalid tenantId\"\n}"
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Invalid tenantId\"\n}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,7 +67,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as total FROM factures_electroniques WHERE tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND statut = '{{ $json.statut }}'\n{% endif %}",
+        "query": "={{ \"SELECT COUNT(*) as total FROM factures_electroniques WHERE tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND statut = '{{ $json.statut }}'\n{% endif %}\" }}",
         "options": {}
       },
       "credentials": {
@@ -87,7 +87,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT fe.id, fe.facture_id, fe.format, fe.profil, fe.statut, fe.date_generation, fe.date_transmission, fe.plateforme, fe.identifiant_ppf, f.numero_facture, f.montant_ttc, c.nom as client_nom FROM factures_electroniques fe LEFT JOIN factures f ON fe.facture_id = f.id LEFT JOIN clients c ON f.client_id = c.id WHERE fe.tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND fe.profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND fe.statut = '{{ $json.statut }}'\n{% endif %}\nORDER BY fe.date_generation DESC\nLIMIT {{ $json.limit }} OFFSET {{ ($json.page - 1) * $json.limit }}",
+        "query": "={{ \"SELECT fe.id, fe.facture_id, fe.format, fe.profil, fe.statut, fe.date_generation, fe.date_transmission, fe.plateforme, fe.identifiant_ppf, f.numero_facture, f.montant_ttc, c.nom as client_nom FROM factures_electroniques fe LEFT JOIN factures f ON fe.facture_id = f.id LEFT JOIN clients c ON f.client_id = c.id WHERE fe.tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND fe.profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND fe.statut = '{{ $json.statut }}'\n{% endif %}\nORDER BY fe.date_generation DESC\nLIMIT {{ $json.limit }} OFFSET {{ ($json.page - 1) * $json.limit }}\" }}",
         "options": {}
       },
       "credentials": {
@@ -119,7 +119,8 @@
     },
     {
       "parameters": {
-        "options": {}
+        "options": {},
+        "respondWith": "allIncomingItems"
       },
       "id": "08. Respond",
       "name": "08. Respond",
@@ -215,5 +216,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-facturx-liste"
 }

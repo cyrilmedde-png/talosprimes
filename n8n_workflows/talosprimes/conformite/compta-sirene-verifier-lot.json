@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!Array.isArray(body.sirets) || body.sirets.length === 0) {\n  throw new Error('sirets must be a non-empty array');\n}\n\n// Validate each SIRET\nbody.sirets.forEach(siret => {\n  if (!/^\\d{14}$/.test(siret)) {\n    throw new Error(`Invalid SIRET format: ${siret}`);\n  }\n});\n\nreturn {\n  tenantId: body.tenantId,\n  sirets: body.sirets\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!Array.isArray(body.sirets) || body.sirets.length === 0) {\n  throw new Error('sirets must be a non-empty array');\n}\n\n// Validate each SIRET\nbody.sirets.forEach(siret => {\n  if (!/^\\d{14}$/.test(siret)) {\n    throw new Error(`Invalid SIRET format: ${siret}`);\n  }\n});\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  sirets: body.sirets\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -32,19 +32,28 @@
     {
       "parameters": {
         "conditions": {
-          "options": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "key": "tenantId",
-              "value": "",
-              "operation": "notEmpty"
+              "id": "51c8cccd-5649-4da8-977b-ea738e64816d",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         200
@@ -52,8 +61,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId or sirets\"}"
+        "responseBody": "={\"success\": false, \"message\": \"Invalid tenantId or sirets\"}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -93,24 +102,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "INSERT INTO verifications_sirene (id, tenant_id, siret, siren, denomination, adresse, code_postal, ville, code_naf, tranche_effectif, date_creation_etablissement, etat_administratif, resultat_verification, date_verification, source_api, metadata) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'valide', NOW(), 'insee_sirene', $12) ON CONFLICT DO NOTHING",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}",
-          "{{ $response.json.siret }}",
-          "{{ $response.json.siren }}",
-          "{{ $response.json.denomination }}",
-          "{{ $response.json.adresse }}",
-          "{{ $response.json.code_postal }}",
-          "{{ $response.json.ville }}",
-          "{{ $response.json.code_naf }}",
-          "{{ $response.json.tranche_effectif }}",
-          "{{ $response.json.date_creation_etablissement }}",
-          "{{ $response.json.etat_administratif }}",
-          "{{ JSON.stringify($response.json) }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"INSERT INTO verifications_sirene (id, tenant_id, siret, siren, denomination, adresse, code_postal, ville, code_naf, tranche_effectif, date_creation_etablissement, etat_administratif, resultat_verification, date_verification, source_api, metadata) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.siret + \"', '\" + $json.siren + \"', '\" + $json.denomination + \"', '\" + $json.adresse + \"', '\" + $json.code_postal + \"', '\" + $json.ville + \"', '\" + $json.code_naf + \"', '\" + $json.tranche_effectif + \"', '\" + $json.tenantId + \"'0, '\" + $json.tenantId + \"'1, 'valide', NOW(), 'insee_sirene', '\" + $json.tenantId + \"'2) ON CONFLICT DO NOTHING\" }}"
       },
       "credentials": {
         "postgres": {
@@ -125,7 +117,9 @@
       "position": [
         1100,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -142,7 +136,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ JSON.stringify($node[\"08. Format Response\"].json) }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "09. Respond",
       "name": "09. Respond",
@@ -258,5 +252,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-sirene-verifier-lot"
 }

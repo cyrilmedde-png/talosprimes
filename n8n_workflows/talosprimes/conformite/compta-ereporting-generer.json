@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse and validate body\nconst body = $input.all()[0].json.body;\n\n// UUID regex pattern\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  periodeDebut: body.periodeDebut,\n  periodeFin: body.periodeFin,\n  type: body.type\n};"
+        "jsCode": "// Parse and validate body\nconst body = $input.first().json.body || $input.first().json;\n\n// UUID regex pattern\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  periodeDebut: body.periodeDebut,\n  periodeFin: body.periodeFin,\n  type: body.type\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -32,19 +32,28 @@
     {
       "parameters": {
         "conditions": {
-          "options": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "key": "tenantId",
-              "value": "",
-              "operation": "notEmpty"
+              "id": "98e25d1f-7327-4b1f-baea-3f26dd1e9dc1",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         500,
         200
@@ -52,8 +61,8 @@
     },
     {
       "parameters": {
-        "respondWithCode": 400,
-        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+        "responseBody": "={\"success\": false, \"message\": \"Invalid tenantId\"}",
+        "respondWith": "json"
       },
       "id": "04. Respond Error",
       "name": "04. Respond Error",
@@ -67,16 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "SELECT f.id, f.tenant_id, f.client_id, f.date, f.montant_ht, f.montant_tva, f.montant_ttc, f.taux_tva, c.siret, c.tva_number, c.pays FROM factures f LEFT JOIN clients c ON f.client_id = c.id WHERE f.tenant_id = $1 AND f.date >= $2 AND f.date <= $3 AND ((($4 = 'B2C' AND (c.siret IS NULL OR c.tva_number IS NULL)) OR ($4 = 'INTERNATIONAL' AND c.pays != 'FR')))",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}",
-          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
-          "{{ $node[\"02. Parser\"].json.periodeFin }}",
-          "{{ $node[\"02. Parser\"].json.type }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"SELECT f.id, f.tenant_id, f.client_id, f.date, f.montant_ht, f.montant_tva, f.montant_ttc, f.taux_tva, c.siret, c.tva_number, c.pays FROM factures f LEFT JOIN clients c ON f.client_id = c.id WHERE f.tenant_id = '\" + $json.tenantId + \"' AND f.date >= '\" + $json.periodeDebut + \"' AND f.date <= '\" + $json.periodeFin + \"' AND ((('\" + $json.type + \"' = 'B2C' AND (c.siret IS NULL OR c.tva_number IS NULL)) OR ('\" + $json.type + \"' = 'INTERNATIONAL' AND c.pays != 'FR')))\" }}"
       },
       "credentials": {
         "postgres": {
@@ -91,7 +91,9 @@
       "position": [
         700,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -109,21 +111,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "resource": "query",
-        "query": "INSERT INTO e_reportings (id, tenant_id, type, periode_debut, periode_fin, nombre_transactions, montant_total_ht, montant_total_tva, montant_total_ttc, donnees, statut, date_generation) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, 'en_attente', NOW()) RETURNING *",
-        "queryParams": [
-          "{{ $node[\"02. Parser\"].json.tenantId }}",
-          "{{ $node[\"02. Parser\"].json.type }}",
-          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
-          "{{ $node[\"02. Parser\"].json.periodeFin }}",
-          "{{ $node[\"06. Build Report\"].json.count }}",
-          "{{ $node[\"06. Build Report\"].json.totalHT }}",
-          "{{ $node[\"06. Build Report\"].json.totalTVA }}",
-          "{{ $node[\"06. Build Report\"].json.totalTTC }}",
-          "{{ JSON.stringify($node[\"06. Build Report\"].json) }}"
-        ],
-        "alwaysOutputData": true,
-        "continueOnFail": true
+        "query": "={{ \"INSERT INTO e_reportings (id, tenant_id, type, periode_debut, periode_fin, nombre_transactions, montant_total_ht, montant_total_tva, montant_total_ttc, donnees, statut, date_generation) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.type + \"', '\" + $json.periodeDebut + \"', '\" + $json.periodeFin + \"', '\" + $json.count + \"', '\" + $json.totalHT + \"', '\" + $json.totalTVA + \"', '\" + $json.totalTTC + \"', '\" + $json.json) + \"', 'en_attente', NOW()) RETURNING *\" }}"
       },
       "credentials": {
         "postgres": {
@@ -138,7 +126,9 @@
       "position": [
         1100,
         200
-      ]
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -155,7 +145,7 @@
     },
     {
       "parameters": {
-        "responseBody": "{{ JSON.stringify($node[\"08. Format Response\"].json) }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "09. Respond",
       "name": "09. Respond",
@@ -271,5 +261,6 @@
   "active": true,
   "settings": {
     "executionOrder": "v1"
-  }
+  },
+  "id": "compta-ereporting-generer"
 }
