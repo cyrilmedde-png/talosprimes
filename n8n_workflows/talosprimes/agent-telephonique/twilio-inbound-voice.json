@@ -41,7 +41,7 @@
       "id": "03. Load Config + KB",
       "name": "03. Load Config + KB",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         540,
         300
@@ -112,7 +112,6 @@
     },
     {
       "parameters": {
-        "agent": "toolsAgent",
         "promptType": "define",
         "text": "={{ $('04. Router').first().json.speechResult }}",
         "options": {
@@ -124,7 +123,7 @@
       "id": "07. Agent IA Orchestrateur",
       "name": "07. Agent IA Orchestrateur",
       "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 2,
+      "typeVersion": 3.1,
       "position": [
         1200,
         180
@@ -176,7 +175,7 @@
       "id": "10. Execute Tool SQL",
       "name": "10. Execute Tool SQL",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1720,
         440
@@ -197,7 +196,7 @@
       "id": "11. Log Call",
       "name": "11. Log Call",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         1940,
         440
@@ -211,7 +210,11 @@
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
         "options": {
           "temperature": 0.3,
           "maxTokens": 200
@@ -220,15 +223,15 @@
       "id": "LLM: GPT-4o-mini",
       "name": "LLM: GPT-4o-mini",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1,
+      "typeVersion": 1.3,
       "position": [
         1200,
         600
       ],
       "credentials": {
         "openAiApi": {
-          "name": "OpenAi account",
-          "id": "nSSLzITn7UjPcRBc"
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
         }
       }
     },
