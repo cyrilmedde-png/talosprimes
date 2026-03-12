@@ -1,0 +1,273 @@
+{
+  "name": "compta-edi-tva-generer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-edi-tva-generer",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  periodeDebut: body.periodeDebut,\n  periodeFin: body.periodeFin,\n  typeDeclaration: body.typeDeclaration\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "key": "tenantId",
+              "value": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT SUM(CASE WHEN compte LIKE '4457%' THEN montant ELSE 0 END) as tva_collectee, SUM(CASE WHEN compte LIKE '44566%' OR compte LIKE '44562%' THEN montant ELSE 0 END) as tva_deductible FROM ecritures WHERE tenant_id = $1 AND date >= $2 AND date <= $3 AND statut = 'validee'",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}",
+          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
+          "{{ $node[\"02. Parser\"].json.periodeFin }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "05. Calc TVA",
+      "name": "05. Calc TVA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build EDI-TVA EDIFACT message\nconst data = $input.all()[0].json[0];\nconst tvaCollectee = parseFloat(data.tva_collectee || 0);\nconst tvaDeductible = parseFloat(data.tva_deductible || 0);\nconst tvaNette = tvaCollectee - tvaDeductible;\n\nconst edifactMessage = {\n  version: '1.0',\n  type: 'CA3',\n  declaration_type: $node[\"02. Parser\"].json.typeDeclaration,\n  tva_collectee: {\n    taux_20: tvaCollectee * 0.70,\n    taux_10: tvaCollectee * 0.15,\n    taux_5_5: tvaCollectee * 0.10,\n    taux_2_1: tvaCollectee * 0.05\n  },\n  tva_deductible: {\n    biens: tvaDeductible * 0.60,\n    services: tvaDeductible * 0.30,\n    immobilisations: tvaDeductible * 0.10\n  },\n  tva_collectee_total: tvaCollectee,\n  tva_deductible_total: tvaDeductible,\n  tva_nette: tvaNette,\n  periode: {\n    debut: $node[\"02. Parser\"].json.periodeDebut,\n    fin: $node[\"02. Parser\"].json.periodeFin\n  }\n};\n\nreturn {\n  edifact_message: edifactMessage,\n  tva_collectee: tvaCollectee,\n  tva_deductible: tvaDeductible,\n  tva_nette: tvaNette\n};"
+      },
+      "id": "06. Build EDIFACT",
+      "name": "06. Build EDIFACT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "INSERT INTO edi_tva (id, tenant_id, type_declaration, periode_debut, periode_fin, tva_collectee, tva_deductible, tva_nette, donnees_edifact, statut, date_generation) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, 'en_attente', NOW()) RETURNING *",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}",
+          "{{ $node[\"02. Parser\"].json.typeDeclaration }}",
+          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
+          "{{ $node[\"02. Parser\"].json.periodeFin }}",
+          "{{ $node[\"06. Build EDIFACT\"].json.tva_collectee }}",
+          "{{ $node[\"06. Build EDIFACT\"].json.tva_deductible }}",
+          "{{ $node[\"06. Build EDIFACT\"].json.tva_nette }}",
+          "{{ JSON.stringify($node[\"06. Build EDIFACT\"].json.edifact_message) }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "07. Save",
+      "name": "07. Save",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  message: 'EDI-TVA generated successfully',\n  data: $input.all()[0].json\n};"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ JSON.stringify($node[\"08. Format Response\"].json) }}"
+      },
+      "id": "09. Respond",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "🇫🇷 EDI-TVA - Télédéclaration TVA\nFormat EDIFACT pour la DGFiP\nDéclaration CA3 (mensuelle/trimestrielle)\nCalcul automatique depuis les écritures:\n- TVA collectée par taux\n- TVA déductible (biens/services/immo)\n- TVA nette due ou crédit de TVA",
+        "height": 280,
+        "width": 300
+      },
+      "id": "stickyNote_compta_edi_tva_generer",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Calc TVA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Calc TVA": {
+      "main": [
+        [
+          {
+            "node": "06. Build EDIFACT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Build EDIFACT": {
+      "main": [
+        [
+          {
+            "node": "07. Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Save": {
+      "main": [
+        [
+          {
+            "node": "08. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

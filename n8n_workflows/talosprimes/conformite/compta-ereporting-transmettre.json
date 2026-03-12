@@ -1,0 +1,304 @@
+{
+  "name": "compta-ereporting-transmettre",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-ereporting-transmettre",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!body.ereportingId || !uuidRegex.test(body.ereportingId)) {\n  throw new Error('Invalid or missing ereportingId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  ereportingId: body.ereportingId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "key": "tenantId",
+              "value": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId or ereportingId\"}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT * FROM e_reportings WHERE id = $1 AND tenant_id = $2",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.ereportingId }}",
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "05. Get Record",
+      "name": "05. Get Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare transmission payload for PPF API\nconst record = $input.all()[0].json[0];\nconst payload = {\n  type: record.type,\n  periodeDebut: record.periode_debut,\n  periodeFin: record.periode_fin,\n  nombreTransactions: record.nombre_transactions,\n  montantTotalHT: record.montant_total_ht,\n  montantTotalTVA: record.montant_total_tva,\n  montantTotalTTC: record.montant_total_ttc,\n  donnees: JSON.parse(record.donnees)\n};\n\nreturn {\n  payload: payload,\n  ereportingId: record.id,\n  tenantId: record.tenant_id\n};"
+      },
+      "id": "06. Prepare Payload",
+      "name": "06. Prepare Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "UPDATE e_reportings SET statut = 'transmis', date_transmission = NOW() WHERE id = $1 RETURNING *",
+        "queryParams": [
+          "{{ $node[\"06. Prepare Payload\"].json.ereportingId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "07. Update Status",
+      "name": "07. Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "INSERT INTO pistes_audit (id, tenant_id, action, entite, entite_id, donnees, date_action) VALUES (gen_random_uuid(), $1, 'TRANSMISSION_EREPORTING', 'e_reportings', $2, $3, NOW())",
+        "queryParams": [
+          "{{ $node[\"06. Prepare Payload\"].json.tenantId }}",
+          "{{ $node[\"06. Prepare Payload\"].json.ereportingId }}",
+          "{{ JSON.stringify($node[\"06. Prepare Payload\"].json.payload) }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "08. Log Audit",
+      "name": "08. Log Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  message: 'E-reporting transmitted successfully',\n  data: $node[\"07. Update Status\"].json\n};"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ JSON.stringify($node[\"09. Format Response\"].json) }}"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "📤 Transmission E-Reporting au PPF\nTransmet les données de transactions\nB2C/internationales au Portail Public\nMaj statut 'transmis' + log audit",
+        "height": 200,
+        "width": 300
+      },
+      "id": "stickyNote_compta_ereporting_transmettre",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Record": {
+      "main": [
+        [
+          {
+            "node": "06. Prepare Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Prepare Payload": {
+      "main": [
+        [
+          {
+            "node": "07. Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Update Status": {
+      "main": [
+        [
+          {
+            "node": "08. Log Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Log Audit": {
+      "main": [
+        [
+          {
+            "node": "09. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Format Response": {
+      "main": [
+        [
+          {
+            "node": "10. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

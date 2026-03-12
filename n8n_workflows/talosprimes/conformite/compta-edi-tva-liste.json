@@ -1,0 +1,205 @@
+{
+  "name": "compta-edi-tva-liste",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-edi-tva-liste",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  page: body.page || 1,\n  limit: body.limit || 20\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "key": "tenantId",
+              "value": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT id, tenant_id, type_declaration, periode_debut, periode_fin, tva_collectee, tva_deductible, tva_nette, statut, date_generation FROM edi_tva WHERE tenant_id = $1 ORDER BY date_generation DESC LIMIT $2 OFFSET $3",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}",
+          "{{ $node[\"02. Parser\"].json.limit }}",
+          "{{ ($node[\"02. Parser\"].json.page - 1) * $node[\"02. Parser\"].json.limit }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "05. Get List",
+      "name": "05. Get List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  page: $node[\"02. Parser\"].json.page,\n  limit: $node[\"02. Parser\"].json.limit,\n  data: $input.all()[0].json\n};"
+      },
+      "id": "06. Format Response",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ JSON.stringify($node[\"06. Format Response\"].json) }}"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "📋 Historique des déclarations EDI-TVA\nAffiche toutes les déclarations\ngénérées avec pagination",
+        "height": 180,
+        "width": 280
+      },
+      "id": "stickyNote_compta_edi_tva_liste",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get List": {
+      "main": [
+        [
+          {
+            "node": "06. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Format Response": {
+      "main": [
+        [
+          {
+            "node": "07. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

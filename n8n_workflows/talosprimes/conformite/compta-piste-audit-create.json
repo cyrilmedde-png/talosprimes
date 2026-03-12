@@ -1,0 +1,307 @@
+{
+  "name": "Compta - Piste Audit Create (compta-piste-audit-create)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Ajout étape Piste d'Audit\nChaque action sur un document commercial\nest enregistrée avec un hash de chaîne\ngarantissant l'intégrité chronologique.\nHashage: SHA256(hash_precedent + données)",
+        "height": 320,
+        "width": 350,
+        "color": 3
+      },
+      "id": "sticky-note",
+      "name": "➕ Ajout étape Piste d'Audit",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta-piste-audit-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = String(body.tenantId || '');\nvar documentType = String(body.documentType || '');\nvar documentId = String(body.documentId || '');\nvar etape = String(body.etape || '');\nvar etapePrecedente = body.etapePrecedente ? String(body.etapePrecedente) : null;\nvar etapeSuivante = body.etapeSuivante ? String(body.etapeSuivante) : null;\nvar commentaire = body.commentaire ? String(body.commentaire) : null;\nvar utilisateur = body.utilisateur ? String(body.utilisateur) : 'system';\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !UUID_RE.test(tenantId)) {\n  throw new Error('Tenant ID requis et doit être un UUID valide');\n}\nif (!documentId || !UUID_RE.test(documentId)) {\n  throw new Error('Document ID requis et doit être un UUID valide');\n}\nif (!documentType) {\n  throw new Error('Document Type requis (devis|commande|livraison|facture|ecriture|paiement)');\n}\nif (!etape) {\n  throw new Error('Etape requise (CREATION|VALIDATION|ENVOI|ACCEPTATION|PAIEMENT|CLOTURE)');\n}\n\nreturn [{\n  json: {\n    tenantId: tenantId,\n    documentType: documentType,\n    documentId: documentId,\n    etape: etape,\n    etapePrecedente: etapePrecedente,\n    etapeSuivante: etapeSuivante,\n    commentaire: commentaire,\n    utilisateur: utilisateur,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "val-doc",
+              "leftValue": "={{ $json.documentId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "val-etape",
+              "leftValue": "={{ $json.etape }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId, documentId, etape requis\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT hash_verification FROM pistes_audit WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND document_type = '\" + $('02. Parser').first().json.documentType.replace(/'/g, \"''\") + \"' AND document_id = '\" + $('02. Parser').first().json.documentId + \"' ORDER BY date_etape DESC LIMIT 1\" }}"
+      },
+      "id": "05. Get Previous",
+      "name": "05. Get Previous",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var crypto = require('crypto');\nvar parser = $('02. Parser').first().json;\nvar prevData = $('05. Get Previous').first().json;\nvar previousHash = prevData && prevData.hash_verification ? prevData.hash_verification : '';\n\nvar dataToHash = previousHash + parser.documentType + parser.documentId + parser.etape + parser.timestamp;\nvar hashHex = crypto.createHash('sha256').update(dataToHash).digest('hex');\n\nreturn [{\n  json: {\n    previousHash: previousHash,\n    currentHash: hashHex,\n    dataToHash: dataToHash\n  }\n}];"
+      },
+      "id": "06. Build Hash",
+      "name": "06. Build Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var parser = $('02. Parser').first().json;\nvar hash = $('06. Build Hash').first().json;\nvar commentaire = parser.commentaire ? parser.commentaire.replace(/'/g, \"''\") : '';\nvar utilisateur = parser.utilisateur.replace(/'/g, \"''\");\n\nvar metadata = JSON.stringify({\n  hash_chain_valid: true,\n  previous_hash: hash.previousHash\n}).replace(/'/g, \"''\");\n\nvar query = \"INSERT INTO pistes_audit (id, tenant_id, document_type, document_id, etape, etape_precedente, etape_suivante, date_etape, utilisateur, commentaire, hash_verification, metadata, created_at) \" +\n  \"VALUES (gen_random_uuid(), '\" + parser.tenantId + \"', '\" + parser.documentType + \"', '\" + parser.documentId + \"', '\" + parser.etape + \"', \" +\n  (parser.etapePrecedente ? \"'\" + parser.etapePrecedente + \"'\" : \"NULL\") + \", \" +\n  (parser.etapeSuivante ? \"'\" + parser.etapeSuivante + \"'\" : \"NULL\") + \", \" +\n  \"'\" + parser.timestamp + \"', '\" + utilisateur + \"', '\" + commentaire + \"', '\" + hash.currentHash + \"', '\" + metadata + \"', NOW()) \" +\n  \"RETURNING *\";\n\nreturn [{\n  json: {\n    query: query,\n    currentHash: hash.currentHash\n  }\n}];"
+      },
+      "id": "07. Build Insert",
+      "name": "07. Build Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "07b. Execute Insert",
+      "name": "07b. Execute Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1300,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $input.all();\nvar entry = items.map(function(item) { return item.json; }).filter(function(r) { return r && r.id; })[0];\n\nif (!entry) {\n  return [{json: {success: false, error: 'Création piste audit échouée'}}];\n}\n\nreturn [{json: {\n  success: true,\n  entry: {\n    id: entry.id,\n    documentType: entry.document_type,\n    documentId: entry.document_id,\n    etape: entry.etape,\n    dateEtape: entry.date_etape,\n    utilisateur: entry.utilisateur,\n    hashVerification: entry.hash_verification,\n    createdAt: entry.created_at\n  }\n}}];"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "09. Respond",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Previous",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Previous": {
+      "main": [
+        [
+          {
+            "node": "06. Build Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Build Hash": {
+      "main": [
+        [
+          {
+            "node": "07. Build Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Build Insert": {
+      "main": [
+        [
+          {
+            "node": "07b. Execute Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07b. Execute Insert": {
+      "main": [
+        [
+          {
+            "node": "08. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,275 @@
+{
+  "name": "compta-ereporting-generer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-ereporting-generer",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate body\nconst body = $input.all()[0].json.body;\n\n// UUID regex pattern\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  periodeDebut: body.periodeDebut,\n  periodeFin: body.periodeFin,\n  type: body.type\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "key": "tenantId",
+              "value": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT f.id, f.tenant_id, f.client_id, f.date, f.montant_ht, f.montant_tva, f.montant_ttc, f.taux_tva, c.siret, c.tva_number, c.pays FROM factures f LEFT JOIN clients c ON f.client_id = c.id WHERE f.tenant_id = $1 AND f.date >= $2 AND f.date <= $3 AND ((($4 = 'B2C' AND (c.siret IS NULL OR c.tva_number IS NULL)) OR ($4 = 'INTERNATIONAL' AND c.pays != 'FR')))",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}",
+          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
+          "{{ $node[\"02. Parser\"].json.periodeFin }}",
+          "{{ $node[\"02. Parser\"].json.type }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "05. Get Transactions",
+      "name": "05. Get Transactions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate transactions by TVA rate\nconst transactions = $input.all()[0].json;\nconst aggregated = {};\nlet totalHT = 0, totalTVA = 0, totalTTC = 0, count = 0;\n\nif (Array.isArray(transactions)) {\n  transactions.forEach(t => {\n    const rate = t.taux_tva || 'standard';\n    if (!aggregated[rate]) aggregated[rate] = { ht: 0, tva: 0, ttc: 0, count: 0 };\n    aggregated[rate].ht += parseFloat(t.montant_ht || 0);\n    aggregated[rate].tva += parseFloat(t.montant_tva || 0);\n    aggregated[rate].ttc += parseFloat(t.montant_ttc || 0);\n    aggregated[rate].count += 1;\n    totalHT += parseFloat(t.montant_ht || 0);\n    totalTVA += parseFloat(t.montant_tva || 0);\n    totalTTC += parseFloat(t.montant_ttc || 0);\n    count += 1;\n  });\n}\n\nreturn {\n  transactions: aggregated,\n  totalHT: totalHT,\n  totalTVA: totalTVA,\n  totalTTC: totalTTC,\n  count: count\n};"
+      },
+      "id": "06. Build Report",
+      "name": "06. Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "INSERT INTO e_reportings (id, tenant_id, type, periode_debut, periode_fin, nombre_transactions, montant_total_ht, montant_total_tva, montant_total_ttc, donnees, statut, date_generation) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, 'en_attente', NOW()) RETURNING *",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}",
+          "{{ $node[\"02. Parser\"].json.type }}",
+          "{{ $node[\"02. Parser\"].json.periodeDebut }}",
+          "{{ $node[\"02. Parser\"].json.periodeFin }}",
+          "{{ $node[\"06. Build Report\"].json.count }}",
+          "{{ $node[\"06. Build Report\"].json.totalHT }}",
+          "{{ $node[\"06. Build Report\"].json.totalTVA }}",
+          "{{ $node[\"06. Build Report\"].json.totalTTC }}",
+          "{{ JSON.stringify($node[\"06. Build Report\"].json) }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "07. Save",
+      "name": "07. Save",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  message: 'E-reporting generated successfully',\n  data: $input.all()[0].json\n};"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ JSON.stringify($node[\"08. Format Response\"].json) }}"
+      },
+      "id": "09. Respond",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "🇫🇷 E-Reporting\nObligation de transmission des données\nde transactions B2C et internationales\nà l'administration fiscale.\nArticle 290 du CGI\nConcerne: ventes aux particuliers et export",
+        "height": 250,
+        "width": 300
+      },
+      "id": "stickyNote_compta_ereporting_generer",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Transactions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Transactions": {
+      "main": [
+        [
+          {
+            "node": "06. Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Build Report": {
+      "main": [
+        [
+          {
+            "node": "07. Save",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Save": {
+      "main": [
+        [
+          {
+            "node": "08. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

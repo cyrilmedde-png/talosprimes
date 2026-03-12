@@ -1,0 +1,242 @@
+{
+  "name": "compta-archive-verifier",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-archive-verifier",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nif (!uuidRegex.test(body.archiveId)) {\n  throw new Error('Invalid archiveId format');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  archiveId: body.archiveId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value2": "",
+              "operation": "notEmpty",
+              "value1": "={{ $json.tenantId }}"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Invalid tenantId or archiveId\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM archives_comptables WHERE id = '{{ $json.archiveId }}' AND tenant_id = '{{ $json.tenantId }}'",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "05. Get Archive",
+      "name": "05. Get Archive",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst archive = $input.all()[0]?.json?.[0];\n\nif (!archive) {\n  throw new Error('Archive not found');\n}\n\nconst today = new Date();\nconst expirationDate = new Date(archive.date_expiration);\nconst isExpired = today > expirationDate;\n\nconst data = archive.type_document + archive.reference_document + archive.annee_fiscale + archive.date_archivage;\nconst recalculatedHash = crypto.createHash('sha256').update(data).digest('hex');\nconst hashValid = recalculatedHash === archive.hash_integrite;\n\nreturn {\n  ...($json),\n  archive: archive,\n  hashValid: hashValid,\n  isExpired: isExpired,\n  recalculatedHash: recalculatedHash,\n  storedHash: archive.hash_integrite\n};"
+      },
+      "id": "06. Verify Integrity",
+      "name": "06. Verify Integrity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE archives_comptables\nSET statut = CASE WHEN {{ $json.hashValid }} AND NOT {{ $json.isExpired }} THEN 'verifie' ELSE 'erreur' END,\n    metadata = jsonb_set(metadata, '{verification}', '{\"hashValid\": {{ $json.hashValid }}, \"isExpired\": {{ $json.isExpired }}, \"verifiedAt\": \"{{ new Date().toISOString() }}\"}'::jsonb)\nWHERE id = '{{ $json.archiveId }}' AND tenant_id = '{{ $json.tenantId }}'\nRETURNING id, statut, metadata;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "07. Update Status",
+      "name": "07. Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.all()[0]?.json?.[0] || {};\n\nreturn {\n  success: $json.hashValid && !$json.isExpired,\n  archiveId: $json.archiveId,\n  verification: {\n    hashValid: $json.hashValid,\n    isExpired: $json.isExpired,\n    status: result.statut,\n    verifiedAt: new Date().toISOString()\n  },\n  details: {\n    type: $json.archive?.type_document,\n    reference: $json.archive?.reference_document,\n    annee: $json.archive?.annee_fiscale,\n    dateExpiration: $json.archive?.date_expiration\n  }\n};"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "09. Respond",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "🔍 Vérification intégrité archive\n\nRecalcule le hash SHA256 et compare\navec le hash stocké lors de l'archivage.\nDétecte toute altération du document.\nVérifie aussi la date d'expiration.\n\nStatuts: verifie, erreur"
+      },
+      "id": "Sticky Note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Archive",
+            "branch": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Archive": {
+      "main": [
+        [
+          {
+            "node": "06. Verify Integrity",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "06. Verify Integrity": {
+      "main": [
+        [
+          {
+            "node": "07. Update Status",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "07. Update Status": {
+      "main": [
+        [
+          {
+            "node": "08. Format Response",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "branch": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

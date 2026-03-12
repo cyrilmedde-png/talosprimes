@@ -1,0 +1,309 @@
+{
+  "name": "compta-das2-generer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-das2-generer",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\nif (!body.anneeFiscale || typeof body.anneeFiscale !== 'number') {\n  throw new Error('anneeFiscale must be a number');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  anneeFiscale: body.anneeFiscale\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "key": "tenantId",
+              "value": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId or anneeFiscale\"}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT b.id, b.siret, b.nom, b.adresse, SUM(CASE WHEN EXTRACT(YEAR FROM e.date) = $2 AND e.compte LIKE '622%' THEN e.montant ELSE 0 END) as montant_honoraires FROM beneficiaires b LEFT JOIN ecritures e ON b.id = e.beneficiaire_id WHERE b.tenant_id = $1 GROUP BY b.id, b.siret, b.nom, b.adresse HAVING SUM(CASE WHEN EXTRACT(YEAR FROM e.date) = $2 AND e.compte LIKE '622%' THEN e.montant ELSE 0 END) >= 1200",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}",
+          "{{ $node[\"02. Parser\"].json.anneeFiscale }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "05. Get Honoraires",
+      "name": "05. Get Honoraires",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build DAS2 declaration structure\nconst beneficiaries = $input.all()[0].json;\nlet totalMontant = 0;\n\nconst beneficiariesList = beneficiaries.map(b => {\n  const montant = parseFloat(b.montant_honoraires || 0);\n  totalMontant += montant;\n  return {\n    siret: b.siret,\n    nom: b.nom,\n    adresse: b.adresse,\n    montant: montant\n  };\n});\n\nconst das2Declaration = {\n  version: '2.0',\n  annee_fiscale: $node[\"02. Parser\"].json.anneeFiscale,\n  nombre_beneficiaires: beneficiariesList.length,\n  montant_total: totalMontant,\n  beneficiaires: beneficiariesList\n};\n\nreturn {\n  declaration: das2Declaration,\n  beneficiaires: beneficiariesList,\n  nombre_beneficiaires: beneficiariesList.length,\n  montant_total: totalMontant\n};"
+      },
+      "id": "06. Build Declaration",
+      "name": "06. Build Declaration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "INSERT INTO declarations_das2 (id, tenant_id, annee_fiscale, nombre_beneficiaires, montant_total, statut, date_generation) VALUES (gen_random_uuid(), $1, $2, $3, $4, 'en_attente', NOW()) RETURNING *",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}",
+          "{{ $node[\"02. Parser\"].json.anneeFiscale }}",
+          "{{ $node[\"06. Build Declaration\"].json.nombre_beneficiaires }}",
+          "{{ $node[\"06. Build Declaration\"].json.montant_total }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "07. Save Declaration",
+      "name": "07. Save Declaration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "INSERT INTO das2_beneficiaires (id, declaration_das2_id, siret, nom, adresse, montant) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
+        "queryParams": [
+          "{{ $node[\"07. Save Declaration\"].json[0].id }}",
+          "{{ $response.json.siret }}",
+          "{{ $response.json.nom }}",
+          "{{ $response.json.adresse }}",
+          "{{ $response.json.montant }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "08. Save Beneficiaires",
+      "name": "08. Save Beneficiaires",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  message: 'DAS2 declaration generated successfully',\n  data: $node[\"07. Save Declaration\"].json\n};"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ JSON.stringify($node[\"09. Format Response\"].json) }}"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "🇫🇷 DAS2 - Déclaration d'Honoraires\nArticle 240 du CGI\nObligatoire pour tout versement > 1200€/an\npar bénéficiaire (comptes 622x)\nTransmission: avant le 1er mai N+1\nDestinataire: DGFiP via EFI ou EDI",
+        "height": 280,
+        "width": 300
+      },
+      "id": "stickyNote_compta_das2_generer",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Honoraires",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Honoraires": {
+      "main": [
+        [
+          {
+            "node": "06. Build Declaration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Build Declaration": {
+      "main": [
+        [
+          {
+            "node": "07. Save Declaration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Save Declaration": {
+      "main": [
+        [
+          {
+            "node": "08. Save Beneficiaires",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Save Beneficiaires": {
+      "main": [
+        [
+          {
+            "node": "09. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Format Response": {
+      "main": [
+        [
+          {
+            "node": "10. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

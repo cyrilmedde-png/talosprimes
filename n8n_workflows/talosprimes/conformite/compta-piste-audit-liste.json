@@ -1,0 +1,243 @@
+{
+  "name": "Compta - Piste Audit Liste (compta-piste-audit-liste)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Piste d'Audit Fiable (PAF)\nArticle 289 VII du CGI\nTraçabilité complète du cycle:\nDevis → Commande → Livraison → Facture → Écriture → Paiement\nChaque étape est horodatée et hashée",
+        "height": 350,
+        "width": 350,
+        "color": 3
+      },
+      "id": "sticky-note",
+      "name": "📋 Piste d'Audit Fiable (PAF)",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta-piste-audit-liste",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = String(body.tenantId || '');\nvar documentType = body.documentType ? String(body.documentType) : null;\nvar documentId = body.documentId ? String(body.documentId) : null;\nvar page = body.page ? parseInt(body.page) : 1;\nvar limit = body.limit ? parseInt(body.limit) : 50;\nvar offset = (page - 1) * limit;\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !UUID_RE.test(tenantId)) {\n  throw new Error('Tenant ID requis et doit être un UUID valide');\n}\n\nif (documentId && !UUID_RE.test(documentId)) {\n  throw new Error('Document ID doit être un UUID valide');\n}\n\nreturn [{\n  json: {\n    tenantId: tenantId,\n    documentType: documentType,\n    documentId: documentId,\n    page: page,\n    limit: limit,\n    offset: offset\n  }\n}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId requis\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT COUNT(*) as total FROM pistes_audit WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'\" + ($('02. Parser').first().json.documentType ? \" AND document_type = '\" + $('02. Parser').first().json.documentType + \"'\" : \"\") + ($('02. Parser').first().json.documentId ? \" AND document_id = '\" + $('02. Parser').first().json.documentId + \"'\" : \"\") }}"
+      },
+      "id": "05. Count",
+      "name": "05. Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, document_type, document_id, etape, etape_precedente, etape_suivante, date_etape, utilisateur, commentaire, hash_verification, metadata, created_at FROM pistes_audit WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'\" + ($('02. Parser').first().json.documentType ? \" AND document_type = '\" + $('02. Parser').first().json.documentType + \"'\" : \"\") + ($('02. Parser').first().json.documentId ? \" AND document_id = '\" + $('02. Parser').first().json.documentId + \"'\" : \"\") + \" ORDER BY date_etape DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
+      },
+      "id": "06. List",
+      "name": "06. List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var countResult = $('05. Count').first().json;\nvar listItems = $('06. List').all();\nvar parser = $('02. Parser').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / parser.limit) || 1;\n\nvar entries = listItems.map(function(item) {\n  var json = item.json;\n  return {\n    id: json.id,\n    documentType: json.document_type,\n    documentId: json.document_id,\n    etape: json.etape,\n    etapePrecedente: json.etape_precedente,\n    etapeSuivante: json.etape_suivante,\n    dateEtape: json.date_etape,\n    utilisateur: json.utilisateur,\n    commentaire: json.commentaire,\n    hashVerification: json.hash_verification,\n    metadata: json.metadata,\n    createdAt: json.created_at\n  };\n});\n\nreturn [{json: {\n  success: true,\n  entries: entries,\n  pagination: {\n    total: total,\n    page: parser.page,\n    limit: parser.limit,\n    totalPages: totalPages\n  }\n}}];"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Count",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Count": {
+      "main": [
+        [
+          {
+            "node": "06. List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. List": {
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Format Response": {
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "name": "Compta - Periodes Liste (compta-periodes-liste)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Liste des périodes comptables\nAffiche toutes les périodes d'un exercice\navec leur statut (ouverte/clôturée)",
+        "height": 250,
+        "width": 350,
+        "color": 2
+      },
+      "id": "sticky-note",
+      "name": "📋 Liste des périodes comptables",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta-periodes-liste",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = String(body.tenantId || '');\nvar exerciceId = body.exerciceId ? String(body.exerciceId) : null;\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !UUID_RE.test(tenantId)) {\n  throw new Error('Tenant ID requis et doit être un UUID valide');\n}\n\nif (exerciceId && !UUID_RE.test(exerciceId)) {\n  throw new Error('Exercice ID doit être un UUID valide');\n}\n\nreturn [{\n  json: {\n    tenantId: tenantId,\n    exerciceId: exerciceId\n  }\n}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId requis\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, exercice_id, code, libelle, date_debut, date_fin, statut, cloture_par, cloture_date, created_at FROM periodes_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'\" + ($('02. Parser').first().json.exerciceId ? \" AND exercice_id = '\" + $('02. Parser').first().json.exerciceId + \"'\" : \"\") + \" ORDER BY date_debut ASC\" }}"
+      },
+      "id": "05. List Periodes",
+      "name": "05. List Periodes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $input.all();\nvar periodes = items.map(function(item) { return item.json; }).filter(function(r) { return r && r.id; });\n\nvar formattedPeriodes = periodes.map(function(p) {\n  return {\n    id: p.id,\n    exerciceId: p.exercice_id,\n    code: p.code,\n    libelle: p.libelle,\n    dateDebut: p.date_debut,\n    dateFin: p.date_fin,\n    statut: p.statut,\n    cloturePar: p.cloture_par,\n    clotureDate: p.cloture_date,\n    createdAt: p.created_at\n  };\n});\n\nreturn [{json: {success: true, count: formattedPeriodes.length, periodes: formattedPeriodes}}];"
+      },
+      "id": "06. Format Response",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. List Periodes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. List Periodes": {
+      "main": [
+        [
+          {
+            "node": "06. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Format Response": {
+      "main": [
+        [
+          {
+            "node": "07. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

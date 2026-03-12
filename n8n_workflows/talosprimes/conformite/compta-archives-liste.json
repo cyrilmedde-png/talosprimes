@@ -1,0 +1,219 @@
+{
+  "name": "compta-archives-liste",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-archives-liste",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  type: body.type || null,\n  annee: body.annee || null,\n  page: body.page || 1,\n  limit: body.limit || 50\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value2": "",
+              "operation": "notEmpty",
+              "value1": "={{ $json.tenantId }}"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Invalid tenantId\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total FROM archives_comptables WHERE tenant_id = {{ $json.tenantId }}\n{% if $json.type %}\n  AND type_document = '{{ $json.type }}'\n{% endif %}\n{% if $json.annee %}\n  AND annee_fiscale = {{ $json.annee }}\n{% endif %}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "05. Count",
+      "name": "05. Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, type_document, reference_document, annee_fiscale, date_archivage, duree_conservation, date_expiration, hash_integrite, statut, chemin_stockage, taille_octets, metadata, created_at FROM archives_comptables WHERE tenant_id = {{ $json.tenantId }}\n{% if $json.type %}\n  AND type_document = '{{ $json.type }}'\n{% endif %}\n{% if $json.annee %}\n  AND annee_fiscale = {{ $json.annee }}\n{% endif %}\nORDER BY date_archivage DESC\nLIMIT {{ $json.limit }} OFFSET {{ ($json.page - 1) * $json.limit }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "06. List",
+      "name": "06. List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all();\nconst countData = results[0]?.json?.[0]?.total || 0;\nconst listData = results[1]?.json || [];\n\nreturn {\n  success: true,\n  total: countData,\n  count: listData.length,\n  data: listData\n};"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "📋 Liste des archives légales\n\nDurées de conservation:\n- 6 ans: documents fiscaux (LPF art. L.102B)\n- 10 ans: documents commerciaux (Code commerce art. L.123-22)\n\nStatuts: actif, expiré, vérifié\n\nFiltre par type, année\nPagination avec limit/offset"
+      },
+      "id": "Sticky Note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Count",
+            "branch": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "05. Count": {
+      "main": [
+        [
+          {
+            "node": "06. List",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "06. List": {
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "07. Format Response": {
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "branch": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

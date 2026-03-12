@@ -1,0 +1,219 @@
+{
+  "name": "compta-facturx-liste",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-facturx-liste",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nconst profils = ['MINIMUM', 'BASIC', 'EN16931'];\nconst statuts = ['generee', 'transmise', 'acceptee', 'refusee'];\n\nreturn {\n  tenantId: body.tenantId,\n  profil: body.profil || null,\n  statut: body.statut || null,\n  page: body.page || 1,\n  limit: body.limit || 50\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value2": "",
+              "operation": "notEmpty",
+              "value1": "={{ $json.tenantId }}"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Invalid tenantId\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total FROM factures_electroniques WHERE tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND statut = '{{ $json.statut }}'\n{% endif %}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "05. Count",
+      "name": "05. Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT fe.id, fe.facture_id, fe.format, fe.profil, fe.statut, fe.date_generation, fe.date_transmission, fe.plateforme, fe.identifiant_ppf, f.numero_facture, f.montant_ttc, c.nom as client_nom FROM factures_electroniques fe LEFT JOIN factures f ON fe.facture_id = f.id LEFT JOIN clients c ON f.client_id = c.id WHERE fe.tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND fe.profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND fe.statut = '{{ $json.statut }}'\n{% endif %}\nORDER BY fe.date_generation DESC\nLIMIT {{ $json.limit }} OFFSET {{ ($json.page - 1) * $json.limit }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "06. List",
+      "name": "06. List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all();\nconst countData = results[0]?.json?.[0]?.total || 0;\nconst listData = results[1]?.json || [];\n\nreturn {\n  success: true,\n  total: countData,\n  count: listData.length,\n  data: listData\n};"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "📋 Liste Factur-X\n\nHistorique des factures électroniques générées\nAvec statut de transmission au PPF/PDP\n\nStatuts:\n- generee: en attente de transmission\n- transmise: envoyée au PPF/PDP\n- acceptee: acceptée\n- refusee: refusée"
+      },
+      "id": "Sticky Note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Count",
+            "branch": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "05. Count": {
+      "main": [
+        [
+          {
+            "node": "06. List",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "06. List": {
+      "main": [
+        [
+          {
+            "node": "07. Format Response",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "07. Format Response": {
+      "main": [
+        [
+          {
+            "node": "08. Respond",
+            "branch": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

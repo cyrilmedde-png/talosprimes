@@ -1,0 +1,141 @@
+{
+  "name": "compta-facturx-statut",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-facturx-statut",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!body.tenantId || !UUID_RE.test(body.tenantId)) throw new Error('tenantId requis (UUID)');\nif (!body.facturxId || !UUID_RE.test(body.facturxId)) throw new Error('facturxId requis (UUID)');\nreturn [{ json: { tenantId: body.tenantId, facturxId: body.facturxId } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "facturx-statut-valid",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Données invalides\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT fe.id, fe.facture_id, fe.format, fe.profil, fe.xml_content, fe.statut, fe.date_generation, fe.date_transmission, fe.plateforme, fe.identifiant_ppf, fe.metadata, f.numero_facture, f.montant_ttc, c.nom as client_nom FROM factures_electroniques fe LEFT JOIN factures f ON fe.facture_id = f.id LEFT JOIN clients c ON f.client_id = c.id WHERE fe.id = '\" + $json.facturxId + \"' AND fe.tenant_id = '\" + $json.tenantId + \"';\" }}"
+      },
+      "id": "05. Get Facturx",
+      "name": "05. Get Facturx",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      },
+      "position": [700, 300],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var facturx = $('05. Get Facturx').all().map(function(i) { return i.json; }).filter(function(e) { return e.id; });\nif (facturx.length === 0) throw new Error('Factur-X introuvable');\nvar fx = facturx[0];\n\nvar STATUTS = {\n  generee: { label: 'Générée', code: 'GENERATED', description: 'Facture générée, en attente de transmission' },\n  transmise: { label: 'Transmise', code: 'TRANSMITTED', description: 'Facture transmise au PPF/PDP' },\n  acceptee: { label: 'Acceptée', code: 'ACCEPTED', description: 'Facture acceptée par le destinataire' },\n  refusee: { label: 'Refusée', code: 'REJECTED', description: 'Facture refusée par le destinataire' }\n};\n\nvar currentStatus = STATUTS[fx.statut] || { label: fx.statut, code: 'UNKNOWN', description: 'Statut inconnu' };\n\nvar ppfInfo = 'Non transmise';\nif (fx.plateforme === 'PPF') ppfInfo = 'Déposée au PPF - ID: ' + (fx.identifiant_ppf || 'N/A');\nif (fx.plateforme === 'PDP') ppfInfo = 'Déposée au PDP - ID: ' + (fx.identifiant_ppf || 'N/A');\n\nreturn [{ json: {\n  success: true,\n  facturx: {\n    id: fx.id,\n    factureId: fx.facture_id,\n    numeroFacture: fx.numero_facture || null,\n    montantTtc: parseFloat(fx.montant_ttc) || 0,\n    clientNom: fx.client_nom || null,\n    format: fx.format,\n    profil: fx.profil\n  },\n  statut: {\n    code: currentStatus.code,\n    label: currentStatus.label,\n    description: currentStatus.description\n  },\n  transmission: {\n    plateforme: fx.plateforme || null,\n    identifiantPpf: fx.identifiant_ppf || null,\n    dateTransmission: fx.date_transmission || null,\n    info: ppfInfo\n  },\n  dates: {\n    generation: fx.date_generation,\n    transmission: fx.date_transmission || null,\n    verification: new Date().toISOString()\n  }\n} }];"
+      },
+      "id": "06. Check PPF",
+      "name": "06. Check PPF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "content": "🔍 Statut Factur-X\n\nConsulte le statut de traitement\nd'une facture électronique sur le PPF/PDP.\n\nCycle de vie:\n- Générée → Transmise → Acceptée/Refusée\n\nInput: tenantId, facturxId\nOutput: statut détaillé + infos transmission"
+      },
+      "id": "Note",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [50, 450]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [{ "node": "02. Parser", "type": "main", "index": 0 }]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [{ "node": "03. Valide ?", "type": "main", "index": 0 }]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. Get Facturx", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Get Facturx": {
+      "main": [
+        [{ "node": "06. Check PPF", "type": "main", "index": 0 }]
+      ]
+    },
+    "06. Check PPF": {
+      "main": [
+        [{ "node": "07. Respond", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "id": "compta-facturx-statut"
+}

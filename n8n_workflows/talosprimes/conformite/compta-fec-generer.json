@@ -1,0 +1,299 @@
+{
+  "name": "compta-fec-generer",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🇫🇷 FEC - Fichier des Écritures Comptables\n\n**Obligation légale**: Article L.47 A du Livre des Procédures Fiscales (LPF)\n**Amende**: 5000€ par exercice non conforme\n**Format**: Colonnes séparées par TAB, encodage UTF-8\n**Norme**: Plan Comptable Général - 18 colonnes obligatoires\n\n**Entrées requises**:\n- tenantId (UUID): Identifiant du locataire\n- exerciceId (UUID): Identifiant de l'exercice comptable\n- format (optionnel): Format de sortie (xml, txt, csv - défaut: xml)\n\n**Sortie**:\n- success: booléen\n- fichier: Objet contenant id, nom_fichier, format, nombre_ecritures, nombre_lignes, hash_sha256, date_generation",
+        "height": 300,
+        "width": 800,
+        "color": 1
+      },
+      "id": "sticky-fec-generer",
+      "name": "📝 FEC - Génération",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "path": "compta-fec-generer",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar tenantId = String(body.tenantId || '');\nvar exerciceId = String(body.exerciceId || '');\nvar format = String(body.format || 'xml').toLowerCase();\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !UUID_RE.test(tenantId)) {\n  throw new Error('tenantId requis et doit être un UUID valide');\n}\nif (!exerciceId || !UUID_RE.test(exerciceId)) {\n  throw new Error('exerciceId requis et doit être un UUID valide');\n}\nif (!['xml', 'txt', 'csv'].includes(format)) {\n  format = 'xml';\n}\n\nreturn [{\n  json: {\n    tenantId: tenantId,\n    exerciceId: exerciceId,\n    format: format\n  }\n}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed - invalid tenantId\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, code, date_debut, date_fin FROM exercices_comptables WHERE id = '\" + $json.exerciceId + \"' AND tenant_id = '\" + $json.tenantId + \"'\" }}"
+      },
+      "id": "05. Verif Exercice",
+      "name": "05. Verif Exercice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT e.id, e.numero, e.journal_code, e.journal_lib, e.date_ecriture, e.libelle, SUM(el.debit) as total_debit, SUM(el.credit) as total_credit, array_agg(json_build_object('compte_num', el.compte_num, 'compte_lib', el.compte_lib, 'comp_aux_num', el.comp_aux_num, 'comp_aux_lib', el.comp_aux_lib, 'piece_ref', el.piece_ref, 'piece_date', el.piece_date, 'debit', el.debit, 'credit', el.credit, 'ecr_lettrage', el.ecr_lettrage, 'date_lettrage', el.date_lettrage, 'montant_devise', el.montant_devise, 'idevise', el.idevise)) as lines FROM ecritures e LEFT JOIN ecriture_lines el ON e.id = el.ecriture_id WHERE e.tenant_id = '\" + $json.tenantId + \"' AND e.exercice_id = '\" + $json.exerciceId + \"' AND e.valide = true AND e.date_ecriture >= (SELECT date_debut FROM exercices_comptables WHERE id = '\" + $json.exerciceId + \"') AND e.date_ecriture <= (SELECT date_fin FROM exercices_comptables WHERE id = '\" + $json.exerciceId + \"') GROUP BY e.id, e.numero, e.journal_code, e.journal_lib, e.date_ecriture, e.libelle ORDER BY e.date_ecriture ASC, e.numero ASC\" }}"
+      },
+      "id": "06. Extract Ecritures FEC",
+      "name": "06. Extract Ecritures FEC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var crypto = require('crypto');\nvar exerciceData = $('05. Verif Exercice').first();\nvar ecrituresData = $('06. Extract Ecritures FEC').all();\n\nif (!exerciceData || !exerciceData.json || !exerciceData.json.id) {\n  return [{ json: { error: 'Exercice not found' } }];\n}\n\nvar exercice = exerciceData.json;\nvar rows = [];\nvar totalEcritures = 0;\nvar totalLignes = 0;\n\nvar fecLines = [];\nvar headerRow = [\n  'JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate',\n  'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib',\n  'PieceRef', 'PieceDate', 'EcritureLib', 'Debit', 'Credit',\n  'EcrLettrage', 'DateLettrage', 'ValidDate', 'MontantDevise', 'Idevise'\n];\nfecLines.push(headerRow);\n\necrituresData.forEach(function(item) {\n  var e = item.json;\n  if (e.lines && Array.isArray(e.lines)) {\n    e.lines.forEach(function(line) {\n      if (line) {\n        fecLines.push([\n          e.journal_code || '',\n          e.journal_lib || '',\n          e.numero || '',\n          e.date_ecriture ? e.date_ecriture.substring(0, 10) : '',\n          line.compte_num || '',\n          line.compte_lib || '',\n          line.comp_aux_num || '',\n          line.comp_aux_lib || '',\n          line.piece_ref || '',\n          line.piece_date ? line.piece_date.substring(0, 10) : '',\n          e.libelle || '',\n          line.debit || 0,\n          line.credit || 0,\n          line.ecr_lettrage || '',\n          line.date_lettrage ? line.date_lettrage.substring(0, 10) : '',\n          new Date().toISOString().substring(0, 10),\n          line.montant_devise || 0,\n          line.idevise || 'EUR'\n        ]);\n        totalLignes++;\n      }\n    });\n    totalEcritures++;\n  }\n});\n\nvar content = fecLines.map(function(row) {\n  return row.map(function(cell) {\n    return String(cell).trim();\n  }).join('\\t');\n}).join('\\n');\n\nvar hash = crypto.createHash('sha256').update(content, 'utf8').digest('hex');\nvar filename = 'FEC_' + exercice.code + '_' + new Date().toISOString().substring(0, 10).replace(/-/g, '') + '.txt';\n\nreturn [{\n  json: {\n    fecContent: content,\n    filename: filename,\n    format: $('02. Parser').first().json.format,\n    nombreEcritures: totalEcritures,\n    nombreLignes: totalLignes,\n    hashSha256: hash,\n    exerciceId: $json.exerciceId,\n    tenantId: $json.tenantId\n  }\n}];"
+      },
+      "id": "07. Build FEC",
+      "name": "07. Build FEC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO fichiers_fec (id, tenant_id, exercice_id, nom_fichier, format, nombre_ecritures, nombre_lignes, hash_sha256, statut, date_generation, metadata, created_at) VALUES (gen_random_uuid(), '\" + $json.tenantId + \"', '\" + $json.exerciceId + \"', '\" + $json.filename + \"', '\" + $json.format + \"', \" + $json.nombreEcritures + \", \" + $json.nombreLignes + \", '\" + $json.hashSha256 + \"', 'genere', NOW(), jsonb_build_object('contenu_taille', \" + $json.fecContent.length + \"), NOW()) RETURNING id, tenant_id, exercice_id, nom_fichier, format, nombre_ecritures, nombre_lignes, hash_sha256, statut, date_generation\" }}"
+      },
+      "id": "08. Save FEC",
+      "name": "08. Save FEC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1300,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var item = $('08. Save FEC').first().json;\nif (!item || !item.id) {\n  return [{ json: { success: false, error: 'Failed to save FEC' } }];\n}\nreturn [{\n  json: {\n    success: true,\n    fichier: {\n      id: item.id,\n      nomFichier: item.nom_fichier,\n      format: item.format,\n      nombreEcritures: item.nombre_ecritures,\n      nombreLignes: item.nombre_lignes,\n      hashSha256: item.hash_sha256,\n      statut: item.statut,\n      dateGeneration: item.date_generation\n    }\n  }\n}];"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Verif Exercice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Verif Exercice": {
+      "main": [
+        [
+          {
+            "node": "06. Extract Ecritures FEC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Extract Ecritures FEC": {
+      "main": [
+        [
+          {
+            "node": "07. Build FEC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Build FEC": {
+      "main": [
+        [
+          {
+            "node": "08. Save FEC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Save FEC": {
+      "main": [
+        [
+          {
+            "node": "09. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Format Response": {
+      "main": [
+        [
+          {
+            "node": "10. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,332 @@
+{
+  "name": "Compta - Periodes Generer (compta-periodes-generer)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Génération des périodes comptables\nCrée automatiquement 12 périodes mensuelles\npour un exercice donné.\nPermet de contrôler l'ouverture/fermeture\ndes saisies par mois (anti-rétroactivité)",
+        "height": 300,
+        "width": 350,
+        "color": 2
+      },
+      "id": "sticky-note",
+      "name": "📅 Génération des périodes comptables",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta-periodes-generer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = String(body.tenantId || '');\nvar exerciceId = String(body.exerciceId || '');\nvar annee = body.annee ? parseInt(body.annee) : null;\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !UUID_RE.test(tenantId)) {\n  throw new Error('Tenant ID requis et doit être un UUID valide');\n}\nif (!exerciceId || !UUID_RE.test(exerciceId)) {\n  throw new Error('Exercice ID requis et doit être un UUID valide');\n}\n\nreturn [{\n  json: {\n    tenantId: tenantId,\n    exerciceId: exerciceId,\n    annee: annee\n  }\n}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "val-exercice",
+              "leftValue": "={{ $json.exerciceId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId et exerciceId requis\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT date_debut, date_fin FROM exercices_comptables WHERE id = '\" + $('02. Parser').first().json.exerciceId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'\" }}"
+      },
+      "id": "05. Get Exercice",
+      "name": "05. Get Exercice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT COUNT(*) as nb_existing FROM periodes_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND exercice_id = '\" + $('02. Parser').first().json.exerciceId + \"'\" }}"
+      },
+      "id": "06. Check Existing",
+      "name": "06. Check Existing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var exerciceData = $('05. Get Exercice').first().json;\nvar existingCount = $('06. Check Existing').first().json.nb_existing || 0;\n\nif (!exerciceData || !exerciceData.date_debut || !exerciceData.date_fin) {\n  throw new Error('Exercice non trouvé ou dates invalides');\n}\n\nif (existingCount > 0) {\n  throw new Error('Les périodes pour cet exercice existent déjà');\n}\n\nvar startDate = new Date(exerciceData.date_debut);\nvar endDate = new Date(exerciceData.date_fin);\nvar currentDate = new Date(startDate);\nvar periodes = [];\n\nvar months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];\n\nfor (var i = 0; i < 12; i++) {\n  var monthStart = new Date(currentDate);\n  var monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);\n  \n  // Cap end date to exercice end date\n  if (monthEnd > endDate) {\n    monthEnd = new Date(endDate);\n  }\n  \n  var code = monthStart.getFullYear() + '-' + String(monthStart.getMonth() + 1).padStart(2, '0');\n  var libelle = months[monthStart.getMonth()] + ' ' + monthStart.getFullYear();\n  \n  periodes.push({\n    code: code,\n    libelle: libelle,\n    dateDebut: monthStart.toISOString().split('T')[0],\n    dateFin: monthEnd.toISOString().split('T')[0],\n    statut: 'ouverte'\n  });\n  \n  currentDate.setMonth(currentDate.getMonth() + 1);\n}\n\nreturn [{json: {periodes: periodes}}];"
+      },
+      "id": "07. Generate Periodes",
+      "name": "07. Generate Periodes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var periodes = $('07. Generate Periodes').first().json.periodes;\nvar tenantId = $('02. Parser').first().json.tenantId;\nvar exerciceId = $('02. Parser').first().json.exerciceId;\n\nvar values = periodes.map(function(p) {\n  var code = p.code.replace(/'/g, \"''\");\n  var libelle = p.libelle.replace(/'/g, \"''\");\n  return \"(gen_random_uuid(), '\" + tenantId + \"', '\" + exerciceId + \"', '\" + code + \"', '\" + libelle + \"', '\" + p.dateDebut + \"', '\" + p.dateFin + \"', '\" + p.statut + \"', NOW(), NOW())\";\n}).join(',\\n');\n\nvar query = \"INSERT INTO periodes_comptables (id, tenant_id, exercice_id, code, libelle, date_debut, date_fin, statut, created_at, updated_at) VALUES \" + values + \" RETURNING *\";\n\nreturn [{json: {query: query}}];"
+      },
+      "id": "08. Insert Periodes",
+      "name": "08. Insert Periodes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "08b. Execute Insert",
+      "name": "08b. Execute Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1500,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $input.all();\nvar periodes = items.map(function(item) { return item.json; }).filter(function(r) { return r && r.id; });\n\nif (periodes.length === 0) {\n  return [{json: {success: false, error: 'Création des périodes échouée'}}];\n}\n\nvar formattedPeriodes = periodes.map(function(p) {\n  return {\n    id: p.id,\n    code: p.code,\n    libelle: p.libelle,\n    dateDebut: p.date_debut,\n    dateFin: p.date_fin,\n    statut: p.statut,\n    createdAt: p.created_at\n  };\n});\n\nreturn [{json: {success: true, count: formattedPeriodes.length, periodes: formattedPeriodes}}];"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Exercice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Exercice": {
+      "main": [
+        [
+          {
+            "node": "06. Check Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Check Existing": {
+      "main": [
+        [
+          {
+            "node": "07. Generate Periodes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Generate Periodes": {
+      "main": [
+        [
+          {
+            "node": "08. Insert Periodes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Insert Periodes": {
+      "main": [
+        [
+          {
+            "node": "08b. Execute Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08b. Execute Insert": {
+      "main": [
+        [
+          {
+            "node": "09. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Format Response": {
+      "main": [
+        [
+          {
+            "node": "10. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

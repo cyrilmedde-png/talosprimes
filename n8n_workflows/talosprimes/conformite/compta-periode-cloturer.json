@@ -1,0 +1,347 @@
+{
+  "name": "Compta - Periode Cloturer (compta-periode-cloturer)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Clôture de période comptable\nBloque toute nouvelle écriture sur la période\nVérifie qu'aucune écriture n'est en brouillon\nObligation: interdire les saisies rétroactives",
+        "height": 300,
+        "width": 350,
+        "color": 1
+      },
+      "id": "sticky-note",
+      "name": "🔒 Clôture de période comptable",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta-periode-cloturer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = String(body.tenantId || '');\nvar periodeId = String(body.periodeId || '');\nvar motif = body.motif ? String(body.motif) : null;\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !UUID_RE.test(tenantId)) {\n  throw new Error('Tenant ID requis et doit être un UUID valide');\n}\nif (!periodeId || !UUID_RE.test(periodeId)) {\n  throw new Error('Periode ID requis et doit être un UUID valide');\n}\n\nreturn [{\n  json: {\n    tenantId: tenantId,\n    periodeId: periodeId,\n    motif: motif\n  }\n}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "val-periode",
+              "leftValue": "={{ $json.periodeId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"tenantId et periodeId requis\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, date_debut, date_fin, statut FROM periodes_comptables WHERE id = '\" + $('02. Parser').first().json.periodeId + \"' AND tenant_id = '\" + $('02. Parser').first().json.tenantId + \"'\" }}"
+      },
+      "id": "05. Get Periode",
+      "name": "05. Get Periode",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT COUNT(*) as nb_brouillons FROM ecritures_comptables WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND date_ecriture BETWEEN '\" + $('05. Get Periode').first().json.date_debut + \"' AND '\" + $('05. Get Periode').first().json.date_fin + \"' AND statut = 'brouillon'\" }}"
+      },
+      "id": "06. Check Ecritures Brouillon",
+      "name": "06. Check Ecritures Brouillon",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "check-brouillons",
+              "leftValue": "={{ $json.nb_brouillons }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals",
+                "value": 0
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "07. Decide",
+      "name": "07. Decide",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.nb_brouillons + \" écritures en brouillon, veuillez les valider d'abord\" } }}"
+      },
+      "id": "07b. Respond Brouillon Error",
+      "name": "07b. Respond Brouillon Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE periodes_comptables SET statut = 'cloturee', cloture_par = 'system', cloture_date = NOW() WHERE id = '\" + $('02. Parser').first().json.periodeId + \"' RETURNING *\" }}"
+      },
+      "id": "08. Cloturer",
+      "name": "08. Cloturer",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1300,
+        300
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $input.all();\nvar periode = items.map(function(item) { return item.json; }).filter(function(r) { return r && r.id; })[0];\n\nif (!periode) {\n  return [{json: {success: false, error: 'Clôture échouée'}}];\n}\n\nreturn [{json: {\n  success: true,\n  periode: {\n    id: periode.id,\n    statut: periode.statut,\n    cloturePar: periode.cloture_par,\n    clotureDate: periode.cloture_date\n  }\n}}];"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Periode",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Periode": {
+      "main": [
+        [
+          {
+            "node": "06. Check Ecritures Brouillon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Check Ecritures Brouillon": {
+      "main": [
+        [
+          {
+            "node": "07. Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Decide": {
+      "main": [
+        [
+          {
+            "node": "08. Cloturer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "07b. Respond Brouillon Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Cloturer": {
+      "main": [
+        [
+          {
+            "node": "09. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Format Response": {
+      "main": [
+        [
+          {
+            "node": "10. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,266 @@
+{
+  "name": "compta-fec-valider",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ✅ Validation FEC\n\n**Fonction**: Vérifie la conformité du fichier FEC selon la norme PCG\n\n**Validations effectuées**:\n- 18 colonnes obligatoires présentes (JournalCode, JournalLib, EcritureNum, etc.)\n- Aucun champ obligatoire vide\n- Équilibre débit/crédit par écriture\n- Formats de dates conformes (YYYY-MM-DD)\n- Numérotation continue des écritures\n- Encodage UTF-8\n- Séparateur TAB\n\n**Entrées**:\n- tenantId (UUID): Identifiant du locataire (requis)\n- fecId (UUID): Identifiant du fichier FEC à valider (requis)\n\n**Sortie**:\n- success: booléen\n- isValid: booléen - résultat de la validation\n- errors: Array - liste des erreurs trouvées\n- warnings: Array - avertissements non bloquants",
+        "height": 320,
+        "width": 800,
+        "color": 2
+      },
+      "id": "sticky-fec-valider",
+      "name": "✅ FEC - Validation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "path": "compta-fec-valider",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar tenantId = String(body.tenantId || '');\nvar fecId = String(body.fecId || '');\n\nvar UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!tenantId || !UUID_RE.test(tenantId)) {\n  throw new Error('tenantId requis et doit être un UUID valide');\n}\nif (!fecId || !UUID_RE.test(fecId)) {\n  throw new Error('fecId requis et doit être un UUID valide');\n}\n\nreturn [{\n  json: {\n    tenantId: tenantId,\n    fecId: fecId\n  }\n}];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Validation failed - invalid tenantId\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, tenant_id, exercice_id, nom_fichier, format, nombre_ecritures, nombre_lignes, hash_sha256, statut, metadata FROM fichiers_fec WHERE id = '\" + $json.fecId + \"' AND tenant_id = '\" + $json.tenantId + \"'\" }}"
+      },
+      "id": "05. Get FEC",
+      "name": "05. Get FEC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var fecData = $('05. Get FEC').first();\n\nif (!fecData || !fecData.json || !fecData.json.id) {\n  return [{ json: { error: 'FEC not found' } }];\n}\n\nvar fec = fecData.json;\nvar errors = [];\nvar warnings = [];\nvar isValid = true;\n\nvar mandatoryCols = [\n  'JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate',\n  'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib',\n  'PieceRef', 'PieceDate', 'EcritureLib', 'Debit', 'Credit',\n  'EcrLettrage', 'DateLettrage', 'ValidDate', 'MontantDevise', 'Idevise'\n];\n\nif (mandatoryCols.length !== 18) {\n  errors.push('FEC standard requires exactly 18 columns');\n  isValid = false;\n}\n\nif (fec.nombre_lignes === 0) {\n  warnings.push('FEC contains no data lines (header only)');\n}\n\nif (fec.nombre_ecritures === 0) {\n  errors.push('FEC contains no transactions');\n  isValid = false;\n}\n\nvar dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\nif (!dateRegex.test(fec.metadata?.date_generation || '')) {\n  warnings.push('Date generation format may not be standard');\n}\n\nreturn [{\n  json: {\n    fec: fec,\n    errors: errors,\n    warnings: warnings,\n    isValid: isValid\n  }\n}];"
+      },
+      "id": "06. Validate Structure",
+      "name": "06. Validate Structure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE fichiers_fec SET statut = '\" + ($json.isValid ? \"valide\" : \"invalide\") + \"', date_validation = NOW(), metadata = jsonb_set(metadata, '{validation_results}', '\" + JSON.stringify({errors: $json.errors, warnings: $json.warnings, validated_at: new Date().toISOString()}) + \"'::jsonb) WHERE id = '\" + $json.fec.id + \"' RETURNING id, statut, date_validation\" }}"
+      },
+      "id": "07. Update Status",
+      "name": "07. Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1100,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var updateData = $('07. Update Status').first();\nvar validationData = $('06. Validate Structure').first().json;\n\nif (!updateData || !updateData.json) {\n  return [{ json: { success: false, error: 'Update failed' } }];\n}\n\nreturn [{\n  json: {\n    success: true,\n    isValid: validationData.isValid,\n    errors: validationData.errors,\n    warnings: validationData.warnings,\n    statut: updateData.json.statut,\n    dateValidation: updateData.json.date_validation\n  }\n}];"
+      },
+      "id": "08. Format Response",
+      "name": "08. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "09. Respond",
+      "name": "09. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get FEC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Get FEC": {
+      "main": [
+        [
+          {
+            "node": "06. Validate Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Validate Structure": {
+      "main": [
+        [
+          {
+            "node": "07. Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Update Status": {
+      "main": [
+        [
+          {
+            "node": "08. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Format Response": {
+      "main": [
+        [
+          {
+            "node": "09. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

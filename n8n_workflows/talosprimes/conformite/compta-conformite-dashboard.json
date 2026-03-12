@@ -1,0 +1,449 @@
+{
+  "name": "compta-conformite-dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-conformite-dashboard",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!body.tenantId || !uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid or missing tenantId');\n}\n\nreturn {\n  tenantId: body.tenantId\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "key": "tenantId",
+              "value": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\"success\": false, \"message\": \"Invalid tenantId\"}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'valide' THEN 1 END) as valides, MAX(date_generation) as dernier_fec FROM fichiers_fec WHERE tenant_id = $1",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "05. Stats FEC",
+      "name": "05. Stats FEC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'signe' THEN 1 END) as signes FROM factures_electroniques WHERE tenant_id = $1",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "06. Stats Facturx",
+      "name": "06. Stats Facturx",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmis' THEN 1 END) as transmis FROM e_reportings WHERE tenant_id = $1",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "07. Stats EReporting",
+      "name": "07. Stats EReporting",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmise' THEN 1 END) as transmises FROM edi_tva WHERE tenant_id = $1",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "08. Stats EDI-TVA",
+      "name": "08. Stats EDI-TVA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'transmise' THEN 1 END) as transmises FROM declarations_das2 WHERE tenant_id = $1",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "09. Stats DAS2",
+      "name": "09. Stats DAS2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN date_expiration < NOW() THEN 1 END) as expires FROM archives_comptables WHERE tenant_id = $1",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "10. Stats Archives",
+      "name": "10. Stats Archives",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "query",
+        "query": "SELECT COUNT(*) as total, COUNT(CASE WHEN statut = 'ouverte' THEN 1 END) as ouvertes, COUNT(CASE WHEN statut = 'fermee' THEN 1 END) as fermees FROM periodes_comptables WHERE tenant_id = $1",
+        "queryParams": [
+          "{{ $node[\"02. Parser\"].json.tenantId }}"
+        ],
+        "alwaysOutputData": true,
+        "continueOnFail": true
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "11. Stats Periodes",
+      "name": "11. Stats Periodes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all stats and compute compliance score\nconst fec = $node[\"05. Stats FEC\"].json[0];\nconst facturx = $node[\"06. Stats Facturx\"].json[0];\nconst ereporting = $node[\"07. Stats EReporting\"].json[0];\nconst ediTva = $node[\"08. Stats EDI-TVA\"].json[0];\nconst das2 = $node[\"09. Stats DAS2\"].json[0];\nconst archives = $node[\"10. Stats Archives\"].json[0];\nconst periodes = $node[\"11. Stats Periodes\"].json[0];\n\n// Calculate compliance scores\nlet fecScore = fec.total > 0 ? (fec.valides / fec.total) * 100 : 0;\nlet facturxScore = facturx.total > 0 ? (facturx.signes / facturx.total) * 100 : 0;\nlet ereportingScore = ereporting.total > 0 ? (ereporting.transmis / ereporting.total) * 100 : 0;\nlet ediTvaScore = ediTva.total > 0 ? (ediTva.transmises / ediTva.total) * 100 : 0;\nlet das2Score = das2.total > 0 ? (das2.transmises / das2.total) * 100 : 0;\nlet archivesScore = archives.expires === 0 ? 100 : 50;\n\nconst overallScore = Math.round((fecScore + facturxScore + ereportingScore + ediTvaScore + das2Score + archivesScore) / 6);\n\n// Generate alerts\nconst alerts = [];\nif (fecScore < 100) alerts.push({ level: 'warning', message: 'FEC: certains fichiers ne sont pas valides' });\nif (facturxScore < 100) alerts.push({ level: 'warning', message: 'Factur-X: certaines factures ne sont pas signées' });\nif (ereportingScore < 100) alerts.push({ level: 'warning', message: 'E-Reporting: données non transmises' });\nif (ediTvaScore < 100) alerts.push({ level: 'warning', message: 'EDI-TVA: déclarations non transmises' });\nif (das2Score < 100) alerts.push({ level: 'warning', message: 'DAS2: déclarations non transmises' });\nif (archives.expires > 0) alerts.push({ level: 'error', message: `${archives.expires} archives ont dépassé leur date d'expiration` });\nif (periodes.ouvertes === 0) alerts.push({ level: 'info', message: 'Aucune période comptable ouverte' });\n\nreturn {\n  fec: { total: fec.total, valides: fec.valides, score: Math.round(fecScore) },\n  facturx: { total: facturx.total, signes: facturx.signes, score: Math.round(facturxScore) },\n  ereporting: { total: ereporting.total, transmis: ereporting.transmis, score: Math.round(ereportingScore) },\n  edi_tva: { total: ediTva.total, transmises: ediTva.transmises, score: Math.round(ediTvaScore) },\n  das2: { total: das2.total, transmises: das2.transmises, score: Math.round(das2Score) },\n  archives: { total: archives.total, expires: archives.expires, score: Math.round(archivesScore) },\n  periodes: { total: periodes.total, ouvertes: periodes.ouvertes, fermees: periodes.fermees },\n  overall_score: overallScore,\n  alerts: alerts,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "12. Build Dashboard",
+      "name": "12. Build Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  message: 'Dashboard loaded successfully',\n  data: $input.all()[0].json\n};"
+      },
+      "id": "13. Format Response",
+      "name": "13. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "responseBody": "{{ JSON.stringify($node[\"13. Format Response\"].json) }}"
+      },
+      "id": "14. Respond",
+      "name": "14. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "📊 Dashboard Conformité France\nVue d'ensemble de toutes les obligations:\n- FEC, Factur-X, E-Reporting, EDI-TVA\n- DAS2, Archives, Périodes\nScore de conformité calculé (0-100)\nAlertes pour obligations manquantes",
+        "height": 280,
+        "width": 320
+      },
+      "id": "stickyNote_compta_conformite_dashboard",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Stats FEC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Stats FEC": {
+      "main": [
+        [
+          {
+            "node": "06. Stats Facturx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Stats Facturx": {
+      "main": [
+        [
+          {
+            "node": "07. Stats EReporting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07. Stats EReporting": {
+      "main": [
+        [
+          {
+            "node": "08. Stats EDI-TVA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Stats EDI-TVA": {
+      "main": [
+        [
+          {
+            "node": "09. Stats DAS2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09. Stats DAS2": {
+      "main": [
+        [
+          {
+            "node": "10. Stats Archives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Stats Archives": {
+      "main": [
+        [
+          {
+            "node": "11. Stats Periodes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Stats Periodes": {
+      "main": [
+        [
+          {
+            "node": "12. Build Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Build Dashboard": {
+      "main": [
+        [
+          {
+            "node": "13. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13. Format Response": {
+      "main": [
+        [
+          {
+            "node": "14. Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

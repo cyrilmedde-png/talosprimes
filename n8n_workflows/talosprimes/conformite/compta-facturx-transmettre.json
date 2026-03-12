@@ -1,0 +1,272 @@
+{
+  "name": "compta-facturx-transmettre",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "compta-facturx-transmettre",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.all()[0].json.body;\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\n\nif (!uuidRegex.test(body.tenantId)) {\n  throw new Error('Invalid tenantId format');\n}\n\nif (!uuidRegex.test(body.facturxId)) {\n  throw new Error('Invalid facturxId format');\n}\n\nconst plateforme = body.plateforme || 'PPF';\nif (!['PPF', 'PDP'].includes(plateforme)) {\n  throw new Error('Invalid plateforme: must be PPF or PDP');\n}\n\nreturn {\n  tenantId: body.tenantId,\n  facturxId: body.facturxId,\n  plateforme: plateforme\n};"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value2": "",
+              "operation": "notEmpty",
+              "value1": "={{ $json.tenantId }}"
+            }
+          ]
+        }
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWithCode": 400,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Invalid tenantId or facturxId\"\n}"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM factures_electroniques WHERE id = '{{ $json.facturxId }}' AND tenant_id = '{{ $json.tenantId }}'",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "05. Get Facturx",
+      "name": "05. Get Facturx",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const facturx = $input.all()[0]?.json?.[0];\n\nif (!facturx) {\n  throw new Error('Factur-X not found');\n}\n\nconst generatedId = 'PPF_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);\n\nconst payload = {\n  facturxId: facturx.id,\n  numeroFacture: facturx.facture_id,\n  format: facturx.format,\n  profil: facturx.profil,\n  xmlContent: facturx.xml_content,\n  timestamp: new Date().toISOString(),\n  plateforme: $json.plateforme\n};\n\nreturn {\n  ...($json),\n  facturx: facturx,\n  payload: payload,\n  identifiantPpf: generatedId,\n  transactionId: Math.random().toString(36).substr(2, 9)\n};"
+      },
+      "id": "06. Prepare Transmission",
+      "name": "06. Prepare Transmission",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE factures_electroniques SET statut = 'transmise', date_transmission = NOW(), plateforme = '{{ $json.plateforme }}', identifiant_ppf = '{{ $json.identifiantPpf }}', metadata = jsonb_set(metadata, '{transmission}', '{\"transmittedAt\": \"{{ new Date().toISOString() }}\", \"plateforme\": \"{{ $json.plateforme }}\", \"identifiantPpf\": \"{{ $json.identifiantPpf }}\"}'::jsonb) WHERE id = '{{ $json.facturxId }}' AND tenant_id = '{{ $json.tenantId }}' RETURNING id, statut, date_transmission, plateforme, identifiant_ppf;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "07. Update Status",
+      "name": "07. Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO pistes_audit (id, tenant_id, action, resource_type, resource_id, details, created_at) VALUES (gen_random_uuid(), '{{ $json.tenantId }}', 'transmission', 'factures_electroniques', '{{ $json.facturxId }}', '{{ '{\"plateforme\": \"' + $json.plateforme + '\", \"identifiantPpf\": \"' + $json.identifiantPpf + '\"}' }}', NOW()) RETURNING id;",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": "OGqj65ZoFRileCck"
+      },
+      "id": "08. Log PAF",
+      "name": "08. Log PAF",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.all()[0]?.json?.[0] || {};\n\nreturn {\n  success: true,\n  message: 'Factur-X transmise avec succès',\n  facturxId: $json.facturxId,\n  plateforme: $json.plateforme,\n  identifiantPpf: $json.identifiantPpf,\n  dateTransmission: new Date().toISOString(),\n  statut: result.statut\n};"
+      },
+      "id": "09. Format Response",
+      "name": "09. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "📤 Transmission Factur-X\n\nTransmet la facture électronique au:\n- PPF (Portail Public de Facturation)\n- PDP (Plateforme de Dématérialisation Partenaire)\n\nMet à jour le statut et horodate la transmission\nGénère identifiant PPF unique pour suivi"
+      },
+      "id": "Sticky Note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [
+          {
+            "node": "02. Parser",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [
+          {
+            "node": "03. Valide ?",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "03. Valide ?": {
+      "main": [
+        [
+          {
+            "node": "05. Get Facturx",
+            "branch": 0
+          }
+        ],
+        [
+          {
+            "node": "04. Respond Error",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "05. Get Facturx": {
+      "main": [
+        [
+          {
+            "node": "06. Prepare Transmission",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "06. Prepare Transmission": {
+      "main": [
+        [
+          {
+            "node": "07. Update Status",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "07. Update Status": {
+      "main": [
+        [
+          {
+            "node": "08. Log PAF",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "08. Log PAF": {
+      "main": [
+        [
+          {
+            "node": "09. Format Response",
+            "branch": 0
+          }
+        ]
+      ]
+    },
+    "09. Format Response": {
+      "main": [
+        [
+          {
+            "node": "10. Respond",
+            "branch": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
