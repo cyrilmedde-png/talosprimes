@@ -1237,6 +1237,91 @@ print(json.dumps(wf))
           log_info "Aucun workflow synchronise — pas de restart n8n"
         fi
 
+        # --- REACTIVATION DE TOUS LES WORKFLOWS ---
+        # n8n peut marquer des workflows comme "actifs" sans enregistrer les webhooks.
+        # Le cycle deactivate/activate force n8n a re-enregistrer tous les webhooks.
+        log_info "Reactivation de tous les workflows (enregistrement webhooks)..."
+        python3 -c "
+import json, urllib.request, os, sys, time
+
+api_url = os.environ.get('N8N_API_URL', '')
+api_key = os.environ.get('N8N_API_KEY', '')
+
+if not api_url or not api_key:
+    print('SKIP: N8N_API_URL ou N8N_API_KEY non defini')
+    sys.exit(0)
+
+# Recuperer tous les workflows
+all_workflows = []
+cursor = ''
+for _ in range(20):
+    url = f'{api_url}/api/v1/workflows?limit=250'
+    if cursor:
+        url += f'&cursor={cursor}'
+    req = urllib.request.Request(url, headers={'X-N8N-API-KEY': api_key})
+    try:
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read())
+    except Exception as e:
+        print(f'Erreur API: {e}')
+        break
+    wfs = data.get('data', [])
+    all_workflows.extend(wfs)
+    cursor = data.get('nextCursor', '')
+    if not cursor or not wfs:
+        break
+
+# Filtrer les workflows actifs
+active_wfs = [w for w in all_workflows if w.get('active')]
+total = len(all_workflows)
+active_count = len(active_wfs)
+print(f'{active_count}/{total} workflows actifs a reactiver...')
+
+# Deactivate puis reactivate chaque workflow actif
+ok = 0
+errors = 0
+for w in active_wfs:
+    wid = w['id']
+    wname = w.get('name', wid)
+    try:
+        # Deactivate
+        req_deact = urllib.request.Request(
+            f'{api_url}/api/v1/workflows/{wid}/deactivate',
+            method='POST',
+            headers={'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'},
+            data=b'{}'
+        )
+        urllib.request.urlopen(req_deact, timeout=10)
+        time.sleep(0.2)
+
+        # Reactivate
+        req_act = urllib.request.Request(
+            f'{api_url}/api/v1/workflows/{wid}/activate',
+            method='POST',
+            headers={'X-N8N-API-KEY': api_key, 'Content-Type': 'application/json'},
+            data=b'{}'
+        )
+        urllib.request.urlopen(req_act, timeout=10)
+        ok += 1
+    except Exception as e:
+        errors += 1
+        print(f'  ERREUR {wname}: {e}')
+    time.sleep(0.1)
+
+if errors == 0:
+    print(f'{ok}/{active_count} workflows reactives avec succes')
+else:
+    print(f'{ok}/{active_count} workflows reactives, {errors} erreurs')
+" 2>&1 | while IFS= read -r line; do
+          if echo "$line" | grep -q "ERREUR"; then
+            log_warn "$line"
+          elif echo "$line" | grep -q "SKIP"; then
+            log_info "$line"
+          else
+            log_ok "$line"
+          fi
+        done
+
         # --- VERIFICATION FINALE ---
         log_info "Verification finale..."
         python3 -c "
@@ -1246,6 +1331,7 @@ api_url = os.environ.get('N8N_API_URL', '')
 api_key = os.environ.get('N8N_API_KEY', '')
 
 if not api_url or not api_key:
+    print('SKIP: variables N8N non disponibles')
     sys.exit(0)
 
 all_workflows = []
