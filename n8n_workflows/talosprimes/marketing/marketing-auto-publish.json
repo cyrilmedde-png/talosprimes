@@ -397,7 +397,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Formater la notification Telegram\nconst data = ((() => { try { return $('Merger Résultats').first().json; } catch(e) { return $input.first().json; } })());\n\nconst platformEmojis = { facebook: '📘', instagram: '📸', tiktok: '🎵', linkedin: '🔗' };\n\nlet message = `🚀 *Publication Marketing*\\n`;\nmessage += `📅 ${data.date?.split('T')[0] || 'N/A'}\\n`;\nmessage += `📝 Thème: ${data.theme || 'N/A'}\\n`;\nmessage += `💡 Sujet: ${data.sujet || 'N/A'}\\n\\n`;\n\nconst platforms = data.platforms || {};\nfor (const [platform, result] of Object.entries(platforms)) {\n  const emoji = platformEmojis[platform] || '📱';\n  const status = result.success ? '✅' : '❌';\n  message += `${emoji} ${platform}: ${status}`;\n  if (result.post_id) message += ` (ID: ${result.post_id})`;\n  if (result.error) message += ` — ${result.error}`;\n  message += '\\n';\n}\n\nmessage += `\\n_TalosPrimes — Votre gestion, automatisée._`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
+        "jsCode": "// Formater la notification Telegram (HTML mode — safe)\nconst data = ((() => { try { return $('Merger Résultats').first().json; } catch(e) { return $input.first().json; } })());\n\nfunction esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\n\nconst platformEmojis = { facebook: '📘', instagram: '📸', tiktok: '🎵', linkedin: '🔗' };\n\nlet message = `🚀 <b>Publication Marketing</b>\\n`;\nmessage += `📅 ${esc(data.date?.split('T')[0] || 'N/A')}\\n`;\nmessage += `📝 Thème: ${esc(data.theme || 'N/A')}\\n`;\nmessage += `💡 Sujet: ${esc(data.sujet || 'N/A')}\\n\\n`;\n\nconst platforms = data.platforms || {};\nfor (const [platform, result] of Object.entries(platforms)) {\n  const emoji = platformEmojis[platform] || '📱';\n  const status = result.success ? '✅' : '❌';\n  message += `${emoji} ${esc(platform)}: ${status}`;\n  if (result.post_id) message += ` (ID: ${esc(result.post_id)})`;\n  if (result.error) message += ` — ${esc(result.error)}`;\n  message += '\\n';\n}\n\nmessage += `\\n<i>TalosPrimes — Votre gestion, automatisée.</i>`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
       },
       "id": "notif-prepare",
       "name": "Préparer Notification",
@@ -413,7 +413,7 @@
         "chatId": "={{ $json.chatId }}",
         "text": "={{ $json.message }}",
         "additionalFields": {
-          "parseMode": "Markdown"
+          "parseMode": "HTML"
         }
       },
       "id": "notif-telegram",
@@ -433,7 +433,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Gestion d'erreur — notification Telegram\nconst error = $input.first().json;\n\nconst message = `❌ *ERREUR Marketing Workflow*\\n\\n`\n  + `📅 ${new Date().toISOString().split('T')[0]}\\n`\n  + `⚠️ ${error.message || JSON.stringify(error).substring(0, 500)}\\n\\n`\n  + `Vérifiez les credentials et les API dans n8n.`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
+        "jsCode": "// Gestion d'erreur — notification Telegram (HTML mode — safe)\nconst error = $input.first().json;\nfunction esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\n\nconst message = `❌ <b>ERREUR Marketing Workflow</b>\\n\\n`\n  + `📅 ${new Date().toISOString().split('T')[0]}\\n`\n  + `⚠️ ${esc(error.message || JSON.stringify(error).substring(0, 500))}\\n\\n`\n  + `Vérifiez les credentials et les API dans n8n.`;\n\nreturn [{\n  json: {\n    chatId: \"6296082748\",\n    message: message\n  }\n}];"
       },
       "id": "error-handler",
       "name": "Error Handler",
@@ -449,7 +449,7 @@
         "chatId": "={{ $json.chatId }}",
         "text": "={{ $json.message }}",
         "additionalFields": {
-          "parseMode": "Markdown"
+          "parseMode": "HTML"
         }
       },
       "id": "error-telegram",
