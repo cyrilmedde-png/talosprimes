@@ -4,9 +4,8 @@
 -- Convention : seed-*.sql → exécuté auto par update-vps.sh
 -- =============================================================
 
--- Désactiver les anciennes entrées pour repartir propre
-UPDATE agent_knowledge_entries
-SET actif = false
+-- Supprimer les anciennes entrées pour repartir propre (contrainte unique sur tenant_id+titre)
+DELETE FROM agent_knowledge_entries
 WHERE tenant_id = '00000000-0000-0000-0000-000000000001';
 
 -- ============================================================
