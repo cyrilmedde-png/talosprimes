@@ -43,7 +43,8 @@ export default function SirenePage() {
       try {
         setLoading(true);
         const response = await apiClient.conformite.sirene.historique();
-        setHistorique(response);
+        const list = (response?.data as Record<string, unknown>)?.historique;
+        setHistorique(Array.isArray(list) ? list as SireneResult[] : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
         setHistorique([]);
@@ -66,10 +67,12 @@ export default function SirenePage() {
     try {
       setVerifySingleLoading(true);
       setError(null);
-      const result = await apiClient.conformite.sirene.verifier(cleaned);
-      setSingleResult(result);
+      const resultResp = await apiClient.conformite.sirene.verifier(cleaned);
+      const resultData = (resultResp?.data as Record<string, unknown>)?.result;
+      setSingleResult(resultData ? resultData as SireneResult : null);
       const updated = await apiClient.conformite.sirene.historique();
-      setHistorique(updated);
+      const updatedList = (updated?.data as Record<string, unknown>)?.historique;
+      setHistorique(Array.isArray(updatedList) ? updatedList as SireneResult[] : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la vérification');
       setSingleResult(null);
@@ -105,7 +108,8 @@ export default function SirenePage() {
       await apiClient.conformite.sirene.verifierLot(sirets);
       setBulkSirets('');
       const updated = await apiClient.conformite.sirene.historique();
-      setHistorique(updated);
+      const bulkList = (updated?.data as Record<string, unknown>)?.historique;
+      setHistorique(Array.isArray(bulkList) ? bulkList as SireneResult[] : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la vérification par lot');
     } finally {

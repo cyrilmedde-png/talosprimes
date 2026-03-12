@@ -40,8 +40,9 @@ export default function EReportingPage(): JSX.Element {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiClient.conformite.eReporting.liste();
-      setEReportingList(data);
+      const response = await apiClient.conformite.eReporting.liste();
+      const list = (response?.data as Record<string, unknown>)?.eReportings;
+      setEReportingList(Array.isArray(list) ? list as EReportingItem[] : []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
       setError(message);
@@ -83,7 +84,7 @@ export default function EReportingPage(): JSX.Element {
   const handleTransmettre = async (id: string): Promise<void> => {
     setError(null);
     try {
-      await apiClient.conformite.eReporting.transmettre(id);
+      await apiClient.conformite.eReporting.transmettre({ eReportingId: id, plateformeType: 'chorus_pro' });
       await loadEReportingList();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la transmission';

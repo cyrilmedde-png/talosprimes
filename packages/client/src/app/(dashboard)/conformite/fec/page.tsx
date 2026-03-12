@@ -55,14 +55,17 @@ export default function FecPage() {
       ]);
 
       if (exercicesRes.success && exercicesRes.data) {
-        setExercices(exercicesRes.data);
-        if (exercicesRes.data.length > 0) {
-          setSelectedExerciceId(exercicesRes.data[0].id);
+        const exercicesList = (exercicesRes.data as Record<string, unknown>)?.exercices;
+        const typedExercices = Array.isArray(exercicesList) ? exercicesList as Exercice[] : [];
+        setExercices(typedExercices);
+        if (typedExercices.length > 0) {
+          setSelectedExerciceId(typedExercices[0].id);
         }
       }
 
       if (fecsRes.success && fecsRes.data) {
-        setFecs(fecsRes.data);
+        const fecsList = (fecsRes.data as Record<string, unknown>)?.fecs;
+        setFecs(Array.isArray(fecsList) ? fecsList as FecItem[] : []);
       }
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : 'Erreur lors du chargement';
@@ -106,8 +109,7 @@ export default function FecPage() {
         setSiren('');
         await loadData();
       } else {
-        const errorMsg = (res as Record<string, unknown>)?.error || 'Erreur lors de la génération';
-        setError(typeof errorMsg === 'string' ? errorMsg : 'Erreur lors de la génération');
+        setError(res.error ?? 'Erreur lors de la génération');
       }
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : 'Erreur lors de la génération';
@@ -129,8 +131,7 @@ export default function FecPage() {
         setSuccess('FEC validé avec succès');
         await loadData();
       } else {
-        const errorMsg = (res as Record<string, unknown>)?.error || 'Erreur lors de la validation';
-        setError(typeof errorMsg === 'string' ? errorMsg : 'Erreur lors de la validation');
+        setError(res.error ?? 'Erreur lors de la validation');
       }
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : 'Erreur lors de la validation';
@@ -152,8 +153,7 @@ export default function FecPage() {
         setSuccess('FEC exporté avec succès');
         await loadData();
       } else {
-        const errorMsg = (res as Record<string, unknown>)?.error || 'Erreur lors de l\'export';
-        setError(typeof errorMsg === 'string' ? errorMsg : 'Erreur lors de l\'export');
+        setError(res.error ?? 'Erreur lors de l\'export');
       }
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : 'Erreur lors de l\'export';

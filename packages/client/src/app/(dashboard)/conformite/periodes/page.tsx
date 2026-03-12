@@ -59,7 +59,14 @@ export default function PeriodesPeriode(): JSX.Element {
     const loadExercices = async (): Promise<void> => {
       try {
         const response = await apiClient.comptabilite.exercices();
-        setExercices(response as Exercice[]);
+        const exercicesList = response?.data?.exercices ?? [];
+        setExercices(exercicesList.map((ex) => ({
+          id: ex.id,
+          code: ex.code,
+          dateDebut: ex.dateDebut,
+          dateFin: ex.dateFin,
+          cloture: ex.cloture,
+        })));
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Erreur lors du chargement'
@@ -82,7 +89,8 @@ export default function PeriodesPeriode(): JSX.Element {
         const response = await apiClient.conformite.periodes.liste(
           selectedExercice
         );
-        setPeriodes(response as PeriodeItem[]);
+        const periodesList = (response?.data as Record<string, unknown>)?.periodes;
+        setPeriodes(Array.isArray(periodesList) ? periodesList as PeriodeItem[] : []);
         setError(null);
       } catch (err) {
         setError(
@@ -110,7 +118,8 @@ export default function PeriodesPeriode(): JSX.Element {
       const response = await apiClient.conformite.periodes.liste(
         selectedExercice
       );
-      setPeriodes(response as PeriodeItem[]);
+      const periodesList = (response?.data as Record<string, unknown>)?.periodes;
+      setPeriodes(Array.isArray(periodesList) ? periodesList as PeriodeItem[] : []);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Erreur lors de la génération'
@@ -130,7 +139,8 @@ export default function PeriodesPeriode(): JSX.Element {
       const response = await apiClient.conformite.periodes.liste(
         selectedExercice
       );
-      setPeriodes(response as PeriodeItem[]);
+      const updatedList = (response?.data as Record<string, unknown>)?.periodes;
+      setPeriodes(Array.isArray(updatedList) ? updatedList as PeriodeItem[] : []);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Erreur lors de la clôture'

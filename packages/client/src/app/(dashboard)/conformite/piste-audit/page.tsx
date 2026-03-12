@@ -74,9 +74,10 @@ export default function PisteAuditPage(): JSX.Element {
         setLoading(true);
         const response = await apiClient.conformite.pisteAudit.liste({
           page,
-          pageSize,
+          limit: pageSize,
         });
-        setItems(response.data as PisteAuditItem[]);
+        const itemsList = (response?.data as Record<string, unknown>)?.items;
+        setItems(Array.isArray(itemsList) ? itemsList as PisteAuditItem[] : []);
         setError(null);
       } catch (err) {
         setError(
@@ -120,7 +121,11 @@ export default function PisteAuditPage(): JSX.Element {
         );
         setChainDetails((prev) => ({
           ...prev,
-          [chaineFluide]: response as ChaineFluide,
+          [chaineFluide]: {
+            items: Array.isArray((response?.data as Record<string, unknown>)?.items)
+              ? (response?.data as Record<string, unknown>)?.items as PisteAuditItem[]
+              : [],
+          } as ChaineFluide,
         }));
       } catch (err) {
         setError(

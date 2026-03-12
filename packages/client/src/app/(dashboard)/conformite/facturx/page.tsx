@@ -33,8 +33,9 @@ export default function FacturXPage(): JSX.Element {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiClient.conformite.facturx.liste();
-      setFacturXList(data);
+      const response = await apiClient.conformite.facturx.liste();
+      const list = (response?.data as Record<string, unknown>)?.facturx;
+      setFacturXList(Array.isArray(list) ? list as FacturXItem[] : []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors du chargement';
       setError(message);
@@ -70,7 +71,7 @@ export default function FacturXPage(): JSX.Element {
   const handleTransmettre = async (id: string): Promise<void> => {
     setError(null);
     try {
-      await apiClient.conformite.facturx.transmettre(id);
+      await apiClient.conformite.facturx.transmettre({ factureElectroniqueId: id, plateformeType: 'chorus_pro' });
       await loadFacturXList();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la transmission';
@@ -81,7 +82,7 @@ export default function FacturXPage(): JSX.Element {
   const handleVerifierStatut = async (id: string): Promise<void> => {
     setError(null);
     try {
-      await apiClient.conformite.facturx.verifierStatut(id);
+      await apiClient.conformite.facturx.statut(id);
       await loadFacturXList();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la vérification';

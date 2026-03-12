@@ -89,12 +89,15 @@ export default function Das2Page() {
           apiClient.comptabilite.exercices(),
           apiClient.conformite.das2.liste(),
         ]);
-        setExercices(exercicesData);
-        setItems(itemsData);
-        if (exercicesData.length > 0) {
+        const exercicesList = (exercicesData?.data as Record<string, unknown>)?.exercices;
+        const typedExercices = Array.isArray(exercicesList) ? exercicesList as Exercice[] : [];
+        setExercices(typedExercices);
+        const das2List = (itemsData?.data as Record<string, unknown>)?.das2;
+        setItems(Array.isArray(das2List) ? das2List as Das2Item[] : []);
+        if (typedExercices.length > 0) {
           setFormData((prev) => ({
             ...prev,
-            exerciceId: exercicesData[0].id,
+            exerciceId: typedExercices[0].id,
           }));
         }
       } catch (err) {
@@ -130,7 +133,8 @@ export default function Das2Page() {
         seuilMinimum: 1200,
       });
       const response = await apiClient.conformite.das2.liste();
-      setItems(response);
+      const refreshList = (response?.data as Record<string, unknown>)?.das2;
+      setItems(Array.isArray(refreshList) ? refreshList as Das2Item[] : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la génération');
     } finally {
@@ -145,9 +149,10 @@ export default function Das2Page() {
       return;
     }
     try {
-      const detail = await apiClient.conformite.das2.get(id);
+      const detailResp = await apiClient.conformite.das2.get(id);
+      const detailData = (detailResp?.data as Record<string, unknown>)?.das2;
       setExpandedId(id);
-      setExpandedDetail(detail);
+      setExpandedDetail(detailData ? detailData as Das2Detail : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement du détail');
     }
@@ -158,7 +163,8 @@ export default function Das2Page() {
       setTransmitting(id);
       await apiClient.conformite.das2.transmettre(id);
       const response = await apiClient.conformite.das2.liste();
-      setItems(response);
+      const updatedList = (response?.data as Record<string, unknown>)?.das2;
+      setItems(Array.isArray(updatedList) ? updatedList as Das2Item[] : []);
       setExpandedId(null);
       setExpandedDetail(null);
     } catch (err) {

@@ -81,7 +81,8 @@ export default function EdiTvaPage() {
       try {
         setLoading(true);
         const response = await apiClient.conformite.ediTva.liste();
-        setItems(response);
+        const list = (response?.data as Record<string, unknown>)?.ediTva;
+        setItems(Array.isArray(list) ? list as EdiTvaItem[] : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
         setItems([]);
@@ -114,7 +115,8 @@ export default function EdiTvaPage() {
         formulaireCerfa: 'CA3',
       });
       const response = await apiClient.conformite.ediTva.liste();
-      setItems(response);
+      const refreshList = (response?.data as Record<string, unknown>)?.ediTva;
+      setItems(Array.isArray(refreshList) ? refreshList as EdiTvaItem[] : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la génération');
     } finally {
@@ -127,7 +129,8 @@ export default function EdiTvaPage() {
       setTransmitting(id);
       await apiClient.conformite.ediTva.transmettre(id);
       const response = await apiClient.conformite.ediTva.liste();
-      setItems(response);
+      const updatedList = (response?.data as Record<string, unknown>)?.ediTva;
+      setItems(Array.isArray(updatedList) ? updatedList as EdiTvaItem[] : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la transmission');
     } finally {

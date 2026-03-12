@@ -78,7 +78,9 @@ export default function ArchivesPage(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [creatingArchive, setCreatingArchive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newArchive, setNewArchive] = useState({
+  const [newArchive, setNewArchive] = useState<{
+    typeArchive: 'fec' | 'grand_livre' | 'balance' | 'bilan' | 'journal' | 'tva';
+  }>({
     typeArchive: 'fec',
   });
   const [verifyingArchiveId, setVerifyingArchiveId] = useState<string | null>(
@@ -92,7 +94,14 @@ export default function ArchivesPage(): JSX.Element {
     const loadExercices = async (): Promise<void> => {
       try {
         const response = await apiClient.comptabilite.exercices();
-        setExercices(response as Exercice[]);
+        const exercicesList = response?.data?.exercices ?? [];
+        setExercices(exercicesList.map((ex) => ({
+          id: ex.id,
+          code: ex.code,
+          dateDebut: ex.dateDebut,
+          dateFin: ex.dateFin,
+          cloture: ex.cloture,
+        })));
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Erreur lors du chargement'
@@ -112,7 +121,8 @@ export default function ArchivesPage(): JSX.Element {
         const response = await apiClient.conformite.archives.liste({
           exerciceId: selectedExercice,
         });
-        setArchives(response as ArchiveItem[]);
+        const archivesList = (response?.data as Record<string, unknown>)?.archives;
+        setArchives(Array.isArray(archivesList) ? archivesList as ArchiveItem[] : []);
         setError(null);
       } catch (err) {
         setError(
@@ -146,10 +156,11 @@ export default function ArchivesPage(): JSX.Element {
       setNewArchive({ typeArchive: 'fec' });
       setError(null);
 
-      const response = await apiClient.conformite.archives.liste({
+      const refreshResp = await apiClient.conformite.archives.liste({
         exerciceId: selectedExercice,
       });
-      setArchives(response as ArchiveItem[]);
+      const refreshList = (refreshResp?.data as Record<string, unknown>)?.archives;
+      setArchives(Array.isArray(refreshList) ? refreshList as ArchiveItem[] : []);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Erreur lors de la création'
@@ -162,9 +173,13 @@ export default function ArchivesPage(): JSX.Element {
   const handleVerifyIntegrity = async (archiveId: string): Promise<void> => {
     try {
       setVerifyingArchiveId(archiveId);
-      const response = (await apiClient.conformite.archives.verifierIntegrite(
+      const verifyResp = await apiClient.conformite.archives.verifierIntegrite(
         archiveId
-      )) as IntegrityResult;
+      );
+      const response: IntegrityResult = {
+        valid: Boolean((verifyResp?.data as Record<string, unknown>)?.valid),
+        message: String((verifyResp?.data as Record<string, unknown>)?.message ?? ''),
+      };
       setVerifyResults((prev) => ({
         ...prev,
         [archiveId]: response,
@@ -248,7 +263,7 @@ export default function ArchivesPage(): JSX.Element {
                   onChange={(e) =>
                     setNewArchive({
                       ...newArchive,
-                      typeArchive: e.target.value,
+                      typeArchive: e.target.value as 'fec' | 'grand_livre' | 'balance' | 'bilan' | 'journal' | 'tva',
                     })
                   }
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-amber-500"

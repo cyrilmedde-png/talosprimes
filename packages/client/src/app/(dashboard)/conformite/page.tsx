@@ -12,7 +12,6 @@ import {
   ArchiveBoxIcon,
   MagnifyingGlassIcon,
   CalendarDaysIcon,
-  ClockIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
@@ -39,7 +38,18 @@ export default function ConformitePage() {
       setError('');
       const res = await apiClient.conformite.dashboard();
       if (res.success && res.data) {
-        setDashboard(res.data);
+        const d = res.data as Record<string, unknown>;
+        setDashboard({
+          fec: d.fec as ConformiteDashboardData['fec'],
+          facturx: d.facturx as ConformiteDashboardData['facturx'],
+          eReporting: d.eReporting as ConformiteDashboardData['eReporting'],
+          ediTva: d.ediTva as ConformiteDashboardData['ediTva'],
+          das2: d.das2 as ConformiteDashboardData['das2'],
+          pisteAudit: d.pisteAudit as ConformiteDashboardData['pisteAudit'],
+          archives: d.archives as ConformiteDashboardData['archives'],
+          sirene: d.sirene as ConformiteDashboardData['sirene'],
+          periodes: d.periodes as ConformiteDashboardData['periodes'],
+        });
       }
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : 'Erreur lors du chargement du tableau de bord';
