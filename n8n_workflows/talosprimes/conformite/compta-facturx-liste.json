@@ -32,14 +32,23 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value2": "",
-              "operation": "notEmpty",
-              "value1": "={{ $json.tenantId }}"
+              "id": "facturx-val-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
@@ -67,11 +76,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM factures_electroniques WHERE tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND statut = '{{ $json.statut }}'\n{% endif %}\" }}",
+        "query": "={{ \"SELECT COUNT(*) as total FROM factures_electroniques WHERE tenant_id = '\" + $json.tenantId + \"'\" + ($json.profil ? \" AND profil = '\" + $json.profil + \"'\" : \"\") + ($json.statut ? \" AND statut = '\" + $json.statut + \"'\" : \"\") }}",
         "options": {}
       },
       "credentials": {
-        "postgres": "OGqj65ZoFRileCck"
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
       },
       "id": "05. Count",
       "name": "05. Count",
@@ -87,11 +99,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT fe.id, fe.facture_id, fe.format, fe.profil, fe.statut, fe.date_generation, fe.date_transmission, fe.plateforme, fe.identifiant_ppf, f.numero_facture, f.montant_ttc, c.nom as client_nom FROM factures_electroniques fe LEFT JOIN factures f ON fe.facture_id = f.id LEFT JOIN clients c ON f.client_id = c.id WHERE fe.tenant_id = '{{ $json.tenantId }}'\n{% if $json.profil %}\n  AND fe.profil = '{{ $json.profil }}'\n{% endif %}\n{% if $json.statut %}\n  AND fe.statut = '{{ $json.statut }}'\n{% endif %}\nORDER BY fe.date_generation DESC\nLIMIT {{ $json.limit }} OFFSET {{ ($json.page - 1) * $json.limit }}\" }}",
+        "query": "={{ \"SELECT fe.id, fe.facture_id, fe.format, fe.profil, fe.statut, fe.date_generation, fe.date_transmission, fe.plateforme, fe.identifiant_ppf, f.numero_facture, f.montant_ttc, c.nom as client_nom FROM factures_electroniques fe LEFT JOIN factures f ON fe.facture_id = f.id LEFT JOIN clients c ON f.client_id = c.id WHERE fe.tenant_id = '\" + $json.tenantId + \"'\" + ($json.profil ? \" AND fe.profil = '\" + $json.profil + \"'\" : \"\") + ($json.statut ? \" AND fe.statut = '\" + $json.statut + \"'\" : \"\") + \" ORDER BY fe.date_generation DESC LIMIT \" + $json.limit + \" OFFSET \" + (($json.page - 1) * $json.limit) }}",
         "options": {}
       },
       "credentials": {
-        "postgres": "OGqj65ZoFRileCck"
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
       },
       "id": "06. List",
       "name": "06. List",
@@ -106,7 +121,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = $input.all();\nconst countData = results[0]?.json?.[0]?.total || 0;\nconst listData = results[1]?.json || [];\n\nreturn {\n  success: true,\n  total: countData,\n  count: listData.length,\n  data: listData\n};"
+        "jsCode": "var countResult = $('05. Count').first();\nvar total = countResult && countResult.json ? parseInt(countResult.json.total || '0', 10) : 0;\nvar listItems = $input.all();\nvar data = listItems.map(function(item) { return item.json; }).filter(function(r) { return r && r.id; });\n\nreturn [{\n  json: {\n    success: true,\n    total: total,\n    count: data.length,\n    data: data\n  }\n}];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",

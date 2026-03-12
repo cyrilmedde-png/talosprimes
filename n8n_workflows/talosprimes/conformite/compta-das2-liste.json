@@ -76,7 +76,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT id, tenant_id, annee_fiscale, nombre_beneficiaires, montant_total, statut, date_generation FROM declarations_das2 WHERE tenant_id = '\" + $json.tenantId + \"' ORDER BY date_generation DESC LIMIT '\" + $json.limit + \"' OFFSET '\" + $json.limit + \"'\" }}"
+        "query": "={{ \"SELECT id, tenant_id, annee_fiscale, nombre_beneficiaires, montant_total, statut, date_generation FROM declarations_das2 WHERE tenant_id = '\" + $json.tenantId + \"' ORDER BY date_generation DESC LIMIT \" + $json.limit + \" OFFSET \" + (($json.page - 1) * $json.limit) }}"
       },
       "credentials": {
         "postgres": {
@@ -97,7 +97,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return {\n  success: true,\n  page: $node[\"02. Parser\"].json.page,\n  limit: $node[\"02. Parser\"].json.limit,\n  data: $input.all()[0].json\n};"
+        "jsCode": "var parser = $('02. Parser').first().json;\nvar items = $input.all();\nvar data = items.map(function(item) { return item.json; }).filter(function(r) { return r && r.id; });\n\nreturn [{\n  json: {\n    success: true,\n    page: parser.page,\n    limit: parser.limit,\n    data: data\n  }\n}];"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

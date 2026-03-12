@@ -32,14 +32,23 @@
     {
       "parameters": {
         "conditions": {
-          "number": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
             {
-              "value2": "",
-              "operation": "notEmpty",
-              "value1": "={{ $json.tenantId }}"
+              "id": "auto-fix-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "03. Valide ?",
       "name": "03. Valide ?",
@@ -71,7 +80,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": "OGqj65ZoFRileCck"
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
       },
       "id": "05. Get Facturx",
       "name": "05. Get Facturx",
@@ -104,7 +116,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": "OGqj65ZoFRileCck"
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
       },
       "id": "07. Update Status",
       "name": "07. Update Status",
@@ -124,7 +139,10 @@
         "options": {}
       },
       "credentials": {
-        "postgres": "OGqj65ZoFRileCck"
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
       },
       "id": "08. Log PAF",
       "name": "08. Log PAF",
