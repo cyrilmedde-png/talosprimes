@@ -7,186 +7,109 @@
         "responseMode": "responseNode",
         "httpMethod": "POST"
       },
-      "name": "Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        250,
-        250
-      ]
+      "position": [250, 300]
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\nreturn [{ json: {\n  id: require('crypto').randomUUID(),\n  tenantId: body.tenantId,\n  leadId: body.leadId || null,\n  callLogId: body.callLogId || null,\n  title: body.title || '',\n  description: body.description || '',\n  content: body.content || {},\n  status: body.status || 'pending',\n  completedAt: body.completedAt || null\n} }];"
+        "jsCode": "// Parse et valide le body\nvar body = $input.first().json.body || $input.first().json;\n\nvar tenantId = String(body.tenantId || '').replace(/[^a-f0-9-]/gi, '');\nvar leadId = String(body.leadId || '').replace(/[^a-f0-9-]/gi, '');\nvar channel = ['telephone', 'sms', 'web'].includes(body.channel) ? body.channel : 'telephone';\nvar status = ['en_cours', 'complete', 'abandonne'].includes(body.status) ? body.status : 'en_cours';\n\n// Questions: array de {question, answer, order}\nvar questions = [];\ntry {\n  var raw = body.questions || [];\n  if (typeof raw === 'string') raw = JSON.parse(raw);\n  for (var i = 0; i < raw.length; i++) {\n    questions.push({\n      question: String(raw[i].question || '').substring(0, 500),\n      answer: raw[i].answer ? String(raw[i].answer).substring(0, 1000) : null,\n      order: raw[i].order || (i + 1)\n    });\n  }\n} catch(e) {}\n\nvar completedAt = status === 'complete' ? new Date().toISOString() : null;\n\nreturn [{ json: { tenantId, leadId, channel, status, questions, completedAt } }];"
       },
-      "name": "Parser",
+      "name": "02. Parse Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        450,
-        250
-      ]
+      "position": [470, 300]
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": ""
-          },
           "conditions": [
             {
-              "id": "ba6bffae-30b8-4153-b0c3-aadda41ab081",
               "leftValue": "={{ $json.tenantId }}",
               "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty"
-              }
+              "operator": { "type": "string", "operation": "notEmpty" }
+            },
+            {
+              "leftValue": "={{ $json.leadId }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
             }
           ],
           "combinator": "and"
-        },
-        "options": {}
+        }
       },
-      "name": "If",
+      "name": "03. Validate",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        650,
-        250
-      ]
+      "position": [690, 300]
     },
     {
       "parameters": {
         "respondWithCode": 400,
-        "responseBody": "={{ { success: false, error: 'Missing required field: tenantId' } }}"
+        "responseBody": "={{ JSON.stringify({ success: false, error: 'tenantId et leadId sont requis' }) }}"
       },
-      "name": "Respond Error",
+      "name": "04. Error Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        850,
-        150
-      ]
+      "position": [910, 160]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO questionnaires (id, tenant_id, lead_id, call_log_id, title, description, content, status, completed_at, created_at, updated_at) VALUES ('\" + $json.id + \"', '\" + $json.tenantId + \"', '\" + $json.leadId + \"', '\" + $json.callLogId + \"', '\" + $json.title + \"', '\" + $json.description + \"', '\" + JSON.stringify($json.content) + \"'::jsonb::jsonb, '\" + $json.status + \"', '\" + $json.completedAt + \"', NOW(), NOW())\" }}"
+        "query": "={{ (function() {\n  var d = $json;\n  var id = require('crypto').randomUUID();\n  var questionsJson = JSON.stringify(d.questions || []).replace(/'/g, \"''\");\n  var completedAt = d.completedAt ? \"'\" + d.completedAt + \"'\" : 'NULL';\n  return \"INSERT INTO questionnaires (id, tenant_id, lead_id, questions, status, channel, completed_at, created_at, updated_at) \"\n    + \"VALUES ('\" + id + \"', '\" + d.tenantId + \"', '\" + d.leadId + \"', '\" + questionsJson + \"'::jsonb, '\" + d.status + \"', '\" + d.channel + \"', \" + completedAt + \", NOW(), NOW()) \"\n    + \"RETURNING id, tenant_id, lead_id, status, channel, created_at\";\n})() }}",
+        "options": {}
       },
-      "name": "Postgres Insert",
+      "name": "05. Insert Questionnaire",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [
-        850,
-        250
-      ],
+      "position": [910, 300],
       "credentials": {
         "postgres": {
           "name": "Supabase Postgres",
           "id": "OGqj65ZoFRileCck"
         }
-      },
-      "alwaysOutputData": true
+      }
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: {\n  questionnaireId: $json.id,\n  title: $json.title,\n  status: $json.status,\n  success: true,\n  message: 'Questionnaire created successfully'\n} }];"
+        "jsCode": "var inserted = $input.first().json;\nreturn [{ json: {\n  success: true,\n  questionnaireId: inserted.id,\n  status: inserted.status,\n  channel: inserted.channel,\n  message: 'Questionnaire créé avec succès'\n} }];"
       },
-      "name": "Format Response",
+      "name": "06. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1050,
-        250
-      ]
+      "position": [1130, 300]
     },
     {
       "parameters": {
         "responseBody": "={{ $json }}"
       },
-      "name": "Respond",
+      "name": "07. Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1250,
-        250
-      ]
+      "position": [1350, 300]
     }
   ],
   "connections": {
-    "Webhook": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parse Input", "type": "main", "index": 0 }]]
+    },
+    "02. Parse Input": {
+      "main": [[{ "node": "03. Validate", "type": "main", "index": 0 }]]
+    },
+    "03. Validate": {
       "main": [
-        [
-          {
-            "node": "Parser",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
+        [{ "node": "05. Insert Questionnaire", "type": "main", "index": 0 }],
+        [{ "node": "04. Error Response", "type": "main", "index": 0 }]
       ]
     },
-    "Parser": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "05. Insert Questionnaire": {
+      "main": [[{ "node": "06. Format Response", "type": "main", "index": 0 }]]
     },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Postgres Insert",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "node": "Respond Error",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Postgres Insert": {
-      "main": [
-        [
-          {
-            "node": "Format Response",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Format Response": {
-      "main": [
-        [
-          {
-            "node": "Respond",
-            "branch": 0,
-            "index": 0,
-            "type": "main"
-          }
-        ]
-      ]
+    "06. Format Response": {
+      "main": [[{ "node": "07. Respond OK", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
+  "settings": { "executionOrder": "v1" },
   "active": true
 }
