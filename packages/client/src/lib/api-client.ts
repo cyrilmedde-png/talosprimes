@@ -1582,7 +1582,7 @@ export const apiClient = {
     deletePost: (id: string) => authenticatedFetch<{ success: boolean; message: string }>(`/api/marketing/posts/${id}`, { method: 'DELETE' }),
     getStats: () => authenticatedFetch<{ success: boolean; data: { stats: MarketingStats } }>('/api/marketing/stats'),
     getCalendar: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/marketing/calendar'),
-    triggerPublish: (data?: { plateforme?: string; contenuTexte?: string; hashtags?: string; sujet?: string; type?: string }) =>
+    triggerPublish: (data?: { postId?: string; plateforme?: string; contenuTexte?: string; hashtags?: string; sujet?: string; type?: string }) =>
       authenticatedFetch<{ success: boolean; data: unknown; message: string }>('/api/marketing/publish', { method: 'POST', ...(data ? { body: JSON.stringify(data) } : {}) }),
     getStatus: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/marketing/status'),
     generateContent: (data: { plateforme: string; type: string; sujet: string }) =>

@@ -109,7 +109,20 @@ export default function PublicationsPage() {
   const publishPost = async (id: string) => {
     setPublishing(id);
     try {
-      await apiClient.marketing.triggerPublish();
+      // Trouver le post pour envoyer ses données au workflow n8n
+      const post = posts.find(p => p.id === id);
+      if (!post) {
+        showNotification('error', 'Publication introuvable');
+        return;
+      }
+      await apiClient.marketing.triggerPublish({
+        postId: id,
+        plateforme: post.plateforme,
+        type: post.type,
+        sujet: post.sujet,
+        contenuTexte: post.contenuTexte || undefined,
+        hashtags: post.hashtags || undefined,
+      });
       showNotification('success', 'Publication déclenchée avec succès');
       loadPosts();
     } catch (error) {

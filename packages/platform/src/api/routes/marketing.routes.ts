@@ -297,17 +297,75 @@ export async function marketingRoutes(fastify: FastifyInstance) {
 
       try {
         const body = request.body as Record<string, unknown> || {};
+
+        // Si un postId est fourni, charger le post depuis la BDD
+        let postData: Record<string, unknown> = {};
+        let postRecord: { id: string; plateforme: string; type: string; sujet: string; contenuTexte: string | null; hashtags: string | null; contenuVisuelUrl: string | null } | null = null;
+
+        if (body.postId) {
+          postRecord = await prisma.marketingPost.findFirst({
+            where: { id: body.postId as string, tenantId },
+            select: { id: true, plateforme: true, type: true, sujet: true, contenuTexte: true, hashtags: true, contenuVisuelUrl: true },
+          });
+
+          if (!postRecord) {
+            return ApiError.notFound(reply, 'Publication introuvable');
+          }
+
+          postData = {
+            post_id: postRecord.id,
+            plateforme: postRecord.plateforme,
+            type: postRecord.type,
+            sujet: postRecord.sujet,
+            contenu_texte: postRecord.contenuTexte || '',
+            hashtags: postRecord.hashtags || '',
+            contenu_visuel_url: postRecord.contenuVisuelUrl || '',
+          };
+        } else {
+          // Fallback : données passées dans le body (ancien comportement)
+          if (body.contenuTexte) postData.contenu_texte = body.contenuTexte;
+          if (body.hashtags) postData.hashtags = body.hashtags;
+          if (body.sujet) postData.sujet = body.sujet;
+          if (body.type) postData.type = body.type;
+          if (body.plateforme) postData.plateforme = body.plateforme;
+        }
+
         const result = await n8nService.callWorkflowReturn(tenantId, 'marketing_auto_publish', {
           manual: true,
-          ...(body.contenuTexte ? { contenu_texte: body.contenuTexte } : {}),
-          ...(body.hashtags ? { hashtags: body.hashtags } : {}),
-          ...(body.sujet ? { sujet: body.sujet } : {}),
-          ...(body.type ? { type: body.type } : {}),
-          ...(body.plateforme ? { plateforme: body.plateforme } : {}),
+          ...postData,
         });
+
+        // Si le workflow n8n a répondu avec succès, mettre à jour le status du post
+        if (postRecord) {
+          const n8nResult = result as Record<string, unknown> | null;
+          const hasError = n8nResult && (n8nResult.error || n8nResult.status === 'erreur');
+
+          await prisma.marketingPost.update({
+            where: { id: postRecord.id },
+            data: {
+              status: hasError ? 'erreur' : 'publie',
+              datePublication: new Date(),
+              ...(hasError ? { erreurDetail: String(n8nResult?.error || 'Erreur workflow') } : {}),
+              ...(!hasError && n8nResult?.postExternalId ? { postExternalId: String(n8nResult.postExternalId) } : {}),
+            },
+          });
+        }
+
         return reply.send({ success: true, data: result, message: 'Publication déclenchée' });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erreur workflow n8n';
+
+        // Si on avait un post, marquer en erreur
+        const body = request.body as Record<string, unknown> || {};
+        if (body.postId) {
+          try {
+            await prisma.marketingPost.update({
+              where: { id: body.postId as string },
+              data: { status: 'erreur', erreurDetail: message },
+            });
+          } catch { /* ignore update error */ }
+        }
+
         return ApiError.internal(reply, `Erreur lors de la publication : ${message}`);
       }
     }
