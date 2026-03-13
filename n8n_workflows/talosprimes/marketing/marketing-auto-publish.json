@@ -230,7 +230,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Préparer la publication Instagram via Meta Graph API\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'EAFntLfSxErEBQ11ZA6F73GQgStv9k4vBqZBWJUkCBACFfZChv1eFaR8acC6XoWDW1MySZBUyYxlZA5xIZChQbn0VoWW2Brh03BoJ8yZCVofahP5gmZAHsUFg0hvoPcbjEA3dorZBz37woXNsglFdYhIX2MXIBS9oKafGWL7M9Mnk0dFII6DRANtCjjnQXyVVoAgSllsAPKbs6idrLD5hexOwJSlNyNKwYaHtaUMjvShjb',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst caption = (ig.caption || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
+        "jsCode": "// Préparer la publication Instagram via Meta Graph API\nconst data = $input.first().json;\nif (data.error) return [{ json: { platform: 'instagram', success: false, post_id: null, error: data.message } }];\n\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'EAFntLfSxErEBQ11ZA6F73GQgStv9k4vBqZBWJUkCBACFfZChv1eFaR8acC6XoWDW1MySZBUyYxlZA5xIZChQbn0VoWW2Brh03BoJ8yZCVofahP5gmZAHsUFg0hvoPcbjEA3dorZBz37woXNsglFdYhIX2MXIBS9oKafGWL7M9Mnk0dFII6DRANtCjjnQXyVVoAgSllsAPKbs6idrLD5hexOwJSlNyNKwYaHtaUMjvShjb',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst ig = data.instagram || {};\nconst hashtags = (ig.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n\nlet caption;\nif (data.source === 'manual') {\n  // Manuel : utiliser le texte Facebook comme caption Instagram\n  const fb = data.facebook || {};\n  caption = fb.text || data.theme?.angle || '';\n} else {\n  // IA : utiliser le caption Instagram genere\n  caption = (ig.caption || data.theme?.angle || '') + (hashtags ? '\\n\\n' + hashtags : '');\n}\n\n// Image : utiliser l image uploadee si disponible, sinon image par defaut\nconst imageUrl = data.contenu_visuel_url || META_CONFIG.DEFAULT_IMAGE_URL;\n\nreturn [{\n  json: {\n    platform: \"instagram\",\n    caption: caption,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    image_url: imageUrl\n  }\n}];"
       },
       "id": "ig-prepare",
       "name": "Préparer Instagram",
@@ -239,20 +239,19 @@
       "position": [
         1100,
         300
-      ],
-      "disabled": true
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v21.0/{{ $json.instagram_user_id }}/media",
+        "url": "=https://graph.facebook.com/v25.0/{{ $json.instagram_user_id }}/media",
         "authentication": "none",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
               "name": "image_url",
-              "value": "={{ $json.default_image_url }}"
+              "value": "={{ $json.image_url }}"
             },
             {
               "name": "caption",
@@ -283,13 +282,12 @@
       "position": [
         1320,
         300
-      ],
-      "disabled": true
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v21.0/{{ $json.body.ig_user_id || $('Préparer Instagram').first().json.instagram_user_id }}/media_publish",
+        "url": "=https://graph.facebook.com/v25.0/{{ $json.body.ig_user_id || $('Préparer Instagram').first().json.instagram_user_id }}/media_publish",
         "authentication": "none",
         "sendBody": true,
         "bodyParameters": {
@@ -319,8 +317,7 @@
       "position": [
         1540,
         300
-      ],
-      "disabled": true
+      ]
     },
     {
       "parameters": {
@@ -767,7 +764,13 @@
     },
     "Résultat Instagram": {
       "main": [
-        []
+        [
+          {
+            "node": "Merger Résultats",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Préparer TikTok": {
@@ -896,6 +899,11 @@
           },
           {
             "node": "Préparer LinkedIn",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer Instagram",
             "type": "main",
             "index": 0
           }
