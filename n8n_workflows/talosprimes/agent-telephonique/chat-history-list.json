@@ -1,0 +1,202 @@
+{
+  "name": "chat-history-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "chat-history-list",
+        "responseMode": "responseNode",
+        "httpMethod": "GET",
+        "options": {}
+      },
+      "id": "01. Webhook GET",
+      "name": "01. Webhook GET",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate input & auth\nvar data = $input.first().json;\nvar qs = data.query || data.params || {};\nvar headers = data.headers || {};\n\n// Simple API key auth (à remplacer par JWT en prod)\nvar apiKey = String(headers['x-api-key'] || headers['X-Api-Key'] || qs.apiKey || '').trim();\nvar validKey = 'talosprimes-chat-admin-2026'; // TODO: move to env/credentials\n\nif (apiKey !== validKey) {\n  return [{ json: { error: true, code: 401, message: 'Unauthorized: API key invalide' }}];\n}\n\nvar sessionId = String(qs.sessionId || '').replace(/[^a-zA-Z0-9]/g, '').substring(0, 34);\nvar limit = Math.min(parseInt(qs.limit) || 50, 200);\nvar offset = Math.max(parseInt(qs.offset) || 0, 0);\nvar decrypt = String(qs.decrypt || 'false') === 'true';\n\nreturn [{ json: { error: false, sessionId, limit, offset, decrypt }}];"
+      },
+      "id": "02. Validate Auth",
+      "name": "02. Validate Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Auth OK?",
+      "name": "03. Auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, message: $json.message || 'Unauthorized' }) }}",
+        "options": {
+          "responseCode": "={{ $json.code || 401 }}"
+        }
+      },
+      "id": "04. Respond 401",
+      "name": "04. Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        760,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() {\n  var d = $input.first().json;\n  var decrypt = d.decrypt;\n\n  // If specific session\n  if (d.sessionId) {\n    if (decrypt) {\n      // Use decrypted view\n      return \"SELECT id, session_id, message, created_at FROM v_chat_histories_decrypted \"\n        + \"WHERE session_id = '\" + d.sessionId + \"' ORDER BY created_at ASC LIMIT \" + d.limit + \" OFFSET \" + d.offset;\n    } else {\n      return \"SELECT id, session_id, CASE WHEN message_encrypted IS NOT NULL THEN '{\\\"encrypted\\\": true}'::jsonb ELSE message END as message, \"\n        + \"(message_encrypted IS NOT NULL) as is_encrypted, created_at \"\n        + \"FROM n8n_chat_histories WHERE session_id = '\" + d.sessionId + \"' ORDER BY created_at ASC LIMIT \" + d.limit + \" OFFSET \" + d.offset;\n    }\n  }\n\n  // List all sessions (grouped)\n  return \"SELECT session_id, COUNT(*) as message_count, \"\n    + \"MIN(created_at) as first_message, MAX(created_at) as last_message, \"\n    + \"bool_or(message_encrypted IS NOT NULL) as has_encrypted \"\n    + \"FROM n8n_chat_histories GROUP BY session_id \"\n    + \"ORDER BY MAX(created_at) DESC LIMIT \" + d.limit + \" OFFSET \" + d.offset;\n})() }}",
+        "options": {}
+      },
+      "id": "05. Query Chat History",
+      "name": "05. Query Chat History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        760,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response\nvar rows = $('05. Query Chat History').all();\nvar input = $('02. Validate Auth').first().json;\nvar results = [];\n\nfor (var i = 0; i < rows.length; i++) {\n  var r = rows[i].json || rows[i];\n  results.push(r);\n}\n\nvar response = { success: true };\n\nif (input.sessionId) {\n  response.sessionId = input.sessionId;\n  response.decrypted = input.decrypt;\n  response.messages = results;\n  response.count = results.length;\n} else {\n  response.sessions = results;\n  response.count = results.length;\n}\n\nreturn [{ json: response }];"
+      },
+      "id": "06. Format Response",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "id": "07. Respond JSON",
+      "name": "07. Respond JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook GET": {
+      "main": [
+        [
+          {
+            "node": "02. Validate Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Validate Auth": {
+      "main": [
+        [
+          {
+            "node": "03. Auth OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Auth OK?": {
+      "main": [
+        [
+          {
+            "node": "04. Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. Query Chat History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Query Chat History": {
+      "main": [
+        [
+          {
+            "node": "06. Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Format Response": {
+      "main": [
+        [
+          {
+            "node": "07. Respond JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
