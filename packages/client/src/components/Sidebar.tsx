@@ -45,7 +45,6 @@ import {
   MegaphoneIcon,
   ShieldCheckIcon,
   StarIcon,
-  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -211,7 +210,6 @@ const allNavGroups: NavGroup[] = [
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
       { name: 'Notifications', href: '/notifications', icon: BellIcon },
       { name: 'CMS Landing Page', href: '/cms', icon: PencilSquareIcon },
-      { name: 'Mon Site Web', href: '/mon-site', icon: GlobeAltIcon },
     ],
   },
   {
