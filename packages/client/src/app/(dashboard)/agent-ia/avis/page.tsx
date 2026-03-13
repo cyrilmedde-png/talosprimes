@@ -58,7 +58,8 @@ function NoteStars({ note, size = 'sm' }: { note: number; size?: 'sm' | 'md' }) 
 
 export default function AvisPage() {
   const router = useRouter();
-  const { tenantId } = useAuthStore();
+  const { user } = useAuthStore();
+  const tenantId = user?.tenantId || '';
   const [avis, setAvis] = useState<Avis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
