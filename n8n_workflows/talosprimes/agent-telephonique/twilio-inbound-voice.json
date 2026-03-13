@@ -169,7 +169,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ (function() {\n  var d = $input.first().json;\n  if (!d.tenantId) return 'SELECT 1';\n  function safe(s) { return String(s || '').replace(/'/g, \"''\").substring(0, 500); }\n  var notes = safe('CallSid:' + (d.callSid||'') + ' Q: ' + (d.speechResult || '').substring(0, 200) + ' - R: ' + (d.aiReply || '').substring(0, 300));\n  return \"INSERT INTO call_logs (id, tenant_id, call_sid, from_number, to_number, direction, status, duration, notes, created_at, updated_at) \"\n    + \"VALUES (gen_random_uuid(), '\" + d.tenantId + \"', '\" + safe(d.callSid) + \"', '\" + safe(d.from) + \"', '', 'inbound', 'completed', 0, '\" + notes + \"', NOW(), NOW()) \"\n    + \"ON CONFLICT DO NOTHING\";\n})() }}",
+        "query": "={{ (function() {\n  var d = $input.first().json;\n  if (!d.tenantId) return 'SELECT 1';\n  function safe(s) { return String(s || '').replace(/'/g, \"''\").substring(0, 500); }\n  var notes = safe('CallSid:' + (d.callSid||'') + ' Q: ' + (d.speechResult || '').substring(0, 200) + ' - R: ' + (d.aiReply || '').substring(0, 300));\n  return \"INSERT INTO call_logs (id, tenant_id, call_sid, caller_phone, called_number, direction, status, duration, notes, created_at, updated_at) \"\n    + \"VALUES (gen_random_uuid(), '\" + d.tenantId + \"', '\" + safe(d.callSid) + \"', '\" + safe(d.from) + \"', '', 'entrant', 'completed', 0, '\" + notes + \"', NOW(), NOW()) \"\n    + \"ON CONFLICT DO NOTHING\";\n})() }}",
         "options": {}
       },
       "id": "10. Log Call",
