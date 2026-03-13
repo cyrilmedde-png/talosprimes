@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
@@ -10,7 +10,11 @@ import {
   ArrowUpRightIcon,
   EyeIcon,
   XMarkIcon,
+  CalendarDaysIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
+import Link from 'next/link';
+import { useAuthStore } from '@/store/auth-store';
 
 interface Call {
   id: string;
@@ -41,6 +45,38 @@ interface CallsPerDay {
   nombre: number;
 }
 
+interface RdvEvent {
+  id: string;
+  title: string;
+  start: string | null;
+  end: string | null;
+  type: string;
+  contact: { nom: string; prenom: string; telephone: string; email: string };
+  source: string;
+  statut: string;
+  score: number;
+  notes: string;
+}
+
+const N8N_BASE = process.env.NEXT_PUBLIC_N8N_URL || 'https://n8n.talosprimes.com';
+
+const JOUR_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+const JOUR_LABELS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+const RDV_TYPE_COLORS: Record<string, string> = {
+  telephonique: 'bg-cyan-600',
+  visioconference: 'bg-purple-600',
+  physique: 'bg-amber-600',
+  a_planifier: 'bg-gray-600',
+};
+
+const RDV_TYPE_ICONS: Record<string, string> = {
+  telephonique: '📞',
+  visioconference: '📹',
+  physique: '🏢',
+  a_planifier: '⏳',
+};
+
 export default function AgentIAPage() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
@@ -57,8 +93,10 @@ export default function AgentIAPage() {
   });
   const [calls, setCalls] = useState<Call[]>([]);
   const [callsPerDay, setCallsPerDay] = useState<CallsPerDay[]>([]);
+  const [weekRdvs, setWeekRdvs] = useState<RdvEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -96,6 +134,27 @@ export default function AgentIAPage() {
         }
       } catch (callsErr) {
         console.warn('[AgentIA] Appels indisponibles:', callsErr instanceof Error ? callsErr.message : callsErr);
+      }
+
+      // Charger les RDV de la semaine glissante (non-bloquant)
+      try {
+        const tenantId = user?.tenantId || '';
+        if (tenantId) {
+          const today = new Date();
+          const inSixDays = new Date(today);
+          inSixDays.setDate(today.getDate() + 6);
+          const from = today.toISOString().split('T')[0];
+          const to = inSixDays.toISOString().split('T')[0];
+          const res = await fetch(
+            `${N8N_BASE}/webhook/calendrier-rdv?tenantId=${tenantId}&from=${from}&to=${to}`
+          );
+          const data = await res.json();
+          if (data.success) {
+            setWeekRdvs(data.events || []);
+          }
+        }
+      } catch (rdvErr) {
+        console.warn('[AgentIA] RDV semaine indisponibles:', rdvErr instanceof Error ? rdvErr.message : rdvErr);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement';
@@ -144,6 +203,36 @@ export default function AgentIAPage() {
         return 'bg-gray-900/30 text-gray-300 border-gray-700/30';
     }
   };
+
+  // Générer les 7 jours glissants (aujourd'hui → J+6)
+  const weekDays = useMemo(() => {
+    const days: Array<{ date: Date; dateStr: string; label: string; labelFull: string; isToday: boolean }> = [];
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      days.push({
+        date: d,
+        dateStr,
+        label: JOUR_LABELS[d.getDay()],
+        labelFull: JOUR_LABELS_FULL[d.getDay()],
+        isToday: i === 0,
+      });
+    }
+    return days;
+  }, []);
+
+  const weekRdvsByDay = useMemo(() => {
+    const map: Record<string, RdvEvent[]> = {};
+    weekRdvs.forEach(ev => {
+      if (!ev.start) return;
+      const day = ev.start.split('T')[0];
+      if (!map[day]) map[day] = [];
+      map[day].push(ev);
+    });
+    return map;
+  }, [weekRdvs]);
 
   const maxCalls = Math.max(...callsPerDay.map(d => d.nombre), 1);
   const chartHeight = 200;
@@ -230,6 +319,97 @@ export default function AgentIAPage() {
             <div className="h-6 w-6 rounded-full bg-green-400/20 border border-green-400/50" />
           </div>
           <p className="mt-2 text-3xl font-bold text-white">{stats.positiveSentiment}%</p>
+        </div>
+      </div>
+
+      {/* Calendrier Semaine Glissant */}
+      <div className="mb-8">
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg shadow-lg p-6 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <CalendarDaysIcon className="h-6 w-6 text-cyan-400" />
+              <h2 className="text-xl font-bold text-white">Rendez-vous cette semaine</h2>
+              <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-1 rounded-full">
+                {weekRdvs.length} RDV
+              </span>
+            </div>
+            <Link
+              href="/agent-ia/calendrier"
+              className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-sm transition-colors"
+            >
+              Voir tout le calendrier
+              <ChevronRightIcon className="h-4 w-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map(({ dateStr, label, date, isToday }) => {
+              const dayEvents = weekRdvsByDay[dateStr] || [];
+              const hasEvents = dayEvents.length > 0;
+              return (
+                <div
+                  key={dateStr}
+                  className={`
+                    rounded-xl p-3 border transition-colors min-h-[140px] flex flex-col
+                    ${isToday
+                      ? 'bg-cyan-900/20 border-cyan-600/40'
+                      : hasEvents
+                        ? 'bg-gray-700/30 border-gray-600/40'
+                        : 'bg-gray-800/30 border-gray-700/20'
+                    }
+                  `}
+                >
+                  {/* En-tête du jour */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col">
+                      <span className={`text-[10px] uppercase tracking-wider ${isToday ? 'text-cyan-400 font-bold' : 'text-gray-500'}`}>
+                        {isToday ? "Aujourd'hui" : label}
+                      </span>
+                      <span className={`text-lg font-bold ${isToday ? 'text-cyan-300' : 'text-gray-300'}`}>
+                        {date.getDate()}
+                      </span>
+                    </div>
+                    {hasEvents && (
+                      <span className={`text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center ${isToday ? 'bg-cyan-500 text-white' : 'bg-gray-600 text-gray-200'}`}>
+                        {dayEvents.length}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Événements */}
+                  <div className="flex-1 space-y-1.5">
+                    {dayEvents.slice(0, 3).map(ev => {
+                      const time = ev.start?.includes('T') ? ev.start.split('T')[1]?.substring(0, 5) : '';
+                      return (
+                        <div
+                          key={ev.id}
+                          className={`rounded px-1.5 py-1 text-white ${RDV_TYPE_COLORS[ev.type] || 'bg-gray-600'}`}
+                          title={`${ev.title} — ${ev.contact.telephone || ''}`}
+                        >
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px]">{RDV_TYPE_ICONS[ev.type] || '📅'}</span>
+                            <span className="text-[10px] font-medium truncate">{time}</span>
+                          </div>
+                          <p className="text-[10px] truncate opacity-80">
+                            {ev.contact.prenom || ev.contact.nom
+                              ? `${ev.contact.prenom} ${ev.contact.nom}`.trim()
+                              : ev.title
+                            }
+                          </p>
+                        </div>
+                      );
+                    })}
+                    {dayEvents.length > 3 && (
+                      <p className="text-[10px] text-gray-500 text-center">+{dayEvents.length - 3} autres</p>
+                    )}
+                    {!hasEvents && (
+                      <p className="text-[10px] text-gray-600 text-center mt-4">—</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
