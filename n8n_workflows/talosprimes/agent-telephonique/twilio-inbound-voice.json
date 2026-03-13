@@ -290,7 +290,7 @@
       "parameters": {
         "toolDescription": "Reserver un rendez-vous pour le client. Utilise cet outil quand le client veut planifier une demo, un rendez-vous ou un appel. Passe TOUJOURS le tenant_id.",
         "method": "POST",
-        "url": "https://n8n.talosprimes.com/webhook/lead_create",
+        "url": "https://n8n.talosprimes.com/webhook/rdv-create",
         "sendBody": true,
         "specifyBody": "json",
         "options": {
@@ -300,7 +300,7 @@
             }
           }
         },
-        "jsonBody": "={{ (() => { const objet = $fromAI(\"objet\", \"Objet du rendez-vous\"); const date = $fromAI(\"date_rdv\", \"Date souhaitee, format YYYY-MM-DD si connue, sinon vide\"); const heure = $fromAI(\"heure_rdv\", \"Heure souhaitee, format HH:MM si connue, sinon vide\"); return JSON.stringify({ tenantId: $fromAI(\"tenant_id\", \"UUID du tenant\"), nom: \"RDV - \" + objet, prenom: \"\", email: \"\", telephone: $fromAI(\"telephone\", \"Telephone du client\"), source: \"telephone_rdv\", notes: \"RDV demande: \" + objet + (date ? \" le \" + date : \"\") + (heure ? \" a \" + heure : \"\") }); })() }}"
+        "jsonBody": "={{ (() => { const objet = $fromAI(\"objet\", \"Objet du rendez-vous\"); const dateRdv = $fromAI(\"date_rdv\", \"Date souhaitee format YYYY-MM-DD, vide si inconnue\"); const heureRdv = $fromAI(\"heure_rdv\", \"Heure souhaitee format HH:MM, vide si inconnue\"); return JSON.stringify({ tenantId: $fromAI(\"tenant_id\", \"UUID du tenant\"), nom: $fromAI(\"nom_client\", \"Nom du client si connu\") || \"\", prenom: $fromAI(\"prenom_client\", \"Prenom du client si connu\") || \"\", email: \"\", telephone: $fromAI(\"telephone\", \"Telephone du client\"), objet: objet, date: dateRdv || \"\", heure: heureRdv || \"\", type: \"telephonique\" }); })() }}"
       },
       "id": "Tool: reserver_rdv",
       "name": "reserver_rdv",

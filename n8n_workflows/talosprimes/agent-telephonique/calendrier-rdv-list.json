@@ -1,0 +1,123 @@
+{
+  "name": "calendrier-rdv-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "calendrier-rdv",
+        "responseMode": "responseNode",
+        "httpMethod": "GET",
+        "options": {}
+      },
+      "id": "01. Webhook GET",
+      "name": "01. Webhook GET",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() {\n  var qs = $input.first().json.query || $input.first().json.params || {};\n  var tenantId = String(qs.tenantId || '').replace(/[^a-f0-9-]/gi, '').substring(0, 36);\n  if (!tenantId) return \"SELECT '[]'::json as data\";\n\n  var from = String(qs.from || '').replace(/[^0-9-]/g, '').substring(0, 10);\n  var to = String(qs.to || '').replace(/[^0-9-]/g, '').substring(0, 10);\n\n  var sql = \"SELECT id, nom, prenom, telephone, email, source, notes, \"\n    + \"date_entretien, type_entretien, date_contact, statut, score, created_at \"\n    + \"FROM leads WHERE tenant_id = '\" + tenantId + \"' \"\n    + \"AND (source LIKE '%rdv%' OR source LIKE '%entretien%' OR date_entretien IS NOT NULL) \";\n\n  if (from) sql += \"AND (date_entretien >= '\" + from + \"' OR (date_entretien IS NULL AND created_at >= '\" + from + \"')) \";\n  if (to) sql += \"AND (date_entretien <= '\" + to + \"T23:59:59' OR (date_entretien IS NULL AND created_at <= '\" + to + \"T23:59:59')) \";\n\n  sql += \"ORDER BY COALESCE(date_entretien, created_at) DESC LIMIT 200\";\n  return sql;\n})() }}",
+        "options": {}
+      },
+      "id": "02. Query RDV",
+      "name": "02. Query RDV",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse leads into calendar events\nvar rows = $('02. Query RDV').all();\nvar events = [];\n\nfor (var i = 0; i < rows.length; i++) {\n  var r = rows[i].json || rows[i];\n  var ev = {\n    id: r.id || '',\n    title: '',\n    start: null,\n    end: null,\n    type: r.type_entretien || 'telephonique',\n    contact: {\n      nom: r.nom || '',\n      prenom: r.prenom || '',\n      telephone: r.telephone || '',\n      email: r.email || ''\n    },\n    source: r.source || '',\n    statut: r.statut || 'nouveau',\n    score: r.score || 0,\n    notes: r.notes || ''\n  };\n\n  // Build title\n  var name = ((r.prenom || '') + ' ' + (r.nom || '')).trim() || r.telephone || 'Inconnu';\n  ev.title = name;\n\n  // Parse date — priorite: date_entretien > notes > created_at\n  if (r.date_entretien) {\n    ev.start = r.date_entretien;\n    // End = start + 30 min par defaut\n    var d = new Date(r.date_entretien);\n    d.setMinutes(d.getMinutes() + 30);\n    ev.end = d.toISOString();\n  } else if (r.notes) {\n    // Parse \"RDV demande: ... le YYYY-MM-DD a HH:MM\"\n    var notes = String(r.notes);\n    var dateMatch = notes.match(/(\\d{4}-\\d{2}-\\d{2})/);\n    var timeMatch = notes.match(/(\\d{2}:\\d{2})/);\n    if (dateMatch) {\n      var dateStr = dateMatch[1];\n      var timeStr = timeMatch ? timeMatch[1] : '09:00';\n      ev.start = dateStr + 'T' + timeStr + ':00';\n      var d2 = new Date(ev.start);\n      d2.setMinutes(d2.getMinutes() + 30);\n      ev.end = d2.toISOString();\n    } else {\n      // Fallback: created_at\n      ev.start = r.created_at;\n      ev.end = r.created_at;\n      ev.type = 'a_planifier';\n    }\n\n    // Extract objet from notes\n    var objMatch = notes.match(/RDV demande:\\s*(.+?)(?:\\s+le\\s|$)/);\n    if (objMatch) ev.title = objMatch[1].trim() + ' - ' + name;\n  } else {\n    ev.start = r.created_at;\n    ev.end = r.created_at;\n    ev.type = 'a_planifier';\n  }\n\n  events.push(ev);\n}\n\nreturn [{ json: {\n  success: true,\n  count: events.length,\n  events: events\n}}];"
+      },
+      "id": "03. Format Events",
+      "name": "03. Format Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-cache"
+              }
+            ]
+          }
+        }
+      },
+      "id": "04. Respond JSON",
+      "name": "04. Respond JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        760,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook GET": {
+      "main": [
+        [
+          {
+            "node": "02. Query RDV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Query RDV": {
+      "main": [
+        [
+          {
+            "node": "03. Format Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Format Events": {
+      "main": [
+        [
+          {
+            "node": "04. Respond JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

@@ -1,0 +1,167 @@
+{
+  "name": "rdv-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "rdv-create",
+        "responseMode": "responseNode",
+        "httpMethod": "POST",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "01. Webhook POST",
+      "name": "01. Webhook POST",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse & validate RDV data\nvar data = $input.first().json;\nvar body = data.body || data;\n\nfunction safe(s) { return String(s || '').replace(/'/g, \"''\").substring(0, 500); }\nfunction safeUuid(s) { return String(s || '').replace(/[^a-f0-9-]/gi, '').substring(0, 36); }\n\nvar tenantId = safeUuid(body.tenantId);\nvar nom = safe(body.nom || '');\nvar prenom = safe(body.prenom || '');\nvar email = safe(body.email || '');\nvar telephone = safe(body.telephone || '');\nvar objet = safe(body.objet || body.notes || 'Rendez-vous');\nvar dateRdv = safe(body.date || '');\nvar heureRdv = safe(body.heure || '');\nvar typeEntretien = safe(body.type || 'telephonique');\n\nif (!tenantId) {\n  return [{ json: { error: true, message: 'tenantId requis' }}];\n}\n\n// Build date_entretien\nvar dateEntretien = null;\nif (dateRdv && /^\\d{4}-\\d{2}-\\d{2}$/.test(dateRdv)) {\n  var time = (heureRdv && /^\\d{2}:\\d{2}$/.test(heureRdv)) ? heureRdv : '09:00';\n  dateEntretien = dateRdv + ' ' + time + ':00';\n}\n\nreturn [{ json: {\n  error: false,\n  tenantId, nom, prenom, email, telephone, objet, dateEntretien, typeEntretien\n}}];"
+      },
+      "id": "02. Parse Input",
+      "name": "02. Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Has Error?",
+      "name": "03. Has Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, message: $json.message || 'Erreur de validation' }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        760,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() {\n  var d = $input.first().json;\n  var sql = \"INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, statut, notes\";\n  var vals = \"VALUES (gen_random_uuid(), '\" + d.tenantId + \"', '\" + d.nom + \"', '\" + d.prenom + \"', '\" + d.email + \"', '\" + d.telephone + \"', 'telephone_rdv', 'nouveau', 'RDV: \" + d.objet + \"'\";\n\n  if (d.dateEntretien) {\n    sql += \", date_entretien, type_entretien\";\n    vals += \", '\" + d.dateEntretien + \"', '\" + d.typeEntretien + \"'\";\n  }\n\n  sql += \", created_at, updated_at) \";\n  vals += \", NOW(), NOW())\";\n\n  return sql + \" \" + vals + \" RETURNING id, nom, prenom, telephone, date_entretien, type_entretien\";\n})() }}",
+        "options": {}
+      },
+      "id": "05. Insert Lead RDV",
+      "name": "05. Insert Lead RDV",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        760,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (function() {\n  var row = $input.first().json;\n  return JSON.stringify({\n    success: true,\n    message: 'Rendez-vous créé avec succès',\n    rdv: {\n      id: row.id || '',\n      nom: row.nom || '',\n      prenom: row.prenom || '',\n      telephone: row.telephone || '',\n      date_entretien: row.date_entretien || null,\n      type_entretien: row.type_entretien || 'telephonique'\n    }\n  });\n})() }}",
+        "options": {}
+      },
+      "id": "06. Respond Success",
+      "name": "06. Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        980,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "01. Webhook POST": {
+      "main": [
+        [
+          {
+            "node": "02. Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parse Input": {
+      "main": [
+        [
+          {
+            "node": "03. Has Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Has Error?": {
+      "main": [
+        [
+          {
+            "node": "04. Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. Insert Lead RDV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Insert Lead RDV": {
+      "main": [
+        [
+          {
+            "node": "06. Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
