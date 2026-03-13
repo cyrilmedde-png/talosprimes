@@ -10,6 +10,7 @@ import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware, n8nOnlyMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
+import { initTenantLandingPage } from '../../services/tenant-landing.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -675,6 +676,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           prenom?: string;
           raisonSociale?: string | null;
           tenantName: string;
+          metier?: string; // Métier/activité du client (btp, restaurant, immobilier, sante, commerce, etc.)
         };
 
         // Vérifier que le client existe
@@ -697,12 +699,13 @@ export async function clientsRoutes(fastify: FastifyInstance) {
         });
 
         // Si le tenant n'existe pas, le créer
+        const isNewTenant = !clientTenant;
         if (!clientTenant) {
           clientTenant = await prisma.tenant.create({
             data: {
               nomEntreprise: body.tenantName,
               emailContact: body.email,
-              metier: 'client_final',
+              metier: body.metier || 'client_final',
             },
           });
         }
@@ -751,6 +754,22 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           data: { clientTenantId: clientTenant.id },
         });
 
+        // Initialiser automatiquement la landing page du tenant (slug + sections personnalisées)
+        let landingInfo = null;
+        if (isNewTenant) {
+          try {
+            landingInfo = await initTenantLandingPage(
+              clientTenant.id,
+              body.tenantName,
+              body.metier || undefined,
+            );
+            fastify.log.info({ tenantId: clientTenant.id, slug: landingInfo.slug, sections: landingInfo.sectionsCount }, 'Landing page initialisée automatiquement');
+          } catch (landingError) {
+            // Ne pas bloquer la création du tenant si la landing échoue
+            fastify.log.error(landingError, 'Erreur lors de l\'initialisation de la landing page (non bloquant)');
+          }
+        }
+
         // Stocker le mot de passe temporaire dans l'abonnement du client
         // On cherche l'abonnement le plus récent pour ce client
         const subscription = await prisma.clientSubscription.findFirst({
@@ -780,6 +799,8 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             userId: user.id,
             email: user.email,
             password: body.password, // Retourner aussi pour le workflow (si pas Stripe)
+            landingSlug: landingInfo?.slug || null,
+            landingUrl: landingInfo ? `/site/${landingInfo.slug}` : null,
           },
         });
       } catch (error) {
