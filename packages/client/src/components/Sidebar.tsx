@@ -44,6 +44,7 @@ import {
   TruckIcon,
   MegaphoneIcon,
   ShieldCheckIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -222,6 +223,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Calendrier', href: '/agent-ia/calendrier', icon: CalendarDaysIcon },
       { name: 'Conversations', href: '/agent-ia/conversations', icon: ChatBubbleBottomCenterTextIcon },
       { name: 'Questionnaires', href: '/agent-ia/questionnaires', icon: QuestionIcon },
+      { name: 'Avis clients', href: '/agent-ia/avis', icon: StarIcon },
       { name: 'Base Connaissances', href: '/agent-ia/base-connaissances', icon: BookOpenIcon },
       { name: 'Configuration', href: '/agent-ia/configuration', icon: SettingsIcon },
     ],

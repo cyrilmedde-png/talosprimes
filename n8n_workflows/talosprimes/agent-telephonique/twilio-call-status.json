@@ -88,7 +88,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build Telegram summary\nvar statusData = $('02. Parse Status').first().json;\nvar rows = $('05. Query Conversation + Lead').all();\n\nvar messages = [];\nvar lead = null;\n\nfor (var i = 0; i < rows.length; i++) {\n  var r = rows[i].json || rows[i];\n  if (r._type === 'chat' && r.data) {\n    try {\n      var msg = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;\n      messages.push(msg);\n    } catch(e) {\n      messages.push({ type: 'unknown', content: String(r.data).substring(0, 200) });\n    }\n  } else if (r._type === 'lead') {\n    lead = { id: r.lead_id, nom: r.nom, prenom: r.prenom, telephone: r.telephone, source: r.source, statut: r.statut, dateEntretien: r.date_entretien };\n  }\n}\n\n// Build conversation summary\nvar convSummary = '';\nvar exchanges = 0;\nfor (var j = 0; j < messages.length; j++) {\n  var m = messages[j];\n  var role = '';\n  var content = '';\n  if (m.type === 'human' || m.role === 'human' || m.role === 'user') {\n    role = '👤 Client';\n    content = m.content || m.text || m.data?.content || '';\n  } else if (m.type === 'ai' || m.role === 'ai' || m.role === 'assistant') {\n    role = '🤖 Agent';\n    content = m.content || m.text || m.data?.content || '';\n    exchanges++;\n  } else {\n    continue;\n  }\n  if (content) {\n    convSummary += role + ': ' + String(content).substring(0, 150) + '\\n';\n  }\n}\n\n// Status emoji\nvar statusEmoji = '✅';\nif (statusData.callStatus === 'busy') statusEmoji = '📵';\nif (statusData.callStatus === 'no-answer') statusEmoji = '📭';\nif (statusData.callStatus === 'failed') statusEmoji = '❌';\n\n// Build message\nvar msg = '📞 Résumé d\\'appel ' + statusEmoji + '\\n\\n';\nmsg += '📱 De: ' + (statusData.from || 'inconnu') + '\\n';\nmsg += '⏱️ Durée: ' + statusData.durationStr + '\\n';\nmsg += '💬 Échanges: ' + exchanges + '\\n\\n';\n\n// Lead info\nif (lead && lead.nom) {\n  var leadName = ((lead.prenom || '') + ' ' + (lead.nom || '')).trim();\n  var isNew = lead.source && (lead.source.indexOf('telephone') >= 0);\n  msg += '👤 Lead: ' + leadName + (isNew ? ' (nouveau ✨)' : '') + '\\n';\n  if (lead.dateEntretien) {\n    msg += '📅 RDV: ' + new Date(lead.dateEntretien).toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}) + '\\n';\n  }\n  msg += '\\n';\n} else {\n  msg += '👤 Lead: non créé\\n\\n';\n}\n\n// Conversation\nif (convSummary) {\n  msg += '💬 Conversation:\\n' + convSummary.substring(0, 800) + '\\n';\n}\n\nmsg += '⏰ ' + new Date().toLocaleString('fr-FR', {timeZone: 'Europe/Paris'});\n\nreturn [{ json: { telegramMessage: msg }}];"
+        "jsCode": "// Build Telegram summary + SMS avis data\nvar statusData = $('02. Parse Status').first().json;\nvar rows = $('05. Query Conversation + Lead').all();\n\nvar messages = [];\nvar lead = null;\n\nfor (var i = 0; i < rows.length; i++) {\n  var r = rows[i].json || rows[i];\n  if (r._type === 'chat' && r.data) {\n    try {\n      var msg = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;\n      messages.push(msg);\n    } catch(e) {\n      messages.push({ type: 'unknown', content: String(r.data).substring(0, 200) });\n    }\n  } else if (r._type === 'lead') {\n    lead = { id: r.lead_id, nom: r.nom, prenom: r.prenom, telephone: r.telephone, source: r.source, statut: r.statut, dateEntretien: r.date_entretien };\n  }\n}\n\n// Build conversation summary\nvar convSummary = '';\nvar exchanges = 0;\nfor (var j = 0; j < messages.length; j++) {\n  var m = messages[j];\n  var role = '';\n  var content = '';\n  if (m.type === 'human' || m.role === 'human' || m.role === 'user') {\n    role = '👤 Client';\n    content = m.content || m.text || m.data?.content || '';\n  } else if (m.type === 'ai' || m.role === 'ai' || m.role === 'assistant') {\n    role = '🤖 Agent';\n    content = m.content || m.text || m.data?.content || '';\n    exchanges++;\n  } else {\n    continue;\n  }\n  if (content) {\n    convSummary += role + ': ' + String(content).substring(0, 150) + '\\n';\n  }\n}\n\n// Status emoji\nvar statusEmoji = '✅';\nif (statusData.callStatus === 'busy') statusEmoji = '📵';\nif (statusData.callStatus === 'no-answer') statusEmoji = '📭';\nif (statusData.callStatus === 'failed') statusEmoji = '❌';\n\n// Generate avis token\nvar avisToken = require('crypto').randomBytes(16).toString('hex');\nvar leadId = lead ? lead.id : null;\nvar leadNom = lead ? ((lead.prenom || '') + ' ' + (lead.nom || '')).trim() : '';\nvar shouldSendSms = statusData.callStatus === 'completed' && statusData.callDuration > 30 && statusData.from;\n\n// Build message\nvar msg = '📞 Résumé d\\'appel ' + statusEmoji + '\\n\\n';\nmsg += '📱 De: ' + (statusData.from || 'inconnu') + '\\n';\nmsg += '⏱️ Durée: ' + statusData.durationStr + '\\n';\nmsg += '💬 Échanges: ' + exchanges + '\\n\\n';\n\n// Lead info\nif (lead && lead.nom) {\n  var leadName = ((lead.prenom || '') + ' ' + (lead.nom || '')).trim();\n  var isNew = lead.source && (lead.source.indexOf('telephone') >= 0);\n  msg += '👤 Lead: ' + leadName + (isNew ? ' (nouveau ✨)' : '') + '\\n';\n  if (lead.dateEntretien) {\n    msg += '📅 RDV: ' + new Date(lead.dateEntretien).toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}) + '\\n';\n  }\n  msg += '\\n';\n} else {\n  msg += '👤 Lead: non créé\\n\\n';\n}\n\n// Conversation\nif (convSummary) {\n  msg += '💬 Conversation:\\n' + convSummary.substring(0, 800) + '\\n';\n}\n\nif (shouldSendSms) {\n  msg += '\\n📩 SMS avis envoyé au client';\n}\n\nmsg += '\\n⏰ ' + new Date().toLocaleString('fr-FR', {timeZone: 'Europe/Paris'});\n\nreturn [{ json: {\n  telegramMessage: msg,\n  shouldSendSms: shouldSendSms,\n  avisToken: avisToken,\n  leadId: leadId,\n  leadNom: leadNom,\n  from: statusData.from,\n  to: statusData.to\n}}];"
       },
       "id": "06. Build Summary",
       "name": "06. Build Summary",
@@ -119,6 +119,99 @@
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
           "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('06. Build Summary').first().json.shouldSendSms }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "08. Should Send SMS?",
+      "name": "08. Should Send SMS?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var d = $('06. Build Summary').first().json;\nvar to9 = (d.to || '').replace(/[^0-9]/g, '').slice(-9);\n\n// Find tenant_id from the called number\nvar tenantQuery = \"SELECT tenant_id::text, company_name FROM twilio_configs WHERE phone_number LIKE '%\" + to9 + \"%' LIMIT 1\";\n\nvar avisUrl = 'https://demo.talosprimes.com/avis?token=' + d.avisToken + '&tel=' + encodeURIComponent(d.from);\n\nvar smsMessage = 'Merci pour votre appel ! Votre avis compte pour nous. '\n  + 'Donnez-nous votre note en 30 secondes : ' + avisUrl;\n\nreturn [{ json: {\n  phoneNumber: d.from,\n  message: smsMessage,\n  avisToken: d.avisToken,\n  avisUrl: avisUrl,\n  leadId: d.leadId,\n  to: d.to,\n  tenantQuery: tenantQuery\n}}];"
+      },
+      "id": "09. Build SMS",
+      "name": "09. Build SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.tenantQuery }}",
+        "options": {}
+      },
+      "id": "10. Get Tenant",
+      "name": "10. Get Tenant",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        540
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/sms-send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $('10. Get Tenant').first().json.tenant_id || '', phoneNumber: $('09. Build SMS').first().json.phoneNumber, message: $('09. Build SMS').first().json.message }) }}",
+        "options": {}
+      },
+      "id": "11. Send SMS Avis",
+      "name": "11. Send SMS Avis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1860,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() {\n  var sms = $('09. Build SMS').first().json;\n  var tenantId = $('10. Get Tenant').first().json.tenant_id || '';\n  if (!tenantId) return 'SELECT 1';\n  return \"INSERT INTO avis (tenant_id, lead_id, telephone, channel, token, note, commentaire) VALUES (\"\n    + \"'\" + tenantId + \"', \"\n    + (sms.leadId ? \"'\" + sms.leadId + \"'\" : \"NULL\") + \", \"\n    + \"'\" + (sms.phoneNumber || '').replace(/'/g, \"''\") + \"', \"\n    + \"'telephone', \"\n    + \"'\" + sms.avisToken + \"', \"\n    + \"0, '') ON CONFLICT DO NOTHING\";\n})() }}",
+        "options": {}
+      },
+      "id": "12. Pre-create Avis Token",
+      "name": "12. Pre-create Avis Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
         }
       }
     }
@@ -180,6 +273,50 @@
         [
           {
             "node": "07. Send Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "08. Should Send SMS?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08. Should Send SMS?": {
+      "main": [
+        [
+          {
+            "node": "09. Build SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "09. Build SMS": {
+      "main": [
+        [
+          {
+            "node": "10. Get Tenant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Get Tenant": {
+      "main": [
+        [
+          {
+            "node": "11. Send SMS Avis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "12. Pre-create Avis Token",
             "type": "main",
             "index": 0
           }

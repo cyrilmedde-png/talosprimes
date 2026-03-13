@@ -1,0 +1,84 @@
+{
+  "name": "avis-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "avis-list",
+        "responseMode": "responseNode",
+        "httpMethod": "GET"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar qs = raw.query || raw;\nvar tenantId = String(qs.tenantId || '').replace(/[^a-f0-9-]/gi, '').substring(0, 36);\nvar channel = ['telephone', 'email', 'web'].includes(qs.channel) ? qs.channel : null;\nvar minNote = parseInt(qs.minNote) || 0;\nvar limit = Math.min(parseInt(qs.limit) || 50, 200);\n\nif (!tenantId) throw new Error('tenantId requis');\n\nreturn [{ json: { tenantId, channel, minNote, limit } }];"
+      },
+      "id": "02. Parse",
+      "name": "02. Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() {\n  var d = $json;\n  var q = \"SELECT a.id, a.nom, a.prenom, a.entreprise, a.email, a.telephone, a.note, a.commentaire, a.channel, a.affiche, a.token, a.lead_id, a.created_at \"\n    + \"FROM avis a WHERE a.tenant_id = '\" + d.tenantId + \"'\";\n  if (d.channel) q += \" AND a.channel = '\" + d.channel + \"'\";\n  if (d.minNote > 0) q += \" AND a.note >= \" + d.minNote;\n  q += \" ORDER BY a.created_at DESC LIMIT \" + d.limit;\n  return q;\n})() }}",
+        "options": {}
+      },
+      "id": "03. Query Avis",
+      "name": "03. Query Avis",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [540, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var rows = $input.all().map(function(item) {\n  var r = item.json;\n  return {\n    id: r.id,\n    nom: r.nom,\n    prenom: r.prenom,\n    entreprise: r.entreprise,\n    email: r.email,\n    telephone: r.telephone,\n    note: r.note,\n    commentaire: r.commentaire,\n    channel: r.channel,\n    affiche: r.affiche,\n    leadId: r.lead_id,\n    token: r.token,\n    createdAt: r.created_at\n  };\n});\n\n// Stats\nvar total = rows.length;\nvar moyenneNote = total > 0 ? (rows.reduce(function(s, r) { return s + r.note; }, 0) / total).toFixed(1) : 0;\nvar parChannel = {};\nrows.forEach(function(r) { parChannel[r.channel] = (parChannel[r.channel] || 0) + 1; });\n\nreturn [{ json: { success: true, total: total, moyenneNote: parseFloat(moyenneNote), parChannel: parChannel, avis: rows } }];"
+      },
+      "id": "04. Format",
+      "name": "04. Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "05. Respond",
+      "name": "05. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parse", "type": "main", "index": 0 }]]
+    },
+    "02. Parse": {
+      "main": [[{ "node": "03. Query Avis", "type": "main", "index": 0 }]]
+    },
+    "03. Query Avis": {
+      "main": [[{ "node": "04. Format", "type": "main", "index": 0 }]]
+    },
+    "04. Format": {
+      "main": [[{ "node": "05. Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

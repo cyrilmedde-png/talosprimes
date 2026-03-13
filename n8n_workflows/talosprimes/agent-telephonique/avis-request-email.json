@@ -1,0 +1,97 @@
+{
+  "name": "avis-request-email",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "avis-request-email",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\n\nvar tenantId = String(body.tenantId || '').replace(/[^a-f0-9-]/gi, '').substring(0, 36);\nvar email = String(body.email || '').substring(0, 200);\nvar nom = String(body.nom || '').replace(/'/g, \"''\").substring(0, 100);\nvar prenom = String(body.prenom || '').replace(/'/g, \"''\").substring(0, 100);\nvar entreprise = String(body.entreprise || '').replace(/'/g, \"''\").substring(0, 200);\nvar leadId = String(body.leadId || '').replace(/[^a-f0-9-]/gi, '').substring(0, 36);\nvar companyName = String(body.companyName || 'TalosPrimes').substring(0, 100);\n\nif (!tenantId || !email) throw new Error('tenantId et email requis');\n\n// Generate token\nvar token = require('crypto').randomBytes(16).toString('hex');\nvar avisUrl = 'https://demo.talosprimes.com/avis?token=' + token + '&email=' + encodeURIComponent(email);\n\n// Build HTML email\nvar htmlBody = '<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head>'\n  + '<body style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;\">'\n  + '<div style=\"text-align:center;margin-bottom:30px;\">'\n  + '<h1 style=\"color:#4F46E5;\">' + companyName + '</h1>'\n  + '</div>'\n  + '<h2 style=\"color:#1F2937;\">Votre avis compte pour nous !</h2>'\n  + '<p style=\"color:#4B5563;line-height:1.6;\">Bonjour' + (prenom ? ' ' + prenom : '') + ',</p>'\n  + '<p style=\"color:#4B5563;line-height:1.6;\">Suite a notre echange, nous aimerions connaitre votre niveau de satisfaction. Cela ne prend que 30 secondes !</p>'\n  + '<div style=\"text-align:center;margin:30px 0;\">'\n  + '<a href=\"' + avisUrl + '\" style=\"background-color:#4F46E5;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;\">Donner mon avis</a>'\n  + '</div>'\n  + '<p style=\"color:#6B7280;font-size:14px;\">Merci pour votre confiance !</p>'\n  + '<hr style=\"border:none;border-top:1px solid #E5E7EB;margin:30px 0;\">'\n  + '<p style=\"color:#9CA3AF;font-size:12px;text-align:center;\">' + companyName + ' — Plateforme de gestion d\\'entreprise</p>'\n  + '</body></html>';\n\nvar textBody = 'Bonjour' + (prenom ? ' ' + prenom : '') + ',\\n\\n'\n  + 'Suite a notre echange, nous aimerions connaitre votre niveau de satisfaction.\\n'\n  + 'Donnez votre avis ici : ' + avisUrl + '\\n\\n'\n  + 'Merci pour votre confiance !\\n' + companyName;\n\nreturn [{ json: {\n  tenantId, leadId, email, nom, prenom, entreprise, token, avisUrl, companyName,\n  subject: 'Votre avis compte - ' + companyName,\n  htmlBody, textBody\n}}];"
+      },
+      "id": "02. Build Email",
+      "name": "02. Build Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() {\n  var d = $json;\n  return \"CREATE TABLE IF NOT EXISTS avis (\"\n    + \"id UUID PRIMARY KEY DEFAULT gen_random_uuid(), \"\n    + \"tenant_id UUID NOT NULL, lead_id UUID, nom VARCHAR(100), prenom VARCHAR(100), \"\n    + \"entreprise VARCHAR(200), email VARCHAR(200), telephone VARCHAR(20), \"\n    + \"note INT NOT NULL DEFAULT 0 CHECK (note >= 0 AND note <= 5), \"\n    + \"commentaire TEXT, channel VARCHAR(20) DEFAULT 'web', \"\n    + \"token VARCHAR(100), affiche BOOLEAN DEFAULT false, \"\n    + \"created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()\"\n    + \"); \"\n    + \"INSERT INTO avis (tenant_id, lead_id, nom, prenom, entreprise, email, channel, token, note, commentaire) VALUES (\"\n    + \"'\" + d.tenantId + \"', \"\n    + (d.leadId ? \"'\" + d.leadId + \"'\" : \"NULL\") + \", \"\n    + \"'\" + (d.nom || '').replace(/'/g, \"''\") + \"', \"\n    + \"'\" + (d.prenom || '').replace(/'/g, \"''\") + \"', \"\n    + \"'\" + (d.entreprise || '').replace(/'/g, \"''\") + \"', \"\n    + \"'\" + (d.email || '').replace(/'/g, \"''\") + \"', \"\n    + \"'email', \"\n    + \"'\" + d.token + \"', \"\n    + \"0, '') ON CONFLICT DO NOTHING\";\n})() }}",
+        "options": {}
+      },
+      "id": "03. Pre-create Avis Token",
+      "name": "03. Pre-create Avis Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [540, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || $env.SMTP_USER || 'noreply@talosprimes.com' }}",
+        "toEmail": "={{ $('02. Build Email').first().json.email }}",
+        "subject": "={{ $('02. Build Email').first().json.subject }}",
+        "emailType": "html",
+        "html": "={{ $('02. Build Email').first().json.htmlBody }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "04. Send Email",
+      "name": "04. Send Email",
+      "type": "n8n-nodes-base.sendEmail",
+      "typeVersion": 1,
+      "position": [760, 300],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-talosprimes",
+          "name": "SMTP TalosPrimes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, token: $('02. Build Email').first().json.token, email: $('02. Build Email').first().json.email, avisUrl: $('02. Build Email').first().json.avisUrl } }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "05. Respond",
+      "name": "05. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Build Email", "type": "main", "index": 0 }]]
+    },
+    "02. Build Email": {
+      "main": [[{ "node": "03. Pre-create Avis Token", "type": "main", "index": 0 }]]
+    },
+    "03. Pre-create Avis Token": {
+      "main": [[{ "node": "04. Send Email", "type": "main", "index": 0 }]]
+    },
+    "04. Send Email": {
+      "main": [[{ "node": "05. Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}
