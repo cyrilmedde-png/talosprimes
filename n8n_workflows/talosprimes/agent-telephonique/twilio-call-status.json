@@ -1,0 +1,195 @@
+{
+  "name": "twilio-call-status",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "twilio-call-status",
+        "httpMethod": "POST",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "01. Webhook Status",
+      "name": "01. Webhook Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Twilio status callback\nvar data = $input.first().json;\nvar body = data.body || data;\n\nvar callSid = String(body.CallSid || '').replace(/[^a-zA-Z0-9]/g, '').substring(0, 34);\nvar callStatus = String(body.CallStatus || '').replace(/[^a-z-]/gi, '').substring(0, 30);\nvar callDuration = parseInt(body.CallDuration || body.Duration || 0);\nvar from = String(body.From || '').replace(/[^+0-9]/g, '').substring(0, 16);\nvar to = String(body.To || '').replace(/[^+0-9]/g, '').substring(0, 16);\n\n// Only process completed calls\nif (callStatus !== 'completed' && callStatus !== 'busy' && callStatus !== 'no-answer' && callStatus !== 'failed') {\n  return [{ json: { skip: true, callStatus } }];\n}\n\n// Format duration\nvar min = Math.floor(callDuration / 60);\nvar sec = callDuration % 60;\nvar durationStr = min > 0 ? (min + 'min ' + sec + 's') : (sec + 's');\n\nreturn [{ json: {\n  skip: false,\n  callSid, callStatus, callDuration, durationStr, from, to\n}}];"
+      },
+      "id": "02. Parse Status",
+      "name": "02. Parse Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.skip }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "03. Should Skip?",
+      "name": "03. Should Skip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "04. Stop (skip)",
+      "name": "04. Stop (skip)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        760,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (function() {\n  var d = $input.first().json;\n  var sid = d.callSid;\n  var from9 = (d.from || '').replace(/[^0-9]/g, '').slice(-9);\n\n  return \"WITH chat AS (\"\n    + \"SELECT session_id, message, created_at FROM n8n_chat_histories \"\n    + \"WHERE session_id = '\" + sid + \"' ORDER BY created_at ASC LIMIT 20\"\n    + \"), lead_check AS (\"\n    + \"SELECT id, nom, prenom, telephone, source, statut, date_entretien, created_at \"\n    + \"FROM leads WHERE telephone LIKE '%\" + from9 + \"%' \"\n    + \"ORDER BY created_at DESC LIMIT 1\"\n    + \") \"\n    + \"SELECT 'chat' as _type, message::text as data, created_at, NULL as nom, NULL as prenom, NULL as telephone, NULL as source, NULL as statut, NULL as lead_id, NULL as date_entretien FROM chat \"\n    + \"UNION ALL \"\n    + \"SELECT 'lead', NULL, created_at, nom, prenom, telephone, source, statut, id::text, date_entretien FROM lead_check\";\n})() }}",
+        "options": {}
+      },
+      "id": "05. Query Conversation + Lead",
+      "name": "05. Query Conversation + Lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        760,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres",
+          "id": "OGqj65ZoFRileCck"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Telegram summary\nvar statusData = $('02. Parse Status').first().json;\nvar rows = $('05. Query Conversation + Lead').all();\n\nvar messages = [];\nvar lead = null;\n\nfor (var i = 0; i < rows.length; i++) {\n  var r = rows[i].json || rows[i];\n  if (r._type === 'chat' && r.data) {\n    try {\n      var msg = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;\n      messages.push(msg);\n    } catch(e) {\n      messages.push({ type: 'unknown', content: String(r.data).substring(0, 200) });\n    }\n  } else if (r._type === 'lead') {\n    lead = { id: r.lead_id, nom: r.nom, prenom: r.prenom, telephone: r.telephone, source: r.source, statut: r.statut, dateEntretien: r.date_entretien };\n  }\n}\n\n// Build conversation summary\nvar convSummary = '';\nvar exchanges = 0;\nfor (var j = 0; j < messages.length; j++) {\n  var m = messages[j];\n  var role = '';\n  var content = '';\n  if (m.type === 'human' || m.role === 'human' || m.role === 'user') {\n    role = '👤 Client';\n    content = m.content || m.text || m.data?.content || '';\n  } else if (m.type === 'ai' || m.role === 'ai' || m.role === 'assistant') {\n    role = '🤖 Agent';\n    content = m.content || m.text || m.data?.content || '';\n    exchanges++;\n  } else {\n    continue;\n  }\n  if (content) {\n    convSummary += role + ': ' + String(content).substring(0, 150) + '\\n';\n  }\n}\n\n// Status emoji\nvar statusEmoji = '✅';\nif (statusData.callStatus === 'busy') statusEmoji = '📵';\nif (statusData.callStatus === 'no-answer') statusEmoji = '📭';\nif (statusData.callStatus === 'failed') statusEmoji = '❌';\n\n// Build message\nvar msg = '📞 Résumé d\\'appel ' + statusEmoji + '\\n\\n';\nmsg += '📱 De: ' + (statusData.from || 'inconnu') + '\\n';\nmsg += '⏱️ Durée: ' + statusData.durationStr + '\\n';\nmsg += '💬 Échanges: ' + exchanges + '\\n\\n';\n\n// Lead info\nif (lead && lead.nom) {\n  var leadName = ((lead.prenom || '') + ' ' + (lead.nom || '')).trim();\n  var isNew = lead.source && (lead.source.indexOf('telephone') >= 0);\n  msg += '👤 Lead: ' + leadName + (isNew ? ' (nouveau ✨)' : '') + '\\n';\n  if (lead.dateEntretien) {\n    msg += '📅 RDV: ' + new Date(lead.dateEntretien).toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}) + '\\n';\n  }\n  msg += '\\n';\n} else {\n  msg += '👤 Lead: non créé\\n\\n';\n}\n\n// Conversation\nif (convSummary) {\n  msg += '💬 Conversation:\\n' + convSummary.substring(0, 800) + '\\n';\n}\n\nmsg += '⏰ ' + new Date().toLocaleString('fr-FR', {timeZone: 'Europe/Paris'});\n\nreturn [{ json: { telegramMessage: msg }}];"
+      },
+      "id": "06. Build Summary",
+      "name": "06. Build Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "6296082748",
+        "text": "={{ $json.telegramMessage }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "07. Send Telegram",
+      "name": "07. Send Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        420
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "01. Webhook Status": {
+      "main": [
+        [
+          {
+            "node": "02. Parse Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02. Parse Status": {
+      "main": [
+        [
+          {
+            "node": "03. Should Skip?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03. Should Skip?": {
+      "main": [
+        [
+          {
+            "node": "04. Stop (skip)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05. Query Conversation + Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05. Query Conversation + Lead": {
+      "main": [
+        [
+          {
+            "node": "06. Build Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06. Build Summary": {
+      "main": [
+        [
+          {
+            "node": "07. Send Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

@@ -339,7 +339,7 @@
     {
       "parameters": {
         "chatId": "6296082748",
-        "text": "={{ '📞 Nouvel appel entrant\\n\\n' + '📱 De: ' + $('02. Parse Twilio').first().json.from + '\\n' + '🏢 Tenant: ' + $('04. Router').first().json.tenantId + '\\n' + '🆔 CallSid: ' + $('02. Parse Twilio').first().json.callSid + '\\n' + '⏰ ' + new Date().toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}) }}",
+        "text": "={{ '📞 Nouvel appel entrant\\n\\n' + '📱 De: ' + $('02. Parse Twilio').first().json.from + '\\n' + '⏰ ' + new Date().toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}) }}",
         "additionalFields": {
           "appendAttribution": false,
           "parse_mode": "HTML"
@@ -352,30 +352,6 @@
       "position": [
         1200,
         720
-      ],
-      "credentials": {
-        "telegramApi": {
-          "id": "JeSjY5sE3QcncJ4u",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "6296082748",
-        "text": "={{ (function() { var d = $input.first().json; var tools = (d.toolsUsed || []).join(', ') || 'aucun'; var emojis = {creer_lead: '👤', creer_devis: '📄', reserver_rdv: '📅', transfert_humain: '🔄'}; var toolEmojis = (d.toolsUsed || []).map(function(t) { return (emojis[t] || '🔧') + ' ' + t; }).join('\\n') || ''; var msg = '📞 Conversation terminée\\n\\n'; msg += '📱 De: ' + (d.from || 'inconnu') + '\\n'; msg += '🏢 ' + (d.companyName || '') + '\\n'; msg += '🆔 CallSid: ' + (d.callSid || '') + '\\n\\n'; msg += '💬 Question: ' + (d.speechResult || '').substring(0, 200) + '\\n\\n'; msg += '🤖 Réponse: ' + (d.aiReply || '').substring(0, 300) + '\\n\\n'; if (toolEmojis) { msg += '🔧 Outils utilisés:\\n' + toolEmojis + '\\n'; } msg += '\\n⏰ ' + new Date().toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}); return msg; })() }}",
-        "additionalFields": {
-          "appendAttribution": false,
-          "parse_mode": "HTML"
-        }
-      },
-      "id": "12. Notif Telegram Conversation",
-      "name": "12. Notif Telegram Conversation",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1940,
-        440
       ],
       "credentials": {
         "telegramApi": {
@@ -474,17 +450,6 @@
           },
           {
             "node": "10. Log Call",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "10. Log Call": {
-      "main": [
-        [
-          {
-            "node": "12. Notif Telegram Conversation",
             "type": "main",
             "index": 0
           }
