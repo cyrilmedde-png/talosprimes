@@ -63,7 +63,19 @@ interface ContactMessageBody {
 }
 
 export async function landingRoutes(fastify: FastifyInstance) {
-  
+
+  // ─── Helper : résoudre le clientSpaceId de l'utilisateur authentifié ───
+  // Si l'utilisateur est un client (a un ClientSpace via clientTenantId),
+  // retourne son clientSpaceId. Sinon (admin plateforme) retourne null.
+  async function resolveClientSpaceId(request: { tenantId?: string }): Promise<string | null> {
+    if (!request.tenantId) return null;
+    const cs = await prisma.clientSpace.findFirst({
+      where: { clientTenantId: request.tenantId },
+      select: { id: true },
+    });
+    return cs?.id ?? null;
+  }
+
   // ===== LANDING CONTENT (Contenu éditable) =====
 
   // GET /api/landing/content - Récupérer tout le contenu
@@ -698,7 +710,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
   fastify.get('/api/landing/sections', async (_request, reply) => {
     try {
       const sections = await prisma.landingSection.findMany({
-        where: { actif: true, tenantId: null },
+        where: { actif: true, tenantId: null, clientSpaceId: null },
         orderBy: { ordre: 'asc' },
       });
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -709,13 +721,16 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/landing/sections/all - Toutes les sections GLOBALES même inactives (ADMIN)
+  // GET /api/landing/sections/all - Toutes les sections (scope auto : client ou plateforme)
   fastify.get('/api/landing/sections/all',
     { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
-    async (_request, reply) => {
+    async (request, reply) => {
       try {
+        const clientSpaceId = await resolveClientSpaceId(request);
         const sections = await prisma.landingSection.findMany({
-          where: { tenantId: null },
+          where: clientSpaceId
+            ? { clientSpaceId }
+            : { tenantId: null, clientSpaceId: null },
           orderBy: { ordre: 'asc' },
         });
         return reply.send({ success: true, data: sections });
@@ -726,7 +741,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /api/landing/sections - Créer une section (ADMIN)
+  // POST /api/landing/sections - Créer une section (scope auto : client ou plateforme)
   fastify.post<{ Body: { type: string; titre?: string; config?: Record<string, unknown>; ordre?: number; actif?: boolean } }>(
     '/api/landing/sections',
     { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
@@ -734,14 +749,19 @@ export async function landingRoutes(fastify: FastifyInstance) {
       const { type, titre, config, ordre, actif } = request.body;
       if (!type) return ApiError.badRequest(reply, 'Le type de section est requis');
 
-      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations'];
+      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations', 'dashboard_showcase'];
       if (!validTypes.includes(type)) return ApiError.badRequest(reply, `Type invalide. Types autorisés: ${validTypes.join(', ')}`);
 
       try {
-        // Si pas d'ordre spécifié, mettre en dernier
+        const clientSpaceId = await resolveClientSpaceId(request);
+
+        // Si pas d'ordre spécifié, mettre en dernier (dans le même scope)
         let finalOrdre = ordre ?? 0;
         if (!ordre && ordre !== 0) {
-          const lastSection = await prisma.landingSection.findFirst({ orderBy: { ordre: 'desc' } });
+          const lastSection = await prisma.landingSection.findFirst({
+            where: clientSpaceId ? { clientSpaceId } : { tenantId: null, clientSpaceId: null },
+            orderBy: { ordre: 'desc' },
+          });
           finalOrdre = (lastSection?.ordre ?? -1) + 1;
         }
 
@@ -752,6 +772,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
             config: (config || {}) as InputJsonValue,
             ordre: finalOrdre,
             actif: actif ?? true,
+            ...(clientSpaceId ? { clientSpaceId } : {}),
           },
         });
         return reply.status(201).send({ success: true, data: section });
@@ -806,7 +827,13 @@ export async function landingRoutes(fastify: FastifyInstance) {
           }))
         );
 
-        const sections = await prisma.landingSection.findMany({ orderBy: { ordre: 'asc' } });
+        const clientSpaceId = await resolveClientSpaceId(request);
+        const sections = await prisma.landingSection.findMany({
+          where: clientSpaceId
+            ? { clientSpaceId }
+            : { tenantId: null, clientSpaceId: null },
+          orderBy: { ordre: 'asc' },
+        });
         return reply.send({ success: true, data: sections });
       } catch (error) {
         fastify.log.error(error);
@@ -833,11 +860,11 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
   // ===== LANDING GLOBAL CONFIG (navbar, footer, seo, theme) =====
 
-  // GET /api/landing/global-config - Configs globales PLATEFORME (PUBLIC, cached)
+  // GET /api/landing/global-config - Configs globales PLATEFORME uniquement (PUBLIC, cached)
   fastify.get('/api/landing/global-config', async (_request, reply) => {
     try {
       const configs = await prisma.landingGlobalConfig.findMany({
-        where: { tenantId: null },
+        where: { tenantId: null, clientSpaceId: null },
       });
       const configMap = configs.reduce((acc: Record<string, unknown>, item: { section: string; config: unknown }) => {
         acc[item.section] = item.config;
@@ -851,7 +878,30 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // PUT /api/landing/global-config/:section - Modifier une config globale PLATEFORME (ADMIN)
+  // GET /api/landing/global-config/all - Configs globales scopées (ADMIN, pour le CMS)
+  fastify.get('/api/landing/global-config/all',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      try {
+        const clientSpaceId = await resolveClientSpaceId(request);
+        const configs = await prisma.landingGlobalConfig.findMany({
+          where: clientSpaceId
+            ? { clientSpaceId }
+            : { tenantId: null, clientSpaceId: null },
+        });
+        const configMap = configs.reduce((acc: Record<string, unknown>, item: { section: string; config: unknown }) => {
+          acc[item.section] = item.config;
+          return acc;
+        }, {});
+        return reply.send({ success: true, data: configMap });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la récupération de la config');
+      }
+    }
+  );
+
+  // PUT /api/landing/global-config/:section - Modifier une config (scope auto : client ou plateforme)
   fastify.put<{ Params: { section: string }; Body: { config: Record<string, unknown> } }>(
     '/api/landing/global-config/:section',
     { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
@@ -863,8 +913,12 @@ export async function landingRoutes(fastify: FastifyInstance) {
       if (!validSections.includes(section)) return ApiError.badRequest(reply, `Section invalide. Sections autorisées: ${validSections.join(', ')}`);
 
       try {
+        const clientSpaceId = await resolveClientSpaceId(request);
+
         const existing = await prisma.landingGlobalConfig.findFirst({
-          where: { tenantId: null, section },
+          where: clientSpaceId
+            ? { clientSpaceId, section }
+            : { tenantId: null, clientSpaceId: null, section },
         });
 
         let updated;
@@ -875,7 +929,11 @@ export async function landingRoutes(fastify: FastifyInstance) {
           });
         } else {
           updated = await prisma.landingGlobalConfig.create({
-            data: { section, config: config as InputJsonValue },
+            data: {
+              section,
+              config: config as InputJsonValue,
+              ...(clientSpaceId ? { clientSpaceId } : {}),
+            },
           });
         }
         return reply.send({ success: true, data: updated });

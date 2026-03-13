@@ -340,7 +340,7 @@ export default function CMSPage() {
   const loadGlobalConfig = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ data: GlobalConfig }>(`/api/landing/global-config?_t=${Date.now()}`);
+      const data = await fetchApi<{ data: GlobalConfig }>(`/api/landing/global-config/all?_t=${Date.now()}`);
       setGlobalConfig(data.data || {});
     } catch (error) {
       addToast(`Erreur lors du chargement de la configuration: ${error}`, 'error');
