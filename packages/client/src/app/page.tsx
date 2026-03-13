@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { DynamicLandingHeader } from '@/components/landing/DynamicLandingHeader';
 import { DynamicFooter } from '@/components/landing/DynamicFooter';
 import { CallbackBubble } from '@/components/CallbackBubble';
@@ -83,11 +84,42 @@ export const dynamic = 'force-dynamic';
 // ─── Data fetching côté serveur ───
 const SERVER_API = process.env.INTERNAL_API_URL || 'http://localhost:3001';
 
-async function getSections(): Promise<LandingSection[]> {
+// Sous-domaines réservés (mêmes que dans middleware.ts)
+const RESERVED_SUBDOMAINS = new Set(['www', 'api', 'n8n', 'app', 'admin', 'mail', 'smtp', 'ftp']);
+
+/**
+ * Détecte le sous-domaine client depuis les headers de la requête SSR.
+ * Retourne le slug du tenant ou null si domaine principal.
+ */
+function detectSubdomain(headersList: Headers): string | null {
+  // 1. Header injecté par Nginx (le plus fiable)
+  const nginxSubdomain = headersList.get('x-client-subdomain');
+  if (nginxSubdomain && !RESERVED_SUBDOMAINS.has(nginxSubdomain)) {
+    return nginxSubdomain;
+  }
+
+  // 2. Fallback sur le header host
+  const host = headersList.get('host') || '';
+  const parts = host.split('.');
+  if (parts.length >= 3) {
+    const domain = parts.slice(-2).join('.');
+    if (domain === 'talosprimes.com') {
+      const sub = parts[0];
+      if (sub && !RESERVED_SUBDOMAINS.has(sub)) {
+        return sub;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function getSections(slug: string | null): Promise<LandingSection[]> {
   try {
-    const res = await fetch(`${SERVER_API}/api/landing/sections`, {
-      cache: 'no-store',
-    });
+    const url = slug
+      ? `${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/sections`
+      : `${SERVER_API}/api/landing/sections`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[SSR] landing/sections failed: ${res.status}`);
       return [];
@@ -100,11 +132,12 @@ async function getSections(): Promise<LandingSection[]> {
   }
 }
 
-async function getGlobalConfig(): Promise<GlobalConfig> {
+async function getGlobalConfig(slug: string | null): Promise<GlobalConfig> {
   try {
-    const res = await fetch(`${SERVER_API}/api/landing/global-config`, {
-      cache: 'no-store',
-    });
+    const url = slug
+      ? `${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/global-config`
+      : `${SERVER_API}/api/landing/global-config`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[SSR] landing/global-config failed: ${res.status}`);
       return {};
@@ -117,11 +150,12 @@ async function getGlobalConfig(): Promise<GlobalConfig> {
   }
 }
 
-async function getTestimonials(): Promise<Testimonial[]> {
+async function getTestimonials(slug: string | null): Promise<Testimonial[]> {
   try {
-    const res = await fetch(`${SERVER_API}/api/landing/testimonials`, {
-      cache: 'no-store',
-    });
+    const url = slug
+      ? `${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/testimonials`
+      : `${SERVER_API}/api/landing/testimonials`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return [];
     const json = await res.json();
     return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
@@ -232,10 +266,14 @@ function renderSection(
 
 // ─── Page ───
 export default async function LandingPage() {
+  // Détecter le sous-domaine client (ex: demo.talosprimes.com → 'demo')
+  const headersList = await headers();
+  const slug = detectSubdomain(headersList);
+
   const [sections, globalConfig, testimonials, content] = await Promise.all([
-    getSections(),
-    getGlobalConfig(),
-    getTestimonials(),
+    getSections(slug),
+    getGlobalConfig(slug),
+    getTestimonials(slug),
     getLandingContent(),
   ]);
 
@@ -268,7 +306,9 @@ export default async function LandingPage() {
 // ─── Metadata SEO dynamique ───
 export async function generateMetadata() {
   try {
-    const globalConfig = await getGlobalConfig();
+    const headersList = await headers();
+    const slug = detectSubdomain(headersList);
+    const globalConfig = await getGlobalConfig(slug);
     const seo = globalConfig.seo;
     if (seo) {
       return {
