@@ -13,6 +13,7 @@ import {
   ContactSection,
   CTASection,
   CustomHTMLSection,
+  DashboardShowcaseSection,
 } from '@/components/landing/sections';
 
 // ─── Types ───
@@ -188,6 +189,9 @@ function renderSection(
       break;
     case 'custom_html':
       inner = <CustomHTMLSection config={config} />;
+      break;
+    case 'dashboard_showcase':
+      inner = <DashboardShowcaseSection config={config} theme={theme} />;
       break;
     default:
       return null;

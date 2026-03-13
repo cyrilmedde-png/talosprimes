@@ -2,8 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Animations personnalisées */
+/* ═══════════════════════════════════════════════ */
+/* Animations & Utilities                          */
+/* ═══════════════════════════════════════════════ */
 @layer utilities {
+  /* ─── Fade & Slide ─── */
+  @keyframes fade-in-up {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
   @keyframes slide-up {
     from {
       transform: translateY(100%);
@@ -16,12 +30,8 @@
   }
 
   @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   @keyframes slide-in-left {
@@ -57,12 +67,96 @@
     }
   }
 
+  /* ─── Floating animations ─── */
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(-12px) rotate(1deg); }
+    50% { transform: translateY(-6px) rotate(-0.5deg); }
+    75% { transform: translateY(-15px) rotate(0.5deg); }
+  }
+
+  @keyframes float-medium {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-10px) rotate(-1deg); }
+    66% { transform: translateY(-18px) rotate(1deg); }
+  }
+
+  @keyframes float-fast {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* ─── Orb drift ─── */
+  @keyframes orb-drift-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -20px) scale(1.05); }
+    50% { transform: translate(-20px, 15px) scale(0.95); }
+    75% { transform: translate(15px, 25px) scale(1.02); }
+  }
+
+  @keyframes orb-drift-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(-25px, 15px) scale(0.97); }
+    50% { transform: translate(20px, -25px) scale(1.04); }
+    75% { transform: translate(-10px, -15px) scale(0.98); }
+  }
+
+  /* ─── Bar grow ─── */
+  @keyframes bar-grow {
+    from {
+      transform: scaleY(0);
+      transform-origin: bottom;
+    }
+    to {
+      transform: scaleY(1);
+      transform-origin: bottom;
+    }
+  }
+
+  /* ─── Chart draw ─── */
+  @keyframes chart-draw {
+    from {
+      stroke-dashoffset: 300;
+      opacity: 0;
+    }
+    to {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+  }
+
+  /* ─── Waveform ─── */
+  @keyframes waveform {
+    0%, 100% { height: 15%; }
+    25% { height: 80%; }
+    50% { height: 40%; }
+    75% { height: 90%; }
+  }
+
+  /* ─── Perspective ─── */
+  .perspective-1200 {
+    perspective: 1200px;
+  }
+
+  .rotate-x-2 {
+    transform: rotateX(2deg);
+  }
+
+  .hover\:rotate-x-0:hover {
+    transform: rotateX(0deg);
+  }
+
+  /* ─── Animation classes ─── */
   .animate-slide-up {
     animation: slide-up 0.3s ease-out;
   }
 
   .animate-fade-in {
     animation: fade-in 0.5s ease-out;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
   .animate-slide-in-left {
@@ -76,14 +170,58 @@
   .animate-scale-in {
     animation: scale-in 0.4s ease-out;
   }
+
+  .animate-float-slow {
+    animation: float-slow 6s ease-in-out infinite;
+  }
+
+  .animate-float-medium {
+    animation: float-medium 5s ease-in-out infinite;
+  }
+
+  .animate-float-fast {
+    animation: float-fast 3s ease-in-out infinite;
+  }
+
+  .animate-orb-1 {
+    animation: orb-drift-1 15s ease-in-out infinite;
+  }
+
+  .animate-orb-2 {
+    animation: orb-drift-2 18s ease-in-out infinite;
+  }
+
+  .animate-bar-grow {
+    animation: bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-chart-draw {
+    stroke-dasharray: 300;
+    animation: chart-draw 1.5s ease-out both;
+  }
+
+  .animate-waveform {
+    animation: waveform 1.2s ease-in-out infinite;
+  }
+
+  /* ─── Animation delays ─── */
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+  .animation-delay-600 { animation-delay: 600ms; }
+  .animation-delay-700 { animation-delay: 700ms; }
+  .animation-delay-800 { animation-delay: 800ms; }
 }
 
-/* Smooth scroll */
+/* ═══════════════════════════════════════════════ */
+/* Base styles                                      */
+/* ═══════════════════════════════════════════════ */
 html {
   scroll-behavior: smooth;
 }
 
-/* Transitions globales */
 * {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -114,3 +252,27 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+/* ─── Selection ─── */
+::selection {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: inherit;
+}
+
+/* ─── Scrollbar styling ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.5);
+}

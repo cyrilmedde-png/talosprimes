@@ -9,4 +9,5 @@ export { TestimonialsSection } from './TestimonialsSection';
 export { ContactSection } from './ContactSection';
 export { CTASection } from './CTASection';
 export { CustomHTMLSection } from './CustomHTMLSection';
+export { DashboardShowcaseSection } from './DashboardShowcaseSection';
 export { iconMap } from './iconMap';
