@@ -36,16 +36,16 @@ export function HeroSection({ config }: { config: HeroConfig; theme?: ThemeConfi
 
   return (
     <section className="relative pt-32 pb-8 px-6 overflow-hidden min-h-[90vh] flex flex-col justify-center">
-      {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-white to-slate-50/50 pointer-events-none" />
+      {/* Animated gradient background — darker tone */}
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-100 via-slate-50 to-slate-100/80 pointer-events-none" />
 
-      {/* Animated orbs */}
-      <div className="absolute top-20 left-1/4 w-[600px] h-[600px] bg-gradient-to-br from-blue-100/40 via-violet-100/30 to-transparent rounded-full blur-3xl pointer-events-none animate-orb-1" />
-      <div className="absolute top-40 right-1/4 w-[500px] h-[500px] bg-gradient-to-bl from-amber-100/30 via-rose-100/20 to-transparent rounded-full blur-3xl pointer-events-none animate-orb-2" />
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-blue-50/60 to-transparent rounded-full blur-3xl pointer-events-none" />
+      {/* Animated orbs — deeper colors */}
+      <div className="absolute top-20 left-1/4 w-[600px] h-[600px] bg-gradient-to-br from-blue-200/50 via-violet-200/40 to-transparent rounded-full blur-3xl pointer-events-none animate-orb-1" />
+      <div className="absolute top-40 right-1/4 w-[500px] h-[500px] bg-gradient-to-bl from-amber-200/40 via-rose-200/30 to-transparent rounded-full blur-3xl pointer-events-none animate-orb-2" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-blue-100/60 to-transparent rounded-full blur-3xl pointer-events-none" />
 
       {/* Grid pattern overlay */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+      <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }}
