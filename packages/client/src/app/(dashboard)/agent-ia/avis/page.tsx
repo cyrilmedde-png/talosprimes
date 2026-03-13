@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '@/lib/auth';
-import { useAuthStore } from '@/stores/auth.store';
+import { useAuthStore } from '@/store/auth-store';
 import {
   StarIcon,
   EyeIcon,
