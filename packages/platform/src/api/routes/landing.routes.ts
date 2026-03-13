@@ -122,11 +122,11 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
   // ===== TESTIMONIALS (Avis clients) =====
 
-  // GET /api/landing/testimonials - Récupérer les testimonials affichés
+  // GET /api/landing/testimonials - Récupérer les testimonials affichés (GLOBAL = tenantId null)
   fastify.get('/api/landing/testimonials', async (_request, reply) => {
     try {
       const testimonials = await prisma.testimonial.findMany({
-        where: { affiche: true },
+        where: { affiche: true, tenantId: null },
         orderBy: { ordre: 'asc' }
       });
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -694,11 +694,11 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
   // ===== LANDING SECTIONS (Page builder - sections configurables) =====
 
-  // GET /api/landing/sections - Sections actives triées par ordre (PUBLIC, cached)
+  // GET /api/landing/sections - Sections actives GLOBALES triées par ordre (PUBLIC, cached)
   fastify.get('/api/landing/sections', async (_request, reply) => {
     try {
       const sections = await prisma.landingSection.findMany({
-        where: { actif: true },
+        where: { actif: true, tenantId: null },
         orderBy: { ordre: 'asc' },
       });
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -709,12 +709,13 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/landing/sections/all - Toutes les sections même inactives (ADMIN)
+  // GET /api/landing/sections/all - Toutes les sections GLOBALES même inactives (ADMIN)
   fastify.get('/api/landing/sections/all',
     { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
     async (_request, reply) => {
       try {
         const sections = await prisma.landingSection.findMany({
+          where: { tenantId: null },
           orderBy: { ordre: 'asc' },
         });
         return reply.send({ success: true, data: sections });
@@ -832,10 +833,12 @@ export async function landingRoutes(fastify: FastifyInstance) {
 
   // ===== LANDING GLOBAL CONFIG (navbar, footer, seo, theme) =====
 
-  // GET /api/landing/global-config - Toutes les configs globales (PUBLIC, cached)
+  // GET /api/landing/global-config - Configs globales PLATEFORME (PUBLIC, cached)
   fastify.get('/api/landing/global-config', async (_request, reply) => {
     try {
-      const configs = await prisma.landingGlobalConfig.findMany();
+      const configs = await prisma.landingGlobalConfig.findMany({
+        where: { tenantId: null },
+      });
       const configMap = configs.reduce((acc: Record<string, unknown>, item: { section: string; config: unknown }) => {
         acc[item.section] = item.config;
         return acc;
@@ -848,7 +851,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // PUT /api/landing/global-config/:section - Modifier une config globale (ADMIN)
+  // PUT /api/landing/global-config/:section - Modifier une config globale PLATEFORME (ADMIN)
   fastify.put<{ Params: { section: string }; Body: { config: Record<string, unknown> } }>(
     '/api/landing/global-config/:section',
     { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
@@ -860,15 +863,398 @@ export async function landingRoutes(fastify: FastifyInstance) {
       if (!validSections.includes(section)) return ApiError.badRequest(reply, `Section invalide. Sections autorisées: ${validSections.join(', ')}`);
 
       try {
-        const updated = await prisma.landingGlobalConfig.upsert({
-          where: { section },
-          update: { config: config as InputJsonValue },
-          create: { section, config: config as InputJsonValue },
+        const existing = await prisma.landingGlobalConfig.findFirst({
+          where: { tenantId: null, section },
         });
+
+        let updated;
+        if (existing) {
+          updated = await prisma.landingGlobalConfig.update({
+            where: { id: existing.id },
+            data: { config: config as InputJsonValue },
+          });
+        } else {
+          updated = await prisma.landingGlobalConfig.create({
+            data: { section, config: config as InputJsonValue },
+          });
+        }
         return reply.send({ success: true, data: updated });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply, 'Erreur lors de la mise à jour de la config');
+      }
+    }
+  );
+
+  // ===================================================================
+  // ============= LANDING PAGES MULTI-TENANT (par client) =============
+  // ===================================================================
+
+  // Helper : sections par défaut pour un nouveau tenant
+  const defaultTenantSections = [
+    { type: 'hero', titre: 'Hero', ordre: 0, config: {} },
+    { type: 'stats', titre: 'Statistiques', ordre: 1, config: {} },
+    { type: 'modules', titre: 'Nos services', ordre: 2, config: {} },
+    { type: 'testimonials', titre: 'Témoignages', ordre: 3, config: {} },
+    { type: 'contact', titre: 'Contact', ordre: 4, config: {} },
+    { type: 'cta', titre: 'Appel à action', ordre: 5, config: {} },
+  ];
+
+  // --- PUBLIC : Accès à la landing d'un tenant par son slug ---
+
+  // GET /api/landing/site/:slug/sections - Sections actives du tenant (PUBLIC)
+  fastify.get<{ Params: { slug: string } }>('/api/landing/site/:slug/sections', async (request, reply) => {
+    const { slug } = request.params;
+    try {
+      const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
+      if (!tenant) return ApiError.notFound(reply, 'Site introuvable');
+
+      const sections = await prisma.landingSection.findMany({
+        where: { tenantId: tenant.id, actif: true },
+        orderBy: { ordre: 'asc' },
+      });
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+      return reply.send({ success: true, data: sections });
+    } catch (error) {
+      fastify.log.error(error);
+      return ApiError.internal(reply, 'Erreur lors de la récupération des sections du site');
+    }
+  });
+
+  // GET /api/landing/site/:slug/global-config - Config globale du tenant (PUBLIC)
+  fastify.get<{ Params: { slug: string } }>('/api/landing/site/:slug/global-config', async (request, reply) => {
+    const { slug } = request.params;
+    try {
+      const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
+      if (!tenant) return ApiError.notFound(reply, 'Site introuvable');
+
+      const configs = await prisma.landingGlobalConfig.findMany({
+        where: { tenantId: tenant.id },
+      });
+      const configMap = configs.reduce((acc: Record<string, unknown>, item: { section: string; config: unknown }) => {
+        acc[item.section] = item.config;
+        return acc;
+      }, {});
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+      return reply.send({ success: true, data: configMap });
+    } catch (error) {
+      fastify.log.error(error);
+      return ApiError.internal(reply, 'Erreur lors de la récupération de la config du site');
+    }
+  });
+
+  // GET /api/landing/site/:slug/testimonials - Testimonials du tenant (PUBLIC)
+  fastify.get<{ Params: { slug: string } }>('/api/landing/site/:slug/testimonials', async (request, reply) => {
+    const { slug } = request.params;
+    try {
+      const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
+      if (!tenant) return ApiError.notFound(reply, 'Site introuvable');
+
+      const testimonials = await prisma.testimonial.findMany({
+        where: { tenantId: tenant.id, affiche: true },
+        orderBy: { ordre: 'asc' },
+      });
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+      return reply.send(testimonials);
+    } catch (error) {
+      fastify.log.error(error);
+      return ApiError.internal(reply);
+    }
+  });
+
+  // --- TENANT DASHBOARD : Gérer SA propre landing page ---
+
+  // GET /api/landing/my-site/info - Infos du site du tenant connecté
+  fastify.get('/api/landing/my-site/info',
+    { preHandler: [fastify.authenticate] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+      try {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { id: true, slug: true, nomEntreprise: true },
+        });
+        if (!tenant) return ApiError.notFound(reply, 'Tenant introuvable');
+        return reply.send({ success: true, data: tenant });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // PUT /api/landing/my-site/slug - Définir/modifier le slug du tenant
+  fastify.put<{ Body: { slug: string } }>('/api/landing/my-site/slug',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
+      const { slug } = request.body;
+      if (!slug) return ApiError.badRequest(reply, 'Le slug est requis');
+
+      // Valider le format du slug
+      const slugRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+      if (!slugRegex.test(slug)) return ApiError.badRequest(reply, 'Le slug ne doit contenir que des lettres minuscules, chiffres et tirets');
+      if (slug.length < 3 || slug.length > 50) return ApiError.badRequest(reply, 'Le slug doit faire entre 3 et 50 caractères');
+
+      // Vérifier unicité
+      const existing = await prisma.tenant.findUnique({ where: { slug } });
+      if (existing && existing.id !== tenantId) return ApiError.badRequest(reply, 'Ce slug est déjà pris');
+
+      try {
+        const tenant = await prisma.tenant.update({
+          where: { id: tenantId },
+          data: { slug },
+          select: { id: true, slug: true, nomEntreprise: true },
+        });
+        return reply.send({ success: true, data: tenant });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la mise à jour du slug');
+      }
+    }
+  );
+
+  // GET /api/landing/my-site/sections - Sections du tenant connecté
+  fastify.get('/api/landing/my-site/sections',
+    { preHandler: [fastify.authenticate] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+      try {
+        const sections = await prisma.landingSection.findMany({
+          where: { tenantId },
+          orderBy: { ordre: 'asc' },
+        });
+        return reply.send({ success: true, data: sections });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la récupération des sections');
+      }
+    }
+  );
+
+  // POST /api/landing/my-site/sections - Créer une section pour le tenant
+  fastify.post<{ Body: { type: string; titre?: string; config?: Record<string, unknown>; ordre?: number; actif?: boolean } }>(
+    '/api/landing/my-site/sections',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
+      const { type, titre, config, ordre, actif } = request.body;
+      if (!type) return ApiError.badRequest(reply, 'Le type de section est requis');
+
+      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations', 'dashboard_showcase'];
+      if (!validTypes.includes(type)) return ApiError.badRequest(reply, `Type invalide. Types autorisés: ${validTypes.join(', ')}`);
+
+      try {
+        let finalOrdre = ordre ?? 0;
+        if (!ordre && ordre !== 0) {
+          const lastSection = await prisma.landingSection.findFirst({
+            where: { tenantId },
+            orderBy: { ordre: 'desc' },
+          });
+          finalOrdre = (lastSection?.ordre ?? -1) + 1;
+        }
+
+        const section = await prisma.landingSection.create({
+          data: {
+            tenantId,
+            type,
+            titre: titre || null,
+            config: (config || {}) as InputJsonValue,
+            ordre: finalOrdre,
+            actif: actif ?? true,
+          },
+        });
+        return reply.status(201).send({ success: true, data: section });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la création de la section');
+      }
+    }
+  );
+
+  // PUT /api/landing/my-site/sections/:id - Modifier une section du tenant
+  fastify.put<{ Params: { id: string }; Body: Partial<{ type: string; titre: string; config: Record<string, unknown>; ordre: number; actif: boolean }> }>(
+    '/api/landing/my-site/sections/:id',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+      const { id } = request.params;
+
+      // Vérifier que la section appartient bien au tenant
+      const existing = await prisma.landingSection.findFirst({ where: { id, tenantId } });
+      if (!existing) return ApiError.notFound(reply, 'Section introuvable');
+
+      const { type, titre, config, ordre, actif } = request.body;
+      try {
+        const data: Record<string, unknown> = {};
+        if (type !== undefined) data.type = type;
+        if (titre !== undefined) data.titre = titre;
+        if (config !== undefined) data.config = config;
+        if (ordre !== undefined) data.ordre = ordre;
+        if (actif !== undefined) data.actif = actif;
+
+        const section = await prisma.landingSection.update({ where: { id }, data });
+        return reply.send({ success: true, data: section });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la modification de la section');
+      }
+    }
+  );
+
+  // PUT /api/landing/my-site/sections/reorder - Réordonner les sections du tenant
+  fastify.put<{ Body: { items: Array<{ id: string; ordre: number }> } }>(
+    '/api/landing/my-site/sections/reorder',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+      const { items } = request.body;
+      if (!items || !Array.isArray(items)) return ApiError.badRequest(reply, 'items requis');
+
+      try {
+        // Vérifier que toutes les sections appartiennent au tenant
+        const sectionIds = items.map(i => i.id);
+        const count = await prisma.landingSection.count({ where: { id: { in: sectionIds }, tenantId } });
+        if (count !== sectionIds.length) return ApiError.badRequest(reply, 'Certaines sections ne vous appartiennent pas');
+
+        await prisma.$transaction(
+          items.map(item => prisma.landingSection.update({
+            where: { id: item.id },
+            data: { ordre: item.ordre },
+          }))
+        );
+
+        const sections = await prisma.landingSection.findMany({ where: { tenantId }, orderBy: { ordre: 'asc' } });
+        return reply.send({ success: true, data: sections });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors du réordonnement');
+      }
+    }
+  );
+
+  // DELETE /api/landing/my-site/sections/:id - Supprimer une section du tenant
+  fastify.delete<{ Params: { id: string } }>(
+    '/api/landing/my-site/sections/:id',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+      const { id } = request.params;
+
+      const existing = await prisma.landingSection.findFirst({ where: { id, tenantId } });
+      if (!existing) return ApiError.notFound(reply, 'Section introuvable');
+
+      try {
+        await prisma.landingSection.delete({ where: { id } });
+        return reply.send({ success: true, message: 'Section supprimée' });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la suppression');
+      }
+    }
+  );
+
+  // PUT /api/landing/my-site/global-config/:section - Config globale du tenant
+  fastify.put<{ Params: { section: string }; Body: { config: Record<string, unknown> } }>(
+    '/api/landing/my-site/global-config/:section',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+      const { section } = request.params;
+      const { config } = request.body;
+
+      const validSections = ['navbar', 'footer', 'seo', 'theme'];
+      if (!validSections.includes(section)) return ApiError.badRequest(reply, `Section invalide`);
+
+      try {
+        // Chercher si une config existe déjà pour ce tenant + section
+        const existing = await prisma.landingGlobalConfig.findFirst({
+          where: { tenantId, section },
+        });
+
+        let updated;
+        if (existing) {
+          updated = await prisma.landingGlobalConfig.update({
+            where: { id: existing.id },
+            data: { config: config as InputJsonValue },
+          });
+        } else {
+          updated = await prisma.landingGlobalConfig.create({
+            data: { tenantId, section, config: config as InputJsonValue },
+          });
+        }
+        return reply.send({ success: true, data: updated });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de la mise à jour de la config');
+      }
+    }
+  );
+
+  // GET /api/landing/my-site/global-config - Config globale du tenant connecté
+  fastify.get('/api/landing/my-site/global-config',
+    { preHandler: [fastify.authenticate] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+      try {
+        const configs = await prisma.landingGlobalConfig.findMany({
+          where: { tenantId },
+        });
+        const configMap = configs.reduce((acc: Record<string, unknown>, item: { section: string; config: unknown }) => {
+          acc[item.section] = item.config;
+          return acc;
+        }, {});
+        return reply.send({ success: true, data: configMap });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // POST /api/landing/my-site/init - Initialiser la landing page du tenant avec les sections par défaut
+  fastify.post('/api/landing/my-site/init',
+    { preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')] },
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply, 'Tenant non identifié');
+
+      try {
+        // Vérifier si le tenant a déjà des sections
+        const existingCount = await prisma.landingSection.count({ where: { tenantId } });
+        if (existingCount > 0) return ApiError.badRequest(reply, 'Votre site a déjà des sections. Supprimez-les d\'abord pour réinitialiser.');
+
+        // Créer les sections par défaut
+        await prisma.landingSection.createMany({
+          data: defaultTenantSections.map(s => ({
+            tenantId,
+            type: s.type,
+            titre: s.titre,
+            config: s.config as InputJsonValue,
+            ordre: s.ordre,
+            actif: true,
+          })),
+        });
+
+        const sections = await prisma.landingSection.findMany({
+          where: { tenantId },
+          orderBy: { ordre: 'asc' },
+        });
+        return reply.status(201).send({ success: true, data: sections, message: 'Landing page initialisée avec les sections par défaut' });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de l\'initialisation');
       }
     }
   );
