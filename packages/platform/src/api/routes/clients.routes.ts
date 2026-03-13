@@ -754,12 +754,14 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           data: { clientTenantId: clientTenant.id },
         });
 
-        // Initialiser automatiquement la landing page du tenant (slug + sections personnalisées)
+        // Initialiser automatiquement la landing page du tenant
+        // Utilise le slug du ClientSpace (sous-domaine choisi par l'admin à l'onboarding)
         let landingInfo = null;
         if (isNewTenant) {
           try {
             landingInfo = await initTenantLandingPage(
               clientTenant.id,
+              body.clientId,       // Pour récupérer le ClientSpace et son sous-domaine
               body.tenantName,
               body.metier || undefined,
             );
@@ -800,7 +802,7 @@ export async function clientsRoutes(fastify: FastifyInstance) {
             email: user.email,
             password: body.password, // Retourner aussi pour le workflow (si pas Stripe)
             landingSlug: landingInfo?.slug || null,
-            landingUrl: landingInfo ? `/site/${landingInfo.slug}` : null,
+            landingUrl: landingInfo?.slug ? `https://${landingInfo.slug}.talosprimes.com` : null,
           },
         });
       } catch (error) {

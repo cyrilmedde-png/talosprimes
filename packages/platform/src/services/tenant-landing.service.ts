@@ -2,33 +2,6 @@ import { prisma } from '../config/database.js';
 import type { InputJsonValue } from '../types/prisma-helpers.js';
 
 /**
- * Génère un slug URL-friendly à partir du nom d'entreprise
- */
-function generateSlug(nomEntreprise: string): string {
-  return nomEntreprise
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove accents
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 50);
-}
-
-/**
- * Assure l'unicité du slug en ajoutant un suffixe si nécessaire
- */
-async function ensureUniqueSlug(baseSlug: string): Promise<string> {
-  let slug = baseSlug;
-  let counter = 1;
-  while (await prisma.tenant.findUnique({ where: { slug }, select: { id: true } })) {
-    slug = `${baseSlug}-${counter}`;
-    counter++;
-  }
-  return slug;
-}
-
-/**
  * Génère les sections de landing page personnalisées selon le métier et le nom de l'entreprise.
  */
 function buildSectionsForTenant(nomEntreprise: string, metier?: string): Array<{
@@ -103,7 +76,6 @@ function buildSectionsForTenant(nomEntreprise: string, metier?: string): Array<{
     },
   };
 
-  // Config par défaut si métier non reconnu
   const defaultHero = {
     titre: `Bienvenue chez ${nom}`,
     sousTitre: 'Découvrez nos services et laissez-nous vous accompagner',
@@ -159,27 +131,51 @@ function buildSectionsForTenant(nomEntreprise: string, metier?: string): Array<{
 }
 
 /**
- * Initialise automatiquement la landing page d'un tenant :
- * - Génère un slug unique
- * - Crée les sections personnalisées selon le métier
- * - Crée la config globale de base
+ * Initialise automatiquement la landing page d'un tenant.
  *
- * Appelé automatiquement lors de la création du tenant (create-credentials)
+ * Le slug utilisé est celui du ClientSpace (sous-domaine) choisi par l'admin
+ * lors de l'onboarding (ex: "demo" → demo.talosprimes.com).
+ *
+ * Flow réel :
+ *   1. Admin crée l'espace client avec sous-domaine (POST /api/clients/:id/onboarding)
+ *      → ClientSpace créé avec tenantSlug = "demo"
+ *   2. N8N appelle create-credentials → crée le Tenant isolé
+ *   3. create-credentials appelle initTenantLandingPage()
+ *      → récupère le slug du ClientSpace
+ *      → assigne ce slug au Tenant
+ *      → crée les sections personnalisées selon le métier
+ *
+ * @param tenantId  - ID du tenant nouvellement créé
+ * @param clientId  - ID du ClientFinal (pour retrouver le ClientSpace)
+ * @param nomEntreprise - Nom de l'entreprise
+ * @param metier    - Métier/activité du client (btp, restaurant, immobilier, etc.)
  */
-export async function initTenantLandingPage(tenantId: string, nomEntreprise: string, metier?: string): Promise<{
-  slug: string;
+export async function initTenantLandingPage(
+  tenantId: string,
+  clientId: string,
+  nomEntreprise: string,
+  metier?: string,
+): Promise<{
+  slug: string | null;
   sectionsCount: number;
 }> {
-  // 1. Générer et assigner un slug unique
-  const baseSlug = generateSlug(nomEntreprise);
-  const slug = await ensureUniqueSlug(baseSlug);
-
-  await prisma.tenant.update({
-    where: { id: tenantId },
-    data: { slug },
+  // 1. Récupérer le slug du ClientSpace (sous-domaine choisi par l'admin à l'onboarding)
+  const clientSpace = await prisma.clientSpace.findFirst({
+    where: { clientFinalId: clientId },
+    select: { tenantSlug: true },
   });
 
-  // 2. Créer les sections personnalisées
+  const slug = clientSpace?.tenantSlug || null;
+
+  // 2. Assigner le slug du sous-domaine au Tenant (pour la landing page)
+  if (slug) {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { slug },
+    });
+  }
+
+  // 3. Créer les sections personnalisées selon le métier
   const sections = buildSectionsForTenant(nomEntreprise, metier);
 
   await prisma.landingSection.createMany({
@@ -193,7 +189,7 @@ export async function initTenantLandingPage(tenantId: string, nomEntreprise: str
     })),
   });
 
-  // 3. Créer la config globale de base
+  // 4. Créer la config globale de base
   await prisma.landingGlobalConfig.create({
     data: {
       tenantId,
@@ -204,6 +200,7 @@ export async function initTenantLandingPage(tenantId: string, nomEntreprise: str
         police: 'Inter',
         nomEntreprise,
         metier: metier || 'general',
+        sousDomaine: slug || null,
       } as InputJsonValue,
     },
   });
