@@ -152,6 +152,55 @@
     transform: rotateX(0deg);
   }
 
+  /* ─── Shimmer / sparkle for grid pattern ─── */
+  @keyframes grid-shimmer {
+    0%, 100% {
+      mask-position: -200% 0;
+      -webkit-mask-position: -200% 0;
+    }
+    50% {
+      mask-position: 200% 0;
+      -webkit-mask-position: 200% 0;
+    }
+  }
+
+  @keyframes grid-drift {
+    0% { background-position: 0 0; }
+    100% { background-position: 60px 60px; }
+  }
+
+  @keyframes sparkle-pulse {
+    0%, 100% { opacity: 0.03; }
+    25% { opacity: 0.07; }
+    50% { opacity: 0.04; }
+    75% { opacity: 0.08; }
+  }
+
+  .animate-grid-shimmer {
+    animation: grid-drift 12s linear infinite, sparkle-pulse 6s ease-in-out infinite;
+    mask-image: linear-gradient(
+      120deg,
+      rgba(0,0,0,0.3) 0%,
+      rgba(0,0,0,1) 20%,
+      rgba(0,0,0,0.3) 40%,
+      rgba(0,0,0,1) 60%,
+      rgba(0,0,0,0.3) 80%,
+      rgba(0,0,0,1) 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      120deg,
+      rgba(0,0,0,0.3) 0%,
+      rgba(0,0,0,1) 20%,
+      rgba(0,0,0,0.3) 40%,
+      rgba(0,0,0,1) 60%,
+      rgba(0,0,0,0.3) 80%,
+      rgba(0,0,0,1) 100%
+    );
+    mask-size: 300% 100%;
+    -webkit-mask-size: 300% 100%;
+    animation: grid-drift 12s linear infinite, sparkle-pulse 6s ease-in-out infinite, grid-shimmer 8s ease-in-out infinite;
+  }
+
   /* ─── Animation classes ─── */
   .animate-slide-up {
     animation: slide-up 0.3s ease-out;
