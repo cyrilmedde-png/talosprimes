@@ -131,27 +131,16 @@ function buildSectionsForTenant(nomEntreprise: string, metier?: string): Array<{
 }
 
 /**
- * Initialise automatiquement la landing page d'un tenant.
+ * Initialise automatiquement la landing page d'un client.
  *
- * Le slug utilisé est celui du ClientSpace (sous-domaine) choisi par l'admin
- * lors de l'onboarding (ex: "demo" → demo.talosprimes.com).
+ * Recherche le ClientSpace par clientId, puis crée les sections
+ * et la config globale liées au clientSpaceId.
  *
- * Flow réel :
- *   1. Admin crée l'espace client avec sous-domaine (POST /api/clients/:id/onboarding)
- *      → ClientSpace créé avec tenantSlug = "demo"
- *   2. N8N appelle create-credentials → crée le Tenant isolé
- *   3. create-credentials appelle initTenantLandingPage()
- *      → récupère le slug du ClientSpace
- *      → assigne ce slug au Tenant
- *      → crée les sections personnalisées selon le métier
- *
- * @param tenantId  - ID du tenant nouvellement créé
- * @param clientId  - ID du ClientFinal (pour retrouver le ClientSpace)
+ * @param clientId      - ID du ClientFinal
  * @param nomEntreprise - Nom de l'entreprise
- * @param metier    - Métier/activité du client (btp, restaurant, immobilier, etc.)
+ * @param metier        - Métier/activité du client (btp, restaurant, immobilier, etc.)
  */
-export async function initTenantLandingPage(
-  tenantId: string,
+export async function initClientLandingPage(
   clientId: string,
   nomEntreprise: string,
   metier?: string,
@@ -159,28 +148,25 @@ export async function initTenantLandingPage(
   slug: string | null;
   sectionsCount: number;
 }> {
-  // 1. Récupérer le slug du ClientSpace (sous-domaine choisi par l'admin à l'onboarding)
+  // 1. Récupérer le ClientSpace (contient le sous-domaine)
   const clientSpace = await prisma.clientSpace.findFirst({
     where: { clientFinalId: clientId },
-    select: { tenantSlug: true },
+    select: { id: true, tenantSlug: true },
   });
 
-  const slug = clientSpace?.tenantSlug || null;
-
-  // 2. Assigner le slug du sous-domaine au Tenant (pour la landing page)
-  if (slug) {
-    await prisma.tenant.update({
-      where: { id: tenantId },
-      data: { slug },
-    });
+  if (!clientSpace) {
+    console.warn(`[initClientLandingPage] Aucun ClientSpace trouvé pour clientId=${clientId}`);
+    return { slug: null, sectionsCount: 0 };
   }
 
-  // 3. Créer les sections personnalisées selon le métier
+  const slug = clientSpace.tenantSlug;
+
+  // 2. Créer les sections personnalisées selon le métier
   const sections = buildSectionsForTenant(nomEntreprise, metier);
 
   await prisma.landingSection.createMany({
     data: sections.map(s => ({
-      tenantId,
+      clientSpaceId: clientSpace.id,
       type: s.type,
       titre: s.titre,
       config: s.config as InputJsonValue,
@@ -189,10 +175,9 @@ export async function initTenantLandingPage(
     })),
   });
 
-  // 4. Créer la config globale de base
-  await prisma.landingGlobalConfig.create({
-    data: {
-      tenantId,
+  // 3. Créer les configs globales (navbar, footer, seo, theme)
+  const configs = [
+    {
       section: 'theme',
       config: {
         couleurPrimaire: '#3B82F6',
@@ -200,10 +185,59 @@ export async function initTenantLandingPage(
         police: 'Inter',
         nomEntreprise,
         metier: metier || 'general',
-        sousDomaine: slug || null,
-      } as InputJsonValue,
+        sousDomaine: slug,
+      },
     },
-  });
+    {
+      section: 'navbar',
+      config: {
+        logo: { text: nomEntreprise },
+        links: [
+          { text: 'Accueil', href: '#hero' },
+          { text: 'Services', href: '#modules' },
+          { text: 'Contact', href: '#contact' },
+        ],
+        ctaButton: { text: 'Espace client', href: '/connexion' },
+        sticky: true,
+      },
+    },
+    {
+      section: 'footer',
+      config: {
+        companyName: nomEntreprise,
+        description: `${nomEntreprise} — Votre partenaire de confiance`,
+        copyright: `© ${new Date().getFullYear()} ${nomEntreprise}. Tous droits réservés.`,
+        legalLinks: [
+          { text: 'Mentions légales', href: '/mentions-legales' },
+          { text: 'CGV', href: '/cgv' },
+        ],
+      },
+    },
+    {
+      section: 'seo',
+      config: {
+        metaTitle: `${nomEntreprise}`,
+        metaDescription: `Découvrez ${nomEntreprise}, votre partenaire pour la gestion de votre activité.`,
+      },
+    },
+  ];
+
+  for (const c of configs) {
+    await prisma.landingGlobalConfig.upsert({
+      where: {
+        clientSpaceId_section: {
+          clientSpaceId: clientSpace.id,
+          section: c.section,
+        },
+      },
+      update: { config: c.config as InputJsonValue },
+      create: {
+        clientSpaceId: clientSpace.id,
+        section: c.section,
+        config: c.config as InputJsonValue,
+      },
+    });
+  }
 
   return { slug, sectionsCount: sections.length };
 }

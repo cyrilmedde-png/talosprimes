@@ -900,17 +900,20 @@ export async function landingRoutes(fastify: FastifyInstance) {
     { type: 'cta', titre: 'Appel à action', ordre: 5, config: {} },
   ];
 
-  // --- PUBLIC : Accès à la landing d'un tenant par son slug ---
+  // --- PUBLIC : Accès à la landing d'un client par son slug (sous-domaine) ---
 
-  // GET /api/landing/site/:slug/sections - Sections actives du tenant (PUBLIC)
+  // GET /api/landing/site/:slug/sections - Sections actives du client (PUBLIC)
   fastify.get<{ Params: { slug: string } }>('/api/landing/site/:slug/sections', async (request, reply) => {
     const { slug } = request.params;
     try {
-      const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
-      if (!tenant) return ApiError.notFound(reply, 'Site introuvable');
+      const clientSpace = await prisma.clientSpace.findFirst({
+        where: { tenantSlug: slug },
+        select: { id: true },
+      });
+      if (!clientSpace) return ApiError.notFound(reply, 'Site introuvable');
 
       const sections = await prisma.landingSection.findMany({
-        where: { tenantId: tenant.id, actif: true },
+        where: { clientSpaceId: clientSpace.id, actif: true },
         orderBy: { ordre: 'asc' },
       });
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -921,15 +924,18 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/landing/site/:slug/global-config - Config globale du tenant (PUBLIC)
+  // GET /api/landing/site/:slug/global-config - Config globale du client (PUBLIC)
   fastify.get<{ Params: { slug: string } }>('/api/landing/site/:slug/global-config', async (request, reply) => {
     const { slug } = request.params;
     try {
-      const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
-      if (!tenant) return ApiError.notFound(reply, 'Site introuvable');
+      const clientSpace = await prisma.clientSpace.findFirst({
+        where: { tenantSlug: slug },
+        select: { id: true },
+      });
+      if (!clientSpace) return ApiError.notFound(reply, 'Site introuvable');
 
       const configs = await prisma.landingGlobalConfig.findMany({
-        where: { tenantId: tenant.id },
+        where: { clientSpaceId: clientSpace.id },
       });
       const configMap = configs.reduce((acc: Record<string, unknown>, item: { section: string; config: unknown }) => {
         acc[item.section] = item.config;
@@ -943,15 +949,18 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // GET /api/landing/site/:slug/testimonials - Testimonials du tenant (PUBLIC)
+  // GET /api/landing/site/:slug/testimonials - Testimonials du client (PUBLIC)
   fastify.get<{ Params: { slug: string } }>('/api/landing/site/:slug/testimonials', async (request, reply) => {
     const { slug } = request.params;
     try {
-      const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
-      if (!tenant) return ApiError.notFound(reply, 'Site introuvable');
+      const clientSpace = await prisma.clientSpace.findFirst({
+        where: { tenantSlug: slug },
+        select: { id: true },
+      });
+      if (!clientSpace) return ApiError.notFound(reply, 'Site introuvable');
 
       const testimonials = await prisma.testimonial.findMany({
-        where: { tenantId: tenant.id, affiche: true },
+        where: { tenantId: clientSpace.id, affiche: true },
         orderBy: { ordre: 'asc' },
       });
       reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');

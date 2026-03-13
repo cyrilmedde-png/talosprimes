@@ -1,5 +1,5 @@
 /**
- * Script one-shot : initialise la landing page pour le tenant "demo"
+ * Script one-shot : initialise la landing page pour le client "demo"
  * Usage : pnpm tsx scripts/init-demo-landing.ts
  */
 import { PrismaClient } from '@prisma/client';
@@ -7,58 +7,44 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Trouver le tenant demo par son slug
-  let tenant = await prisma.tenant.findFirst({
-    where: { slug: 'demo' },
-    select: { id: true, nomEntreprise: true, metier: true, slug: true },
+  // 1. Trouver le ClientSpace avec le slug "demo"
+  const clientSpace = await prisma.clientSpace.findFirst({
+    where: { tenantSlug: 'demo' },
+    include: {
+      clientFinal: { select: { id: true, nom: true, prenom: true, email: true } },
+      tenant: { select: { id: true, nomEntreprise: true, metier: true } },
+    },
   });
 
-  // Si pas trouvé par slug, chercher via ClientSpace
-  if (!tenant) {
-    const cs = await prisma.clientSpace.findFirst({
-      where: { tenantSlug: 'demo' },
-      select: { tenantId: true },
-    });
-    if (cs?.tenantId) {
-      tenant = await prisma.tenant.findUnique({
-        where: { id: cs.tenantId },
-        select: { id: true, nomEntreprise: true, metier: true, slug: true },
-      });
-      // Assigner le slug au tenant si manquant
-      if (tenant && !tenant.slug) {
-        await prisma.tenant.update({
-          where: { id: tenant.id },
-          data: { slug: 'demo' },
-        });
-        console.log('✅ Slug "demo" assigné au tenant', tenant.id);
-      }
-    }
-  }
-
-  if (!tenant) {
-    console.error('❌ Impossible de trouver le tenant demo');
+  if (!clientSpace) {
+    console.error('❌ Aucun ClientSpace avec tenantSlug "demo" trouvé');
     process.exit(1);
   }
 
-  console.log(`📌 Tenant trouvé : ${tenant.nomEntreprise} (${tenant.id})`);
-  console.log(`   Métier : ${tenant.metier || 'non défini'}`);
-  console.log(`   Slug   : ${tenant.slug || 'aucun'}`);
+  console.log(`📌 ClientSpace trouvé : ${clientSpace.id}`);
+  console.log(`   Slug     : ${clientSpace.tenantSlug}`);
+  console.log(`   Client   : ${clientSpace.clientFinal.nom} ${clientSpace.clientFinal.prenom}`);
+  console.log(`   Tenant   : ${clientSpace.tenant.nomEntreprise} (${clientSpace.tenant.id})`);
+  console.log(`   Métier   : ${clientSpace.tenant.metier || 'non défini'}`);
 
-  // 2. Vérifier si des sections existent déjà
-  const existingCount = await prisma.landingSection.count({
-    where: { tenantId: tenant.id },
+  // 2. Nettoyer les anciennes sections si elles existent
+  const existingSections = await prisma.landingSection.count({
+    where: { clientSpaceId: clientSpace.id },
+  });
+  const existingConfigs = await prisma.landingGlobalConfig.count({
+    where: { clientSpaceId: clientSpace.id },
   });
 
-  if (existingCount > 0) {
-    console.log(`⚠️  ${existingCount} sections existent déjà. Suppression avant recréation...`);
-    await prisma.landingSection.deleteMany({ where: { tenantId: tenant.id } });
-    await prisma.landingGlobalConfig.deleteMany({ where: { tenantId: tenant.id } });
-    console.log('🗑️  Anciennes sections supprimées.');
+  if (existingSections > 0 || existingConfigs > 0) {
+    console.log(`⚠️  ${existingSections} sections + ${existingConfigs} configs existantes. Suppression...`);
+    await prisma.landingSection.deleteMany({ where: { clientSpaceId: clientSpace.id } });
+    await prisma.landingGlobalConfig.deleteMany({ where: { clientSpaceId: clientSpace.id } });
+    console.log('🗑️  Nettoyé.');
   }
 
-  // 3. Créer les sections personnalisées
-  const nom = tenant.nomEntreprise || 'Demo';
-  const metier = tenant.metier || 'consulting';
+  // 3. Créer les sections
+  const nom = clientSpace.tenant.nomEntreprise || 'Demo';
+  const metier = clientSpace.tenant.metier || 'consulting';
 
   const heroConfigs: Record<string, Record<string, unknown>> = {
     btp: { titre: `${nom} — Votre partenaire BTP`, sousTitre: 'Gérez vos chantiers, devis et factures en toute simplicité', ctaTexte: 'Découvrir nos services', theme: 'construction' },
@@ -86,7 +72,7 @@ async function main() {
 
   await prisma.landingSection.createMany({
     data: sections.map(s => ({
-      tenantId: tenant!.id,
+      clientSpaceId: clientSpace.id,
       type: s.type,
       titre: s.titre,
       config: s.config,
@@ -97,7 +83,7 @@ async function main() {
 
   console.log(`✅ ${sections.length} sections créées`);
 
-  // 4. Créer la config globale (navbar, footer, seo, theme)
+  // 4. Créer les configs globales (navbar, footer, seo, theme)
   const configs = [
     {
       section: 'theme',
@@ -113,20 +99,22 @@ async function main() {
     },
     {
       section: 'seo',
-      config: { metaTitle: `${nom} — ${heroConfig.sousTitre || ''}`, metaDescription: `Découvrez ${nom}, votre partenaire pour la gestion de votre activité.` },
+      config: { metaTitle: `${nom}`, metaDescription: `Découvrez ${nom}, votre partenaire pour la gestion de votre activité.` },
     },
   ];
 
   for (const c of configs) {
-    await prisma.landingGlobalConfig.upsert({
-      where: { tenantId_section: { tenantId: tenant.id, section: c.section } },
-      update: { config: c.config },
-      create: { tenantId: tenant.id, section: c.section, config: c.config },
+    await prisma.landingGlobalConfig.create({
+      data: {
+        clientSpaceId: clientSpace.id,
+        section: c.section,
+        config: c.config,
+      },
     });
   }
 
   console.log(`✅ ${configs.length} configs globales créées (navbar, footer, seo, theme)`);
-  console.log(`\n🎉 Landing page de demo.talosprimes.com initialisée avec succès !`);
+  console.log(`\n🎉 Landing page de demo.talosprimes.com initialisée !`);
 }
 
 main()

@@ -10,7 +10,7 @@ import { n8nService } from '../../services/n8n.service.js';
 import { env } from '../../config/env.js';
 import { authMiddleware, n8nOrAuthMiddleware, n8nOnlyMiddleware, isN8nInternalRequest } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
-import { initTenantLandingPage } from '../../services/tenant-landing.service.js';
+import { initClientLandingPage } from '../../services/tenant-landing.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -754,18 +754,17 @@ export async function clientsRoutes(fastify: FastifyInstance) {
           data: { clientTenantId: clientTenant.id },
         });
 
-        // Initialiser automatiquement la landing page du tenant
-        // Utilise le slug du ClientSpace (sous-domaine choisi par l'admin à l'onboarding)
+        // Initialiser automatiquement la landing page du client
+        // Crée les sections liées au ClientSpace (sous-domaine choisi par l'admin)
         let landingInfo = null;
         if (isNewTenant) {
           try {
-            landingInfo = await initTenantLandingPage(
-              clientTenant.id,
-              body.clientId,       // Pour récupérer le ClientSpace et son sous-domaine
+            landingInfo = await initClientLandingPage(
+              body.clientId,
               body.tenantName,
               body.metier || undefined,
             );
-            fastify.log.info({ tenantId: clientTenant.id, slug: landingInfo.slug, sections: landingInfo.sectionsCount }, 'Landing page initialisée automatiquement');
+            fastify.log.info({ clientId: body.clientId, slug: landingInfo.slug, sections: landingInfo.sectionsCount }, 'Landing page client initialisée automatiquement');
           } catch (landingError) {
             // Ne pas bloquer la création du tenant si la landing échoue
             fastify.log.error(landingError, 'Erreur lors de l\'initialisation de la landing page (non bloquant)');

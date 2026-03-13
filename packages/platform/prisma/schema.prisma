@@ -467,8 +467,10 @@ model ClientSpace {
   updatedAt         DateTime           @updatedAt @map("updated_at")
 
   // Relations
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  clientFinal ClientFinal @relation(fields: [clientFinalId], references: [id], onDelete: Cascade)
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal         ClientFinal         @relation(fields: [clientFinalId], references: [id], onDelete: Cascade)
+  landingSections     LandingSection[]
+  landingGlobalConfigs LandingGlobalConfig[]
 
   @@unique([tenantId, clientFinalId])
   @@index([tenantId])
@@ -1168,19 +1170,22 @@ model CmsPage {
 
 // LandingSection (sections configurables de la landing page)
 model LandingSection {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String?  @map("tenant_id") @db.Uuid // null = global (plateforme), sinon = tenant
-  type      String   // "hero", "stats", "modules", "agent_ia", "how_it_works", "testimonials", "upcoming", "cta", "contact", "trust_badges", "custom_html", "integrations"
-  titre     String?  // Titre interne (pour le dashboard)
-  config    Json     @default("{}") // Toute la config de la section (textes, couleurs, items, etc.)
-  ordre     Int      @default(0)
-  actif     Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String?      @map("tenant_id") @db.Uuid // null = global (plateforme)
+  clientSpaceId  String?      @map("client_space_id") @db.Uuid // ID du ClientSpace (landing client)
+  type           String       // "hero", "stats", "modules", "agent_ia", "how_it_works", "testimonials", "upcoming", "cta", "contact", "trust_badges", "custom_html", "integrations"
+  titre          String?      // Titre interne (pour le dashboard)
+  config         Json         @default("{}") // Toute la config de la section (textes, couleurs, items, etc.)
+  ordre          Int          @default(0)
+  actif          Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant         Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientSpace    ClientSpace? @relation(fields: [clientSpaceId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+  @@index([clientSpaceId])
   @@index([ordre])
   @@index([actif])
   @@map("landing_sections")
@@ -1188,16 +1193,19 @@ model LandingSection {
 
 // LandingGlobalConfig (config globale: navbar, footer, seo, theme)
 model LandingGlobalConfig {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String?  @map("tenant_id") @db.Uuid // null = global (plateforme), sinon = tenant
-  section   String   // "navbar", "footer", "seo", "theme"
-  config    Json     @default("{}") // Toute la config
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String?      @map("tenant_id") @db.Uuid // null = global (plateforme)
+  clientSpaceId  String?      @map("client_space_id") @db.Uuid // ID du ClientSpace (landing client)
+  section        String       // "navbar", "footer", "seo", "theme"
+  config         Json         @default("{}") // Toute la config
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant         Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientSpace    ClientSpace? @relation(fields: [clientSpaceId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, section]) // Unique par tenant + section (null tenant = global)
+  @@unique([clientSpaceId, section])
   @@index([tenantId])
+  @@index([clientSpaceId])
   @@index([section])
   @@map("landing_global_config")
 }
