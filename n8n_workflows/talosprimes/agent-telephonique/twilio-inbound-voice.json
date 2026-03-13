@@ -300,7 +300,7 @@
             }
           }
         },
-        "jsonBody": "={{ JSON.stringify({ tenantId: $fromAI(\"tenant_id\", \"UUID du tenant\"), nom: \"RDV - \" + $fromAI(\"objet\", \"Objet du rendez-vous\"), prenom: \"\", email: \"\", telephone: $fromAI(\"telephone\", \"Telephone du client\"), source: \"telephone_rdv\", notes: \"RDV demande: \" + $fromAI(\"objet\", \"Objet du rendez-vous\") + ($fromAI(\"date\", \"Date souhaitee si connue, sinon vide\") ? \" le \" + $fromAI(\"date\", \"Date\") : \"\") + ($fromAI(\"heure\", \"Heure souhaitee si connue, sinon vide\") ? \" a \" + $fromAI(\"heure\", \"Heure\") : \"\") }) }}"
+        "jsonBody": "={{ (() => { const objet = $fromAI(\"objet\", \"Objet du rendez-vous\"); const date = $fromAI(\"date_rdv\", \"Date souhaitee, format YYYY-MM-DD si connue, sinon vide\"); const heure = $fromAI(\"heure_rdv\", \"Heure souhaitee, format HH:MM si connue, sinon vide\"); return JSON.stringify({ tenantId: $fromAI(\"tenant_id\", \"UUID du tenant\"), nom: \"RDV - \" + objet, prenom: \"\", email: \"\", telephone: $fromAI(\"telephone\", \"Telephone du client\"), source: \"telephone_rdv\", notes: \"RDV demande: \" + objet + (date ? \" le \" + date : \"\") + (heure ? \" a \" + heure : \"\") }); })() }}"
       },
       "id": "Tool: reserver_rdv",
       "name": "reserver_rdv",
