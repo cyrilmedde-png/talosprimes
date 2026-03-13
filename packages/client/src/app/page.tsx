@@ -116,18 +116,10 @@ function detectSubdomain(headersList: Headers): string | null {
 
 async function getSections(slug: string | null): Promise<LandingSection[]> {
   try {
-    // Si sous-domaine, essayer les sections tenant d'abord
-    if (slug) {
-      const res = await fetch(`${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/sections`, { cache: 'no-store' });
-      if (res.ok) {
-        const json = await res.json();
-        const data = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
-        if (data.length > 0) return data;
-      }
-      // Tenant pas trouvé ou 0 sections → fallback sur les sections globales
-      console.log(`[SSR] Aucune section tenant pour "${slug}", fallback global`);
-    }
-    const res = await fetch(`${SERVER_API}/api/landing/sections`, { cache: 'no-store' });
+    const url = slug
+      ? `${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/sections`
+      : `${SERVER_API}/api/landing/sections`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[SSR] landing/sections failed: ${res.status}`);
       return [];
@@ -142,16 +134,10 @@ async function getSections(slug: string | null): Promise<LandingSection[]> {
 
 async function getGlobalConfig(slug: string | null): Promise<GlobalConfig> {
   try {
-    if (slug) {
-      const res = await fetch(`${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/global-config`, { cache: 'no-store' });
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data || json || {};
-        if (Object.keys(data).length > 0) return data;
-      }
-      console.log(`[SSR] Aucune config tenant pour "${slug}", fallback global`);
-    }
-    const res = await fetch(`${SERVER_API}/api/landing/global-config`, { cache: 'no-store' });
+    const url = slug
+      ? `${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/global-config`
+      : `${SERVER_API}/api/landing/global-config`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[SSR] landing/global-config failed: ${res.status}`);
       return {};
@@ -166,15 +152,10 @@ async function getGlobalConfig(slug: string | null): Promise<GlobalConfig> {
 
 async function getTestimonials(slug: string | null): Promise<Testimonial[]> {
   try {
-    if (slug) {
-      const res = await fetch(`${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/testimonials`, { cache: 'no-store' });
-      if (res.ok) {
-        const json = await res.json();
-        const data = Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
-        if (data.length > 0) return data;
-      }
-    }
-    const res = await fetch(`${SERVER_API}/api/landing/testimonials`, { cache: 'no-store' });
+    const url = slug
+      ? `${SERVER_API}/api/landing/site/${encodeURIComponent(slug)}/testimonials`
+      : `${SERVER_API}/api/landing/testimonials`;
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return [];
     const json = await res.json();
     return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
