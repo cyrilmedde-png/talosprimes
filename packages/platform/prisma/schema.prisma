@@ -2981,3 +2981,20 @@ model StockAlert {
   @@map("stock_alerts")
 }
 
+// ============================================================
+// Historique des conversations IA (n8n Postgres Chat Memory)
+// Table utilisée par le nœud memoryPostgresChat de n8n
+// Chiffrée AES-256 via trigger pour conformité RGPD
+// ============================================================
+model N8nChatHistory {
+  id                Int       @id @default(autoincrement())
+  sessionId         String    @map("session_id") @db.VarChar(255)
+  message           Json      @map("message") @db.JsonB
+  messageEncrypted  Bytes?    @map("message_encrypted")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("n8n_chat_histories")
+}
+
