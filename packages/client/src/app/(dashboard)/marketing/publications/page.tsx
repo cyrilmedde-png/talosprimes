@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
 import Link from 'next/link';
-import { Eye, Pencil, Trash2, Send, Loader2 } from 'lucide-react';
+import { Eye, Pencil, Trash2, Send, Loader2, ImagePlus, X } from 'lucide-react';
 
 interface MarketingPost {
   id: string;
@@ -402,6 +402,65 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Vérifier le type
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      setError('Format non supporté. Utilisez JPG, PNG, GIF ou WebP.');
+      return;
+    }
+
+    // Vérifier la taille (10 Mo)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image trop volumineuse (max 10 Mo)');
+      return;
+    }
+
+    // Preview locale
+    setImagePreview(URL.createObjectURL(file));
+    setUploading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+      const response = await fetch(`${API}/api/marketing/upload`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success && result.data?.url) {
+        setImageUrl(result.data.url);
+      } else {
+        setError(result.message || 'Erreur lors de l\'upload');
+        setImagePreview(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
+      setImagePreview(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setImageUrl(null);
+    setImagePreview(null);
+  };
 
   const handleGenerate = async () => {
     if (!form.sujet.trim()) { setError('Entrez un sujet avant de générer'); return; }
@@ -439,6 +498,7 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
         type: form.type,
         sujet: form.sujet,
         contenuTexte: form.contenuTexte || null,
+        contenuVisuelUrl: imageUrl || null,
         hashtags: form.hashtags || null,
         datePublication: form.datePublication || undefined,
       });
@@ -557,6 +617,46 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
             />
           </div>
 
+          {/* Upload image */}
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Image / Visuel</label>
+            {imagePreview ? (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Aperçu"
+                  className="w-full h-40 object-cover rounded-lg border border-gray-600"
+                />
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+                {!uploading && (
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 p-1 bg-red-600 hover:bg-red-500 rounded-full text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-cyan-500 hover:bg-gray-700/30 transition-colors">
+                <ImagePlus className="w-6 h-6 text-gray-500 mb-1" />
+                <span className="text-gray-500 text-xs">Cliquez pour ajouter une image</span>
+                <span className="text-gray-600 text-xs mt-0.5">JPG, PNG, GIF, WebP (max 10 Mo)</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
           <div>
             <label className="block text-gray-400 text-sm mb-1">Date de publication</label>
             <input
@@ -578,7 +678,7 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || uploading}
               className={`px-4 py-2 disabled:opacity-50 text-white rounded-lg text-sm ${
                 form.datePublication ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-green-600 hover:bg-green-500'
               }`}
@@ -607,6 +707,53 @@ function EditPostModal({ post, onClose, onUpdated }: { post: MarketingPost; onCl
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(post.contenuVisuelUrl || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(post.contenuVisuelUrl || null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      setError('Format non supporté. Utilisez JPG, PNG, GIF ou WebP.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image trop volumineuse (max 10 Mo)');
+      return;
+    }
+    setImagePreview(URL.createObjectURL(file));
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API}/api/marketing/upload`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.success && result.data?.url) {
+        setImageUrl(result.data.url);
+      } else {
+        setError(result.message || 'Erreur lors de l\'upload');
+        setImagePreview(post.contenuVisuelUrl || null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
+      setImagePreview(post.contenuVisuelUrl || null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setImageUrl(null);
+    setImagePreview(null);
+  };
 
   const handleGenerate = async () => {
     if (!form.sujet.trim()) { setError('Entrez un sujet avant de générer'); return; }
@@ -643,6 +790,7 @@ function EditPostModal({ post, onClose, onUpdated }: { post: MarketingPost; onCl
         type: form.type,
         sujet: form.sujet,
         contenuTexte: form.contenuTexte || null,
+        contenuVisuelUrl: imageUrl || null,
         hashtags: form.hashtags || null,
         datePublication: form.datePublication || undefined,
         status: form.status,
@@ -719,6 +867,31 @@ function EditPostModal({ post, onClose, onUpdated }: { post: MarketingPost; onCl
             <input type="text" value={form.hashtags} onChange={e => setForm(f => ({ ...f, hashtags: e.target.value }))} className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" />
           </div>
 
+          {/* Image upload */}
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Image / Visuel</label>
+            {imagePreview ? (
+              <div className="relative inline-block">
+                <img src={imagePreview} alt="Aperçu" className="max-h-40 rounded-lg border border-gray-600" />
+                <button type="button" onClick={removeImage} className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white rounded-full p-1">
+                  <X size={14} />
+                </button>
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                    <span className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-28 bg-gray-700/50 border-2 border-dashed border-gray-600 hover:border-cyan-500 rounded-lg cursor-pointer transition-colors">
+                <ImagePlus size={24} className="text-gray-400 mb-1" />
+                <span className="text-gray-400 text-xs">Cliquez pour ajouter une image</span>
+                <span className="text-gray-500 text-xs">JPG, PNG, GIF, WebP — max 10 Mo</span>
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleImageUpload} className="hidden" />
+              </label>
+            )}
+          </div>
+
           <div>
             <label className="block text-gray-400 text-sm mb-1">Date de publication</label>
             <input type="datetime-local" value={form.datePublication} onChange={e => setForm(f => ({ ...f, datePublication: e.target.value }))} className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" />
@@ -726,7 +899,7 @@ function EditPostModal({ post, onClose, onUpdated }: { post: MarketingPost; onCl
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">Annuler</button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white rounded-lg text-sm">
+            <button type="submit" disabled={saving || uploading} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white rounded-lg text-sm">
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
@@ -781,6 +954,13 @@ function ViewPostModal({ post, onClose }: { post: MarketingPost; onClose: () => 
             <div>
               <label className="block text-gray-500 text-xs mb-1">Hashtags</label>
               <p className="text-cyan-400 text-sm">{post.hashtags}</p>
+            </div>
+          )}
+
+          {post.contenuVisuelUrl && (
+            <div>
+              <label className="block text-gray-500 text-xs mb-1">Image</label>
+              <img src={post.contenuVisuelUrl} alt="Visuel publication" className="max-h-48 rounded-lg border border-gray-600" />
             </div>
           )}
 

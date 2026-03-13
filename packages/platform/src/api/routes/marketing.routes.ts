@@ -1,10 +1,20 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
+import { writeFile, mkdir } from 'fs/promises';
+import { join, extname } from 'path';
 import { prisma } from '../../config/database.js';
 import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
 import { env } from '../../config/env.js';
+
+/** Répertoire pour les images marketing */
+const MARKETING_UPLOADS_DIR = join(process.cwd(), 'uploads', 'marketing');
+
+/** Extensions autorisées */
+const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
+const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 // ===== ZOD SCHEMAS =====
 
@@ -54,6 +64,72 @@ type AuthRequest = FastifyRequest & {
 // ===== ROUTES =====
 
 export async function marketingRoutes(fastify: FastifyInstance) {
+
+  // ── POST /upload — Upload d'image pour publication ────────────
+  fastify.post(
+    '/upload',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: AuthRequest, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+
+      try {
+        const file = await (request as any).file();
+        if (!file) {
+          return ApiError.badRequest(reply, 'Aucun fichier envoyé');
+        }
+
+        // Vérifier le type MIME
+        if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+          return ApiError.badRequest(reply, `Type de fichier non autorisé. Types acceptés : JPG, PNG, GIF, WebP`);
+        }
+
+        // Vérifier l'extension
+        const ext = extname(file.filename).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.has(ext)) {
+          return ApiError.badRequest(reply, `Extension non autorisée. Extensions acceptées : ${[...ALLOWED_EXTENSIONS].join(', ')}`);
+        }
+
+        // Lire le contenu du fichier
+        const buffer = await file.toBuffer();
+
+        // Vérifier la taille (10 Mo max)
+        if (buffer.length > 10 * 1024 * 1024) {
+          return ApiError.badRequest(reply, 'Fichier trop volumineux (max 10 Mo)');
+        }
+
+        // Créer le dossier tenant si nécessaire
+        const tenantDir = join(MARKETING_UPLOADS_DIR, tenantId);
+        await mkdir(tenantDir, { recursive: true });
+
+        // Générer un nom de fichier unique
+        const uniqueName = `${randomUUID()}${ext}`;
+        const filePath = join(tenantDir, uniqueName);
+
+        // Écrire le fichier
+        await writeFile(filePath, buffer);
+
+        // Construire l'URL publique
+        const baseUrl = env.NODE_ENV === 'production'
+          ? 'https://api.talosprimes.com'
+          : `http://localhost:${env.PORT}`;
+        const publicUrl = `${baseUrl}/uploads/marketing/${tenantId}/${uniqueName}`;
+
+        return reply.send({
+          success: true,
+          data: {
+            url: publicUrl,
+            filename: file.filename,
+            size: buffer.length,
+            mimetype: file.mimetype,
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de l\'upload du fichier');
+      }
+    }
+  );
 
   // ── GET /posts — Liste des publications ──────────────────────
   fastify.get(

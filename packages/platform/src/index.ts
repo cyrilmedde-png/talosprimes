@@ -2,6 +2,9 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import { join } from 'path';
 import { env } from './config/env.js';
 import { prisma } from './config/database.js';
 import { setLogger } from './config/logger.js';
@@ -146,6 +149,21 @@ await fastify.register(cors, {
 await fastify.register(rateLimit, {
   max: 100, // 100 requêtes
   timeWindow: '1 minute', // par minute
+});
+
+// Multipart (upload fichiers) — max 10 Mo par fichier
+await fastify.register(multipart, {
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 Mo
+    files: 1,
+  },
+});
+
+// Servir les fichiers uploadés statiquement
+await fastify.register(fastifyStatic, {
+  root: join(process.cwd(), 'uploads'),
+  prefix: '/uploads/',
+  decorateReply: false,
 });
 
 // Route de santé (health check)
