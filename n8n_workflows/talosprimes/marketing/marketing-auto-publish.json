@@ -90,7 +90,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ========================================\n// CONFIGURATION META / FACEBOOK / INSTAGRAM\n// ========================================\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\nconst fullText = (fb.text || data.theme?.angle || '') + '\\n\\n' + hashtags;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    default_image_url: META_CONFIG.DEFAULT_IMAGE_URL\n  }\n}];"
+        "jsCode": "// ========================================\n// CONFIGURATION META / FACEBOOK / INSTAGRAM\n// ========================================\nconst META_CONFIG = {\n  // IMPORTANT: Remplacer ce token dans n8n directement\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725',\n  INSTAGRAM_USER_ID: '1002158382768057',\n  DEFAULT_IMAGE_URL: 'https://talosprimes.com/og-image.png'\n};\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst fb = data.facebook || {};\nconst hashtags = (fb.hashtags || []).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n\n// Si publication manuelle (texte déjà prêt dans fb.text), l'utiliser directement\n// Si publication IA, construire le texte à partir de fb.text + hashtags\nlet fullText;\nif (data.source === 'manual') {\n  // Manuel : le texte est déjà complet (avec hashtags inclus)\n  fullText = fb.text || data.theme?.angle || '';\n} else {\n  // IA : combiner texte + hashtags générés\n  fullText = (fb.text || data.theme?.angle || '') + (hashtags ? '\\n\\n' + hashtags : '');\n}\n\n// Image : utiliser l'image uploadée si disponible, sinon l'image par défaut\nconst imageUrl = data.contenu_visuel_url || META_CONFIG.DEFAULT_IMAGE_URL;\n\nreturn [{\n  json: {\n    platform: \"facebook\",\n    message: fullText,\n    link: \"https://talosprimes.com\",\n    image_url: imageUrl,\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    instagram_user_id: META_CONFIG.INSTAGRAM_USER_ID,\n    default_image_url: imageUrl\n  }\n}];"
       },
       "id": "fb-prepare",
       "name": "Préparer Facebook",
@@ -545,7 +545,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Publication manuelle : envoyer le texte EXACT sur Facebook ET LinkedIn\nconst data = $input.first().json;\nconst text = data.user_content || '';\nconst hashtags = data.user_hashtags || '';\n\nlet message = text;\nlet formattedHashtags = '';\nif (hashtags.trim()) {\n  formattedHashtags = hashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n  message += '\\n\\n' + formattedHashtags;\n}\n\n// Config\nconst META_CONFIG = {\n  PAGE_ACCESS_TOKEN: 'A_REMPLACER_PAR_LONG_LIVED_TOKEN',\n  PAGE_ID: '1029257496936725'\n};\nconst LINKEDIN_CONFIG = {\n  ACCESS_TOKEN: 'A_REMPLACER_PAR_TOKEN_LINKEDIN',\n  ORG_ID: 'A_REMPLACER_PAR_ORG_ID'\n};\n\nconst items = [];\n\n// Item Facebook\nitems.push({\n  json: {\n    platform: 'facebook',\n    message: message,\n    link: 'https://talosprimes.com',\n    meta_page_id: META_CONFIG.PAGE_ID,\n    meta_access_token: META_CONFIG.PAGE_ACCESS_TOKEN,\n    sujet: data.sujet || 'Publication manuelle',\n    content_type: data.content_type || 'manuel',\n    week_theme: 'Manuel'\n  }\n});\n\n// Item LinkedIn\nitems.push({\n  json: {\n    platform: 'linkedin',\n    commentary: message.substring(0, 1300),\n    author: `urn:li:organization:${LINKEDIN_CONFIG.ORG_ID}`,\n    linkedin_token: LINKEDIN_CONFIG.ACCESS_TOKEN,\n    brand_url: 'https://talosprimes.com',\n    sujet: data.sujet || 'Publication manuelle',\n    content_type: data.content_type || 'manuel',\n    week_theme: 'Manuel'\n  }\n});\n\nreturn items;"
+        "jsCode": "// Publication manuelle : formater les données du backend pour Facebook\n// Le backend envoie : contenu_texte, hashtags, sujet, type, plateforme, contenu_visuel_url\nconst data = $input.first().json;\n\n// Lire le contenu depuis les champs backend (contenu_texte) ou legacy (user_content)\nconst text = data.user_content || data.contenu_texte || '';\nconst rawHashtags = data.user_hashtags || data.hashtags || '';\nconst imageUrl = data.contenu_visuel_url || '';\n\nlet message = text;\nlet formattedHashtags = '';\nif (rawHashtags.trim()) {\n  formattedHashtags = rawHashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n  message += '\\n\\n' + formattedHashtags;\n}\n\n// Simuler la structure attendue par Parser Contenu / Préparer Facebook\n// On injecte les données dans la structure 'facebook' pour que Préparer Facebook puisse les lire\nreturn [{\n  json: {\n    success: true,\n    source: 'manual',\n    theme: {\n      sujet: data.sujet || 'Publication manuelle',\n      angle: message,\n      content_type: data.content_type || data.type || 'manuel',\n      week_theme: 'Manuel'\n    },\n    facebook: {\n      text: message,\n      hashtags: []\n    },\n    linkedin: {\n      commentary: message.substring(0, 1300),\n      hashtags: []\n    },\n    visual_prompt: '',\n    contenu_visuel_url: imageUrl,\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "manual-content",
       "name": "Publier Manuel Direct",
@@ -885,25 +885,17 @@
       "main": [
         [
           {
-            "node": "Router Plateforme",
+            "node": "Préparer Facebook",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Router Plateforme": {
-      "main": [
-        [
+          },
           {
-            "node": "Publier Facebook",
+            "node": "Préparer TikTok",
             "type": "main",
             "index": 0
-          }
-        ],
-        [
+          },
           {
-            "node": "Publier LinkedIn",
+            "node": "Préparer LinkedIn",
             "type": "main",
             "index": 0
           }
