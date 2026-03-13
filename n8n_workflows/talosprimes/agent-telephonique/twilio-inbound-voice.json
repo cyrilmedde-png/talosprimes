@@ -55,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Router v2.1: parse results, build welcome TwiML or agent context\nvar parser = $('02. Parse Twilio').first().json;\nvar isCallback = parser.isCallback;\nvar callSid = parser.callSid;\nvar from = parser.from;\nvar speechResult = parser.speechResult;\n\n// Parse combined query results\nvar config = {};\nvar session = null;\nvar knowledgeRows = [];\nvar historyRows = [];\n\ntry {\n  var allRows = $('03. Load Config + KB').all();\n  for (var i = 0; i < allRows.length; i++) {\n    var r = allRows[i].json || allRows[i];\n    if (r._type === 'config') {\n      config = {\n        tenant_id: r.tenant_id || '',\n        agent_name: r.nom || \"l'assistante\",\n        company_name: r.prenom || 'TalosPrimes',\n        voice_name: r.email || 'Polly.Lea-Neural',\n        language: r.telephone || 'fr-FR',\n        welcome_message: r.raison_sociale || '',\n        max_tokens: parseInt(r.categorie) || 200,\n        temperature: parseFloat(r.titre) || 0.3\n      };\n    } else if (r._type === 'session') {\n      session = { nom: r.nom, prenom: r.prenom, email: r.email, telephone: r.telephone, raison_sociale: r.raison_sociale, client_id: r.contenu };\n    } else if (r._type === 'kb') {\n      knowledgeRows.push({ categorie: r.categorie, titre: r.titre, contenu: r.contenu, reponse_vocale: r.reponse_vocale, mots_cles: r.mots_cles });\n    } else if (r._type === 'history') {\n      historyRows.push(r.contenu || '');\n    }\n  }\n} catch(e) {}\n\nvar tenantId = config.tenant_id || '';\nvar agentName = config.agent_name || \"l'assistante\";\nvar companyName = config.company_name || 'TalosPrimes';\nvar voiceName = config.voice_name || 'Polly.Lea-Neural';\nvar language = config.language || 'fr-FR';\nvar maxTokens = Math.min(config.max_tokens || 200, 300);\nvar temperature = config.temperature || 0.3;\n\n// ====== WELCOME (first call) ======\nif (!isCallback) {\n  var welcomeMsg = config.welcome_message || (companyName + ', bonjour ! Comment puis-je vous aider ?');\n  function xmlEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;'); }\n  welcomeMsg = xmlEsc(welcomeMsg);\n  if (!welcomeMsg.trim()) welcomeMsg = 'Bonjour, comment puis-je vous aider ?';\n\n  var twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n'\n    + '<Response>\\n'\n    + '  <Say voice=\"' + voiceName + '\" language=\"' + language + '\">' + welcomeMsg + '</Say>\\n'\n    + '  <Gather input=\"speech\" language=\"' + language + '\" speechTimeout=\"auto\" timeout=\"8\" enhanced=\"true\" bargeIn=\"true\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\"/>\\n'\n    + '  <Gather input=\"speech\" language=\"' + language + '\" speechTimeout=\"auto\" timeout=\"15\" enhanced=\"true\" bargeIn=\"true\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\">\\n'\n    + '    <Say voice=\"' + voiceName + '\" language=\"' + language + '\">Vous etes toujours la ? N\\'hesitez pas a me poser votre question.</Say>\\n'\n    + '  </Gather>\\n'\n    + '  <Say voice=\"' + voiceName + '\" language=\"' + language + '\">Je n\\'ai pas entendu votre reponse. Au revoir et bonne journee !</Say>\\n'\n    + '</Response>';\n\n  return [{ json: { isCallback: false, twiml, callSid, from, tenantId, voiceName, language } }];\n}\n\n// ====== AGENT CONTEXT (callback) ======\n\n// Client info\nvar clientInfo = '';\nif (session && session.nom) {\n  clientInfo = 'CLIENT IDENTIFIE: ' + (session.prenom || '') + ' ' + session.nom;\n  if (session.email) clientInfo += ' (' + session.email + ')';\n  clientInfo += '. Salue-le par son prenom.';\n} else {\n  clientInfo = 'NOUVEAU NUMERO: ' + from + '. Propose de creer un lead avec create_lead.';\n}\n\n// Historique conversation\nvar historyContext = '';\nfor (var i = 0; i < historyRows.length && i < 2; i++) {\n  var notes = String(historyRows[i] || '');\n  var qM = notes.match(/Q: (.+?) - R: /);\n  var rM = notes.match(/R: (.+)$/);\n  if (qM && rM) {\n    historyContext += '\\nEchange precedent - Client: ' + qM[1].substring(0,150) + ' / Agent: ' + rM[1].substring(0,200);\n  }\n}\n\n// KB compact — reponse_vocale prioritaire\nvar faqContext = '';\nif (knowledgeRows.length > 0) {\n  var byCategorie = {};\n  for (var i = 0; i < knowledgeRows.length; i++) {\n    var r = knowledgeRows[i];\n    if (!r.contenu && !r.reponse_vocale) continue;\n    var cat = r.categorie || 'autre';\n    if (!byCategorie[cat]) byCategorie[cat] = [];\n    var text = r.reponse_vocale || r.contenu || '';\n    byCategorie[cat].push((r.titre || '') + ': ' + text);\n  }\n  var sections = [];\n  var catLabels = {info_entreprise:'ENTREPRISE',services:'SERVICES',tarifs:'TARIFS',faq:'FAQ',politiques:'POLITIQUES',actions:'ACTIONS',autre:'AUTRE'};\n  var catOrder = ['info_entreprise','services','tarifs','faq','politiques','actions','autre'];\n  for (var j = 0; j < catOrder.length; j++) {\n    if (byCategorie[catOrder[j]]) {\n      sections.push('[' + catLabels[catOrder[j]] + ']\\n' + byCategorie[catOrder[j]].join('\\n'));\n    }\n  }\n  faqContext = sections.join('\\n\\n');\n}\nvar maxKB = historyContext ? 6000 : 8000;\nif (faqContext.length > maxKB) faqContext = faqContext.substring(0, maxKB) + '\\n[...]';\n\n// ====== SYSTEM PROMPT (source unique de verite) ======\nvar systemPrompt = 'Tu es ' + agentName + ', assistante telephonique de ' + companyName + '.\\n'\n  + 'Tu es EXPERTE de TOUTE la plateforme TalosPrimes. Tu geres la plateforme a un niveau juste en-dessous du proprietaire.\\n'\n  + 'Tu es l\\'UNIQUE interlocutrice du client. Chaleureuse, naturelle, professionnelle. Vouvoie TOUJOURS.\\n\\n'\n  + clientInfo + '\\n\\n';\n\nif (faqContext) {\n  systemPrompt += '=== BASE DE CONNAISSANCES COMPLETE ===\\n' + faqContext + '\\n\\n';\n}\n\nif (historyContext) {\n  systemPrompt += '=== HISTORIQUE CONVERSATION ===\\n' + historyContext + '\\n\\n';\n}\n\nsystemPrompt += '=== REGLES ABSOLUES (NON NEGOCIABLES) ===\\n'\n  + '1. JAMAIS de \"un collegue vous rappelle\", JAMAIS de delai (24h, 48h), JAMAIS de renvoi vers quelqu\\'un d\\'autre, JAMAIS de \"je fais remonter\", JAMAIS de proposition d\\'email.\\n'\n  + '2. Tu es l\\'UNIQUE interlocutrice. Pas de collegue, pas d\\'equipe, pas de service. TU reponds a TOUT.\\n'\n  + '3. Tu connais TOUS les modules: facturation, devis, CRM, comptabilite, RH, stock, BTP, marketing digital, projets, conformite, agent IA, etc.\\n'\n  + '4. Si la question porte sur la plateforme, la reponse EST dans ta base de connaissances. Cherche et reponds avec assurance.\\n'\n  + '5. Si la question est COMPLETEMENT hors-sujet, recentre poliment sur TalosPrimes.\\n'\n  + '6. Parle naturellement comme au telephone. Pas de listes, pas de markdown, pas de numeros.\\n'\n  + '7. UNE question a la fois, puis ecoute.\\n'\n  + '8. Ne te repete JAMAIS. Ne redis JAMAIS bonjour.\\n'\n  + '9. Termine TOUJOURS par: \"Est-ce que je peux vous aider sur autre chose ?\"\\n'\n  + '10. Nouveau numero inconnu = propose create_lead.\\n\\n'\n  + '=== ACTIONS INTERDITES ===\\n'\n  + 'Tu NE PEUX PAS: creer/modifier des factures, supprimer quoi que ce soit, acceder a la comptabilite, modifier les parametres systeme, acceder aux donnees RH.\\n'\n  + 'Si on te demande ces actions, explique que seul un administrateur peut le faire et propose de prendre un rendez-vous.\\n\\n'\n  + '=== PARAMETRES TECHNIQUES (a passer a CHAQUE appel d\\'outil) ===\\n'\n  + 'tenant_id: ' + tenantId + '\\n'\n  + 'from_number: ' + from + '\\n';\n\nreturn [{ json: {\n  isCallback: true,\n  systemPrompt: systemPrompt,\n  speechResult: speechResult,\n  tenantId: tenantId,\n  callSid: callSid,\n  from: from,\n  voiceName: voiceName,\n  language: language,\n  agentName: agentName,\n  companyName: companyName,\n  maxTokens: maxTokens,\n  temperature: temperature\n}}];"
+        "jsCode": "// Router v2.1: parse results, build welcome TwiML or agent context\nvar parser = $('02. Parse Twilio').first().json;\nvar isCallback = parser.isCallback;\nvar callSid = parser.callSid;\nvar from = parser.from;\nvar speechResult = parser.speechResult;\n\n// Parse combined query results\nvar config = {};\nvar session = null;\nvar knowledgeRows = [];\nvar historyRows = [];\n\ntry {\n  var allRows = $('03. Load Config + KB').all();\n  for (var i = 0; i < allRows.length; i++) {\n    var r = allRows[i].json || allRows[i];\n    if (r._type === 'config') {\n      config = {\n        tenant_id: r.tenant_id || '',\n        agent_name: r.nom || \"l'assistante\",\n        company_name: r.prenom || 'TalosPrimes',\n        voice_name: r.email || 'Polly.Lea-Neural',\n        language: r.telephone || 'fr-FR',\n        welcome_message: r.raison_sociale || '',\n        max_tokens: parseInt(r.categorie) || 200,\n        temperature: parseFloat(r.titre) || 0.3\n      };\n    } else if (r._type === 'session') {\n      session = { nom: r.nom, prenom: r.prenom, email: r.email, telephone: r.telephone, raison_sociale: r.raison_sociale, client_id: r.contenu };\n    } else if (r._type === 'kb') {\n      knowledgeRows.push({ categorie: r.categorie, titre: r.titre, contenu: r.contenu, reponse_vocale: r.reponse_vocale, mots_cles: r.mots_cles });\n    } else if (r._type === 'history') {\n      historyRows.push(r.contenu || '');\n    }\n  }\n} catch(e) {}\n\nvar tenantId = config.tenant_id || '';\nvar agentName = config.agent_name || \"l'assistante\";\nvar companyName = config.company_name || 'TalosPrimes';\nvar voiceName = config.voice_name || 'Polly.Lea-Neural';\nvar language = config.language || 'fr-FR';\nvar maxTokens = Math.min(config.max_tokens || 200, 300);\nvar temperature = config.temperature || 0.3;\n\n// ====== WELCOME (first call) ======\nif (!isCallback) {\n  var welcomeMsg = config.welcome_message || (companyName + ', bonjour ! Comment puis-je vous aider ?');\n  function xmlEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;'); }\n  welcomeMsg = xmlEsc(welcomeMsg);\n  if (!welcomeMsg.trim()) welcomeMsg = 'Bonjour, comment puis-je vous aider ?';\n\n  var twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n'\n    + '<Response>\\n'\n    + '  <Say voice=\"' + voiceName + '\" language=\"' + language + '\">' + welcomeMsg + '</Say>\\n'\n    + '  <Gather input=\"speech\" language=\"' + language + '\" speechTimeout=\"auto\" timeout=\"8\" enhanced=\"true\" bargeIn=\"true\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\"/>\\n'\n    + '  <Gather input=\"speech\" language=\"' + language + '\" speechTimeout=\"auto\" timeout=\"15\" enhanced=\"true\" bargeIn=\"true\" action=\"https://n8n.talosprimes.com/webhook/twilio-inbound-voice\" method=\"POST\">\\n'\n    + '    <Say voice=\"' + voiceName + '\" language=\"' + language + '\">Vous etes toujours la ? N\\'hesitez pas a me poser votre question.</Say>\\n'\n    + '  </Gather>\\n'\n    + '  <Say voice=\"' + voiceName + '\" language=\"' + language + '\">Je n\\'ai pas entendu votre reponse. Au revoir et bonne journee !</Say>\\n'\n    + '</Response>';\n\n  return [{ json: { isCallback: false, twiml, callSid, from, tenantId, voiceName, language } }];\n}\n\n// ====== AGENT CONTEXT (callback) ======\n\n// Client info\nvar clientInfo = '';\nif (session && session.nom) {\n  clientInfo = 'CLIENT IDENTIFIE: ' + (session.prenom || '') + ' ' + session.nom;\n  if (session.email) clientInfo += ' (' + session.email + ')';\n  clientInfo += '. Salue-le par son prenom.';\n} else {\n  clientInfo = 'NOUVEAU NUMERO: ' + from + '. Propose de creer un lead avec create_lead.';\n}\n\n// Historique conversation\nvar historyContext = '';\nfor (var i = 0; i < historyRows.length && i < 2; i++) {\n  var notes = String(historyRows[i] || '');\n  var qM = notes.match(/Q: (.+?) - R: /);\n  var rM = notes.match(/R: (.+)$/);\n  if (qM && rM) {\n    historyContext += '\\nEchange precedent - Client: ' + qM[1].substring(0,150) + ' / Agent: ' + rM[1].substring(0,200);\n  }\n}\n\n// KB compact — reponse_vocale prioritaire\nvar faqContext = '';\nif (knowledgeRows.length > 0) {\n  var byCategorie = {};\n  for (var i = 0; i < knowledgeRows.length; i++) {\n    var r = knowledgeRows[i];\n    if (!r.contenu && !r.reponse_vocale) continue;\n    var cat = r.categorie || 'autre';\n    if (!byCategorie[cat]) byCategorie[cat] = [];\n    var text = r.reponse_vocale || r.contenu || '';\n    byCategorie[cat].push((r.titre || '') + ': ' + text);\n  }\n  var sections = [];\n  var catLabels = {info_entreprise:'ENTREPRISE',services:'SERVICES',tarifs:'TARIFS',faq:'FAQ',politiques:'POLITIQUES',actions:'ACTIONS',autre:'AUTRE'};\n  var catOrder = ['info_entreprise','services','tarifs','faq','politiques','actions','autre'];\n  for (var j = 0; j < catOrder.length; j++) {\n    if (byCategorie[catOrder[j]]) {\n      sections.push('[' + catLabels[catOrder[j]] + ']\\n' + byCategorie[catOrder[j]].join('\\n'));\n    }\n  }\n  faqContext = sections.join('\\n\\n');\n}\nvar maxKB = historyContext ? 6000 : 8000;\nif (faqContext.length > maxKB) faqContext = faqContext.substring(0, maxKB) + '\\n[...]';\n\n// ====== SYSTEM PROMPT (source unique de verite) ======\nvar systemPrompt = 'Tu es ' + agentName + ', assistante telephonique de ' + companyName + '.\\n'\n  + 'Tu es EXPERTE de TOUTE la plateforme TalosPrimes. Tu geres la plateforme a un niveau juste en-dessous du proprietaire.\\n'\n  + 'Tu es l\\'UNIQUE interlocutrice du client. Chaleureuse, naturelle, professionnelle. Vouvoie TOUJOURS.\\n\\n'\n  + clientInfo + '\\n\\n';\n\nif (faqContext) {\n  systemPrompt += '=== BASE DE CONNAISSANCES COMPLETE ===\\n' + faqContext + '\\n\\n';\n}\n\nif (historyContext) {\n  systemPrompt += '=== HISTORIQUE CONVERSATION ===\\n' + historyContext + '\\n\\n';\n}\n\nsystemPrompt += '=== REGLES ABSOLUES (NON NEGOCIABLES) ===\\n'\n  + '1. JAMAIS de \"un collegue vous rappelle\", JAMAIS de delai (24h, 48h), JAMAIS de renvoi vers quelqu\\'un d\\'autre, JAMAIS de \"je fais remonter\", JAMAIS de proposition d\\'email.\\n'\n  + '2. Tu es l\\'UNIQUE interlocutrice. Pas de collegue, pas d\\'equipe, pas de service. TU reponds a TOUT.\\n'\n  + '3. Tu connais TOUS les modules: facturation, devis, CRM, comptabilite, RH, stock, BTP, marketing digital, projets, conformite, agent IA, etc.\\n'\n  + '4. Si la question porte sur la plateforme, la reponse EST dans ta base de connaissances. Cherche et reponds avec assurance.\\n'\n  + '5. Si la question est COMPLETEMENT hors-sujet, recentre poliment sur TalosPrimes.\\n'\n  + '6. Parle naturellement comme au telephone. Pas de listes, pas de markdown, pas de numeros.\\n'\n  + '7. UNE question a la fois, puis ecoute.\\n'\n  + '8. Ne te repete JAMAIS. Ne redis JAMAIS bonjour.\\n'\n  + '9. Termine TOUJOURS par: \"Est-ce que je peux vous aider sur autre chose ?\"\\n'\n  + '10. Nouveau numero inconnu = propose create_lead.\\n\\n'\n  + '=== ACTIONS INTERDITES ===\\n'\n  + 'Tu NE PEUX PAS: creer/modifier des factures, supprimer quoi que ce soit, acceder a la comptabilite, modifier les parametres systeme, acceder aux donnees RH.\\n'\n  + 'Si on te demande ces actions, explique que seul un administrateur peut le faire et propose de prendre un rendez-vous.\\n\\n'\n  + '=== PARAMETRES TECHNIQUES (a passer a CHAQUE appel d\\'outil) ===\\n'\n  + 'tenant_id: ' + tenantId + '\\n'\n  + 'from_number: ' + from + '\\n';\n\n\nsystemPrompt += '\\n=== ACTIONS DISPONIBLES ===\\n'\n  + 'Quand tu effectues une action (creer lead, devis, rdv, transfert), AJOUTE a la FIN de ta reponse un bloc _ACTION avec les parametres.\\n'\n  + 'Format STRICT: _ACTION{\"tool\":\"nom_outil\",\"params\":{...}}\\n'\n  + 'Le bloc _ACTION sera INVISIBLE pour le client (il est retire avant la synthese vocale).\\n'\n  + 'Tu DOIS quand meme repondre vocalement au client AVANT le bloc _ACTION.\\n\\n'\n  + 'OUTILS DISPONIBLES:\\n'\n  + '1. create_lead - Enregistrer un prospect. Params: telephone (requis), nom, prenom, email, notes, tenant_id\\n'\n  + '   Usage: nouveau numero inconnu, client demande a etre enregistre\\n'\n  + '2. create_devis - Creer un devis. Params: description (requis), montant_ht, plan (solo/pro/entreprise), tenant_id\\n'\n  + '   Usage: client demande un devis, estimation, chiffrage\\n'\n  + '3. book_rdv - Reserver un RDV. Params: objet (requis), date, heure, telephone, tenant_id\\n'\n  + '   Usage: client veut planifier une demo, un rendez-vous, un appel\\n'\n  + '4. transfer_human - Transferer a un humain. Params: raison (requis), urgence (normale/urgente), tenant_id\\n'\n  + '   Usage: DERNIER recours uniquement si le client insiste et que tu ne peux pas aider\\n\\n'\n  + 'EXEMPLE: \"Tres bien, je vous enregistre tout de suite dans notre systeme. _ACTION{\\\"tool\\\":\\\"create_lead\\\",\\\"params\\\":{\\\"telephone\\\":\\\"' + from + '\\\",\\\"nom\\\":\\\"Dupont\\\",\\\"prenom\\\":\\\"Jean\\\",\\\"tenant_id\\\":\\\"' + tenantId + '\\\"}}\"\\n\\n'\n  + 'RAPPEL: tenant_id = ' + tenantId + ', from_number = ' + from + '\\n'\n  + 'Si aucune action n\\'est necessaire, reponds normalement SANS bloc _ACTION.\\n';\n\nreturn [{ json: {\n  isCallback: true,\n  systemPrompt: systemPrompt,\n  speechResult: speechResult,\n  tenantId: tenantId,\n  callSid: callSid,\n  from: from,\n  voiceName: voiceName,\n  language: language,\n  agentName: agentName,\n  companyName: companyName,\n  maxTokens: maxTokens,\n  temperature: temperature\n}}];"
       },
       "id": "04. Router",
       "name": "04. Router",
@@ -117,7 +117,7 @@
         "options": {
           "systemMessage": "={{ $('04. Router').first().json.systemPrompt }}",
           "maxIterations": 3,
-          "returnIntermediateSteps": true
+          "returnIntermediateSteps": false
         }
       },
       "id": "07. Agent IA Orchestrateur",
@@ -131,7 +131,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build TwiML from Agent response + extract tool actions for SQL\nvar agentData = $('07. Agent IA Orchestrateur').first().json;\nvar routerData = $('04. Router').first().json;\nvar aiReply = agentData.output || \"Excusez-moi, je n'ai pas pu traiter votre demande.\";\n\n// Parse tool actions from intermediate steps\nvar actions = [];\nvar toolUsed = '';\ntry {\n  var steps = agentData.intermediateSteps || agentData.steps || [];\n  if (!Array.isArray(steps)) steps = [];\n  for (var i = 0; i < steps.length; i++) {\n    var obs = String(steps[i].observation || steps[i].result || '');\n    try {\n      var parsed = JSON.parse(obs);\n      if (parsed && parsed._action) {\n        actions.push(parsed._action);\n        toolUsed = parsed._action.tool || '';\n      }\n    } catch(e) {}\n  }\n} catch(e) {}\n\n// Build SQL for write actions\nvar sqlToExecute = 'SELECT 1';\nif (actions.length > 0) {\n  var action = actions[0];\n  var p = action.params || {};\n  var tid = p.tenant_id || routerData.tenantId || '';\n\n  function safe(s, max) { return String(s || '').replace(/'/g, \"''\").substring(0, max || 500); }\n  function safePhone(s) { return String(s || '').replace(/[^+0-9]/g, '').substring(0, 16); }\n\n  if (action.tool === 'create_lead') {\n    var tel = safePhone(p.telephone || p.from_number || routerData.from);\n    sqlToExecute = \"INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, statut, notes, created_at, updated_at) \"\n      + \"SELECT gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'\" + safe(p.nom, 100) + \"', '\" + safe(p.prenom, 100) + \"', '\" + safe(p.email, 255) + \"', \"\n      + \"'\" + tel + \"', 'telephone_ia', 'nouveau', '\" + safe(p.notes, 500) + \"', NOW(), NOW() \"\n      + \"WHERE NOT EXISTS (SELECT 1 FROM leads WHERE telephone LIKE '%\" + tel.slice(-9) + \"%' AND statut != 'abandonne') \"\n      + \"ON CONFLICT DO NOTHING\";\n  }\n  else if (action.tool === 'create_devis') {\n    var ht = parseFloat(p.montant_ht) || 0;\n    var ttc = ht > 0 ? (ht * 1.2).toFixed(2) : '0';\n    var numDevis = p.numDevis || ('DEV-' + Date.now());\n    sqlToExecute = \"INSERT INTO devis (id, tenant_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, statut, created_at, updated_at) \"\n      + \"VALUES (gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'\" + numDevis + \"', NOW(), NOW() + INTERVAL '30 days', \" + ht + \", \" + ttc + \", 20, \"\n      + \"'\" + safe(p.description, 500) + (p.plan ? ' (Plan: ' + safe(p.plan, 50) + ')' : '') + \"', \"\n      + \"'brouillon', NOW(), NOW()) ON CONFLICT DO NOTHING\";\n  }\n  else if (action.tool === 'book_rdv') {\n    var tel = safePhone(p.telephone || p.from_number || routerData.from);\n    sqlToExecute = \"INSERT INTO leads (id, tenant_id, nom, telephone, source, statut, notes, created_at, updated_at) \"\n      + \"SELECT gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'RDV', '\" + tel + \"', 'telephone_ia', 'contacte', \"\n      + \"'RDV demande: \" + safe(p.objet, 200) + (p.date ? \" le \" + safe(p.date, 50) : \"\") + (p.heure ? \" a \" + safe(p.heure, 20) : \"\") + \"', \"\n      + \"NOW(), NOW() ON CONFLICT DO NOTHING\";\n  }\n  else if (action.tool === 'transfer_human') {\n    sqlToExecute = \"INSERT INTO leads (id, tenant_id, nom, telephone, source, statut, notes, created_at, updated_at) \"\n      + \"SELECT gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'TRANSFERT', '\" + safePhone(routerData.from) + \"', 'telephone_ia', 'urgent', \"\n      + \"'Transfert demande: \" + safe(p.raison, 200) + \" (urgence: \" + safe(p.urgence || 'normale', 20) + \")', \"\n      + \"NOW(), NOW() ON CONFLICT DO NOTHING\";\n  }\n}\n\n// Clean AI reply for TwiML\nvar voice = routerData.voiceName || 'Polly.Lea-Neural';\nvar lang = routerData.language || 'fr-FR';\nvar callbackUrl = 'https://n8n.talosprimes.com/webhook/twilio-inbound-voice';\n\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#/g, '')\n  .replace(/\\n/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nfunction xmlEsc(s) {\n  return String(s||'')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&apos;');\n}\naiReply = xmlEsc(aiReply);\n\nif (aiReply.length > 500) {\n  aiReply = aiReply.substring(0, 497) + '...';\n}\n\nvar twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n'\n  + '<Response>\\n'\n  + '  <Say voice=\"' + voice + '\" language=\"' + lang + '\">' + aiReply + '</Say>\\n'\n  + '  <Gather input=\"speech\" language=\"' + lang + '\" speechTimeout=\"auto\" timeout=\"8\" enhanced=\"true\" bargeIn=\"true\" action=\"' + callbackUrl + '\" method=\"POST\"/>\\n'\n  + '  <Gather input=\"speech\" language=\"' + lang + '\" speechTimeout=\"auto\" timeout=\"15\" enhanced=\"true\" bargeIn=\"true\" action=\"' + callbackUrl + '\" method=\"POST\">\\n'\n  + '    <Say voice=\"' + voice + '\" language=\"' + lang + '\">Avez-vous une autre question ?</Say>\\n'\n  + '  </Gather>\\n'\n  + '  <Say voice=\"' + voice + '\" language=\"' + lang + '\">Merci de votre appel. Bonne journee !</Say>\\n'\n  + '</Response>';\n\nreturn [{ json: {\n  twiml: twiml,\n  sqlToExecute: sqlToExecute,\n  callSid: routerData.callSid || '',\n  from: routerData.from || '',\n  tenantId: routerData.tenantId || '',\n  aiReply: agentData.output || '',\n  speechResult: routerData.speechResult || '',\n  toolUsed: toolUsed\n}}];"
+        "jsCode": "// Build TwiML from Agent response + extract _ACTION from text output\nvar agentData = $('07. Agent IA Orchestrateur').first().json;\nvar routerData = $('04. Router').first().json;\nvar aiReply = agentData.output || \"Excusez-moi, je n'ai pas pu traiter votre demande.\";\n\n// Parse _ACTION{...} from the agent's text output\nvar actions = [];\nvar toolUsed = '';\ntry {\n  // Match _ACTION{...} — greedy on the JSON content\n  var actionRegex = /_ACTION(\\{[\\s\\S]*?\\})/;\n  var actionMatch = aiReply.match(actionRegex);\n  if (actionMatch) {\n    var jsonStr = actionMatch[1];\n    var parsed = JSON.parse(jsonStr);\n    if (parsed && parsed.tool) {\n      actions.push(parsed);\n      toolUsed = parsed.tool;\n    }\n    // Remove ALL _ACTION blocks from the spoken reply\n    aiReply = aiReply.replace(/_ACTION\\{[\\s\\S]*?\\}/g, '').trim();\n  }\n} catch(e) {\n  // Silent fail - no action to execute\n}\n\n// Build SQL for write actions\nvar sqlToExecute = 'SELECT 1';\nif (actions.length > 0) {\n  var action = actions[0];\n  var p = action.params || {};\n  var tid = p.tenant_id || routerData.tenantId || '';\n\n  function safe(s, max) { return String(s || '').replace(/'/g, \"''\").substring(0, max || 500); }\n  function safePhone(s) { return String(s || '').replace(/[^+0-9]/g, '').substring(0, 16); }\n\n  if (action.tool === 'create_lead') {\n    var tel = safePhone(p.telephone || p.from_number || routerData.from);\n    sqlToExecute = \"INSERT INTO leads (id, tenant_id, nom, prenom, email, telephone, source, statut, notes, created_at, updated_at) \"\n      + \"SELECT gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'\" + safe(p.nom, 100) + \"', '\" + safe(p.prenom, 100) + \"', '\" + safe(p.email, 255) + \"', \"\n      + \"'\" + tel + \"', 'telephone_ia', 'nouveau', '\" + safe(p.notes, 500) + \"', NOW(), NOW() \"\n      + \"WHERE NOT EXISTS (SELECT 1 FROM leads WHERE telephone LIKE '%\" + tel.slice(-9) + \"%' AND statut != 'abandonne') \"\n      + \"ON CONFLICT DO NOTHING\";\n  }\n  else if (action.tool === 'create_devis') {\n    var ht = parseFloat(p.montant_ht) || 0;\n    var ttc = ht > 0 ? (ht * 1.2).toFixed(2) : '0';\n    var numDevis = p.numDevis || ('DEV-' + Date.now());\n    sqlToExecute = \"INSERT INTO devis (id, tenant_id, numero_devis, date_devis, date_validite, montant_ht, montant_ttc, tva_taux, description, statut, created_at, updated_at) \"\n      + \"VALUES (gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'\" + numDevis + \"', NOW(), NOW() + INTERVAL '30 days', \" + ht + \", \" + ttc + \", 20, \"\n      + \"'\" + safe(p.description, 500) + (p.plan ? ' (Plan: ' + safe(p.plan, 50) + ')' : '') + \"', \"\n      + \"'brouillon', NOW(), NOW()) ON CONFLICT DO NOTHING\";\n  }\n  else if (action.tool === 'book_rdv') {\n    var tel = safePhone(p.telephone || p.from_number || routerData.from);\n    sqlToExecute = \"INSERT INTO leads (id, tenant_id, nom, telephone, source, statut, notes, created_at, updated_at) \"\n      + \"SELECT gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'RDV', '\" + tel + \"', 'telephone_ia', 'contacte', \"\n      + \"'RDV demande: \" + safe(p.objet, 200) + (p.date ? \" le \" + safe(p.date, 50) : \"\") + (p.heure ? \" a \" + safe(p.heure, 20) : \"\") + \"', \"\n      + \"NOW(), NOW() ON CONFLICT DO NOTHING\";\n  }\n  else if (action.tool === 'transfer_human') {\n    sqlToExecute = \"INSERT INTO leads (id, tenant_id, nom, telephone, source, statut, notes, created_at, updated_at) \"\n      + \"SELECT gen_random_uuid(), COALESCE(NULLIF('\" + safe(tid) + \"', '')::uuid, (SELECT id FROM tenants LIMIT 1)), \"\n      + \"'TRANSFERT', '\" + safePhone(routerData.from) + \"', 'telephone_ia', 'urgent', \"\n      + \"'Transfert demande: \" + safe(p.raison, 200) + \" (urgence: \" + safe(p.urgence || 'normale', 20) + \")', \"\n      + \"NOW(), NOW() ON CONFLICT DO NOTHING\";\n  }\n}\n\n// Clean AI reply for TwiML\nvar voice = routerData.voiceName || 'Polly.Lea-Neural';\nvar lang = routerData.language || 'fr-FR';\nvar callbackUrl = 'https://n8n.talosprimes.com/webhook/twilio-inbound-voice';\n\naiReply = aiReply\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#/g, '')\n  .replace(/\\n/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nfunction xmlEsc(s) {\n  return String(s||'')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&apos;');\n}\naiReply = xmlEsc(aiReply);\n\nif (aiReply.length > 500) {\n  aiReply = aiReply.substring(0, 497) + '...';\n}\n\nvar twiml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n'\n  + '<Response>\\n'\n  + '  <Say voice=\"' + voice + '\" language=\"' + lang + '\">' + aiReply + '</Say>\\n'\n  + '  <Gather input=\"speech\" language=\"' + lang + '\" speechTimeout=\"auto\" timeout=\"8\" enhanced=\"true\" bargeIn=\"true\" action=\"' + callbackUrl + '\" method=\"POST\"/>\\n'\n  + '  <Gather input=\"speech\" language=\"' + lang + '\" speechTimeout=\"auto\" timeout=\"15\" enhanced=\"true\" bargeIn=\"true\" action=\"' + callbackUrl + '\" method=\"POST\">\\n'\n  + '    <Say voice=\"' + voice + '\" language=\"' + lang + '\">Avez-vous une autre question ?</Say>\\n'\n  + '  </Gather>\\n'\n  + '  <Say voice=\"' + voice + '\" language=\"' + lang + '\">Merci de votre appel. Bonne journee !</Say>\\n'\n  + '</Response>';\n\nreturn [{ json: {\n  twiml: twiml,\n  sqlToExecute: sqlToExecute,\n  callSid: routerData.callSid || '',\n  from: routerData.from || '',\n  tenantId: routerData.tenantId || '',\n  aiReply: agentData.output || '',\n  speechResult: routerData.speechResult || '',\n  toolUsed: toolUsed\n}}];"
       },
       "id": "08. Build TwiML + Actions",
       "name": "08. Build TwiML + Actions",
@@ -234,111 +234,6 @@
           "name": "OpenAi account"
         }
       }
-    },
-    {
-      "parameters": {
-        "name": "create_lead",
-        "description": "Enregistrer un nouveau prospect dans le CRM TalosPrimes. Utilise cet outil quand un nouveau client appelle ou quand le client demande a etre enregistre.",
-        "jsCode": "const telephone = $fromAI('telephone', 'Numero de telephone du prospect (requis)', 'string');\nconst nom = $fromAI('nom', 'Nom de famille du prospect', 'string');\nconst prenom = $fromAI('prenom', 'Prenom du prospect', 'string');\nconst email = $fromAI('email', 'Adresse email du prospect', 'string');\nconst notes = $fromAI('notes', 'Notes ou commentaires sur le prospect', 'string');\nconst tenant_id = $fromAI('tenant_id', 'ID du tenant (fourni dans les parametres techniques du contexte)', 'string');\n\nreturn JSON.stringify({\n  success: true,\n  message: 'Lead enregistre avec succes. Telephone: ' + (telephone || 'non fourni') + (nom ? ', Nom: ' + nom : '') + (prenom ? ', Prenom: ' + prenom : ''),\n  _action: { tool: 'create_lead', params: { telephone, nom, prenom, email, notes, tenant_id } }\n});"
-      },
-      "id": "Tool: Creer Lead",
-      "name": "Tool: Creer Lead",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 2,
-      "position": [
-        700,
-        800
-      ]
-    },
-    {
-      "parameters": {
-        "name": "create_devis",
-        "description": "Creer un devis ou une estimation pour un client. Utilise cet outil quand le client demande un devis, une estimation de prix, ou un chiffrage.",
-        "jsCode": "const description = $fromAI('description', 'Description du devis (requis)', 'string');\nconst montant_ht = $fromAI('montant_ht', 'Montant HT en euros', 'number');\nconst plan = $fromAI('plan', 'Plan concerne: solo, pro, entreprise', 'string');\nconst tenant_id = $fromAI('tenant_id', 'ID du tenant (fourni dans les parametres techniques du contexte)', 'string');\n\nvar numDevis = 'DEV-' + Date.now();\nreturn JSON.stringify({\n  success: true,\n  message: 'Devis ' + numDevis + ' cree avec succes. Description: ' + (description || '') + (montant_ht ? ', Montant HT: ' + montant_ht + ' EUR' : ''),\n  _action: { tool: 'create_devis', params: { description, montant_ht, plan, tenant_id, numDevis } }\n});"
-      },
-      "id": "Tool: Creer Devis",
-      "name": "Tool: Creer Devis",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 2,
-      "position": [
-        880,
-        800
-      ]
-    },
-    {
-      "parameters": {
-        "name": "book_rdv",
-        "description": "Prendre un rendez-vous ou une demo avec le client. Utilise cet outil quand le client veut planifier une rencontre, une demo, ou un appel.",
-        "jsCode": "const objet = $fromAI('objet', 'Objet du rendez-vous (requis)', 'string');\nconst date = $fromAI('date', 'Date souhaitee (format libre)', 'string');\nconst heure = $fromAI('heure', 'Heure souhaitee', 'string');\nconst telephone = $fromAI('telephone', 'Telephone du client', 'string');\nconst tenant_id = $fromAI('tenant_id', 'ID du tenant (fourni dans les parametres techniques du contexte)', 'string');\n\nreturn JSON.stringify({\n  success: true,\n  message: 'Rendez-vous enregistre: ' + (objet || '') + (date ? ' le ' + date : '') + (heure ? ' a ' + heure : ''),\n  _action: { tool: 'book_rdv', params: { objet, date, heure, telephone, tenant_id } }\n});"
-      },
-      "id": "Tool: Reserver RDV",
-      "name": "Tool: Reserver RDV",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 2,
-      "position": [
-        1060,
-        800
-      ]
-    },
-    {
-      "parameters": {
-        "name": "get_legal_info",
-        "description": "Fournir les informations legales de TalosPrimes (CGV, CGU, RGPD, mentions legales). Les informations sont dans ta base de connaissances.",
-        "jsCode": "const type = $fromAI('type', 'Type de document legal: cgv, cgu, rgpd, mentions_legales', 'string');\nreturn 'Les informations legales de type \"' + (type || 'general') + '\" sont disponibles dans ta base de connaissances. Utilise les informations de la section POLITIQUES pour repondre au client de maniere naturelle et complete.';"
-      },
-      "id": "Tool: Info Legales",
-      "name": "Tool: Info Legales",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 2,
-      "position": [
-        1240,
-        800
-      ]
-    },
-    {
-      "parameters": {
-        "name": "get_pricing",
-        "description": "Donner le detail des tarifs et plans TalosPrimes. Les tarifs sont dans ta base de connaissances.",
-        "jsCode": "const plan = $fromAI('plan', 'Plan specifique (solo, pro, entreprise) ou vide pour tous', 'string');\nreturn 'Les informations tarifaires' + (plan ? ' pour le plan ' + plan : '') + ' sont disponibles dans ta base de connaissances section TARIFS. Donne les details precis des tarifs au client.';"
-      },
-      "id": "Tool: Tarification",
-      "name": "Tool: Tarification",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 2,
-      "position": [
-        1420,
-        800
-      ]
-    },
-    {
-      "parameters": {
-        "name": "check_feature",
-        "description": "Verifier si un module ou une fonctionnalite existe sur la plateforme TalosPrimes. Cherche dans ta base de connaissances.",
-        "jsCode": "const feature_name = $fromAI('feature_name', 'Nom du module ou fonctionnalite a verifier', 'string');\nreturn 'Verifie dans ta base de connaissances si le module \"' + (feature_name || '') + '\" existe dans les sections SERVICES ou ENTREPRISE. Si oui, decris-le au client. Sinon, indique que cette fonctionnalite sera bientot disponible.';"
-      },
-      "id": "Tool: Verifier Module",
-      "name": "Tool: Verifier Module",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 2,
-      "position": [
-        1600,
-        800
-      ]
-    },
-    {
-      "parameters": {
-        "name": "transfer_human",
-        "description": "Transferer l'appel a un humain. UNIQUEMENT en dernier recours si le client insiste et que tu ne peux vraiment pas l'aider. NE JAMAIS utiliser en premiere intention.",
-        "jsCode": "const raison = $fromAI('raison', 'Raison du transfert (requis)', 'string');\nconst urgence = $fromAI('urgence', \"Niveau d'urgence: normale ou urgente\", 'string');\nconst tenant_id = $fromAI('tenant_id', 'ID du tenant', 'string');\n\nreturn JSON.stringify({\n  success: true,\n  message: 'Transfert demande. Raison: ' + (raison || '') + '. Un conseiller va prendre le relais sous peu.',\n  _action: { tool: 'transfer_human', params: { raison, urgence: urgence || 'normale', tenant_id } }\n});"
-      },
-      "id": "Tool: Transferer Humain",
-      "name": "Tool: Transferer Humain",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 2,
-      "position": [
-        1780,
-        800
-      ]
     }
   ],
   "connections": {
@@ -448,83 +343,6 @@
           {
             "node": "07. Agent IA Orchestrateur",
             "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Creer Lead": {
-      "ai_tool": [
-        [
-          {
-            "node": "07. Agent IA Orchestrateur",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Creer Devis": {
-      "ai_tool": [
-        [
-          {
-            "node": "07. Agent IA Orchestrateur",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Reserver RDV": {
-      "ai_tool": [
-        [
-          {
-            "node": "07. Agent IA Orchestrateur",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Info Legales": {
-      "ai_tool": [
-        [
-          {
-            "node": "07. Agent IA Orchestrateur",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Tarification": {
-      "ai_tool": [
-        [
-          {
-            "node": "07. Agent IA Orchestrateur",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Verifier Module": {
-      "ai_tool": [
-        [
-          {
-            "node": "07. Agent IA Orchestrateur",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Transferer Humain": {
-      "ai_tool": [
-        [
-          {
-            "node": "07. Agent IA Orchestrateur",
-            "type": "ai_tool",
             "index": 0
           }
         ]
