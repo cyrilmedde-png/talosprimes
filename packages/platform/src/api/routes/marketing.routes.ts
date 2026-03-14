@@ -18,6 +18,10 @@ const MARKETING_UPLOADS_DIR = join(process.cwd(), 'uploads', 'marketing');
 const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
+/** Extensions vidéo autorisées */
+const ALLOWED_VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.avi', '.webm']);
+const ALLOWED_VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm']);
+
 // ===== ZOD SCHEMAS =====
 
 const paramsId = z.object({ id: z.string().uuid() });
@@ -29,6 +33,7 @@ const createPostSchema = z.object({
   contenuTexte: z.string().optional().nullable(),
   contenuVisuelUrl: z.string().url().optional().nullable(),
   contenuVisuelUrls: z.array(z.string().url()).optional().nullable(),
+  contenuVideoUrl: z.string().url().optional().nullable(),
   hashtags: z.string().optional().nullable(),
   datePublication: z.string().optional(), // ISO date
   semaineCycle: z.number().int().optional().nullable(),
@@ -134,6 +139,64 @@ export async function marketingRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // ── POST /upload-video — Upload de vidéo pour publication ───────
+  fastify.post(
+    '/upload-video',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: AuthRequest, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+
+      try {
+        const file = await (request as any).file();
+        if (!file) {
+          return ApiError.badRequest(reply, 'Aucun fichier envoyé');
+        }
+
+        if (!ALLOWED_VIDEO_MIME_TYPES.has(file.mimetype)) {
+          return ApiError.badRequest(reply, 'Type de fichier non autorisé. Types acceptés : MP4, MOV, AVI, WebM');
+        }
+
+        const ext = extname(file.filename).toLowerCase();
+        if (!ALLOWED_VIDEO_EXTENSIONS.has(ext)) {
+          return ApiError.badRequest(reply, `Extension non autorisée. Extensions acceptées : ${[...ALLOWED_VIDEO_EXTENSIONS].join(', ')}`);
+        }
+
+        const buffer = await file.toBuffer();
+
+        // 100 Mo max pour les vidéos
+        if (buffer.length > 100 * 1024 * 1024) {
+          return ApiError.badRequest(reply, 'Fichier trop volumineux (max 100 Mo)');
+        }
+
+        const tenantDir = join(MARKETING_UPLOADS_DIR, tenantId);
+        await mkdir(tenantDir, { recursive: true });
+
+        const uniqueName = `${randomUUID()}${ext}`;
+        const filePath = join(tenantDir, uniqueName);
+        await writeFile(filePath, buffer);
+
+        const baseUrl = env.NODE_ENV === 'production'
+          ? 'https://api.talosprimes.com'
+          : `http://localhost:${env.PORT}`;
+        const publicUrl = `${baseUrl}/uploads/marketing/${tenantId}/${uniqueName}`;
+
+        return reply.send({
+          success: true,
+          data: {
+            url: publicUrl,
+            filename: file.filename,
+            size: buffer.length,
+            mimetype: file.mimetype,
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur lors de l\'upload de la vidéo');
+      }
+    }
+  );
+
   // ── GET /posts — Liste des publications ──────────────────────
   fastify.get(
     '/posts',
@@ -221,6 +284,7 @@ export async function marketingRoutes(fastify: FastifyInstance) {
           contenuTexte: data.contenuTexte ?? null,
           contenuVisuelUrl: mainUrl,
           contenuVisuelUrls: urls ? (urls as InputJsonValue) : JsonNull,
+          contenuVideoUrl: data.contenuVideoUrl ?? null,
           hashtags: data.hashtags ?? null,
           datePublication: data.datePublication ? new Date(data.datePublication) : new Date(),
           semaineCycle: data.semaineCycle ?? null,
@@ -390,12 +454,12 @@ export async function marketingRoutes(fastify: FastifyInstance) {
 
         // Si un postId est fourni, charger le post depuis la BDD
         let postData: Record<string, unknown> = {};
-        let postRecord: { id: string; plateforme: string; type: string; sujet: string; contenuTexte: string | null; hashtags: string | null; contenuVisuelUrl: string | null } | null = null;
+        let postRecord: { id: string; plateforme: string; type: string; sujet: string; contenuTexte: string | null; hashtags: string | null; contenuVisuelUrl: string | null; contenuVideoUrl: string | null } | null = null;
 
         if (body.postId) {
           postRecord = await prisma.marketingPost.findFirst({
             where: { id: body.postId as string, tenantId },
-            select: { id: true, plateforme: true, type: true, sujet: true, contenuTexte: true, hashtags: true, contenuVisuelUrl: true },
+            select: { id: true, plateforme: true, type: true, sujet: true, contenuTexte: true, hashtags: true, contenuVisuelUrl: true, contenuVideoUrl: true },
           });
 
           if (!postRecord) {
@@ -410,6 +474,7 @@ export async function marketingRoutes(fastify: FastifyInstance) {
             contenu_texte: postRecord.contenuTexte || '',
             hashtags: postRecord.hashtags || '',
             contenu_visuel_url: postRecord.contenuVisuelUrl || '',
+            contenu_video_url: postRecord.contenuVideoUrl || '',
           };
         } else {
           // Fallback : données passées dans le body (ancien comportement)

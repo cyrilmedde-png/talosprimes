@@ -405,6 +405,8 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [error, setError] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoName, setVideoName] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -467,6 +469,43 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'].includes(file.type)) {
+      setError('Format vidéo non supporté. Utilisez MP4, MOV, AVI ou WebM.');
+      return;
+    }
+    if (file.size > 100 * 1024 * 1024) {
+      setError('Vidéo trop volumineuse (max 100 Mo)');
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API}/api/marketing/upload-video`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.success && result.data?.url) {
+        setVideoUrl(result.data.url);
+        setVideoName(file.name);
+      } else {
+        setError(result.message || 'Erreur lors de l\'upload vidéo');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload vidéo');
+    }
+    setUploading(false);
+    e.target.value = '';
+  };
+
   const handleGenerate = async () => {
     if (!form.sujet.trim()) { setError('Entrez un sujet avant de générer'); return; }
     setGenerating(true);
@@ -505,6 +544,7 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
         contenuTexte: form.contenuTexte || null,
         contenuVisuelUrl: imageUrls.length > 0 ? imageUrls[0] : null,
         contenuVisuelUrls: imageUrls.length > 0 ? imageUrls : null,
+        contenuVideoUrl: videoUrl || null,
         hashtags: form.hashtags || null,
         datePublication: form.datePublication || undefined,
       });
@@ -667,6 +707,36 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 className="hidden"
               />
             </label>
+          </div>
+
+          {/* Upload vidéo */}
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Vidéo (TikTok, Facebook)</label>
+            {videoUrl ? (
+              <div className="flex items-center gap-2 bg-gray-700/50 border border-gray-600 rounded-lg p-3">
+                <span className="text-green-400 text-sm">🎬</span>
+                <span className="text-white text-sm flex-1 truncate">{videoName || 'Vidéo uploadée'}</span>
+                <button
+                  type="button"
+                  onClick={() => { setVideoUrl(null); setVideoName(null); }}
+                  className="text-red-400 hover:text-red-300 text-sm"
+                >
+                  Supprimer
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-cyan-500 hover:bg-gray-700/30 transition-colors">
+                <span className="text-gray-500 text-lg mb-1">🎬</span>
+                <span className="text-gray-500 text-xs">Cliquez pour ajouter une vidéo</span>
+                <span className="text-gray-600 text-xs mt-0.5">MP4, MOV, AVI, WebM (max 100 Mo)</span>
+                <input
+                  type="file"
+                  accept="video/mp4,video/quicktime,video/x-msvideo,video/webm"
+                  onChange={handleVideoUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
 
           <div>

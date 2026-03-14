@@ -2786,6 +2786,7 @@ model MarketingPost {
   contenuTexte      String?               @map("contenu_texte") @db.Text
   contenuVisuelUrl  String?               @map("contenu_visuel_url") @db.Text
   contenuVisuelUrls Json?                 @map("contenu_visuel_urls")
+  contenuVideoUrl   String?               @map("contenu_video_url") @db.Text
   hashtags          String?               @db.Text
   datePublication   DateTime              @default(now()) @map("date_publication")
   status            MarketingPostStatus   @default(planifie)
