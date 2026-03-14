@@ -532,8 +532,8 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-lg">
-        <div className="p-5 border-b border-gray-700 flex items-center justify-between">
+      <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="p-5 border-b border-gray-700 flex items-center justify-between sticky top-0 bg-gray-800 z-10">
           <h2 className="text-white font-semibold">Nouvelle publication</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
         </div>
