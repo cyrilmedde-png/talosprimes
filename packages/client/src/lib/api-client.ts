@@ -91,7 +91,7 @@ async function authenticatedFetch<T>(
 }
 
 // Marketing Digital types
-interface MarketingPost { id: string; tenantId: string; plateforme: 'facebook' | 'instagram' | 'tiktok'; type: 'module_presentation' | 'astuce' | 'temoignage' | 'promo'; sujet: string; contenuTexte?: string | null; contenuVisuelUrl?: string | null; hashtags?: string | null; datePublication: string; status: 'planifie' | 'publie' | 'erreur'; postExternalId?: string | null; engagementData?: Record<string, unknown> | null; semaineCycle?: number | null; erreurDetail?: string | null; createdAt: string; updatedAt: string }
+interface MarketingPost { id: string; tenantId: string; plateforme: 'facebook' | 'instagram' | 'tiktok'; type: 'module_presentation' | 'astuce' | 'temoignage' | 'promo'; sujet: string; contenuTexte?: string | null; contenuVisuelUrl?: string | null; contenuVisuelUrls?: string[] | null; hashtags?: string | null; datePublication: string; status: 'planifie' | 'publie' | 'erreur'; postExternalId?: string | null; engagementData?: Record<string, unknown> | null; semaineCycle?: number | null; erreurDetail?: string | null; createdAt: string; updatedAt: string }
 interface MarketingStats { totalPosts: number; parPlateforme: Array<{ plateforme: string; count: number }>; parStatus: Array<{ status: string; count: number }>; parType: Array<{ type: string; count: number }>; recentPosts: MarketingPost[] }
 
 // Gestion de Stock types
@@ -1594,9 +1594,9 @@ export const apiClient = {
       return authenticatedFetch<{ success: boolean; data: { posts: MarketingPost[]; total: number; page: number; limit: number; totalPages: number } }>(`/api/marketing/posts${qs ? `?${qs}` : ''}`);
     },
     getPost: (id: string) => authenticatedFetch<{ success: boolean; data: { post: MarketingPost } }>(`/api/marketing/posts/${id}`),
-    createPost: (data: { plateforme: string; type: string; sujet: string; contenuTexte?: string | null; contenuVisuelUrl?: string | null; hashtags?: string | null; datePublication?: string; semaineCycle?: number | null }) =>
+    createPost: (data: { plateforme: string; type: string; sujet: string; contenuTexte?: string | null; contenuVisuelUrl?: string | null; contenuVisuelUrls?: string[] | null; hashtags?: string | null; datePublication?: string; semaineCycle?: number | null }) =>
       authenticatedFetch<{ success: boolean; data: { post: MarketingPost } }>('/api/marketing/posts', { method: 'POST', body: JSON.stringify(data) }),
-    updatePost: (id: string, data: Partial<{ plateforme: string; type: string; sujet: string; contenuTexte: string | null; contenuVisuelUrl: string | null; hashtags: string | null; datePublication: string; status: string; postExternalId: string | null; engagementData: Record<string, unknown> | null; semaineCycle: number | null; erreurDetail: string | null }>) =>
+    updatePost: (id: string, data: Partial<{ plateforme: string; type: string; sujet: string; contenuTexte: string | null; contenuVisuelUrl: string | null; contenuVisuelUrls: string[] | null; hashtags: string | null; datePublication: string; status: string; postExternalId: string | null; engagementData: Record<string, unknown> | null; semaineCycle: number | null; erreurDetail: string | null }>) =>
       authenticatedFetch<{ success: boolean; data: { post: MarketingPost } }>(`/api/marketing/posts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deletePost: (id: string) => authenticatedFetch<{ success: boolean; message: string }>(`/api/marketing/posts/${id}`, { method: 'DELETE' }),
     getStats: () => authenticatedFetch<{ success: boolean; data: { stats: MarketingStats } }>('/api/marketing/stats'),

@@ -26,6 +26,7 @@ const createPostSchema = z.object({
   sujet: z.string().min(1).max(255),
   contenuTexte: z.string().optional().nullable(),
   contenuVisuelUrl: z.string().url().optional().nullable(),
+  contenuVisuelUrls: z.array(z.string().url()).optional().nullable(),
   hashtags: z.string().optional().nullable(),
   datePublication: z.string().optional(), // ISO date
   semaineCycle: z.number().int().optional().nullable(),
@@ -205,6 +206,10 @@ export async function marketingRoutes(fastify: FastifyInstance) {
 
       const data = createPostSchema.parse(request.body);
 
+      // Si contenuVisuelUrls est fourni, utiliser la première URL comme contenuVisuelUrl (rétro-compat n8n)
+      const urls = data.contenuVisuelUrls ?? (data.contenuVisuelUrl ? [data.contenuVisuelUrl] : null);
+      const mainUrl = urls && urls.length > 0 ? urls[0] : null;
+
       const post = await prisma.marketingPost.create({
         data: {
           tenantId,
@@ -212,7 +217,8 @@ export async function marketingRoutes(fastify: FastifyInstance) {
           type: data.type,
           sujet: data.sujet,
           contenuTexte: data.contenuTexte ?? null,
-          contenuVisuelUrl: data.contenuVisuelUrl ?? null,
+          contenuVisuelUrl: mainUrl,
+          contenuVisuelUrls: urls,
           hashtags: data.hashtags ?? null,
           datePublication: data.datePublication ? new Date(data.datePublication) : new Date(),
           semaineCycle: data.semaineCycle ?? null,
@@ -245,7 +251,13 @@ export async function marketingRoutes(fastify: FastifyInstance) {
       if (data.type !== undefined) updateData.type = data.type;
       if (data.sujet !== undefined) updateData.sujet = data.sujet;
       if (data.contenuTexte !== undefined) updateData.contenuTexte = data.contenuTexte;
-      if (data.contenuVisuelUrl !== undefined) updateData.contenuVisuelUrl = data.contenuVisuelUrl;
+      if (data.contenuVisuelUrls !== undefined) {
+        updateData.contenuVisuelUrls = data.contenuVisuelUrls;
+        updateData.contenuVisuelUrl = data.contenuVisuelUrls && data.contenuVisuelUrls.length > 0 ? data.contenuVisuelUrls[0] : null;
+      } else if (data.contenuVisuelUrl !== undefined) {
+        updateData.contenuVisuelUrl = data.contenuVisuelUrl;
+        updateData.contenuVisuelUrls = data.contenuVisuelUrl ? [data.contenuVisuelUrl] : null;
+      }
       if (data.hashtags !== undefined) updateData.hashtags = data.hashtags;
       if (data.datePublication !== undefined) updateData.datePublication = new Date(data.datePublication);
       if (data.status !== undefined) updateData.status = data.status;

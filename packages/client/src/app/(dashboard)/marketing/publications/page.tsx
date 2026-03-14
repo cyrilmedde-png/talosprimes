@@ -12,6 +12,7 @@ interface MarketingPost {
   sujet: string;
   contenuTexte?: string | null;
   contenuVisuelUrl?: string | null;
+  contenuVisuelUrls?: string[] | null;
   hashtags?: string | null;
   datePublication: string;
   status: string;
@@ -402,64 +403,68 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    // Vérifier le type
-    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
-      setError('Format non supporté. Utilisez JPG, PNG, GIF ou WebP.');
-      return;
+    for (const file of Array.from(files)) {
+      if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+        setError('Format non supporté. Utilisez JPG, PNG, GIF ou WebP.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Image trop volumineuse (max 10 Mo)');
+        return;
+      }
     }
 
-    // Vérifier la taille (10 Mo)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Image trop volumineuse (max 10 Mo)');
-      return;
-    }
-
-    // Preview locale
-    setImagePreview(URL.createObjectURL(file));
     setUploading(true);
     setError(null);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+    for (const file of Array.from(files)) {
+      const preview = URL.createObjectURL(file);
+      setImagePreviews(prev => [...prev, preview]);
 
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-      const response = await fetch(`${API}/api/marketing/upload`, {
-        method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
-      });
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-      const result = await response.json();
-      if (result.success && result.data?.url) {
-        setImageUrl(result.data.url);
-      } else {
-        setError(result.message || 'Erreur lors de l\'upload');
-        setImagePreview(null);
+        const response = await fetch(`${API}/api/marketing/upload`, {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        });
+
+        const result = await response.json();
+        if (result.success && result.data?.url) {
+          setImageUrls(prev => [...prev, result.data.url]);
+        } else {
+          setError(result.message || 'Erreur lors de l\'upload');
+          setImagePreviews(prev => prev.filter(p => p !== preview));
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
+        setImagePreviews(prev => prev.filter(p => p !== preview));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
-      setImagePreview(null);
-    } finally {
-      setUploading(false);
     }
+
+    setUploading(false);
+    // Reset input pour permettre la re-sélection du même fichier
+    e.target.value = '';
   };
 
-  const removeImage = () => {
-    setImageUrl(null);
-    setImagePreview(null);
+  const removeImage = (index: number) => {
+    setImageUrls(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleGenerate = async () => {
@@ -498,7 +503,8 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
         type: form.type,
         sujet: form.sujet,
         contenuTexte: form.contenuTexte || null,
-        contenuVisuelUrl: imageUrl || null,
+        contenuVisuelUrl: imageUrls.length > 0 ? imageUrls[0] : null,
+        contenuVisuelUrls: imageUrls.length > 0 ? imageUrls : null,
         hashtags: form.hashtags || null,
         datePublication: form.datePublication || undefined,
       });
@@ -617,44 +623,48 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
             />
           </div>
 
-          {/* Upload image */}
+          {/* Upload images (multi) */}
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Image / Visuel</label>
-            {imagePreview ? (
-              <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="Aperçu"
-                  className="w-full h-40 object-cover rounded-lg border border-gray-600"
-                />
-                {uploading && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+            <label className="block text-gray-400 text-sm mb-1">Images / Visuels</label>
+            {imagePreviews.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {imagePreviews.map((preview, idx) => (
+                  <div key={idx} className="relative group">
+                    <img
+                      src={preview}
+                      alt={`Aperçu ${idx + 1}`}
+                      className="w-24 h-24 object-cover rounded-lg border border-gray-600"
+                    />
+                    {uploading && idx === imagePreviews.length - 1 && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      </div>
+                    )}
+                    {!uploading && (
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute -top-1 -right-1 p-0.5 bg-red-600 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
-                )}
-                {!uploading && (
-                  <button
-                    type="button"
-                    onClick={removeImage}
-                    className="absolute top-2 right-2 p-1 bg-red-600 hover:bg-red-500 rounded-full text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                ))}
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-cyan-500 hover:bg-gray-700/30 transition-colors">
-                <ImagePlus className="w-6 h-6 text-gray-500 mb-1" />
-                <span className="text-gray-500 text-xs">Cliquez pour ajouter une image</span>
-                <span className="text-gray-600 text-xs mt-0.5">JPG, PNG, GIF, WebP (max 10 Mo)</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
             )}
+            <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-cyan-500 hover:bg-gray-700/30 transition-colors">
+              <ImagePlus className="w-5 h-5 text-gray-500 mb-1" />
+              <span className="text-gray-500 text-xs">{imagePreviews.length > 0 ? 'Ajouter d\'autres images' : 'Cliquez pour ajouter des images'}</span>
+              <span className="text-gray-600 text-xs mt-0.5">JPG, PNG, GIF, WebP (max 10 Mo chacune)</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </label>
           </div>
 
           <div>
@@ -707,52 +717,63 @@ function EditPostModal({ post, onClose, onUpdated }: { post: MarketingPost; onCl
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(post.contenuVisuelUrl || null);
-  const [imagePreview, setImagePreview] = useState<string | null>(post.contenuVisuelUrl || null);
+  const initialUrls = post.contenuVisuelUrls ?? (post.contenuVisuelUrl ? [post.contenuVisuelUrl] : []);
+  const [imageUrls, setImageUrls] = useState<string[]>(initialUrls);
+  const [imagePreviews, setImagePreviews] = useState<string[]>(initialUrls);
   const [uploading, setUploading] = useState(false);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
-      setError('Format non supporté. Utilisez JPG, PNG, GIF ou WebP.');
-      return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of Array.from(files)) {
+      if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+        setError('Format non supporté. Utilisez JPG, PNG, GIF ou WebP.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Image trop volumineuse (max 10 Mo)');
+        return;
+      }
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Image trop volumineuse (max 10 Mo)');
-      return;
-    }
-    setImagePreview(URL.createObjectURL(file));
+
     setUploading(true);
     setError(null);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API}/api/marketing/upload`, {
-        method: 'POST',
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: formData,
-      });
-      const result = await response.json();
-      if (result.success && result.data?.url) {
-        setImageUrl(result.data.url);
-      } else {
-        setError(result.message || 'Erreur lors de l\'upload');
-        setImagePreview(post.contenuVisuelUrl || null);
+
+    for (const file of Array.from(files)) {
+      const preview = URL.createObjectURL(file);
+      setImagePreviews(prev => [...prev, preview]);
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${API}/api/marketing/upload`, {
+          method: 'POST',
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: formData,
+        });
+        const result = await response.json();
+        if (result.success && result.data?.url) {
+          setImageUrls(prev => [...prev, result.data.url]);
+        } else {
+          setError(result.message || 'Erreur lors de l\'upload');
+          setImagePreviews(prev => prev.filter(p => p !== preview));
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
+        setImagePreviews(prev => prev.filter(p => p !== preview));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
-      setImagePreview(post.contenuVisuelUrl || null);
-    } finally {
-      setUploading(false);
     }
+
+    setUploading(false);
+    e.target.value = '';
   };
 
-  const removeImage = () => {
-    setImageUrl(null);
-    setImagePreview(null);
+  const removeImage = (index: number) => {
+    setImageUrls(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleGenerate = async () => {
@@ -790,7 +811,8 @@ function EditPostModal({ post, onClose, onUpdated }: { post: MarketingPost; onCl
         type: form.type,
         sujet: form.sujet,
         contenuTexte: form.contenuTexte || null,
-        contenuVisuelUrl: imageUrl || null,
+        contenuVisuelUrl: imageUrls.length > 0 ? imageUrls[0] : null,
+        contenuVisuelUrls: imageUrls.length > 0 ? imageUrls : null,
         hashtags: form.hashtags || null,
         datePublication: form.datePublication || undefined,
         status: form.status,
@@ -867,29 +889,34 @@ function EditPostModal({ post, onClose, onUpdated }: { post: MarketingPost; onCl
             <input type="text" value={form.hashtags} onChange={e => setForm(f => ({ ...f, hashtags: e.target.value }))} className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm" />
           </div>
 
-          {/* Image upload */}
+          {/* Image upload (multi) */}
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Image / Visuel</label>
-            {imagePreview ? (
-              <div className="relative inline-block">
-                <img src={imagePreview} alt="Aperçu" className="max-h-40 rounded-lg border border-gray-600" />
-                <button type="button" onClick={removeImage} className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white rounded-full p-1">
-                  <X size={14} />
-                </button>
-                {uploading && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
-                    <span className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></span>
+            <label className="block text-gray-400 text-sm mb-1">Images / Visuels</label>
+            {imagePreviews.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {imagePreviews.map((preview, idx) => (
+                  <div key={idx} className="relative group">
+                    <img src={preview} alt={`Aperçu ${idx + 1}`} className="w-24 h-24 object-cover rounded-lg border border-gray-600" />
+                    {uploading && idx === imagePreviews.length - 1 && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      </div>
+                    )}
+                    {!uploading && (
+                      <button type="button" onClick={() => removeImage(idx)} className="absolute -top-1 -right-1 p-0.5 bg-red-600 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-28 bg-gray-700/50 border-2 border-dashed border-gray-600 hover:border-cyan-500 rounded-lg cursor-pointer transition-colors">
-                <ImagePlus size={24} className="text-gray-400 mb-1" />
-                <span className="text-gray-400 text-xs">Cliquez pour ajouter une image</span>
-                <span className="text-gray-500 text-xs">JPG, PNG, GIF, WebP — max 10 Mo</span>
-                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleImageUpload} className="hidden" />
-              </label>
             )}
+            <label className="flex flex-col items-center justify-center w-full h-20 bg-gray-700/50 border-2 border-dashed border-gray-600 hover:border-cyan-500 rounded-lg cursor-pointer transition-colors">
+              <ImagePlus size={20} className="text-gray-400 mb-1" />
+              <span className="text-gray-400 text-xs">{imagePreviews.length > 0 ? 'Ajouter d\'autres images' : 'Cliquez pour ajouter des images'}</span>
+              <span className="text-gray-500 text-xs">JPG, PNG, GIF, WebP — max 10 Mo chacune</span>
+              <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onChange={handleImageUpload} className="hidden" />
+            </label>
           </div>
 
           <div>
@@ -957,10 +984,14 @@ function ViewPostModal({ post, onClose }: { post: MarketingPost; onClose: () => 
             </div>
           )}
 
-          {post.contenuVisuelUrl && (
+          {(post.contenuVisuelUrls && post.contenuVisuelUrls.length > 0 ? post.contenuVisuelUrls : post.contenuVisuelUrl ? [post.contenuVisuelUrl] : []).length > 0 && (
             <div>
-              <label className="block text-gray-500 text-xs mb-1">Image</label>
-              <img src={post.contenuVisuelUrl} alt="Visuel publication" className="max-h-48 rounded-lg border border-gray-600" />
+              <label className="block text-gray-500 text-xs mb-1">Images</label>
+              <div className="flex flex-wrap gap-2">
+                {(post.contenuVisuelUrls && post.contenuVisuelUrls.length > 0 ? post.contenuVisuelUrls : post.contenuVisuelUrl ? [post.contenuVisuelUrl] : []).map((url, idx) => (
+                  <img key={idx} src={url} alt={`Visuel ${idx + 1}`} className="max-h-48 rounded-lg border border-gray-600" />
+                ))}
+              </div>
             </div>
           )}
 

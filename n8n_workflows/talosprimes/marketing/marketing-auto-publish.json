@@ -239,7 +239,8 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "disabled": true
     },
     {
       "parameters": {
@@ -282,6 +283,8 @@
       "position": [
         1320,
         300
+      ],
+      "disabled": true
       ]
     },
     {
@@ -317,6 +320,8 @@
       "position": [
         1540,
         300
+      ],
+      "disabled": true
       ]
     },
     {
@@ -330,6 +335,8 @@
       "position": [
         1760,
         300
+      ],
+      "disabled": true
       ]
     },
     {
@@ -421,6 +428,7 @@
         2840,
         400
       ],
+      "continueOnFail": true,
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
@@ -457,6 +465,7 @@
         1320,
         920
       ],
+      "continueOnFail": true,
       "credentials": {
         "telegramApi": {
           "id": "JeSjY5sE3QcncJ4u",
