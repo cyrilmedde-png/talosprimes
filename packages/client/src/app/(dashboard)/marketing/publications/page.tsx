@@ -498,7 +498,7 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
     setError(null);
     const shouldAutoPublish = !form.datePublication;
     try {
-      await apiClient.marketing.createPost({
+      const createResult = await apiClient.marketing.createPost({
         plateforme: form.plateforme,
         type: form.type,
         sujet: form.sujet,
@@ -511,7 +511,9 @@ function CreatePostModal({ onClose, onCreated }: { onClose: () => void; onCreate
       // Si pas de date → déclencher la publication automatique via n8n
       if (shouldAutoPublish) {
         try {
+          const newPostId = (createResult?.data as unknown as { post: { id: string } })?.post?.id;
           await apiClient.marketing.triggerPublish({
+            postId: newPostId || undefined,
             plateforme: form.plateforme,
             type: form.type,
             sujet: form.sujet,

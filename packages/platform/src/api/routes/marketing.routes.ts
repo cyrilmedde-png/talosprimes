@@ -413,11 +413,13 @@ export async function marketingRoutes(fastify: FastifyInstance) {
           };
         } else {
           // Fallback : données passées dans le body (ancien comportement)
+          // Convertir camelCase → snake_case pour compatibilité n8n
           if (body.contenuTexte) postData.contenu_texte = body.contenuTexte;
           if (body.hashtags) postData.hashtags = body.hashtags;
           if (body.sujet) postData.sujet = body.sujet;
           if (body.type) postData.type = body.type;
           if (body.plateforme) postData.plateforme = body.plateforme;
+          if (body.contenuVisuelUrl) postData.contenu_visuel_url = body.contenuVisuelUrl;
         }
 
         const result = await n8nService.callWorkflowReturn(tenantId, 'marketing_auto_publish', {
