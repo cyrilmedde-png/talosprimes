@@ -151,10 +151,10 @@ await fastify.register(rateLimit, {
   timeWindow: '1 minute', // par minute
 });
 
-// Multipart (upload fichiers) — max 10 Mo par fichier
+// Multipart (upload fichiers) — max 100 Mo par fichier (vidéos)
 await fastify.register(multipart, {
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10 Mo
+    fileSize: 100 * 1024 * 1024, // 100 Mo (vidéos marketing)
     files: 1,
   },
 });

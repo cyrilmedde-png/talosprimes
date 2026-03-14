@@ -76,7 +76,7 @@ export async function marketingRoutes(fastify: FastifyInstance) {
   // ── POST /upload — Upload d'image pour publication ────────────
   fastify.post(
     '/upload',
-    { preHandler: [n8nOrAuthMiddleware] },
+    { preHandler: [n8nOrAuthMiddleware], bodyLimit: 10 * 1024 * 1024 },
     async (request: AuthRequest, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
@@ -142,7 +142,7 @@ export async function marketingRoutes(fastify: FastifyInstance) {
   // ── POST /upload-video — Upload de vidéo pour publication ───────
   fastify.post(
     '/upload-video',
-    { preHandler: [n8nOrAuthMiddleware] },
+    { preHandler: [n8nOrAuthMiddleware], bodyLimit: 100 * 1024 * 1024 },
     async (request: AuthRequest, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
