@@ -96,6 +96,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Rapprochement', href: '/comptabilite/rapprochement', icon: ArrowPathIcon },
       { name: 'Agent IA Comptable', href: '/comptabilite/ia', icon: SparklesIcon },
       { name: 'Clôture', href: '/comptabilite/cloture', icon: LockClosedIcon },
+      { name: 'Prévisionnel', href: '/previsionnel', icon: ChartBarIcon },
       { name: '── Conformité ──', href: '/conformite', icon: ShieldCheckIcon },
       { name: 'FEC', href: '/conformite/fec', icon: DocumentTextIcon },
       { name: 'Factur-X', href: '/conformite/facturx', icon: DocumentCheckIcon },

@@ -8,6 +8,9 @@ import { apiClient } from '@/lib/api-client';
 type FacturXItem = {
   id: string;
   invoiceId: string;
+  numeroFacture?: string;
+  montantTtc?: number;
+  clientNom?: string;
   profil: 'minimum' | 'basic' | 'en16931';
   formatXml: 'CII' | 'UBL';
   plateformeType: string | null;
@@ -16,18 +19,42 @@ type FacturXItem = {
   identifiantFlux: string | null;
 };
 
+type InvoiceOption = {
+  id: string;
+  numeroFacture: string;
+  montantTtc: number;
+  clientNom: string;
+  dateFacture: string;
+  statut: string;
+};
+
 export default function FacturXPage(): JSX.Element {
   const [facturXList, setFacturXList] = useState<FacturXItem[]>([]);
-  const [invoiceId, setInvoiceId] = useState<string>('');
+  const [invoices, setInvoices] = useState<InvoiceOption[]>([]);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
+  const [searchNumero, setSearchNumero] = useState<string>('');
   const [profil, setProfil] = useState<'minimum' | 'basic' | 'en16931'>('basic');
   const [formatXml, setFormatXml] = useState<'CII' | 'UBL'>('UBL');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadFacturXList();
+    loadInvoices();
   }, []);
+
+  const loadInvoices = async (): Promise<void> => {
+    try {
+      const response = await apiClient.facturation.factures.list({ statut: 'payee,envoyee,validee' });
+      const raw = response?.data as Record<string, unknown>;
+      const list = raw?.data || raw?.invoices || raw?.factures || [];
+      setInvoices(Array.isArray(list) ? list as InvoiceOption[] : []);
+    } catch {
+      // Silently fail — invoices dropdown is optional
+    }
+  };
 
   const loadFacturXList = async (): Promise<void> => {
     setIsLoading(true);
@@ -45,20 +72,23 @@ export default function FacturXPage(): JSX.Element {
   };
 
   const handleGenerer = async (): Promise<void> => {
-    if (!invoiceId.trim()) {
-      setError('Veuillez entrer un ID de facture');
+    if (!selectedInvoiceId) {
+      setError('Veuillez sélectionner une facture');
       return;
     }
 
     setIsGenerating(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       await apiClient.conformite.facturx.generer({
-        invoiceId: invoiceId.trim(),
+        invoiceId: selectedInvoiceId,
         profil,
         formatXml,
       });
-      setInvoiceId('');
+      const invoice = invoices.find(i => i.id === selectedInvoiceId);
+      setSuccessMessage(`Factur-X générée pour ${invoice?.numeroFacture || 'la facture'}`);
+      setSelectedInvoiceId('');
       await loadFacturXList();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la génération';
@@ -92,35 +122,23 @@ export default function FacturXPage(): JSX.Element {
 
   const getStatutBadgeColor = (statut: FacturXItem['statutTransmission']): string => {
     switch (statut) {
-      case 'non_transmis':
-        return 'bg-gray-700 text-gray-100';
-      case 'en_cours':
-        return 'bg-yellow-600 text-yellow-50';
-      case 'transmis':
-        return 'bg-blue-600 text-blue-50';
-      case 'accepte':
-        return 'bg-green-600 text-green-50';
-      case 'refuse':
-        return 'bg-red-600 text-red-50';
-      default:
-        return 'bg-gray-700 text-gray-100';
+      case 'non_transmis': return 'bg-gray-700 text-gray-100';
+      case 'en_cours': return 'bg-yellow-600 text-yellow-50';
+      case 'transmis': return 'bg-blue-600 text-blue-50';
+      case 'accepte': return 'bg-green-600 text-green-50';
+      case 'refuse': return 'bg-red-600 text-red-50';
+      default: return 'bg-gray-700 text-gray-100';
     }
   };
 
   const getStatutLabel = (statut: FacturXItem['statutTransmission']): string => {
     switch (statut) {
-      case 'non_transmis':
-        return 'Non transmise';
-      case 'en_cours':
-        return 'En cours';
-      case 'transmis':
-        return 'Transmise';
-      case 'accepte':
-        return 'Acceptée';
-      case 'refuse':
-        return 'Refusée';
-      default:
-        return statut;
+      case 'non_transmis': return 'Non transmise';
+      case 'en_cours': return 'En cours';
+      case 'transmis': return 'Transmise';
+      case 'accepte': return 'Acceptée';
+      case 'refuse': return 'Refusée';
+      default: return statut;
     }
   };
 
@@ -128,6 +146,20 @@ export default function FacturXPage(): JSX.Element {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('fr-FR');
   };
+
+  const formatCurrency = (amount: number | undefined): string => {
+    if (!amount) return '';
+    return amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  };
+
+  // Filter invoices by search term
+  const filteredInvoices = invoices.filter(inv =>
+    !searchNumero || inv.numeroFacture.toLowerCase().includes(searchNumero.toLowerCase()) ||
+    inv.clientNom?.toLowerCase().includes(searchNumero.toLowerCase())
+  );
+
+  // Check which invoices already have Factur-X generated
+  const existingInvoiceIds = new Set(facturXList.map(f => f.invoiceId));
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -138,7 +170,7 @@ export default function FacturXPage(): JSX.Element {
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Facturation Électronique Factur-X</h1>
             <Link href="/conformite" className="text-amber-500 hover:text-amber-400 text-sm mt-2">
-              ← Retour à la conformité
+              &larr; Retour à la conformité
             </Link>
           </div>
         </div>
@@ -151,10 +183,15 @@ export default function FacturXPage(): JSX.Element {
           </p>
         </div>
 
-        {/* Error Message */}
+        {/* Messages */}
         {error && (
-          <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-4 mb-8">
+          <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-4 mb-4">
             <p className="text-red-100">{error}</p>
+          </div>
+        )}
+        {successMessage && (
+          <div className="bg-green-900 bg-opacity-30 border border-green-700 rounded-lg p-4 mb-4">
+            <p className="text-green-100">{successMessage}</p>
           </div>
         )}
 
@@ -163,14 +200,39 @@ export default function FacturXPage(): JSX.Element {
           <h2 className="text-xl font-semibold mb-6 text-amber-400">Générer une facture Factur-X</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">ID Facture (UUID)</label>
-              <input
-                type="text"
-                value={invoiceId}
-                onChange={(e) => setInvoiceId(e.target.value)}
-                placeholder="ex: 123e4567-e89b-12d3-a456-426614174000"
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
-              />
+              <label className="block text-sm font-medium text-gray-300 mb-2">N° Facture</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchNumero}
+                  onChange={(e) => setSearchNumero(e.target.value)}
+                  placeholder="Rechercher par n° ou client..."
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <select
+                value={selectedInvoiceId}
+                onChange={(e) => {
+                  setSelectedInvoiceId(e.target.value);
+                  const inv = invoices.find(i => i.id === e.target.value);
+                  if (inv) setSearchNumero(inv.numeroFacture);
+                }}
+                className="w-full mt-2 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                size={Math.min(filteredInvoices.length + 1, 6)}
+              >
+                <option value="">-- Sélectionner une facture --</option>
+                {filteredInvoices.map((inv) => (
+                  <option
+                    key={inv.id}
+                    value={inv.id}
+                    disabled={existingInvoiceIds.has(inv.id)}
+                    className={existingInvoiceIds.has(inv.id) ? 'text-gray-500' : ''}
+                  >
+                    {inv.numeroFacture} — {inv.clientNom} — {formatCurrency(inv.montantTtc)}
+                    {existingInvoiceIds.has(inv.id) ? ' (déjà générée)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -182,7 +244,7 @@ export default function FacturXPage(): JSX.Element {
               >
                 <option value="minimum">Minimum</option>
                 <option value="basic">Basic</option>
-                <option value="en16931">EN16931</option>
+                <option value="en16931">EN16931 (Complet)</option>
               </select>
             </div>
 
@@ -193,15 +255,15 @@ export default function FacturXPage(): JSX.Element {
                 onChange={(e) => setFormatXml(e.target.value as 'CII' | 'UBL')}
                 className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-500"
               >
-                <option value="CII">CII</option>
-                <option value="UBL">UBL</option>
+                <option value="CII">CII (Cross Industry Invoice)</option>
+                <option value="UBL">UBL (Universal Business Language)</option>
               </select>
             </div>
 
             <div className="flex items-end">
               <button
                 onClick={handleGenerer}
-                disabled={isGenerating}
+                disabled={isGenerating || !selectedInvoiceId}
                 className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded transition"
               >
                 {isGenerating ? 'Génération...' : 'Générer Factur-X'}
@@ -216,13 +278,13 @@ export default function FacturXPage(): JSX.Element {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-700 border-b border-gray-600">
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Facture</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">N° Facture</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Client</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Montant TTC</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Profil</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Format</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Plateforme</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">
-                    Statut transmission
-                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Statut</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Date</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-amber-400">Actions</th>
                 </tr>
@@ -230,20 +292,28 @@ export default function FacturXPage(): JSX.Element {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
                       Chargement...
                     </td>
                   </tr>
                 ) : facturXList.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
                       Aucune facture Factur-X
                     </td>
                   </tr>
                 ) : (
                   facturXList.map((item) => (
                     <tr key={item.id} className="border-t border-gray-700 hover:bg-gray-700 transition">
-                      <td className="px-6 py-4 text-sm text-gray-100">{item.invoiceId.slice(0, 8)}...</td>
+                      <td className="px-6 py-4 text-sm text-gray-100 font-medium">
+                        {item.numeroFacture || item.invoiceId.slice(0, 8) + '...'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-100">
+                        {item.clientNom || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-100">
+                        {item.montantTtc ? formatCurrency(item.montantTtc) : '-'}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-100 uppercase">{item.profil}</td>
                       <td className="px-6 py-4 text-sm text-gray-100">{item.formatXml}</td>
                       <td className="px-6 py-4 text-sm text-gray-100">
@@ -285,6 +355,40 @@ export default function FacturXPage(): JSX.Element {
             </table>
           </div>
         </div>
+
+        {/* Stats */}
+        {facturXList.length > 0 && (
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-white">{facturXList.length}</p>
+              <p className="text-xs text-gray-400 mt-1">Total</p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-gray-300">
+                {facturXList.filter(f => f.statutTransmission === 'non_transmis').length}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Non transmises</p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-yellow-400">
+                {facturXList.filter(f => f.statutTransmission === 'en_cours').length}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">En cours</p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-green-400">
+                {facturXList.filter(f => f.statutTransmission === 'accepte').length}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Acceptées</p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-red-400">
+                {facturXList.filter(f => f.statutTransmission === 'refuse').length}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Refusées</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
