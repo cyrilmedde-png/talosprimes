@@ -94,7 +94,6 @@ export default function PaiePage(): JSX.Element {
   const [selectedMois, setSelectedMois] = useState<number | string>('');
   const [selectedAnnee, setSelectedAnnee] = useState<number | string>('');
   const [showModal, setShowModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
   const [editingBulletin, setEditingBulletin] = useState<BulletinPaie | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);

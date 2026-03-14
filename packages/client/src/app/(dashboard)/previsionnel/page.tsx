@@ -5,8 +5,6 @@ import {
   ChartBarIcon,
   PlusIcon,
   TrashIcon,
-  ArrowDownTrayIcon,
-  CalculatorIcon,
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
@@ -114,8 +112,6 @@ export default function PrevisionnelPage(): JSX.Element {
 
   // TVA
   const [tauxTVA] = useState<number>(20);
-  const [delaiPaiementClients] = useState<number>(30); // jours
-  const [delaiPaiementFournisseurs] = useState<number>(30); // jours
 
   // ============================================================
   // CALCULS
@@ -129,16 +125,6 @@ export default function PrevisionnelPage(): JSX.Element {
   }, [lignesCA]);
 
   const caAnnuel = useMemo(() => caMensuels.reduce((s, v) => s + v, 0), [caMensuels]);
-
-  // Charges par catégorie
-  const chargesParCategorie = useMemo(() => {
-    const result: Record<string, number[]> = {};
-    lignesCharges.forEach(l => {
-      if (!result[l.categorie]) result[l.categorie] = zeroMois();
-      l.montantsMensuels.forEach((m, i) => result[l.categorie][i] += m);
-    });
-    return result;
-  }, [lignesCharges]);
 
   const chargesTotalesMensuelles = useMemo(() => {
     const totaux = zeroMois();
