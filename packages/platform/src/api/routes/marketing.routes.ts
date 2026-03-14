@@ -8,6 +8,8 @@ import { n8nService } from '../../services/n8n.service.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
 import { env } from '../../config/env.js';
+import type { InputJsonValue } from '../../types/prisma-helpers.js';
+import { JsonNull } from '../../types/prisma-helpers.js';
 
 /** Répertoire pour les images marketing */
 const MARKETING_UPLOADS_DIR = join(process.cwd(), 'uploads', 'marketing');
@@ -218,7 +220,7 @@ export async function marketingRoutes(fastify: FastifyInstance) {
           sujet: data.sujet,
           contenuTexte: data.contenuTexte ?? null,
           contenuVisuelUrl: mainUrl,
-          contenuVisuelUrls: urls,
+          contenuVisuelUrls: urls ? (urls as InputJsonValue) : JsonNull,
           hashtags: data.hashtags ?? null,
           datePublication: data.datePublication ? new Date(data.datePublication) : new Date(),
           semaineCycle: data.semaineCycle ?? null,
@@ -252,11 +254,11 @@ export async function marketingRoutes(fastify: FastifyInstance) {
       if (data.sujet !== undefined) updateData.sujet = data.sujet;
       if (data.contenuTexte !== undefined) updateData.contenuTexte = data.contenuTexte;
       if (data.contenuVisuelUrls !== undefined) {
-        updateData.contenuVisuelUrls = data.contenuVisuelUrls;
+        updateData.contenuVisuelUrls = data.contenuVisuelUrls && data.contenuVisuelUrls.length > 0 ? (data.contenuVisuelUrls as unknown as InputJsonValue) : JsonNull;
         updateData.contenuVisuelUrl = data.contenuVisuelUrls && data.contenuVisuelUrls.length > 0 ? data.contenuVisuelUrls[0] : null;
       } else if (data.contenuVisuelUrl !== undefined) {
         updateData.contenuVisuelUrl = data.contenuVisuelUrl;
-        updateData.contenuVisuelUrls = data.contenuVisuelUrl ? [data.contenuVisuelUrl] : null;
+        updateData.contenuVisuelUrls = data.contenuVisuelUrl ? ([data.contenuVisuelUrl] as unknown as InputJsonValue) : JsonNull;
       }
       if (data.hashtags !== undefined) updateData.hashtags = data.hashtags;
       if (data.datePublication !== undefined) updateData.datePublication = new Date(data.datePublication);
