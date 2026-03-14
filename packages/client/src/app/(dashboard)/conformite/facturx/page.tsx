@@ -47,7 +47,7 @@ export default function FacturXPage(): JSX.Element {
 
   const loadInvoices = async (): Promise<void> => {
     try {
-      const response = await apiClient.facturation.factures.list({ statut: 'payee,envoyee,validee' });
+      const response = await apiClient.invoices.list({ statut: 'payee,envoyee,validee' });
       const raw = response?.data as Record<string, unknown>;
       const list = raw?.data || raw?.invoices || raw?.factures || [];
       setInvoices(Array.isArray(list) ? list as InvoiceOption[] : []);
