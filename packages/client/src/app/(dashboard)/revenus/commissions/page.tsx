@@ -50,7 +50,7 @@ export default function RevenueCommissions() {
 
       const response = await apiClient.revenue.commissions(params);
       if (response.success) {
-        setData(response.data as CommissionsData);
+        setData(response.data as unknown as CommissionsData);
       } else {
         setError('Erreur lors du chargement des commissions');
       }

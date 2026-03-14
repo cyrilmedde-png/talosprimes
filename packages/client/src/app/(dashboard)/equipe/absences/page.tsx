@@ -62,13 +62,13 @@ export default function AbsencesPage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.equipe.absences.list();
-      const raw = response.data as unknown as { success: boolean; data?: { items?: Absence[] }; error?: string };
-      if (!raw?.success || !raw.data) {
-        setError(raw?.error || 'Aucune donnée reçue du serveur');
+      const data = response.data as Record<string, unknown> | undefined;
+      if (!response?.success || !data) {
+        setError('Aucune donnée reçue du serveur');
         setLoading(false);
         return;
       }
-      const absencesData = raw.data.items || [];
+      const absencesData = ((data as { items?: Absence[] }).items || data) as Absence[];
       setAbsences(absencesData);
       setFilteredAbsences(absencesData);
       setError(null);

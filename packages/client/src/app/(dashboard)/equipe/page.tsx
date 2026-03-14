@@ -32,12 +32,11 @@ export default function EquipeDashboard(): JSX.Element {
       try {
         setLoading(true);
         const response = await apiClient.equipe.dashboard();
-        const raw = response.data as unknown as { success: boolean; data?: DashboardStats; error?: string };
-        if (raw?.success && raw.data) {
-          setStats(raw.data);
+        if (response?.success && response.data) {
+          setStats(response.data as unknown as DashboardStats);
           setError(null);
         } else {
-          setError(raw?.error || 'Aucune donnée reçue du serveur');
+          setError('Aucune donnée reçue du serveur');
         }
       } catch (err) {
         setError(

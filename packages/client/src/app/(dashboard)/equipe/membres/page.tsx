@@ -72,13 +72,13 @@ export default function MembresPage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.equipe.membres.list();
-      const raw = response.data as unknown as { success: boolean; data?: { items?: Membre[] }; error?: string };
-      if (!raw?.success || !raw.data) {
-        setError(raw?.error || 'Aucune donnée reçue du serveur');
+      const data = response.data as Record<string, unknown> | undefined;
+      if (!response?.success || !data) {
+        setError('Aucune donnée reçue du serveur');
         setLoading(false);
         return;
       }
-      const membresData = raw.data.items || [];
+      const membresData = ((data as { items?: Membre[] }).items || data) as Membre[];
       setMembres(membresData);
       setFilteredMembres(membresData);
 

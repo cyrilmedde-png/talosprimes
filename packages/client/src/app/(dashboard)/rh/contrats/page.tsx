@@ -64,9 +64,8 @@ export default function ContratsPage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.rh.contrats.list();
-      const raw = response.data as unknown as { success: boolean; data: Contrat[] };
-      setContrats(raw.data);
-      setFilteredContrats(raw.data);
+      setContrats((response.data as unknown as Contrat[]) || []);
+      setFilteredContrats((response.data as unknown as Contrat[]) || []);
       setError(null);
     } catch (err) {
       setError(

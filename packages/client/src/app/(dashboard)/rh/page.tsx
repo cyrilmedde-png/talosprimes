@@ -46,8 +46,7 @@ export default function RhDashboard(): JSX.Element {
       try {
         setLoading(true);
         const response = await apiClient.rh.dashboard();
-        const raw = response.data as unknown as { success: boolean; data: RhDashboardStats };
-        setStats(raw.data);
+        setStats(response.data as unknown as RhDashboardStats);
         setError(null);
       } catch (err) {
         setError(

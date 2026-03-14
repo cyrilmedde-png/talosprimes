@@ -104,10 +104,10 @@ export default function TachesPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.projets.list();
-      const raw = response.data as unknown as { success: boolean; data: Projet[] };
-      setProjets(raw.data);
-      if (raw.data.length > 0) {
-        setSelectedProjetId(raw.data[0].id);
+      const projetsData = (response.data as unknown as Projet[]) || [];
+      setProjets(projetsData);
+      if (projetsData.length > 0) {
+        setSelectedProjetId(projetsData[0].id);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch projects';
@@ -122,8 +122,7 @@ export default function TachesPage() {
     try {
       setError(null);
       const response = await apiClient.projets.taches.list(projetId);
-      const raw = response.data as unknown as { success: boolean; data: Tache[] };
-      setTaches(raw.data);
+      setTaches((response.data as unknown as Tache[]) || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch tasks';
       setError(errorMessage);

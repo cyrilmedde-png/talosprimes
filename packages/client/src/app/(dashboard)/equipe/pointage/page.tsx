@@ -47,13 +47,13 @@ export default function PointagePage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.equipe.pointages.list({ dateFrom: selectedDate });
-      const raw = response.data as unknown as { success: boolean; data?: { items?: Pointage[] }; error?: string };
-      if (raw?.success && raw.data) {
-        setPointages(raw.data.items || []);
+      const data = response.data as Record<string, unknown> | undefined;
+      if (response?.success && data) {
+        setPointages(((data as { items?: Pointage[] }).items || data) as Pointage[]);
         setError(null);
       } else {
         setPointages([]);
-        setError(raw?.error || 'Aucune donnée reçue du serveur');
+        setError('Aucune donnée reçue du serveur');
       }
     } catch (err) {
       setError(

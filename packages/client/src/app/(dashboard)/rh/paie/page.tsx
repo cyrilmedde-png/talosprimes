@@ -127,9 +127,8 @@ export default function PaiePage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.rh.paie.list();
-      const raw = response.data as unknown as { success: boolean; data: BulletinPaie[] };
-      setBulletins(raw.data || []);
-      setFilteredBulletins(raw.data || []);
+      setBulletins((response.data as unknown as BulletinPaie[]) || []);
+      setFilteredBulletins((response.data as unknown as BulletinPaie[]) || []);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
@@ -141,8 +140,7 @@ export default function PaiePage(): JSX.Element {
   const fetchMembres = async (): Promise<void> => {
     try {
       const response = await apiClient.equipe.membres.list();
-      const raw = response.data as unknown as { success: boolean; data: Membre[] };
-      setMembres(raw.data || []);
+      setMembres((response.data as unknown as Membre[]) || []);
     } catch {
       // Silently fail
     }

@@ -98,8 +98,7 @@ export default function EntretiensPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.rh.entretiens.list();
-      const raw = response.data as unknown as { success: boolean; data: Entretien[] };
-      setEntretiens(raw.data);
+      setEntretiens((response.data as unknown as Entretien[]) || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {

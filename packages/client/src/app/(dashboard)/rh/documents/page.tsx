@@ -83,8 +83,7 @@ export default function DocumentsPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.rh.documents.list();
-      const raw = response.data as unknown as { success: boolean; data: DocumentRH[] };
-      setDocuments(raw.data);
+      setDocuments((response.data as unknown as DocumentRH[]) || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {

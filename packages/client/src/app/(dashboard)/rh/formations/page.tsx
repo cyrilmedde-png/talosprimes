@@ -77,8 +77,7 @@ export default function FormationsPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.rh.formations.list();
-      const raw = response.data as unknown as { success: boolean; data: Formation[] };
-      setFormations(Array.isArray(raw.data) ? raw.data : []);
+      setFormations(Array.isArray(response.data) ? (response.data as unknown as Formation[]) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {

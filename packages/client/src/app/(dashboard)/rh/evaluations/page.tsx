@@ -79,8 +79,7 @@ export default function EvaluationsPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.rh.evaluations.list();
-      const raw = response.data as unknown as { success: boolean; data: Evaluation[] };
-      setEvaluations(Array.isArray(raw.data) ? raw.data : []);
+      setEvaluations(Array.isArray(response.data) ? (response.data as unknown as Evaluation[]) : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {

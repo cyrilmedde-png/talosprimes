@@ -69,9 +69,8 @@ export default function CongesPage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.rh.conges.list();
-      const raw = response.data as unknown as { success: boolean; data: Conge[] };
-      setConges(raw.data);
-      setFilteredConges(raw.data);
+      setConges((response.data as unknown as Conge[]) || []);
+      setFilteredConges((response.data as unknown as Conge[]) || []);
       setError(null);
     } catch (err) {
       setError(
