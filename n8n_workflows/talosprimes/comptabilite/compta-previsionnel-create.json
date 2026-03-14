@@ -1,0 +1,74 @@
+{
+  "name": "Compta - Prévisionnel Create (/compta/previsionnel/create)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta/previsionnel/create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\nconst round2 = (v) => Math.round(v * 100) / 100;\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) throw new Error('Invalid tenantId');\n\nvar clientFinalId = data.clientFinalId || null;\nif (clientFinalId && !uuidRegex.test(clientFinalId)) clientFinalId = null;\n\nvar nom = esc(data.nom || 'Prévisionnel');\nvar description = esc(data.description || '');\nvar annee = parseInt(data.annee) || new Date().getFullYear();\nvar statut = data.statut || 'brouillon';\n\n// Données complètes du prévisionnel\nvar donnees = data.donnees || {};\nvar donneesJSON = esc(JSON.stringify(donnees));\n\n// Calculs des résultats dénormalisés\nvar caAnnuel = 0;\nvar chargesAnnuelles = 0;\n\nif (donnees.lignesCA && Array.isArray(donnees.lignesCA)) {\n  donnees.lignesCA.forEach(function(l) {\n    if (l.montantsMensuels && Array.isArray(l.montantsMensuels)) {\n      l.montantsMensuels.forEach(function(m) { caAnnuel += Number(m) || 0; });\n    }\n  });\n}\nif (donnees.lignesCharges && Array.isArray(donnees.lignesCharges)) {\n  donnees.lignesCharges.forEach(function(l) {\n    if (l.montantsMensuels && Array.isArray(l.montantsMensuels)) {\n      l.montantsMensuels.forEach(function(m) { chargesAnnuelles += Number(m) || 0; });\n    }\n  });\n}\n\n// Amortissements\nvar amortAnnuel = 0;\nif (donnees.investissements && Array.isArray(donnees.investissements)) {\n  donnees.investissements.forEach(function(inv) {\n    var duree = Number(inv.dureeAmortissement) || 1;\n    var moisAcq = Number(inv.moisAcquisition) || 0;\n    var mensuel = (Number(inv.montantHT) || 0) / (duree * 12);\n    amortAnnuel += mensuel * (12 - moisAcq);\n  });\n}\n\nvar resultatExploitation = round2(caAnnuel - chargesAnnuelles - amortAnnuel);\n\n// Seuil de rentabilité\nvar chargesFixes = 0;\nvar chargesVariables = 0;\nif (donnees.lignesCharges && Array.isArray(donnees.lignesCharges)) {\n  donnees.lignesCharges.forEach(function(l) {\n    var total = 0;\n    if (l.montantsMensuels) l.montantsMensuels.forEach(function(m) { total += Number(m) || 0; });\n    if (l.categorie === 'variable') chargesVariables += total;\n    else chargesFixes += total;\n  });\n}\nvar tauxMarge = caAnnuel > 0 ? (caAnnuel - chargesVariables) / caAnnuel : 0;\nvar seuilRentabilite = tauxMarge > 0 ? round2(chargesFixes / tauxMarge) : 0;\n\n// Trésorerie finale\nvar tresorerieFinale = 0;\nif (donnees.financements && Array.isArray(donnees.financements)) {\n  donnees.financements.forEach(function(f) { tresorerieFinale += Number(f.montant) || 0; });\n}\nif (donnees.investissements && Array.isArray(donnees.investissements)) {\n  donnees.investissements.forEach(function(inv) {\n    tresorerieFinale -= (Number(inv.montantHT) || 0) * (1 + (Number(inv.tva) || 0) / 100);\n  });\n}\ntresorerieFinale += caAnnuel * 1.2 - chargesAnnuelles * 1.12;\ntresorerieFinale = round2(tresorerieFinale);\n\nvar id = require('crypto').randomUUID();\nvar now = new Date().toISOString();\n\nvar query = \"INSERT INTO previsionnels (id, tenant_id, client_final_id, nom, description, annee, statut, donnees, ca_annuel, charges_annuelles, resultat_exploitation, seuil_rentabilite, tresorerie_finale, created_at, updated_at) VALUES ('\" + esc(id) + \"', '\" + esc(tenantId) + \"', \" + (clientFinalId ? \"'\" + esc(clientFinalId) + \"'\" : \"NULL\") + \", '\" + nom + \"', '\" + description + \"', \" + annee + \", '\" + esc(statut) + \"', '\" + donneesJSON + \"'::jsonb, \" + round2(caAnnuel) + \", \" + round2(chargesAnnuelles) + \", \" + resultatExploitation + \", \" + seuilRentabilite + \", \" + tresorerieFinale + \", '\" + esc(now) + \"', '\" + esc(now) + \"') RETURNING *;\";\n\nreturn [{json: {query: query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var row = $input.first().json;\nif (!row || !row.id) {\n  return [{json: {success: false, error: 'Création échouée'}}];\n}\n\nvar donnees = {};\ntry {\n  donnees = typeof row.donnees === 'string' ? JSON.parse(row.donnees) : (row.donnees || {});\n} catch(e) { donnees = {}; }\n\nreturn [{json: {\n  success: true,\n  data: {\n    id: row.id,\n    tenantId: row.tenant_id,\n    clientFinalId: row.client_final_id || null,\n    nom: row.nom,\n    description: row.description || null,\n    annee: Number(row.annee),\n    statut: row.statut,\n    donnees: donnees,\n    caAnnuel: Number(row.ca_annuel || 0),\n    chargesAnnuelles: Number(row.charges_annuelles || 0),\n    resultatExploitation: Number(row.resultat_exploitation || 0),\n    seuilRentabilite: Number(row.seuil_rentabilite || 0),\n    tresorerieFinale: Number(row.tresorerie_finale || 0),\n    createdAt: row.created_at,\n    updatedAt: row.updated_at\n  }\n}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{"node": "Parser", "type": "main", "index": 0}]] },
+    "Parser": { "main": [[{"node": "Postgres", "type": "main", "index": 0}]] },
+    "Postgres": { "main": [[{"node": "Format", "type": "main", "index": 0}]] },
+    "Format": { "main": [[{"node": "Respond", "type": "main", "index": 0}]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

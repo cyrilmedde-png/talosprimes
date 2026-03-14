@@ -1,0 +1,74 @@
+{
+  "name": "Compta - Prévisionnel Get (/compta/previsionnel/get)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta/previsionnel/get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || data.previsionnelId || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) throw new Error('Invalid tenantId');\nif (!uuidRegex.test(id)) throw new Error('Invalid id');\n\nvar query = \"SELECT p.*, c.raison_sociale as client_raison_sociale, c.nom as client_nom, c.prenom as client_prenom, c.email as client_email, c.telephone as client_telephone, c.adresse as client_adresse FROM previsionnels p LEFT JOIN client_finals c ON p.client_final_id = c.id WHERE p.tenant_id = '\" + esc(tenantId) + \"' AND p.id = '\" + esc(id) + \"';\";\n\nreturn [{json: {query: query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('Parser').first().json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var row = $input.first().json;\nif (!row || !row.id) {\n  return [{json: {success: false, error: 'Prévisionnel non trouvé'}}];\n}\n\nvar donnees = {};\ntry {\n  donnees = typeof row.donnees === 'string' ? JSON.parse(row.donnees) : (row.donnees || {});\n} catch(e) {\n  donnees = {};\n}\n\nvar clientLabel = row.client_raison_sociale || ((row.client_nom || '') + ' ' + (row.client_prenom || '')).trim() || null;\n\nreturn [{json: {\n  success: true,\n  data: {\n    id: row.id,\n    tenantId: row.tenant_id,\n    clientFinalId: row.client_final_id || null,\n    clientLabel: clientLabel,\n    clientEmail: row.client_email || null,\n    clientTelephone: row.client_telephone || null,\n    clientAdresse: row.client_adresse || null,\n    nom: row.nom || 'Prévisionnel',\n    description: row.description || null,\n    annee: Number(row.annee || 0),\n    statut: row.statut || 'brouillon',\n    donnees: donnees,\n    caAnnuel: Number(row.ca_annuel || 0),\n    chargesAnnuelles: Number(row.charges_annuelles || 0),\n    resultatExploitation: Number(row.resultat_exploitation || 0),\n    seuilRentabilite: Number(row.seuil_rentabilite || 0),\n    tresorerieFinale: Number(row.tresorerie_finale || 0),\n    createdAt: row.created_at,\n    updatedAt: row.updated_at\n  }\n}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{"node": "Parser", "type": "main", "index": 0}]] },
+    "Parser": { "main": [[{"node": "Postgres", "type": "main", "index": 0}]] },
+    "Postgres": { "main": [[{"node": "Format", "type": "main", "index": 0}]] },
+    "Format": { "main": [[{"node": "Respond", "type": "main", "index": 0}]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

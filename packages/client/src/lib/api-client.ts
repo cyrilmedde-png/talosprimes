@@ -792,6 +792,25 @@ export const apiClient = {
     // Lettrage
     lettrage: (data: { numeroCompte: string; ligneIds: string[] }) =>
       authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/lettrage', { method: 'POST', body: JSON.stringify(data) }),
+    // Prévisionnels
+    previsionnels: {
+      list: (params?: { clientFinalId?: string; annee?: string; statut?: string }) => {
+        const qp = new URLSearchParams();
+        if (params?.clientFinalId) qp.append('clientFinalId', params.clientFinalId);
+        if (params?.annee) qp.append('annee', params.annee);
+        if (params?.statut) qp.append('statut', params.statut);
+        const q = qp.toString();
+        return authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/previsionnels${q ? `?${q}` : ''}`);
+      },
+      get: (id: string) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/previsionnels/${id}`),
+      create: (data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/comptabilite/previsionnels', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Record<string, unknown>) =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/comptabilite/previsionnels/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        authenticatedFetch<{ success: boolean }>(`/api/comptabilite/previsionnels/${id}`, { method: 'DELETE' }),
+    },
   },
 
   // Conformité France

@@ -1,0 +1,74 @@
+{
+  "name": "Compta - Prévisionnel Update (/compta/previsionnel/update)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "compta/previsionnel/update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var raw = $input.first().json;\nvar body = raw.body || raw;\nvar data = body.data || body;\nvar tenantId = String(body.tenantId || data.tenantId || '');\nvar id = String(data.id || '');\n\nfunction esc(v) {\n  return v == null ? '' : String(v).replace(/'/g, \"''\");\n}\nconst round2 = (v) => Math.round(v * 100) / 100;\n\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nif (!uuidRegex.test(tenantId)) throw new Error('Invalid tenantId');\nif (!uuidRegex.test(id)) throw new Error('Invalid id');\n\nvar now = new Date().toISOString();\nvar setParts = [\"updated_at = '\" + esc(now) + \"'\"];\n\nif (data.nom !== undefined) setParts.push(\"nom = '\" + esc(data.nom) + \"'\");\nif (data.description !== undefined) setParts.push(\"description = '\" + esc(data.description) + \"'\");\nif (data.annee !== undefined) setParts.push(\"annee = \" + parseInt(data.annee));\nif (data.statut !== undefined) setParts.push(\"statut = '\" + esc(data.statut) + \"'\");\n\nif (data.clientFinalId !== undefined) {\n  if (data.clientFinalId && uuidRegex.test(data.clientFinalId)) {\n    setParts.push(\"client_final_id = '\" + esc(data.clientFinalId) + \"'\");\n  } else {\n    setParts.push(\"client_final_id = NULL\");\n  }\n}\n\n// Si on fournit donnees, recalculer les résultats\nif (data.donnees !== undefined) {\n  var donnees = data.donnees || {};\n  setParts.push(\"donnees = '\" + esc(JSON.stringify(donnees)) + \"'::jsonb\");\n\n  var caAnnuel = 0;\n  var chargesAnnuelles = 0;\n\n  if (donnees.lignesCA && Array.isArray(donnees.lignesCA)) {\n    donnees.lignesCA.forEach(function(l) {\n      if (l.montantsMensuels && Array.isArray(l.montantsMensuels)) {\n        l.montantsMensuels.forEach(function(m) { caAnnuel += Number(m) || 0; });\n      }\n    });\n  }\n  if (donnees.lignesCharges && Array.isArray(donnees.lignesCharges)) {\n    donnees.lignesCharges.forEach(function(l) {\n      if (l.montantsMensuels && Array.isArray(l.montantsMensuels)) {\n        l.montantsMensuels.forEach(function(m) { chargesAnnuelles += Number(m) || 0; });\n      }\n    });\n  }\n\n  var amortAnnuel = 0;\n  if (donnees.investissements && Array.isArray(donnees.investissements)) {\n    donnees.investissements.forEach(function(inv) {\n      var duree = Number(inv.dureeAmortissement) || 1;\n      var moisAcq = Number(inv.moisAcquisition) || 0;\n      var mensuel = (Number(inv.montantHT) || 0) / (duree * 12);\n      amortAnnuel += mensuel * (12 - moisAcq);\n    });\n  }\n\n  var resultatExploitation = round2(caAnnuel - chargesAnnuelles - amortAnnuel);\n\n  var chargesFixes = 0;\n  var chargesVariables = 0;\n  if (donnees.lignesCharges && Array.isArray(donnees.lignesCharges)) {\n    donnees.lignesCharges.forEach(function(l) {\n      var total = 0;\n      if (l.montantsMensuels) l.montantsMensuels.forEach(function(m) { total += Number(m) || 0; });\n      if (l.categorie === 'variable') chargesVariables += total;\n      else chargesFixes += total;\n    });\n  }\n  var tauxMarge = caAnnuel > 0 ? (caAnnuel - chargesVariables) / caAnnuel : 0;\n  var seuilRentabilite = tauxMarge > 0 ? round2(chargesFixes / tauxMarge) : 0;\n\n  var tresorerieFinale = 0;\n  if (donnees.financements && Array.isArray(donnees.financements)) {\n    donnees.financements.forEach(function(f) { tresorerieFinale += Number(f.montant) || 0; });\n  }\n  if (donnees.investissements && Array.isArray(donnees.investissements)) {\n    donnees.investissements.forEach(function(inv) {\n      tresorerieFinale -= (Number(inv.montantHT) || 0) * (1 + (Number(inv.tva) || 0) / 100);\n    });\n  }\n  tresorerieFinale += caAnnuel * 1.2 - chargesAnnuelles * 1.12;\n  tresorerieFinale = round2(tresorerieFinale);\n\n  setParts.push(\"ca_annuel = \" + round2(caAnnuel));\n  setParts.push(\"charges_annuelles = \" + round2(chargesAnnuelles));\n  setParts.push(\"resultat_exploitation = \" + resultatExploitation);\n  setParts.push(\"seuil_rentabilite = \" + seuilRentabilite);\n  setParts.push(\"tresorerie_finale = \" + tresorerieFinale);\n}\n\nvar query = \"UPDATE previsionnels SET \" + setParts.join(', ') + \" WHERE tenant_id = '\" + esc(tenantId) + \"' AND id = '\" + esc(id) + \"' RETURNING *;\";\n\nreturn [{json: {query: query}}];"
+      },
+      "id": "Parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "Postgres",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [740, 300],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "var row = $input.first().json;\nif (!row || !row.id) {\n  return [{json: {success: false, error: 'Prévisionnel non trouvé'}}];\n}\n\nvar donnees = {};\ntry {\n  donnees = typeof row.donnees === 'string' ? JSON.parse(row.donnees) : (row.donnees || {});\n} catch(e) { donnees = {}; }\n\nreturn [{json: {\n  success: true,\n  data: {\n    id: row.id,\n    tenantId: row.tenant_id,\n    clientFinalId: row.client_final_id || null,\n    nom: row.nom,\n    description: row.description || null,\n    annee: Number(row.annee),\n    statut: row.statut,\n    donnees: donnees,\n    caAnnuel: Number(row.ca_annuel || 0),\n    chargesAnnuelles: Number(row.charges_annuelles || 0),\n    resultatExploitation: Number(row.resultat_exploitation || 0),\n    seuilRentabilite: Number(row.seuil_rentabilite || 0),\n    tresorerieFinale: Number(row.tresorerie_finale || 0),\n    createdAt: row.created_at,\n    updatedAt: row.updated_at\n  }\n}}];"
+      },
+      "id": "Format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1180, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{"node": "Parser", "type": "main", "index": 0}]] },
+    "Parser": { "main": [[{"node": "Postgres", "type": "main", "index": 0}]] },
+    "Postgres": { "main": [[{"node": "Format", "type": "main", "index": 0}]] },
+    "Format": { "main": [[{"node": "Respond", "type": "main", "index": 0}]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

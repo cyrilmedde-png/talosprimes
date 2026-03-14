@@ -367,6 +367,8 @@ model Tenant {
   inventories           Inventory[]
   stockAlerts           StockAlert[]
   tickets               Ticket[]
+  // Prévisionnels
+  previsionnels         Previsionnel[]
   // Landing page multi-tenant
   landingSections       LandingSection[]
   landingGlobalConfigs  LandingGlobalConfig[]
@@ -442,6 +444,7 @@ model ClientFinal {
   projets             Projet[]
   btpChantiers        BtpChantier[]
   commissionsGenerees Commission[]
+  previsionnels       Previsionnel[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -3023,5 +3026,48 @@ model N8nChatHistory {
   @@index([sessionId])
   @@index([createdAt])
   @@map("n8n_chat_histories")
+}
+
+// ============================================================
+// Prévisionnel financier (pour clients ou interne)
+// ============================================================
+
+enum PrevisionnelStatut {
+  brouillon
+  valide
+  archive
+}
+
+model Previsionnel {
+  id                    String              @id @default(uuid()) @db.Uuid
+  tenantId              String              @map("tenant_id") @db.Uuid
+  clientFinalId         String?             @map("client_final_id") @db.Uuid
+
+  nom                   String              @default("Prévisionnel") @db.VarChar(255)
+  description           String?             @db.Text
+  annee                 Int                 @default(2026)
+  statut                PrevisionnelStatut  @default(brouillon)
+
+  // Données complètes en JSONB (lignesCA, lignesCharges, investissements, financements, parametres)
+  donnees               Json                @default("{}") @db.JsonB
+
+  // Résultats dénormalisés pour listing rapide
+  caAnnuel              Decimal             @default(0) @map("ca_annuel") @db.Decimal(12, 2)
+  chargesAnnuelles      Decimal             @default(0) @map("charges_annuelles") @db.Decimal(12, 2)
+  resultatExploitation   Decimal             @default(0) @map("resultat_exploitation") @db.Decimal(12, 2)
+  seuilRentabilite      Decimal             @default(0) @map("seuil_rentabilite") @db.Decimal(12, 2)
+  tresorerieFinale      Decimal             @default(0) @map("tresorerie_finale") @db.Decimal(12, 2)
+
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  tenant                Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientFinal           ClientFinal?        @relation(fields: [clientFinalId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([clientFinalId])
+  @@index([annee])
+  @@index([statut])
+  @@map("previsionnels")
 }
 

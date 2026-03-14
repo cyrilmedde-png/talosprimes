@@ -238,4 +238,75 @@ export async function comptabiliteRoutes(fastify: FastifyInstance) {
     const result = await n8nService.callWorkflowReturn(tenantId, 'compta_lettrage', { ...body });
     return reply.send(result);
   });
+
+  // ============================================================
+  // PRÉVISIONNEL FINANCIER (pour clients ou interne)
+  // ============================================================
+
+  const previsionnelListQuery = z.object({
+    clientFinalId: z.string().optional(),
+    annee: z.string().optional(),
+    statut: z.string().optional(),
+  });
+
+  // GET /api/comptabilite/previsionnels - Liste des prévisionnels
+  fastify.get('/previsionnels', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const tenantId = getTenantId(request, reply);
+    if (!tenantId) return;
+
+    const query = previsionnelListQuery.parse(request.query);
+    const result = await n8nService.callWorkflowReturn(tenantId, 'compta_previsionnel_list', query);
+    return reply.send(result);
+  });
+
+  // GET /api/comptabilite/previsionnels/:id - Détail d'un prévisionnel
+  fastify.get('/previsionnels/:id', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const tenantId = getTenantId(request, reply);
+    if (!tenantId) return;
+
+    const { id } = idParamsSchema.parse(request.params);
+    const result = await n8nService.callWorkflowReturn(tenantId, 'compta_previsionnel_get', { id });
+    return reply.send(result);
+  });
+
+  // POST /api/comptabilite/previsionnels - Créer un prévisionnel
+  fastify.post('/previsionnels', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const tenantId = getTenantId(request, reply);
+    if (!tenantId) return;
+
+    const body = request.body as Record<string, unknown>;
+    const result = await n8nService.callWorkflowReturn(tenantId, 'compta_previsionnel_create', body);
+    return reply.send(result);
+  });
+
+  // PUT /api/comptabilite/previsionnels/:id - Modifier un prévisionnel
+  fastify.put('/previsionnels/:id', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const tenantId = getTenantId(request, reply);
+    if (!tenantId) return;
+
+    const { id } = idParamsSchema.parse(request.params);
+    const body = request.body as Record<string, unknown>;
+    const result = await n8nService.callWorkflowReturn(tenantId, 'compta_previsionnel_update', { id, ...body });
+    return reply.send(result);
+  });
+
+  // DELETE /api/comptabilite/previsionnels/:id - Supprimer un prévisionnel
+  fastify.delete('/previsionnels/:id', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const tenantId = getTenantId(request, reply);
+    if (!tenantId) return;
+
+    const { id } = idParamsSchema.parse(request.params);
+    const result = await n8nService.callWorkflowReturn(tenantId, 'compta_previsionnel_delete', { id });
+    return reply.send(result);
+  });
 }
