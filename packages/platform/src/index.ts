@@ -48,6 +48,7 @@ import { partnersRoutes } from './api/routes/partners.routes.js';
 import { revenueRoutes } from './api/routes/revenue.routes.js';
 import { stockManagementRoutes } from './api/routes/stock-management.routes.js';
 import { marketingRoutes } from './api/routes/marketing.routes.js';
+import { startMarketingScheduler, stopMarketingScheduler } from './services/marketing-scheduler.service.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -408,6 +409,9 @@ const start = async () => {
     });
     
     fastify.log.info(`🚀 Server running on http://0.0.0.0:${env.PORT}`);
+
+    // Démarrer le scheduler de publications marketing planifiées
+    startMarketingScheduler();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
@@ -416,6 +420,7 @@ const start = async () => {
 
 // Gestion propre de l'arrêt
 process.on('SIGINT', async () => {
+  stopMarketingScheduler();
   fastify.log.info('Shutting down server...');
   await fastify.close();
   await prisma.$disconnect();
