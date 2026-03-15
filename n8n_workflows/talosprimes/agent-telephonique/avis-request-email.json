@@ -54,8 +54,8 @@
       },
       "id": "04. Send Email",
       "name": "04. Send Email",
-      "type": "n8n-nodes-base.sendEmail",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [760, 300],
       "credentials": {
         "smtp": {
