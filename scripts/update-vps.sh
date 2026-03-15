@@ -189,16 +189,46 @@ start_n8n() {
     fi
   fi
 
-  # Autoriser les modules externes (axios) dans les Code nodes n8n
+  # Autoriser les modules externes (axios) et builtin dans les Code nodes n8n
   local COMPOSE_FILE="$N8N_COMPOSE_DIR/docker-compose.yml"
-  if [ -f "$COMPOSE_FILE" ] && ! grep -q "NODE_FUNCTION_ALLOW_EXTERNAL" "$COMPOSE_FILE"; then
-    sed -i "/environment:/a\\      - NODE_FUNCTION_ALLOW_EXTERNAL=axios" "$COMPOSE_FILE" 2>/dev/null || true
-    log_info "NODE_FUNCTION_ALLOW_EXTERNAL=axios injecte dans docker-compose.yml"
+  local N8N_ENV_CHANGED=false
+  if [ -f "$COMPOSE_FILE" ]; then
+    if ! grep -q "NODE_FUNCTION_ALLOW_EXTERNAL" "$COMPOSE_FILE"; then
+      # Trouver la derniere variable d'env existante (- XXX=) et ajouter apres
+      sed -i '/^[[:space:]]*- [A-Z_]*=/{h;$!{n;/^[[:space:]]*- NODE_FUNCTION/!{H;x;};};};$a\' "$COMPOSE_FILE" 2>/dev/null || true
+      # Methode plus fiable : ajouter juste avant la ligne "volumes:" ou "restart:"
+      if ! grep -q "NODE_FUNCTION_ALLOW_EXTERNAL" "$COMPOSE_FILE"; then
+        sed -i '/^[[:space:]]*volumes:/i\      - NODE_FUNCTION_ALLOW_EXTERNAL=axios' "$COMPOSE_FILE" 2>/dev/null || true
+      fi
+      # Si toujours pas present, essayer apres environment:
+      if ! grep -q "NODE_FUNCTION_ALLOW_EXTERNAL" "$COMPOSE_FILE"; then
+        sed -i '/environment:/a\      - NODE_FUNCTION_ALLOW_EXTERNAL=axios' "$COMPOSE_FILE" 2>/dev/null || true
+      fi
+      if grep -q "NODE_FUNCTION_ALLOW_EXTERNAL" "$COMPOSE_FILE"; then
+        log_info "NODE_FUNCTION_ALLOW_EXTERNAL=axios injecte dans docker-compose.yml"
+        N8N_ENV_CHANGED=true
+      else
+        log_warn "Impossible d'injecter NODE_FUNCTION_ALLOW_EXTERNAL — ajoutez manuellement dans $COMPOSE_FILE"
+        log_warn "  Sous 'environment:', ajoutez: - NODE_FUNCTION_ALLOW_EXTERNAL=axios"
+      fi
+    fi
+    if ! grep -q "NODE_FUNCTION_ALLOW_BUILTIN" "$COMPOSE_FILE"; then
+      sed -i '/NODE_FUNCTION_ALLOW_EXTERNAL/a\      - NODE_FUNCTION_ALLOW_BUILTIN=*' "$COMPOSE_FILE" 2>/dev/null || true
+      if grep -q "NODE_FUNCTION_ALLOW_BUILTIN" "$COMPOSE_FILE"; then
+        log_info "NODE_FUNCTION_ALLOW_BUILTIN=* injecte dans docker-compose.yml"
+        N8N_ENV_CHANGED=true
+      fi
+    fi
   fi
 
-  # 1. Demarrer le container (peut le recreer depuis l'image)
+  # 1. Demarrer le container (force-recreate si env vars changees)
   cd "$N8N_COMPOSE_DIR"
-  docker compose up -d n8n 2>/dev/null || docker start n8n 2>/dev/null || true
+  if [ "$N8N_ENV_CHANGED" = true ]; then
+    log_info "Variables n8n modifiees, recreation du container..."
+    docker compose up -d --force-recreate n8n 2>/dev/null || docker start n8n 2>/dev/null || true
+  else
+    docker compose up -d n8n 2>/dev/null || docker start n8n 2>/dev/null || true
+  fi
   cd "$PROJECT_DIR"
 
   # 2. Appliquer le patch webhook APRES docker compose up (sinon le patch est ecrase)
