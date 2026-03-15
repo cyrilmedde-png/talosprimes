@@ -94,13 +94,17 @@ server {
     listen 80;
     server_name $API_SUBDOMAIN;
 
+    # Taille max upload (100 Mo pour vidéos marketing)
+    client_max_body_size 100m;
+
     # Gérer les requêtes OPTIONS (preflight CORS)
     location / {
         # Répondre aux OPTIONS avant de proxy
         if (\$request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '*' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
+            add_header 'Access-Control-Allow-Origin' 'https://talosprimes.com' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-TalosPrimes-N8N-Secret, X-Idempotency-Key' always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
             add_header 'Access-Control-Max-Age' 1728000;
             add_header 'Content-Type' 'text/plain; charset=utf-8';
             add_header 'Content-Length' 0;
@@ -108,9 +112,10 @@ server {
         }
 
         # CORS headers pour les autres requêtes
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type' always;
+        add_header 'Access-Control-Allow-Origin' 'https://talosprimes.com' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-TalosPrimes-N8N-Secret, X-Idempotency-Key' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
 
         proxy_pass http://localhost:$BACKEND_PORT;
         proxy_http_version 1.1;
@@ -121,11 +126,11 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
-        
-        # Timeouts
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
+
+        # Timeouts (augmentés pour upload vidéos)
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
     }
 
     # Logs
