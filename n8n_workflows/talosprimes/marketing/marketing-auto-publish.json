@@ -503,19 +503,30 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.source }}",
-              "operation": "equals",
-              "value2": "webhook_manual"
+              "id": "condition-source-manual",
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "webhook_manual",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-user-content",
       "name": "Contenu fourni ?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         540,
         720
