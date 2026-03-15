@@ -503,10 +503,11 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
-              "value1": "={{ $json.has_user_content }}",
-              "value2": true
+              "value1": "={{ $json.source }}",
+              "operation": "equals",
+              "value2": "webhook_manual"
             }
           ]
         }
@@ -522,7 +523,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Publication manuelle : formater les données pour la plateforme sélectionnée\nconst data = $input.first().json;\n\nconst text = data.user_content || data.contenu_texte || '';\nconst rawHashtags = data.user_hashtags || data.hashtags || '';\nconst imageUrl = data.contenu_visuel_url || '';\nconst platform = (data.user_plateforme || 'facebook').toLowerCase().trim();\n\nlet message = text;\nlet formattedHashtags = '';\nif (rawHashtags.trim()) {\n  formattedHashtags = rawHashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n  message += '\\n\\n' + formattedHashtags;\n}\n\nreturn [{\n  json: {\n    success: true,\n    source: 'manual',\n    platform: platform,\n    theme: {\n      sujet: data.sujet || 'Publication manuelle',\n      angle: message,\n      content_type: data.content_type || data.type || 'manuel',\n      week_theme: 'Manuel'\n    },\n    facebook: {\n      text: message,\n      hashtags: []\n    },\n    tiktok: {\n      caption: message.substring(0, 150),\n      hashtags: formattedHashtags ? formattedHashtags.split(' ') : [],\n      video_url: data.contenu_video_url || null,\n      photo_url: imageUrl || null\n    },\n    linkedin: {\n      commentary: message.substring(0, 1300),\n      hashtags: []\n    },\n    visual_prompt: '',\n    contenu_visuel_url: imageUrl,\n    contenu_video_url: data.contenu_video_url || null,\n    generated_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Publication manuelle : UNE SEULE plateforme, UNE SEULE publication\nconst data = $input.first().json;\n\nconst text = data.user_content || data.contenu_texte || '';\nconst rawHashtags = data.user_hashtags || data.hashtags || '';\nconst imageUrl = data.contenu_visuel_url || '';\nconst videoUrl = data.contenu_video_url || '';\n\n// PLATEFORME : celle choisie par l'utilisateur, POINT FINAL\nconst platform = (data.user_plateforme || data.plateforme || '').toLowerCase().trim();\nif (!platform) {\n  return [{ json: { error: true, message: 'Aucune plateforme sélectionnée' } }];\n}\n\n// Valider que la plateforme est supportée\nconst supported = ['facebook', 'tiktok', 'instagram', 'linkedin'];\nif (!supported.includes(platform)) {\n  return [{ json: { error: true, message: 'Plateforme non supportée: ' + platform } }];\n}\n\n// Construire le message\nlet message = text;\nlet formattedHashtags = '';\nif (rawHashtags.trim()) {\n  formattedHashtags = rawHashtags.split(/[,\\s]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h).join(' ');\n  if (message) message += '\\n\\n' + formattedHashtags;\n  else message = formattedHashtags;\n}\n\n// Si pas de texte du tout, utiliser le sujet comme fallback\nif (!message && data.sujet) message = data.sujet;\n\nreturn [{\n  json: {\n    success: true,\n    source: 'manual',\n    platform: platform,\n    theme: {\n      sujet: data.sujet || 'Publication manuelle',\n      angle: message || data.angle || '',\n      content_type: data.content_type || data.type || 'manuel',\n      week_theme: 'Manuel'\n    },\n    facebook: {\n      text: message,\n      hashtags: []\n    },\n    tiktok: {\n      caption: (message || '').substring(0, 150),\n      hashtags: formattedHashtags ? formattedHashtags.split(' ') : [],\n      video_url: videoUrl || null,\n      photo_url: imageUrl || null\n    },\n    instagram: {\n      caption: message || '',\n      hashtags: formattedHashtags ? formattedHashtags.split(' ') : []\n    },\n    linkedin: {\n      commentary: (message || '').substring(0, 1300),\n      hashtags: []\n    },\n    visual_prompt: '',\n    contenu_visuel_url: imageUrl,\n    contenu_video_url: videoUrl || null,\n    generated_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "manual-content",
       "name": "Publier Manuel Direct",
@@ -547,10 +548,13 @@
             },
             {
               "value2": "linkedin"
+            },
+            {
+              "value2": "instagram"
             }
           ]
         },
-        "fallbackOutput": 0
+        "fallbackOutput": -1
       },
       "id": "router-platform",
       "name": "Router Plateforme",
@@ -882,6 +886,13 @@
         [
           {
             "node": "Préparer LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Préparer Instagram",
             "type": "main",
             "index": 0
           }
