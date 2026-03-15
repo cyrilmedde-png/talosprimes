@@ -342,6 +342,7 @@ export async function marketingRoutes(fastify: FastifyInstance) {
   );
 
   // ── DELETE /posts/:id — Supprimer une publication ────────────
+  // Supprime aussi de la plateforme externe (Facebook, TikTok, etc.) si possible
   fastify.delete(
     '/posts/:id',
     { preHandler: [n8nOrAuthMiddleware] },
@@ -356,9 +357,53 @@ export async function marketingRoutes(fastify: FastifyInstance) {
       });
       if (!existing) return ApiError.notFound(reply, 'Publication');
 
+      // Tenter de supprimer de la plateforme externe si on a un ID externe
+      let platformDeleted = false;
+      let platformError: string | null = null;
+
+      if (existing.postExternalId) {
+        try {
+          const platform = existing.plateforme.toLowerCase();
+
+          if (platform === 'facebook') {
+            // Facebook Graph API : DELETE /{post_id}
+            const PAGE_ACCESS_TOKEN = env.FACEBOOK_PAGE_ACCESS_TOKEN || '';
+            if (PAGE_ACCESS_TOKEN) {
+              const fbResp = await fetch(
+                `https://graph.facebook.com/v25.0/${existing.postExternalId}?access_token=${PAGE_ACCESS_TOKEN}`,
+                { method: 'DELETE' }
+              );
+              const fbData = await fbResp.json() as Record<string, unknown>;
+              platformDeleted = fbResp.ok && fbData.success === true;
+              if (!platformDeleted) {
+                platformError = `Facebook: ${JSON.stringify(fbData).substring(0, 200)}`;
+              }
+            }
+          } else if (platform === 'tiktok') {
+            // TikTok Content Posting API : pas de suppression via API pour le moment
+            // L'API TikTok ne supporte pas la suppression de posts publiés
+            platformError = 'TikTok ne supporte pas la suppression via API';
+          } else if (platform === 'instagram') {
+            // Instagram Graph API : pas de suppression de posts via API Content Publishing
+            platformError = 'Instagram ne supporte pas la suppression via API';
+          } else if (platform === 'linkedin') {
+            // LinkedIn : suppression possible via DELETE /posts/{post_urn}
+            platformError = 'LinkedIn : suppression non implémentée';
+          }
+        } catch (err) {
+          platformError = `Erreur suppression plateforme: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+
+      // Supprimer de la BDD dans tous les cas
       await prisma.marketingPost.delete({ where: { id } });
 
-      return reply.send({ success: true, message: 'Publication supprimée' });
+      return reply.send({
+        success: true,
+        message: 'Publication supprimée',
+        platformDeleted,
+        platformError,
+      });
     }
   );
 
