@@ -189,6 +189,13 @@ start_n8n() {
     fi
   fi
 
+  # Autoriser les modules externes (axios) dans les Code nodes n8n
+  local COMPOSE_FILE="$N8N_COMPOSE_DIR/docker-compose.yml"
+  if [ -f "$COMPOSE_FILE" ] && ! grep -q "NODE_FUNCTION_ALLOW_EXTERNAL" "$COMPOSE_FILE"; then
+    sed -i "/environment:/a\\      - NODE_FUNCTION_ALLOW_EXTERNAL=axios" "$COMPOSE_FILE" 2>/dev/null || true
+    log_info "NODE_FUNCTION_ALLOW_EXTERNAL=axios injecte dans docker-compose.yml"
+  fi
+
   # 1. Demarrer le container (peut le recreer depuis l'image)
   cd "$N8N_COMPOSE_DIR"
   docker compose up -d n8n 2>/dev/null || docker start n8n 2>/dev/null || true
