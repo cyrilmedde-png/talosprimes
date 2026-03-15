@@ -27,6 +27,34 @@ interface RhDashboardStats {
   effectifTotal: number;
 }
 
+/** Normalise la réponse n8n (imbriquée) vers la structure plate attendue */
+function normalizeStats(raw: Record<string, unknown>): RhDashboardStats {
+  if (!raw || typeof raw !== 'object') {
+    return { effectifTotal: 0, totalContrats: 0, contratsActifs: 0, congesEnAttente: 0, formationsEnCours: 0, evaluationsCeMois: 0, masseSalariale: 0, tauxAbsenteisme: 0 };
+  }
+  // Si déjà plate
+  if ('effectifTotal' in raw && 'contratsActifs' in raw) {
+    return raw as unknown as RhDashboardStats;
+  }
+  // Sinon mapper la structure imbriquée du workflow n8n
+  const effectif = (raw.effectif || {}) as Record<string, number>;
+  const contrats = (raw.contrats || {}) as Record<string, number>;
+  const conges = (raw.conges || {}) as Record<string, number>;
+  const formations = (raw.formations || {}) as Record<string, number>;
+  const evaluations = (raw.evaluations || {}) as Record<string, number>;
+  const paie = (raw.paie || {}) as Record<string, number>;
+  return {
+    effectifTotal: Number(effectif.total || 0),
+    totalContrats: Number(contrats.actifs || 0) + Number(contrats.expirant30j || 0),
+    contratsActifs: Number(contrats.actifs || 0),
+    congesEnAttente: Number(conges.enAttente || 0),
+    formationsEnCours: Number(formations.enCours || 0),
+    evaluationsCeMois: Number(evaluations.ceMois || 0),
+    masseSalariale: Number(paie.masseSalariale || 0),
+    tauxAbsenteisme: Number(raw.tauxAbsenteisme || 0),
+  };
+}
+
 export default function RhDashboard(): JSX.Element {
   const [stats, setStats] = useState<RhDashboardStats>({
     totalContrats: 0,
@@ -46,7 +74,8 @@ export default function RhDashboard(): JSX.Element {
       try {
         setLoading(true);
         const response = await apiClient.rh.dashboard();
-        setStats(response.data as unknown as RhDashboardStats);
+        const rawData = (response.data || {}) as Record<string, unknown>;
+        setStats(normalizeStats(rawData));
         setError(null);
       } catch (err) {
         setError(

@@ -419,6 +419,17 @@ export class N8nService {
     }
     // Convertir les clés snake_case (PostgreSQL) en camelCase (frontend)
     const data = transformKeys(rawData as Record<string, unknown>) as T;
+
+    // Si le workflow n8n a déjà renvoyé { success, data }, ne pas double-wrapper
+    if (
+      data &&
+      typeof data === 'object' &&
+      'success' in (data as Record<string, unknown>) &&
+      'data' in (data as Record<string, unknown>)
+    ) {
+      return data as { success: boolean; data?: T; error?: string };
+    }
+
     return { success: true, data };
   }
   /**
