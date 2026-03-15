@@ -51,8 +51,8 @@ import { marketingRoutes } from './api/routes/marketing.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
-  // Limite globale de taille du body (1 Mo par défaut – évite les attaques par payload surdimensionné)
-  bodyLimit: 1_048_576, // 1 Mo
+  // Limite globale de taille du body (100 Mo pour upload vidéos marketing)
+  bodyLimit: 100 * 1024 * 1024, // 100 Mo
   logger: {
     level: env.NODE_ENV === 'production' ? 'info' : 'debug',
     transport:
