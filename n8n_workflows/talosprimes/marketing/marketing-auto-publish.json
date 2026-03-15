@@ -560,6 +560,19 @@
         980,
         720
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ========================================\n// GÉNÉRATION VIDÉO AUTOMATIQUE — Shotstack\n// ========================================\n// API Key Shotstack (remplacer par votre clé)\nconst SHOTSTACK_API_KEY = 'REMPLACER_PAR_VOTRE_CLE_SHOTSTACK';\nconst SHOTSTACK_ENV = 'stage'; // 'stage' pour sandbox, 'v1' pour production\nconst axios = require('axios');\n\nconst data = $input.first().json;\nif (data.error) return [$input.first()];\n\nconst theme = data.theme || {};\nconst sujet = theme.sujet || data.sujet || 'TalosPrimes';\nconst angle = theme.angle || data.angle || '';\nconst brandName = theme.brand_name || data.brand_name || 'TalosPrimes';\nconst brandDesc = theme.brand_description || 'Plateforme SaaS de gestion tout-en-un';\nconst brandUrl = theme.brand_url || 'https://talosprimes.com';\n\n// Si une vidéo est déjà fournie (upload manuel), ne pas générer\nif (data.contenu_video_url) {\n  return [{ json: { ...data } }];\n}\n\n// Si pas de clé API, passer sans générer de vidéo\nif (SHOTSTACK_API_KEY === 'REMPLACER_PAR_VOTRE_CLE_SHOTSTACK') {\n  return [{ json: { ...data, shotstack_skipped: 'Clé API non configurée' } }];\n}\n\n// Template vidéo marketing TalosPrimes (15 secondes)\nconst edit = {\n  timeline: {\n    background: '#0f172a',\n    fonts: [\n      { src: 'https://fonts.googleapis.com/css2?family=Inter:wght@700&display=swap' }\n    ],\n    tracks: [\n      // Track 1 : Textes animés (par-dessus)\n      {\n        clips: [\n          // Scène 1 : Nom de la marque (0-4s)\n          {\n            asset: {\n              type: 'html',\n              html: '<div style=\"font-family:Inter,sans-serif;text-align:center;padding:40px;\"><h1 style=\"color:#3b82f6;font-size:64px;margin:0;\">' + brandName + '</h1><p style=\"color:#94a3b8;font-size:24px;margin-top:16px;\">' + brandDesc + '</p></div>',\n              width: 1920,\n              height: 1080\n            },\n            start: 0,\n            length: 4,\n            transition: { in: 'fade', out: 'fade' }\n          },\n          // Scène 2 : Sujet principal (4-9s)\n          {\n            asset: {\n              type: 'html',\n              html: '<div style=\"font-family:Inter,sans-serif;text-align:center;padding:60px;\"><h1 style=\"color:#ffffff;font-size:56px;margin:0;line-height:1.2;\">' + sujet.replace(/'/g, \"&#39;\") + '</h1></div>',\n              width: 1920,\n              height: 1080\n            },\n            start: 4,\n            length: 5,\n            transition: { in: 'slideRight', out: 'fade' }\n          },\n          // Scène 3 : Angle / Description (9-13s)\n          {\n            asset: {\n              type: 'html',\n              html: '<div style=\"font-family:Inter,sans-serif;text-align:center;padding:60px;\"><p style=\"color:#e2e8f0;font-size:36px;margin:0;line-height:1.4;\">' + angle.replace(/'/g, \"&#39;\").substring(0, 120) + '</p></div>',\n              width: 1920,\n              height: 1080\n            },\n            start: 9,\n            length: 4,\n            transition: { in: 'slideLeft', out: 'fade' }\n          },\n          // Scène 4 : Call to action (13-16s)\n          {\n            asset: {\n              type: 'html',\n              html: '<div style=\"font-family:Inter,sans-serif;text-align:center;padding:60px;\"><h2 style=\"color:#3b82f6;font-size:48px;margin:0;\">Découvrez ' + brandName + '</h2><p style=\"color:#94a3b8;font-size:32px;margin-top:24px;\">' + brandUrl + '</p></div>',\n              width: 1920,\n              height: 1080\n            },\n            start: 13,\n            length: 3,\n            transition: { in: 'fade', out: 'fade' }\n          }\n        ]\n      },\n      // Track 2 : Fond dégradé\n      {\n        clips: [\n          {\n            asset: {\n              type: 'html',\n              html: '<div style=\"width:1920px;height:1080px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);\"></div>',\n              width: 1920,\n              height: 1080\n            },\n            start: 0,\n            length: 16\n          }\n        ]\n      }\n    ]\n  },\n  output: {\n    format: 'mp4',\n    resolution: 'hd',\n    fps: 25\n  }\n};\n\ntry {\n  const BASE = 'https://api.shotstack.io/edit/' + SHOTSTACK_ENV;\n  const headers = {\n    'Content-Type': 'application/json',\n    'x-api-key': SHOTSTACK_API_KEY\n  };\n\n  // Soumettre le rendu\n  const renderResp = await axios.post(BASE + '/render', edit, { headers });\n  const renderId = renderResp.data?.response?.id;\n\n  if (!renderId) {\n    return [{ json: { ...data, shotstack_error: 'Pas de render ID: ' + JSON.stringify(renderResp.data) } }];\n  }\n\n  // Polling (max 120s, vérifier toutes les 5s)\n  let videoUrl = null;\n  let status = 'queued';\n  for (let i = 0; i < 24; i++) {\n    await new Promise(r => setTimeout(r, 5000));\n    const statusResp = await axios.get(BASE + '/render/' + renderId, { headers });\n    status = statusResp.data?.response?.status || 'unknown';\n    \n    if (status === 'done') {\n      videoUrl = statusResp.data?.response?.url || null;\n      break;\n    }\n    if (status === 'failed') {\n      return [{ json: { ...data, shotstack_error: 'Rendu échoué: ' + JSON.stringify(statusResp.data?.response?.error) } }];\n    }\n  }\n\n  if (!videoUrl) {\n    return [{ json: { ...data, shotstack_error: 'Timeout rendu vidéo (status: ' + status + ')' } }];\n  }\n\n  // Ajouter l'URL de la vidéo générée aux données\n  return [{ json: { ...data, contenu_video_url: videoUrl, shotstack_render_id: renderId } }];\n\n} catch (err) {\n  // En cas d'erreur, continuer sans vidéo (ne pas bloquer la publication)\n  return [{ json: { ...data, shotstack_error: 'Erreur Shotstack: ' + (err.message || String(err)) } }];\n}"
+      },
+      "id": "shotstack-generate",
+      "name": "Générer Vidéo Shotstack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        300
+      ]
     }
   ],
   "connections": {
@@ -600,22 +613,7 @@
       "main": [
         [
           {
-            "node": "Préparer Facebook",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer Instagram",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer TikTok",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Préparer LinkedIn",
+            "node": "Générer Vidéo Shotstack",
             "type": "main",
             "index": 0
           }
@@ -891,6 +889,32 @@
         [
           {
             "node": "Préparer Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Générer Vidéo Shotstack": {
+      "main": [
+        [
+          {
+            "node": "Préparer Facebook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer Instagram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer TikTok",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Préparer LinkedIn",
             "type": "main",
             "index": 0
           }
