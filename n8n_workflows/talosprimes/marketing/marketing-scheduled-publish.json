@@ -1,0 +1,225 @@
+{
+  "name": "Marketing - Publier Posts Planifiés",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "* * * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-check",
+      "name": "Cron Toutes les Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, tenant_id, plateforme, type, sujet, contenu_texte, contenu_visuel_url, contenu_video_url, hashtags, date_publication FROM marketing_posts WHERE status = 'planifie' AND date_publication <= NOW() ORDER BY date_publication ASC LIMIT 10;",
+        "options": {}
+      },
+      "id": "check-due-posts",
+      "name": "Chercher Posts à Publier",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "credentials": {
+        "postgres": {
+          "id": "6Kosza77d9Ld32mw",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst posts = items.map(i => i.json).filter(p => p.id);\n\nif (posts.length === 0) {\n  return [{ json: { skip: true, message: 'Aucun post planifié à publier' } }];\n}\n\nreturn posts.map(p => ({\n  json: {\n    skip: false,\n    post_id: p.id,\n    tenant_id: p.tenant_id,\n    plateforme: p.plateforme,\n    type: p.type,\n    sujet: p.sujet,\n    contenu_texte: p.contenu_texte || '',\n    contenu_visuel_url: p.contenu_visuel_url || '',\n    contenu_video_url: p.contenu_video_url || '',\n    hashtags: p.hashtags || ''\n  }\n}));"
+      },
+      "id": "format-posts",
+      "name": "Formater Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.skip }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-has-posts",
+      "name": "Posts à publier ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE marketing_posts SET status = 'en_cours' WHERE id = '\" + $json.post_id + \"' AND status = 'planifie';\" }}",
+        "options": {}
+      },
+      "id": "lock-post",
+      "name": "Verrouiller Post",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1080, 200],
+      "credentials": {
+        "postgres": {
+          "id": "6Kosza77d9Ld32mw",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL ? $env.N8N_WEBHOOK_BASE_URL + '/webhook/marketing-auto-publish' : 'http://localhost:5678/webhook/marketing-auto-publish' }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "manual", "value": "true" },
+            { "name": "post_id", "value": "={{ $('Formater Posts').item.json.post_id }}" },
+            { "name": "plateforme", "value": "={{ $('Formater Posts').item.json.plateforme }}" },
+            { "name": "type", "value": "={{ $('Formater Posts').item.json.type }}" },
+            { "name": "sujet", "value": "={{ $('Formater Posts').item.json.sujet }}" },
+            { "name": "contenu_texte", "value": "={{ $('Formater Posts').item.json.contenu_texte }}" },
+            { "name": "contenu_visuel_url", "value": "={{ $('Formater Posts').item.json.contenu_visuel_url }}" },
+            { "name": "contenu_video_url", "value": "={{ $('Formater Posts').item.json.contenu_video_url }}" },
+            { "name": "hashtags", "value": "={{ $('Formater Posts').item.json.hashtags }}" },
+            { "name": "tenantId", "value": "={{ $('Formater Posts').item.json.tenant_id }}" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-publish",
+      "name": "Appeler Workflow Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst postId = $('Formater Posts').item.json.post_id;\nconst plateforme = $('Formater Posts').item.json.plateforme;\n\nconst isError = !data || data.error || data.statusCode >= 400;\n\nlet postExternalId = null;\nif (!isError && data.platforms) {\n  for (const [p, r] of Object.entries(data.platforms)) {\n    if (r.post_id) { postExternalId = String(r.post_id); break; }\n  }\n}\n\nconst status = isError ? 'erreur' : 'publie';\nconst erreurDetail = isError ? (data.error || data.message || 'Erreur workflow').substring(0, 500) : null;\n\nfunction esc(val) {\n  if (val === null || val === undefined) return 'NULL';\n  return \"'\" + String(val).replace(/'/g, \"''\") + \"'\";\n}\n\nconst query = `UPDATE marketing_posts SET status = ${esc(status)}, ${postExternalId ? 'post_external_id = ' + esc(postExternalId) + ',' : ''} ${erreurDetail ? 'erreur_detail = ' + esc(erreurDetail) + ',' : ''} updated_at = NOW() WHERE id = ${esc(postId)};`;\n\nreturn [{ json: { query, postId, plateforme, status, postExternalId, erreurDetail } }];"
+      },
+      "id": "build-update",
+      "name": "Préparer Update Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "update-status",
+      "name": "Mettre à Jour Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1740, 200],
+      "credentials": {
+        "postgres": {
+          "id": "6Kosza77d9Ld32mw",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nfunction esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\n\nconst emoji = data.status === 'publie' ? '✅' : '❌';\nconst message = `📅 <b>Publication Planifiée</b>\\n`\n  + `${emoji} ${esc(data.plateforme)} — ${esc(data.status)}\\n`\n  + `📝 Post ID: ${esc(data.postId)}\\n`\n  + (data.postExternalId ? `🔗 External ID: ${esc(data.postExternalId)}\\n` : '')\n  + (data.erreurDetail ? `⚠️ ${esc(data.erreurDetail)}\\n` : '')\n  + `\\n<i>TalosPrimes Scheduler</i>`;\n\nreturn [{ json: { chatId: '6296082748', message } }];"
+      },
+      "id": "notif-prepare",
+      "name": "Préparer Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parseMode": "HTML"
+        }
+      },
+      "id": "send-telegram",
+      "name": "Envoyer Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2180, 200],
+      "continueOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "JeSjY5sE3QcncJ4u",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron Toutes les Minutes": {
+      "main": [
+        [{ "node": "Chercher Posts à Publier", "type": "main", "index": 0 }]
+      ]
+    },
+    "Chercher Posts à Publier": {
+      "main": [
+        [{ "node": "Formater Posts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Formater Posts": {
+      "main": [
+        [{ "node": "Posts à publier ?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Posts à publier ?": {
+      "main": [
+        [{ "node": "Verrouiller Post", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Verrouiller Post": {
+      "main": [
+        [{ "node": "Appeler Workflow Publish", "type": "main", "index": 0 }]
+      ]
+    },
+    "Appeler Workflow Publish": {
+      "main": [
+        [{ "node": "Préparer Update Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Préparer Update Status": {
+      "main": [
+        [{ "node": "Mettre à Jour Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Mettre à Jour Status": {
+      "main": [
+        [{ "node": "Préparer Notification", "type": "main", "index": 0 }]
+      ]
+    },
+    "Préparer Notification": {
+      "main": [
+        [{ "node": "Envoyer Telegram", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}
