@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/lib/api-client';
 
 interface Campaign {
   id: string;
@@ -44,80 +45,38 @@ export default function SMSCampaignsPage() {
   });
   const [charCount, setCharCount] = useState(0);
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const maxChars = 160;
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const getHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    const tenantId = localStorage.getItem('tenantId');
-
-    if (!token || !tenantId) {
-      setError('Authentication required');
-      throw new Error('Missing authentication');
-    }
-
-    return {
-      'Authorization': `Bearer ${token}`,
-      'x-tenant-id': tenantId,
-      'Content-Type': 'application/json',
-    };
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const headers = getHeaders();
+      const [campaignsRes, statsRes, listsRes] = await Promise.all([
+        apiClient.newsletter.listSmsCampaigns({ limit: 50, offset: 0 }) as Promise<{ success: boolean; data: { campaigns: Campaign[]; total: number } }>,
+        apiClient.newsletter.getSmsCampaignStats() as Promise<{ success: boolean; data: { stats: Stats } }>,
+        apiClient.newsletter.listSubscriberLists() as Promise<{ success: boolean; data: { lists: SubscriberList[] } }>,
+      ]);
 
-      // Fetch campaigns
-      const campaignsRes = await fetch(`${baseUrl}/api/newsletters/sms-campaigns`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          tenantId: localStorage.getItem('tenantId'),
-          limit: 50,
-          offset: 0,
-        }),
-      });
-
-      if (!campaignsRes.ok) {
-        throw new Error('Failed to fetch campaigns');
+      if (campaignsRes.success && campaignsRes.data?.campaigns) {
+        setCampaigns(campaignsRes.data.campaigns);
       }
-      const campaignsData = await campaignsRes.json();
-      setCampaigns(campaignsData.campaigns || []);
 
-      // Fetch stats
-      const statsRes = await fetch(`${baseUrl}/api/newsletters/sms-campaigns/stats`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          tenantId: localStorage.getItem('tenantId'),
-        }),
-      });
-
-      if (!statsRes.ok) {
-        throw new Error('Failed to fetch stats');
+      if (statsRes.success && statsRes.data?.stats) {
+        setStats(statsRes.data.stats);
       }
-      const statsData = await statsRes.json();
-      setStats(statsData.stats || null);
 
-      // Fetch subscriber lists
-      const listsRes = await fetch(`${baseUrl}/api/newsletters/subscribers/lists`, {
-        headers,
-      });
-
-      if (!listsRes.ok) {
-        throw new Error('Failed to fetch subscriber lists');
+      if (listsRes.success && listsRes.data?.lists) {
+        setLists(listsRes.data.lists);
+      } else {
+        setLists([]);
       }
-      const listsData = await listsRes.json();
-      setLists(Array.isArray(listsData) ? listsData : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
     } finally {
       setLoading(false);
     }
@@ -127,43 +86,32 @@ export default function SMSCampaignsPage() {
     e.preventDefault();
 
     if (!formData.nom.trim()) {
-      setError('Campaign name is required');
+      setError('Le nom de la campagne est requis');
       return;
     }
 
     if (!formData.contenu.trim()) {
-      setError('Content is required');
+      setError('Le contenu est requis');
       return;
     }
 
     if (formData.contenu.length > maxChars) {
-      setError(`Content must be ${maxChars} characters or less`);
+      setError(`Le contenu doit faire ${maxChars} caractères maximum`);
       return;
     }
 
     if (!formData.listId) {
-      setError('Subscriber list is required');
+      setError('La liste d\'abonnés est requise');
       return;
     }
 
     try {
-      const headers = getHeaders();
-
-      const res = await fetch(`${baseUrl}/api/newsletters/sms-campaigns`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          tenantId: localStorage.getItem('tenantId'),
-          nom: formData.nom,
-          contenu: formData.contenu,
-          listId: formData.listId,
-          scheduledAt: formData.scheduledAt || null,
-        }),
+      await apiClient.newsletter.createSmsCampaign({
+        nom: formData.nom,
+        contenu: formData.contenu,
+        listId: formData.listId,
+        scheduledAt: formData.scheduledAt || undefined,
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to create campaign');
-      }
 
       setFormData({
         nom: '',
@@ -176,7 +124,7 @@ export default function SMSCampaignsPage() {
       setError(null);
       await fetchData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création');
     }
   };
 

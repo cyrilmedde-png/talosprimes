@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api-client';
 
 interface Analytics {
   totalSent: number;
@@ -39,40 +40,25 @@ export default function NewsletterAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
   useEffect(() => {
     fetchData();
   }, []);
 
   async function fetchData() {
     setLoading(true);
-    const token = localStorage.getItem('accessToken');
-    const tenantId = localStorage.getItem('tenantId');
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'x-tenant-id': tenantId || '',
-    };
 
     try {
       const [analyticsRes, subsRes] = await Promise.all([
-        fetch(`${baseUrl}/api/newsletters/analytics`, { headers }),
-        fetch(`${baseUrl}/api/newsletters/subscribers/stats`, { headers }),
+        apiClient.newsletter.getAnalytics() as Promise<{ success: boolean; data: { analytics: Analytics } }>,
+        apiClient.newsletter.getSubscriberStats() as Promise<{ success: boolean; data: { stats: SubscriberStats } }>,
       ]);
 
-      const analyticsData = await analyticsRes.json();
-      const subsData = await subsRes.json();
-
-      if (analyticsData.success && analyticsData.data?.analytics) {
-        setAnalytics(analyticsData.data.analytics);
-      } else if (analyticsData.data) {
-        setAnalytics(analyticsData.data);
+      if (analyticsRes.success && analyticsRes.data?.analytics) {
+        setAnalytics(analyticsRes.data.analytics);
       }
 
-      if (subsData.success && subsData.data?.stats) {
-        setSubscriberStats(subsData.data.stats);
-      } else if (subsData.data) {
-        setSubscriberStats(subsData.data);
+      if (subsRes.success && subsRes.data?.stats) {
+        setSubscriberStats(subsRes.data.stats);
       }
     } catch (err) {
       setError('Erreur lors du chargement des analytics');

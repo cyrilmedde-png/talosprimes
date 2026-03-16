@@ -1683,6 +1683,9 @@ export const apiClient = {
     // Analytics
     getAnalytics: () =>
       authenticatedFetch<{ success: boolean; data: { analytics: unknown } }>('/api/newsletters/analytics'),
+    // Send test email
+    sendTestEmail: (data: { sujet: string; contenuHtml: string }) =>
+      authenticatedFetch<{ success: boolean }>('/api/newsletters/campaigns/test-email', { method: 'POST', body: JSON.stringify(data) }),
     // Dashboard
     getDashboard: () =>
       authenticatedFetch<{ success: boolean; data: { dashboard: unknown } }>('/api/newsletters/dashboard'),

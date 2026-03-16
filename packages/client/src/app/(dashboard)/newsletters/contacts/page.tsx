@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/lib/api-client';
 
 interface Subscriber {
   id: string;
@@ -23,8 +24,6 @@ export default function ContactsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({ email: '', nom: '', prenom: '' });
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
   useEffect(() => {
     fetchSubscribers();
   }, []);
@@ -34,28 +33,14 @@ export default function ContactsPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        setLoading(false);
-        return;
+      const res = await apiClient.newsletter.listSubscribers() as { success: boolean; data: { subscribers: Subscriber[]; total: number } };
+      if (res.success && res.data?.subscribers) {
+        setSubscribers(res.data.subscribers);
+      } else {
+        setSubscribers([]);
       }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/subscribers`, { headers });
-      if (!res.ok) {
-        throw new Error('Failed to fetch subscribers');
-      }
-      const data = await res.json();
-      setSubscribers(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
     } finally {
       setLoading(false);
     }
@@ -64,69 +49,25 @@ export default function ContactsPage() {
   const handleAddSubscriber = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        return;
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-        'Content-Type': 'application/json',
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/subscribers`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(formData),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to add subscriber');
-      }
-
+      await apiClient.newsletter.createSubscriber(formData);
       setFormData({ email: '', nom: '', prenom: '' });
       setShowAddModal(false);
       fetchSubscribers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'ajout');
     }
   };
 
   const handleDeleteSubscriber = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this subscriber?')) {
+    if (!confirm('Supprimer cet abonné ?')) {
       return;
     }
 
     try {
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        return;
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/subscribers/${id}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to delete subscriber');
-      }
-
+      await apiClient.newsletter.deleteSubscriber(id);
       fetchSubscribers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la suppression');
     }
   };
 

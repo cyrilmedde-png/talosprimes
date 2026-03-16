@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api-client';
 
 interface Template {
   id: string;
@@ -42,7 +43,6 @@ export default function NewCampaignPage() {
   });
 
   const [previewHtml, setPreviewHtml] = useState('');
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   useEffect(() => {
     fetchData();
@@ -53,35 +53,20 @@ export default function NewCampaignPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
+      const [templatesRes, listsRes] = await Promise.all([
+        apiClient.newsletter.listTemplates() as Promise<{ success: boolean; data: { templates: Template[] } }>,
+        apiClient.newsletter.listSubscriberLists() as Promise<{ success: boolean; data: { lists: SubscriberList[] } }>,
+      ]);
 
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        setLoading(false);
-        return;
+      if (templatesRes.success && templatesRes.data?.templates) {
+        setTemplates(templatesRes.data.templates);
       }
 
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-      };
-
-      // Fetch templates
-      const templatesRes = await fetch(`${baseUrl}/api/newsletters/templates`, { headers });
-      if (templatesRes.ok) {
-        const templatesData = await templatesRes.json();
-        setTemplates(templatesData);
-      }
-
-      // Fetch subscriber lists
-      const listsRes = await fetch(`${baseUrl}/api/newsletters/subscribers/lists`, { headers });
-      if (listsRes.ok) {
-        const listsData = await listsRes.json();
-        setSubscriberLists(listsData);
+      if (listsRes.success && listsRes.data?.lists) {
+        setSubscriberLists(listsRes.data.lists);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
     } finally {
       setLoading(false);
     }
@@ -102,36 +87,13 @@ export default function NewCampaignPage() {
 
   const handleSendTestEmail = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        return;
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-        'Content-Type': 'application/json',
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/campaigns/test-email`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          sujet: formData.sujet,
-          contenuHtml: formData.contenuHtml,
-        }),
+      await apiClient.newsletter.sendTestEmail({
+        sujet: formData.sujet,
+        contenuHtml: formData.contenuHtml,
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to send test email');
-      }
-
       alert('Email de test envoyé avec succès!');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi du test');
     }
   };
 
@@ -140,51 +102,27 @@ export default function NewCampaignPage() {
 
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
 
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        setSubmitting(false);
-        return;
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-        'Content-Type': 'application/json',
-      };
-
-      let dateEnvoi = null;
+      let scheduledAt: string | undefined;
       if (!formData.sendNow) {
         const dateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
-        dateEnvoi = dateTime.toISOString();
+        scheduledAt = dateTime.toISOString();
       }
 
-      const payload = {
+      await apiClient.newsletter.createCampaign({
         nom: formData.nom,
         sujet: formData.sujet,
         expediteurNom: formData.expediteurNom,
         expediteurEmail: formData.expediteurEmail,
         contenuHtml: formData.contenuHtml,
-        subscriberListId: formData.subscriberListId,
-        dateEnvoi,
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/campaigns`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
+        listId: formData.subscriberListId,
+        scheduledAt,
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to create campaign');
-      }
 
       // Redirect to campaigns list
       window.location.href = '/newsletters';
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création');
       setSubmitting(false);
     }
   };

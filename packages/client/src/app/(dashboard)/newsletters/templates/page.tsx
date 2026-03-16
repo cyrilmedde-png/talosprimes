@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/lib/api-client';
 
 interface Template {
   id: string;
@@ -25,8 +26,6 @@ export default function TemplatesPage() {
     categorie: 'newsletter',
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
   useEffect(() => {
     fetchTemplates();
   }, []);
@@ -36,28 +35,14 @@ export default function TemplatesPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        setLoading(false);
-        return;
+      const res = await apiClient.newsletter.listTemplates() as { success: boolean; data: { templates: Template[] } };
+      if (res.success && res.data?.templates) {
+        setTemplates(res.data.templates);
+      } else {
+        setTemplates([]);
       }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/templates`, { headers });
-      if (!res.ok) {
-        throw new Error('Failed to fetch templates');
-      }
-      const data = await res.json();
-      setTemplates(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
     } finally {
       setLoading(false);
     }
@@ -66,29 +51,12 @@ export default function TemplatesPage() {
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        return;
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-        'Content-Type': 'application/json',
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/templates`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(formData),
+      await apiClient.newsletter.createTemplate({
+        nom: formData.nom,
+        sujet: formData.sujet,
+        contenuHtml: formData.contenuHtml,
+        categorie: formData.categorie,
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to create template');
-      }
 
       setFormData({
         nom: '',
@@ -99,41 +67,20 @@ export default function TemplatesPage() {
       setShowCreateModal(false);
       fetchTemplates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création');
     }
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) {
+    if (!confirm('Supprimer ce template ?')) {
       return;
     }
 
     try {
-      const token = localStorage.getItem('accessToken');
-      const tenantId = localStorage.getItem('tenantId');
-
-      if (!token || !tenantId) {
-        setError('Authentication required');
-        return;
-      }
-
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'x-tenant-id': tenantId,
-      };
-
-      const res = await fetch(`${baseUrl}/api/newsletters/templates/${id}`, {
-        method: 'DELETE',
-        headers,
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to delete template');
-      }
-
+      await apiClient.newsletter.deleteTemplate(id);
       fetchTemplates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la suppression');
     }
   };
 
