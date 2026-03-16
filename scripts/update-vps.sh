@@ -773,19 +773,32 @@ else
     fi
   fi
 
-  # --- Execution du seed Prisma (TypeScript) — re-execute si version change ---
-  # Le seed utilise des upsert, donc safe a relancer a chaque nouvelle version.
-  # Bumper SEED_TS_MARKER a chaque ajout/modification de module pour forcer la re-execution.
+  # --- Execution du seed Prisma (TypeScript) — re-execute automatiquement si fichiers modifies ---
+  # Le seed utilise des upsert, donc safe a relancer autant de fois que necessaire.
+  # Detection automatique par checksum des fichiers seed TS.
   SEEDS_DONE_FILE="$PLATFORM_DIR/.seeds-done"
+  SEED_CHECKSUM_FILE="$PLATFORM_DIR/.seeds-ts-checksum"
   [ ! -f "$SEEDS_DONE_FILE" ] && touch "$SEEDS_DONE_FILE"
-  SEED_TS_MARKER="prisma-seed-ts-v2"
-  if grep -qxF "$SEED_TS_MARKER" "$SEEDS_DONE_FILE" 2>/dev/null; then
-    log_info "Seed Prisma (TS): deja execute ($SEED_TS_MARKER)"
+
+  # Calculer le checksum de tous les fichiers seed TS
+  SEED_TS_DIR="$PLATFORM_DIR/prisma/seeds"
+  if [ -d "$SEED_TS_DIR" ]; then
+    CURRENT_SEED_CHECKSUM=$(find "$SEED_TS_DIR" -name '*.ts' -type f -exec md5sum {} \; 2>/dev/null | sort | md5sum | awk '{print $1}')
   else
-    log_info "Seed Prisma (TS): execution (nouveau marker $SEED_TS_MARKER)..."
+    CURRENT_SEED_CHECKSUM="no-seeds"
+  fi
+
+  # Lire le checksum precedent
+  PREVIOUS_SEED_CHECKSUM=""
+  [ -f "$SEED_CHECKSUM_FILE" ] && PREVIOUS_SEED_CHECKSUM=$(cat "$SEED_CHECKSUM_FILE" 2>/dev/null)
+
+  if [ "$CURRENT_SEED_CHECKSUM" = "$PREVIOUS_SEED_CHECKSUM" ]; then
+    log_info "Seed Prisma (TS): aucun changement detecte (checksum: ${CURRENT_SEED_CHECKSUM:0:8}...)"
+  else
+    log_info "Seed Prisma (TS): changements detectes, execution..."
     if npx prisma db seed 2>&1 | tail -10; then
-      echo "$SEED_TS_MARKER" >> "$SEEDS_DONE_FILE"
-      log_ok "Seed Prisma execute et marque comme fait ($SEED_TS_MARKER)"
+      echo "$CURRENT_SEED_CHECKSUM" > "$SEED_CHECKSUM_FILE"
+      log_ok "Seed Prisma execute (nouveau checksum: ${CURRENT_SEED_CHECKSUM:0:8}...)"
     else
       log_warn "Prisma db seed: erreur (non bloquant)"
     fi
