@@ -1,249 +1,146 @@
 {
-  "name": "subscriber-lists-create",
+  "name": "Subscriber Lists Create",
   "nodes": [
     {
       "parameters": {
         "path": "newsletter/subscriber-lists-create",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [250, 300]
+      "typeVersion": 1,
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst nom = body.nom;\nconst description = body.description || null;\nconst type = body.type || 'static';\nconst couleur = body.couleur || '#000000';\nconst subscriberIds = body.subscriberIds || [];\n\nreturn [{ tenantId, nom, description, type, couleur, subscriberIds }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst nom = body.nom;\nconst description = body.description || null;\nconst type = body.type || 'static';\nconst couleur = body.couleur || '#000000';\nconst subscriberIds = body.subscriberIds || [];\n\nfunction esc(v) {\n  return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nlet sql = `INSERT INTO subscriber_lists (tenant_id, nom, description, type, couleur) VALUES (${esc(tenantId)}, ${esc(nom)}, ${esc(description)}, ${esc(type)}, ${esc(couleur)}) RETURNING id, tenant_id as tenantId, nom, description, type, couleur, created_at as createdAt, updated_at as updatedAt`;\n\nreturn { sql, subscriberIds };"
       },
-      "id": "parser",
-      "name": "Parser",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.tenantId }}",
-              "value2": "",
-              "operation": "notEmpty"
-            },
-            {
-              "value1": "={{ $json.nom }}",
-              "value2": "",
-              "operation": "notEmpty"
-            }
-          ]
-        }
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "check", "leftValue": "={{ $('02. Parser').first().json.sql }}", "operator": {"type": "string", "operation": "notEmpty"}}],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "validation",
-      "name": "Validation",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
-        "responseBody": "={{ {success: false, message: 'Missing tenantId or nom'} }}"
+        "respondWithOptions": {"responseType": "json"},
+        "responseBody": "{ \"success\": false, \"error\": \"Validation failed\" }"
       },
-      "id": "error_respond",
-      "name": "Error Respond",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 450]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO subscriber_lists (tenant_id, nom, description, type, couleur)\nVALUES ($1::uuid, $2, $3, $4, $5)\nRETURNING id, tenant_id as tenantId, nom, description, type, couleur, created_at as createdAt, updated_at as updatedAt",
-        "queryParams": "={{ [$json.tenantId, $json.nom, $json.description, $json.type, $json.couleur] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.sql }}"
       },
-      "id": "query_create_list",
-      "name": "Query Create List",
+      "id": "05. Query",
+      "name": "05. Query",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [850, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "const listRow = $input.first().json;\nconst listId = listRow.id;\nconst subscriberIds = $input.first().json._subscriberIds || [];\n\nreturn [{ listId, subscriberIds, listRow }];"
+        "jsCode": "const listRow = $input.first().json[0] || $input.first().json;\nconst subscriberIds = $('02. Parser').first().json.subscriberIds || [];\n\nreturn { listId: listRow.id, subscriberIds, listRow };"
       },
-      "id": "check_subscribers",
-      "name": "Check Subscribers",
+      "id": "06. Check Subscribers",
+      "name": "06. Check Subscribers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 300]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "conditions": {
-          "number": [
-            {
-              "value1": "={{ $json.subscriberIds.length }}",
-              "value2": 0,
-              "operation": ">"
-            }
-          ]
-        }
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "check", "leftValue": "={{ $json.subscriberIds.length }}", "operator": {"type": "number", "operation": ">"}, "value": 0}],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "has_subscribers",
-      "name": "Has Subscribers",
+      "id": "07. Has Subscribers ?",
+      "name": "07. Has Subscribers ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1200, 300]
+      "position": [1100, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO subscriber_list_members (list_id, subscriber_id)\nSELECT $1::uuid, unnest($2::uuid[])\nON CONFLICT (list_id, subscriber_id) DO NOTHING",
-        "queryParams": "={{ [$json.listId, $json.subscriberIds] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ 'INSERT INTO subscriber_list_members (list_id, subscriber_id) SELECT \\'' + $json.listId + '\\'::uuid, unnest(ARRAY[' + $json.subscriberIds.map(id => '\\'' + id + '\\''::uuid).join(',') + ']::uuid[]) ON CONFLICT (list_id, subscriber_id) DO NOTHING' }}"
       },
-      "id": "query_add_members",
-      "name": "Query Add Members",
+      "id": "08. Query Add Members",
+      "name": "08. Query Add Members",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [1350, 200]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [1300, 200]
     },
     {
       "parameters": {
-        "jsCode": "const listRow = $input.first().json.listRow || $input.first().json;\n\nreturn [{\n  list: {\n    id: listRow.id,\n    tenantId: listRow.tenantId,\n    nom: listRow.nom,\n    description: listRow.description,\n    type: listRow.type,\n    couleur: listRow.couleur,\n    createdAt: listRow.createdAt,\n    updatedAt: listRow.updatedAt\n  }\n}];"
+        "jsCode": "const listRow = $json.listRow || $input.first().json;\n\nconst formatted = {\n  list: {\n    id: listRow.id,\n    tenantId: listRow.tenantId,\n    nom: listRow.nom,\n    description: listRow.description,\n    type: listRow.type,\n    couleur: listRow.couleur,\n    createdAt: listRow.createdAt,\n    updatedAt: listRow.updatedAt\n  }\n};\n\nreturn formatted;"
       },
-      "id": "format_response",
-      "name": "Format Response",
+      "id": "09. Format Response",
+      "name": "09. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, 300]
+      "position": [1450, 300]
     },
     {
       "parameters": {
         "respondWith": "allIncomingItems"
       },
-      "id": "respond",
-      "name": "Respond",
+      "id": "10. Respond",
+      "name": "10. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1550, 300]
+      "position": [1600, 300]
     }
   ],
   "connections": {
-    "webhook": {
-      "main": [
-        [
-          {
-            "node": "parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "parser": {
-      "main": [
-        [
-          {
-            "node": "validation",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validation": {
-      "main": [
-        [
-          {
-            "node": "query_create_list",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "error_respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_create_list": {
-      "main": [
-        [
-          {
-            "node": "check_subscribers",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "check_subscribers": {
-      "main": [
-        [
-          {
-            "node": "has_subscribers",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "has_subscribers": {
-      "main": [
-        [
-          {
-            "node": "query_add_members",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "format_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_add_members": {
-      "main": [
-        [
-          {
-            "node": "format_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_response": {
-      "main": [
-        [
-          {
-            "node": "respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "01. Webhook": {"main": [[{"node": "02. Parser", "type": "main", "index": 0}]]},
+    "02. Parser": {"main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]},
+    "03. Valide ?": {"main": [
+      [{"node": "05. Query", "type": "main", "index": 0}],
+      [{"node": "04. Respond Error", "type": "main", "index": 0}]
+    ]},
+    "05. Query": {"main": [[{"node": "06. Check Subscribers", "type": "main", "index": 0}]]},
+    "06. Check Subscribers": {"main": [[{"node": "07. Has Subscribers ?", "type": "main", "index": 0}]]},
+    "07. Has Subscribers ?": {"main": [
+      [{"node": "08. Query Add Members", "type": "main", "index": 0}],
+      [{"node": "09. Format Response", "type": "main", "index": 0}]
+    ]},
+    "08. Query Add Members": {"main": [[{"node": "09. Format Response", "type": "main", "index": 0}]]},
+    "09. Format Response": {"main": [[{"node": "10. Respond", "type": "main", "index": 0}]]}
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": {"executionOrder": "v1"},
+  "active": true
 }

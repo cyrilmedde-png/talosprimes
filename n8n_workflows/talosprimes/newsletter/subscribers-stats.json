@@ -1,268 +1,164 @@
 {
-  "name": "subscribers-stats",
+  "name": "Subscribers Stats",
   "nodes": [
     {
       "parameters": {
         "path": "newsletter/subscribers-stats",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [250, 300]
+      "typeVersion": 1,
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\n\nreturn [{ tenantId }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\n\nfunction esc(v) {\n  return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nconst query1 = `SELECT COALESCE(status, 'unknown') as status, COUNT(*) as count FROM subscribers WHERE tenant_id = ${esc(tenantId)} GROUP BY status`;\nconst query2 = `SELECT COALESCE(source, 'unknown') as source, COUNT(*) as count FROM subscribers WHERE tenant_id = ${esc(tenantId)} GROUP BY source`;\nconst query3 = `SELECT COUNT(*) as count FROM subscribers WHERE tenant_id = ${esc(tenantId)} AND created_at >= NOW() - INTERVAL '30 days'`;\nconst query4 = `SELECT COUNT(*) as count FROM subscriber_lists WHERE tenant_id = ${esc(tenantId)}`;\nconst query5 = `SELECT COUNT(*) as count FROM subscribers WHERE tenant_id = ${esc(tenantId)}`;\n\nreturn { queries: [query1, query2, query3, query4, query5] };"
       },
-      "id": "parser",
-      "name": "Parser",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.tenantId }}",
-              "value2": "",
-              "operation": "notEmpty"
-            }
-          ]
-        }
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "check", "leftValue": "={{ $('02. Parser').first().json.queries.length }}", "operator": {"type": "number", "operation": ">"}, "value": 0}],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "validation",
-      "name": "Validation",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
-        "responseBody": "={{ {success: false, message: 'Missing tenantId'} }}"
+        "respondWithOptions": {"responseType": "json"},
+        "responseBody": "{ \"success\": false, \"error\": \"Validation failed\" }"
       },
-      "id": "error_respond",
-      "name": "Error Respond",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 450]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  COALESCE(status, 'unknown') as status,\n  COUNT(*) as count\nFROM subscribers\nWHERE tenant_id = $1::uuid\nGROUP BY status",
-        "queryParams": "={{ [$json.tenantId] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.queries[0] }}"
       },
-      "id": "query_by_status",
-      "name": "Query By Status",
+      "id": "05. Query By Status",
+      "name": "05. Query By Status",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [850, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT \n  COALESCE(source, 'unknown') as source,\n  COUNT(*) as count\nFROM subscribers\nWHERE tenant_id = $1::uuid\nGROUP BY source",
-        "queryParams": "={{ [$json.tenantId] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.queries[1] }}"
       },
-      "id": "query_by_source",
-      "name": "Query By Source",
+      "id": "06. Query By Source",
+      "name": "06. Query By Source",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [1050, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 400]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) as count\nFROM subscribers\nWHERE tenant_id = $1::uuid\n  AND created_at >= NOW() - INTERVAL '30 days'",
-        "queryParams": "={{ [$json.tenantId] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.queries[2] }}"
       },
-      "id": "query_new_30days",
-      "name": "Query New Last 30 Days",
+      "id": "07. Query New 30 Days",
+      "name": "07. Query New 30 Days",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [1250, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 500]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) as count\nFROM subscriber_lists\nWHERE tenant_id = $1::uuid",
-        "queryParams": "={{ [$json.tenantId] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.queries[3] }}"
       },
-      "id": "query_lists_count",
-      "name": "Query Lists Count",
+      "id": "08. Query Lists Count",
+      "name": "08. Query Lists Count",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [1450, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 600]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT COUNT(*) as count\nFROM subscribers\nWHERE tenant_id = $1::uuid",
-        "queryParams": "={{ [$json.tenantId] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.queries[4] }}"
       },
-      "id": "query_total_count",
-      "name": "Query Total Count",
+      "id": "09. Query Total Count",
+      "name": "09. Query Total Count",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [1650, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 700]
     },
     {
       "parameters": {
-        "jsCode": "const byStatusData = $node['query_by_status'].json.data || [];\nconst bySourceData = $node['query_by_source'].json.data || [];\nconst newLast30Data = $node['query_new_30days'].json.data || [];\nconst listsCountData = $node['query_lists_count'].json.data || [];\nconst totalCountData = $node['query_total_count'].json.data || [];\n\nconst byStatus = {};\nbyStatusData.forEach(row => {\n  byStatus[row.status] = parseInt(row.count) || 0;\n});\n\nconst bySource = {};\nbySourceData.forEach(row => {\n  bySource[row.source] = parseInt(row.count) || 0;\n});\n\nconst newLast30Days = newLast30Data.length > 0 ? parseInt(newLast30Data[0].count) || 0 : 0;\nconst totalLists = listsCountData.length > 0 ? parseInt(listsCountData[0].count) || 0 : 0;\nconst total = totalCountData.length > 0 ? parseInt(totalCountData[0].count) || 0 : 0;\n\nreturn [{\n  json: {\n    stats: {\n      total: total,\n      byStatus: {\n        active: byStatus['active'] || 0,\n        unsubscribed: byStatus['unsubscribed'] || 0,\n        bounced: byStatus['bounced'] || 0\n      },\n      bySource: {\n        lead: bySource['lead'] || 0,\n        client: bySource['client'] || 0,\n        contact_form: bySource['contact_form'] || 0,\n        manual: bySource['manual'] || 0,\n        import_csv: bySource['import_csv'] || 0\n      },\n      newLast30Days: newLast30Days,\n      totalLists: totalLists\n    }\n  }\n}];"
+        "jsCode": "const byStatusData = $('05. Query By Status').first().json || [];\nconst bySourceData = $('06. Query By Source').first().json || [];\nconst newLast30Data = $('07. Query New 30 Days').first().json || [];\nconst listsCountData = $('08. Query Lists Count').first().json || [];\nconst totalCountData = $('09. Query Total Count').first().json || [];\n\nconst byStatus = {};\nif (Array.isArray(byStatusData)) {\n  byStatusData.forEach(row => {\n    byStatus[row.status] = parseInt(row.count) || 0;\n  });\n}\n\nconst bySource = {};\nif (Array.isArray(bySourceData)) {\n  bySourceData.forEach(row => {\n    bySource[row.source] = parseInt(row.count) || 0;\n  });\n}\n\nconst newLast30Days = (Array.isArray(newLast30Data) && newLast30Data.length > 0) ? parseInt(newLast30Data[0].count) || 0 : 0;\nconst totalLists = (Array.isArray(listsCountData) && listsCountData.length > 0) ? parseInt(listsCountData[0].count) || 0 : 0;\nconst total = (Array.isArray(totalCountData) && totalCountData.length > 0) ? parseInt(totalCountData[0].count) || 0 : 0;\n\nconst formatted = {\n  stats: {\n    total: total,\n    byStatus: {\n      active: byStatus['active'] || 0,\n      unsubscribed: byStatus['unsubscribed'] || 0,\n      bounced: byStatus['bounced'] || 0\n    },\n    bySource: {\n      lead: bySource['lead'] || 0,\n      client: bySource['client'] || 0,\n      contact_form: bySource['contact_form'] || 0,\n      manual: bySource['manual'] || 0,\n      import_csv: bySource['import_csv'] || 0\n    },\n    newLast30Days: newLast30Days,\n    totalLists: totalLists\n  }\n};\n\nreturn formatted;"
       },
-      "id": "format_response",
-      "name": "Format Response",
+      "id": "10. Format Response",
+      "name": "10. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1850, 300]
+      "position": [900, 400]
     },
     {
       "parameters": {
         "respondWith": "allIncomingItems"
       },
-      "id": "respond",
-      "name": "Respond",
+      "id": "11. Respond",
+      "name": "11. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2050, 300]
+      "position": [1100, 400]
     }
   ],
   "connections": {
-    "webhook": {
-      "main": [
-        [
-          {
-            "node": "parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "parser": {
-      "main": [
-        [
-          {
-            "node": "validation",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validation": {
-      "main": [
-        [
-          {
-            "node": "query_by_status",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "error_respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_by_status": {
-      "main": [
-        [
-          {
-            "node": "query_by_source",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_by_source": {
-      "main": [
-        [
-          {
-            "node": "query_new_30days",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_new_30days": {
-      "main": [
-        [
-          {
-            "node": "query_lists_count",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_lists_count": {
-      "main": [
-        [
-          {
-            "node": "query_total_count",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_total_count": {
-      "main": [
-        [
-          {
-            "node": "format_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_response": {
-      "main": [
-        [
-          {
-            "node": "respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "01. Webhook": {"main": [[{"node": "02. Parser", "type": "main", "index": 0}]]},
+    "02. Parser": {"main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]},
+    "03. Valide ?": {"main": [
+      [{"node": "05. Query By Status", "type": "main", "index": 0}],
+      [{"node": "04. Respond Error", "type": "main", "index": 0}]
+    ]},
+    "05. Query By Status": {"main": [[{"node": "06. Query By Source", "type": "main", "index": 0}]]},
+    "06. Query By Source": {"main": [[{"node": "07. Query New 30 Days", "type": "main", "index": 0}]]},
+    "07. Query New 30 Days": {"main": [[{"node": "08. Query Lists Count", "type": "main", "index": 0}]]},
+    "08. Query Lists Count": {"main": [[{"node": "09. Query Total Count", "type": "main", "index": 0}]]},
+    "09. Query Total Count": {"main": [[{"node": "10. Format Response", "type": "main", "index": 0}]]},
+    "10. Format Response": {"main": [[{"node": "11. Respond", "type": "main", "index": 0}]]}
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": {"executionOrder": "v1"},
+  "active": true
 }

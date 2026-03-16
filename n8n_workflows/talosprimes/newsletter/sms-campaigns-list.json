@@ -1,160 +1,100 @@
 {
-  "name": "sms-campaigns-list",
+  "name": "SMS Campaigns List",
   "nodes": [
     {
       "parameters": {
         "path": "newsletter/sms-campaigns-list",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [250, 300]
+      "typeVersion": 1,
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst limit = body.limit || 50;\nconst offset = body.offset || 0;\nconst status = body.status || null;\n\nreturn [{ tenantId, limit, offset, status }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst limit = body.limit || 50;\nconst offset = body.offset || 0;\nconst status = body.status || null;\n\nfunction esc(v) {\n  return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nlet whereClause = `WHERE s.tenant_id = ${esc(tenantId)}`;\nif (status) {\n  whereClause += ` AND s.status = ${esc(status)}`;\n}\n\nconst sql = `WITH count_query AS (SELECT COUNT(*) as total FROM sms_campaigns ${whereClause.replace('WHERE', 'WHERE').replace(/s\\./g, '')}) SELECT s.id, s.tenant_id as tenantId, s.nom, s.contenu, s.list_id as listId, s.status, s.scheduled_at as scheduledAt, s.sent_at as sentAt, s.total_envoyes as totalEnvoyes, s.total_delivered as totalDelivered, s.total_failed as totalFailed, s.created_at as createdAt, s.updated_at as updatedAt, (SELECT total FROM count_query) as total FROM sms_campaigns s ${whereClause} ORDER BY s.created_at DESC LIMIT ${limit} OFFSET ${offset}`;\n\nreturn { sql };"
       },
-      "id": "parser",
-      "name": "Parser",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.tenantId }}",
-              "value2": "",
-              "operation": "notEmpty"
-            }
-          ]
-        }
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "check", "leftValue": "={{ $('02. Parser').first().json.sql }}", "operator": {"type": "string", "operation": "notEmpty"}}],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "validation",
-      "name": "Validation",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
-        "responseBody": "={{ {success: false, message: 'Missing tenantId'} }}"
+        "respondWithOptions": {"responseType": "json"},
+        "responseBody": "{ \"success\": false, \"error\": \"Validation failed\" }"
       },
-      "id": "error_respond",
-      "name": "Error Respond",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 450]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=WITH count_query AS (\n  SELECT COUNT(*) as total\n  FROM sms_campaigns\n  WHERE tenant_id = $1::uuid\n  {{ $json.status ? 'AND status = ' + $json.status : '' }}\n)\nSELECT \n  s.id,\n  s.tenant_id as tenantId,\n  s.nom,\n  s.contenu,\n  s.list_id as listId,\n  s.status,\n  s.scheduled_at as scheduledAt,\n  s.sent_at as sentAt,\n  s.total_envoyes as totalEnvoyes,\n  s.total_delivered as totalDelivered,\n  s.total_failed as totalFailed,\n  s.created_at as createdAt,\n  s.updated_at as updatedAt,\n  (SELECT total FROM count_query) as total\nFROM sms_campaigns s\nWHERE s.tenant_id = $1::uuid\n{{ $json.status ? 'AND s.status = ' + $json.status : '' }}\nORDER BY s.created_at DESC\nLIMIT $2 OFFSET $3",
-        "queryParams": "={{ [$json.tenantId, $json.limit, $json.offset] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.sql }}"
       },
-      "id": "query_list",
-      "name": "Query List",
+      "id": "05. Query",
+      "name": "05. Query",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [850, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "const total = $input.first().json[0]?.total || 0;\nconst campaigns = $input.all();\n\nreturn [{\n  campaigns: campaigns.map(c => ({\n    id: c.id,\n    tenantId: c.tenantId,\n    nom: c.nom,\n    contenu: c.contenu,\n    listId: c.listId,\n    status: c.status,\n    scheduledAt: c.scheduledAt,\n    sentAt: c.sentAt,\n    totalEnvoyes: c.totalEnvoyes,\n    totalDelivered: c.totalDelivered,\n    totalFailed: c.totalFailed,\n    createdAt: c.createdAt,\n    updatedAt: c.updatedAt\n  })),\n  total,\n  limit: $json.limit,\n  offset: $json.offset\n}];"
+        "jsCode": "const rows = $input.first().json || [];\nconst total = (Array.isArray(rows) && rows.length > 0) ? rows[0].total : 0;\n\nconst campaigns = Array.isArray(rows) ? rows.map(c => ({\n  id: c.id,\n  tenantId: c.tenantId,\n  nom: c.nom,\n  contenu: c.contenu,\n  listId: c.listId,\n  status: c.status,\n  scheduledAt: c.scheduledAt,\n  sentAt: c.sentAt,\n  totalEnvoyes: c.totalEnvoyes,\n  totalDelivered: c.totalDelivered,\n  totalFailed: c.totalFailed,\n  createdAt: c.createdAt,\n  updatedAt: c.updatedAt\n})) : [];\n\nconst formatted = {\n  campaigns: campaigns,\n  total: total,\n  limit: $('02. Parser').first().json.limit,\n  offset: $('02. Parser').first().json.offset\n};\n\nreturn formatted;"
       },
-      "id": "format_response",
-      "name": "Format Response",
+      "id": "06. Format Response",
+      "name": "06. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 300]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "respondWith": "allIncomingItems"
       },
-      "id": "respond",
-      "name": "Respond",
+      "id": "07. Respond",
+      "name": "07. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 300]
+      "position": [1100, 300]
     }
   ],
   "connections": {
-    "webhook": {
-      "main": [
-        [
-          {
-            "node": "parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "parser": {
-      "main": [
-        [
-          {
-            "node": "validation",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validation": {
-      "main": [
-        [
-          {
-            "node": "query_list",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "error_respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_list": {
-      "main": [
-        [
-          {
-            "node": "format_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_response": {
-      "main": [
-        [
-          {
-            "node": "respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "01. Webhook": {"main": [[{"node": "02. Parser", "type": "main", "index": 0}]]},
+    "02. Parser": {"main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]},
+    "03. Valide ?": {"main": [
+      [{"node": "05. Query", "type": "main", "index": 0}],
+      [{"node": "04. Respond Error", "type": "main", "index": 0}]
+    ]},
+    "05. Query": {"main": [[{"node": "06. Format Response", "type": "main", "index": 0}]]},
+    "06. Format Response": {"main": [[{"node": "07. Respond", "type": "main", "index": 0}]]}
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": {"executionOrder": "v1"},
+  "active": true
 }

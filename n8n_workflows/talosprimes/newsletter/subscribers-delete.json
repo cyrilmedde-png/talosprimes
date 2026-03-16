@@ -1,165 +1,100 @@
 {
-  "name": "subscribers-delete",
+  "name": "Subscribers Delete",
   "nodes": [
     {
       "parameters": {
         "path": "newsletter/subscribers-delete",
         "responseMode": "responseNode",
-        "method": "POST"
+        "httpMethod": "POST"
       },
-      "id": "webhook",
-      "name": "Webhook",
+      "id": "01. Webhook",
+      "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [250, 300]
+      "typeVersion": 1,
+      "position": [100, 200]
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst id = body.id;\nconst tenantId = body.tenantId;\n\nreturn [{ id, tenantId }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst id = body.id;\nconst tenantId = body.tenantId;\n\nfunction esc(v) {\n  return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nconst sql = `DELETE FROM subscribers WHERE id = ${esc(id)}::uuid AND tenant_id = ${esc(tenantId)}`;\n\nreturn { sql };"
       },
-      "id": "parser",
-      "name": "Parser",
+      "id": "02. Parser",
+      "name": "02. Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [450, 300]
+      "position": [300, 200]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.id }}",
-              "value2": "",
-              "operation": "notEmpty"
-            },
-            {
-              "value1": "={{ $json.tenantId }}",
-              "value2": "",
-              "operation": "notEmpty"
-            }
-          ]
-        }
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "check", "leftValue": "={{ $('02. Parser').first().json.sql }}", "operator": {"type": "string", "operation": "notEmpty"}}],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "validation",
-      "name": "Validation",
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [500, 200]
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
-        "responseBody": "={{ {success: false, message: 'Missing id or tenantId'} }}"
+        "respondWithOptions": {"responseType": "json"},
+        "responseBody": "{ \"success\": false, \"error\": \"Validation failed\" }"
       },
-      "id": "error_respond",
-      "name": "Error Respond",
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [850, 450]
+      "position": [700, 100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=DELETE FROM subscribers\nWHERE id = $1::uuid AND tenant_id = $2::uuid",
-        "queryParams": "={{ [$json.id, $json.tenantId] }}",
-        "credentials": {
-          "id": "OGqj65ZoFRileCck",
-          "name": "Supabase Postgres"
-        }
+        "query": "={{ $('02. Parser').first().json.sql }}"
       },
-      "id": "query_delete",
-      "name": "Query Delete",
+      "id": "05. Query",
+      "name": "05. Query",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 4.1,
-      "position": [850, 300]
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {"name": "Supabase Postgres", "id": "OGqj65ZoFRileCck"}
+      },
+      "position": [700, 300]
     },
     {
       "parameters": {
-        "jsCode": "return [{ deleted: true }];"
+        "jsCode": "const formatted = {\n  deleted: true\n};\nreturn formatted;"
       },
-      "id": "format_response",
-      "name": "Format Response",
+      "id": "06. Format Response",
+      "name": "06. Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 300]
+      "position": [900, 300]
     },
     {
       "parameters": {
         "respondWith": "allIncomingItems"
       },
-      "id": "respond",
-      "name": "Respond",
+      "id": "07. Respond",
+      "name": "07. Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 300]
+      "position": [1100, 300]
     }
   ],
   "connections": {
-    "webhook": {
-      "main": [
-        [
-          {
-            "node": "parser",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "parser": {
-      "main": [
-        [
-          {
-            "node": "validation",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "validation": {
-      "main": [
-        [
-          {
-            "node": "query_delete",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "error_respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "query_delete": {
-      "main": [
-        [
-          {
-            "node": "format_response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "format_response": {
-      "main": [
-        [
-          {
-            "node": "respond",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "01. Webhook": {"main": [[{"node": "02. Parser", "type": "main", "index": 0}]]},
+    "02. Parser": {"main": [[{"node": "03. Valide ?", "type": "main", "index": 0}]]},
+    "03. Valide ?": {"main": [
+      [{"node": "05. Query", "type": "main", "index": 0}],
+      [{"node": "04. Respond Error", "type": "main", "index": 0}]
+    ]},
+    "05. Query": {"main": [[{"node": "06. Format Response", "type": "main", "index": 0}]]},
+    "06. Format Response": {"main": [[{"node": "07. Respond", "type": "main", "index": 0}]]}
   },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": {"executionOrder": "v1"},
+  "active": true
 }
