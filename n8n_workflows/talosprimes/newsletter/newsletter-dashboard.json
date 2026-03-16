@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "path": "newsletter-dashboard",
+        "path": "newsletter/newsletter-dashboard",
         "httpMethod": "POST",
         "responseMode": "responseNode"
       },
