@@ -4,6 +4,7 @@
  */
 
 import { env } from '../config/env.js';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database.js';
 
 // ============================================================
@@ -161,7 +162,7 @@ export async function saveMarketingConfig(tenantId: string, patch: Partial<Marke
 
   await prisma.tenantMarketingConfig.upsert({
     where: { tenantId },
-    create: { tenantId, config: merged as unknown as Record<string, unknown> },
-    update: { config: merged as unknown as Record<string, unknown> },
+    create: { tenantId, config: merged as unknown as Prisma.InputJsonValue },
+    update: { config: merged as unknown as Prisma.InputJsonValue },
   });
 }
