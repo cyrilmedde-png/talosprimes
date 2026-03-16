@@ -76,21 +76,31 @@ export default function SituationsPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  /** Extrait un tableau depuis la réponse API (gère les 2 formats possibles) */
+  function extractArray<T>(responseData: unknown): T[] {
+    if (Array.isArray(responseData)) return responseData as T[];
+    if (responseData && typeof responseData === 'object' && 'data' in (responseData as Record<string, unknown>)) {
+      const inner = (responseData as Record<string, unknown>).data;
+      if (Array.isArray(inner)) return inner as T[];
+    }
+    return [];
+  }
+
   const fetchData = async () => {
     try {
       setLoading({ isLoading: true, error: null });
       const [situationsRes, chantiersRes] = await Promise.all([
-        apiClient.btp.situations.list(''),
+        apiClient.btp.situations.listAll(),
         apiClient.btp.chantiers.list(),
       ]);
-      const rawSit = situationsRes.data as unknown as { success: boolean; data: Situation[] };
-      setSituations(rawSit.data);
-      setFilteredSituations(rawSit.data);
-      const rawCh = chantiersRes.data as unknown as { success: boolean; data: Chantier[] };
-      setChantiers(rawCh.data);
+      const sitData = extractArray<Situation>(situationsRes.data);
+      setSituations(sitData);
+      setFilteredSituations(sitData);
+      const chData = extractArray<Chantier>(chantiersRes.data);
+      setChantiers(chData);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to load data';
+        error instanceof Error ? error.message : 'Erreur de chargement des données';
       setLoading((prev) => ({ ...prev, isLoading: false, error: errorMessage }));
     } finally {
       setLoading((prev) => ({ ...prev, isLoading: false }));

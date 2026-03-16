@@ -1333,6 +1333,8 @@ export const apiClient = {
         authenticatedFetch<{ success: boolean }>(`/api/btp/chantiers/${id}`, { method: 'DELETE' }),
     },
     situations: {
+      listAll: () =>
+        authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/btp/situations'),
       list: (chantierId: string) =>
         authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>(`/api/btp/chantiers/${chantierId}/situations`),
       create: (chantierId: string, data: Record<string, unknown>) =>

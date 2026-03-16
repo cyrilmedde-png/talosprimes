@@ -98,7 +98,10 @@ export default function EntretiensPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.rh.entretiens.list();
-      setEntretiens((response.data as unknown as Entretien[]) || []);
+      const raw = response.data;
+      // Gérer les deux formats possibles : tableau direct ou { data: [...] }
+      const items = Array.isArray(raw) ? raw : (raw as unknown as { data?: unknown[] })?.data ?? [];
+      setEntretiens((items as unknown as Entretien[]) || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {
@@ -198,8 +201,8 @@ export default function EntretiensPage() {
 
   const filteredEntretiens = entretiens.filter(ent => {
     const matchesSearch =
-      ent.membreNom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ent.evaluateur.toLowerCase().includes(searchQuery.toLowerCase());
+      (ent.membreNom || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (ent.evaluateur || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = !selectedType || ent.type === selectedType;
     return matchesSearch && matchesType;
   });

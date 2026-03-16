@@ -83,7 +83,10 @@ export default function DocumentsPage() {
       setLoading(true);
       setError(null);
       const response = await apiClient.rh.documents.list();
-      setDocuments((response.data as unknown as DocumentRH[]) || []);
+      const raw = response.data;
+      // Gérer les deux formats possibles : tableau direct ou { data: [...] }
+      const items = Array.isArray(raw) ? raw : (raw as unknown as { data?: unknown[] })?.data ?? [];
+      setDocuments((items as unknown as DocumentRH[]) || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
       if (err instanceof Error && err.message.includes('Session expirée')) {
@@ -178,8 +181,8 @@ export default function DocumentsPage() {
 
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch =
-      doc.titre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.membreNom.toLowerCase().includes(searchQuery.toLowerCase());
+      (doc.titre || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (doc.membreNom || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = !selectedType || doc.type === selectedType;
     return matchesSearch && matchesType;
   });

@@ -104,6 +104,17 @@ export async function btpRoutes(fastify: FastifyInstance) {
   // SITUATIONS
   // ═══════════════════════════════════════
 
+  // GET /api/btp/situations - Liste de toutes les situations (tous chantiers)
+  fastify.get('/situations', {
+    preHandler: [n8nOrAuthMiddleware],
+  }, async (request: AuthenticatedRequest, reply: FastifyReply) => {
+    const tenantId = getTenantId(request, reply);
+    if (!tenantId) return;
+
+    const result = await n8nService.callWorkflowReturn(tenantId, 'btp_situations_list', {});
+    return reply.send(result);
+  });
+
   // GET /api/btp/chantiers/:chantierId/situations - Liste des situations
   fastify.get('/chantiers/:chantierId/situations', {
     preHandler: [n8nOrAuthMiddleware],
