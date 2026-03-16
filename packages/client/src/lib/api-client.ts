@@ -1683,6 +1683,9 @@ export const apiClient = {
     // Analytics
     getAnalytics: () =>
       authenticatedFetch<{ success: boolean; data: { analytics: unknown } }>('/api/newsletters/analytics'),
+    // Dashboard
+    getDashboard: () =>
+      authenticatedFetch<{ success: boolean; data: { dashboard: unknown } }>('/api/newsletters/dashboard'),
   },
 
   // Gestion de Stock

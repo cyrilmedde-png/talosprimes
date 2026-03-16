@@ -534,4 +534,22 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
+  // ===== DASHBOARD =====
+
+  fastify.get('/dashboard', async (request, reply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
+
+    try {
+      const res = await n8nService.callWorkflowReturn(tenantId, 'newsletter_dashboard', {});
+      const data = res.data as any;
+      return reply.send({ success: true, data });
+    } catch (error) {
+      return reply.status(200).send({
+        success: false,
+        error: `Erreur n8n: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+      });
+    }
+  });
 }
