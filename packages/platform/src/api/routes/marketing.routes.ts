@@ -367,7 +367,9 @@ export async function marketingRoutes(fastify: FastifyInstance) {
 
           if (platform === 'facebook') {
             // Facebook Graph API : DELETE /{post_id}
-            const PAGE_ACCESS_TOKEN = env.FACEBOOK_PAGE_ACCESS_TOKEN || '';
+            const { getMarketingConfigForTenant } = await import('../../services/marketing-config.service.js');
+            const mktConfig = await getMarketingConfigForTenant(tenantId!);
+            const PAGE_ACCESS_TOKEN = mktConfig.facebook?.pageAccessToken || '';
             if (PAGE_ACCESS_TOKEN) {
               const fbResp = await fetch(
                 `https://graph.facebook.com/v25.0/${existing.postExternalId}?access_token=${PAGE_ACCESS_TOKEN}`,
@@ -581,8 +583,12 @@ export async function marketingRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
 
-      if (!env.OPENAI_API_KEY) {
-        return ApiError.internal(reply, 'Clé OpenAI non configurée sur le serveur');
+      const { getMarketingConfigForTenant } = await import('../../services/marketing-config.service.js');
+      const mktConfig = await getMarketingConfigForTenant(tenantId);
+      const openaiKey = mktConfig.openai?.apiKey;
+
+      if (!openaiKey) {
+        return ApiError.internal(reply, 'Clé OpenAI non configurée — rendez-vous dans Marketing > Configuration');
       }
 
       const { plateforme, type, sujet } = generateContentSchema.parse(request.body);
@@ -604,7 +610,7 @@ Génère un JSON valide avec cette structure exacte:
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+            'Authorization': `Bearer ${openaiKey}`,
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',

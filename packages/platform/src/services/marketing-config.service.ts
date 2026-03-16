@@ -52,21 +52,21 @@ export async function getMarketingConfigForTenant(tenantId: string): Promise<Mar
   const db = (row?.config as MarketingConfig) ?? {};
   return {
     facebook: {
-      pageAccessToken: db.facebook?.pageAccessToken ?? env.FACEBOOK_PAGE_ACCESS_TOKEN ?? undefined,
-      pageId: db.facebook?.pageId ?? env.FACEBOOK_PAGE_ID ?? undefined,
-      instagramUserId: db.facebook?.instagramUserId ?? env.INSTAGRAM_USER_ID ?? undefined,
+      pageAccessToken: db.facebook?.pageAccessToken ?? (env as Record<string, unknown>).FACEBOOK_PAGE_ACCESS_TOKEN as string ?? undefined,
+      pageId: db.facebook?.pageId ?? undefined,
+      instagramUserId: db.facebook?.instagramUserId ?? undefined,
     },
     tiktok: {
-      clientKey: db.tiktok?.clientKey ?? env.TIKTOK_CLIENT_KEY ?? undefined,
-      clientSecret: db.tiktok?.clientSecret ?? env.TIKTOK_CLIENT_SECRET ?? undefined,
-      refreshToken: db.tiktok?.refreshToken ?? env.TIKTOK_REFRESH_TOKEN ?? undefined,
+      clientKey: db.tiktok?.clientKey ?? undefined,
+      clientSecret: db.tiktok?.clientSecret ?? undefined,
+      refreshToken: db.tiktok?.refreshToken ?? undefined,
     },
     linkedin: {
-      accessToken: db.linkedin?.accessToken ?? env.LINKEDIN_ACCESS_TOKEN ?? undefined,
-      orgId: db.linkedin?.orgId ?? env.LINKEDIN_ORG_ID ?? undefined,
+      accessToken: db.linkedin?.accessToken ?? undefined,
+      orgId: db.linkedin?.orgId ?? undefined,
     },
     openai: {
-      apiKey: db.openai?.apiKey ?? env.OPENAI_API_KEY ?? undefined,
+      apiKey: db.openai?.apiKey ?? (env as Record<string, unknown>).OPENAI_API_KEY as string ?? undefined,
     },
   };
 }
