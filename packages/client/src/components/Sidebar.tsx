@@ -59,19 +59,70 @@ type NavItem = {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 };
 
+type SubGroup = {
+  label: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  requiredModules: string[];
+  items: NavItem[];
+};
+
 type NavGroup = {
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   items: NavItem[];
   requiredModules: string[];
+  subGroups?: SubGroup[];
 };
 
-const standaloneItems: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Assistant IA', href: '/assistant', icon: SparklesIcon },
-];
-
 const allNavGroups: NavGroup[] = [
+  // ─── Administration (Dashboard + Assistant IA + Admin) ───
+  {
+    label: 'Administration',
+    icon: HomeIcon,
+    requiredModules: [],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+      { name: 'Assistant IA', href: '/assistant', icon: SparklesIcon },
+      { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
+      { name: 'Plans & Modules', href: '/plans', icon: BanknotesIcon },
+      { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
+      { name: 'Notifications', href: '/notifications', icon: BellIcon },
+      { name: 'CMS Landing Page', href: '/cms', icon: PencilSquareIcon },
+    ],
+  },
+
+  // ─── Commercial ───────────────────────────────────
+  {
+    label: 'Clientèle',
+    icon: UsersIcon,
+    requiredModules: ['clients', 'leads'],
+    items: [
+      { name: 'Leads', href: '/leads', icon: UserPlusIcon },
+      { name: 'Clients', href: '/clients', icon: UsersIcon },
+      { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
+    ],
+  },
+  {
+    label: 'Partenaires',
+    icon: BuildingOffice2Icon,
+    requiredModules: ['partenaire'],
+    items: [
+      { name: 'Dashboard', href: '/partenaires', icon: ChartBarIcon },
+      { name: 'Liste Partenaires', href: '/partenaires/liste', icon: BuildingOffice2Icon },
+      { name: 'Commissions', href: '/partenaires/commissions', icon: GiftIcon },
+    ],
+  },
+  {
+    label: 'Revenus',
+    icon: CurrencyEuroIcon,
+    requiredModules: ['partenaire'],
+    items: [
+      { name: 'Dashboard MRR', href: '/revenus', icon: ChartBarIcon },
+      { name: 'Commissions', href: '/revenus/commissions', icon: CurrencyEuroIcon },
+    ],
+  },
+
+  // ─── Facturation & Finance ────────────────────────
   {
     label: 'Facturation',
     icon: BanknotesIcon,
@@ -113,78 +164,92 @@ const allNavGroups: NavGroup[] = [
       { name: 'Périodes', href: '/conformite/periodes', icon: CalendarIcon },
     ],
   },
+
+  // ─── Gestion (sous-onglets) ─────────────────────
   {
-    label: 'Clientèle',
-    icon: UsersIcon,
-    requiredModules: ['clients', 'leads'],
-    items: [
-      { name: 'Leads', href: '/leads', icon: UserPlusIcon },
-      { name: 'Clients', href: '/clients', icon: UsersIcon },
-      { name: 'Onboarding', href: '/onboarding', icon: UserPlusIcon },
+    label: 'Gestion',
+    icon: RectangleStackIcon,
+    requiredModules: ['gestion_equipe', 'gestion_projet', 'gestion_rh', 'btp', 'gestion_stock'],
+    items: [],
+    subGroups: [
+      {
+        label: 'Gestion d\'Équipe',
+        icon: UsersIcon,
+        requiredModules: ['gestion_equipe'],
+        items: [
+          { name: 'Dashboard', href: '/equipe', icon: UsersIcon },
+          { name: 'Membres', href: '/equipe/membres', icon: UserPlusIcon },
+          { name: 'Absences', href: '/equipe/absences', icon: ClipboardDocumentListIcon },
+          { name: 'Pointage', href: '/equipe/pointage', icon: DocumentCheckIcon },
+        ],
+      },
+      {
+        label: 'Gestion de Projet',
+        icon: ClipboardDocumentListIcon,
+        requiredModules: ['gestion_projet'],
+        items: [
+          { name: 'Dashboard', href: '/projets', icon: ClipboardDocumentListIcon },
+          { name: 'Mes Projets', href: '/projets/liste', icon: DocumentTextIcon },
+          { name: 'Tâches', href: '/projets/taches', icon: DocumentCheckIcon },
+        ],
+      },
+      {
+        label: 'Ressources Humaines',
+        icon: AcademicCapIcon,
+        requiredModules: ['gestion_rh'],
+        items: [
+          { name: 'Dashboard', href: '/rh', icon: HomeIcon },
+          { name: 'Contrats', href: '/rh/contrats', icon: DocumentTextIcon },
+          { name: 'Paie', href: '/rh/paie', icon: BanknotesIcon },
+          { name: 'Congés', href: '/rh/conges', icon: CalendarIcon },
+          { name: 'Documents', href: '/rh/documents', icon: DocumentDuplicateIcon },
+          { name: 'Entretiens', href: '/rh/entretiens', icon: ChatBubbleLeftIcon },
+          { name: 'Formations', href: '/rh/formations', icon: AcademicCapIcon },
+          { name: 'Évaluations', href: '/rh/evaluations', icon: CheckCircleIcon },
+        ],
+      },
+      {
+        label: 'BTP',
+        icon: WrenchScrewdriverIcon,
+        requiredModules: ['btp'],
+        items: [
+          { name: 'Dashboard', href: '/btp', icon: WrenchScrewdriverIcon },
+          { name: 'Chantiers', href: '/btp/chantiers', icon: DocumentTextIcon },
+          { name: 'Situations', href: '/btp/situations', icon: DocumentDuplicateIcon },
+        ],
+      },
+      {
+        label: 'Gestion de Stock',
+        icon: CubeIcon,
+        requiredModules: ['gestion_stock'],
+        items: [
+          { name: 'Dashboard Stock', href: '/gestion-stock', icon: ChartBarIcon },
+          { name: 'Entrepôts', href: '/gestion-stock/sites', icon: BuildingOffice2Icon },
+          { name: 'Niveaux', href: '/gestion-stock/niveaux', icon: ClipboardDocumentListIcon },
+          { name: 'Mouvements', href: '/gestion-stock/mouvements', icon: ArrowPathIcon },
+          { name: 'Transferts', href: '/gestion-stock/transferts', icon: TruckIcon },
+          { name: 'Inventaires', href: '/gestion-stock/inventaires', icon: DocumentCheckIcon },
+          { name: 'Alertes', href: '/gestion-stock/alertes', icon: BellIcon },
+        ],
+      },
     ],
   },
+
+  // ─── Communication & Marketing ────────────────────
   {
-    label: 'Partenaires',
-    icon: BuildingOffice2Icon,
-    requiredModules: ['partenaire'],
+    label: 'Agent IA',
+    icon: PhoneIcon,
+    requiredModules: ['agent_telephonique'],
     items: [
-      { name: 'Dashboard', href: '/partenaires', icon: ChartBarIcon },
-      { name: 'Liste Partenaires', href: '/partenaires/liste', icon: BuildingOffice2Icon },
-      { name: 'Commissions', href: '/partenaires/commissions', icon: GiftIcon },
-    ],
-  },
-  {
-    label: 'Revenus',
-    icon: CurrencyEuroIcon,
-    requiredModules: ['partenaire'],
-    items: [
-      { name: 'Dashboard MRR', href: '/revenus', icon: ChartBarIcon },
-      { name: 'Commissions', href: '/revenus/commissions', icon: CurrencyEuroIcon },
-    ],
-  },
-  {
-    label: 'Gestion d\'Équipe',
-    icon: UsersIcon,
-    requiredModules: ['gestion_equipe'],
-    items: [
-      { name: 'Dashboard', href: '/equipe', icon: UsersIcon },
-      { name: 'Membres', href: '/equipe/membres', icon: UserPlusIcon },
-      { name: 'Absences', href: '/equipe/absences', icon: ClipboardDocumentListIcon },
-      { name: 'Pointage', href: '/equipe/pointage', icon: DocumentCheckIcon },
-    ],
-  },
-  {
-    label: 'Projets',
-    icon: ClipboardDocumentListIcon,
-    requiredModules: ['gestion_projet'],
-    items: [
-      { name: 'Dashboard', href: '/projets', icon: ClipboardDocumentListIcon },
-      { name: 'Mes Projets', href: '/projets/liste', icon: DocumentTextIcon },
-      { name: 'Tâches', href: '/projets/taches', icon: DocumentCheckIcon },
-    ],
-  },
-  {
-    label: 'BTP',
-    icon: WrenchScrewdriverIcon,
-    requiredModules: ['btp'],
-    items: [
-      { name: 'Dashboard', href: '/btp', icon: WrenchScrewdriverIcon },
-      { name: 'Chantiers', href: '/btp/chantiers', icon: DocumentTextIcon },
-      { name: 'Situations', href: '/btp/situations', icon: DocumentDuplicateIcon },
-    ],
-  },
-  {
-    label: 'Gestion de Stock',
-    icon: CubeIcon,
-    requiredModules: ['gestion_stock'],
-    items: [
-      { name: 'Dashboard Stock', href: '/gestion-stock', icon: ChartBarIcon },
-      { name: 'Entrepôts', href: '/gestion-stock/sites', icon: BuildingOffice2Icon },
-      { name: 'Niveaux', href: '/gestion-stock/niveaux', icon: ClipboardDocumentListIcon },
-      { name: 'Mouvements', href: '/gestion-stock/mouvements', icon: ArrowPathIcon },
-      { name: 'Transferts', href: '/gestion-stock/transferts', icon: TruckIcon },
-      { name: 'Inventaires', href: '/gestion-stock/inventaires', icon: DocumentCheckIcon },
-      { name: 'Alertes', href: '/gestion-stock/alertes', icon: BellIcon },
+      { name: 'Dashboard', href: '/agent-ia', icon: SparklesIcon },
+      { name: 'Appels', href: '/agent-ia/appels', icon: PhoneIcon },
+      { name: 'SMS', href: '/agent-ia/sms', icon: ChatBubbleLeftIcon },
+      { name: 'Calendrier', href: '/agent-ia/calendrier', icon: CalendarDaysIcon },
+      { name: 'Conversations', href: '/agent-ia/conversations', icon: ChatBubbleBottomCenterTextIcon },
+      { name: 'Questionnaires', href: '/agent-ia/questionnaires', icon: QuestionIcon },
+      { name: 'Avis clients', href: '/agent-ia/avis', icon: StarIcon },
+      { name: 'Base Connaissances', href: '/agent-ia/base-connaissances', icon: BookOpenIcon },
+      { name: 'Configuration', href: '/agent-ia/configuration', icon: SettingsIcon },
     ],
   },
   {
@@ -210,55 +275,14 @@ const allNavGroups: NavGroup[] = [
       { name: 'Analytics', href: '/newsletters/analytics', icon: ChartBarIcon },
     ],
   },
+
+  // ─── Support ──────────────────────────────────────
   {
     label: 'Support',
     icon: TicketIcon,
     requiredModules: ['ticketing'],
     items: [
       { name: 'Tickets', href: '/tickets', icon: TicketIcon },
-    ],
-  },
-  {
-    label: 'Administration',
-    icon: WrenchScrewdriverIcon,
-    requiredModules: [],
-    items: [
-      { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
-      { name: 'Plans & Modules', href: '/plans', icon: BanknotesIcon },
-      { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
-      { name: 'Notifications', href: '/notifications', icon: BellIcon },
-      { name: 'CMS Landing Page', href: '/cms', icon: PencilSquareIcon },
-    ],
-  },
-  {
-    label: 'Agent IA',
-    icon: PhoneIcon,
-    requiredModules: ['agent_telephonique'],
-    items: [
-      { name: 'Dashboard', href: '/agent-ia', icon: SparklesIcon },
-      { name: 'Appels', href: '/agent-ia/appels', icon: PhoneIcon },
-      { name: 'SMS', href: '/agent-ia/sms', icon: ChatBubbleLeftIcon },
-      { name: 'Calendrier', href: '/agent-ia/calendrier', icon: CalendarDaysIcon },
-      { name: 'Conversations', href: '/agent-ia/conversations', icon: ChatBubbleBottomCenterTextIcon },
-      { name: 'Questionnaires', href: '/agent-ia/questionnaires', icon: QuestionIcon },
-      { name: 'Avis clients', href: '/agent-ia/avis', icon: StarIcon },
-      { name: 'Base Connaissances', href: '/agent-ia/base-connaissances', icon: BookOpenIcon },
-      { name: 'Configuration', href: '/agent-ia/configuration', icon: SettingsIcon },
-    ],
-  },
-  {
-    label: 'Ressources Humaines',
-    icon: UsersIcon,
-    requiredModules: ['gestion_rh'],
-    items: [
-      { name: 'Dashboard', href: '/rh', icon: HomeIcon },
-      { name: 'Contrats', href: '/rh/contrats', icon: DocumentTextIcon },
-      { name: 'Paie', href: '/rh/paie', icon: BanknotesIcon },
-      { name: 'Congés', href: '/rh/conges', icon: CalendarIcon },
-      { name: 'Documents', href: '/rh/documents', icon: DocumentDuplicateIcon },
-      { name: 'Entretiens', href: '/rh/entretiens', icon: ChatBubbleLeftIcon },
-      { name: 'Formations', href: '/rh/formations', icon: AcademicCapIcon },
-      { name: 'Évaluations', href: '/rh/evaluations', icon: CheckCircleIcon },
     ],
   },
 ];
@@ -310,13 +334,21 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
         return group.requiredModules.some((mod) => modulesActifs.includes(mod));
       })
       .map((group) => {
-        if (!isClientUser) return group;
-        return {
+        const filtered = {
           ...group,
-          items: group.items.filter((item) => !adminOnlyItems.includes(item.href)),
+          items: isClientUser
+            ? group.items.filter((item) => !adminOnlyItems.includes(item.href))
+            : group.items,
         };
+        // Filtrer les subGroups selon les modules actifs
+        if (filtered.subGroups) {
+          filtered.subGroups = filtered.subGroups.filter((sg) =>
+            sg.requiredModules.some((mod) => modulesActifs.includes(mod))
+          );
+        }
+        return filtered;
       })
-      .filter((group) => group.items.length > 0);
+      .filter((group) => group.items.length > 0 || (group.subGroups && group.subGroups.length > 0));
   }, [modulesActifs, isClientUser]);
 
   const handleLogout = () => {
@@ -342,7 +374,11 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
     pathname === href || pathname?.startsWith(href + '/');
 
   const isGroupActive = (group: NavGroup) =>
-    group.items.some((item) => isItemActive(item.href));
+    group.items.some((item) => isItemActive(item.href)) ||
+    (group.subGroups?.some((sg) => sg.items.some((item) => isItemActive(item.href))) ?? false);
+
+  const isSubGroupActive = (sg: SubGroup) =>
+    sg.items.some((item) => isItemActive(item.href));
 
   // Sur mobile, la sidebar est un drawer plein écran
   const sidebarExpanded = isMobile ? mobileOpen : !isCollapsed;
@@ -371,30 +407,6 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
         </div>
 
         <nav className="flex-1 px-2 space-y-1">
-          {standaloneItems.map((item) => {
-            const active = isItemActive(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`
-                  group flex items-center px-2 py-2.5 text-sm font-medium rounded-md
-                  ${active ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
-                  ${!sidebarExpanded ? 'justify-center' : ''}
-                `}
-                title={!sidebarExpanded ? item.name : ''}
-              >
-                <item.icon
-                  className={`flex-shrink-0 h-6 w-6 ${sidebarExpanded ? 'mr-3' : ''} ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'}`}
-                />
-                {sidebarExpanded && <span>{item.name}</span>}
-              </Link>
-            );
-          })}
-
-          {sidebarExpanded && <div className="border-t border-gray-700 my-2" />}
-          {!sidebarExpanded && <div className="my-2" />}
-
           {navGroups.map((group) => {
             const groupActive = isGroupActive(group);
             const isOpen = openGroups[group.label] || false;
@@ -429,6 +441,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
 
                 {sidebarExpanded && isOpen && (
                   <div className="ml-4 mt-1 space-y-0.5">
+                    {/* Items directs */}
                     {group.items.map((item) => {
                       const active = isItemActive(item.href);
                       return (
@@ -447,6 +460,57 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
                           />
                           <span>{item.name}</span>
                         </Link>
+                      );
+                    })}
+
+                    {/* Sous-onglets (ex: Gestion) */}
+                    {group.subGroups?.map((sg) => {
+                      const sgActive = isSubGroupActive(sg);
+                      const sgOpen = openGroups[`${group.label}/${sg.label}`] || false;
+                      return (
+                        <div key={sg.label}>
+                          <button
+                            onClick={() => toggleGroup(`${group.label}/${sg.label}`)}
+                            className={`
+                              w-full group flex items-center pl-4 pr-2 py-2 text-sm font-medium rounded-md border-l-2
+                              ${sgActive
+                                ? 'border-amber-400 bg-gray-800/60 text-white'
+                                : 'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-white hover:border-gray-500'}
+                            `}
+                          >
+                            <sg.icon
+                              className={`flex-shrink-0 h-5 w-5 mr-2.5 ${sgActive ? 'text-amber-400' : 'text-gray-500 group-hover:text-gray-300'}`}
+                            />
+                            <span className="flex-1 text-left">{sg.label}</span>
+                            <ChevronDownIcon
+                              className={`h-3.5 w-3.5 text-gray-500 transition-transform duration-200 ${sgOpen ? 'rotate-180' : ''}`}
+                            />
+                          </button>
+                          {sgOpen && (
+                            <div className="ml-4 mt-0.5 space-y-0.5">
+                              {sg.items.map((item) => {
+                                const active = isItemActive(item.href);
+                                return (
+                                  <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    className={`
+                                      group flex items-center pl-4 pr-2 py-1.5 text-xs rounded-md border-l-2
+                                      ${active
+                                        ? 'border-amber-400 bg-gray-800/40 text-white'
+                                        : 'border-transparent text-gray-500 hover:bg-gray-700/40 hover:text-white hover:border-gray-600'}
+                                    `}
+                                  >
+                                    <item.icon
+                                      className={`flex-shrink-0 h-4 w-4 mr-2 ${active ? 'text-amber-400' : 'text-gray-600 group-hover:text-gray-400'}`}
+                                    />
+                                    <span>{item.name}</span>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
