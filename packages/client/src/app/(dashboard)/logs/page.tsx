@@ -536,7 +536,22 @@ export default function LogsPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="text-center py-12">
-            {activeTab === 'succes' ? (
+            {stats && stats.total > 0 ? (
+              /* Stats montrent des logs mais la liste est vide = problème n8n */
+              <>
+                <ExclamationTriangleIcon className="h-12 w-12 text-yellow-500 mx-auto mb-3" />
+                <p className="text-yellow-300 text-lg font-medium">Problème de chargement des logs</p>
+                <p className="text-gray-400 text-sm mt-2 max-w-md mx-auto">
+                  Les statistiques affichent {stats.total} log(s) mais le détail ne se charge pas.
+                  {error && <span className="block mt-2 text-red-400">{error}</span>}
+                </p>
+                <p className="text-gray-500 text-xs mt-3 max-w-lg mx-auto">
+                  Vérifiez dans n8n que le workflow <strong>logs-list</strong> est bien importé (version corrigée) et actif.
+                  Le workflow doit utiliser les colonnes : id, tenant_id, type_evenement, entite_type, entite_id, payload,
+                  workflow_n8n_declenche, workflow_n8n_id, statut_execution, message_erreur, created_at.
+                </p>
+              </>
+            ) : activeTab === 'succes' ? (
               <>
                 <InformationCircleIcon className="h-12 w-12 text-gray-500 mx-auto mb-3" />
                 <p className="text-gray-400">Aucun log de succès à afficher.</p>

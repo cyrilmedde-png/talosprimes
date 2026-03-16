@@ -80,27 +80,59 @@ export async function logsRoutes(fastify: FastifyInstance) {
           typeEvenements = WORKFLOW_EVENTS[query.workflow];
         }
 
-        const res = await n8nService.callWorkflowReturn<{ logs: unknown[]; total: number }>(
-          tenantId,
-          'logs_list',
-          {
-            limit: query.limit,
-            offset: query.offset,
-            typeEvenement: query.typeEvenement,
-            statutExecution: query.statutExecution,
-            typeEvenements: typeEvenements ? typeEvenements.join(',') : undefined,
+        try {
+          const res = await n8nService.callWorkflowReturn<unknown>(
+            tenantId,
+            'logs_list',
+            {
+              limit: query.limit,
+              offset: query.offset,
+              typeEvenement: query.typeEvenement,
+              statutExecution: query.statutExecution,
+              typeEvenements: typeEvenements ? typeEvenements.join(',') : undefined,
+            }
+          );
+
+          // Extraction robuste : le format peut varier selon la version du workflow n8n
+          const data = res.data as Record<string, unknown> | unknown[] | null;
+          let logs: unknown[] = [];
+          let total = 0;
+
+          if (data && typeof data === 'object') {
+            if (Array.isArray(data)) {
+              // n8n a renvoyé un tableau direct de logs
+              logs = data;
+              total = data.length;
+            } else if (Array.isArray((data as Record<string, unknown>).logs)) {
+              // Format attendu : { logs: [...], total: N }
+              logs = (data as Record<string, unknown>).logs as unknown[];
+              total = ((data as Record<string, unknown>).total as number) || logs.length;
+            } else {
+              // Format inattendu — logger pour debug
+              fastify.log.warn({ n8nResponse: JSON.stringify(data).slice(0, 1000) }, '[logs_list] Format de réponse n8n inattendu');
+            }
+          } else {
+            fastify.log.warn({ n8nResponse: String(data) }, '[logs_list] Réponse n8n vide ou invalide');
           }
-        );
-        const raw = res.data as Record<string, unknown>;
-        return reply.status(200).send({
-          success: true,
-          data: {
-            logs: raw.logs || [],
-            total: raw.total || 0,
-            limit: raw.limit || query.limit,
-            offset: raw.offset ?? query.offset,
-          },
-        });
+
+          return reply.status(200).send({
+            success: true,
+            data: {
+              logs,
+              total,
+              limit: query.limit,
+              offset: query.offset,
+            },
+          });
+        } catch (n8nError) {
+          // Si n8n échoue, on log ET on remonte l'erreur au frontend au lieu d'un écran vide
+          fastify.log.error(n8nError, '[logs_list] Erreur appel n8n — vérifier que le workflow logs-list est bien importé et actif dans n8n');
+          return reply.status(200).send({
+            success: false,
+            error: `Erreur n8n logs-list: ${n8nError instanceof Error ? n8nError.message : 'Erreur inconnue'}. Vérifiez que le workflow logs-list est bien importé et actif dans n8n.`,
+            data: { logs: [], total: 0, limit: query.limit, offset: query.offset },
+          });
+        }
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe
