@@ -2443,6 +2443,8 @@ model RhContrat {
   @@index([memberId])
   @@index([statut])
   @@index([type])
+  @@index([tenantId, statut])
+  @@index([tenantId, statut, dateFin])
   @@map("rh_contrats")
 }
 
@@ -2473,6 +2475,7 @@ model RhBulletinPaie {
   @@index([tenantId])
   @@index([memberId])
   @@index([annee, mois])
+  @@index([tenantId, annee, mois])
   @@map("rh_bulletins_paie")
 }
 
@@ -2501,6 +2504,8 @@ model RhConge {
   @@index([memberId])
   @@index([statut])
   @@index([dateDebut])
+  @@index([tenantId, statut])
+  @@index([tenantId, statut, dateDebut, dateFin])
   @@map("rh_conges")
 }
 
@@ -2524,6 +2529,7 @@ model RhDocument {
   @@index([tenantId])
   @@index([memberId])
   @@index([type])
+  @@index([tenantId, type])
   @@map("rh_documents")
 }
 
@@ -2551,6 +2557,7 @@ model RhEntretien {
   @@index([memberId])
   @@index([type])
   @@index([dateEntretien])
+  @@index([tenantId, statut, dateEntretien])
   @@map("rh_entretiens")
 }
 
@@ -2578,6 +2585,7 @@ model RhFormation {
   @@index([tenantId])
   @@index([statut])
   @@index([dateDebut])
+  @@index([tenantId, statut])
   @@map("rh_formations")
 }
 
@@ -2628,6 +2636,8 @@ model RhEvaluation {
   @@index([memberId])
   @@index([evaluateurId])
   @@index([annee])
+  @@index([tenantId, annee])
+  @@index([tenantId, createdAt])
   @@map("rh_evaluations")
 }
 
