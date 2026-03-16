@@ -123,12 +123,23 @@ export default function PaiePage(): JSX.Element {
   // CHARGEMENT DES DONNÉES
   // ============================================================
 
+  /** Extrait un tableau depuis la réponse API (gère les 2 formats possibles) */
+  function extractArray<T>(responseData: unknown): T[] {
+    if (Array.isArray(responseData)) return responseData as T[];
+    if (responseData && typeof responseData === 'object' && 'data' in (responseData as Record<string, unknown>)) {
+      const inner = (responseData as Record<string, unknown>).data;
+      if (Array.isArray(inner)) return inner as T[];
+    }
+    return [];
+  }
+
   const fetchBulletins = async (): Promise<void> => {
     try {
       setLoading(true);
       const response = await apiClient.rh.paie.list();
-      setBulletins((response.data as unknown as BulletinPaie[]) || []);
-      setFilteredBulletins((response.data as unknown as BulletinPaie[]) || []);
+      const items = extractArray<BulletinPaie>(response.data);
+      setBulletins(items);
+      setFilteredBulletins(items);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
@@ -140,7 +151,7 @@ export default function PaiePage(): JSX.Element {
   const fetchMembres = async (): Promise<void> => {
     try {
       const response = await apiClient.equipe.membres.list();
-      setMembres((response.data as unknown as Membre[]) || []);
+      setMembres(extractArray<Membre>(response.data));
     } catch {
       // Silently fail
     }
@@ -155,7 +166,7 @@ export default function PaiePage(): JSX.Element {
     let filtered = bulletins;
     if (searchTerm) {
       filtered = filtered.filter((b) =>
-        b.membreNom.toLowerCase().includes(searchTerm.toLowerCase())
+        (b.membreNom || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     if (selectedMois) filtered = filtered.filter((b) => b.mois === Number(selectedMois));
@@ -289,9 +300,9 @@ export default function PaiePage(): JSX.Element {
   };
 
   const calculateTotals = () => ({
-    totalBrut: filteredBulletins.reduce((sum, b) => sum + b.salaireBase + b.primes, 0),
-    totalNet: filteredBulletins.reduce((sum, b) => sum + b.netAPayer, 0),
-    totalChargesS: filteredBulletins.reduce((sum, b) => sum + (b.chargesSalariales || b.deductions), 0),
+    totalBrut: filteredBulletins.reduce((sum, b) => sum + (b.salaireBase || 0) + (b.primes || 0), 0),
+    totalNet: filteredBulletins.reduce((sum, b) => sum + (b.netAPayer || 0), 0),
+    totalChargesS: filteredBulletins.reduce((sum, b) => sum + (b.chargesSalariales || b.deductions || 0), 0),
     totalChargesP: filteredBulletins.reduce((sum, b) => sum + (b.chargesPatronales || 0), 0),
   });
 
