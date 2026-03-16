@@ -80,8 +80,19 @@ const envSchema = z.object({
   QONTO_LOGIN: z.string().optional(),        // ex: ei-cyril-medde-3794
   QONTO_SECRET_KEY: z.string().optional(),   // clé API depuis Paramètres > Intégrations
 
-  // Facebook (suppression de publications depuis le dashboard)
+  // Facebook / Instagram
   FACEBOOK_PAGE_ACCESS_TOKEN: z.string().optional(),
+  FACEBOOK_PAGE_ID: z.string().optional(),
+  INSTAGRAM_USER_ID: z.string().optional(),
+
+  // TikTok
+  TIKTOK_CLIENT_KEY: z.string().optional(),
+  TIKTOK_CLIENT_SECRET: z.string().optional(),
+  TIKTOK_REFRESH_TOKEN: z.string().optional(),
+
+  // LinkedIn
+  LINKEDIN_ACCESS_TOKEN: z.string().optional(),
+  LINKEDIN_ORG_ID: z.string().optional(),
 
 });
 

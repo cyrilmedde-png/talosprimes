@@ -177,9 +177,8 @@ export default function MarketingConfigPage() {
       try {
         setLoading(true);
         const response = await apiClient.marketing.getConfig();
-        const raw = response as Record<string, unknown>;
-        const data = (raw?.data ?? raw) as MarketingConfigDisplay;
-        if (data && data.facebook) {
+        const data = response.data as unknown as MarketingConfigDisplay;
+        if (data) {
           setConfig(data);
           setFbForm({
             pageAccessToken: data.facebook?.pageAccessToken || '',
@@ -225,10 +224,9 @@ export default function MarketingConfigPage() {
       setSuccess('Configuration sauvegardée avec succès');
 
       // Recharger pour avoir les valeurs masquées à jour
-      const response2 = await apiClient.marketing.getConfig();
-      const raw2 = response2 as Record<string, unknown>;
-      const data = (raw2?.data ?? raw2) as MarketingConfigDisplay;
-      if (data && data.facebook) {
+      const response = await apiClient.marketing.getConfig();
+      const data = response.data as unknown as MarketingConfigDisplay;
+      if (data) {
         setConfig(data);
         if (activeTab === 'facebook') setFbForm({ pageAccessToken: data.facebook?.pageAccessToken || '', pageId: data.facebook?.pageId || '', instagramUserId: data.facebook?.instagramUserId || '' });
         if (activeTab === 'tiktok') setTtForm({ clientKey: data.tiktok?.clientKey || '', clientSecret: data.tiktok?.clientSecret || '', refreshToken: data.tiktok?.refreshToken || '' });
