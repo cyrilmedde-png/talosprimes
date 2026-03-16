@@ -101,6 +101,8 @@ const MODULE_CONFIG: Record<string, { label: string; color: string; badgeColor: 
   },
 };
 
+const MODULE_KEYS = Object.keys(MODULE_CONFIG);
+
 function classifyLog(log: Log): string {
   const evt = log.typeEvenement;
   for (const [key, cfg] of Object.entries(MODULE_CONFIG)) {
@@ -122,10 +124,38 @@ function getModuleBorderColor(key: string): string {
 }
 
 // ──────────────────────────────────────────
+// Helper : extraction robuste des logs
+// ──────────────────────────────────────────
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function extractLogs(response: any): Log[] {
+  // Cas 1 : { success, data: { logs: [...] } }
+  if (response?.data?.logs && Array.isArray(response.data.logs)) {
+    return response.data.logs;
+  }
+  // Cas 2 : { success, data: [...] } (tableau direct)
+  if (response?.data && Array.isArray(response.data)) {
+    return response.data;
+  }
+  // Cas 3 : { logs: [...] } (pas de wrapper success/data)
+  if (response?.logs && Array.isArray(response.logs)) {
+    return response.logs;
+  }
+  // Cas 4 : tableau direct
+  if (Array.isArray(response)) {
+    return response;
+  }
+  console.warn('[Logs] Format de réponse inattendu:', JSON.stringify(response).slice(0, 500));
+  return [];
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+// ──────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────
 
-type MainTab = 'erreurs' | 'tous' | 'succes';
+// Onglet : 'all' pour tout, un module_key, ou 'succes'
+type TabKey = 'all' | typeof MODULE_KEYS[number] | 'succes';
 
 // ──────────────────────────────────────────
 // Sub-components
@@ -192,6 +222,43 @@ function LogCard({ log }: { log: Log }) {
   );
 }
 
+function ErrorAlertSection({ logs }: { logs: Log[] }) {
+  const errorsAndWarnings = logs.filter(
+    (l) => l.statutExecution === 'erreur' || l.statutExecution === 'en_attente'
+  );
+
+  if (errorsAndWarnings.length === 0) return null;
+
+  // Grouper par module
+  const groups: Record<string, Log[]> = {};
+  for (const log of errorsAndWarnings) {
+    const mod = classifyLog(log);
+    if (!groups[mod]) groups[mod] = [];
+    groups[mod].push(log);
+  }
+
+  return (
+    <div className="mb-6">
+      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+        <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
+        Erreurs et Alertes ({errorsAndWarnings.length})
+      </h2>
+      <div className="space-y-4">
+        {Object.entries(groups)
+          .sort((a, b) => b[1].length - a[1].length)
+          .map(([moduleKey, moduleLogs]) => (
+            <ModuleGroup
+              key={moduleKey}
+              moduleKey={moduleKey}
+              logs={moduleLogs}
+              defaultOpen={true}
+            />
+          ))}
+      </div>
+    </div>
+  );
+}
+
 function ModuleGroup({
   moduleKey,
   logs,
@@ -204,6 +271,7 @@ function ModuleGroup({
   const [open, setOpen] = useState(defaultOpen);
   const errorCount = logs.filter((l) => l.statutExecution === 'erreur').length;
   const pendingCount = logs.filter((l) => l.statutExecution === 'en_attente').length;
+  const successCount = logs.filter((l) => l.statutExecution === 'succes').length;
 
   return (
     <div className={`border-l-4 ${getModuleBorderColor(moduleKey)} rounded-lg bg-gray-800/30 overflow-hidden`}>
@@ -231,13 +299,24 @@ function ModuleGroup({
               {pendingCount} en attente
             </span>
           )}
+          {successCount > 0 && (
+            <span className="px-2 py-0.5 bg-green-600/60 text-green-100 text-xs rounded-full font-medium">
+              {successCount} succès
+            </span>
+          )}
         </div>
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-2">
-          {logs.map((log) => (
-            <LogCard key={log.id} log={log} />
-          ))}
+          {/* Erreurs d'abord, puis en_attente, puis succès */}
+          {[...logs]
+            .sort((a, b) => {
+              const order: Record<string, number> = { erreur: 0, en_attente: 1, succes: 2 };
+              return (order[a.statutExecution] ?? 3) - (order[b.statutExecution] ?? 3);
+            })
+            .map((log) => (
+              <LogCard key={log.id} log={log} />
+            ))}
         </div>
       )}
     </div>
@@ -249,7 +328,7 @@ function ModuleGroup({
 // ──────────────────────────────────────────
 
 export default function LogsPage() {
-  const [activeTab, setActiveTab] = useState<MainTab>('erreurs');
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [logs, setLogs] = useState<Log[]>([]);
   const [stats, setStats] = useState<LogStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -278,21 +357,25 @@ export default function LogsPage() {
     setError(null);
     try {
       const params: {
+        workflow?: string;
         statutExecution?: 'en_attente' | 'succes' | 'erreur';
         limit?: number;
       } = { limit: 200 };
 
-      if (activeTab === 'erreurs') {
-        params.statutExecution = 'erreur';
-      } else if (activeTab === 'succes') {
+      if (activeTab === 'succes') {
+        // Onglet Succès : filtre par statut
         params.statutExecution = 'succes';
+      } else if (activeTab !== 'all' && MODULE_CONFIG[activeTab]) {
+        // Onglet module spécifique : filtre par workflow
+        params.workflow = activeTab;
       }
-      // 'tous' → pas de filtre statut
+      // 'all' → pas de filtre
 
       const response = await apiClient.logs.list(params);
-      if (response.success && response.data) {
-        setLogs(response.data.logs);
-      } else {
+      const extractedLogs = extractLogs(response);
+      setLogs(extractedLogs);
+
+      if (extractedLogs.length === 0 && response.success === false) {
         setError(response.error || 'Erreur lors de la récupération des logs.');
       }
     } catch (err) {
@@ -311,7 +394,13 @@ export default function LogsPage() {
     fetchLogs();
   }, [fetchLogs]);
 
-  // ── Group logs by module ──
+  // ── Erreurs et warnings de la vue courante ──
+  const errorsAndWarnings = useMemo(
+    () => logs.filter((l) => l.statutExecution === 'erreur' || l.statutExecution === 'en_attente'),
+    [logs]
+  );
+
+  // ── Group logs by module (pour vue "Tous") ──
   const groupedLogs = useMemo(() => {
     const groups: Record<string, Log[]> = {};
     for (const log of logs) {
@@ -319,17 +408,17 @@ export default function LogsPage() {
       if (!groups[mod]) groups[mod] = [];
       groups[mod].push(log);
     }
-    // Trier les modules : ceux avec le plus de logs en premier
-    const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
-    return sorted;
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
   }, [logs]);
 
-  // ── Tabs config ──
-  const tabs: { key: MainTab; label: string; countKey?: string }[] = [
-    { key: 'erreurs', label: 'Erreurs & Alertes' },
-    { key: 'tous', label: 'Tous les logs' },
-    { key: 'succes', label: 'Succès' },
-  ];
+  // ── Onglets dynamiques : modules qui ont des logs ──
+  const activeModules = useMemo(() => {
+    if (!stats?.byWorkflow) return [];
+    return MODULE_KEYS.filter((key) => {
+      const wf = stats.byWorkflow[key];
+      return wf && wf.total > 0;
+    });
+  }, [stats]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -369,71 +458,73 @@ export default function LogsPage() {
           </div>
         )}
 
-        {/* ── Résumé par module (toujours visible) ── */}
-        {stats?.byWorkflow && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-            {Object.entries(stats.byWorkflow)
-              .filter(([, v]) => v.total > 0)
-              .sort((a, b) => b[1].total - a[1].total)
-              .map(([key, value]) => (
-                <div
-                  key={key}
-                  className={`border-l-4 ${getModuleBorderColor(key)} bg-gray-800/40 rounded-lg p-3`}
-                >
-                  <div className="text-xs text-gray-400 mb-1">{getModuleLabel(key)}</div>
-                  <div className="text-lg font-bold">{value.total}</div>
-                  {value.errors > 0 && (
-                    <div className="text-xs text-red-400">{value.errors} erreur{value.errors > 1 ? 's' : ''}</div>
-                  )}
-                </div>
-              ))}
-          </div>
-        )}
-
-        {/* ── Onglets principaux ── */}
+        {/* ── Onglets : Tous | Leads | Clients | ... | Succès ── */}
         <div className="mb-6">
-          <div className="flex space-x-1 border-b border-gray-700">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.key;
-              let count: number | undefined;
-              if (stats) {
-                if (tab.key === 'erreurs') count = stats.errors + stats.enAttente;
-                else if (tab.key === 'succes') count = stats.succeeded;
-                else count = stats.total;
-              }
+          <div className="flex flex-wrap gap-0 border-b border-gray-700">
+            {/* Onglet Tous */}
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'all'
+                  ? 'border-indigo-500 text-indigo-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Tous
+              {stats && (
+                <span className="ml-2 px-2 py-0.5 text-xs rounded-full font-medium bg-gray-600 text-white">
+                  {stats.total}
+                </span>
+              )}
+            </button>
+
+            {/* Onglets par module (uniquement ceux qui ont des logs) */}
+            {activeModules.map((key) => {
+              const cfg = MODULE_CONFIG[key];
+              const wf = stats?.byWorkflow[key];
+              const isActive = activeTab === key;
               return (
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-5 py-3 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
                     isActive
-                      ? tab.key === 'erreurs'
-                        ? 'border-red-500 text-red-400'
-                        : tab.key === 'succes'
-                        ? 'border-green-500 text-green-400'
-                        : 'border-indigo-500 text-indigo-400'
+                      ? 'border-indigo-500 text-indigo-400'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >
-                  {tab.key === 'erreurs' && <ExclamationTriangleIcon className="h-4 w-4" />}
-                  {tab.key === 'succes' && <CheckCircleIcon className="h-4 w-4" />}
-                  {tab.label}
-                  {count !== undefined && count > 0 && (
-                    <span
-                      className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                        tab.key === 'erreurs'
-                          ? 'bg-red-600 text-white'
-                          : tab.key === 'succes'
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gray-600 text-white'
-                      }`}
-                    >
-                      {count}
+                  {cfg.label}
+                  {wf && wf.errors > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-red-600 text-white text-xs rounded-full font-medium">
+                      {wf.errors}
+                    </span>
+                  )}
+                  {wf && wf.errors === 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-gray-600 text-white text-xs rounded-full font-medium">
+                      {wf.total}
                     </span>
                   )}
                 </button>
               );
             })}
+
+            {/* Onglet Succès */}
+            <button
+              onClick={() => setActiveTab('succes')}
+              className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap flex items-center gap-1 ${
+                activeTab === 'succes'
+                  ? 'border-green-500 text-green-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <CheckCircleIcon className="h-4 w-4" />
+              Succès
+              {stats && stats.succeeded > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-medium">
+                  {stats.succeeded}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -445,13 +536,7 @@ export default function LogsPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="text-center py-12">
-            {activeTab === 'erreurs' ? (
-              <>
-                <CheckCircleIcon className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <p className="text-gray-300 text-lg font-medium">Aucune erreur ni alerte</p>
-                <p className="text-gray-500 text-sm mt-1">Tous les workflows fonctionnent correctement.</p>
-              </>
-            ) : activeTab === 'succes' ? (
+            {activeTab === 'succes' ? (
               <>
                 <InformationCircleIcon className="h-12 w-12 text-gray-500 mx-auto mb-3" />
                 <p className="text-gray-400">Aucun log de succès à afficher.</p>
@@ -463,24 +548,55 @@ export default function LogsPage() {
               </>
             )}
           </div>
-        ) : activeTab === 'tous' ? (
-          /* Tous : liste plate triée par date */
-          <div className="space-y-3">
-            {logs.map((log) => (
-              <LogCard key={log.id} log={log} />
-            ))}
-          </div>
         ) : (
-          /* Erreurs & Succès : groupés par module */
-          <div className="space-y-4">
-            {groupedLogs.map(([moduleKey, moduleLogs]) => (
-              <ModuleGroup
-                key={moduleKey}
-                moduleKey={moduleKey}
-                logs={moduleLogs}
-                defaultOpen={activeTab === 'erreurs'}
-              />
-            ))}
+          <div>
+            {/* Erreurs & Warnings en haut (sauf dans l'onglet Succès) */}
+            {activeTab !== 'succes' && errorsAndWarnings.length > 0 && (
+              <ErrorAlertSection logs={logs} />
+            )}
+
+            {/* Liste des logs */}
+            {activeTab === 'all' ? (
+              /* Vue "Tous" : groupés par module */
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-300">Tous les logs</h2>
+                {groupedLogs.map(([moduleKey, moduleLogs]) => (
+                  <ModuleGroup
+                    key={moduleKey}
+                    moduleKey={moduleKey}
+                    logs={moduleLogs}
+                    defaultOpen={false}
+                  />
+                ))}
+              </div>
+            ) : activeTab === 'succes' ? (
+              /* Vue Succès : groupés par module */
+              <div className="space-y-4">
+                {groupedLogs.map(([moduleKey, moduleLogs]) => (
+                  <ModuleGroup
+                    key={moduleKey}
+                    moduleKey={moduleKey}
+                    logs={moduleLogs}
+                    defaultOpen={false}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* Vue module spécifique : liste plate avec erreurs en premier */
+              <div className="space-y-3">
+                <h2 className="text-lg font-semibold text-gray-300">
+                  Logs — {getModuleLabel(activeTab)}
+                </h2>
+                {[...logs]
+                  .sort((a, b) => {
+                    const order: Record<string, number> = { erreur: 0, en_attente: 1, succes: 2 };
+                    return (order[a.statutExecution] ?? 3) - (order[b.statutExecution] ?? 3);
+                  })
+                  .map((log) => (
+                    <LogCard key={log.id} log={log} />
+                  ))}
+              </div>
+            )}
           </div>
         )}
       </div>
