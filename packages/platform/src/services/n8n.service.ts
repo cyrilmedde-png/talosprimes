@@ -427,7 +427,7 @@ export class N8nService {
       'success' in (data as Record<string, unknown>) &&
       'data' in (data as Record<string, unknown>)
     ) {
-      return data as { success: boolean; data?: T; error?: string };
+      return data as unknown as { success: boolean; data?: T; error?: string };
     }
 
     return { success: true, data };
