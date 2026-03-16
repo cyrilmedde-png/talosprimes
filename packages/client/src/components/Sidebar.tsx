@@ -333,7 +333,7 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
 
   const sidebarContent = (
     <div className="flex-1 flex flex-col min-h-0 h-full">
-      <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+      <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto sidebar-scroll">
         {/* Logo / Déconnexion */}
         <div className="flex items-center flex-shrink-0 px-4 mb-6 justify-between">
           <button
