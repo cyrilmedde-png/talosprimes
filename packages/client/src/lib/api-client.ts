@@ -1608,6 +1608,10 @@ export const apiClient = {
     getStatus: () => authenticatedFetch<{ success: boolean; data: unknown }>('/api/marketing/status'),
     generateContent: (data: { plateforme: string; type: string; sujet: string }) =>
       authenticatedFetch<{ success: boolean; data: { contenuTexte: string; hashtags: string } }>('/api/marketing/generate', { method: 'POST', body: JSON.stringify(data) }),
+    getConfig: () =>
+      authenticatedFetch<{ success: boolean; data: Record<string, unknown> }>('/api/marketing/config'),
+    saveConfig: (config: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; message: string }>('/api/marketing/config', { method: 'PUT', body: JSON.stringify(config) }),
   },
 
   // Gestion de Stock

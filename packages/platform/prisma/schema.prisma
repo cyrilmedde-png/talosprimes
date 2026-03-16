@@ -358,6 +358,7 @@ model Tenant {
   rhEvaluations         RhEvaluation[]
   agentKnowledgeEntries AgentKnowledgeEntry[]
   // Marketing
+  marketingConfig       TenantMarketingConfig?
   marketingPosts        MarketingPost[]
   // Gestion de Stock
   stockSites            StockSite[]
@@ -2785,6 +2786,17 @@ enum MarketingPostStatus {
   planifie
   publie
   erreur
+}
+
+model TenantMarketingConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @unique @map("tenant_id") @db.Uuid
+  config    Json     @map("config") // { facebook?: { pageAccessToken, pageId, instagramUserId }, tiktok?: { clientKey, clientSecret, refreshToken }, linkedin?: { accessToken, orgId }, openai?: { apiKey } }
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_marketing_configs")
 }
 
 model MarketingPost {

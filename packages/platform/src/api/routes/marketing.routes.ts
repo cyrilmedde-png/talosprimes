@@ -673,4 +673,37 @@ Génère un JSON valide avec cette structure exacte:
       }
     }
   );
+
+  // ═══════════════════════════════════════
+  // CONFIGURATION CREDENTIALS
+  // ═══════════════════════════════════════
+
+  // GET /api/marketing/config - Lire la config (secrets masqués)
+  fastify.get(
+    '/config',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: AuthRequest, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+
+      const { getMarketingConfigForDisplay } = await import('../../services/marketing-config.service.js');
+      const config = await getMarketingConfigForDisplay(tenantId);
+      return reply.send({ success: true, data: config });
+    }
+  );
+
+  // PUT /api/marketing/config - Sauvegarder la config
+  fastify.put(
+    '/config',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: AuthRequest, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+
+      const body = request.body as Record<string, unknown>;
+      const { saveMarketingConfig } = await import('../../services/marketing-config.service.js');
+      await saveMarketingConfig(tenantId, body);
+      return reply.send({ success: true, message: 'Configuration marketing sauvegardée' });
+    }
+  );
 }

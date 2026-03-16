@@ -191,6 +191,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Dashboard', href: '/marketing', icon: ChartBarIcon },
       { name: 'Publications', href: '/marketing/publications', icon: MegaphoneIcon },
       { name: 'Calendrier', href: '/marketing/calendrier', icon: CalendarIcon },
+      { name: 'Configuration', href: '/marketing/configuration', icon: Cog6ToothIcon },
     ],
   },
   {
