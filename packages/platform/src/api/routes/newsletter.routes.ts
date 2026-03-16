@@ -1,12 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { n8nService } from '../../services/n8n.service.js';
+import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 
 export async function newsletterRoutes(fastify: FastifyInstance) {
+
+  // Middleware d'authentification appliqué à TOUTES les routes newsletter
+  fastify.addHook('onRequest', n8nOrAuthMiddleware);
 
   // ===== SUBSCRIBERS =====
 
   fastify.get('/subscribers', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { limit, offset, search, status, source, listId } = request.query as any;
@@ -32,7 +36,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/subscribers', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { email, telephone, nom, prenom, entreprise, source, tags } = request.body as any;
@@ -59,7 +63,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put('/subscribers/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -88,7 +92,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.delete('/subscribers/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -111,7 +115,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   // ===== SUBSCRIBER LISTS =====
 
   fastify.get('/subscribers/lists', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     try {
@@ -128,7 +132,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/subscribers/lists', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { nom, description, type, couleur, subscriberIds } = request.body as any;
@@ -155,7 +159,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   // ===== EMAIL TEMPLATES =====
 
   fastify.get('/templates', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { categorie } = request.query as any;
@@ -176,7 +180,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get('/templates/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -197,7 +201,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/templates', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { nom, sujet, contenuHtml, contenuText, variables, categorie } = request.body as any;
@@ -223,7 +227,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put('/templates/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -251,7 +255,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.delete('/templates/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -274,7 +278,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   // ===== CAMPAIGNS =====
 
   fastify.get('/campaigns/stats', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     try {
@@ -291,7 +295,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get('/campaigns', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { limit, offset, status } = request.query as any;
@@ -314,7 +318,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get('/campaigns/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -335,7 +339,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/campaigns', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const {
@@ -374,7 +378,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.put('/campaigns/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -415,7 +419,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.delete('/campaigns/:id', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { id } = request.params as any;
@@ -438,7 +442,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   // ===== SMS CAMPAIGNS =====
 
   fastify.get('/sms-campaigns/stats', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     try {
@@ -454,7 +458,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get('/sms-campaigns', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { limit, offset, status } = request.query as any;
@@ -476,7 +480,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/sms-campaigns', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     const { nom, contenu, listId, scheduledAt } = request.body as any;
@@ -498,7 +502,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   // ===== SUBSCRIBER STATS =====
 
   fastify.get('/subscribers/stats', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     try {
@@ -516,7 +520,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
   // ===== ANALYTICS =====
 
   fastify.get('/analytics', async (request, reply) => {
-    const tenantId = (request as any).tenantId;
+    const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
     try {
