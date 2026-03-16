@@ -14,7 +14,17 @@ type ModuleDef = {
  * Chaque module est classé dans une catégorie pour l'affichage front.
  */
 const ALL_MODULES: ModuleDef[] = [
-  // ─── Commercial ───────────────────────────────
+  // ─── Administration ─────────────────────────────
+  {
+    code: 'dashboard',
+    nomAffiche: 'Tableau de bord',
+    description: 'Dashboard principal avec KPIs',
+    categorie: 'Administration',
+    icone: 'HomeIcon',
+    ordreAffichage: 1,
+  },
+
+  // ─── Commercial ─────────────────────────────────
   {
     code: 'clients',
     nomAffiche: 'Clients',
@@ -48,7 +58,7 @@ const ALL_MODULES: ModuleDef[] = [
     ordreAffichage: 13,
   },
 
-  // ─── Facturation & Finance ────────────────────
+  // ─── Facturation & Finance ──────────────────────
   {
     code: 'facturation',
     nomAffiche: 'Facturation',
@@ -113,8 +123,24 @@ const ALL_MODULES: ModuleDef[] = [
     icone: 'CalculatorIcon',
     ordreAffichage: 27,
   },
+  {
+    code: 'abonnements',
+    nomAffiche: 'Gestion des Abonnements',
+    description: 'Gestion des abonnements et facturation récurrente',
+    categorie: 'Facturation & Finance',
+    icone: 'CreditCardIcon',
+    ordreAffichage: 28,
+  },
+  {
+    code: 'subscriptions',
+    nomAffiche: 'Abonnements & Renouvellements',
+    description: 'Module de gestion des abonnements et renouvellements',
+    categorie: 'Facturation & Finance',
+    icone: 'CreditCardIcon',
+    ordreAffichage: 29,
+  },
 
-  // ─── Gestion d'entreprise ─────────────────────
+  // ─── Gestion d'entreprise ───────────────────────
   {
     code: 'gestion_projet',
     nomAffiche: 'Gestion de Projet',
@@ -148,51 +174,79 @@ const ALL_MODULES: ModuleDef[] = [
     ordreAffichage: 33,
   },
 
-  // ─── IA & Communication ───────────────────────
+  // ─── Logistique ─────────────────────────────────
+  {
+    code: 'gestion_stock',
+    nomAffiche: 'Gestion de Stock',
+    description: 'Module complet de gestion de stock multi-sites avec mouvements, transferts inter-sites, inventaires et alertes',
+    categorie: 'Logistique',
+    icone: 'CubeIcon',
+    ordreAffichage: 35,
+  },
+
+  // ─── Communication & Marketing ──────────────────
   {
     code: 'agent_telephonique',
     nomAffiche: 'Agent Téléphonique IA',
     description: 'Agent IA : appels entrants/sortants, SMS, questionnaires, configuration Twilio',
-    categorie: 'IA & Communication',
+    categorie: 'Communication & Marketing',
     icone: 'PhoneIcon',
     ordreAffichage: 40,
+  },
+  {
+    code: 'sms',
+    nomAffiche: 'SMS & Appels',
+    description: 'Envoi de SMS et gestion des appels via Twilio',
+    categorie: 'Communication & Marketing',
+    icone: 'DevicePhoneMobileIcon',
+    ordreAffichage: 41,
   },
   {
     code: 'notifications',
     nomAffiche: 'Notifications',
     description: 'Gestion des notifications : création, lecture, suppression',
-    categorie: 'IA & Communication',
+    categorie: 'Communication & Marketing',
     icone: 'BellIcon',
-    ordreAffichage: 41,
+    ordreAffichage: 42,
   },
   {
     code: 'marketing_digital',
     nomAffiche: 'Marketing Digital',
     description: 'Publication automatique sur Facebook, Instagram et TikTok : calendrier éditorial, statistiques, IA générative',
-    categorie: 'IA & Communication',
+    categorie: 'Communication & Marketing',
     icone: 'MegaphoneIcon',
-    ordreAffichage: 42,
+    ordreAffichage: 43,
   },
   {
     code: 'newsletter',
     nomAffiche: 'Newsletter',
     description: 'Gestion complète des newsletters : contacts/abonnés, campagnes email, campagnes SMS, templates, analytics, listes de diffusion',
-    categorie: 'IA & Communication',
+    categorie: 'Communication & Marketing',
     icone: 'EnvelopeIcon',
-    ordreAffichage: 43,
+    ordreAffichage: 44,
   },
 
-  // ─── Support ─────────────────────────────────
+  // ─── Conformité ─────────────────────────────────
+  {
+    code: 'conformite',
+    nomAffiche: 'Conformité Fiscale',
+    description: 'Module conformité complète : FEC, Factur-X, E-Reporting, EDI-TVA, DAS2, Sirene, PAF, Archives, Périodes',
+    categorie: 'Conformité',
+    icone: 'ShieldCheckIcon',
+    ordreAffichage: 50,
+  },
+
+  // ─── Support ────────────────────────────────────
   {
     code: 'ticketing',
     nomAffiche: 'Ticketing Support',
     description: 'Système de tickets : création depuis la landing page, suivi, réponses, statuts, priorités, notifications email automatiques',
     categorie: 'Support',
     icone: 'TicketIcon',
-    ordreAffichage: 50,
+    ordreAffichage: 60,
   },
 
-  // ─── Système ──────────────────────────────────
+  // ─── Système ────────────────────────────────────
   {
     code: 'logs',
     nomAffiche: 'Logs',

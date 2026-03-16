@@ -5,11 +5,16 @@ import type { User } from '@/lib/auth';
 
 // Tous les modules disponibles par défaut
 const ALL_MODULES = [
-  'clients', 'leads', 'facturation', 'devis', 'bons_commande',
-  'avoirs', 'proformas', 'comptabilite', 'agent_telephonique',
-  'articles', 'logs', 'notifications',
-  'gestion_equipe', 'gestion_projet', 'btp', 'gestion_rh',
-  'partenaire', 'marketing_digital', 'newsletter',
+  'dashboard',
+  'clients', 'leads', 'prospects', 'partenaire',
+  'facturation', 'devis', 'bons_commande', 'avoirs', 'proformas',
+  'articles', 'revenus', 'comptabilite', 'abonnements', 'subscriptions',
+  'gestion_projet', 'gestion_equipe', 'gestion_rh', 'btp',
+  'gestion_stock',
+  'agent_telephonique', 'sms', 'notifications', 'marketing_digital', 'newsletter',
+  'conformite',
+  'ticketing',
+  'logs',
 ];
 
 interface AuthState {
