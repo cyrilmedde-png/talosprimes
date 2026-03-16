@@ -78,7 +78,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at, updated_at) VALUES ('\" + $json.tenantId + \"', '\" + $json.type + \"', '\" + $json.titre + \"', '\" + $json.message + \"', '\" + $json.donnees + \"', false, NOW(), NOW()) RETURNING id, tenant_id, type, titre, message, donnees, lu, created_at, updated_at\" }}"
+        "query": "={{ \"INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at) VALUES ('\" + $json.tenantId + \"'::uuid, '\" + String($json.type).replace(/'/g, \"''\") + \"', '\" + String($json.titre).replace(/'/g, \"''\") + \"', '\" + String($json.message).replace(/'/g, \"''\") + \"', '\" + ($json.donnees || '{}') + \"'::jsonb, false, NOW()) RETURNING id, tenant_id AS \\\"tenantId\\\", type, titre, message, donnees, lu, created_at AS \\\"createdAt\\\"\" }}"
       },
       "id": "05. Insert Notification",
       "name": "05. Insert Notification",
@@ -111,10 +111,7 @@
     },
     {
       "parameters": {
-        "respondWithOptions": {
-          "responseType": "json"
-        },
-        "responseBody": "={{ $json }}"
+        "respondWith": "allIncomingItems"
       },
       "id": "07. Respond",
       "name": "07. Respond",

@@ -51,7 +51,6 @@ export async function logsRoutes(fastify: FastifyInstance) {
           {
             limit: query.limit,
             offset: query.offset,
-            workflow: query.workflow,
             typeEvenement: query.typeEvenement,
             statutExecution: query.statutExecution,
           }
@@ -63,7 +62,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
             logs: raw.logs || [],
             total: raw.total || 0,
             limit: raw.limit || query.limit,
-            offset: raw.offset || query.offset,
+            offset: raw.offset ?? query.offset,
           },
         });
       }
