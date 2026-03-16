@@ -201,8 +201,8 @@
     },
     "Posts à publier ?": {
       "main": [
-        [{ "node": "Verrouiller Post", "type": "main", "index": 0 }],
-        []
+        [],
+        [{ "node": "Verrouiller Post", "type": "main", "index": 0 }]
       ]
     },
     "Verrouiller Post": {
