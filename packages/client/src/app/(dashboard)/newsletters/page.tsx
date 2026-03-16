@@ -57,6 +57,16 @@ export default function NewsletterDashboardPage() {
     fetchDashboard();
   }, []);
 
+  const emptyDashboard: Dashboard = {
+    campaigns: { total: 0, brouillon: 0, planifiee: 0, envoyee: 0, total_envoyes: 0, total_ouverts: 0, total_cliques: 0, total_bounces: 0, total_desabonnes: 0 },
+    subscribers: { total: 0, active: 0, unsubscribed: 0, bounced: 0, new_last_30_days: 0, total_lists: 0 },
+    sms: { total: 0, total_envoyes: 0, total_delivered: 0, total_failed: 0 },
+    templates: { total: 0 },
+    recent_campaigns: [],
+    avg_open_rate: 0,
+    avg_click_rate: 0,
+  };
+
   const fetchDashboard = async () => {
     try {
       setLoading(true);
@@ -65,9 +75,13 @@ export default function NewsletterDashboardPage() {
       if (res.success && res.data?.dashboard) {
         setData(res.data.dashboard);
       } else {
+        // Afficher dashboard vide si pas de données
+        setData(emptyDashboard);
         setError('Impossible de charger le dashboard');
       }
     } catch (err) {
+      // En cas d'erreur réseau/n8n, afficher dashboard vide
+      setData(emptyDashboard);
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);

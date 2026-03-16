@@ -268,7 +268,8 @@ const allNavGroups: NavGroup[] = [
     icon: EnvelopeIcon,
     requiredModules: ['newsletter'],
     items: [
-      { name: 'Campagnes', href: '/newsletters', icon: PaperAirplaneIcon },
+      { name: 'Dashboard', href: '/newsletters', icon: HomeIcon },
+      { name: 'Campagnes', href: '/newsletters/campaigns', icon: PaperAirplaneIcon },
       { name: 'Contacts', href: '/newsletters/contacts', icon: UserGroupIcon },
       { name: 'Templates', href: '/newsletters/templates', icon: RectangleStackIcon },
       { name: 'SMS', href: '/newsletters/sms', icon: ChatBubbleLeftIcon },
