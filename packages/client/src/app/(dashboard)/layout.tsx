@@ -14,25 +14,38 @@ export default function DashboardLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [topBarVisible, setTopBarVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const setModulesActifs = useAuthStore((s) => s.setModulesActifs);
   const setUser = useAuthStore((s) => s.setUser);
   const setIsClientUser = useAuthStore((s) => s.setIsClientUser);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const checkMobile = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => setIsMobile(window.innerWidth < 768), 150);
+    };
+    // Appel initial sans debounce
+    setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(resizeTimer);
+    };
   }, []);
 
   // Charger les modules actifs au démarrage du layout (persiste après refresh)
   useEffect(() => {
-    if (!isAuthenticated()) return;
+    if (!isAuthenticated()) {
+      setIsLoading(false);
+      return;
+    }
     getCurrentUser().then(({ user, modulesActifs, isClientUser }) => {
       if (user) setUser(user);
       if (modulesActifs) setModulesActifs(modulesActifs);
       setIsClientUser(isClientUser);
-    }).catch(() => { /* token expiré, le middleware redirigera */ });
+    }).catch(() => { /* token expiré, le middleware redirigera */ })
+    .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -62,7 +75,19 @@ export default function DashboardLayout({
                 paddingRight: isMobile ? '1rem' : '2rem',
               }}
             >
-              {children}
+              {isLoading ? (
+                <div className="animate-pulse space-y-6">
+                  <div className="h-8 bg-gray-800 rounded w-1/3"></div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="h-28 bg-gray-800 rounded-lg"></div>
+                    <div className="h-28 bg-gray-800 rounded-lg"></div>
+                    <div className="h-28 bg-gray-800 rounded-lg"></div>
+                  </div>
+                  <div className="h-64 bg-gray-800 rounded-lg"></div>
+                </div>
+              ) : (
+                children
+              )}
             </div>
           </div>
         </main>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import NotificationsDropdown from './NotificationsDropdown';
@@ -16,17 +16,34 @@ export default function TopBar({
   const [searchQuery, setSearchQuery] = useState('');
   const [isVisible, setIsVisible] = useState(false);
 
+  // Ref pour le throttle afin d'éviter un setState à chaque pixel de mouvement
+  const lastVisibleRef = useRef(isVisible);
+  const throttleRef = useRef(false);
+
+  const stableOnVisibilityChange = useCallback(
+    (v: boolean) => onVisibilityChange?.(v),
+    [onVisibilityChange]
+  );
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // Afficher le menu si la souris est dans les 50px du haut
+      if (throttleRef.current) return;
+      throttleRef.current = true;
+
       const shouldBeVisible = e.clientY < 50;
-      setIsVisible(shouldBeVisible);
-      onVisibilityChange?.(shouldBeVisible);
+      // Ne mettre à jour le state que si la valeur change réellement
+      if (shouldBeVisible !== lastVisibleRef.current) {
+        lastVisibleRef.current = shouldBeVisible;
+        setIsVisible(shouldBeVisible);
+        stableOnVisibilityChange(shouldBeVisible);
+      }
+
+      setTimeout(() => { throttleRef.current = false; }, 100);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [onVisibilityChange]);
+  }, [stableOnVisibilityChange]);
 
   const menuWidth = sidebarCollapsed ? 'calc(100% - 8rem)' : 'calc(100% - 18rem)';
   const menuLeft = sidebarCollapsed ? '4rem' : '14rem';

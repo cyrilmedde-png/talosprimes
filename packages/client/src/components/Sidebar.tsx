@@ -255,18 +255,27 @@ export default function Sidebar({ onToggle }: { onToggle?: (collapsed: boolean) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Détecter mobile (< 768px)
+  // Détecter mobile (< 768px) avec debounce pour éviter les re-renders excessifs
   useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout>;
     const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (!mobile) {
-        setMobileOpen(false);
-      }
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const mobile = window.innerWidth < 768;
+        setIsMobile(mobile);
+        if (!mobile) {
+          setMobileOpen(false);
+        }
+      }, 150);
     };
-    checkMobile();
+    // Appel initial sans debounce
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(resizeTimer);
+    };
   }, []);
 
   // Fermer le menu mobile quand on change de page

@@ -30,12 +30,9 @@ export default function NotificationsDropdown() {
     }
   };
 
-  // Charger au montage et toutes les 30 secondes
+  // Charger les notifications au montage (une seule fois)
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(() => {
-      loadNotifications();
-    }, 30000); // Rafraîchir toutes les 30 secondes
 
     // Écouter l'événement de rechargement depuis la page logs
     const handleReload = () => {
@@ -44,11 +41,20 @@ export default function NotificationsDropdown() {
     window.addEventListener('reload-notifications', handleReload);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('reload-notifications', handleReload);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Polling toutes les 30s UNIQUEMENT quand le dropdown est ouvert
+  useEffect(() => {
+    if (!isOpen) return;
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Fermer le dropdown si clic en dehors
   useEffect(() => {
@@ -125,7 +131,11 @@ export default function NotificationsDropdown() {
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          const willOpen = !isOpen;
+          setIsOpen(willOpen);
+          if (willOpen) loadNotifications();
+        }}
         className="relative bg-gray-800 p-2 rounded-full text-gray-400 hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 transition-colors"
       >
         <span className="sr-only">Voir les notifications</span>
