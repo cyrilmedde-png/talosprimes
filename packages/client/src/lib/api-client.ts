@@ -979,7 +979,7 @@ export const apiClient = {
 
   // Logs
   logs: {
-    list: (params?: { workflow?: 'leads' | 'clients' | 'all'; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
+    list: (params?: { workflow?: string; statutExecution?: 'en_attente' | 'succes' | 'erreur'; typeEvenement?: string; limit?: number; offset?: number }) => {
       const queryParams = new URLSearchParams();
       if (params?.workflow) queryParams.append('workflow', params.workflow);
       if (params?.statutExecution) queryParams.append('statutExecution', params.statutExecution);
@@ -989,7 +989,7 @@ export const apiClient = {
       const query = queryParams.toString();
       return authenticatedFetch<{ success: boolean; data?: { logs: Log[]; total: number; limit: number; offset: number }; error?: string }>(`/api/logs${query ? `?${query}` : ''}`);
     },
-    stats: (workflow?: 'leads' | 'clients' | 'all') => {
+    stats: (workflow?: string) => {
       const query = workflow ? `?workflow=${workflow}` : '';
       return authenticatedFetch<{ success: boolean; data?: LogStats; error?: string }>(`/api/logs/stats${query}`);
     },
@@ -1770,10 +1770,7 @@ export interface LogStats {
   succeeded: number;
   errors: number;
   enAttente: number;
-  byWorkflow: {
-    leads: { total: number; errors: number; succeeded: number };
-    clients: { total: number; errors: number; succeeded: number };
-  };
+  byWorkflow: Record<string, { total: number; errors: number; succeeded: number }>;
 }
 
 // Type réponse API conformité France

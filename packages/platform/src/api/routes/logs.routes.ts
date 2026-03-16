@@ -8,7 +8,7 @@ import { ApiError } from '../../utils/api-errors.js';
 const getLogsQuerySchema = z.object({
   typeEvenement: z.string().optional(),
   statutExecution: z.enum(['en_attente', 'succes', 'erreur']).optional(),
-  workflow: z.enum(['leads', 'clients', 'all']).optional().default('all'),
+  workflow: z.string().optional().default('all'),
   limit: z.string().optional().transform((val) => (val ? parseInt(val, 10) : 50)),
   offset: z.string().optional().transform((val) => (val ? parseInt(val, 10) : 0)),
 });
@@ -25,6 +25,35 @@ const WORKFLOW_EVENTS: Record<string, string[]> = {
     'client.created', 'client.updated', 'client.deleted', 'client.onboarding',
     'client_create', 'client_update', 'client_delete', 'client_create_from_lead',
     'clients_list', 'client_get',
+  ],
+  facturation: [
+    'invoice_create', 'invoice_send', 'invoice_paid', 'invoice_overdue',
+    'invoice_get', 'invoice_update', 'invoice_delete', 'invoice_generate_pdf',
+    'invoices_list', 'devis_list', 'devis_get', 'devis_create', 'devis_send',
+    'devis_accept', 'devis_convert_to_invoice', 'devis_convert_to_bdc',
+    'devis_update', 'devis_delete', 'bdc_list', 'bdc_get', 'bdc_create',
+    'bdc_update', 'bdc_validate', 'bdc_convert_to_invoice', 'bdc_delete',
+    'avoir_list', 'avoir_get', 'avoir_create', 'avoir_validate', 'avoir_delete',
+    'invoice_convert_to_avoir', 'proforma_list', 'proforma_get', 'proforma_create',
+    'proforma_send', 'proforma_accept', 'proforma_convert_to_invoice', 'proforma_delete',
+  ],
+  abonnements: [
+    'subscription_renewal', 'subscription_cancelled', 'subscription_suspended',
+    'subscription_upgrade', 'stripe_checkout_completed',
+  ],
+  marketing: [
+    'marketing_post_create', 'marketing_post_publish', 'marketing_stats',
+  ],
+  auth: [
+    'password_reset_request', 'auth_login', 'auth_register',
+  ],
+  articles: [
+    'article_codes_list', 'article_code_create', 'article_code_update', 'article_code_delete',
+  ],
+  telephonie: [
+    'call_log_list', 'call_log_get', 'call_log_stats', 'call_log_create',
+    'call_log_update', 'call_log_delete', 'twilio_config_get', 'twilio_config_update',
+    'twilio_test_call', 'twilio_outbound_call', 'sms_list', 'sms_stats', 'sms_send',
   ],
 };
 
@@ -45,6 +74,12 @@ export async function logsRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → passe par n8n
       if (!fromN8n && tenantId) {
+        // Translate workflow to typeEvenements list for n8n
+        let typeEvenements: string[] | undefined;
+        if (query.workflow && query.workflow !== 'all') {
+          typeEvenements = WORKFLOW_EVENTS[query.workflow];
+        }
+
         const res = await n8nService.callWorkflowReturn<{ logs: unknown[]; total: number }>(
           tenantId,
           'logs_list',
@@ -53,6 +88,7 @@ export async function logsRoutes(fastify: FastifyInstance) {
             offset: query.offset,
             typeEvenement: query.typeEvenement,
             statutExecution: query.statutExecution,
+            typeEvenements: typeEvenements ? typeEvenements.join(',') : undefined,
           }
         );
         const raw = res.data as Record<string, unknown>;
@@ -94,10 +130,11 @@ export async function logsRoutes(fastify: FastifyInstance) {
       const logsWithWorkflow = await Promise.all(
         logs.map(async (log: typeof logs[0]) => {
           let workflow = 'other';
-          if (WORKFLOW_EVENTS.leads.includes(log.typeEvenement)) {
-            workflow = 'leads';
-          } else if (WORKFLOW_EVENTS.clients.includes(log.typeEvenement)) {
-            workflow = 'clients';
+          for (const [workflowName, events] of Object.entries(WORKFLOW_EVENTS)) {
+            if (events.includes(log.typeEvenement)) {
+              workflow = workflowName;
+              break;
+            }
           }
 
           let entityEmail: string | null = null;
@@ -152,10 +189,14 @@ export async function logsRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → passe par n8n
       if (!fromN8n && tenantId) {
+        let typeEvenements: string[] | undefined;
+        if (workflow && workflow !== 'all') {
+          typeEvenements = WORKFLOW_EVENTS[workflow];
+        }
         const res = await n8nService.callWorkflowReturn<unknown>(
           tenantId,
           'logs_stats',
-          { workflow }
+          { workflow, typeEvenements: typeEvenements ? typeEvenements.join(',') : undefined }
         );
         return reply.status(200).send({ success: true, data: res.data });
       }
