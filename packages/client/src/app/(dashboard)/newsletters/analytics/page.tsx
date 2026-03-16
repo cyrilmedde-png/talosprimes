@@ -47,7 +47,7 @@ export default function NewsletterAnalyticsPage() {
 
   async function fetchData() {
     setLoading(true);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken');
     const tenantId = localStorage.getItem('tenantId');
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${token}`,

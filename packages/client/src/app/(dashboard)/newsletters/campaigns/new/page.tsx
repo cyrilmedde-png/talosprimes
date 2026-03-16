@@ -53,7 +53,7 @@ export default function NewCampaignPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {
@@ -102,7 +102,7 @@ export default function NewCampaignPage() {
 
   const handleSendTestEmail = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {
@@ -140,7 +140,7 @@ export default function NewCampaignPage() {
 
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {

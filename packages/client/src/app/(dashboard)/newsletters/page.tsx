@@ -33,7 +33,7 @@ export default function NewslettersPage() {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('accessToken');
         const tenantId = localStorage.getItem('tenantId');
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 

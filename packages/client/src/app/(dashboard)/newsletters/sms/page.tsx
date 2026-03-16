@@ -52,7 +52,7 @@ export default function SMSCampaignsPage() {
   }, []);
 
   const getHeaders = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken');
     const tenantId = localStorage.getItem('tenantId');
 
     if (!token || !tenantId) {

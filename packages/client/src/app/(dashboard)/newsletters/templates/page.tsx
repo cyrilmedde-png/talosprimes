@@ -36,7 +36,7 @@ export default function TemplatesPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {
@@ -66,7 +66,7 @@ export default function TemplatesPage() {
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {
@@ -109,7 +109,7 @@ export default function TemplatesPage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {

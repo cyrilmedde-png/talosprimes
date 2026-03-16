@@ -34,7 +34,7 @@ export default function ContactsPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {
@@ -64,7 +64,7 @@ export default function ContactsPage() {
   const handleAddSubscriber = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {
@@ -102,7 +102,7 @@ export default function ContactsPage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const tenantId = localStorage.getItem('tenantId');
 
       if (!token || !tenantId) {
