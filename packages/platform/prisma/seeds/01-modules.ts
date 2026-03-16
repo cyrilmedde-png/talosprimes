@@ -173,6 +173,14 @@ const ALL_MODULES: ModuleDef[] = [
     icone: 'MegaphoneIcon',
     ordreAffichage: 42,
   },
+  {
+    code: 'newsletter',
+    nomAffiche: 'Newsletter',
+    description: 'Gestion complète des newsletters : contacts/abonnés, campagnes email, campagnes SMS, templates, analytics, listes de diffusion',
+    categorie: 'IA & Communication',
+    icone: 'EnvelopeIcon',
+    ordreAffichage: 43,
+  },
 
   // ─── Support ─────────────────────────────────
   {
