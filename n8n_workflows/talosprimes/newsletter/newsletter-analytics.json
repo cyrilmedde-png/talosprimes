@@ -1,0 +1,241 @@
+{
+  "name": "newsletter-analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/analytics",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\n\nreturn [{ tenantId }];"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "value2": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "={{ {success: false, message: 'Missing tenantId'} }}"
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  COUNT(*) as total_sent,\n  COALESCE(SUM(envoyes), 0) as total_envoyes,\n  COALESCE(SUM(ouverts), 0) as total_ouverts,\n  COALESCE(SUM(cliques), 0) as total_cliques,\n  COALESCE(SUM(bounces), 0) as total_bounces,\n  COALESCE(SUM(desabonnes), 0) as total_desabonnes\nFROM newsletter_campaigns\nWHERE tenant_id = $1::uuid",
+        "queryParams": "={{ [$json.tenantId] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_aggregate_stats",
+      "name": "Query Aggregate Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  name,\n  subject,\n  (CAST(ouverts as FLOAT) / NULLIF(envoyes, 0) * 100) as open_rate,\n  (CAST(cliques as FLOAT) / NULLIF(envoyes, 0) * 100) as click_rate\nFROM newsletter_campaigns\nWHERE tenant_id = $1::uuid\nORDER BY open_rate DESC NULLS LAST\nLIMIT 5",
+        "queryParams": "={{ [$json.tenantId] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_best_campaigns",
+      "name": "Query Best Campaigns",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  DATE_TRUNC('month', created_at)::DATE as month,\n  COUNT(*) as campaign_count,\n  COALESCE(SUM(envoyes), 0) as total_envoyes\nFROM newsletter_campaigns\nWHERE tenant_id = $1::uuid\n  AND created_at >= NOW() - INTERVAL '6 months'\nGROUP BY DATE_TRUNC('month', created_at)\nORDER BY month DESC",
+        "queryParams": "={{ [$json.tenantId] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_monthly_sends",
+      "name": "Query Monthly Sends",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COUNT(*) as count\nFROM subscribers\nWHERE tenant_id = $1::uuid\n  AND status = 'active'",
+        "queryParams": "={{ [$json.tenantId] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_active_subscribers",
+      "name": "Query Active Subscribers",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aggregateData = $node['query_aggregate_stats'].json.data || [];\nconst bestCampaignsData = $node['query_best_campaigns'].json.data || [];\nconst monthlySendsData = $node['query_monthly_sends'].json.data || [];\nconst activeSubscribersData = $node['query_active_subscribers'].json.data || [];\n\nconst aggregateStats = aggregateData.length > 0 ? aggregateData[0] : {};\n\nconst totalSent = parseInt(aggregateStats.total_sent) || 0;\nconst totalEnvoyes = parseInt(aggregateStats.total_envoyes) || 0;\nconst totalOuverts = parseInt(aggregateStats.total_ouverts) || 0;\nconst totalCliques = parseInt(aggregateStats.total_cliques) || 0;\n\nconst avgOpenRate = totalEnvoyes > 0 ? (totalOuverts / totalEnvoyes * 100).toFixed(2) : 0;\nconst avgClickRate = totalEnvoyes > 0 ? (totalCliques / totalEnvoyes * 100).toFixed(2) : 0;\n\nconst bestCampaigns = bestCampaignsData.map(row => ({\n  name: row.name,\n  subject: row.subject,\n  openRate: parseFloat(row.open_rate).toFixed(2),\n  clickRate: parseFloat(row.click_rate).toFixed(2)\n}));\n\nconst monthlySends = monthlySendsData.map(row => ({\n  month: row.month,\n  campaignCount: parseInt(row.campaign_count) || 0,\n  totalEnvoyes: parseInt(row.total_envoyes) || 0\n}));\n\nconst totalActiveSubscribers = activeSubscribersData.length > 0 ? parseInt(activeSubscribersData[0].count) || 0 : 0;\n\nreturn [{\n  json: {\n    analytics: {\n      totalSent: totalSent,\n      totalEnvoyes: totalEnvoyes,\n      totalOuverts: totalOuverts,\n      totalCliques: totalCliques,\n      avgOpenRate: parseFloat(avgOpenRate),\n      avgClickRate: parseFloat(avgClickRate),\n      bestCampaigns: bestCampaigns,\n      monthlySends: monthlySends,\n      totalActiveSubscribers: totalActiveSubscribers\n    }\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parser": {
+      "main": [
+        [
+          {
+            "node": "validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validation": {
+      "main": [
+        [
+          {
+            "node": "query_aggregate_stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_aggregate_stats": {
+      "main": [
+        [
+          {
+            "node": "query_best_campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_best_campaigns": {
+      "main": [
+        [
+          {
+            "node": "query_monthly_sends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_monthly_sends": {
+      "main": [
+        [
+          {
+            "node": "query_active_subscribers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_active_subscribers": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

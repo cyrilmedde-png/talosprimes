@@ -8,7 +8,7 @@ import { ApiError } from '../../utils/api-errors.js';
 const getLogsQuerySchema = z.object({
   typeEvenement: z.string().optional(),
   statutExecution: z.enum(['en_attente', 'succes', 'erreur']).optional(),
-  workflow: z.string().optional().default('all'),
+  workflow: z.enum(['leads', 'clients', 'all']).optional().default('all'),
   limit: z.string().optional().transform((val) => (val ? parseInt(val, 10) : 50)),
   offset: z.string().optional().transform((val) => (val ? parseInt(val, 10) : 0)),
 });
@@ -25,35 +25,6 @@ const WORKFLOW_EVENTS: Record<string, string[]> = {
     'client.created', 'client.updated', 'client.deleted', 'client.onboarding',
     'client_create', 'client_update', 'client_delete', 'client_create_from_lead',
     'clients_list', 'client_get',
-  ],
-  facturation: [
-    'invoice_create', 'invoice_send', 'invoice_paid', 'invoice_overdue',
-    'invoice_get', 'invoice_update', 'invoice_delete', 'invoice_generate_pdf',
-    'invoices_list', 'devis_list', 'devis_get', 'devis_create', 'devis_send',
-    'devis_accept', 'devis_convert_to_invoice', 'devis_convert_to_bdc',
-    'devis_update', 'devis_delete', 'bdc_list', 'bdc_get', 'bdc_create',
-    'bdc_update', 'bdc_validate', 'bdc_convert_to_invoice', 'bdc_delete',
-    'avoir_list', 'avoir_get', 'avoir_create', 'avoir_validate', 'avoir_delete',
-    'invoice_convert_to_avoir', 'proforma_list', 'proforma_get', 'proforma_create',
-    'proforma_send', 'proforma_accept', 'proforma_convert_to_invoice', 'proforma_delete',
-  ],
-  abonnements: [
-    'subscription_renewal', 'subscription_cancelled', 'subscription_suspended',
-    'subscription_upgrade', 'stripe_checkout_completed',
-  ],
-  marketing: [
-    'marketing_post_create', 'marketing_post_publish', 'marketing_stats',
-  ],
-  auth: [
-    'password_reset_request', 'auth_login', 'auth_register',
-  ],
-  articles: [
-    'article_codes_list', 'article_code_create', 'article_code_update', 'article_code_delete',
-  ],
-  telephonie: [
-    'call_log_list', 'call_log_get', 'call_log_stats', 'call_log_create',
-    'call_log_update', 'call_log_delete', 'twilio_config_get', 'twilio_config_update',
-    'twilio_test_call', 'twilio_outbound_call', 'sms_list', 'sms_stats', 'sms_send',
   ],
 };
 
@@ -74,65 +45,27 @@ export async function logsRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → passe par n8n
       if (!fromN8n && tenantId) {
-        // Translate workflow to typeEvenements list for n8n
-        let typeEvenements: string[] | undefined;
-        if (query.workflow && query.workflow !== 'all') {
-          typeEvenements = WORKFLOW_EVENTS[query.workflow];
-        }
-
-        try {
-          const res = await n8nService.callWorkflowReturn<unknown>(
-            tenantId,
-            'logs_list',
-            {
-              limit: query.limit,
-              offset: query.offset,
-              typeEvenement: query.typeEvenement,
-              statutExecution: query.statutExecution,
-              typeEvenements: typeEvenements ? typeEvenements.join(',') : undefined,
-            }
-          );
-
-          // Extraction robuste : le format peut varier selon la version du workflow n8n
-          const data = res.data as Record<string, unknown> | unknown[] | null;
-          let logs: unknown[] = [];
-          let total = 0;
-
-          if (data && typeof data === 'object') {
-            if (Array.isArray(data)) {
-              // n8n a renvoyé un tableau direct de logs
-              logs = data;
-              total = data.length;
-            } else if (Array.isArray((data as Record<string, unknown>).logs)) {
-              // Format attendu : { logs: [...], total: N }
-              logs = (data as Record<string, unknown>).logs as unknown[];
-              total = ((data as Record<string, unknown>).total as number) || logs.length;
-            } else {
-              // Format inattendu — logger pour debug
-              fastify.log.warn({ n8nResponse: JSON.stringify(data).slice(0, 1000) }, '[logs_list] Format de réponse n8n inattendu');
-            }
-          } else {
-            fastify.log.warn({ n8nResponse: String(data) }, '[logs_list] Réponse n8n vide ou invalide');
+        const res = await n8nService.callWorkflowReturn<{ logs: unknown[]; total: number }>(
+          tenantId,
+          'logs_list',
+          {
+            limit: query.limit,
+            offset: query.offset,
+            workflow: query.workflow,
+            typeEvenement: query.typeEvenement,
+            statutExecution: query.statutExecution,
           }
-
-          return reply.status(200).send({
-            success: true,
-            data: {
-              logs,
-              total,
-              limit: query.limit,
-              offset: query.offset,
-            },
-          });
-        } catch (n8nError) {
-          // Si n8n échoue, on log ET on remonte l'erreur au frontend au lieu d'un écran vide
-          fastify.log.error(n8nError, '[logs_list] Erreur appel n8n — vérifier que le workflow logs-list est bien importé et actif dans n8n');
-          return reply.status(200).send({
-            success: false,
-            error: `Erreur n8n logs-list: ${n8nError instanceof Error ? n8nError.message : 'Erreur inconnue'}. Vérifiez que le workflow logs-list est bien importé et actif dans n8n.`,
-            data: { logs: [], total: 0, limit: query.limit, offset: query.offset },
-          });
-        }
+        );
+        const raw = res.data as Record<string, unknown>;
+        return reply.status(200).send({
+          success: true,
+          data: {
+            logs: raw.logs || [],
+            total: raw.total || 0,
+            limit: raw.limit || query.limit,
+            offset: raw.offset || query.offset,
+          },
+        });
       }
 
       // Appel depuis n8n (callback) → lecture BDD directe
@@ -162,11 +95,10 @@ export async function logsRoutes(fastify: FastifyInstance) {
       const logsWithWorkflow = await Promise.all(
         logs.map(async (log: typeof logs[0]) => {
           let workflow = 'other';
-          for (const [workflowName, events] of Object.entries(WORKFLOW_EVENTS)) {
-            if (events.includes(log.typeEvenement)) {
-              workflow = workflowName;
-              break;
-            }
+          if (WORKFLOW_EVENTS.leads.includes(log.typeEvenement)) {
+            workflow = 'leads';
+          } else if (WORKFLOW_EVENTS.clients.includes(log.typeEvenement)) {
+            workflow = 'clients';
           }
 
           let entityEmail: string | null = null;
@@ -221,14 +153,10 @@ export async function logsRoutes(fastify: FastifyInstance) {
 
       // Appel frontend → passe par n8n
       if (!fromN8n && tenantId) {
-        let typeEvenements: string[] | undefined;
-        if (workflow && workflow !== 'all') {
-          typeEvenements = WORKFLOW_EVENTS[workflow];
-        }
         const res = await n8nService.callWorkflowReturn<unknown>(
           tenantId,
           'logs_stats',
-          { workflow, typeEvenements: typeEvenements ? typeEvenements.join(',') : undefined }
+          { workflow }
         );
         return reply.status(200).send({ success: true, data: res.data });
       }

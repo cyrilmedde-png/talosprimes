@@ -51,8 +51,7 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
               donnees: body.donnees || {},
             }
           );
-          const raw = res.data as Record<string, unknown>;
-          return reply.status(201).send({ success: true, data: raw });
+          return reply.status(201).send({ success: true, data: res.data });
         }
 
         // Appel depuis n8n (callback) → création BDD directe
@@ -113,8 +112,8 @@ export async function notificationsRoutes(fastify: FastifyInstance) {
             data: {
               notifications: raw.notifications || [],
               total: raw.total || 0,
-              limit: raw.limit || limit,
-              offset: raw.offset ?? offset,
+              limit,
+              offset,
             },
           });
         }

@@ -1,0 +1,110 @@
+{
+  "name": "newsletter-campaigns-update",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/campaigns-update",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar id = body.id;\nvar tenantId = body.tenantId;\nvar updates = [];\nvar params = [id, tenantId];\nvar paramIndex = 3;\n\nif (body.nom !== undefined) {\n  updates.push(`nom = $${paramIndex++}`);\n  params.push(body.nom);\n}\nif (body.sujet !== undefined) {\n  updates.push(`sujet = $${paramIndex++}`);\n  params.push(body.sujet);\n}\nif (body.templateId !== undefined) {\n  updates.push(`template_id = $${paramIndex++}::uuid`);\n  params.push(body.templateId);\n}\nif (body.listId !== undefined) {\n  updates.push(`list_id = $${paramIndex++}::uuid`);\n  params.push(body.listId);\n}\nif (body.contenuHtml !== undefined) {\n  updates.push(`contenu_html = $${paramIndex++}`);\n  params.push(body.contenuHtml);\n}\nif (body.contenuText !== undefined) {\n  updates.push(`contenu_text = $${paramIndex++}`);\n  params.push(body.contenuText);\n}\nif (body.expediteurNom !== undefined) {\n  updates.push(`expediteur_nom = $${paramIndex++}`);\n  params.push(body.expediteurNom);\n}\nif (body.expediteurEmail !== undefined) {\n  updates.push(`expediteur_email = $${paramIndex++}`);\n  params.push(body.expediteurEmail);\n}\nif (body.scheduledAt !== undefined) {\n  updates.push(`scheduled_at = $${paramIndex++}`);\n  params.push(body.scheduledAt);\n}\nif (body.status !== undefined) {\n  updates.push(`status = $${paramIndex++}`);\n  params.push(body.status);\n}\n\nupdates.push(`updated_at = NOW()`);\n\nvar query = `UPDATE email_campaigns SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 AND status IN ('brouillon', 'planifiee') RETURNING id, tenant_id AS \\\"tenantId\\\", nom, sujet, template_id AS \\\"templateId\\\", list_id AS \\\"listId\\\", contenu_html AS \\\"contenuHtml\\\", contenu_text AS \\\"contenuText\\\", expediteur_nom AS \\\"expediteurNom\\\", expediteur_email AS \\\"expediteurEmail\\\", status, scheduled_at AS \\\"scheduledAt\\\", sent_at AS \\\"sentAt\\\", total_envoyes AS \\\"totalEnvoyes\\\", total_ouverts AS \\\"totalOuverts\\\", total_cliques AS \\\"totalCliques\\\", total_bounces AS \\\"totalBounces\\\", total_desabonnes AS \\\"totalDesabonnes\\\", created_at AS \\\"createdAt\\\", updated_at AS \\\"updatedAt\\\"`;\n\nreturn {\n  query: query,\n  params: params\n};"
+      },
+      "name": "Parser Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $node[\"Parser Code\"].json.query }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validation If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "{{ {\"error\": \"Invalid request parameters\"} }}"
+      },
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $node[\"Parser Code\"].json.query }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "name": "Postgres Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "var campaigns = $node[\"Postgres Query\"].json;\nvar campaign = campaigns[0] || {};\n\nreturn {\n  campaign: campaign\n};"
+      },
+      "name": "Format Response Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parser Code", "branch": 0, "type": "main"}]]
+    },
+    "Parser Code": {
+      "main": [[{"node": "Validation If", "branch": 0, "type": "main"}]]
+    },
+    "Validation If": {
+      "main": [
+        [{"node": "Postgres Query", "branch": 0, "type": "main"}],
+        [{"node": "Error Respond", "branch": 0, "type": "main"}]
+      ]
+    },
+    "Postgres Query": {
+      "main": [[{"node": "Format Response Code", "branch": 0, "type": "main"}]]
+    },
+    "Format Response Code": {
+      "main": [[{"node": "Respond", "branch": 0, "type": "main"}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

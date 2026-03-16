@@ -1,0 +1,130 @@
+{
+  "name": "newsletter-campaigns-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/campaigns-list",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = body.tenantId;\nvar limit = body.limit || 50;\nvar offset = body.offset || 0;\nvar status = body.status;\n\nvar query = `SELECT id, tenant_id AS \\\"tenantId\\\", nom, sujet, template_id AS \\\"templateId\\\", list_id AS \\\"listId\\\", expediteur_nom AS \\\"expediteurNom\\\", expediteur_email AS \\\"expediteurEmail\\\", status, scheduled_at AS \\\"scheduledAt\\\", sent_at AS \\\"sentAt\\\", total_envoyes AS \\\"totalEnvoyes\\\", total_ouverts AS \\\"totalOuverts\\\", total_cliques AS \\\"totalCliques\\\", total_bounces AS \\\"totalBounces\\\", total_desabonnes AS \\\"totalDesabonnes\\\", created_at AS \\\"createdAt\\\" FROM email_campaigns WHERE tenant_id = $1`;\n\nvar countQuery = `SELECT COUNT(*) as total FROM email_campaigns WHERE tenant_id = $1`;\nvar params = [tenantId];\n\nif (status) {\n  query += ` AND status = $2`;\n  countQuery += ` AND status = $2`;\n  params.push(status);\n}\n\nquery += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;\nparams.push(limit, offset);\n\ncountQuery += ` ORDER BY created_at DESC`;\n\nreturn {\n  query: query,\n  countQuery: countQuery,\n  params: params,\n  limit: limit,\n  offset: offset\n};"
+      },
+      "name": "Parser Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $node[\"Parser Code\"].json.query }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validation If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "{{ {\"error\": \"Invalid request parameters\"} }}"
+      },
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $node[\"Parser Code\"].json.query }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "name": "Postgres Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $node[\"Parser Code\"].json.countQuery }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "name": "Postgres Count",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "var campaigns = $node[\"Postgres Query\"].json;\nvar countResult = $node[\"Postgres Count\"].json;\nvar total = countResult[0]?.total || 0;\nvar limit = $node[\"Parser Code\"].json.limit;\nvar offset = $node[\"Parser Code\"].json.offset;\n\nreturn {\n  campaigns: campaigns,\n  total: total,\n  limit: limit,\n  offset: offset\n};"
+      },
+      "name": "Format Response Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parser Code", "branch": 0, "type": "main"}]]
+    },
+    "Parser Code": {
+      "main": [[{"node": "Validation If", "branch": 0, "type": "main"}]]
+    },
+    "Validation If": {
+      "main": [
+        [{"node": "Postgres Query", "branch": 0, "type": "main"}],
+        [{"node": "Error Respond", "branch": 0, "type": "main"}]
+      ]
+    },
+    "Postgres Query": {
+      "main": [[{"node": "Postgres Count", "branch": 0, "type": "main"}]]
+    },
+    "Postgres Count": {
+      "main": [[{"node": "Format Response Code", "branch": 0, "type": "main"}]]
+    },
+    "Format Response Code": {
+      "main": [[{"node": "Respond", "branch": 0, "type": "main"}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "name": "subscribers-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/subscribers-list",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar limit = parseInt(body.limit) || 50;\nvar offset = parseInt(body.offset) || 0;\nvar status = body.status || null;\nvar source = body.source || null;\nvar search = body.search || null;\nvar listId = body.listId || null;\n\nvar whereClause = \"WHERE s.tenant_id = \" + esc(body.tenantId) + \"::uuid\";\nif (status) {\n  whereClause += \" AND s.status = \" + esc(status);\n}\nif (source) {\n  whereClause += \" AND s.source = \" + esc(source);\n}\nif (search) {\n  var searchEsc = esc('%' + search + '%');\n  whereClause += \" AND (s.email ILIKE \" + searchEsc + \" OR s.nom ILIKE \" + searchEsc + \" OR s.prenom ILIKE \" + searchEsc + \")\";\n}\nif (listId) {\n  whereClause += \" AND s.id IN (SELECT subscriber_id FROM subscriber_list_members WHERE list_id = \" + esc(listId) + \"::uuid)\";\n}\n\nvar countQuery = \"SELECT COUNT(*) as total FROM subscribers s \" + whereClause;\nvar listQuery = \"SELECT s.id, s.tenant_id AS \\\"tenantId\\\", s.email, s.telephone, s.nom, s.prenom, s.entreprise, s.status, s.source, s.tags, s.created_at AS \\\"createdAt\\\", s.updated_at AS \\\"updatedAt\\\" FROM subscribers s \" + whereClause + \" ORDER BY s.created_at DESC LIMIT \" + limit + \" OFFSET \" + offset;\n\nreturn [{ json: { tenantId: body.tenantId, limit: limit, offset: offset, countQuery: countQuery, listQuery: listQuery } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "valid-tenant",
+              "leftValue": "={{ $json.tenantId }}",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": { "responseType": "json" },
+        "responseBody": "{ \"success\": false, \"error\": \"Validation failed\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('02. Parser').first().json.countQuery }}"
+      },
+      "id": "05. Count Query",
+      "name": "05. Count Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('02. Parser').first().json.listQuery }}"
+      },
+      "id": "06. List Query",
+      "name": "06. List Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('06. List Query').all();\nvar subscribers = items.map(function(item) { return item.json; }).filter(function(s) { return s.id; });\nvar countResult = $('05. Count Query').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar limit = $('02. Parser').first().json.limit;\nvar offset = $('02. Parser').first().json.offset;\n\nreturn [{ json: { subscribers: subscribers, total: total, limit: limit, offset: offset } }];"
+      },
+      "id": "07. Format Response",
+      "name": "07. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "08. Respond",
+      "name": "08. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 350]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. Count Query", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Count Query": {
+      "main": [[{ "node": "06. List Query", "type": "main", "index": 0 }]]
+    },
+    "06. List Query": {
+      "main": [[{ "node": "07. Format Response", "type": "main", "index": 0 }]]
+    },
+    "07. Format Response": {
+      "main": [[{ "node": "08. Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": true
+}

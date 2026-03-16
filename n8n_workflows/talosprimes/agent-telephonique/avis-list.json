@@ -53,7 +53,8 @@
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
         "options": { "responseCode": 200 }
       },
       "id": "05. Respond",
@@ -77,7 +78,7 @@
       "main": [[{ "node": "05. Respond", "type": "main", "index": 0 }]]
     }
   },
-  "active": true,
+  "active": false,
   "settings": { "executionOrder": "v1" },
   "tags": []
 }

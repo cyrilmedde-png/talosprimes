@@ -1,0 +1,160 @@
+{
+  "name": "subscriber-lists-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/subscriber-lists-list",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\n\nreturn [{ tenantId }];"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "value2": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "={{ {success: false, message: 'Missing tenantId'} }}"
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  sl.id,\n  sl.tenant_id as tenantId,\n  sl.nom,\n  sl.description,\n  sl.type,\n  sl.couleur,\n  sl.created_at as createdAt,\n  sl.updated_at as updatedAt,\n  COUNT(slm.subscriber_id) as memberCount\nFROM subscriber_lists sl\nLEFT JOIN subscriber_list_members slm ON sl.id = slm.list_id\nWHERE sl.tenant_id = $1::uuid\nGROUP BY sl.id, sl.tenant_id, sl.nom, sl.description, sl.type, sl.couleur, sl.created_at, sl.updated_at\nORDER BY sl.created_at DESC",
+        "queryParams": "={{ [$json.tenantId] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_list",
+      "name": "Query List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lists = $input.all().map(row => ({\n  id: row.id,\n  tenantId: row.tenantId,\n  nom: row.nom,\n  description: row.description,\n  type: row.type,\n  couleur: row.couleur,\n  memberCount: row.memberCount,\n  createdAt: row.createdAt,\n  updatedAt: row.updatedAt\n}));\n\nreturn [{ lists }];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parser": {
+      "main": [
+        [
+          {
+            "node": "validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validation": {
+      "main": [
+        [
+          {
+            "node": "query_list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_list": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

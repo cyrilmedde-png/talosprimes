@@ -331,12 +331,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.5);
 }
-
-/* ─── Sidebar: scrollbar invisible ─── */
-.sidebar-scroll {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-}
-.sidebar-scroll::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
-}

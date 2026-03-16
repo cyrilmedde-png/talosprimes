@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar typeEvenements = body.typeEvenements || null;\n\nvar baseWhere = \"WHERE tenant_id = \" + esc(body.tenantId) + \"::uuid\";\nif (typeEvenements) {\n  var events = typeEvenements.split(',').map(function(e) { return esc(e.trim()); }).join(',');\n  baseWhere += \" AND type_evenement IN (\" + events + \")\";\n}\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  baseWhere: baseWhere\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nvar workflow = body.workflow || null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  workflow: workflow\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -78,7 +78,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as total FROM event_logs \" + $('02. Parser').first().json.baseWhere }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = '\" + $json.tenantId + \"' AND \" + ($json.workflow ? \"workflow = '\" + $json.workflow + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Total",
       "name": "05. Count Total",
@@ -99,7 +99,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as succeeded FROM event_logs \" + $('02. Parser').first().json.baseWhere + \" AND statut_execution = 'succes'\" }}"
+        "query": "={{ \"SELECT COUNT(*) as succeeded FROM event_logs WHERE tenant_id = '\" + $json.tenantId + \"' AND statut_execution = 'succes' AND \" + ($json.workflow ? \"workflow = '\" + $json.workflow + \"'\" : \"1=1\") }}"
       },
       "id": "06. Count Succeeded",
       "name": "06. Count Succeeded",
@@ -120,7 +120,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as errors FROM event_logs \" + $('02. Parser').first().json.baseWhere + \" AND statut_execution = 'erreur'\" }}"
+        "query": "={{ \"SELECT COUNT(*) as errors FROM event_logs WHERE tenant_id = '\" + $json.tenantId + \"' AND statut_execution = 'erreur' AND \" + ($json.workflow ? \"workflow = '\" + $json.workflow + \"'\" : \"1=1\") }}"
       },
       "id": "07. Count Errors",
       "name": "07. Count Errors",
@@ -141,7 +141,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT COUNT(*) as en_attente FROM event_logs \" + $('02. Parser').first().json.baseWhere + \" AND statut_execution = 'en_attente'\" }}"
+        "query": "={{ \"SELECT COUNT(*) as en_attente FROM event_logs WHERE tenant_id = '\" + $json.tenantId + \"' AND statut_execution = 'en_attente' AND \" + ($json.workflow ? \"workflow = '\" + $json.workflow + \"'\" : \"1=1\") }}"
       },
       "id": "08. Count Pending",
       "name": "08. Count Pending",
@@ -162,7 +162,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \"SELECT type_evenement, COUNT(*) as count FROM event_logs \" + $('02. Parser').first().json.baseWhere + \" GROUP BY type_evenement\" }}"
+        "query": "={{ \"SELECT workflow, COUNT(*) as count FROM event_logs WHERE tenant_id = '\" + $json.tenantId + \"' GROUP BY workflow\" }}"
       },
       "id": "09. Count By Workflow",
       "name": "09. Count By Workflow",
@@ -182,7 +182,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var totalResult = $('05. Count Total').first().json;\nvar succeededResult = $('06. Count Succeeded').first().json;\nvar errorsResult = $('07. Count Errors').first().json;\nvar pendingResult = $('08. Count Pending').first().json;\nvar byEventData = $('09. Count By Workflow').all().map(function(item) { return item.json; }).filter(function(i) { return i.type_evenement; });\n\nvar leadEvents = ['lead_create','lead_created','lead_update','lead_updated','lead_delete','lead_deleted','lead_questionnaire','lead_entretien','lead_confirmation','lead_inscription','leads_list','lead_get','lead_update_status','lead_status_updated'];\nvar clientEvents = ['client.created','client.updated','client.deleted','client.onboarding','client_create','client_update','client_delete','client_create_from_lead','clients_list','client_get'];\nvar facturationEvents = ['invoice_create','invoice_send','invoice_paid','invoice_overdue','invoice_get','invoice_update','invoice_delete','invoice_generate_pdf','invoices_list','devis_list','devis_get','devis_create','devis_send','devis_accept','devis_convert_to_invoice','devis_convert_to_bdc','devis_update','devis_delete','bdc_list','bdc_get','bdc_create','bdc_update','bdc_validate','bdc_convert_to_invoice','bdc_delete','avoir_list','avoir_get','avoir_create','avoir_validate','avoir_delete','invoice_convert_to_avoir','proforma_list','proforma_get','proforma_create','proforma_send','proforma_accept','proforma_convert_to_invoice','proforma_delete'];\nvar abonnementsEvents = ['subscription_renewal','subscription_cancelled','subscription_suspended','subscription_upgrade','stripe_checkout_completed'];\nvar marketingEvents = ['marketing_post_create','marketing_post_publish','marketing_stats'];\nvar authEvents = ['password_reset_request','auth_login','auth_register'];\nvar articlesEvents = ['article_codes_list','article_code_create','article_code_update','article_code_delete'];\nvar telephonieEvents = ['call_log_list','call_log_get','call_log_stats','call_log_create','call_log_update','call_log_delete','twilio_config_get','twilio_config_update','twilio_test_call','twilio_outbound_call','sms_list','sms_stats','sms_send'];\n\nvar byWorkflow = {\n  leads: { total: 0, errors: 0, succeeded: 0 },\n  clients: { total: 0, errors: 0, succeeded: 0 },\n  facturation: { total: 0, errors: 0, succeeded: 0 },\n  abonnements: { total: 0, errors: 0, succeeded: 0 },\n  marketing: { total: 0, errors: 0, succeeded: 0 },\n  auth: { total: 0, errors: 0, succeeded: 0 },\n  articles: { total: 0, errors: 0, succeeded: 0 },\n  telephonie: { total: 0, errors: 0, succeeded: 0 }\n};\n\nbyEventData.forEach(function(item) {\n  var count = parseInt(item.count) || 0;\n  if (leadEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.leads.total += count; }\n  else if (clientEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.clients.total += count; }\n  else if (facturationEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.facturation.total += count; }\n  else if (abonnementsEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.abonnements.total += count; }\n  else if (marketingEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.marketing.total += count; }\n  else if (authEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.auth.total += count; }\n  else if (articlesEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.articles.total += count; }\n  else if (telephonieEvents.indexOf(item.type_evenement) >= 0) { byWorkflow.telephonie.total += count; }\n});\n\nreturn [{ json: {\n  total: parseInt(totalResult.total) || 0,\n  succeeded: parseInt(succeededResult.succeeded) || 0,\n  errors: parseInt(errorsResult.errors) || 0,\n  enAttente: parseInt(pendingResult.en_attente) || 0,\n  byWorkflow: byWorkflow\n} }];"
+        "jsCode": "var totalResult = $('05. Count Total').first().json;\nvar succeededResult = $('06. Count Succeeded').first().json;\nvar errorsResult = $('07. Count Errors').first().json;\nvar pendingResult = $('08. Count Pending').first().json;\nvar byWorkflowData = $('09. Count By Workflow').all().map(function(item) { return item.json; }).filter(function(i) { return i.workflow; });\n\nvar byWorkflow = {};\nbyWorkflowData.forEach(function(item) { return {\n  byWorkflow[item.workflow] = item.count;\n}; });\n\nreturn [{ json: {\n  total: parseInt(totalResult.total) || 0,\n  succeeded: parseInt(succeededResult.succeeded) || 0,\n  errors: parseInt(errorsResult.errors) || 0,\n  enAttente: parseInt(pendingResult.en_attente) || 0,\n  byWorkflow: byWorkflow\n} }];"
       },
       "id": "10. Format Response",
       "name": "10. Format Response",
@@ -195,7 +195,10 @@
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems"
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ $json }}"
       },
       "id": "11. Respond",
       "name": "11. Respond",

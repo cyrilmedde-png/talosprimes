@@ -80,6 +80,8 @@ const envSchema = z.object({
   QONTO_LOGIN: z.string().optional(),        // ex: ei-cyril-medde-3794
   QONTO_SECRET_KEY: z.string().optional(),   // clé API depuis Paramètres > Intégrations
 
+  // Facebook (suppression de publications depuis le dashboard)
+  FACEBOOK_PAGE_ACCESS_TOKEN: z.string().optional(),
 
 });
 

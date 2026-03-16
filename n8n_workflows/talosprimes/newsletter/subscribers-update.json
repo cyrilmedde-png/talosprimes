@@ -1,0 +1,165 @@
+{
+  "name": "subscribers-update",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/subscribers-update",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst id = body.id;\nconst tenantId = body.tenantId;\nconst updateFields = {};\n\nif (body.email !== undefined) updateFields.email = body.email;\nif (body.nom !== undefined) updateFields.nom = body.nom;\nif (body.prenom !== undefined) updateFields.prenom = body.prenom;\nif (body.telephone !== undefined) updateFields.telephone = body.telephone;\nif (body.entreprise !== undefined) updateFields.entreprise = body.entreprise;\nif (body.tags !== undefined) updateFields.tags = body.tags;\nif (body.status !== undefined) updateFields.status = body.status;\n\nreturn [{ id, tenantId, updateFields }];"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.id }}",
+              "value2": "",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.tenantId }}",
+              "value2": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "={{ {success: false, message: 'Missing id or tenantId'} }}"
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE subscribers\nSET email = COALESCE($3, email),\n    nom = COALESCE($4, nom),\n    prenom = COALESCE($5, prenom),\n    telephone = COALESCE($6, telephone),\n    entreprise = COALESCE($7, entreprise),\n    tags = COALESCE($8, tags),\n    status = COALESCE($9, status),\n    updated_at = NOW()\nWHERE id = $1::uuid AND tenant_id = $2::uuid\nRETURNING id, tenant_id as tenantId, email, telephone, nom, prenom, entreprise, status, source, tags, created_at as createdAt, updated_at as updatedAt",
+        "queryParams": "={{ [$json.id, $json.tenantId, $json.updateFields.email, $json.updateFields.nom, $json.updateFields.prenom, $json.updateFields.telephone, $json.updateFields.entreprise, $json.updateFields.tags, $json.updateFields.status] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_update",
+      "name": "Query Update",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\n\nreturn [{\n  subscriber: {\n    id: row.id,\n    tenantId: row.tenantId,\n    email: row.email,\n    telephone: row.telephone,\n    nom: row.nom,\n    prenom: row.prenom,\n    entreprise: row.entreprise,\n    status: row.status,\n    source: row.source,\n    tags: row.tags,\n    createdAt: row.createdAt,\n    updatedAt: row.updatedAt\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parser": {
+      "main": [
+        [
+          {
+            "node": "validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validation": {
+      "main": [
+        [
+          {
+            "node": "query_update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_update": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

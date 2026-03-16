@@ -1,0 +1,249 @@
+{
+  "name": "subscriber-lists-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/subscriber-lists-create",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst nom = body.nom;\nconst description = body.description || null;\nconst type = body.type || 'static';\nconst couleur = body.couleur || '#000000';\nconst subscriberIds = body.subscriberIds || [];\n\nreturn [{ tenantId, nom, description, type, couleur, subscriberIds }];"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "value2": "",
+              "operation": "notEmpty"
+            },
+            {
+              "value1": "={{ $json.nom }}",
+              "value2": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "={{ {success: false, message: 'Missing tenantId or nom'} }}"
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO subscriber_lists (tenant_id, nom, description, type, couleur)\nVALUES ($1::uuid, $2, $3, $4, $5)\nRETURNING id, tenant_id as tenantId, nom, description, type, couleur, created_at as createdAt, updated_at as updatedAt",
+        "queryParams": "={{ [$json.tenantId, $json.nom, $json.description, $json.type, $json.couleur] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_create_list",
+      "name": "Query Create List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const listRow = $input.first().json;\nconst listId = listRow.id;\nconst subscriberIds = $input.first().json._subscriberIds || [];\n\nreturn [{ listId, subscriberIds, listRow }];"
+      },
+      "id": "check_subscribers",
+      "name": "Check Subscribers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.subscriberIds.length }}",
+              "value2": 0,
+              "operation": ">"
+            }
+          ]
+        }
+      },
+      "id": "has_subscribers",
+      "name": "Has Subscribers",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO subscriber_list_members (list_id, subscriber_id)\nSELECT $1::uuid, unnest($2::uuid[])\nON CONFLICT (list_id, subscriber_id) DO NOTHING",
+        "queryParams": "={{ [$json.listId, $json.subscriberIds] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_add_members",
+      "name": "Query Add Members",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const listRow = $input.first().json.listRow || $input.first().json;\n\nreturn [{\n  list: {\n    id: listRow.id,\n    tenantId: listRow.tenantId,\n    nom: listRow.nom,\n    description: listRow.description,\n    type: listRow.type,\n    couleur: listRow.couleur,\n    createdAt: listRow.createdAt,\n    updatedAt: listRow.updatedAt\n  }\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1550, 300]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parser": {
+      "main": [
+        [
+          {
+            "node": "validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validation": {
+      "main": [
+        [
+          {
+            "node": "query_create_list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_create_list": {
+      "main": [
+        [
+          {
+            "node": "check_subscribers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_subscribers": {
+      "main": [
+        [
+          {
+            "node": "has_subscribers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "has_subscribers": {
+      "main": [
+        [
+          {
+            "node": "query_add_members",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_add_members": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

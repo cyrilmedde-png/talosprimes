@@ -1,0 +1,116 @@
+{
+  "name": "subscribers-create",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/subscribers-create",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId || !body.email) {\n  throw new Error('tenantId and email are required');\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar validSources = ['manual','lead','client','contact_form','import_csv','api'];\nvar source = validSources.indexOf(body.source) >= 0 ? body.source : 'manual';\n\nvar tagsVal = 'NULL';\nif (body.tags && Array.isArray(body.tags) && body.tags.length > 0) {\n  tagsVal = 'ARRAY[' + body.tags.map(function(t) { return esc(t); }).join(',') + ']::text[]';\n}\n\nvar query = \"INSERT INTO subscribers (tenant_id, email, telephone, nom, prenom, entreprise, source, tags) VALUES (\"\n  + esc(body.tenantId) + \"::uuid, \"\n  + esc(body.email) + \", \"\n  + esc(body.telephone) + \", \"\n  + esc(body.nom) + \", \"\n  + esc(body.prenom) + \", \"\n  + esc(body.entreprise) + \", \"\n  + esc(source) + \", \"\n  + tagsVal + \")\"\n  + ' ON CONFLICT (tenant_id, email) DO UPDATE SET'\n  + ' telephone = COALESCE(EXCLUDED.telephone, subscribers.telephone),'\n  + ' nom = COALESCE(EXCLUDED.nom, subscribers.nom),'\n  + ' prenom = COALESCE(EXCLUDED.prenom, subscribers.prenom),'\n  + ' entreprise = COALESCE(EXCLUDED.entreprise, subscribers.entreprise),'\n  + ' updated_at = NOW()'\n  + ' RETURNING id, tenant_id AS \"tenantId\", email, telephone, nom, prenom, entreprise, status, source, tags, created_at AS \"createdAt\", updated_at AS \"updatedAt\"';\n\nreturn [{ json: { tenantId: body.tenantId, query: query } }];"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "id": "valid-query",
+              "leftValue": "={{ $json.query }}",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "03. Valide ?",
+      "name": "03. Valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "respondWithOptions": { "responseType": "json" },
+        "responseBody": "{ \"success\": false, \"error\": \"Missing tenantId or email\" }"
+      },
+      "id": "04. Respond Error",
+      "name": "04. Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('02. Parser').first().json.query }}"
+      },
+      "id": "05. Upsert Query",
+      "name": "05. Upsert Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": { "name": "Supabase Postgres", "id": "OGqj65ZoFRileCck" }
+      },
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var items = $('05. Upsert Query').all();\nvar subscriber = items[0] ? items[0].json : {};\nreturn [{ json: { subscriber: subscriber } }];"
+      },
+      "id": "06. Format Response",
+      "name": "06. Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "07. Respond",
+      "name": "07. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[{ "node": "02. Parser", "type": "main", "index": 0 }]]
+    },
+    "02. Parser": {
+      "main": [[{ "node": "03. Valide ?", "type": "main", "index": 0 }]]
+    },
+    "03. Valide ?": {
+      "main": [
+        [{ "node": "05. Upsert Query", "type": "main", "index": 0 }],
+        [{ "node": "04. Respond Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Upsert Query": {
+      "main": [[{ "node": "06. Format Response", "type": "main", "index": 0 }]]
+    },
+    "06. Format Response": {
+      "main": [[{ "node": "07. Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": true
+}

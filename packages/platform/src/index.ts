@@ -48,6 +48,7 @@ import { partnersRoutes } from './api/routes/partners.routes.js';
 import { revenueRoutes } from './api/routes/revenue.routes.js';
 import { stockManagementRoutes } from './api/routes/stock-management.routes.js';
 import { marketingRoutes } from './api/routes/marketing.routes.js';
+import { newsletterRoutes } from './api/routes/newsletter.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -388,6 +389,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes marketing digital
 await fastify.register(async (fastify) => {
   await fastify.register(marketingRoutes, { prefix: '/api/marketing' });
+});
+
+// Enregistrer les routes newsletter
+await fastify.register(async (fastify) => {
+  await fastify.register(newsletterRoutes, { prefix: '/api/newsletters' });
 });
 
 // Route de test

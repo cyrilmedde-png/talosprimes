@@ -1,0 +1,150 @@
+{
+  "name": "sms-campaigns-stats",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/sms-campaigns-stats",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar tenantId = body.tenantId;\n\nvar totalQuery = `SELECT COUNT(*) as total FROM sms_campaigns WHERE tenant_id = $1`;\nvar byStatusQuery = `SELECT status, COUNT(*) as count FROM sms_campaigns WHERE tenant_id = $1 GROUP BY status`;\nvar deliveryQuery = `SELECT SUM(total_envoyes) as total_envoyes, SUM(total_delivered) as total_delivered, SUM(total_failed) as total_failed FROM sms_campaigns WHERE tenant_id = $1`;\n\nvar params = [tenantId];\n\nreturn {\n  totalQuery: totalQuery,\n  byStatusQuery: byStatusQuery,\n  deliveryQuery: deliveryQuery,\n  params: params\n};"
+      },
+      "name": "Parser Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $node[\"Parser Code\"].json.totalQuery }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validation If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "{{ {\"error\": \"Invalid request parameters\"} }}"
+      },
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $node[\"Parser Code\"].json.totalQuery }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "name": "Postgres Total",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $node[\"Parser Code\"].json.byStatusQuery }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "name": "Postgres By Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $node[\"Parser Code\"].json.deliveryQuery }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "name": "Postgres Delivery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1250, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "var total = $node[\"Postgres Total\"].json[0]?.total || 0;\nvar byStatusResult = $node[\"Postgres By Status\"].json || [];\nvar deliveryResult = $node[\"Postgres Delivery\"].json[0] || {};\n\nvar byStatus = {};\nbyStatusResult.forEach(row => {\n  byStatus[row.status] = row.count;\n});\n\nvar totalEnvoyes = deliveryResult.total_envoyes || 0;\nvar totalDelivered = deliveryResult.total_delivered || 0;\nvar totalFailed = deliveryResult.total_failed || 0;\n\nreturn {\n  stats: {\n    total: total,\n    byStatus: byStatus,\n    totalEnvoyes: totalEnvoyes,\n    totalDelivered: totalDelivered,\n    totalFailed: totalFailed\n  }\n};"
+      },
+      "name": "Format Response Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parser Code", "branch": 0, "type": "main"}]]
+    },
+    "Parser Code": {
+      "main": [[{"node": "Validation If", "branch": 0, "type": "main"}]]
+    },
+    "Validation If": {
+      "main": [
+        [{"node": "Postgres Total", "branch": 0, "type": "main"}],
+        [{"node": "Error Respond", "branch": 0, "type": "main"}]
+      ]
+    },
+    "Postgres Total": {
+      "main": [[{"node": "Postgres By Status", "branch": 0, "type": "main"}]]
+    },
+    "Postgres By Status": {
+      "main": [[{"node": "Postgres Delivery", "branch": 0, "type": "main"}]]
+    },
+    "Postgres Delivery": {
+      "main": [[{"node": "Format Response Code", "branch": 0, "type": "main"}]]
+    },
+    "Format Response Code": {
+      "main": [[{"node": "Respond", "branch": 0, "type": "main"}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

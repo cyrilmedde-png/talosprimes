@@ -45,6 +45,10 @@ import {
   MegaphoneIcon,
   ShieldCheckIcon,
   StarIcon,
+  EnvelopeIcon,
+  PaperAirplaneIcon,
+  UserGroupIcon,
+  RectangleStackIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -192,6 +196,18 @@ const allNavGroups: NavGroup[] = [
       { name: 'Publications', href: '/marketing/publications', icon: MegaphoneIcon },
       { name: 'Calendrier', href: '/marketing/calendrier', icon: CalendarIcon },
       { name: 'Configuration', href: '/marketing/configuration', icon: Cog6ToothIcon },
+    ],
+  },
+  {
+    label: 'Newsletter',
+    icon: EnvelopeIcon,
+    requiredModules: ['newsletter'],
+    items: [
+      { name: 'Campagnes', href: '/newsletters', icon: PaperAirplaneIcon },
+      { name: 'Contacts', href: '/newsletters/contacts', icon: UserGroupIcon },
+      { name: 'Templates', href: '/newsletters/templates', icon: RectangleStackIcon },
+      { name: 'SMS', href: '/newsletters/sms', icon: ChatBubbleLeftIcon },
+      { name: 'Analytics', href: '/newsletters/analytics', icon: ChartBarIcon },
     ],
   },
   {

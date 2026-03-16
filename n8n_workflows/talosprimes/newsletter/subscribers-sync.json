@@ -1,0 +1,96 @@
+{
+  "name": "subscribers-sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule_trigger",
+      "name": "01. Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = `\nINSERT INTO subscribers (id, tenant_id, email, nom, prenom, source, status, created_at, updated_at)\nSELECT gen_random_uuid(), t.id, sub.email, sub.nom, sub.prenom, sub.source, 'active', NOW(), NOW()\nFROM (\n  SELECT DISTINCT ON (email) email, nom, prenom, 'lead'::text as source, tenant_id\n  FROM leads WHERE email IS NOT NULL AND email != ''\n  UNION ALL\n  SELECT DISTINCT ON (email) email, nom, prenom, 'client'::text as source, tenant_id\n  FROM client_finals WHERE email IS NOT NULL AND email != ''\n  UNION ALL\n  SELECT DISTINCT ON (email) email, nom, prenom, 'contact_form'::text as source, NULL as tenant_id\n  FROM contact_messages WHERE email IS NOT NULL AND email != ''\n) sub\nJOIN tenants t ON (sub.tenant_id = t.id OR sub.tenant_id IS NULL)\nON CONFLICT (tenant_id, email) DO NOTHING\nRETURNING id\n`;\n\nreturn [{ json: { query: query } }];"
+      },
+      "id": "collect_contacts",
+      "name": "02. Collect New Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "postgres_execute",
+      "name": "03. Postgres Execute Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst rowCount = result && result.data ? result.data.length : 0;\n\nreturn [{\n  json: {\n    status: 'success',\n    message: `Synced ${rowCount} new contacts to subscribers table`,\n    rowsInserted: rowCount,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "log_result",
+      "name": "04. Log Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "schedule_trigger": {
+      "main": [
+        [
+          {
+            "node": "collect_contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "collect_contacts": {
+      "main": [
+        [
+          {
+            "node": "postgres_execute",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "postgres_execute": {
+      "main": [
+        [
+          {
+            "node": "log_result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

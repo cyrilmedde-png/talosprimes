@@ -1614,6 +1614,77 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; message: string }>('/api/marketing/config', { method: 'PUT', body: JSON.stringify(config) }),
   },
 
+  // Newsletter
+  newsletter: {
+    // Subscribers
+    listSubscribers: (params?: { limit?: number; offset?: number; search?: string; status?: string; source?: string; listId?: string }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.append(k, String(v)); });
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { subscribers: unknown[]; total: number } }>(`/api/newsletters/subscribers${qs ? `?${qs}` : ''}`);
+    },
+    createSubscriber: (data: { email: string; telephone?: string; nom?: string; prenom?: string; entreprise?: string; source?: string; tags?: string[] }) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>('/api/newsletters/subscribers', { method: 'POST', body: JSON.stringify(data) }),
+    updateSubscriber: (id: string, data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>(`/api/newsletters/subscribers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteSubscriber: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/newsletters/subscribers/${id}`, { method: 'DELETE' }),
+    // Subscriber Lists
+    listSubscriberLists: () =>
+      authenticatedFetch<{ success: boolean; data: { lists: unknown[] } }>('/api/newsletters/subscribers/lists'),
+    createSubscriberList: (data: { nom: string; description?: string; type?: string; couleur?: string; subscriberIds?: string[] }) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>('/api/newsletters/subscribers/lists', { method: 'POST', body: JSON.stringify(data) }),
+    // Email Templates
+    listTemplates: (params?: { categorie?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.categorie) q.append('categorie', params.categorie);
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { templates: unknown[] } }>(`/api/newsletters/templates${qs ? `?${qs}` : ''}`);
+    },
+    getTemplate: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { template: unknown } }>(`/api/newsletters/templates/${id}`),
+    createTemplate: (data: { nom: string; sujet: string; contenuHtml: string; contenuText?: string; variables?: string[]; categorie?: string }) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>('/api/newsletters/templates', { method: 'POST', body: JSON.stringify(data) }),
+    updateTemplate: (id: string, data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>(`/api/newsletters/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteTemplate: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/newsletters/templates/${id}`, { method: 'DELETE' }),
+    // Campaigns
+    listCampaigns: (params?: { limit?: number; offset?: number; status?: string }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.append(k, String(v)); });
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { campaigns: unknown[]; total: number } }>(`/api/newsletters/campaigns${qs ? `?${qs}` : ''}`);
+    },
+    getCampaignStats: () =>
+      authenticatedFetch<{ success: boolean; data: { stats: unknown } }>('/api/newsletters/campaigns/stats'),
+    getCampaign: (id: string) =>
+      authenticatedFetch<{ success: boolean; data: { campaign: unknown } }>(`/api/newsletters/campaigns/${id}`),
+    createCampaign: (data: { nom: string; sujet: string; templateId?: string; listId?: string; contenuHtml: string; contenuText?: string; expediteurNom: string; expediteurEmail: string; scheduledAt?: string }) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>('/api/newsletters/campaigns', { method: 'POST', body: JSON.stringify(data) }),
+    updateCampaign: (id: string, data: Record<string, unknown>) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>(`/api/newsletters/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteCampaign: (id: string) =>
+      authenticatedFetch<{ success: boolean }>(`/api/newsletters/campaigns/${id}`, { method: 'DELETE' }),
+    // SMS Campaigns
+    listSmsCampaigns: (params?: { limit?: number; offset?: number; status?: string }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.append(k, String(v)); });
+      const qs = q.toString();
+      return authenticatedFetch<{ success: boolean; data: { campaigns: unknown[]; total: number } }>(`/api/newsletters/sms-campaigns${qs ? `?${qs}` : ''}`);
+    },
+    getSmsCampaignStats: () =>
+      authenticatedFetch<{ success: boolean; data: { stats: unknown } }>('/api/newsletters/sms-campaigns/stats'),
+    createSmsCampaign: (data: { nom: string; contenu: string; listId?: string; scheduledAt?: string }) =>
+      authenticatedFetch<{ success: boolean; data: unknown }>('/api/newsletters/sms-campaigns', { method: 'POST', body: JSON.stringify(data) }),
+    // Subscriber Stats
+    getSubscriberStats: () =>
+      authenticatedFetch<{ success: boolean; data: { stats: unknown } }>('/api/newsletters/subscribers/stats'),
+    // Analytics
+    getAnalytics: () =>
+      authenticatedFetch<{ success: boolean; data: { analytics: unknown } }>('/api/newsletters/analytics'),
+  },
+
   // Gestion de Stock
   stockSites: {
     list: () => authenticatedFetch<{ success: boolean; data: { sites: StockSite[] } }>('/api/stock/sites'),

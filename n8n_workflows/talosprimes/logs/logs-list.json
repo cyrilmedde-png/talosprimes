@@ -18,7 +18,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nfunction esc(v) { return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\n\nvar limit = parseInt(body.limit) || 50;\nvar offset = parseInt(body.offset) || 0;\nvar typeEvenement = body.typeEvenement || null;\nvar statutExecution = body.statutExecution || null;\nvar typeEvenements = body.typeEvenements || null;\n\nvar whereClause = \"WHERE tenant_id = \" + esc(body.tenantId) + \"::uuid\";\nif (typeEvenements) {\n  var events = typeEvenements.split(',').map(function(e) { return esc(e.trim()); }).join(',');\n  whereClause += \" AND type_evenement IN (\" + events + \")\";\n} else if (typeEvenement) {\n  whereClause += \" AND type_evenement = \" + esc(typeEvenement);\n}\nif (statutExecution) {\n  whereClause += \" AND statut_execution = \" + esc(statutExecution);\n}\n\nvar countQuery = \"SELECT COUNT(*) as total FROM event_logs \" + whereClause;\nvar listQuery = \"SELECT id, tenant_id AS \\\"tenantId\\\", type_evenement AS \\\"typeEvenement\\\", entite_type AS \\\"entiteType\\\", entite_id AS \\\"entiteId\\\", payload, workflow_n8n_declenche AS \\\"workflowN8nDeclenche\\\", workflow_n8n_id AS \\\"workflowN8nId\\\", statut_execution AS \\\"statutExecution\\\", message_erreur AS \\\"messageErreur\\\", created_at AS \\\"createdAt\\\" FROM event_logs \" + whereClause + \" ORDER BY created_at DESC LIMIT \" + limit + \" OFFSET \" + offset;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  limit: limit,\n  offset: offset,\n  countQuery: countQuery,\n  listQuery: listQuery\n} }];"
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\n\nif (!body.tenantId) {\n  throw new Error('tenantId is required');\n}\n\nvar page = parseInt(body.page) || 1;\nvar limit = parseInt(body.limit) || 10;\nvar offset = (page - 1) * limit;\nvar workflow = body.workflow || null;\nvar typeEvenement = body.typeEvenement || null;\nvar statutExecution = body.statutExecution || null;\n\nreturn [{ json: {\n  tenantId: body.tenantId,\n  page,\n  limit,\n  offset,\n  workflow,\n  typeEvenement,\n  statutExecution\n} }];"
       },
       "id": "02. Parser",
       "name": "02. Parser",
@@ -78,7 +78,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('02. Parser').first().json.countQuery }}"
+        "query": "={{ \"SELECT COUNT(*) as total FROM event_logs WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND \" + ($('02. Parser').first().json.workflow ? \"workflow = '\" + $('02. Parser').first().json.workflow + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.typeEvenement ? \"type_evenement = '\" + $('02. Parser').first().json.typeEvenement + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.statutExecution ? \"statut_execution = '\" + $('02. Parser').first().json.statutExecution + \"'\" : \"1=1\") }}"
       },
       "id": "05. Count Query",
       "name": "05. Count Query",
@@ -99,7 +99,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $('02. Parser').first().json.listQuery }}"
+        "query": "={{ \"SELECT id, tenant_id, workflow, type_evenement, statut_execution, message, metadata, created_at, updated_at FROM event_logs WHERE tenant_id = '\" + $('02. Parser').first().json.tenantId + \"' AND \" + ($('02. Parser').first().json.workflow ? \"workflow = '\" + $('02. Parser').first().json.workflow + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.typeEvenement ? \"type_evenement = '\" + $('02. Parser').first().json.typeEvenement + \"'\" : \"1=1\") + \" AND \" + ($('02. Parser').first().json.statutExecution ? \"statut_execution = '\" + $('02. Parser').first().json.statutExecution + \"'\" : \"1=1\") + \" ORDER BY created_at DESC LIMIT \" + $('02. Parser').first().json.limit + \" OFFSET \" + $('02. Parser').first().json.offset }}"
       },
       "id": "06. List Query",
       "name": "06. List Query",
@@ -119,7 +119,7 @@
     },
     {
       "parameters": {
-        "jsCode": "var logItems = $('06. List Query').all();\nvar logs = logItems.map(function(item) { return item.json; }).filter(function(l) { return l.id; });\nvar countResult = $('05. Count Query').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar limit = $('02. Parser').first().json.limit;\nvar offset = $('02. Parser').first().json.offset;\n\nreturn [{ json: {\n  logs: logs,\n  total: total,\n  limit: limit,\n  offset: offset\n} }];"
+        "jsCode": "var logItems = $('06. List Query').all();\nvar logs = logItems.map(function(item) { return item.json; }).filter(function(l) { return l.id; });\nvar countResult = $('05. Count Query').first().json;\nvar total = parseInt(countResult.total) || 0;\nvar totalPages = Math.ceil(total / $('02. Parser').first().json.limit) || 1;\n\nreturn [{ json: {\n  logs: logs,\n  count: logs.length,\n  total: total,\n  page: $('02. Parser').first().json.page,\n  limit: $('02. Parser').first().json.limit,\n  totalPages: totalPages\n} }];"
       },
       "id": "07. Format Response",
       "name": "07. Format Response",
@@ -132,7 +132,10 @@
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems"
+        "respondWithOptions": {
+          "responseType": "json"
+        },
+        "responseBody": "={{ $json }}"
       },
       "id": "08. Respond",
       "name": "08. Respond",

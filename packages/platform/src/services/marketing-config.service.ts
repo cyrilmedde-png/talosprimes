@@ -1,8 +1,10 @@
 /**
  * Configuration Marketing Digital par tenant (Facebook, Instagram, TikTok, LinkedIn).
- * Stockée en base (TenantMarketingConfig).
+ * Stockée en base (TenantMarketingConfig), avec repli sur les variables d'environnement.
  */
 
+import { env } from '../config/env.js';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database.js';
 
 // ============================================================
@@ -41,7 +43,7 @@ export interface MarketingConfig {
 // GET CONFIG (pour exécution n8n / backend)
 // ============================================================
 
-/** Retourne la config marketing stockée en base pour un tenant. */
+/** Retourne la config fusionnée (DB puis env) pour un tenant. */
 export async function getMarketingConfigForTenant(tenantId: string): Promise<MarketingConfig> {
   const row = await prisma.tenantMarketingConfig.findUnique({
     where: { tenantId },
@@ -50,7 +52,7 @@ export async function getMarketingConfigForTenant(tenantId: string): Promise<Mar
   const db = (row?.config as MarketingConfig) ?? {};
   return {
     facebook: {
-      pageAccessToken: db.facebook?.pageAccessToken ?? undefined,
+      pageAccessToken: db.facebook?.pageAccessToken ?? (env as Record<string, unknown>).FACEBOOK_PAGE_ACCESS_TOKEN as string ?? undefined,
       pageId: db.facebook?.pageId ?? undefined,
       instagramUserId: db.facebook?.instagramUserId ?? undefined,
     },
@@ -64,7 +66,7 @@ export async function getMarketingConfigForTenant(tenantId: string): Promise<Mar
       orgId: db.linkedin?.orgId ?? undefined,
     },
     openai: {
-      apiKey: db.openai?.apiKey ?? undefined,
+      apiKey: db.openai?.apiKey ?? (env as Record<string, unknown>).OPENAI_API_KEY as string ?? undefined,
     },
   };
 }
@@ -160,7 +162,7 @@ export async function saveMarketingConfig(tenantId: string, patch: Partial<Marke
 
   await prisma.tenantMarketingConfig.upsert({
     where: { tenantId },
-    create: { tenantId, config: JSON.parse(JSON.stringify(merged)) },
-    update: { config: JSON.parse(JSON.stringify(merged)) },
+    create: { tenantId, config: merged as unknown as Prisma.InputJsonValue },
+    update: { config: merged as unknown as Prisma.InputJsonValue },
   });
 }

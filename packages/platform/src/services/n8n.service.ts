@@ -316,6 +316,31 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   marketing_auto_publish: 'marketing-auto-publish',
   marketing_status: 'marketing-status',
   marketing_calendar: 'marketing-calendar',
+  // Newsletter
+  subscribers_list: 'newsletter/subscribers-list',
+  subscribers_create: 'newsletter/subscribers-create',
+  subscribers_update: 'newsletter/subscribers-update',
+  subscribers_delete: 'newsletter/subscribers-delete',
+  subscriber_lists_list: 'newsletter/subscriber-lists-list',
+  subscriber_lists_create: 'newsletter/subscriber-lists-create',
+  email_templates_list: 'newsletter/email-templates-list',
+  email_templates_get: 'newsletter/email-templates-get',
+  email_templates_create: 'newsletter/email-templates-create',
+  email_templates_update: 'newsletter/email-templates-update',
+  email_templates_delete: 'newsletter/email-templates-delete',
+  newsletter_campaigns_list: 'newsletter/campaigns-list',
+  newsletter_campaigns_get: 'newsletter/campaigns-get',
+  newsletter_campaigns_create: 'newsletter/campaigns-create',
+  newsletter_campaigns_update: 'newsletter/campaigns-update',
+  newsletter_campaigns_delete: 'newsletter/campaigns-delete',
+  newsletter_campaigns_stats: 'newsletter/campaigns-stats',
+  // Newsletter - SMS Campaigns
+  sms_campaigns_list: 'newsletter/sms-campaigns-list',
+  sms_campaigns_create: 'newsletter/sms-campaigns-create',
+  sms_campaigns_stats: 'newsletter/sms-campaigns-stats',
+  // Newsletter - Automation & Analytics
+  subscribers_stats: 'newsletter/subscribers-stats',
+  newsletter_analytics: 'newsletter/analytics',
 };
 
 /**

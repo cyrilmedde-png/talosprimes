@@ -1,0 +1,110 @@
+{
+  "name": "newsletter-campaigns-delete",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/campaigns-delete",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "var body = $input.first().json.body || $input.first().json;\nvar id = body.id;\nvar tenantId = body.tenantId;\n\nvar query = `DELETE FROM email_campaigns WHERE id = $1 AND tenant_id = $2 AND status = 'brouillon'`;\nvar params = [id, tenantId];\n\nreturn {\n  query: query,\n  params: params\n};"
+      },
+      "name": "Parser Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "{{ $node[\"Parser Code\"].json.query }}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validation If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "{{ {\"error\": \"Invalid request parameters\"} }}"
+      },
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $node[\"Parser Code\"].json.query }}",
+        "options": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "name": "Postgres Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  deleted: true\n};"
+      },
+      "name": "Format Response Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parser Code", "branch": 0, "type": "main"}]]
+    },
+    "Parser Code": {
+      "main": [[{"node": "Validation If", "branch": 0, "type": "main"}]]
+    },
+    "Validation If": {
+      "main": [
+        [{"node": "Postgres Query", "branch": 0, "type": "main"}],
+        [{"node": "Error Respond", "branch": 0, "type": "main"}]
+      ]
+    },
+    "Postgres Query": {
+      "main": [[{"node": "Format Response Code", "branch": 0, "type": "main"}]]
+    },
+    "Format Response Code": {
+      "main": [[{"node": "Respond", "branch": 0, "type": "main"}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

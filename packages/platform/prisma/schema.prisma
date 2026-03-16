@@ -370,6 +370,12 @@ model Tenant {
   tickets               Ticket[]
   // Prévisionnels
   previsionnels         Previsionnel[]
+  // Newsletter
+  subscribers           Subscriber[]
+  subscriberLists       SubscriberList[]
+  emailTemplates        EmailTemplate[]
+  emailCampaigns        EmailCampaign[]
+  smsCampaigns          SmsCampaign[]
   // Landing page multi-tenant
   landingSections       LandingSection[]
   landingGlobalConfigs  LandingGlobalConfig[]
@@ -3093,5 +3099,219 @@ model Previsionnel {
   @@index([annee])
   @@index([statut])
   @@map("previsionnels")
+}
+
+// ==========================================
+// MODULE NEWSLETTER
+// ==========================================
+
+enum SubscriberSource {
+  manual
+  lead
+  client
+  contact_form
+  import_csv
+  api
+}
+
+enum SubscriberStatus {
+  active
+  unsubscribed
+  bounced
+  complained
+}
+
+enum ListType {
+  manual
+  dynamic
+  all
+}
+
+enum EmailTemplateCategory {
+  newsletter
+  promotion
+  transactionnel
+  relance
+  bienvenue
+  evenement
+}
+
+enum CampaignStatus {
+  brouillon
+  planifiee
+  en_cours
+  envoyee
+  annulee
+}
+
+enum EmailSendStatus {
+  pending
+  sent
+  delivered
+  opened
+  clicked
+  bounced
+  failed
+  unsubscribed
+}
+
+model Subscriber {
+  id             String           @id @default(uuid()) @db.Uuid
+  tenantId       String           @map("tenant_id") @db.Uuid
+  email          String
+  telephone      String?
+  nom            String?
+  prenom         String?
+  entreprise     String?
+  source         SubscriberSource @default(manual)
+  status         SubscriberStatus @default(active)
+  tags           String[]         @default([])
+  metadata       Json?
+  unsubscribedAt DateTime?        @map("unsubscribed_at")
+  bouncedAt      DateTime?        @map("bounced_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lists          SubscriberListMember[]
+  emailSendLogs  EmailSendLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([status])
+  @@index([source])
+  @@map("subscribers")
+}
+
+model SubscriberList {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  nom         String
+  description String?
+  type        ListType  @default(manual)
+  filtres     Json?
+  couleur     String?   @default("#3b82f6")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members     SubscriberListMember[]
+  campaigns   EmailCampaign[]
+  smsCampaigns SmsCampaign[]
+
+  @@index([tenantId])
+  @@map("subscriber_lists")
+}
+
+model SubscriberListMember {
+  id           String         @id @default(uuid()) @db.Uuid
+  subscriberId String         @map("subscriber_id") @db.Uuid
+  listId       String         @map("list_id") @db.Uuid
+  addedAt      DateTime       @default(now()) @map("added_at")
+
+  subscriber   Subscriber     @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  list         SubscriberList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriberId, listId])
+  @@map("subscriber_list_members")
+}
+
+model EmailTemplate {
+  id          String                @id @default(uuid()) @db.Uuid
+  tenantId    String                @map("tenant_id") @db.Uuid
+  nom         String
+  sujet       String
+  contenuHtml String                @map("contenu_html") @db.Text
+  contenuText String?               @map("contenu_text") @db.Text
+  variables   String[]              @default([])
+  categorie   EmailTemplateCategory @default(newsletter)
+  thumbnail   String?
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaigns   EmailCampaign[]
+
+  @@index([tenantId])
+  @@index([categorie])
+  @@map("email_templates")
+}
+
+model EmailCampaign {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  nom             String
+  sujet           String
+  templateId      String?         @map("template_id") @db.Uuid
+  listId          String?         @map("list_id") @db.Uuid
+  contenuHtml     String          @map("contenu_html") @db.Text
+  contenuText     String?         @map("contenu_text") @db.Text
+  expediteurNom   String          @map("expediteur_nom")
+  expediteurEmail String          @map("expediteur_email")
+  status          CampaignStatus  @default(brouillon)
+  scheduledAt     DateTime?       @map("scheduled_at")
+  sentAt          DateTime?       @map("sent_at")
+  totalEnvoyes    Int             @default(0) @map("total_envoyes")
+  totalOuverts    Int             @default(0) @map("total_ouverts")
+  totalCliques    Int             @default(0) @map("total_cliques")
+  totalBounces    Int             @default(0) @map("total_bounces")
+  totalDesabonnes Int             @default(0) @map("total_desabonnes")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template        EmailTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  list            SubscriberList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+  sendLogs        EmailSendLog[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("email_campaigns")
+}
+
+model EmailSendLog {
+  id           String          @id @default(uuid()) @db.Uuid
+  campaignId   String          @map("campaign_id") @db.Uuid
+  subscriberId String          @map("subscriber_id") @db.Uuid
+  email        String
+  status       EmailSendStatus @default(pending)
+  ouvertAt     DateTime?       @map("ouvert_at")
+  cliqueAt     DateTime?       @map("clique_at")
+  bounceType   String?         @map("bounce_type")
+  erreur       String?
+  sentAt       DateTime?       @map("sent_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  campaign     EmailCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  subscriber   Subscriber      @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([subscriberId])
+  @@index([status])
+  @@map("email_send_logs")
+}
+
+model SmsCampaign {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  nom             String
+  contenu         String          @db.Text
+  listId          String?         @map("list_id") @db.Uuid
+  status          CampaignStatus  @default(brouillon)
+  scheduledAt     DateTime?       @map("scheduled_at")
+  sentAt          DateTime?       @map("sent_at")
+  totalEnvoyes    Int             @default(0) @map("total_envoyes")
+  totalDelivered  Int             @default(0) @map("total_delivered")
+  totalFailed     Int             @default(0) @map("total_failed")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  list            SubscriberList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("sms_campaigns")
 }
 

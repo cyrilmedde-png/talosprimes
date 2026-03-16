@@ -1,0 +1,160 @@
+{
+  "name": "sms-campaigns-list",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/sms-campaigns-list",
+        "responseMode": "responseNode",
+        "method": "POST"
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst limit = body.limit || 50;\nconst offset = body.offset || 0;\nconst status = body.status || null;\n\nreturn [{ tenantId, limit, offset, status }];"
+      },
+      "id": "parser",
+      "name": "Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.tenantId }}",
+              "value2": "",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validation",
+      "name": "Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "responseBody": "={{ {success: false, message: 'Missing tenantId'} }}"
+      },
+      "id": "error_respond",
+      "name": "Error Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 450]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=WITH count_query AS (\n  SELECT COUNT(*) as total\n  FROM sms_campaigns\n  WHERE tenant_id = $1::uuid\n  {{ $json.status ? 'AND status = ' + $json.status : '' }}\n)\nSELECT \n  s.id,\n  s.tenant_id as tenantId,\n  s.nom,\n  s.contenu,\n  s.list_id as listId,\n  s.status,\n  s.scheduled_at as scheduledAt,\n  s.sent_at as sentAt,\n  s.total_envoyes as totalEnvoyes,\n  s.total_delivered as totalDelivered,\n  s.total_failed as totalFailed,\n  s.created_at as createdAt,\n  s.updated_at as updatedAt,\n  (SELECT total FROM count_query) as total\nFROM sms_campaigns s\nWHERE s.tenant_id = $1::uuid\n{{ $json.status ? 'AND s.status = ' + $json.status : '' }}\nORDER BY s.created_at DESC\nLIMIT $2 OFFSET $3",
+        "queryParams": "={{ [$json.tenantId, $json.limit, $json.offset] }}",
+        "credentials": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "id": "query_list",
+      "name": "Query List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const total = $input.first().json[0]?.total || 0;\nconst campaigns = $input.all();\n\nreturn [{\n  campaigns: campaigns.map(c => ({\n    id: c.id,\n    tenantId: c.tenantId,\n    nom: c.nom,\n    contenu: c.contenu,\n    listId: c.listId,\n    status: c.status,\n    scheduledAt: c.scheduledAt,\n    sentAt: c.sentAt,\n    totalEnvoyes: c.totalEnvoyes,\n    totalDelivered: c.totalDelivered,\n    totalFailed: c.totalFailed,\n    createdAt: c.createdAt,\n    updatedAt: c.updatedAt\n  })),\n  total,\n  limit: $json.limit,\n  offset: $json.offset\n}];"
+      },
+      "id": "format_response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "webhook": {
+      "main": [
+        [
+          {
+            "node": "parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parser": {
+      "main": [
+        [
+          {
+            "node": "validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validation": {
+      "main": [
+        [
+          {
+            "node": "query_list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query_list": {
+      "main": [
+        [
+          {
+            "node": "format_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_response": {
+      "main": [
+        [
+          {
+            "node": "respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
