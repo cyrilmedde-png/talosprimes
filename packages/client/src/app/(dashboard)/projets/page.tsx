@@ -53,15 +53,33 @@ export default function ProjetsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /** Valeurs par défaut si l'API ne retourne pas de données valides */
+  const defaultStats: ProjetsDashboardStats = {
+    totalProjets: 0,
+    byStatut: { brouillon: 0, planifie: 0, enCours: 0, enPause: 0, termine: 0, annule: 0 },
+    budget: { total: 0, utilise: 0 },
+    avgProgression: 0,
+  };
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
         setError(null);
         const response = await apiClient.projets.dashboard();
-        setStats((response.data as unknown as { dashboard: ProjetsDashboardStats })?.dashboard || response.data as unknown as ProjetsDashboardStats);
+        const raw = response.data as Record<string, unknown> | undefined;
+        // Le workflow n8n renvoie { dashboard: {...} } ou directement les stats
+        const dashboard =
+          (raw as unknown as { dashboard?: ProjetsDashboardStats })?.dashboard ??
+          (raw as unknown as ProjetsDashboardStats);
+        // Vérifier que la structure est valide avant d'écraser les defaults
+        if (dashboard && typeof dashboard === 'object' && 'budget' in dashboard && 'byStatut' in dashboard) {
+          setStats(dashboard);
+        } else {
+          setStats(defaultStats);
+        }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch statistics';
+        const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement des statistiques';
         setError(errorMessage);
       } finally {
         setLoading(false);
@@ -92,7 +110,7 @@ export default function ProjetsDashboard() {
     },
     {
       title: 'Budget Total',
-      value: `€${stats.budget.total.toLocaleString('fr-FR')}`,
+      value: `€${(stats.budget?.total ?? 0).toLocaleString('fr-FR')}`,
       icon: CurrencyEuroIcon,
       color: 'bg-purple-500',
     },

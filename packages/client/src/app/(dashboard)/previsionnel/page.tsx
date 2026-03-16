@@ -152,8 +152,10 @@ export default function PrevisionnelPage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.comptabilite.previsionnels.list();
-      const raw = response?.data as unknown as { success: boolean; data: PrevisionnelItem[] };
-      setPrevisionnels(raw.data || []);
+      const raw = response?.data;
+      // Gérer les deux formats : tableau direct ou { data: [...] }
+      const items = Array.isArray(raw) ? raw : (raw as unknown as { data?: unknown[] })?.data ?? [];
+      setPrevisionnels(items as PrevisionnelItem[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur chargement');
     } finally {
@@ -164,8 +166,15 @@ export default function PrevisionnelPage(): JSX.Element {
   const fetchClients = useCallback(async () => {
     try {
       const response = await apiClient.clients.list();
-      const raw = response?.data as unknown as { success: boolean; data: { clients: ClientOption[] } };
-      setClients(raw.data?.clients || []);
+      const raw = response?.data;
+      // L'API clients renvoie { clients: [...] } ou un tableau direct
+      if (raw && typeof raw === 'object' && 'clients' in (raw as Record<string, unknown>)) {
+        setClients(((raw as Record<string, unknown>).clients as ClientOption[]) || []);
+      } else if (Array.isArray(raw)) {
+        setClients(raw as ClientOption[]);
+      } else {
+        setClients([]);
+      }
     } catch {
       // Silently fail
     }

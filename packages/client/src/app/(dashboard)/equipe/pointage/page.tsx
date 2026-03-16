@@ -47,14 +47,24 @@ export default function PointagePage(): JSX.Element {
     try {
       setLoading(true);
       const response = await apiClient.equipe.pointages.list({ dateFrom: selectedDate });
-      const data = response.data as Record<string, unknown> | undefined;
-      if (response?.success && data) {
-        setPointages(((data as { items?: Pointage[] }).items || data) as Pointage[]);
-        setError(null);
-      } else {
-        setPointages([]);
-        setError('Aucune donnée reçue du serveur');
+      const raw = response?.data;
+      // Extraire le tableau de pointages depuis les formats possibles :
+      // { items: [...] }, tableau direct, ou { data: { items: [...] } }
+      let items: Pointage[] = [];
+      if (raw && typeof raw === 'object' && !Array.isArray(raw) && 'items' in (raw as Record<string, unknown>)) {
+        items = ((raw as Record<string, unknown>).items as Pointage[]) || [];
+      } else if (Array.isArray(raw)) {
+        items = raw as Pointage[];
+      } else if (raw && typeof raw === 'object' && 'data' in (raw as Record<string, unknown>)) {
+        const inner = (raw as Record<string, unknown>).data;
+        if (inner && typeof inner === 'object' && !Array.isArray(inner) && 'items' in (inner as Record<string, unknown>)) {
+          items = ((inner as Record<string, unknown>).items as Pointage[]) || [];
+        } else if (Array.isArray(inner)) {
+          items = inner as Pointage[];
+        }
       }
+      setPointages(items);
+      setError(null);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Erreur lors du chargement'
@@ -271,7 +281,7 @@ export default function PointagePage(): JSX.Element {
           <p className="text-xs sm:text-sm font-medium text-gray-400">Heures totales</p>
           <p className="mt-2 text-2xl sm:text-3xl font-bold text-white">
             {pointages
-              .reduce((acc, p) => acc + p.heuresTravaillees, 0)
+              .reduce((acc, p) => acc + (p.heuresTravaillees || 0), 0)
               .toFixed(1)}
             h
           </p>
