@@ -90,7 +90,7 @@ export default function NewsletterDashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const headers = getHeaders();
+      getHeaders(); // Vérifie l'auth avant de lancer les requêtes
 
       // Lancer tout en parallèle — chaque appel est indépendant
       const [statsRes, campaignsRes, analyticsRes, subsRes, smsRes] = await Promise.allSettled([
