@@ -796,11 +796,16 @@ else
     log_info "Seed Prisma (TS): aucun changement detecte (checksum: ${CURRENT_SEED_CHECKSUM:0:8}...)"
   else
     log_info "Seed Prisma (TS): changements detectes, execution..."
-    if npx prisma db seed 2>&1 | tail -10; then
-      echo "$CURRENT_SEED_CHECKSUM" > "$SEED_CHECKSUM_FILE"
-      log_ok "Seed Prisma execute (nouveau checksum: ${CURRENT_SEED_CHECKSUM:0:8}...)"
+    SEED_OUTPUT=$(npx prisma db seed 2>&1) || true
+    SEED_EXIT=$?
+    echo "$SEED_OUTPUT" | tail -10
+    if echo "$SEED_OUTPUT" | grep -qi "error\|failed\|exception"; then
+      log_warn "Prisma db seed: erreur detectee (non bloquant) — checksum NON sauvegarde, re-execution au prochain deploy"
+    elif [ $SEED_EXIT -ne 0 ]; then
+      log_warn "Prisma db seed: exit code $SEED_EXIT (non bloquant) — checksum NON sauvegarde"
     else
-      log_warn "Prisma db seed: erreur (non bloquant)"
+      echo "$CURRENT_SEED_CHECKSUM" > "$SEED_CHECKSUM_FILE"
+      log_ok "Seed Prisma execute avec succes (nouveau checksum: ${CURRENT_SEED_CHECKSUM:0:8}...)"
     fi
   fi
 

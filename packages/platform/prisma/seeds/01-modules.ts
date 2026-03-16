@@ -1,3 +1,4 @@
+// Seed des modules metier — v2025-03-16
 import { Prisma, PrismaClient } from '@prisma/client';
 
 type ModuleDef = {
