@@ -23,11 +23,47 @@ import {
   FunnelIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
+import { authenticatedFetch } from '@/lib/api-client';
 
 // ============================================
 // Types
 // ============================================
 
+// Donnees brutes de l'API (snake_case depuis PostgreSQL)
+interface CatalogItem {
+  id: string;
+  code: string;
+  nom: string;
+  description: string;
+  categorie: string;
+  icon: string;
+  setup_price: number | string;
+  monthly_price: number | string;
+  complexity: string;
+  workflow_count: number;
+  features: string[];
+  is_active: boolean;
+  ordre: number;
+}
+
+interface PurchaseItem {
+  id: string;
+  automation_id: string;
+  status: string;
+  n8n_folder_id?: string;
+  n8n_folder_name?: string;
+  activated_at?: string;
+  code: string;
+  nom: string;
+  description: string;
+  categorie: string;
+  icon: string;
+  complexity: string;
+  workflow_count: number;
+  features: string[];
+}
+
+// Donnees normalisees pour l'affichage
 interface Automation {
   id: string;
   nom: string;
@@ -42,6 +78,9 @@ interface Automation {
   lastExecution?: string;
   executionsToday: number;
   successRate: number;
+  features: string[];
+  n8nFolderId?: string;
+  n8nFolderName?: string;
 }
 
 interface AutomationStats {
@@ -107,124 +146,30 @@ const COMPLEXITY_LABELS: Record<number, { label: string; color: string }> = {
   3: { label: 'Avance', color: 'text-red-400' },
 };
 
-// ============================================
-// Catalogue statique (les automatisations disponibles)
-// ============================================
+const COMPLEXITY_MAP: Record<string, number> = {
+  simple: 1,
+  intermediaire: 2,
+  avance: 3,
+};
 
-const CATALOGUE: Automation[] = [
-  {
-    id: 'auto-email',
-    nom: 'Gestion Email Automatisee',
-    description: 'Campagnes email, newsletters, sequences de bienvenue, relances automatiques et segmentation avancee des contacts.',
-    categorie: 'email',
-    icon: 'email',
-    setupPrice: 799,
-    monthlyPrice: 59,
-    complexityLevel: 1,
-    status: 'inactif',
-    workflowCount: 6,
+/** Convertit un item du catalogue API en Automation pour l'affichage */
+function catalogToAutomation(item: CatalogItem, purchaseStatus?: string): Automation {
+  return {
+    id: item.id,
+    nom: item.nom,
+    description: item.description,
+    categorie: item.categorie,
+    icon: item.icon,
+    setupPrice: Number(item.setup_price) || 0,
+    monthlyPrice: Number(item.monthly_price) || 0,
+    complexityLevel: COMPLEXITY_MAP[item.complexity] || 1,
+    status: (purchaseStatus as Automation['status']) || 'inactif',
+    workflowCount: item.workflow_count || 0,
     executionsToday: 0,
     successRate: 0,
-  },
-  {
-    id: 'auto-social',
-    nom: 'Connexion Reseaux Sociaux',
-    description: 'Publication automatique sur Facebook, Instagram et TikTok. Planification, generation de contenu IA et analytics.',
-    categorie: 'marketing',
-    icon: 'marketing',
-    setupPrice: 1290,
-    monthlyPrice: 99,
-    complexityLevel: 2,
-    status: 'inactif',
-    workflowCount: 8,
-    executionsToday: 0,
-    successRate: 0,
-  },
-  {
-    id: 'auto-telephonie',
-    nom: 'Agent Telephonique IA',
-    description: 'Standard telephonique intelligent, prise de RDV automatique, qualification des appels et transcription vocale.',
-    categorie: 'telephonie',
-    icon: 'telephonie',
-    setupPrice: 1990,
-    monthlyPrice: 149,
-    complexityLevel: 3,
-    status: 'inactif',
-    workflowCount: 12,
-    executionsToday: 0,
-    successRate: 0,
-  },
-  {
-    id: 'auto-facturation',
-    nom: 'Facturation Automatique',
-    description: 'Generation de factures, relances impayees, envoi automatique par email, suivi des paiements et export comptable.',
-    categorie: 'facturation',
-    icon: 'facturation',
-    setupPrice: 899,
-    monthlyPrice: 69,
-    complexityLevel: 1,
-    status: 'inactif',
-    workflowCount: 7,
-    executionsToday: 0,
-    successRate: 0,
-  },
-  {
-    id: 'auto-crm',
-    nom: 'CRM & Suivi Clients',
-    description: 'Automatisation du suivi client, notifications de relance, scoring des leads, onboarding automatise et rapports.',
-    categorie: 'crm',
-    icon: 'crm',
-    setupPrice: 990,
-    monthlyPrice: 79,
-    complexityLevel: 2,
-    status: 'inactif',
-    workflowCount: 9,
-    executionsToday: 0,
-    successRate: 0,
-  },
-  {
-    id: 'auto-sms',
-    nom: 'Campagnes SMS',
-    description: 'Envoi de SMS en masse, notifications automatiques, confirmations RDV et campagnes promotionnelles.',
-    categorie: 'sms',
-    icon: 'sms',
-    setupPrice: 599,
-    monthlyPrice: 49,
-    complexityLevel: 1,
-    status: 'inactif',
-    workflowCount: 4,
-    executionsToday: 0,
-    successRate: 0,
-  },
-  {
-    id: 'auto-compta',
-    nom: 'Comptabilite Automatisee',
-    description: 'Ecritures automatiques, rapprochement bancaire, declarations TVA, export FEC et conformite legale.',
-    categorie: 'comptabilite',
-    icon: 'comptabilite',
-    setupPrice: 1490,
-    monthlyPrice: 119,
-    complexityLevel: 3,
-    status: 'inactif',
-    workflowCount: 10,
-    executionsToday: 0,
-    successRate: 0,
-  },
-  {
-    id: 'auto-stock',
-    nom: 'Gestion de Stock Intelligente',
-    description: 'Alertes de stock bas, reapprovisionnement automatique, suivi multi-sites et inventaires planifies.',
-    categorie: 'stock',
-    icon: 'stock',
-    setupPrice: 890,
-    monthlyPrice: 69,
-    complexityLevel: 2,
-    status: 'inactif',
-    workflowCount: 6,
-    executionsToday: 0,
-    successRate: 0,
-  },
-];
+    features: Array.isArray(item.features) ? item.features : [],
+  };
+}
 
 // ============================================
 // Helpers
@@ -260,41 +205,94 @@ export default function AutomatisationsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('catalogue');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategorie, setSelectedCategorie] = useState<string>('all');
-
-  // Admin = toutes actives | Client = selon ses achats
-  // Les stats reelles (executionsToday, successRate) viendront de l'API EventLog
-  const [automations] = useState<Automation[]>(() =>
-    isAdmin
-      ? CATALOGUE.map(a => ({ ...a, status: 'actif' as const }))
-      : CATALOGUE
-  );
+  const [automations, setAutomations] = useState<Automation[]>([]);
   const [stats, setStats] = useState<AutomationStats>({
-    totalAutomations: CATALOGUE.length,
+    totalAutomations: 0,
     actives: 0,
     executionsToday: 0,
     tauxReussite: 0,
     erreurs24h: 0,
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedAutomation, setSelectedAutomation] = useState<Automation | null>(null);
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestMessage, setRequestMessage] = useState<string | null>(null);
 
-  // TODO: Charger les données reelles depuis l'API quand l'endpoint sera pret
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const actives = automations.filter(a => a.status === 'actif');
-      const totalExec = actives.reduce((sum, a) => sum + a.executionsToday, 0);
-      setStats({
-        totalAutomations: automations.length,
-        actives: actives.length,
-        executionsToday: totalExec,
-        tauxReussite: 0,
-        erreurs24h: 0,
-      });
+      // 1. Charger le catalogue depuis la BDD
+      const catalogRes = await authenticatedFetch<{
+        success: boolean;
+        data?: { catalog: CatalogItem[] };
+      }>('/api/automations/catalog');
+
+      // 2. Charger les achats du tenant
+      const purchasesRes = await authenticatedFetch<{
+        success: boolean;
+        data?: { purchases: PurchaseItem[] };
+      }>('/api/automations/purchases');
+
+      // 3. Charger les stats
+      const statsRes = await authenticatedFetch<{
+        success: boolean;
+        data?: { stats: AutomationStats };
+      }>('/api/automations/stats');
+
+      if (catalogRes.success && catalogRes.data) {
+        const catalog = catalogRes.data.catalog || [];
+        const purchases = purchasesRes.success && purchasesRes.data
+          ? purchasesRes.data.purchases || []
+          : [];
+
+        // Creer un map des achats par automation_id
+        const purchaseMap = new Map<string, string>();
+        for (const p of purchases) {
+          purchaseMap.set(p.automation_id, p.status === 'active' ? 'actif' : p.status === 'en_attente' ? 'en_attente' : 'inactif');
+        }
+
+        // Convertir le catalogue en Automation[]
+        // Admin: toutes actives | Client: selon les achats
+        const list = catalog.map(item => {
+          const purchaseStatus = isAdmin ? 'actif' : (purchaseMap.get(item.id) || 'inactif');
+          return catalogToAutomation(item, purchaseStatus);
+        });
+
+        setAutomations(list);
+      }
+
+      if (statsRes.success && statsRes.data?.stats) {
+        setStats(statsRes.data.stats);
+      }
+    } catch (err) {
+      console.error('[Automatisations] Erreur chargement:', err);
     } finally {
       setLoading(false);
     }
-  }, [automations, isAdmin]);
+  }, [isAdmin]);
+
+  // Demander l'activation (pour les clients)
+  const handleRequestActivation = useCallback(async (automationId: string) => {
+    setRequestLoading(true);
+    setRequestMessage(null);
+    try {
+      const res = await authenticatedFetch<{ success: boolean; message?: string; error?: string }>('/api/automations/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ automationId }),
+      });
+      if (res.success) {
+        setRequestMessage('Demande envoyee ! Vous serez contacte pour l\'activation.');
+        fetchData(); // Recharger pour voir le statut "en_attente"
+      } else {
+        setRequestMessage(res.error || 'Erreur lors de l\'envoi');
+      }
+    } catch {
+      setRequestMessage('Erreur de connexion');
+    } finally {
+      setRequestLoading(false);
+    }
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -428,6 +426,9 @@ export default function AutomatisationsPage() {
           automation={selectedAutomation}
           onClose={() => setSelectedAutomation(null)}
           isAdmin={isAdmin}
+          onRequestActivation={handleRequestActivation}
+          requestLoading={requestLoading}
+          requestMessage={requestMessage}
         />
       )}
     </div>
@@ -692,10 +693,16 @@ function AutomationDetailModal({
   automation,
   onClose,
   isAdmin,
+  onRequestActivation,
+  requestLoading,
+  requestMessage,
 }: {
   automation: Automation;
   onClose: () => void;
   isAdmin: boolean;
+  onRequestActivation: (id: string) => void;
+  requestLoading: boolean;
+  requestMessage: string | null;
 }) {
   const CatIcon = CATEGORIE_ICONS[automation.categorie] || BoltIcon;
   const catColor = CATEGORIE_COLORS[automation.categorie] || CATEGORIE_COLORS.general;
@@ -823,10 +830,23 @@ function AutomationDetailModal({
               </button>
             </>
           ) : (
-            <button className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2">
-              <PlayIcon className="h-4 w-4" />
-              Demander l&apos;activation
+            <button
+              onClick={() => onRequestActivation(automation.id)}
+              disabled={requestLoading}
+              className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+            >
+              {requestLoading ? (
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+              ) : (
+                <PlayIcon className="h-4 w-4" />
+              )}
+              {requestLoading ? 'Envoi en cours...' : 'Demander l\u0027activation'}
             </button>
+          )}
+          {requestMessage && (
+            <p className={`text-sm text-center mt-2 ${requestMessage.includes('Erreur') ? 'text-red-400' : 'text-green-400'}`}>
+              {requestMessage}
+            </p>
           )}
         </div>
       </div>

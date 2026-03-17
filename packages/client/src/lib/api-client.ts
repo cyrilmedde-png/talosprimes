@@ -18,7 +18,7 @@ export class ApiError extends Error {
  * Effectue une requête authentifiée vers l'API
  * Gère automatiquement le refresh du token si nécessaire
  */
-async function authenticatedFetch<T>(
+export async function authenticatedFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {

@@ -342,6 +342,9 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   subscribers_stats: 'newsletter/subscribers-stats',
   newsletter_analytics: 'newsletter/analytics',
   newsletter_dashboard: 'newsletter/dashboard',
+  // Automations
+  automation_activate: 'automations/activate',
+  automation_request: 'automations/request',
 };
 
 /**

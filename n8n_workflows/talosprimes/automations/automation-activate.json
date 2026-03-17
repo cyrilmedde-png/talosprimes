@@ -1,0 +1,171 @@
+{
+  "name": "[TalosPrimes] Activation Automatisation Client",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/activate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-activate",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recuperer les donnees du webhook\nconst body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationCode = body.automationCode;\nconst automationNom = body.automationNom;\nconst folderName = body.folderName || 'Client';\n\n// Nom du dossier dans n8n : \"[Client] NomEntreprise\"\nconst n8nFolderName = `[Client] ${folderName}`;\n\nreturn [{\n  json: {\n    tenantId,\n    automationCode,\n    automationNom,\n    folderName: n8nFolderName,\n    originalFolderName: folderName\n  }\n}];"
+      },
+      "id": "prepare-data",
+      "name": "02. Preparer donnees",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/projects",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "headerParameters": {
+          "parameters": []
+        }
+      },
+      "id": "list-projects",
+      "name": "03. Lister dossiers n8n",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "n8n API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifier si un dossier (project) existe deja pour ce client\nconst projects = $input.first().json.data || $input.first().json || [];\nconst folderName = $('02. Preparer donnees').first().json.folderName;\n\nconst existing = Array.isArray(projects) \n  ? projects.find(p => p.name === folderName)\n  : null;\n\nreturn [{\n  json: {\n    folderExists: !!existing,\n    folderId: existing ? existing.id : null,\n    folderName: folderName,\n    tenantId: $('02. Preparer donnees').first().json.tenantId,\n    automationCode: $('02. Preparer donnees').first().json.automationCode,\n    automationNom: $('02. Preparer donnees').first().json.automationNom\n  }\n}];"
+      },
+      "id": "check-folder",
+      "name": "04. Verifier dossier existant",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.folderExists }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-folder-exists",
+      "name": "05. Dossier existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/projects",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $('04. Verifier dossier existant').first().json.folderName }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-folder",
+      "name": "06. Creer dossier n8n",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 450],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "n8n API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recuperer l'ID du dossier (cree ou existant)\nlet folderId;\nlet folderName;\n\ntry {\n  // Si on vient de creer le dossier\n  const created = $('06. Creer dossier n8n').first();\n  if (created) {\n    folderId = created.json.id || created.json.data?.id;\n    folderName = created.json.name || created.json.data?.name;\n  }\n} catch {\n  // Dossier existait deja\n  const existing = $('04. Verifier dossier existant').first();\n  folderId = existing.json.folderId;\n  folderName = existing.json.folderName;\n}\n\nconst data = $('04. Verifier dossier existant').first().json;\n\nreturn [{\n  json: {\n    folderId: folderId || data.folderId,\n    folderName: folderName || data.folderName,\n    tenantId: data.tenantId,\n    automationCode: data.automationCode,\n    automationNom: data.automationNom,\n    workflowIds: []\n  }\n}];"
+      },
+      "id": "merge-folder-id",
+      "name": "07. Recuperer ID dossier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, data: { folderId: $json.folderId, folderName: $json.folderName, workflowIds: $json.workflowIds, automationCode: $json.automationCode } }) }}"
+      },
+      "id": "respond",
+      "name": "08. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1790, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [{ "node": "02. Preparer donnees", "type": "main", "index": 0 }]
+      ]
+    },
+    "02. Preparer donnees": {
+      "main": [
+        [{ "node": "03. Lister dossiers n8n", "type": "main", "index": 0 }]
+      ]
+    },
+    "03. Lister dossiers n8n": {
+      "main": [
+        [{ "node": "04. Verifier dossier existant", "type": "main", "index": 0 }]
+      ]
+    },
+    "04. Verifier dossier existant": {
+      "main": [
+        [{ "node": "05. Dossier existe?", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Dossier existe?": {
+      "main": [
+        [{ "node": "07. Recuperer ID dossier", "type": "main", "index": 0 }],
+        [{ "node": "06. Creer dossier n8n", "type": "main", "index": 0 }]
+      ]
+    },
+    "06. Creer dossier n8n": {
+      "main": [
+        [{ "node": "07. Recuperer ID dossier", "type": "main", "index": 0 }]
+      ]
+    },
+    "07. Recuperer ID dossier": {
+      "main": [
+        [{ "node": "08. Repondre", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "talosprimes" },
+    { "name": "automations" }
+  ]
+}
