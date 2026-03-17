@@ -64,7 +64,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const catalogRow = $('04. Chercher catalogue + tenant').first().json;\nconst existingPurchase = $('05. Verifier achat existant').first().json;\nconst data = $('02. Valider donnees').first().json;\n\nif (!catalogRow || !catalogRow.code) {\n  return [{ json: { valid: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nconst tenantName = catalogRow.tenant_name || 'Client';\nconst automationCode = catalogRow.code;\nconst automationNom = catalogRow.nom;\nconst setupPrice = catalogRow.setup_price || 0;\nconst monthlyPrice = catalogRow.monthly_price || 0;\nconst n8nFolderName = `[Client] ${tenantName}`;\nconst existingFolderId = existingPurchase?.n8n_folder_id || null;\nconst existingWorkflowIds = existingPurchase?.n8n_workflow_ids || [];\n\n// Construire le workflow a creer pour ce client\nconst workflow = {\n  name: `[${tenantName}] ${automationNom}`,\n  nodes: [\n    {\n      parameters: {\n        rule: { interval: [{ field: 'hours', hoursInterval: 24 }] }\n      },\n      id: 'schedule-node',\n      name: 'Declencheur',\n      type: 'n8n-nodes-base.scheduleTrigger',\n      typeVersion: 1.2,\n      position: [250, 300]\n    },\n    {\n      parameters: {\n        jsCode: `// Automatisation: ${automationNom}\\n// Client: ${tenantName}\\n// Code: ${automationCode}\\n// Cree automatiquement par TalosPrimes\\nconst now = new Date().toISOString();\\nreturn [{ json: { client: '${tenantName}', automation: '${automationCode}', timestamp: now, status: 'ok' } }];`\n      },\n      id: 'code-node',\n      name: 'Traitement',\n      type: 'n8n-nodes-base.code',\n      typeVersion: 2,\n      position: [470, 300]\n    }\n  ],\n  connections: {\n    'Declencheur': { main: [[{ node: 'Traitement', type: 'main', index: 0 }]] }\n  },\n  settings: { executionOrder: 'v1' }\n};\n\nreturn [{ json: {\n  valid: true,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode,\n  automationNom,\n  tenantName,\n  setupPrice,\n  monthlyPrice,\n  config: data.config,\n  n8nFolderName,\n  existingFolderId,\n  existingWorkflowIds,\n  workflow\n} }];"
+        "jsCode": "const catalogRow = $('04. Chercher catalogue + tenant').first().json;\nconst existingPurchase = $('05. Verifier achat existant').first().json;\nconst data = $('02. Valider donnees').first().json;\n\nif (!catalogRow || !catalogRow.code) {\n  return [{ json: { valid: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nconst tenantName = catalogRow.tenant_name || 'Client';\nconst automationCode = catalogRow.code;\nconst automationNom = catalogRow.nom;\nconst setupPrice = catalogRow.setup_price || 0;\nconst monthlyPrice = catalogRow.monthly_price || 0;\n\n// Tag pour organiser dans n8n self-hosted\nconst clientTag = `client:${tenantName}`;\nconst existingWorkflowIds = existingPurchase?.n8n_workflow_ids || [];\n\n// Construire le workflow a creer pour ce client\nconst workflow = {\n  name: `[${tenantName}] ${automationNom}`,\n  tags: [clientTag, 'talosprimes', `auto:${automationCode}`],\n  nodes: [\n    {\n      parameters: {\n        rule: { interval: [{ field: 'hours', hoursInterval: 24 }] }\n      },\n      id: 'schedule-node',\n      name: 'Declencheur',\n      type: 'n8n-nodes-base.scheduleTrigger',\n      typeVersion: 1.2,\n      position: [250, 300]\n    },\n    {\n      parameters: {\n        jsCode: `// Automatisation: ${automationNom}\\n// Client: ${tenantName}\\n// Code: ${automationCode}\\n// Cree automatiquement par TalosPrimes\\nconst now = new Date().toISOString();\\nreturn [{ json: { client: '${tenantName}', automation: '${automationCode}', timestamp: now, status: 'ok' } }];`\n      },\n      id: 'code-node',\n      name: 'Traitement',\n      type: 'n8n-nodes-base.code',\n      typeVersion: 2,\n      position: [470, 300]\n    }\n  ],\n  connections: {\n    'Declencheur': { main: [[{ node: 'Traitement', type: 'main', index: 0 }]] }\n  },\n  settings: { executionOrder: 'v1' }\n};\n\nreturn [{ json: {\n  valid: true,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode,\n  automationNom,\n  tenantName,\n  setupPrice,\n  monthlyPrice,\n  config: data.config,\n  clientTag,\n  existingWorkflowIds,\n  workflow\n} }];"
       },
       "id": "build-workflow",
       "name": "06. Construire workflow",
@@ -86,112 +86,46 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($('06. Construire workflow').first().json.workflow) }}",
-        "options": {
-          "response": {
-            "response": { "neverError": true }
-          }
-        }
+        "jsCode": "// Creer les tags s'ils n'existent pas deja\nconst data = $('06. Construire workflow').first().json;\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst apiKey = $env.N8N_API_KEY || '';\nconst tagsToCreate = [data.clientTag, 'talosprimes', `auto:${data.automationCode}`];\nconst tagIds = [];\n\nfor (const tagName of tagsToCreate) {\n  try {\n    // Essayer de creer le tag\n    const createResp = await fetch(`${baseUrl}/api/v1/tags`, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': apiKey },\n      body: JSON.stringify({ name: tagName })\n    });\n    const createData = await createResp.json();\n    if (createData.id) {\n      tagIds.push({ id: createData.id, name: tagName });\n    } else {\n      // Tag existe deja, le chercher\n      const listResp = await fetch(`${baseUrl}/api/v1/tags`, {\n        headers: { 'X-N8N-API-KEY': apiKey }\n      });\n      const allTags = await listResp.json();\n      const found = (allTags.data || allTags).find(t => t.name === tagName);\n      if (found) tagIds.push({ id: found.id, name: tagName });\n    }\n  } catch (err) {\n    // On continue meme si le tag echoue\n  }\n}\n\nreturn [{ json: { ...data, tagIds } }];"
       },
-      "id": "create-workflow",
-      "name": "08. Creer workflow via API",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1790, 100],
-      "credentials": {
-        "httpHeaderAuth": { "name": "n8n API Key" }
-      }
+      "id": "create-tags",
+      "name": "08. Creer tags n8n",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1790, 100]
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst workflowId = response.id || null;\nconst workflowName = response.name || null;\nconst data = $('06. Construire workflow').first().json;\nconst existingFolderId = data.existingFolderId;\nconst canMove = !!(existingFolderId && workflowId);\n\n// Fusionner le nouveau workflowId avec les existants\nconst existingIds = data.existingWorkflowIds || [];\nconst allWorkflowIds = workflowId ? [...existingIds, workflowId] : existingIds;\n\nreturn [{ json: {\n  workflowId,\n  workflowName,\n  allWorkflowIds,\n  folderId: existingFolderId,\n  folderName: data.n8nFolderName,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode: data.automationCode,\n  automationNom: data.automationNom,\n  tenantName: data.tenantName,\n  setupPrice: data.setupPrice,\n  monthlyPrice: data.monthlyPrice,\n  config: data.config,\n  canMove,\n  status: workflowId ? 'workflow_cree' : 'erreur_creation'\n} }];"
+        "jsCode": "// Creer le workflow avec les tags\nconst data = $input.first().json;\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst apiKey = $env.N8N_API_KEY || '';\n\n// Ajouter les tag IDs au workflow\nconst workflow = data.workflow;\nif (data.tagIds && data.tagIds.length > 0) {\n  workflow.tags = data.tagIds.map(t => ({ id: t.id }));\n}\n\ntry {\n  const resp = await fetch(`${baseUrl}/api/v1/workflows`, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': apiKey },\n    body: JSON.stringify(workflow)\n  });\n  const result = await resp.json();\n  const workflowId = result.id || null;\n  const workflowName = result.name || null;\n\n  // Fusionner le nouveau workflowId avec les existants\n  const existingIds = data.existingWorkflowIds || [];\n  const allWorkflowIds = workflowId ? [...existingIds, String(workflowId)] : existingIds;\n\n  return [{ json: {\n    success: !!workflowId,\n    workflowId,\n    workflowName,\n    allWorkflowIds,\n    tenantId: data.tenantId,\n    automationId: data.automationId,\n    automationCode: data.automationCode,\n    automationNom: data.automationNom,\n    tenantName: data.tenantName,\n    setupPrice: data.setupPrice,\n    monthlyPrice: data.monthlyPrice,\n    config: data.config,\n    clientTag: data.clientTag,\n    error: workflowId ? null : 'Erreur creation workflow'\n  } }];\n} catch (err) {\n  return [{ json: {\n    success: false,\n    workflowId: null,\n    workflowName: null,\n    allWorkflowIds: data.existingWorkflowIds || [],\n    tenantId: data.tenantId,\n    automationId: data.automationId,\n    automationCode: data.automationCode,\n    automationNom: data.automationNom,\n    tenantName: data.tenantName,\n    setupPrice: data.setupPrice,\n    monthlyPrice: data.monthlyPrice,\n    config: data.config,\n    clientTag: data.clientTag,\n    error: String(err)\n  } }];\n}"
       },
-      "id": "check-result",
-      "name": "09. Verifier creation",
+      "id": "create-workflow",
+      "name": "09. Creer workflow via API",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [2010, 100]
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [{ "value1": "={{ $json.canMove }}", "value2": true }]
-        }
-      },
-      "id": "if-can-move",
-      "name": "10. Peut deplacer?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [2230, 100]
-    },
-    {
-      "parameters": {
-        "method": "PUT",
-        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows/{{ $('09. Verifier creation').first().json.workflowId }}/transfer",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "destinationProjectId",
-              "value": "={{ $('09. Verifier creation').first().json.folderId }}"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": { "neverError": true }
-          }
-        }
-      },
-      "id": "move-workflow",
-      "name": "11. Deplacer dans dossier",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2450, 0],
-      "credentials": {
-        "httpHeaderAuth": { "name": "n8n API Key" }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $('09. Verifier creation').first().json;\nlet movedToFolder = false;\n\ntry {\n  const moveResult = $('11. Deplacer dans dossier').first();\n  movedToFolder = moveResult && !moveResult.json?.message?.includes('error');\n} catch {\n  // pas de deplacement effectue\n}\n\nreturn [{ json: {\n  ...data,\n  movedToFolder\n} }];"
-      },
-      "id": "merge-result",
-      "name": "12. Fusionner resultat",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2670, 100]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automation_purchases (tenant_id, automation_id, status, n8n_folder_id, n8n_folder_name, n8n_workflow_ids, setup_price_paid, monthly_price, config, activated_at, created_at, updated_at) VALUES ('{{ $json.tenantId }}'::uuid, '{{ $json.automationId }}'::uuid, 'active', {{ $json.folderId ? \"'\" + $json.folderId + \"'\" : 'NULL' }}, '{{ $json.folderName }}', '{{ JSON.stringify($json.allWorkflowIds) }}'::jsonb, {{ $json.setupPrice }}, {{ $json.monthlyPrice }}, '{{ JSON.stringify($json.config || {}) }}'::jsonb, NOW(), NOW(), NOW()) ON CONFLICT (tenant_id, automation_id) DO UPDATE SET status = 'active', n8n_folder_id = COALESCE(EXCLUDED.n8n_folder_id, automation_purchases.n8n_folder_id), n8n_folder_name = COALESCE(EXCLUDED.n8n_folder_name, automation_purchases.n8n_folder_name), n8n_workflow_ids = EXCLUDED.n8n_workflow_ids, config = EXCLUDED.config, activated_at = NOW(), suspended_at = NULL, cancelled_at = NULL, updated_at = NOW() RETURNING id, status",
+        "query": "INSERT INTO automation_purchases (tenant_id, automation_id, status, n8n_folder_id, n8n_folder_name, n8n_workflow_ids, setup_price_paid, monthly_price, config, activated_at, created_at, updated_at) VALUES ('{{ $json.tenantId }}'::uuid, '{{ $json.automationId }}'::uuid, 'active', '{{ $json.clientTag }}', '{{ $json.clientTag }}', '{{ JSON.stringify($json.allWorkflowIds) }}'::jsonb, {{ $json.setupPrice }}, {{ $json.monthlyPrice }}, '{{ JSON.stringify($json.config || {}) }}'::jsonb, NOW(), NOW(), NOW()) ON CONFLICT (tenant_id, automation_id) DO UPDATE SET status = 'active', n8n_folder_id = EXCLUDED.n8n_folder_id, n8n_folder_name = EXCLUDED.n8n_folder_name, n8n_workflow_ids = EXCLUDED.n8n_workflow_ids, config = EXCLUDED.config, activated_at = NOW(), suspended_at = NULL, cancelled_at = NULL, updated_at = NOW() RETURNING id, status",
         "options": {}
       },
       "id": "upsert-purchase",
-      "name": "13. Enregistrer achat BDD",
+      "name": "10. Enregistrer achat BDD",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2890, 100],
+      "position": [2230, 100],
       "credentials": { "postgres": { "name": "TalosPrimes DB" } }
     },
     {
       "parameters": {
-        "jsCode": "const data = $('12. Fusionner resultat').first().json;\nconst purchaseResult = $input.first().json;\n\nreturn [{ json: {\n  success: !!data.workflowId,\n  workflowId: data.workflowId,\n  workflowName: data.workflowName,\n  folderId: data.folderId,\n  folderName: data.folderName,\n  tenantId: data.tenantId,\n  automationCode: data.automationCode,\n  movedToFolder: data.movedToFolder || false,\n  workflowIds: data.allWorkflowIds || [],\n  purchaseId: purchaseResult.id || null,\n  purchaseStatus: purchaseResult.status || 'active',\n  message: data.workflowId\n    ? `Workflow \"${data.workflowName}\" cree avec succes${data.movedToFolder ? ` et deplace dans \"${data.folderName}\"` : ''}. Achat enregistre.`\n    : 'Erreur lors de la creation du workflow'\n} }];"
+        "jsCode": "const data = $('09. Creer workflow via API').first().json;\nconst purchaseResult = $input.first().json;\n\nreturn [{ json: {\n  success: data.success,\n  workflowId: data.workflowId,\n  workflowName: data.workflowName,\n  clientTag: data.clientTag,\n  tenantId: data.tenantId,\n  automationCode: data.automationCode,\n  workflowIds: data.allWorkflowIds || [],\n  purchaseId: purchaseResult.id || null,\n  purchaseStatus: purchaseResult.status || 'active',\n  message: data.success\n    ? `Workflow \"${data.workflowName}\" cree et tagge \"${data.clientTag}\". Achat enregistre.`\n    : data.error || 'Erreur lors de la creation du workflow'\n} }];"
       },
       "id": "final-result",
-      "name": "14. Resultat final",
+      "name": "11. Resultat final",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3110, 100]
+      "position": [2450, 100]
     },
     {
       "parameters": {
@@ -199,15 +133,15 @@
         "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond",
-      "name": "15. Repondre",
+      "name": "12. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [3330, 200]
+      "position": [2670, 200]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($('02. Valider donnees').first().json) }}"
+        "responseBody": "={{ JSON.stringify({ success: false, error: $('02. Valider donnees').first().json.error || 'Donnees invalides' }) }}"
       },
       "id": "respond-err-validation",
       "name": "03b. Erreur validation",
@@ -218,7 +152,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($('06. Construire workflow').first().json) }}"
+        "responseBody": "={{ JSON.stringify({ success: false, error: $('06. Construire workflow').first().json.error || 'Automatisation introuvable' }) }}"
       },
       "id": "respond-err-build",
       "name": "07b. Erreur build",
@@ -251,33 +185,21 @@
     },
     "07. Build valide?": {
       "main": [
-        [{ "node": "08. Creer workflow via API", "type": "main", "index": 0 }],
+        [{ "node": "08. Creer tags n8n", "type": "main", "index": 0 }],
         [{ "node": "07b. Erreur build", "type": "main", "index": 0 }]
       ]
     },
-    "08. Creer workflow via API": {
-      "main": [[{ "node": "09. Verifier creation", "type": "main", "index": 0 }]]
+    "08. Creer tags n8n": {
+      "main": [[{ "node": "09. Creer workflow via API", "type": "main", "index": 0 }]]
     },
-    "09. Verifier creation": {
-      "main": [[{ "node": "10. Peut deplacer?", "type": "main", "index": 0 }]]
+    "09. Creer workflow via API": {
+      "main": [[{ "node": "10. Enregistrer achat BDD", "type": "main", "index": 0 }]]
     },
-    "10. Peut deplacer?": {
-      "main": [
-        [{ "node": "11. Deplacer dans dossier", "type": "main", "index": 0 }],
-        [{ "node": "12. Fusionner resultat", "type": "main", "index": 0 }]
-      ]
+    "10. Enregistrer achat BDD": {
+      "main": [[{ "node": "11. Resultat final", "type": "main", "index": 0 }]]
     },
-    "11. Deplacer dans dossier": {
-      "main": [[{ "node": "12. Fusionner resultat", "type": "main", "index": 0 }]]
-    },
-    "12. Fusionner resultat": {
-      "main": [[{ "node": "13. Enregistrer achat BDD", "type": "main", "index": 0 }]]
-    },
-    "13. Enregistrer achat BDD": {
-      "main": [[{ "node": "14. Resultat final", "type": "main", "index": 0 }]]
-    },
-    "14. Resultat final": {
-      "main": [[{ "node": "15. Repondre", "type": "main", "index": 0 }]]
+    "11. Resultat final": {
+      "main": [[{ "node": "12. Repondre", "type": "main", "index": 0 }]]
     }
   },
   "settings": {

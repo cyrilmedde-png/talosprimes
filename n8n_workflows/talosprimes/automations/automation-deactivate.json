@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, valid: true } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, valid: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, valid: true } }];"
       },
       "id": "prepare-data",
       "name": "02. Preparer donnees",
@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const purchase = $input.first().json;\nconst data = $('02. Preparer donnees').first().json;\nconst workflowIds = purchase.n8n_workflow_ids || [];\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst results = [];\n\nfor (const wfId of workflowIds) {\n  try {\n    const resp = await fetch(`${baseUrl}/api/v1/workflows/${wfId}/deactivate`, {\n      method: 'POST',\n      headers: { 'X-N8N-API-KEY': $env.N8N_API_KEY || '' }\n    });\n    results.push({ workflowId: wfId, success: resp.ok, status: resp.status });\n  } catch (err) {\n    results.push({ workflowId: wfId, success: false, error: String(err) });\n  }\n}\n\nconst successCount = results.filter(r => r.success).length;\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  deactivated: successCount,\n  total: workflowIds.length,\n  results\n} }];"
+        "jsCode": "// Desactiver chaque workflow via PATCH (compatible self-hosted n8n)\nconst purchase = $input.first().json;\nconst data = $('02. Preparer donnees').first().json;\nconst workflowIds = purchase.n8n_workflow_ids || [];\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst apiKey = $env.N8N_API_KEY || '';\nconst results = [];\n\nfor (const wfId of workflowIds) {\n  try {\n    // PATCH /api/v1/workflows/{id} avec active: false\n    // C'est l'endpoint standard self-hosted pour desactiver\n    const resp = await fetch(`${baseUrl}/api/v1/workflows/${wfId}`, {\n      method: 'PATCH',\n      headers: {\n        'Content-Type': 'application/json',\n        'X-N8N-API-KEY': apiKey\n      },\n      body: JSON.stringify({ active: false })\n    });\n    const respData = await resp.json();\n    results.push({\n      workflowId: wfId,\n      success: resp.ok,\n      active: respData.active === false ? false : respData.active\n    });\n  } catch (err) {\n    results.push({ workflowId: wfId, success: false, error: String(err) });\n  }\n}\n\nconst successCount = results.filter(r => r.success).length;\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  deactivated: successCount,\n  total: workflowIds.length,\n  results\n} }];"
       },
       "id": "deactivate-workflows",
       "name": "05. Desactiver workflows n8n",
@@ -91,7 +91,7 @@
       "position": [1790, 300]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($('02. Preparer donnees').first().json) }}" },
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify({ success: false, error: $('02. Preparer donnees').first().json.error || 'Donnees invalides' }) }}" },
       "id": "respond-err",
       "name": "08b. Erreur",
       "type": "n8n-nodes-base.respondToWebhook",
