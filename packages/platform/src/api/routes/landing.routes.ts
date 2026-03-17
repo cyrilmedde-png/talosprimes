@@ -436,15 +436,21 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // ===== CMS PAGES DYNAMIQUES =====
+  // ===== CMS PAGES DYNAMIQUES (isolées par tenant_id) =====
 
-  // GET /api/landing/pages - Pages publiées (PUBLIC)
-  fastify.get(
+  // GET /api/landing/pages - Pages publiées du tenant (PUBLIC via query param tenantId)
+  fastify.get<{ Querystring: { tenantId?: string } }>(
     '/api/landing/pages',
-    async (_request, reply) => {
+    async (request, reply) => {
       try {
+        // Le tenantId peut venir du JWT (dashboard) ou du query param (site vitrine)
+        const tenantId = request.tenantId || (request.query as { tenantId?: string }).tenantId;
+        if (!tenantId) {
+          return ApiError.badRequest(reply, 'tenantId requis');
+        }
+
         const pages = await prisma.cmsPage.findMany({
-          where: { publie: true },
+          where: { tenantId, publie: true },
           orderBy: { ordre: 'asc' },
         });
         reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
@@ -456,15 +462,19 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // GET /api/landing/pages/all - Toutes les pages (ADMIN)
+  // GET /api/landing/pages/all - Toutes les pages du tenant (ADMIN)
   fastify.get(
     '/api/landing/pages/all',
     {
       preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
-    async (_request, reply) => {
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
+
       try {
         const pages = await prisma.cmsPage.findMany({
+          where: { tenantId },
           orderBy: { ordre: 'asc' },
         });
         return reply.send({ success: true, data: pages });
@@ -475,35 +485,52 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // GET /api/landing/pages/:slug - Page par slug (PUBLIC)
+  // GET /api/landing/pages/:slug - Page par slug du tenant (PUBLIC via query param)
   // Pour le slug "tarifs", inclut aussi les plans actifs
-  fastify.get<{ Params: { slug: string } }>(
+  fastify.get<{ Params: { slug: string }; Querystring: { tenantId?: string } }>(
     '/api/landing/pages/:slug',
     async (request, reply) => {
       const { slug } = request.params;
-      try {
-        const page = await prisma.cmsPage.findUnique({ where: { slug } });
-        if (!page || !page.publie) {
-          return ApiError.notFound(reply, 'Page');
-        }
+      const tenantId = request.tenantId || (request.query as { tenantId?: string }).tenantId;
 
-        // Si c'est la page tarifs, inclure les plans actifs
-        if (slug === 'tarifs') {
-          const plans = await prisma.plan.findMany({
-            where: { actif: true },
-            orderBy: { prixMensuel: 'asc' },
-            include: {
-              planModules: {
-                include: {
-                  module: { select: { code: true, nomAffiche: true, categorie: true } },
+      try {
+        // Chercher par tenant_id + slug (contrainte unique)
+        if (tenantId) {
+          const page = await prisma.cmsPage.findUnique({
+            where: { tenantId_slug: { tenantId, slug } },
+          });
+          if (!page || !page.publie) {
+            return ApiError.notFound(reply, 'Page');
+          }
+
+          // Si c'est la page tarifs, inclure les plans actifs
+          if (slug === 'tarifs') {
+            const plans = await prisma.plan.findMany({
+              where: { actif: true },
+              orderBy: { prixMensuel: 'asc' },
+              include: {
+                planModules: {
+                  include: {
+                    module: { select: { code: true, nomAffiche: true, categorie: true } },
+                  },
                 },
               },
-            },
-          });
+            });
+            reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+            return reply.send({ success: true, data: { page, plans } });
+          }
+
           reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
-          return reply.send({ success: true, data: { page, plans } });
+          return reply.send({ success: true, data: { page } });
         }
 
+        // Fallback: chercher la premiere page publiee avec ce slug (retro-compat)
+        const page = await prisma.cmsPage.findFirst({
+          where: { slug, publie: true },
+        });
+        if (!page) {
+          return ApiError.notFound(reply, 'Page');
+        }
         reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
         return reply.send({ success: true, data: { page } });
       } catch (error) {
@@ -513,7 +540,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /api/landing/pages - Créer une page (ADMIN)
+  // POST /api/landing/pages - Créer une page (ADMIN, liée au tenant)
   fastify.post<{
     Body: {
       slug: string;
@@ -530,6 +557,9 @@ export async function landingRoutes(fastify: FastifyInstance) {
       preHandler: [fastify.authenticate, fastify.requireRole('super_admin', 'admin')],
     },
     async (request, reply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
+
       const { slug, titre, contenu, metaTitle, metaDesc, publie, ordre } = request.body;
 
       if (!slug || !titre) {
@@ -539,6 +569,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       try {
         const page = await prisma.cmsPage.create({
           data: {
+            tenantId,
             slug: slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
             titre,
             contenu: contenu || '',
@@ -556,7 +587,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // PUT /api/landing/pages/:id - Modifier une page (ADMIN)
+  // PUT /api/landing/pages/:id - Modifier une page (ADMIN, vérifie le tenant)
   fastify.put<{
     Params: { id: string };
     Body: {
@@ -575,9 +606,18 @@ export async function landingRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { id } = request.params;
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
+
       const { slug, titre, contenu, metaTitle, metaDesc, publie, ordre } = request.body;
 
       try {
+        // Vérifier que la page appartient bien à ce tenant
+        const existing = await prisma.cmsPage.findFirst({ where: { id, tenantId } });
+        if (!existing) {
+          return ApiError.notFound(reply, 'Page');
+        }
+
         const data: Record<string, unknown> = {};
         if (slug !== undefined) data.slug = slug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         if (titre !== undefined) data.titre = titre;
@@ -596,7 +636,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // DELETE /api/landing/pages/:id - Supprimer une page (ADMIN)
+  // DELETE /api/landing/pages/:id - Supprimer une page (ADMIN, vérifie le tenant)
   fastify.delete<{ Params: { id: string } }>(
     '/api/landing/pages/:id',
     {
@@ -604,7 +644,16 @@ export async function landingRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { id } = request.params;
+      const tenantId = request.tenantId;
+      if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
+
       try {
+        // Vérifier que la page appartient bien à ce tenant
+        const existing = await prisma.cmsPage.findFirst({ where: { id, tenantId } });
+        if (!existing) {
+          return ApiError.notFound(reply, 'Page');
+        }
+
         await prisma.cmsPage.delete({ where: { id } });
         return reply.send({ success: true, message: 'Page supprimée' });
       } catch (error) {

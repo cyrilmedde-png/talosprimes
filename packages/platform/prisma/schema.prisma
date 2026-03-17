@@ -376,6 +376,8 @@ model Tenant {
   emailTemplates        EmailTemplate[]
   emailCampaigns        EmailCampaign[]
   smsCampaigns          SmsCampaign[]
+  // CMS Pages
+  cmsPages              CmsPage[]
   // Landing page multi-tenant
   landingSections       LandingSection[]
   landingGlobalConfigs  LandingGlobalConfig[]
@@ -1162,7 +1164,8 @@ model LandingContent {
 // CmsPage (pages dynamiques créées depuis l'admin)
 model CmsPage {
   id        String   @id @default(uuid()) @db.Uuid
-  slug      String   @unique // ex: "tarifs", "a-propos", "faq"
+  tenantId  String   @map("tenant_id") @db.Uuid
+  slug      String   // ex: "tarifs", "a-propos", "faq"
   titre     String
   contenu   String   @db.Text // Markdown ou HTML
   metaTitle String?  @map("meta_title")
@@ -1172,6 +1175,11 @@ model CmsPage {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([tenantId, publie])
   @@index([slug])
   @@index([publie])
   @@index([ordre])
