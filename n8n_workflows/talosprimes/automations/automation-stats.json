@@ -1,0 +1,56 @@
+{
+  "name": "[TalosPrimes] Automations - Stats",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT COUNT(*) FROM automation_catalog WHERE is_active = true) AS total_catalog,\n  (SELECT COUNT(*) FROM automation_purchases WHERE tenant_id = '{{ $json.body.tenantId }}'::uuid AND status = 'active') AS actives,\n  (SELECT COUNT(*) FROM event_logs WHERE tenant_id = '{{ $json.body.tenantId }}'::uuid AND created_at >= NOW() - INTERVAL '24 hours') AS exec_total,\n  (SELECT COUNT(*) FROM event_logs WHERE tenant_id = '{{ $json.body.tenantId }}'::uuid AND created_at >= NOW() - INTERVAL '24 hours' AND statut_execution = 'succes') AS exec_succes,\n  (SELECT COUNT(*) FROM event_logs WHERE tenant_id = '{{ $json.body.tenantId }}'::uuid AND created_at >= NOW() - INTERVAL '24 hours' AND statut_execution = 'erreur') AS exec_erreurs",
+        "options": {}
+      },
+      "id": "db-stats",
+      "name": "02. Query stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst totalExec = Number(r.exec_total) || 0;\nconst totalSucces = Number(r.exec_succes) || 0;\n\nreturn [{ json: { success: true, data: { stats: {\n  totalAutomations: Number(r.total_catalog) || 0,\n  actives: Number(r.actives) || 0,\n  executionsToday: totalExec,\n  tauxReussite: totalExec > 0 ? Math.round((totalSucces / totalExec) * 100) : 0,\n  erreurs24h: Number(r.exec_erreurs) || 0\n} } } }];"
+      },
+      "id": "format",
+      "name": "03. Calculer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Query stats", "type": "main", "index": 0 }]] },
+    "02. Query stats": { "main": [[{ "node": "03. Calculer", "type": "main", "index": 0 }]] },
+    "03. Calculer": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

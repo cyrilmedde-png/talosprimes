@@ -1,376 +1,549 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../../config/database.js';
 import { requireRole } from '../../middleware/auth.middleware.js';
 import { n8nService } from '../../services/n8n.service.js';
 
+// ============================================
+// Types stricts — zero any, zero prisma
+// ============================================
+
+interface CatalogItem {
+  id: string;
+  code: string;
+  nom: string;
+  description: string;
+  categorie: string;
+  icon: string;
+  setup_price: number | string;
+  monthly_price: number | string;
+  complexity: string;
+  workflow_count: number;
+  workflow_templates: string[];
+  features: string[];
+  is_active: boolean;
+  ordre: number;
+}
+
+interface PurchaseItem {
+  id: string;
+  tenant_id: string;
+  automation_id: string;
+  status: string;
+  n8n_folder_id: string | null;
+  n8n_folder_name: string | null;
+  n8n_workflow_ids: string[];
+  setup_price_paid: number | string;
+  monthly_price: number | string;
+  activated_at: string | null;
+  config: Record<string, unknown>;
+  created_at: string;
+  code: string;
+  nom: string;
+}
+
+interface TenantItem {
+  id: string;
+  nom_entreprise: string;
+}
+
+interface EventLogItem {
+  id: string;
+  type_evenement: string;
+  entite_type: string | null;
+  entite_id: string | null;
+  statut_execution: string;
+  message_erreur: string | null;
+  workflow_n8n_id: string | null;
+  created_at: string;
+}
+
+interface AutomationStats {
+  totalAutomations: number;
+  actives: number;
+  executionsToday: number;
+  tauxReussite: number;
+  erreurs24h: number;
+}
+
+interface N8nActivateResult {
+  folderId?: string;
+  folderName?: string;
+  workflowIds?: string[];
+}
+
+interface N8nStatusResult {
+  success: boolean;
+  message: string;
+}
+
+interface CatalogCreateBody {
+  code: string;
+  nom: string;
+  description: string;
+  categorie: string;
+  icon?: string;
+  setupPrice?: number;
+  monthlyPrice?: number;
+  complexity?: 'simple' | 'intermediaire' | 'avance';
+  workflowCount?: number;
+  workflowTemplates?: string[];
+  features?: string[];
+}
+
+interface CatalogUpdateBody {
+  nom?: string;
+  description?: string;
+  categorie?: string;
+  icon?: string;
+  setupPrice?: number;
+  monthlyPrice?: number;
+  complexity?: 'simple' | 'intermediaire' | 'avance';
+  workflowCount?: number;
+  workflowTemplates?: string[];
+  features?: string[];
+  isActive?: boolean;
+  ordre?: number;
+}
+
+interface ActivateBody {
+  tenantId: string;
+  automationId: string;
+  config?: Record<string, unknown>;
+}
+
+interface DeactivateBody {
+  tenantId: string;
+  automationId: string;
+}
+
+interface FolderBody {
+  folderId: string;
+  folderName?: string;
+}
+
 /**
- * Routes pour le catalogue d'automatisations et la gestion des achats clients.
+ * Routes automatisations — 100% n8n, zero prisma, zero fallback.
  *
- * GET  /api/automations/catalog          → catalogue complet (public auth)
- * GET  /api/automations/purchases        → achats du tenant courant
- * GET  /api/automations/stats            → stats du tenant courant
- * POST /api/automations/request          → demander l'activation (client)
- * POST /api/automations/activate         → activer pour un client (admin)
- * PUT  /api/automations/catalog/:id      → modifier un item du catalogue (admin)
- * POST /api/automations/catalog          → ajouter un item au catalogue (admin)
+ * Chaque route delegue integralement a un workflow n8n via callWorkflowReturn.
+ * Si n8n tombe, la route echoue. Pas de plan B.
+ *
+ * === PUBLIC (auth JWT) ===
+ * GET  /api/automations/catalog              → n8n: automation_catalog_list
+ * GET  /api/automations/purchases            → n8n: automation_purchases_list
+ * GET  /api/automations/stats                → n8n: automation_stats
+ * POST /api/automations/request              → n8n: automation_request
+ *
+ * === ADMIN (super_admin | admin) ===
+ * POST /api/automations/catalog              → n8n: automation_catalog_create
+ * PUT  /api/automations/catalog/:id          → n8n: automation_catalog_update
+ * DELETE /api/automations/catalog/:id        → n8n: automation_catalog_delete
+ * POST /api/automations/activate             → n8n: automation_activate
+ * POST /api/automations/deactivate           → n8n: automation_deactivate
+ * GET  /api/automations/logs/:tenantId       → n8n: automation_logs_list
+ * GET  /api/automations/logs                 → n8n: automation_logs_list
+ * GET  /api/automations/tenants              → n8n: automation_tenants_list
+ * GET  /api/automations/purchases/:tenantId  → n8n: automation_purchases_list
+ * PUT  /api/automations/folder/:tenantId     → n8n: automation_folder_update
+ * GET  /api/automations/n8n/status           → n8n: automation_n8n_status
  */
 export async function automationsRoutes(fastify: FastifyInstance) {
 
   // ──────────────────────────────────────────────
-  // GET /catalog - Liste le catalogue
+  // GET /catalog — Liste le catalogue via n8n
   // ──────────────────────────────────────────────
   fastify.get('/catalog', {
     preHandler: [fastify.authenticate],
-  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const isAdmin = request.user?.role === 'super_admin' || request.user?.role === 'admin';
+
     try {
-      const catalog = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-        SELECT id, code, nom, description, categorie, icon,
-               setup_price, monthly_price, complexity,
-               workflow_count, features, is_active, ordre
-        FROM automation_catalog
-        WHERE is_active = true
-        ORDER BY ordre ASC
-      `;
-      return reply.send({ success: true, data: { catalog } });
+      const res = await n8nService.callWorkflowReturn<{ catalog: CatalogItem[] }>(
+        tenantId,
+        'automation_catalog_list',
+        { isAdmin: String(isAdmin) }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/catalog] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur chargement catalogue' });
+      fastify.log.error(error, '[automations/catalog] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
   // ──────────────────────────────────────────────
-  // GET /purchases - Achats du tenant courant
+  // GET /purchases — Achats du tenant courant via n8n
   // ──────────────────────────────────────────────
   fastify.get('/purchases', {
     preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
-    if (!tenantId) return reply.status(401).send({ error: 'Non autorise' });
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
 
     try {
-      const purchases = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-        SELECT ap.id, ap.automation_id, ap.status, ap.n8n_folder_id, ap.n8n_folder_name,
-               ap.n8n_workflow_ids, ap.setup_price_paid, ap.monthly_price,
-               ap.activated_at, ap.created_at,
-               ac.code, ac.nom, ac.description, ac.categorie, ac.icon,
-               ac.complexity, ac.workflow_count, ac.features
-        FROM automation_purchases ap
-        JOIN automation_catalog ac ON ac.id = ap.automation_id
-        WHERE ap.tenant_id = ${tenantId}::uuid
-        ORDER BY ap.created_at DESC
-      `;
-      return reply.send({ success: true, data: { purchases } });
+      const res = await n8nService.callWorkflowReturn<{ purchases: PurchaseItem[] }>(
+        tenantId,
+        'automation_purchases_list',
+        { tenantId }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/purchases] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur chargement achats' });
+      fastify.log.error(error, '[automations/purchases] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
   // ──────────────────────────────────────────────
-  // GET /stats - Stats du tenant courant
+  // GET /stats — Stats du tenant courant via n8n
   // ──────────────────────────────────────────────
   fastify.get('/stats', {
     preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
-    if (!tenantId) return reply.status(401).send({ error: 'Non autorise' });
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
 
     try {
-      // Nombre d'automatisations actives pour ce tenant
-      const purchaseStats = await prisma.$queryRaw<Array<{ total: bigint; actives: bigint }>>`
-        SELECT
-          COUNT(*)::bigint AS total,
-          COUNT(*) FILTER (WHERE status = 'active')::bigint AS actives
-        FROM automation_purchases
-        WHERE tenant_id = ${tenantId}::uuid
-      `;
-
-      // Executions des dernieres 24h depuis event_logs
-      const execStats = await prisma.$queryRaw<Array<{ total: bigint; succes: bigint; erreurs: bigint }>>`
-        SELECT
-          COUNT(*)::bigint AS total,
-          COUNT(*) FILTER (WHERE statut_execution = 'succes')::bigint AS succes,
-          COUNT(*) FILTER (WHERE statut_execution = 'erreur')::bigint AS erreurs
-        FROM event_logs
-        WHERE tenant_id = ${tenantId}::uuid
-          AND created_at >= NOW() - INTERVAL '24 hours'
-      `;
-
-      const totalCatalog = await prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*)::bigint AS count FROM automation_catalog WHERE is_active = true
-      `;
-
-      const ps = purchaseStats[0] || { total: 0n, actives: 0n };
-      const es = execStats[0] || { total: 0n, succes: 0n, erreurs: 0n };
-      const totalExec = Number(es.total);
-      const totalSucces = Number(es.succes);
-
-      return reply.send({
-        success: true,
-        data: {
-          stats: {
-            totalAutomations: Number(totalCatalog[0]?.count || 0n),
-            actives: Number(ps.actives),
-            executionsToday: totalExec,
-            tauxReussite: totalExec > 0 ? Math.round((totalSucces / totalExec) * 100) : 0,
-            erreurs24h: Number(es.erreurs),
-          },
-        },
-      });
+      const res = await n8nService.callWorkflowReturn<{ stats: AutomationStats }>(
+        tenantId,
+        'automation_stats',
+        { tenantId }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/stats] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur chargement stats' });
+      fastify.log.error(error, '[automations/stats] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
   // ──────────────────────────────────────────────
-  // POST /request - Client demande l'activation
+  // POST /request — Client demande l'activation via n8n
   // ──────────────────────────────────────────────
   fastify.post('/request', {
     preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
-    if (!tenantId) return reply.status(401).send({ error: 'Non autorise' });
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
 
     const { automationId } = request.body as { automationId: string };
-    if (!automationId) return reply.status(400).send({ error: 'automationId requis' });
+    if (!automationId) return reply.status(400).send({ success: false, error: 'automationId requis' });
 
     try {
-      // Verifier que l'automation existe
-      const automation = await prisma.$queryRaw<Array<{ id: string; nom: string }>>`
-        SELECT id, nom FROM automation_catalog WHERE id = ${automationId}::uuid AND is_active = true
-      `;
-      if (!automation.length) {
-        return reply.status(404).send({ success: false, error: 'Automatisation non trouvee' });
-      }
-
-      // Creer ou mettre a jour l'achat
-      await prisma.$executeRaw`
-        INSERT INTO automation_purchases (tenant_id, automation_id, status, created_at, updated_at)
-        VALUES (${tenantId}::uuid, ${automationId}::uuid, 'en_attente', NOW(), NOW())
-        ON CONFLICT (tenant_id, automation_id) DO UPDATE SET
-          status = 'en_attente',
-          updated_at = NOW()
-      `;
-
-      // Declencher le workflow n8n pour notifier l'admin
-      try {
-        await n8nService.triggerWorkflow(tenantId, 'automation_request', {
-          tenantId,
-          automationId,
-          automationNom: automation[0].nom,
-        });
-      } catch {
-        // pas bloquant si n8n n'est pas dispo
-        fastify.log.warn('[automations/request] n8n notification failed');
-      }
-
-      return reply.send({ success: true, message: 'Demande envoyee' });
+      const res = await n8nService.callWorkflowReturn<{ message: string }>(
+        tenantId,
+        'automation_request',
+        { tenantId, automationId }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/request] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur envoi demande' });
+      fastify.log.error(error, '[automations/request] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
   // ──────────────────────────────────────────────
-  // POST /activate - Admin active une automatisation pour un client
-  // Cree le workflow n8n nomme [Client] NomWorkflow
-  // Si un folderId existe deja, deplace le workflow dedans
+  // POST /activate — Admin active pour un client via n8n
+  // n8n cree le workflow, le dossier, et retourne les IDs
   // ──────────────────────────────────────────────
   fastify.post('/activate', {
     preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { tenantId, automationId } = request.body as { tenantId: string; automationId: string };
-    if (!tenantId || !automationId) {
-      return reply.status(400).send({ error: 'tenantId et automationId requis' });
+    const body = request.body as ActivateBody;
+    if (!body.tenantId || !body.automationId) {
+      return reply.status(400).send({ success: false, error: 'tenantId et automationId requis' });
     }
 
     try {
-      // 1. Recuperer les infos du tenant et de l'automation
-      const tenant = await prisma.$queryRaw<Array<{ id: string; nom_entreprise: string }>>`
-        SELECT id, nom_entreprise FROM tenants WHERE id = ${tenantId}::uuid
-      `;
-      if (!tenant.length) return reply.status(404).send({ error: 'Tenant non trouve' });
-
-      const automation = await prisma.$queryRaw<Array<{ id: string; code: string; nom: string; setup_price: number; monthly_price: number }>>`
-        SELECT id, code, nom, setup_price, monthly_price FROM automation_catalog WHERE id = ${automationId}::uuid
-      `;
-      if (!automation.length) return reply.status(404).send({ error: 'Automatisation non trouvee' });
-
-      const folderName = tenant[0].nom_entreprise;
-      const auto = automation[0];
-
-      // 2. Verifier si ce tenant a deja un folderId n8n (depuis un achat precedent)
-      const existingPurchase = await prisma.$queryRaw<Array<{ n8n_folder_id: string | null }>>`
-        SELECT n8n_folder_id FROM automation_purchases
-        WHERE tenant_id = ${tenantId}::uuid AND n8n_folder_id IS NOT NULL
-        LIMIT 1
-      `;
-      const existingFolderId = existingPurchase.length ? existingPurchase[0].n8n_folder_id : null;
-
-      // 3. Declencher le workflow n8n qui cree le workflow + le deplace si possible
-      const n8nResult = await n8nService.callWorkflowReturn(tenantId, 'automation_activate', {
-        tenantId,
-        automationCode: auto.code,
-        automationNom: auto.nom,
-        folderName,
-        existingFolderId,
-      });
-
-      const resultData = n8nResult.data as Record<string, unknown> || {};
-      const n8nFolderId = resultData.folderId as string || existingFolderId || null;
-      const n8nFolderName = resultData.folderName as string || `[Client] ${folderName}`;
-      const workflowIds = resultData.workflowIds || [];
-
-      // 4. Mettre a jour l'achat en base
-      await prisma.$executeRaw`
-        INSERT INTO automation_purchases (tenant_id, automation_id, status, n8n_folder_id, n8n_folder_name, n8n_workflow_ids, setup_price_paid, monthly_price, activated_at, created_at, updated_at)
-        VALUES (${tenantId}::uuid, ${automationId}::uuid, 'active', ${n8nFolderId}, ${n8nFolderName}, ${JSON.stringify(workflowIds)}::jsonb, ${auto.setup_price}, ${auto.monthly_price}, NOW(), NOW(), NOW())
-        ON CONFLICT (tenant_id, automation_id) DO UPDATE SET
-          status = 'active',
-          n8n_folder_id = COALESCE(${n8nFolderId}, automation_purchases.n8n_folder_id),
-          n8n_folder_name = COALESCE(${n8nFolderName}, automation_purchases.n8n_folder_name),
-          n8n_workflow_ids = (
-            SELECT jsonb_agg(DISTINCT val)
-            FROM (
-              SELECT jsonb_array_elements(COALESCE(automation_purchases.n8n_workflow_ids, '[]'::jsonb)) AS val
-              UNION ALL
-              SELECT jsonb_array_elements(${JSON.stringify(workflowIds)}::jsonb) AS val
-            ) sub
-          ),
-          activated_at = NOW(),
-          updated_at = NOW()
-      `;
-
-      return reply.send({
-        success: true,
-        message: `Automatisation "${auto.nom}" activee pour ${folderName}`,
-        data: {
-          folderId: n8nFolderId,
-          folderName: n8nFolderName,
-          workflowIds,
-        },
-      });
+      const res = await n8nService.callWorkflowReturn<N8nActivateResult>(
+        body.tenantId,
+        'automation_activate',
+        {
+          tenantId: body.tenantId,
+          automationId: body.automationId,
+          config: body.config || {},
+        }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/activate] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur activation' });
+      fastify.log.error(error, '[automations/activate] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
   // ──────────────────────────────────────────────
-  // POST /catalog - Admin ajoute au catalogue
+  // POST /deactivate — Admin desactive pour un client via n8n
+  // n8n desactive les workflows et met a jour la BDD
+  // ──────────────────────────────────────────────
+  fastify.post('/deactivate', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as DeactivateBody;
+    if (!body.tenantId || !body.automationId) {
+      return reply.status(400).send({ success: false, error: 'tenantId et automationId requis' });
+    }
+
+    try {
+      const res = await n8nService.callWorkflowReturn<{ message: string }>(
+        body.tenantId,
+        'automation_deactivate',
+        {
+          tenantId: body.tenantId,
+          automationId: body.automationId,
+        }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/deactivate] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // POST /catalog — Admin ajoute au catalogue via n8n
   // ──────────────────────────────────────────────
   fastify.post('/catalog', {
     preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as {
-      code: string; nom: string; description: string; categorie: string;
-      icon?: string; setupPrice: number; monthlyPrice: number;
-      complexity?: string; workflowCount?: number; features?: string[];
-    };
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
 
+    const body = request.body as CatalogCreateBody;
     if (!body.code || !body.nom || !body.description || !body.categorie) {
-      return reply.status(400).send({ error: 'code, nom, description, categorie requis' });
+      return reply.status(400).send({ success: false, error: 'code, nom, description, categorie requis' });
     }
 
     try {
-      await prisma.$executeRaw`
-        INSERT INTO automation_catalog (code, nom, description, categorie, icon, setup_price, monthly_price, complexity, workflow_count, features, created_at, updated_at)
-        VALUES (
-          ${body.code}, ${body.nom}, ${body.description}, ${body.categorie},
-          ${body.icon || 'general'},
-          ${body.setupPrice || 0}, ${body.monthlyPrice || 0},
-          ${(body.complexity || 'simple') as string}::"AutomationComplexity",
-          ${body.workflowCount || 0},
-          ${JSON.stringify(body.features || [])}::jsonb,
-          NOW(), NOW()
-        )
-      `;
-      return reply.send({ success: true, message: 'Automatisation ajoutee au catalogue' });
+      const res = await n8nService.callWorkflowReturn<{ message: string; id: string }>(
+        tenantId,
+        'automation_catalog_create',
+        {
+          code: body.code,
+          nom: body.nom,
+          description: body.description,
+          categorie: body.categorie,
+          icon: body.icon || 'general',
+          setupPrice: body.setupPrice || 0,
+          monthlyPrice: body.monthlyPrice || 0,
+          complexity: body.complexity || 'simple',
+          workflowCount: body.workflowCount || 0,
+          workflowTemplates: body.workflowTemplates || [],
+          features: body.features || [],
+        }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/catalog POST] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur ajout catalogue' });
+      fastify.log.error(error, '[automations/catalog POST] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
   // ──────────────────────────────────────────────
-  // PUT /catalog/:id - Admin modifie un item
+  // PUT /catalog/:id — Admin modifie un item via n8n
   // ──────────────────────────────────────────────
   fastify.put('/catalog/:id', {
     preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
     const { id } = request.params as { id: string };
-    const body = request.body as Record<string, unknown>;
+    const body = request.body as CatalogUpdateBody;
 
     try {
-      // Construire dynamiquement les champs a mettre a jour
-      const fields: string[] = [];
-      const values: unknown[] = [];
-
-      if (body.nom !== undefined) { fields.push('nom'); values.push(body.nom); }
-      if (body.description !== undefined) { fields.push('description'); values.push(body.description); }
-      if (body.setupPrice !== undefined) { fields.push('setup_price'); values.push(body.setupPrice); }
-      if (body.monthlyPrice !== undefined) { fields.push('monthly_price'); values.push(body.monthlyPrice); }
-      if (body.categorie !== undefined) { fields.push('categorie'); values.push(body.categorie); }
-      if (body.isActive !== undefined) { fields.push('is_active'); values.push(body.isActive); }
-      if (body.workflowCount !== undefined) { fields.push('workflow_count'); values.push(body.workflowCount); }
-      if (body.features !== undefined) { fields.push('features'); values.push(JSON.stringify(body.features)); }
-
-      if (fields.length === 0) {
-        return reply.status(400).send({ error: 'Aucun champ a modifier' });
-      }
-
-      // Update simple via raw SQL
-      const setClauses = fields.map((f, i) => {
-        if (f === 'features') return `"${f}" = $${i + 2}::jsonb`;
-        return `"${f}" = $${i + 2}`;
-      }).join(', ');
-
-      await prisma.$executeRawUnsafe(
-        `UPDATE automation_catalog SET ${setClauses}, updated_at = NOW() WHERE id = $1::uuid`,
-        id,
-        ...values,
+      const res = await n8nService.callWorkflowReturn<{ message: string }>(
+        tenantId,
+        'automation_catalog_update',
+        { id, ...body }
       );
-
-      return reply.send({ success: true, message: 'Catalogue mis a jour' });
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/catalog PUT] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur modification' });
+      fastify.log.error(error, '[automations/catalog PUT] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
   // ──────────────────────────────────────────────
-  // PUT /folder/:tenantId - Admin associe un dossier n8n a un tenant
-  // Permet de lier un dossier cree manuellement dans n8n
+  // DELETE /catalog/:id — Admin supprime (soft-delete) via n8n
+  // ──────────────────────────────────────────────
+  fastify.delete('/catalog/:id', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const { id } = request.params as { id: string };
+
+    try {
+      const res = await n8nService.callWorkflowReturn<{ message: string }>(
+        tenantId,
+        'automation_catalog_delete',
+        { id }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/catalog DELETE] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // GET /logs/:tenantId — Logs d'un tenant via n8n (admin)
+  // ──────────────────────────────────────────────
+  fastify.get('/logs/:tenantId', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const adminTenantId = request.tenantId;
+    if (!adminTenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const { tenantId } = request.params as { tenantId: string };
+    const query = request.query as { limit?: string; offset?: string };
+
+    try {
+      const res = await n8nService.callWorkflowReturn<{ logs: EventLogItem[]; total: number }>(
+        adminTenantId,
+        'automation_logs_list',
+        {
+          tenantId,
+          limit: query.limit || '50',
+          offset: query.offset || '0',
+        }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/logs/:tenantId] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // GET /logs — Logs du tenant courant via n8n
+  // ──────────────────────────────────────────────
+  fastify.get('/logs', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const query = request.query as { limit?: string; offset?: string };
+
+    try {
+      const res = await n8nService.callWorkflowReturn<{ logs: EventLogItem[]; total: number }>(
+        tenantId,
+        'automation_logs_list',
+        {
+          tenantId,
+          limit: query.limit || '50',
+          offset: query.offset || '0',
+        }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/logs] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // GET /tenants — Liste des tenants via n8n (admin)
+  // ──────────────────────────────────────────────
+  fastify.get('/tenants', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    try {
+      const res = await n8nService.callWorkflowReturn<{ tenants: TenantItem[] }>(
+        tenantId,
+        'automation_tenants_list',
+        {}
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/tenants] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // GET /purchases/:tenantId — Achats d'un tenant specifique via n8n (admin)
+  // ──────────────────────────────────────────────
+  fastify.get('/purchases/:tenantId', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const adminTenantId = request.tenantId;
+    if (!adminTenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const { tenantId } = request.params as { tenantId: string };
+
+    try {
+      const res = await n8nService.callWorkflowReturn<{ purchases: PurchaseItem[] }>(
+        adminTenantId,
+        'automation_purchases_list',
+        { tenantId }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/purchases/:tenantId] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // PUT /folder/:tenantId — Associer un dossier n8n via n8n (admin)
   // ──────────────────────────────────────────────
   fastify.put('/folder/:tenantId', {
     preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { tenantId } = request.params as { tenantId: string };
-    const { folderId, folderName } = request.body as { folderId: string; folderName?: string };
+    const adminTenantId = request.tenantId;
+    if (!adminTenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
 
-    if (!folderId) {
-      return reply.status(400).send({ error: 'folderId requis' });
+    const { tenantId } = request.params as { tenantId: string };
+    const body = request.body as FolderBody;
+
+    if (!body.folderId) {
+      return reply.status(400).send({ success: false, error: 'folderId requis' });
     }
 
     try {
-      // Mettre a jour tous les achats de ce tenant avec le folderId
-      await prisma.$executeRaw`
-        UPDATE automation_purchases
-        SET n8n_folder_id = ${folderId},
-            n8n_folder_name = COALESCE(${folderName || null}, n8n_folder_name),
-            updated_at = NOW()
-        WHERE tenant_id = ${tenantId}::uuid
-      `;
-
-      return reply.send({
-        success: true,
-        message: `Dossier n8n associe au tenant`,
-        data: { folderId, folderName },
-      });
+      const res = await n8nService.callWorkflowReturn<{ message: string }>(
+        adminTenantId,
+        'automation_folder_update',
+        {
+          tenantId,
+          folderId: body.folderId,
+          folderName: body.folderName || '',
+        }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/folder PUT] Erreur');
-      return reply.status(500).send({ success: false, error: 'Erreur association dossier' });
+      fastify.log.error(error, '[automations/folder PUT] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // GET /n8n/status — Etat de n8n via n8n (admin)
+  // Si ce workflow repond, n8n est operationnel.
+  // ──────────────────────────────────────────────
+  fastify.get('/n8n/status', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    try {
+      const res = await n8nService.callWorkflowReturn<N8nStatusResult>(
+        tenantId,
+        'automation_n8n_status',
+        {}
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/n8n/status] Erreur n8n');
+      return reply.status(502).send({
+        success: false,
+        data: { success: false, message: 'n8n injoignable' },
+      });
     }
   });
 }

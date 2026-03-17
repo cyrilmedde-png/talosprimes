@@ -1,0 +1,116 @@
+{
+  "name": "[TalosPrimes] Desactivation Automatisation Client",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/deactivate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-deactivate",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, valid: true } }];"
+      },
+      "id": "prepare-data",
+      "name": "02. Preparer donnees",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
+        }
+      },
+      "id": "check-valid",
+      "name": "03. Valide?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT n8n_workflow_ids, status FROM automation_purchases WHERE tenant_id = '{{ $('02. Preparer donnees').first().json.tenantId }}'::uuid AND automation_id = '{{ $('02. Preparer donnees').first().json.automationId }}'::uuid",
+        "options": {}
+      },
+      "id": "get-purchase",
+      "name": "04. Recuperer achat",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const purchase = $input.first().json;\nconst data = $('02. Preparer donnees').first().json;\nconst workflowIds = purchase.n8n_workflow_ids || [];\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst results = [];\n\nfor (const wfId of workflowIds) {\n  try {\n    const resp = await fetch(`${baseUrl}/api/v1/workflows/${wfId}/deactivate`, {\n      method: 'POST',\n      headers: { 'X-N8N-API-KEY': $env.N8N_API_KEY || '' }\n    });\n    results.push({ workflowId: wfId, success: resp.ok, status: resp.status });\n  } catch (err) {\n    results.push({ workflowId: wfId, success: false, error: String(err) });\n  }\n}\n\nconst successCount = results.filter(r => r.success).length;\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  deactivated: successCount,\n  total: workflowIds.length,\n  results\n} }];"
+      },
+      "id": "deactivate-workflows",
+      "name": "05. Desactiver workflows n8n",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automation_purchases SET status = 'suspendue', suspended_at = NOW(), updated_at = NOW() WHERE tenant_id = '{{ $json.tenantId }}'::uuid AND automation_id = '{{ $json.automationId }}'::uuid RETURNING id, status",
+        "options": {}
+      },
+      "id": "update-status",
+      "name": "06. Mettre a jour BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 200],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('05. Desactiver workflows n8n').first().json;\nreturn [{ json: {\n  success: true,\n  message: `Automatisation suspendue (${data.deactivated}/${data.total} workflows desactives)`\n} }];"
+      },
+      "id": "format-ok",
+      "name": "07. Succes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "08. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1790, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($('02. Preparer donnees').first().json) }}" },
+      "id": "respond-err",
+      "name": "08b. Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Preparer donnees", "type": "main", "index": 0 }]] },
+    "02. Preparer donnees": { "main": [[{ "node": "03. Valide?", "type": "main", "index": 0 }]] },
+    "03. Valide?": { "main": [
+      [{ "node": "04. Recuperer achat", "type": "main", "index": 0 }],
+      [{ "node": "08b. Erreur", "type": "main", "index": 0 }]
+    ]},
+    "04. Recuperer achat": { "main": [[{ "node": "05. Desactiver workflows n8n", "type": "main", "index": 0 }]] },
+    "05. Desactiver workflows n8n": { "main": [[{ "node": "06. Mettre a jour BDD", "type": "main", "index": 0 }]] },
+    "06. Mettre a jour BDD": { "main": [[{ "node": "07. Succes", "type": "main", "index": 0 }]] },
+    "07. Succes": { "main": [[{ "node": "08. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

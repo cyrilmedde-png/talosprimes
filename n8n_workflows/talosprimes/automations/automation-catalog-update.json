@@ -1,0 +1,91 @@
+{
+  "name": "[TalosPrimes] Automations - Catalogue Modifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/catalog-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst id = body.id;\nif (!id) return [{ json: { success: false, error: 'id requis' } }];\n\nconst sets = [];\nconst b = body;\nif (b.nom !== undefined) sets.push(`nom = '${b.nom}'`);\nif (b.description !== undefined) sets.push(`description = '${b.description}'`);\nif (b.categorie !== undefined) sets.push(`categorie = '${b.categorie}'`);\nif (b.icon !== undefined) sets.push(`icon = '${b.icon}'`);\nif (b.setupPrice !== undefined) sets.push(`setup_price = ${b.setupPrice}`);\nif (b.monthlyPrice !== undefined) sets.push(`monthly_price = ${b.monthlyPrice}`);\nif (b.complexity !== undefined) sets.push(`complexity = '${b.complexity}'::\"AutomationComplexity\"`);\nif (b.workflowCount !== undefined) sets.push(`workflow_count = ${b.workflowCount}`);\nif (b.isActive !== undefined) sets.push(`is_active = ${b.isActive}`);\nif (b.ordre !== undefined) sets.push(`ordre = ${b.ordre}`);\nif (b.features !== undefined) sets.push(`features = '${JSON.stringify(b.features)}'::jsonb`);\nif (b.workflowTemplates !== undefined) sets.push(`workflow_templates = '${JSON.stringify(b.workflowTemplates)}'::jsonb`);\n\nif (sets.length === 0) return [{ json: { success: false, error: 'Aucun champ a modifier' } }];\n\nconst query = `UPDATE automation_catalog SET ${sets.join(', ')}, updated_at = NOW() WHERE id = '${id}'::uuid RETURNING id, code, nom`;\n\nreturn [{ json: { query, id, valid: true } }];"
+      },
+      "id": "build-query",
+      "name": "02. Construire requete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
+        }
+      },
+      "id": "check-valid",
+      "name": "03. Valide?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('02. Construire requete').first().json.query }}",
+        "options": {}
+      },
+      "id": "db-update",
+      "name": "04. Mettre a jour",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, message: 'Catalogue mis a jour' } }];"
+      },
+      "id": "format-ok",
+      "name": "05. Succes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "06. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($('02. Construire requete').first().json) }}" },
+      "id": "respond-err",
+      "name": "06b. Repondre Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Construire requete", "type": "main", "index": 0 }]] },
+    "02. Construire requete": { "main": [[{ "node": "03. Valide?", "type": "main", "index": 0 }]] },
+    "03. Valide?": { "main": [
+      [{ "node": "04. Mettre a jour", "type": "main", "index": 0 }],
+      [{ "node": "06b. Repondre Erreur", "type": "main", "index": 0 }]
+    ]},
+    "04. Mettre a jour": { "main": [[{ "node": "05. Succes", "type": "main", "index": 0 }]] },
+    "05. Succes": { "main": [[{ "node": "06. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

@@ -21,15 +21,27 @@ import {
   EyeIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  XMarkIcon,
+  UserGroupIcon,
+  SignalIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { authenticatedFetch } from '@/lib/api-client';
 
 // ============================================
-// Types
+// Types stricts — zero any
 // ============================================
 
-// Donnees brutes de l'API (snake_case depuis PostgreSQL)
+type AutomationComplexity = 'simple' | 'intermediaire' | 'avance';
+type AutomationStatus = 'actif' | 'inactif' | 'en_attente' | 'suspendue' | 'erreur';
+type PurchaseStatus = 'en_attente' | 'active' | 'suspendue' | 'annulee';
+type TabType = 'catalogue' | 'mes-automatisations' | 'logs' | 'admin';
+
+/** Donnees brutes de l'API (snake_case depuis PostgreSQL) */
 interface CatalogItem {
   id: string;
   code: string;
@@ -39,8 +51,9 @@ interface CatalogItem {
   icon: string;
   setup_price: number | string;
   monthly_price: number | string;
-  complexity: string;
+  complexity: AutomationComplexity;
   workflow_count: number;
+  workflow_templates?: string[];
   features: string[];
   is_active: boolean;
   ordre: number;
@@ -48,39 +61,67 @@ interface CatalogItem {
 
 interface PurchaseItem {
   id: string;
+  tenant_id: string;
   automation_id: string;
-  status: string;
-  n8n_folder_id?: string;
-  n8n_folder_name?: string;
-  activated_at?: string;
+  status: PurchaseStatus;
+  n8n_folder_id: string | null;
+  n8n_folder_name: string | null;
+  n8n_workflow_ids: string[];
+  setup_price_paid: number | string;
+  monthly_price: number | string;
+  activated_at: string | null;
+  config: Record<string, unknown>;
+  created_at: string;
   code: string;
   nom: string;
   description: string;
   categorie: string;
   icon: string;
-  complexity: string;
+  complexity: AutomationComplexity;
   workflow_count: number;
   features: string[];
 }
 
-// Donnees normalisees pour l'affichage
+interface TenantItem {
+  id: string;
+  nom_entreprise: string;
+}
+
+interface EventLogItem {
+  id: string;
+  type_evenement: string;
+  entite_type: string | null;
+  entite_id: string | null;
+  statut_execution: string;
+  message_erreur: string | null;
+  workflow_n8n_id: string | null;
+  created_at: string;
+}
+
+/** Donnees normalisees pour l'affichage */
 interface Automation {
   id: string;
+  code: string;
   nom: string;
   description: string;
   categorie: string;
   icon: string;
   setupPrice: number;
   monthlyPrice: number;
+  complexity: AutomationComplexity;
   complexityLevel: number;
-  status: 'actif' | 'inactif' | 'en_attente' | 'erreur';
+  status: AutomationStatus;
   workflowCount: number;
-  lastExecution?: string;
-  executionsToday: number;
-  successRate: number;
+  workflowTemplates: string[];
   features: string[];
+  isActive: boolean;
+  ordre: number;
+  // Enrichi par les purchases
   n8nFolderId?: string;
   n8nFolderName?: string;
+  n8nWorkflowIds?: string[];
+  activatedAt?: string;
+  purchaseConfig?: Record<string, unknown>;
 }
 
 interface AutomationStats {
@@ -91,11 +132,37 @@ interface AutomationStats {
   erreurs24h: number;
 }
 
-type TabType = 'catalogue' | 'mes-automatisations' | 'logs';
+interface N8nStatus {
+  success: boolean;
+  message: string;
+}
+
+interface CatalogFormData {
+  code: string;
+  nom: string;
+  description: string;
+  categorie: string;
+  icon: string;
+  setupPrice: number;
+  monthlyPrice: number;
+  complexity: AutomationComplexity;
+  workflowCount: number;
+  features: string[];
+  workflowTemplates: string[];
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
 
 // ============================================
 // Constantes
 // ============================================
+
+const CATEGORIES = ['email', 'sms', 'marketing', 'telephonie', 'comptabilite', 'stock', 'crm', 'facturation'] as const;
 
 const CATEGORIE_ICONS: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   email: EnvelopeIcon,
@@ -137,6 +204,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   actif: { label: 'Actif', color: 'text-green-400 bg-green-900/30', icon: CheckCircleIcon },
   inactif: { label: 'Inactif', color: 'text-gray-400 bg-gray-900/30', icon: PauseIcon },
   en_attente: { label: 'En attente', color: 'text-yellow-400 bg-yellow-900/30', icon: ClockIcon },
+  suspendue: { label: 'Suspendue', color: 'text-orange-400 bg-orange-900/30', icon: PauseIcon },
   erreur: { label: 'Erreur', color: 'text-red-400 bg-red-900/30', icon: ExclamationTriangleIcon },
 };
 
@@ -146,30 +214,11 @@ const COMPLEXITY_LABELS: Record<number, { label: string; color: string }> = {
   3: { label: 'Avance', color: 'text-red-400' },
 };
 
-const COMPLEXITY_MAP: Record<string, number> = {
+const COMPLEXITY_MAP: Record<AutomationComplexity, number> = {
   simple: 1,
   intermediaire: 2,
   avance: 3,
 };
-
-/** Convertit un item du catalogue API en Automation pour l'affichage */
-function catalogToAutomation(item: CatalogItem, purchaseStatus?: string): Automation {
-  return {
-    id: item.id,
-    nom: item.nom,
-    description: item.description,
-    categorie: item.categorie,
-    icon: item.icon,
-    setupPrice: Number(item.setup_price) || 0,
-    monthlyPrice: Number(item.monthly_price) || 0,
-    complexityLevel: COMPLEXITY_MAP[item.complexity] || 1,
-    status: (purchaseStatus as Automation['status']) || 'inactif',
-    workflowCount: item.workflow_count || 0,
-    executionsToday: 0,
-    successRate: 0,
-    features: Array.isArray(item.features) ? item.features : [],
-  };
-}
 
 // ============================================
 // Helpers
@@ -193,6 +242,57 @@ function formatDate(dateStr: string | null | undefined): string {
     return dateStr;
   }
 }
+
+function catalogToAutomation(item: CatalogItem, purchase?: PurchaseItem): Automation {
+  let status: AutomationStatus = 'inactif';
+  if (purchase) {
+    const statusMap: Record<PurchaseStatus, AutomationStatus> = {
+      active: 'actif',
+      en_attente: 'en_attente',
+      suspendue: 'suspendue',
+      annulee: 'inactif',
+    };
+    status = statusMap[purchase.status] || 'inactif';
+  }
+
+  return {
+    id: item.id,
+    code: item.code,
+    nom: item.nom,
+    description: item.description,
+    categorie: item.categorie,
+    icon: item.icon,
+    setupPrice: Number(item.setup_price) || 0,
+    monthlyPrice: Number(item.monthly_price) || 0,
+    complexity: item.complexity,
+    complexityLevel: COMPLEXITY_MAP[item.complexity] || 1,
+    status,
+    workflowCount: item.workflow_count || 0,
+    workflowTemplates: item.workflow_templates || [],
+    features: Array.isArray(item.features) ? item.features : [],
+    isActive: item.is_active,
+    ordre: item.ordre,
+    n8nFolderId: purchase?.n8n_folder_id || undefined,
+    n8nFolderName: purchase?.n8n_folder_name || undefined,
+    n8nWorkflowIds: purchase?.n8n_workflow_ids || undefined,
+    activatedAt: purchase?.activated_at || undefined,
+    purchaseConfig: purchase?.config || undefined,
+  };
+}
+
+const EMPTY_FORM: CatalogFormData = {
+  code: '',
+  nom: '',
+  description: '',
+  categorie: 'email',
+  icon: 'email',
+  setupPrice: 0,
+  monthlyPrice: 0,
+  complexity: 'simple',
+  workflowCount: 0,
+  features: [],
+  workflowTemplates: [],
+};
 
 // ============================================
 // Composant principal
@@ -218,26 +318,21 @@ export default function AutomatisationsPage() {
   const [requestLoading, setRequestLoading] = useState(false);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
 
+  // Admin state
+  const [showCatalogForm, setShowCatalogForm] = useState(false);
+  const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
+  const [showActivateModal, setShowActivateModal] = useState(false);
+  const [activateTarget, setActivateTarget] = useState<Automation | null>(null);
+  const [n8nStatus, setN8nStatus] = useState<N8nStatus | null>(null);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Charger le catalogue depuis la BDD
-      const catalogRes = await authenticatedFetch<{
-        success: boolean;
-        data?: { catalog: CatalogItem[] };
-      }>('/api/automations/catalog');
-
-      // 2. Charger les achats du tenant
-      const purchasesRes = await authenticatedFetch<{
-        success: boolean;
-        data?: { purchases: PurchaseItem[] };
-      }>('/api/automations/purchases');
-
-      // 3. Charger les stats
-      const statsRes = await authenticatedFetch<{
-        success: boolean;
-        data?: { stats: AutomationStats };
-      }>('/api/automations/stats');
+      const [catalogRes, purchasesRes, statsRes] = await Promise.all([
+        authenticatedFetch<ApiResponse<{ catalog: CatalogItem[] }>>('/api/automations/catalog'),
+        authenticatedFetch<ApiResponse<{ purchases: PurchaseItem[] }>>('/api/automations/purchases'),
+        authenticatedFetch<ApiResponse<{ stats: AutomationStats }>>('/api/automations/stats'),
+      ]);
 
       if (catalogRes.success && catalogRes.data) {
         const catalog = catalogRes.data.catalog || [];
@@ -245,24 +340,29 @@ export default function AutomatisationsPage() {
           ? purchasesRes.data.purchases || []
           : [];
 
-        // Creer un map des achats par automation_id
-        const purchaseMap = new Map<string, string>();
+        const purchaseMap = new Map<string, PurchaseItem>();
         for (const p of purchases) {
-          purchaseMap.set(p.automation_id, p.status === 'active' ? 'actif' : p.status === 'en_attente' ? 'en_attente' : 'inactif');
+          purchaseMap.set(p.automation_id, p);
         }
 
-        // Convertir le catalogue en Automation[]
-        // Le statut depend des achats reels en base, pas du role
-        const list = catalog.map(item => {
-          const purchaseStatus = purchaseMap.get(item.id) || 'inactif';
-          return catalogToAutomation(item, purchaseStatus);
-        });
-
+        const list = catalog.map(item => catalogToAutomation(item, purchaseMap.get(item.id)));
         setAutomations(list);
       }
 
       if (statsRes.success && statsRes.data?.stats) {
         setStats(statsRes.data.stats);
+      }
+
+      // Admin : verifier le statut n8n
+      if (isAdmin) {
+        try {
+          const n8nRes = await authenticatedFetch<ApiResponse<N8nStatus>>('/api/automations/n8n/status');
+          if (n8nRes.success && n8nRes.data) {
+            setN8nStatus(n8nRes.data);
+          }
+        } catch {
+          setN8nStatus({ success: false, message: 'Impossible de verifier' });
+        }
       }
     } catch (err) {
       console.error('[Automatisations] Erreur chargement:', err);
@@ -271,19 +371,23 @@ export default function AutomatisationsPage() {
     }
   }, [isAdmin]);
 
-  // Demander l'activation (pour les clients)
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Demander l'activation (client)
   const handleRequestActivation = useCallback(async (automationId: string) => {
     setRequestLoading(true);
     setRequestMessage(null);
     try {
-      const res = await authenticatedFetch<{ success: boolean; message?: string; error?: string }>('/api/automations/request', {
+      const res = await authenticatedFetch<ApiResponse<null>>('/api/automations/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ automationId }),
       });
       if (res.success) {
         setRequestMessage('Demande envoyee ! Vous serez contacte pour l\'activation.');
-        fetchData(); // Recharger pour voir le statut "en_attente"
+        fetchData();
       } else {
         setRequestMessage(res.error || 'Erreur lors de l\'envoi');
       }
@@ -294,67 +398,81 @@ export default function AutomatisationsPage() {
     }
   }, [fetchData]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
   // Filtrage
   const filteredAutomations = automations.filter(a => {
     const matchSearch = a.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchCategorie = selectedCategorie === 'all' || a.categorie === selectedCategorie;
-    return matchSearch && matchCategorie;
+    // Admin voit tout, client voit seulement les actifs du catalogue
+    const matchActive = isAdmin || a.isActive;
+    return matchSearch && matchCategorie && matchActive;
   });
 
   const activeAutomations = automations.filter(a => a.status === 'actif');
   const categories = ['all', ...Array.from(new Set(automations.map(a => a.categorie)))];
 
-  const tabs: Array<{ key: TabType; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; count?: number }> = [
+  const tabs: Array<{ key: TabType; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; count?: number; adminOnly?: boolean }> = [
     { key: 'catalogue', label: 'Catalogue', icon: CubeIcon, count: automations.length },
     { key: 'mes-automatisations', label: 'Mes Automatisations', icon: BoltIcon, count: activeAutomations.length },
     { key: 'logs', label: 'Historique', icon: ClockIcon },
+    ...(isAdmin ? [{ key: 'admin' as TabType, label: 'Administration', icon: Cog6ToothIcon, adminOnly: true }] : []),
   ];
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <BoltIcon className="h-8 w-8 text-amber-400" />
-          Automatisations
-        </h1>
-        <p className="text-gray-400 mt-1">
-          Catalogue d&apos;automatisations et suivi de vos workflows actifs.
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <BoltIcon className="h-8 w-8 text-amber-400" />
+            Automatisations
+          </h1>
+          <p className="text-gray-400 mt-1">
+            {isAdmin
+              ? 'Gestion du catalogue, activation clients et monitoring n8n.'
+              : 'Catalogue d\'automatisations et suivi de vos workflows actifs.'}
+          </p>
+        </div>
+
+        {/* Admin : statut n8n + bouton ajouter */}
+        {isAdmin && (
+          <div className="flex items-center gap-3">
+            {n8nStatus && (
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+                n8nStatus.success
+                  ? 'bg-green-900/30 text-green-400'
+                  : 'bg-red-900/30 text-red-400'
+              }`}>
+                <SignalIcon className="h-3.5 w-3.5" />
+                n8n {n8nStatus.success ? 'connecte' : 'deconnecte'}
+              </div>
+            )}
+            <button
+              onClick={() => { setEditingAutomation(null); setShowCatalogForm(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Nouvelle automatisation
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Total</p>
-          <p className="text-2xl font-bold text-white mt-1">{stats.totalAutomations}</p>
-          <div className="w-8 h-1 rounded mt-2 bg-gray-500"></div>
-        </div>
-        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Actives</p>
-          <p className="text-2xl font-bold text-green-400 mt-1">{stats.actives}</p>
-          <div className="w-8 h-1 rounded mt-2 bg-green-500"></div>
-        </div>
-        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Executions (24h)</p>
-          <p className="text-2xl font-bold text-blue-400 mt-1">{stats.executionsToday}</p>
-          <div className="w-8 h-1 rounded mt-2 bg-blue-500"></div>
-        </div>
-        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Taux de reussite</p>
-          <p className="text-2xl font-bold text-amber-400 mt-1">{stats.tauxReussite}%</p>
-          <div className="w-8 h-1 rounded mt-2 bg-amber-500"></div>
-        </div>
-        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-          <p className="text-gray-400 text-xs uppercase tracking-wide">Erreurs (24h)</p>
-          <p className="text-2xl font-bold text-red-400 mt-1">{stats.erreurs24h}</p>
-          <div className="w-8 h-1 rounded mt-2 bg-red-500"></div>
-        </div>
+        {[
+          { label: 'Total', value: stats.totalAutomations, color: 'bg-gray-500', textColor: 'text-white' },
+          { label: 'Actives', value: stats.actives, color: 'bg-green-500', textColor: 'text-green-400' },
+          { label: 'Executions (24h)', value: stats.executionsToday, color: 'bg-blue-500', textColor: 'text-blue-400' },
+          { label: 'Taux de reussite', value: `${stats.tauxReussite}%`, color: 'bg-amber-500', textColor: 'text-amber-400' },
+          { label: 'Erreurs (24h)', value: stats.erreurs24h, color: 'bg-red-500', textColor: 'text-red-400' },
+        ].map((kpi) => (
+          <div key={kpi.label} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <p className="text-gray-400 text-xs uppercase tracking-wide">{kpi.label}</p>
+            <p className={`text-2xl font-bold ${kpi.textColor} mt-1`}>{kpi.value}</p>
+            <div className={`w-8 h-1 rounded mt-2 ${kpi.color}`} />
+          </div>
+        ))}
       </div>
 
       {/* Onglets */}
@@ -392,7 +510,6 @@ export default function AutomatisationsPage() {
         </div>
       ) : (
         <>
-          {/* Tab: Catalogue */}
           {activeTab === 'catalogue' && (
             <CatalogueTab
               automations={filteredAutomations}
@@ -402,10 +519,12 @@ export default function AutomatisationsPage() {
               onCategorieChange={setSelectedCategorie}
               categories={categories}
               onSelect={setSelectedAutomation}
+              isAdmin={isAdmin}
+              onEdit={(a) => { setEditingAutomation(a); setShowCatalogForm(true); }}
+              onActivateForClient={(a) => { setActivateTarget(a); setShowActivateModal(true); }}
             />
           )}
 
-          {/* Tab: Mes Automatisations */}
           {activeTab === 'mes-automatisations' && (
             <MesAutomatisationsTab
               automations={activeAutomations}
@@ -413,9 +532,15 @@ export default function AutomatisationsPage() {
             />
           )}
 
-          {/* Tab: Logs */}
           {activeTab === 'logs' && (
-            <LogsTab />
+            <LogsTab isAdmin={isAdmin} />
+          )}
+
+          {activeTab === 'admin' && isAdmin && (
+            <AdminTab
+              automations={automations}
+              onRefresh={fetchData}
+            />
           )}
         </>
       )}
@@ -424,11 +549,41 @@ export default function AutomatisationsPage() {
       {selectedAutomation && (
         <AutomationDetailModal
           automation={selectedAutomation}
-          onClose={() => setSelectedAutomation(null)}
+          onClose={() => { setSelectedAutomation(null); setRequestMessage(null); }}
           isAdmin={isAdmin}
           onRequestActivation={handleRequestActivation}
           requestLoading={requestLoading}
           requestMessage={requestMessage}
+          onActivateForClient={(a) => { setSelectedAutomation(null); setActivateTarget(a); setShowActivateModal(true); }}
+          onDeactivate={async (a) => {
+            try {
+              await authenticatedFetch<ApiResponse<null>>('/api/automations/deactivate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tenantId: user?.tenantId, automationId: a.id }),
+              });
+              setSelectedAutomation(null);
+              fetchData();
+            } catch { /* handled */ }
+          }}
+        />
+      )}
+
+      {/* Modal Formulaire Catalogue (admin) */}
+      {showCatalogForm && (
+        <CatalogFormModal
+          automation={editingAutomation}
+          onClose={() => { setShowCatalogForm(false); setEditingAutomation(null); }}
+          onSaved={() => { setShowCatalogForm(false); setEditingAutomation(null); fetchData(); }}
+        />
+      )}
+
+      {/* Modal Activation Client (admin) */}
+      {showActivateModal && activateTarget && (
+        <ActivateForClientModal
+          automation={activateTarget}
+          onClose={() => { setShowActivateModal(false); setActivateTarget(null); }}
+          onActivated={() => { setShowActivateModal(false); setActivateTarget(null); fetchData(); }}
         />
       )}
     </div>
@@ -447,6 +602,9 @@ function CatalogueTab({
   onCategorieChange,
   categories,
   onSelect,
+  isAdmin,
+  onEdit,
+  onActivateForClient,
 }: {
   automations: Automation[];
   searchQuery: string;
@@ -455,6 +613,9 @@ function CatalogueTab({
   onCategorieChange: (v: string) => void;
   categories: string[];
   onSelect: (a: Automation) => void;
+  isAdmin: boolean;
+  onEdit: (a: Automation) => void;
+  onActivateForClient: (a: Automation) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -496,18 +657,26 @@ function CatalogueTab({
           return (
             <div
               key={auto.id}
-              onClick={() => onSelect(auto)}
-              className="bg-gray-800 rounded-xl border border-gray-700 hover:border-amber-500/50 transition-all duration-200 cursor-pointer group"
+              className={`bg-gray-800 rounded-xl border hover:border-amber-500/50 transition-all duration-200 group ${
+                !auto.isActive ? 'border-red-500/30 opacity-60' : 'border-gray-700'
+              }`}
             >
               {/* Header carte */}
-              <div className="p-5 pb-3">
+              <div className="p-5 pb-3 cursor-pointer" onClick={() => onSelect(auto)}>
                 <div className="flex items-start justify-between mb-3">
                   <div className={`p-2.5 rounded-lg border ${catColor}`}>
                     <CatIcon className="h-6 w-6" />
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
-                    {statusConfig.label}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {!auto.isActive && (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium text-red-400 bg-red-900/30">
+                        Desactive
+                      </span>
+                    )}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                      {statusConfig.label}
+                    </span>
+                  </div>
                 </div>
                 <h3 className="text-white font-semibold text-lg group-hover:text-amber-400 transition-colors">
                   {auto.nom}
@@ -524,9 +693,29 @@ function CatalogueTab({
                   <span className="text-white font-semibold">{fmtPrix(auto.monthlyPrice)}&euro;</span>
                   <span className="text-gray-500 text-xs">/mois</span>
                 </div>
-                <span className={`text-xs font-medium ${complexity.color}`}>
-                  {complexity.label}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium ${complexity.color}`}>
+                    {complexity.label}
+                  </span>
+                  {isAdmin && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onEdit(auto); }}
+                        className="p-1 text-gray-400 hover:text-amber-400 transition-colors"
+                        title="Modifier"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onActivateForClient(auto); }}
+                        className="p-1 text-gray-400 hover:text-green-400 transition-colors"
+                        title="Activer pour un client"
+                      >
+                        <PlayIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -586,25 +775,22 @@ function MesAutomatisationsTab({
                 </div>
                 <div>
                   <h3 className="text-white font-semibold">{auto.nom}</h3>
-                  <p className="text-gray-400 text-sm">{auto.workflowCount} workflows</p>
+                  <p className="text-gray-400 text-sm">
+                    {auto.workflowCount} workflows
+                    {auto.n8nFolderId && (
+                      <span className="text-gray-500 ml-2">· Dossier n8n: {auto.n8nFolderName}</span>
+                    )}
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-6">
-                <div className="text-right hidden sm:block">
-                  <p className="text-gray-400 text-xs">Executions (24h)</p>
-                  <p className="text-white font-mono font-semibold">{auto.executionsToday}</p>
-                </div>
-                <div className="text-right hidden sm:block">
-                  <p className="text-gray-400 text-xs">Taux de reussite</p>
-                  <p className={`font-mono font-semibold ${auto.successRate >= 95 ? 'text-green-400' : auto.successRate >= 80 ? 'text-amber-400' : 'text-red-400'}`}>
-                    {auto.successRate}%
-                  </p>
-                </div>
-                <div className="text-right hidden md:block">
-                  <p className="text-gray-400 text-xs">Derniere execution</p>
-                  <p className="text-gray-300 text-sm">{formatDate(auto.lastExecution)}</p>
-                </div>
+                {auto.activatedAt && (
+                  <div className="text-right hidden md:block">
+                    <p className="text-gray-400 text-xs">Active le</p>
+                    <p className="text-gray-300 text-sm">{formatDate(auto.activatedAt)}</p>
+                  </div>
+                )}
                 <span className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${statusConfig.color}`}>
                   <statusConfig.icon className="h-3.5 w-3.5" />
                   {statusConfig.label}
@@ -619,64 +805,417 @@ function MesAutomatisationsTab({
 }
 
 // ============================================
-// Tab: Logs
+// Tab: Logs (charge depuis l'API)
 // ============================================
 
-function LogsTab() {
-  const [logs] = useState<Array<{
-    id: string;
-    automation: string;
-    event: string;
-    status: 'succes' | 'erreur' | 'en_attente';
-    date: string;
-    duration: string;
-  }>>([]);
+function LogsTab({ isAdmin }: { isAdmin: boolean }) {
+  const [logs, setLogs] = useState<EventLogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const pageSize = 50;
+
+  // Admin : selection de tenant
+  const [tenants, setTenants] = useState<TenantItem[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('');
+
+  useEffect(() => {
+    if (isAdmin) {
+      authenticatedFetch<ApiResponse<{ tenants: TenantItem[] }>>('/api/automations/tenants')
+        .then(res => {
+          if (res.success && res.data) {
+            setTenants(res.data.tenants || []);
+          }
+        })
+        .catch(() => { /* silently ignore */ });
+    }
+  }, [isAdmin]);
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const endpoint = isAdmin && selectedTenantId
+        ? `/api/automations/logs/${selectedTenantId}?limit=${pageSize}&offset=${page * pageSize}`
+        : `/api/automations/logs?limit=${pageSize}&offset=${page * pageSize}`;
+
+      const res = await authenticatedFetch<ApiResponse<{ logs: EventLogItem[]; total: number }>>(endpoint);
+      if (res.success && res.data) {
+        setLogs(res.data.logs || []);
+        setTotal(res.data.total || 0);
+      }
+    } catch {
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin, selectedTenantId, page]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   return (
     <div>
+      {/* Admin : selection de tenant */}
+      {isAdmin && (
+        <div className="mb-4 flex items-center gap-3">
+          <UserGroupIcon className="h-5 w-5 text-gray-400" />
+          <select
+            value={selectedTenantId}
+            onChange={(e) => { setSelectedTenantId(e.target.value); setPage(0); }}
+            className="bg-gray-800 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          >
+            <option value="">Tous les tenants</option>
+            {tenants.map(t => (
+              <option key={t.id} value={t.id}>{t.nom_entreprise}</option>
+            ))}
+          </select>
+          <button onClick={fetchLogs} className="p-2 text-gray-400 hover:text-white transition-colors">
+            <ArrowPathIcon className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="bg-gray-800 rounded-xl border border-gray-700">
         <div className="p-5 border-b border-gray-700">
           <h3 className="text-white font-semibold">Historique des executions</h3>
-          <p className="text-gray-400 text-sm mt-1">Journaux des derniers workflows executes.</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {total} evenement{total > 1 ? 's' : ''} enregistre{total > 1 ? 's' : ''}.
+          </p>
         </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <ArrowPathIcon className="h-6 w-6 text-gray-400 animate-spin" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-gray-400 text-xs uppercase border-b border-gray-700">
+                  <th className="px-5 py-3">Evenement</th>
+                  <th className="px-5 py-3">Entite</th>
+                  <th className="px-5 py-3">Statut</th>
+                  <th className="px-5 py-3">Workflow</th>
+                  <th className="px-5 py-3">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center text-gray-500">
+                      <ClockIcon className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                      Aucun log d&apos;execution pour le moment.
+                    </td>
+                  </tr>
+                ) : (
+                  logs.map(log => (
+                    <tr key={log.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                      <td className="px-5 py-3 text-white text-sm font-mono">{log.type_evenement}</td>
+                      <td className="px-5 py-3 text-gray-300 text-sm">
+                        {log.entite_type ? `${log.entite_type}${log.entite_id ? ` #${log.entite_id.slice(0, 8)}` : ''}` : '-'}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          log.statut_execution === 'succes' ? 'text-green-400 bg-green-900/30' :
+                          log.statut_execution === 'erreur' ? 'text-red-400 bg-red-900/30' :
+                          'text-yellow-400 bg-yellow-900/30'
+                        }`}>
+                          {log.statut_execution === 'succes' ? 'Succes' : log.statut_execution === 'erreur' ? 'Erreur' : 'En attente'}
+                        </span>
+                        {log.message_erreur && (
+                          <p className="text-red-400/70 text-xs mt-1 max-w-xs truncate" title={log.message_erreur}>
+                            {log.message_erreur}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-gray-400 text-sm font-mono">
+                        {log.workflow_n8n_id || '-'}
+                      </td>
+                      <td className="px-5 py-3 text-gray-400 text-sm">{formatDate(log.created_at)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {total > pageSize && (
+          <div className="p-4 border-t border-gray-700 flex items-center justify-between">
+            <p className="text-gray-400 text-sm">
+              Page {page + 1} / {Math.ceil(total / pageSize)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-3 py-1.5 bg-gray-700 text-white rounded text-sm disabled:opacity-40"
+              >
+                Precedent
+              </button>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={(page + 1) * pageSize >= total}
+                className="px-3 py-1.5 bg-gray-700 text-white rounded text-sm disabled:opacity-40"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Tab: Administration (admin only)
+// ============================================
+
+function AdminTab({
+  automations,
+  onRefresh,
+}: {
+  automations: Automation[];
+  onRefresh: () => void;
+}) {
+  const [tenants, setTenants] = useState<TenantItem[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('');
+  const [tenantPurchases, setTenantPurchases] = useState<PurchaseItem[]>([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    authenticatedFetch<ApiResponse<{ tenants: TenantItem[] }>>('/api/automations/tenants')
+      .then(res => {
+        if (res.success && res.data) setTenants(res.data.tenants || []);
+      })
+      .catch(() => { /* silently ignore */ });
+  }, []);
+
+  useEffect(() => {
+    if (!selectedTenantId) { setTenantPurchases([]); return; }
+    setLoadingPurchases(true);
+    authenticatedFetch<ApiResponse<{ purchases: PurchaseItem[] }>>(`/api/automations/purchases/${selectedTenantId}`)
+      .then(res => {
+        if (res.success && res.data) setTenantPurchases(res.data.purchases || []);
+      })
+      .catch(() => setTenantPurchases([]))
+      .finally(() => setLoadingPurchases(false));
+  }, [selectedTenantId]);
+
+  const handleActivate = async (automationId: string) => {
+    if (!selectedTenantId) return;
+    setActionLoading(automationId);
+    try {
+      const res = await authenticatedFetch<ApiResponse<{ folderId: string; folderName: string; workflowIds: string[] }>>('/api/automations/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: selectedTenantId, automationId }),
+      });
+      if (res.success) {
+        // Rafraichir les achats du tenant
+        const purchasesRes = await authenticatedFetch<ApiResponse<{ purchases: PurchaseItem[] }>>(`/api/automations/purchases/${selectedTenantId}`);
+        if (purchasesRes.success && purchasesRes.data) setTenantPurchases(purchasesRes.data.purchases || []);
+        onRefresh();
+      }
+    } catch { /* handled */ }
+    setActionLoading(null);
+  };
+
+  const handleDeactivate = async (automationId: string) => {
+    if (!selectedTenantId) return;
+    setActionLoading(automationId);
+    try {
+      await authenticatedFetch<ApiResponse<null>>('/api/automations/deactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: selectedTenantId, automationId }),
+      });
+      const purchasesRes = await authenticatedFetch<ApiResponse<{ purchases: PurchaseItem[] }>>(`/api/automations/purchases/${selectedTenantId}`);
+      if (purchasesRes.success && purchasesRes.data) setTenantPurchases(purchasesRes.data.purchases || []);
+      onRefresh();
+    } catch { /* handled */ }
+    setActionLoading(null);
+  };
+
+  const handleDeleteCatalog = async (automationId: string) => {
+    if (!confirm('Confirmer la desactivation de cette automatisation du catalogue ?')) return;
+    setActionLoading(automationId);
+    try {
+      await authenticatedFetch<ApiResponse<null>>(`/api/automations/catalog/${automationId}`, {
+        method: 'DELETE',
+      });
+      onRefresh();
+    } catch { /* handled */ }
+    setActionLoading(null);
+  };
+
+  const purchaseMap = new Map<string, PurchaseItem>();
+  for (const p of tenantPurchases) {
+    purchaseMap.set(p.automation_id, p);
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Section 1 : Gestion par client */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+          <UserGroupIcon className="h-5 w-5 text-amber-400" />
+          Gestion par client
+        </h3>
+
+        <div className="mb-4">
+          <select
+            value={selectedTenantId}
+            onChange={(e) => setSelectedTenantId(e.target.value)}
+            className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-lg text-white px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          >
+            <option value="">Selectionner un client...</option>
+            {tenants.map(t => (
+              <option key={t.id} value={t.id}>{t.nom_entreprise}</option>
+            ))}
+          </select>
+        </div>
+
+        {selectedTenantId && (
+          loadingPurchases ? (
+            <div className="flex items-center gap-2 py-4 text-gray-400">
+              <ArrowPathIcon className="h-5 w-5 animate-spin" />
+              Chargement...
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-gray-400 text-sm mb-3">
+                {tenantPurchases.length} automatisation{tenantPurchases.length > 1 ? 's' : ''} configuree{tenantPurchases.length > 1 ? 's' : ''}
+                {tenantPurchases.filter(p => p.status === 'active').length > 0 && (
+                  <span className="text-green-400 ml-1">
+                    ({tenantPurchases.filter(p => p.status === 'active').length} active{tenantPurchases.filter(p => p.status === 'active').length > 1 ? 's' : ''})
+                  </span>
+                )}
+              </p>
+
+              {/* Catalogue complet avec statut par tenant */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {automations.filter(a => a.isActive).map(auto => {
+                  const purchase = purchaseMap.get(auto.id);
+                  const isActive = purchase?.status === 'active';
+                  const isPending = purchase?.status === 'en_attente';
+                  const isSuspended = purchase?.status === 'suspendue';
+                  const isLoading = actionLoading === auto.id;
+
+                  return (
+                    <div key={auto.id} className={`p-4 rounded-lg border ${
+                      isActive ? 'border-green-500/30 bg-green-900/10' :
+                      isPending ? 'border-yellow-500/30 bg-yellow-900/10' :
+                      isSuspended ? 'border-orange-500/30 bg-orange-900/10' :
+                      'border-gray-700 bg-gray-900/30'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-white font-medium text-sm">{auto.nom}</h4>
+                          <p className="text-gray-400 text-xs mt-0.5">
+                            {auto.workflowCount} workflows · {auto.complexity}
+                          </p>
+                          {purchase?.n8n_folder_name && (
+                            <p className="text-gray-500 text-xs mt-0.5">
+                              n8n: {purchase.n8n_folder_name}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isActive && (
+                            <button
+                              onClick={() => handleDeactivate(auto.id)}
+                              disabled={isLoading}
+                              className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 rounded text-xs font-medium transition-colors disabled:opacity-40"
+                            >
+                              {isLoading ? <ArrowPathIcon className="h-3 w-3 animate-spin" /> : 'Suspendre'}
+                            </button>
+                          )}
+                          {!isActive && (
+                            <button
+                              onClick={() => handleActivate(auto.id)}
+                              disabled={isLoading}
+                              className="px-3 py-1.5 bg-green-600/20 hover:bg-green-600/40 text-green-400 rounded text-xs font-medium transition-colors disabled:opacity-40 flex items-center gap-1"
+                            >
+                              {isLoading ? <ArrowPathIcon className="h-3 w-3 animate-spin" /> : (
+                                <>
+                                  <PlayIcon className="h-3 w-3" />
+                                  Activer
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+
+      {/* Section 2 : Gestion du catalogue */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+        <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+          <CubeIcon className="h-5 w-5 text-amber-400" />
+          Catalogue ({automations.length} automatisations)
+        </h3>
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-gray-400 text-xs uppercase border-b border-gray-700">
-                <th className="px-5 py-3">Automatisation</th>
-                <th className="px-5 py-3">Evenement</th>
-                <th className="px-5 py-3">Statut</th>
-                <th className="px-5 py-3">Duree</th>
-                <th className="px-5 py-3">Date</th>
+                <th className="px-4 py-3">Nom</th>
+                <th className="px-4 py-3">Code</th>
+                <th className="px-4 py-3">Categorie</th>
+                <th className="px-4 py-3">Prix setup</th>
+                <th className="px-4 py-3">Prix/mois</th>
+                <th className="px-4 py-3">Workflows</th>
+                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {logs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-gray-500">
-                    <ClockIcon className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                    Aucun log d&apos;execution pour le moment.
+              {automations.map(auto => (
+                <tr key={auto.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                  <td className="px-4 py-3 text-white text-sm font-medium">{auto.nom}</td>
+                  <td className="px-4 py-3 text-gray-400 text-sm font-mono">{auto.code}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded text-xs ${CATEGORIE_COLORS[auto.categorie] || CATEGORIE_COLORS.general}`}>
+                      {CATEGORIE_LABELS[auto.categorie] || auto.categorie}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-amber-400 text-sm">{fmtPrix(auto.setupPrice)}&euro;</td>
+                  <td className="px-4 py-3 text-white text-sm">{fmtPrix(auto.monthlyPrice)}&euro;</td>
+                  <td className="px-4 py-3 text-gray-300 text-sm">{auto.workflowCount}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      auto.isActive ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30'
+                    }`}>
+                      {auto.isActive ? 'Actif' : 'Inactif'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleDeleteCatalog(auto.id)}
+                      disabled={actionLoading === auto.id}
+                      className="p-1 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-40"
+                      title="Desactiver du catalogue"
+                    >
+                      {actionLoading === auto.id
+                        ? <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                        : <TrashIcon className="h-4 w-4" />
+                      }
+                    </button>
                   </td>
                 </tr>
-              ) : (
-                logs.map(log => (
-                  <tr key={log.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                    <td className="px-5 py-3 text-white text-sm">{log.automation}</td>
-                    <td className="px-5 py-3 text-gray-300 text-sm">{log.event}</td>
-                    <td className="px-5 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        log.status === 'succes' ? 'text-green-400 bg-green-900/30' :
-                        log.status === 'erreur' ? 'text-red-400 bg-red-900/30' :
-                        'text-yellow-400 bg-yellow-900/30'
-                      }`}>
-                        {log.status === 'succes' ? 'Succes' : log.status === 'erreur' ? 'Erreur' : 'En attente'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-gray-400 text-sm font-mono">{log.duration}</td>
-                    <td className="px-5 py-3 text-gray-400 text-sm">{formatDate(log.date)}</td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -696,6 +1235,8 @@ function AutomationDetailModal({
   onRequestActivation,
   requestLoading,
   requestMessage,
+  onActivateForClient,
+  onDeactivate,
 }: {
   automation: Automation;
   onClose: () => void;
@@ -703,6 +1244,8 @@ function AutomationDetailModal({
   onRequestActivation: (id: string) => void;
   requestLoading: boolean;
   requestMessage: string | null;
+  onActivateForClient: (a: Automation) => void;
+  onDeactivate: (a: Automation) => void;
 }) {
   const CatIcon = CATEGORIE_ICONS[automation.categorie] || BoltIcon;
   const catColor = CATEGORIE_COLORS[automation.categorie] || CATEGORIE_COLORS.general;
@@ -713,7 +1256,7 @@ function AutomationDetailModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-lg shadow-2xl"
+        className="relative bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -730,13 +1273,8 @@ function AutomationDetailModal({
                 </span>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-1"
-            >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1">
+              <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
         </div>
@@ -745,7 +1283,21 @@ function AutomationDetailModal({
         <div className="p-6 space-y-5">
           <p className="text-gray-300">{automation.description}</p>
 
-          {/* Pricing - visible uniquement pour les clients */}
+          {/* Features */}
+          {automation.features.length > 0 && (
+            <div>
+              <h4 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Fonctionnalites incluses</h4>
+              <div className="flex flex-wrap gap-2">
+                {automation.features.map((f, i) => (
+                  <span key={i} className="px-2.5 py-1 bg-gray-700/50 border border-gray-600/50 rounded-full text-gray-300 text-xs">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pricing (visible uniquement pour les clients) */}
           {!isAdmin && (
             <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/50">
               <h4 className="text-gray-400 text-xs uppercase tracking-wide mb-3">Tarification</h4>
@@ -770,10 +1322,17 @@ function AutomationDetailModal({
           {isAdmin && (
             <div className="bg-amber-500/10 rounded-xl p-4 border border-amber-500/20">
               <h4 className="text-amber-400 text-xs uppercase tracking-wide mb-2">Administration</h4>
-              <p className="text-gray-300 text-sm">
-                {automation.workflowCount} workflows n8n actifs pour cette automatisation.
-                Toutes les executions sont monitorees en temps reel.
-              </p>
+              <div className="space-y-1 text-sm text-gray-300">
+                <p>Code : <span className="font-mono text-amber-400">{automation.code}</span></p>
+                <p>{automation.workflowCount} workflows n8n · Complexite {automation.complexity}</p>
+                <p>Prix : {fmtPrix(automation.setupPrice)}&euro; setup + {fmtPrix(automation.monthlyPrice)}&euro;/mois</p>
+                {automation.n8nFolderId && (
+                  <p>Dossier n8n : {automation.n8nFolderName} ({automation.n8nFolderId})</p>
+                )}
+                {automation.n8nWorkflowIds && automation.n8nWorkflowIds.length > 0 && (
+                  <p>Workflow IDs : {automation.n8nWorkflowIds.join(', ')}</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -784,51 +1343,53 @@ function AutomationDetailModal({
               <p className="text-gray-400 text-xs">Workflows</p>
             </div>
             <div className="bg-gray-900/50 rounded-lg p-3 text-center border border-gray-700/50">
-              <p className="text-2xl font-bold text-white">{automation.executionsToday}</p>
-              <p className="text-gray-400 text-xs">Executions/24h</p>
+              <p className="text-2xl font-bold text-white">{automation.features.length}</p>
+              <p className="text-gray-400 text-xs">Features</p>
             </div>
             <div className="bg-gray-900/50 rounded-lg p-3 text-center border border-gray-700/50">
-              <p className={`text-2xl font-bold ${automation.successRate >= 95 ? 'text-green-400' : automation.successRate >= 80 ? 'text-amber-400' : 'text-red-400'}`}>
-                {automation.successRate}%
-              </p>
-              <p className="text-gray-400 text-xs">Reussite</p>
+              <span className={`text-2xl font-bold ${statusConfig.color.split(' ')[0]}`}>
+                <statusConfig.icon className="h-6 w-6 mx-auto" />
+              </span>
+              <p className="text-gray-400 text-xs mt-1">{statusConfig.label}</p>
             </div>
-          </div>
-
-          {/* Status */}
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-sm">Statut actuel</span>
-            <span className={`px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 ${statusConfig.color}`}>
-              <statusConfig.icon className="h-4 w-4" />
-              {statusConfig.label}
-            </span>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-700 flex gap-3">
+        <div className="p-6 border-t border-gray-700 space-y-3">
           {isAdmin ? (
-            <>
-              <button className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
-                <Cog6ToothIcon className="h-4 w-4" />
-                Configurer
+            <div className="flex gap-3">
+              <button
+                onClick={() => onActivateForClient(automation)}
+                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+              >
+                <PlayIcon className="h-4 w-4" />
+                Activer pour un client
               </button>
-              <button className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
-                <EyeIcon className="h-4 w-4" />
-                Voir les logs
-              </button>
-            </>
+              {automation.status === 'actif' && (
+                <button
+                  onClick={() => onDeactivate(automation)}
+                  className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                >
+                  <PauseIcon className="h-4 w-4" />
+                  Suspendre
+                </button>
+              )}
+            </div>
           ) : automation.status === 'actif' ? (
-            <>
-              <button className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
-                <Cog6ToothIcon className="h-4 w-4" />
-                Configuration
-              </button>
-              <button className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+            <div className="flex gap-3">
+              <button className="flex-1 py-2.5 bg-green-600/20 text-green-400 rounded-lg text-sm flex items-center justify-center gap-2 cursor-default">
                 <CheckCircleIcon className="h-4 w-4" />
                 Active
               </button>
-            </>
+            </div>
+          ) : automation.status === 'en_attente' ? (
+            <div className="flex gap-3">
+              <button className="flex-1 py-2.5 bg-yellow-600/20 text-yellow-400 rounded-lg text-sm flex items-center justify-center gap-2 cursor-default">
+                <ClockIcon className="h-4 w-4" />
+                Demande en cours
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => onRequestActivation(automation.id)}
@@ -840,14 +1401,412 @@ function AutomationDetailModal({
               ) : (
                 <PlayIcon className="h-4 w-4" />
               )}
-              {requestLoading ? 'Envoi en cours...' : 'Demander l\u0027activation'}
+              {requestLoading ? 'Envoi en cours...' : 'Demander l\'activation'}
             </button>
           )}
+
           {requestMessage && (
-            <p className={`text-sm text-center mt-2 ${requestMessage.includes('Erreur') ? 'text-red-400' : 'text-green-400'}`}>
+            <p className={`text-sm text-center ${requestMessage.includes('Erreur') ? 'text-red-400' : 'text-green-400'}`}>
               {requestMessage}
             </p>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Modal : Formulaire Catalogue (ajout/edition)
+// ============================================
+
+function CatalogFormModal({
+  automation,
+  onClose,
+  onSaved,
+}: {
+  automation: Automation | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const isEdit = !!automation;
+  const [form, setForm] = useState<CatalogFormData>(() => {
+    if (automation) {
+      return {
+        code: automation.code,
+        nom: automation.nom,
+        description: automation.description,
+        categorie: automation.categorie,
+        icon: automation.icon,
+        setupPrice: automation.setupPrice,
+        monthlyPrice: automation.monthlyPrice,
+        complexity: automation.complexity,
+        workflowCount: automation.workflowCount,
+        features: automation.features,
+        workflowTemplates: automation.workflowTemplates,
+      };
+    }
+    return { ...EMPTY_FORM };
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newFeature, setNewFeature] = useState('');
+
+  const updateField = <K extends keyof CatalogFormData>(key: K, value: CatalogFormData[K]) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const addFeature = () => {
+    const trimmed = newFeature.trim();
+    if (trimmed && !form.features.includes(trimmed)) {
+      updateField('features', [...form.features, trimmed]);
+      setNewFeature('');
+    }
+  };
+
+  const removeFeature = (index: number) => {
+    updateField('features', form.features.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.code || !form.nom || !form.description || !form.categorie) {
+      setError('Tous les champs obligatoires doivent etre remplis');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      if (isEdit && automation) {
+        const res = await authenticatedFetch<ApiResponse<null>>(`/api/automations/catalog/${automation.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        if (!res.success) { setError(res.error || 'Erreur modification'); return; }
+      } else {
+        const res = await authenticatedFetch<ApiResponse<null>>('/api/automations/catalog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        if (!res.success) { setError(res.error || 'Erreur creation'); return; }
+      }
+      onSaved();
+    } catch {
+      setError('Erreur de connexion');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">
+            {isEdit ? 'Modifier l\'automatisation' : 'Nouvelle automatisation'}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-900/30 border border-red-500/30 rounded-lg p-3 flex items-center gap-2 text-red-400 text-sm">
+              <ExclamationCircleIcon className="h-5 w-5 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Code */}
+            <div>
+              <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Code *</label>
+              <input
+                value={form.code}
+                onChange={(e) => updateField('code', e.target.value)}
+                disabled={isEdit}
+                placeholder="auto-email"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:opacity-50"
+              />
+            </div>
+
+            {/* Categorie */}
+            <div>
+              <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Categorie *</label>
+              <select
+                value={form.categorie}
+                onChange={(e) => { updateField('categorie', e.target.value); updateField('icon', e.target.value); }}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+              >
+                {CATEGORIES.map(c => (
+                  <option key={c} value={c}>{CATEGORIE_LABELS[c] || c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Nom */}
+          <div>
+            <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Nom *</label>
+            <input
+              value={form.nom}
+              onChange={(e) => updateField('nom', e.target.value)}
+              placeholder="Gestion Email Automatisee"
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Description *</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => updateField('description', e.target.value)}
+              rows={3}
+              placeholder="Description detaillee de l'automatisation..."
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            {/* Prix setup */}
+            <div>
+              <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Prix setup (&euro;)</label>
+              <input
+                type="number"
+                value={form.setupPrice}
+                onChange={(e) => updateField('setupPrice', Number(e.target.value))}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+              />
+            </div>
+
+            {/* Prix mensuel */}
+            <div>
+              <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Prix/mois (&euro;)</label>
+              <input
+                type="number"
+                value={form.monthlyPrice}
+                onChange={(e) => updateField('monthlyPrice', Number(e.target.value))}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+              />
+            </div>
+
+            {/* Complexite */}
+            <div>
+              <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Complexite</label>
+              <select
+                value={form.complexity}
+                onChange={(e) => updateField('complexity', e.target.value as AutomationComplexity)}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+              >
+                <option value="simple">Simple</option>
+                <option value="intermediaire">Intermediaire</option>
+                <option value="avance">Avance</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Nombre de workflows */}
+          <div>
+            <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Nombre de workflows n8n</label>
+            <input
+              type="number"
+              value={form.workflowCount}
+              onChange={(e) => updateField('workflowCount', Number(e.target.value))}
+              className="w-full max-w-xs bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+            />
+          </div>
+
+          {/* Features */}
+          <div>
+            <label className="text-gray-400 text-xs uppercase tracking-wide block mb-2">Fonctionnalites</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {form.features.map((f, i) => (
+                <span key={i} className="px-2.5 py-1 bg-gray-700 rounded-full text-gray-300 text-xs flex items-center gap-1.5">
+                  {f}
+                  <button onClick={() => removeFeature(i)} className="text-gray-500 hover:text-red-400">
+                    <XMarkIcon className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newFeature}
+                onChange={(e) => setNewFeature(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFeature(); } }}
+                placeholder="Ajouter une fonctionnalite..."
+                className="flex-1 bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+              />
+              <button
+                onClick={addFeature}
+                className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+              >
+                <PlusIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-700 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+          >
+            {saving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <CheckCircleIcon className="h-4 w-4" />}
+            {saving ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Creer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Modal : Activer pour un client (admin)
+// ============================================
+
+function ActivateForClientModal({
+  automation,
+  onClose,
+  onActivated,
+}: {
+  automation: Automation;
+  onClose: () => void;
+  onActivated: () => void;
+}) {
+  const [tenants, setTenants] = useState<TenantItem[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    authenticatedFetch<ApiResponse<{ tenants: TenantItem[] }>>('/api/automations/tenants')
+      .then(res => {
+        if (res.success && res.data) setTenants(res.data.tenants || []);
+      })
+      .catch(() => { /* silently ignore */ });
+  }, []);
+
+  const handleActivate = async () => {
+    if (!selectedTenantId) return;
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const res = await authenticatedFetch<ApiResponse<{ folderId: string; folderName: string; workflowIds: string[] }>>('/api/automations/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: selectedTenantId,
+          automationId: automation.id,
+        }),
+      });
+
+      if (res.success) {
+        const data = res.data;
+        setResult({
+          success: true,
+          message: `Automatisation activee ! ${data?.workflowIds?.length || 0} workflow(s) cree(s)${data?.folderName ? ` dans "${data.folderName}"` : ''}.`,
+        });
+        setTimeout(() => onActivated(), 2000);
+      } else {
+        setResult({ success: false, message: res.error || 'Erreur activation' });
+      }
+    } catch {
+      setResult({ success: false, message: 'Erreur de connexion a n8n' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-md shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-gray-700">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <PlayIcon className="h-5 w-5 text-green-400" />
+            Activer pour un client
+          </h2>
+          <p className="text-gray-400 text-sm mt-1">{automation.nom}</p>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-gray-300 text-sm">
+            Cette action va creer automatiquement les workflows n8n ({automation.workflowCount})
+            dans un dossier dedie au client selectionne.
+          </p>
+
+          <div>
+            <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Client *</label>
+            <select
+              value={selectedTenantId}
+              onChange={(e) => setSelectedTenantId(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+            >
+              <option value="">Selectionner un client...</option>
+              {tenants.map(t => (
+                <option key={t.id} value={t.id}>{t.nom_entreprise}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700/50 text-sm text-gray-400">
+            <p><strong className="text-white">n8n creera automatiquement :</strong></p>
+            <p className="mt-1">· Un dossier [Client] NomEntreprise</p>
+            <p>· {automation.workflowCount} workflow(s) preconfigures</p>
+            <p>· Les connexions au serveur du client</p>
+          </div>
+
+          {result && (
+            <div className={`rounded-lg p-3 text-sm flex items-start gap-2 ${
+              result.success
+                ? 'bg-green-900/30 border border-green-500/30 text-green-400'
+                : 'bg-red-900/30 border border-red-500/30 text-red-400'
+            }`}>
+              {result.success ? <CheckCircleIcon className="h-5 w-5 flex-shrink-0" /> : <ExclamationCircleIcon className="h-5 w-5 flex-shrink-0" />}
+              {result.message}
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 border-t border-gray-700 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleActivate}
+            disabled={!selectedTenantId || loading}
+            className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+          >
+            {loading ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <PlayIcon className="h-4 w-4" />}
+            {loading ? 'Activation via n8n...' : 'Activer'}
+          </button>
         </div>
       </div>
     </div>

@@ -1,0 +1,56 @@
+{
+  "name": "[TalosPrimes] Automations - Achats Liste",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/purchases-list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ap.id, ap.tenant_id, ap.automation_id, ap.status, ap.n8n_folder_id,\n       ap.n8n_folder_name, ap.n8n_workflow_ids, ap.setup_price_paid,\n       ap.monthly_price, ap.activated_at, ap.config, ap.created_at,\n       ac.code, ac.nom, ac.description, ac.categorie, ac.icon,\n       ac.complexity, ac.workflow_count, ac.features\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nWHERE ap.tenant_id = '{{ $json.body.tenantId }}'::uuid\nORDER BY ap.created_at DESC",
+        "options": {}
+      },
+      "id": "db-query",
+      "name": "02. Query achats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\nreturn [{ json: { success: true, data: { purchases: rows } } }];"
+      },
+      "id": "format",
+      "name": "03. Formater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Query achats", "type": "main", "index": 0 }]] },
+    "02. Query achats": { "main": [[{ "node": "03. Formater", "type": "main", "index": 0 }]] },
+    "03. Formater": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

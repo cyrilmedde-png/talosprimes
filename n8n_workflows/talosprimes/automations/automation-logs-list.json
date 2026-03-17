@@ -1,0 +1,84 @@
+{
+  "name": "[TalosPrimes] Automations - Logs Liste",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/logs-list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst limit = Math.min(parseInt(body.limit) || 50, 200);\nconst offset = parseInt(body.offset) || 0;\n\nreturn [{ json: { tenantId, limit, offset } }];"
+      },
+      "id": "parse",
+      "name": "02. Parser params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, type_evenement, entite_type, entite_id, statut_execution, message_erreur, workflow_n8n_id, created_at\nFROM event_logs\nWHERE tenant_id = '{{ $json.tenantId }}'::uuid\nORDER BY created_at DESC\nLIMIT {{ $json.limit }} OFFSET {{ $json.offset }}",
+        "options": {}
+      },
+      "id": "db-logs",
+      "name": "03. Query logs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 200],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS count FROM event_logs WHERE tenant_id = '{{ $('02. Parser params').first().json.tenantId }}'::uuid",
+        "options": {}
+      },
+      "id": "db-count",
+      "name": "03b. Count total",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 400],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const logs = $('03. Query logs').all().map(item => item.json);\nconst total = $('03b. Count total').first().json.count || 0;\nconst params = $('02. Parser params').first().json;\n\nreturn [{ json: { success: true, data: { logs, total: Number(total), limit: params.limit, offset: params.offset } } }];"
+      },
+      "id": "merge",
+      "name": "04. Fusionner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "05. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parser params", "type": "main", "index": 0 }]] },
+    "02. Parser params": { "main": [
+      [{ "node": "03. Query logs", "type": "main", "index": 0 }],
+      [{ "node": "03b. Count total", "type": "main", "index": 0 }]
+    ]},
+    "03. Query logs": { "main": [[{ "node": "04. Fusionner", "type": "main", "index": 0 }]] },
+    "03b. Count total": { "main": [[{ "node": "04. Fusionner", "type": "main", "index": 0 }]] },
+    "04. Fusionner": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

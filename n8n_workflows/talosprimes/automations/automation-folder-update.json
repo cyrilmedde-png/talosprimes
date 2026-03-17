@@ -1,0 +1,56 @@
+{
+  "name": "[TalosPrimes] Automations - Associer Dossier N8N",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/folder-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automation_purchases\nSET n8n_folder_id = '{{ $json.body.folderId }}',\n    n8n_folder_name = COALESCE('{{ $json.body.folderName }}', n8n_folder_name),\n    updated_at = NOW()\nWHERE tenant_id = '{{ $json.body.tenantId }}'::uuid",
+        "options": {}
+      },
+      "id": "db-update",
+      "name": "02. Mettre a jour",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('01. Webhook').first().json.body || $('01. Webhook').first().json;\nreturn [{ json: { success: true, message: 'Dossier n8n associe au tenant', data: { folderId: body.folderId, folderName: body.folderName } } }];"
+      },
+      "id": "ok",
+      "name": "03. Succes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Mettre a jour", "type": "main", "index": 0 }]] },
+    "02. Mettre a jour": { "main": [[{ "node": "03. Succes", "type": "main", "index": 0 }]] },
+    "03. Succes": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

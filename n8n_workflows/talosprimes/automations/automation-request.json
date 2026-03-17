@@ -1,0 +1,105 @@
+{
+  "name": "[TalosPrimes] Automations - Demande Activation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/request",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, valid: true } }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
+        }
+      },
+      "id": "check",
+      "name": "03. Valide?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, nom FROM automation_catalog WHERE id = '{{ $('02. Valider').first().json.automationId }}'::uuid AND is_active = true",
+        "options": {}
+      },
+      "id": "check-exists",
+      "name": "04. Verifier existence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_purchases (tenant_id, automation_id, status, created_at, updated_at)\nVALUES ('{{ $('02. Valider').first().json.tenantId }}'::uuid, '{{ $('02. Valider').first().json.automationId }}'::uuid, 'en_attente', NOW(), NOW())\nON CONFLICT (tenant_id, automation_id) DO UPDATE SET status = 'en_attente', updated_at = NOW()\nRETURNING id",
+        "options": {}
+      },
+      "id": "upsert",
+      "name": "05. Creer demande",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1130, 200],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, message: 'Demande envoyee' } }];"
+      },
+      "id": "ok",
+      "name": "06. Succes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "07. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1570, 300]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($('02. Valider').first().json) }}" },
+      "id": "respond-err",
+      "name": "07b. Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Valide?", "type": "main", "index": 0 }]] },
+    "03. Valide?": { "main": [
+      [{ "node": "04. Verifier existence", "type": "main", "index": 0 }],
+      [{ "node": "07b. Erreur", "type": "main", "index": 0 }]
+    ]},
+    "04. Verifier existence": { "main": [[{ "node": "05. Creer demande", "type": "main", "index": 0 }]] },
+    "05. Creer demande": { "main": [[{ "node": "06. Succes", "type": "main", "index": 0 }]] },
+    "06. Succes": { "main": [[{ "node": "07. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

@@ -1,0 +1,101 @@
+{
+  "name": "[TalosPrimes] Automations - Catalogue Creer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/catalog-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst b = body;\n\nif (!b.code || !b.nom || !b.description || !b.categorie) {\n  return [{ json: { success: false, error: 'code, nom, description, categorie requis' } }];\n}\n\nreturn [{ json: {\n  code: b.code,\n  nom: b.nom,\n  description: b.description,\n  categorie: b.categorie,\n  icon: b.icon || 'general',\n  setupPrice: b.setupPrice || 0,\n  monthlyPrice: b.monthlyPrice || 0,\n  complexity: b.complexity || 'simple',\n  workflowCount: b.workflowCount || 0,\n  workflowTemplates: JSON.stringify(b.workflowTemplates || []),\n  features: JSON.stringify(b.features || []),\n  valid: true\n} }];"
+      },
+      "id": "validate",
+      "name": "02. Valider donnees",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
+        }
+      },
+      "id": "check-valid",
+      "name": "03. Valide?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_catalog (code, nom, description, categorie, icon, setup_price, monthly_price, complexity, workflow_count, workflow_templates, features, created_at, updated_at)\nVALUES ('{{ $json.code }}', '{{ $json.nom }}', '{{ $json.description }}', '{{ $json.categorie }}', '{{ $json.icon }}', {{ $json.setupPrice }}, {{ $json.monthlyPrice }}, '{{ $json.complexity }}'::\"AutomationComplexity\", {{ $json.workflowCount }}, '{{ $json.workflowTemplates }}'::jsonb, '{{ $json.features }}'::jsonb, NOW(), NOW())\nRETURNING id, code, nom",
+        "options": {}
+      },
+      "id": "db-insert",
+      "name": "04. Inserer en BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": {
+        "postgres": {
+          "name": "TalosPrimes DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { success: true, message: 'Automatisation ajoutee au catalogue', data: { id: row.id, code: row.code, nom: row.nom } } }];"
+      },
+      "id": "format-success",
+      "name": "05. Succes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "06. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($('02. Valider donnees').first().json) }}"
+      },
+      "id": "respond-error",
+      "name": "06b. Repondre Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider donnees", "type": "main", "index": 0 }]] },
+    "02. Valider donnees": { "main": [[{ "node": "03. Valide?", "type": "main", "index": 0 }]] },
+    "03. Valide?": { "main": [
+      [{ "node": "04. Inserer en BDD", "type": "main", "index": 0 }],
+      [{ "node": "06b. Repondre Erreur", "type": "main", "index": 0 }]
+    ]},
+    "04. Inserer en BDD": { "main": [[{ "node": "05. Succes", "type": "main", "index": 0 }]] },
+    "05. Succes": { "main": [[{ "node": "06. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

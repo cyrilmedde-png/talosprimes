@@ -342,9 +342,22 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   subscribers_stats: 'newsletter/subscribers-stats',
   newsletter_analytics: 'newsletter/analytics',
   newsletter_dashboard: 'newsletter/dashboard',
-  // Automations
-  automation_activate: 'automations/activate',
+  // Automations — CRUD catalogue
+  automation_catalog_list: 'automations/catalog-list',
+  automation_catalog_create: 'automations/catalog-create',
+  automation_catalog_update: 'automations/catalog-update',
+  automation_catalog_delete: 'automations/catalog-delete',
+  // Automations — achats & cycle de vie
+  automation_purchases_list: 'automations/purchases-list',
+  automation_stats: 'automations/stats',
   automation_request: 'automations/request',
+  automation_activate: 'automations/activate',
+  automation_deactivate: 'automations/deactivate',
+  // Automations — admin
+  automation_logs_list: 'automations/logs-list',
+  automation_tenants_list: 'automations/tenants-list',
+  automation_folder_update: 'automations/folder-update',
+  automation_n8n_status: 'automations/n8n-status',
 };
 
 /**

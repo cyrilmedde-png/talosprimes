@@ -1,0 +1,105 @@
+{
+  "name": "[TalosPrimes] Automations - Catalogue Supprimer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/catalog-delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*)::int AS count FROM automation_purchases WHERE automation_id = '{{ $json.body.id }}'::uuid AND status = 'active'",
+        "options": {}
+      },
+      "id": "check-active",
+      "name": "02. Verifier achats actifs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.count }}", "operation": "equal", "value2": 0 }]
+        }
+      },
+      "id": "can-delete",
+      "name": "03. Peut supprimer?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automation_catalog SET is_active = false, updated_at = NOW() WHERE id = '{{ $('01. Webhook').first().json.body.id }}'::uuid RETURNING id, nom",
+        "options": {}
+      },
+      "id": "soft-delete",
+      "name": "04. Soft-delete",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, message: 'Automatisation desactivee du catalogue' } }];"
+      },
+      "id": "ok",
+      "name": "05. Succes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond",
+      "name": "06. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: false, error: 'Impossible de supprimer : des clients ont cette automatisation active' } }];"
+      },
+      "id": "err-active",
+      "name": "05b. Erreur achats actifs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 400]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "id": "respond-err",
+      "name": "06b. Repondre Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 400]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Verifier achats actifs", "type": "main", "index": 0 }]] },
+    "02. Verifier achats actifs": { "main": [[{ "node": "03. Peut supprimer?", "type": "main", "index": 0 }]] },
+    "03. Peut supprimer?": { "main": [
+      [{ "node": "04. Soft-delete", "type": "main", "index": 0 }],
+      [{ "node": "05b. Erreur achats actifs", "type": "main", "index": 0 }]
+    ]},
+    "04. Soft-delete": { "main": [[{ "node": "05. Succes", "type": "main", "index": 0 }]] },
+    "05. Succes": { "main": [[{ "node": "06. Repondre", "type": "main", "index": 0 }]] },
+    "05b. Erreur achats actifs": { "main": [[{ "node": "06b. Repondre Erreur", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}
