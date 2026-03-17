@@ -14,6 +14,7 @@ const ALL_MODULES = [
   'agent_telephonique', 'sms', 'notifications', 'marketing_digital', 'newsletter',
   'conformite',
   'ticketing',
+  'automatisations',
   'logs',
 ];
 
