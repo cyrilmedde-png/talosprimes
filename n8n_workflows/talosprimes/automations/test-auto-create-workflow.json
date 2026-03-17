@@ -1,0 +1,183 @@
+{
+  "name": "[TalosPrimes] TEST - Auto-creation workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/test-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-test",
+      "name": "01. Webhook Test",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Donnees de test\nconst body = $input.first().json.body || $input.first().json;\nconst clientName = body.clientName || 'TestClient';\nconst automationName = body.automationName || 'Workflow de test';\nconst folderId = body.folderId || null;\n\n// Construire le workflow a creer\nconst workflow = {\n  name: `[${clientName}] ${automationName}`,\n  nodes: [\n    {\n      parameters: {\n        rule: {\n          interval: [{ field: 'hours', hoursInterval: 24 }]\n        }\n      },\n      id: 'schedule-node',\n      name: 'Declencheur quotidien',\n      type: 'n8n-nodes-base.scheduleTrigger',\n      typeVersion: 1.2,\n      position: [250, 300]\n    },\n    {\n      parameters: {\n        jsCode: `// Workflow automatique pour ${clientName}\\n// Cree automatiquement par TalosPrimes\\nconst now = new Date().toISOString();\\nreturn [{ json: { message: 'Bienvenue ${clientName}!', timestamp: now, status: 'ok' } }];`\n      },\n      id: 'code-node',\n      name: 'Message bienvenue',\n      type: 'n8n-nodes-base.code',\n      typeVersion: 2,\n      position: [470, 300]\n    }\n  ],\n  connections: {\n    'Declencheur quotidien': {\n      main: [\n        [{ node: 'Message bienvenue', type: 'main', index: 0 }]\n      ]\n    }\n  },\n  settings: { executionOrder: 'v1' }\n};\n\nreturn [{ json: { clientName, folderId, workflow } }];"
+      },
+      "id": "prepare",
+      "name": "02. Preparer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.workflow) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "create-workflow",
+      "name": "03. Creer workflow via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "n8n API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst workflowId = response.id || null;\nconst workflowName = response.name || null;\nconst folderId = $('02. Preparer').first().json.folderId;\nconst clientName = $('02. Preparer').first().json.clientName;\n\n// Si on a un folderId, on peut deplacer\nconst canMove = !!(folderId && workflowId);\n\nreturn [{ json: { workflowId, workflowName, folderId, clientName, canMove } }];"
+      },
+      "id": "check-result",
+      "name": "04. Verifier resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.canMove }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-can-move",
+      "name": "05. Peut deplacer?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows/{{ $('04. Verifier resultat').first().json.workflowId }}/transfer",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "destinationProjectId",
+              "value": "={{ $('04. Verifier resultat').first().json.folderId }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "move-workflow",
+      "name": "06. Deplacer dans dossier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "n8n API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('04. Verifier resultat').first().json;\nlet movedToFolder = false;\n\ntry {\n  const moveResult = $('06. Deplacer dans dossier').first();\n  movedToFolder = moveResult && !moveResult.json?.message?.includes('error');\n} catch {\n  // pas de deplacement\n}\n\nreturn [{ json: {\n  success: !!data.workflowId,\n  workflowId: data.workflowId,\n  workflowName: data.workflowName,\n  clientName: data.clientName,\n  movedToFolder,\n  message: data.workflowId\n    ? `Workflow \"${data.workflowName}\" cree${movedToFolder ? ' et deplace dans le dossier' : ''}`\n    : 'Erreur: workflow non cree'\n} }];"
+      },
+      "id": "final-result",
+      "name": "07. Resultat final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "08. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1790, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook Test": {
+      "main": [
+        [{ "node": "02. Preparer", "type": "main", "index": 0 }]
+      ]
+    },
+    "02. Preparer": {
+      "main": [
+        [{ "node": "03. Creer workflow via API", "type": "main", "index": 0 }]
+      ]
+    },
+    "03. Creer workflow via API": {
+      "main": [
+        [{ "node": "04. Verifier resultat", "type": "main", "index": 0 }]
+      ]
+    },
+    "04. Verifier resultat": {
+      "main": [
+        [{ "node": "05. Peut deplacer?", "type": "main", "index": 0 }]
+      ]
+    },
+    "05. Peut deplacer?": {
+      "main": [
+        [{ "node": "06. Deplacer dans dossier", "type": "main", "index": 0 }],
+        [{ "node": "07. Resultat final", "type": "main", "index": 0 }]
+      ]
+    },
+    "06. Deplacer dans dossier": {
+      "main": [
+        [{ "node": "07. Resultat final", "type": "main", "index": 0 }]
+      ]
+    },
+    "07. Resultat final": {
+      "main": [
+        [{ "node": "08. Repondre", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "talosprimes" },
+    { "name": "test" }
+  ]
+}

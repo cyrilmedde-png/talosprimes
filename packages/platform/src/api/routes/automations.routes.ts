@@ -174,7 +174,8 @@ export async function automationsRoutes(fastify: FastifyInstance) {
 
   // ──────────────────────────────────────────────
   // POST /activate - Admin active une automatisation pour un client
-  // Cree le dossier n8n au nom du client + deploie les workflows
+  // Cree le workflow n8n nomme [Client] NomWorkflow
+  // Si un folderId existe deja, deplace le workflow dedans
   // ──────────────────────────────────────────────
   fastify.post('/activate', {
     preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
@@ -199,27 +200,44 @@ export async function automationsRoutes(fastify: FastifyInstance) {
       const folderName = tenant[0].nom_entreprise;
       const auto = automation[0];
 
-      // 2. Declencher le workflow n8n qui cree le dossier + deploie les workflows
+      // 2. Verifier si ce tenant a deja un folderId n8n (depuis un achat precedent)
+      const existingPurchase = await prisma.$queryRaw<Array<{ n8n_folder_id: string | null }>>`
+        SELECT n8n_folder_id FROM automation_purchases
+        WHERE tenant_id = ${tenantId}::uuid AND n8n_folder_id IS NOT NULL
+        LIMIT 1
+      `;
+      const existingFolderId = existingPurchase.length ? existingPurchase[0].n8n_folder_id : null;
+
+      // 3. Declencher le workflow n8n qui cree le workflow + le deplace si possible
       const n8nResult = await n8nService.callWorkflowReturn(tenantId, 'automation_activate', {
         tenantId,
         automationCode: auto.code,
         automationNom: auto.nom,
         folderName,
+        existingFolderId,
       });
 
-      const n8nFolderId = (n8nResult.data as Record<string, unknown>)?.folderId as string || null;
-      const n8nFolderName = (n8nResult.data as Record<string, unknown>)?.folderName as string || folderName;
-      const workflowIds = (n8nResult.data as Record<string, unknown>)?.workflowIds || [];
+      const resultData = n8nResult.data as Record<string, unknown> || {};
+      const n8nFolderId = resultData.folderId as string || existingFolderId || null;
+      const n8nFolderName = resultData.folderName as string || `[Client] ${folderName}`;
+      const workflowIds = resultData.workflowIds || [];
 
-      // 3. Mettre a jour l'achat en base
+      // 4. Mettre a jour l'achat en base
       await prisma.$executeRaw`
         INSERT INTO automation_purchases (tenant_id, automation_id, status, n8n_folder_id, n8n_folder_name, n8n_workflow_ids, setup_price_paid, monthly_price, activated_at, created_at, updated_at)
         VALUES (${tenantId}::uuid, ${automationId}::uuid, 'active', ${n8nFolderId}, ${n8nFolderName}, ${JSON.stringify(workflowIds)}::jsonb, ${auto.setup_price}, ${auto.monthly_price}, NOW(), NOW(), NOW())
         ON CONFLICT (tenant_id, automation_id) DO UPDATE SET
           status = 'active',
-          n8n_folder_id = ${n8nFolderId},
-          n8n_folder_name = ${n8nFolderName},
-          n8n_workflow_ids = ${JSON.stringify(workflowIds)}::jsonb,
+          n8n_folder_id = COALESCE(${n8nFolderId}, automation_purchases.n8n_folder_id),
+          n8n_folder_name = COALESCE(${n8nFolderName}, automation_purchases.n8n_folder_name),
+          n8n_workflow_ids = (
+            SELECT jsonb_agg(DISTINCT val)
+            FROM (
+              SELECT jsonb_array_elements(COALESCE(automation_purchases.n8n_workflow_ids, '[]'::jsonb)) AS val
+              UNION ALL
+              SELECT jsonb_array_elements(${JSON.stringify(workflowIds)}::jsonb) AS val
+            ) sub
+          ),
           activated_at = NOW(),
           updated_at = NOW()
       `;
@@ -318,6 +336,41 @@ export async function automationsRoutes(fastify: FastifyInstance) {
     } catch (error) {
       fastify.log.error(error, '[automations/catalog PUT] Erreur');
       return reply.status(500).send({ success: false, error: 'Erreur modification' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // PUT /folder/:tenantId - Admin associe un dossier n8n a un tenant
+  // Permet de lier un dossier cree manuellement dans n8n
+  // ──────────────────────────────────────────────
+  fastify.put('/folder/:tenantId', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    const { folderId, folderName } = request.body as { folderId: string; folderName?: string };
+
+    if (!folderId) {
+      return reply.status(400).send({ error: 'folderId requis' });
+    }
+
+    try {
+      // Mettre a jour tous les achats de ce tenant avec le folderId
+      await prisma.$executeRaw`
+        UPDATE automation_purchases
+        SET n8n_folder_id = ${folderId},
+            n8n_folder_name = COALESCE(${folderName || null}, n8n_folder_name),
+            updated_at = NOW()
+        WHERE tenant_id = ${tenantId}::uuid
+      `;
+
+      return reply.send({
+        success: true,
+        message: `Dossier n8n associe au tenant`,
+        data: { folderId, folderName },
+      });
+    } catch (error) {
+      fastify.log.error(error, '[automations/folder PUT] Erreur');
+      return reply.status(500).send({ success: false, error: 'Erreur association dossier' });
     }
   });
 }

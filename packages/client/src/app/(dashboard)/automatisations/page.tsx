@@ -252,9 +252,9 @@ export default function AutomatisationsPage() {
         }
 
         // Convertir le catalogue en Automation[]
-        // Admin: toutes actives | Client: selon les achats
+        // Le statut depend des achats reels en base, pas du role
         const list = catalog.map(item => {
-          const purchaseStatus = isAdmin ? 'actif' : (purchaseMap.get(item.id) || 'inactif');
+          const purchaseStatus = purchaseMap.get(item.id) || 'inactif';
           return catalogToAutomation(item, purchaseStatus);
         });
 

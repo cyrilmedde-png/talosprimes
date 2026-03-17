@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Recuperer les donnees du webhook\nconst body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationCode = body.automationCode;\nconst automationNom = body.automationNom;\nconst folderName = body.folderName || 'Client';\n\n// Nom du dossier dans n8n : \"[Client] NomEntreprise\"\nconst n8nFolderName = `[Client] ${folderName}`;\n\nreturn [{\n  json: {\n    tenantId,\n    automationCode,\n    automationNom,\n    folderName: n8nFolderName,\n    originalFolderName: folderName\n  }\n}];"
+        "jsCode": "// Recuperer les donnees du webhook\nconst body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationCode = body.automationCode;\nconst automationNom = body.automationNom;\nconst folderName = body.folderName || 'Client';\nconst existingFolderId = body.existingFolderId || null;\n\n// Nom du dossier dans n8n : \"[Client] NomEntreprise\"\nconst n8nFolderName = `[Client] ${folderName}`;\n\nreturn [{\n  json: {\n    tenantId,\n    automationCode,\n    automationNom,\n    folderName: n8nFolderName,\n    originalFolderName: folderName,\n    existingFolderId\n  }\n}];"
       },
       "id": "prepare-data",
       "name": "02. Preparer donnees",
@@ -26,20 +26,36 @@
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/projects",
+        "jsCode": "// Construire le workflow a creer pour ce client\nconst data = $input.first().json;\nconst clientName = data.originalFolderName;\nconst automationCode = data.automationCode;\nconst automationNom = data.automationNom;\n\n// Workflow de base pour cette automatisation\nconst workflow = {\n  name: `[${clientName}] ${automationNom}`,\n  nodes: [\n    {\n      parameters: {\n        rule: {\n          interval: [{ field: 'hours', hoursInterval: 24 }]\n        }\n      },\n      id: 'schedule-node',\n      name: 'Declencheur',\n      type: 'n8n-nodes-base.scheduleTrigger',\n      typeVersion: 1.2,\n      position: [250, 300]\n    },\n    {\n      parameters: {\n        jsCode: `// Automatisation: ${automationNom}\\n// Client: ${clientName}\\n// Code: ${automationCode}\\n// Cree automatiquement par TalosPrimes\\nconst now = new Date().toISOString();\\nreturn [{ json: { client: '${clientName}', automation: '${automationCode}', timestamp: now, status: 'ok' } }];`\n      },\n      id: 'code-node',\n      name: 'Traitement',\n      type: 'n8n-nodes-base.code',\n      typeVersion: 2,\n      position: [470, 300]\n    }\n  ],\n  connections: {\n    'Declencheur': {\n      main: [\n        [{ node: 'Traitement', type: 'main', index: 0 }]\n      ]\n    }\n  },\n  settings: { executionOrder: 'v1' }\n};\n\nreturn [{ json: { ...data, workflow } }];"
+      },
+      "id": "build-workflow",
+      "name": "03. Construire workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {},
-        "headerParameters": {
-          "parameters": []
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.workflow) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
         }
       },
-      "id": "list-projects",
-      "name": "03. Lister dossiers n8n",
+      "id": "create-workflow",
+      "name": "04. Creer workflow via API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [690, 300],
+      "position": [910, 300],
       "credentials": {
         "httpHeaderAuth": {
           "name": "n8n API Key"
@@ -48,53 +64,59 @@
     },
     {
       "parameters": {
-        "jsCode": "// Verifier si un dossier (project) existe deja pour ce client\nconst projects = $input.first().json.data || $input.first().json || [];\nconst folderName = $('02. Preparer donnees').first().json.folderName;\n\nconst existing = Array.isArray(projects) \n  ? projects.find(p => p.name === folderName)\n  : null;\n\nreturn [{\n  json: {\n    folderExists: !!existing,\n    folderId: existing ? existing.id : null,\n    folderName: folderName,\n    tenantId: $('02. Preparer donnees').first().json.tenantId,\n    automationCode: $('02. Preparer donnees').first().json.automationCode,\n    automationNom: $('02. Preparer donnees').first().json.automationNom\n  }\n}];"
+        "jsCode": "// Recuperer le resultat de la creation\nconst response = $input.first().json;\nconst workflowId = response.id || null;\nconst workflowName = response.name || null;\nconst data = $('02. Preparer donnees').first().json;\nconst existingFolderId = data.existingFolderId;\n\n// Si on a un folderId existant et un workflowId, on peut deplacer\nconst canMove = !!(existingFolderId && workflowId);\n\nreturn [{ json: {\n  workflowId,\n  workflowName,\n  folderId: existingFolderId,\n  folderName: data.folderName,\n  tenantId: data.tenantId,\n  automationCode: data.automationCode,\n  automationNom: data.automationNom,\n  canMove,\n  status: workflowId ? 'workflow_cree' : 'erreur_creation'\n} }];"
       },
-      "id": "check-folder",
-      "name": "04. Verifier dossier existant",
+      "id": "check-result",
+      "name": "05. Verifier creation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [910, 300]
+      "position": [1130, 300]
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ $json.folderExists }}",
+              "value1": "={{ $json.canMove }}",
               "value2": true
             }
           ]
         }
       },
-      "id": "if-folder-exists",
-      "name": "05. Dossier existe?",
+      "id": "if-can-move",
+      "name": "06. Peut deplacer?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1130, 300]
+      "position": [1350, 300]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/projects",
+        "method": "PUT",
+        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows/{{ $('05. Verifier creation').first().json.workflowId }}/transfer",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
-              "name": "name",
-              "value": "={{ $('04. Verifier dossier existant').first().json.folderName }}"
+              "name": "destinationProjectId",
+              "value": "={{ $('05. Verifier creation').first().json.folderId }}"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
-      "id": "create-folder",
-      "name": "06. Creer dossier n8n",
+      "id": "move-workflow",
+      "name": "07. Deplacer dans dossier",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1350, 450],
+      "position": [1570, 200],
       "credentials": {
         "httpHeaderAuth": {
           "name": "n8n API Key"
@@ -103,24 +125,24 @@
     },
     {
       "parameters": {
-        "jsCode": "// Recuperer l'ID du dossier (cree ou existant)\nlet folderId;\nlet folderName;\n\ntry {\n  // Si on vient de creer le dossier\n  const created = $('06. Creer dossier n8n').first();\n  if (created) {\n    folderId = created.json.id || created.json.data?.id;\n    folderName = created.json.name || created.json.data?.name;\n  }\n} catch {\n  // Dossier existait deja\n  const existing = $('04. Verifier dossier existant').first();\n  folderId = existing.json.folderId;\n  folderName = existing.json.folderName;\n}\n\nconst data = $('04. Verifier dossier existant').first().json;\n\nreturn [{\n  json: {\n    folderId: folderId || data.folderId,\n    folderName: folderName || data.folderName,\n    tenantId: data.tenantId,\n    automationCode: data.automationCode,\n    automationNom: data.automationNom,\n    workflowIds: []\n  }\n}];"
+        "jsCode": "const data = $('05. Verifier creation').first().json;\nlet movedToFolder = false;\n\ntry {\n  const moveResult = $('07. Deplacer dans dossier').first();\n  movedToFolder = moveResult && !moveResult.json?.message?.includes('error');\n} catch {\n  // pas de deplacement effectue\n}\n\nreturn [{ json: {\n  success: !!data.workflowId,\n  workflowId: data.workflowId,\n  workflowName: data.workflowName,\n  folderId: data.folderId,\n  folderName: data.folderName,\n  tenantId: data.tenantId,\n  automationCode: data.automationCode,\n  movedToFolder,\n  workflowIds: data.workflowId ? [data.workflowId] : [],\n  message: data.workflowId\n    ? `Workflow \"${data.workflowName}\" cree avec succes${movedToFolder ? ` et deplace dans \"${data.folderName}\"` : ''}`\n    : 'Erreur lors de la creation du workflow'\n} }];"
       },
-      "id": "merge-folder-id",
-      "name": "07. Recuperer ID dossier",
+      "id": "final-result",
+      "name": "08. Resultat final",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1570, 300]
+      "position": [1790, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, data: { folderId: $json.folderId, folderName: $json.folderName, workflowIds: $json.workflowIds, automationCode: $json.automationCode } }) }}"
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
       "id": "respond",
-      "name": "08. Repondre",
+      "name": "09. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1790, 300]
+      "position": [2010, 300]
     }
   ],
   "connections": {
@@ -131,33 +153,38 @@
     },
     "02. Preparer donnees": {
       "main": [
-        [{ "node": "03. Lister dossiers n8n", "type": "main", "index": 0 }]
+        [{ "node": "03. Construire workflow", "type": "main", "index": 0 }]
       ]
     },
-    "03. Lister dossiers n8n": {
+    "03. Construire workflow": {
       "main": [
-        [{ "node": "04. Verifier dossier existant", "type": "main", "index": 0 }]
+        [{ "node": "04. Creer workflow via API", "type": "main", "index": 0 }]
       ]
     },
-    "04. Verifier dossier existant": {
+    "04. Creer workflow via API": {
       "main": [
-        [{ "node": "05. Dossier existe?", "type": "main", "index": 0 }]
+        [{ "node": "05. Verifier creation", "type": "main", "index": 0 }]
       ]
     },
-    "05. Dossier existe?": {
+    "05. Verifier creation": {
       "main": [
-        [{ "node": "07. Recuperer ID dossier", "type": "main", "index": 0 }],
-        [{ "node": "06. Creer dossier n8n", "type": "main", "index": 0 }]
+        [{ "node": "06. Peut deplacer?", "type": "main", "index": 0 }]
       ]
     },
-    "06. Creer dossier n8n": {
+    "06. Peut deplacer?": {
       "main": [
-        [{ "node": "07. Recuperer ID dossier", "type": "main", "index": 0 }]
+        [{ "node": "07. Deplacer dans dossier", "type": "main", "index": 0 }],
+        [{ "node": "08. Resultat final", "type": "main", "index": 0 }]
       ]
     },
-    "07. Recuperer ID dossier": {
+    "07. Deplacer dans dossier": {
       "main": [
-        [{ "node": "08. Repondre", "type": "main", "index": 0 }]
+        [{ "node": "08. Resultat final", "type": "main", "index": 0 }]
+      ]
+    },
+    "08. Resultat final": {
+      "main": [
+        [{ "node": "09. Repondre", "type": "main", "index": 0 }]
       ]
     }
   },
