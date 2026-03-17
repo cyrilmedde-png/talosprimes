@@ -543,9 +543,15 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
 
     try {
       const res = await n8nService.callWorkflowReturn(tenantId, 'newsletter_dashboard', {});
-      const data = res.data as any;
-      return reply.send({ success: true, data });
+      fastify.log.info({ tenantId, resKeys: res ? Object.keys(res) : null, dataKeys: res?.data ? Object.keys(res.data as object) : null }, '[newsletter/dashboard] n8n response structure');
+
+      if (!res.success) {
+        return reply.send({ success: false, error: res.error || 'Workflow n8n a échoué' });
+      }
+
+      return reply.send({ success: true, data: res.data });
     } catch (error) {
+      fastify.log.error({ tenantId, error: error instanceof Error ? error.message : String(error) }, '[newsletter/dashboard] Erreur');
       return reply.status(200).send({
         success: false,
         error: `Erreur n8n: ${error instanceof Error ? error.message : 'Erreur inconnue'}`

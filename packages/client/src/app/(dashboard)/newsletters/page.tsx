@@ -4,48 +4,61 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
 
+// Les clés arrivent en camelCase grâce au transformKeys de callWorkflowReturn
+// Mais on accepte aussi snake_case (accès direct n8n) via des getters
 interface Dashboard {
   campaigns: {
     total: number;
     brouillon: number;
     planifiee: number;
     envoyee: number;
-    total_envoyes: number;
-    total_ouverts: number;
-    total_cliques: number;
-    total_bounces: number;
-    total_desabonnes: number;
+    totalEnvoyes?: number; total_envoyes?: number;
+    totalOuverts?: number; total_ouverts?: number;
+    totalCliques?: number; total_cliques?: number;
+    totalBounces?: number; total_bounces?: number;
+    totalDesabonnes?: number; total_desabonnes?: number;
   };
   subscribers: {
     total: number;
     active: number;
     unsubscribed: number;
     bounced: number;
-    new_last_30_days: number;
-    total_lists: number;
+    newLast30Days?: number; new_last_30_days?: number;
+    totalLists?: number; total_lists?: number;
   };
   sms: {
     total: number;
-    total_envoyes: number;
-    total_delivered: number;
-    total_failed: number;
+    totalEnvoyes?: number; total_envoyes?: number;
+    totalDelivered?: number; total_delivered?: number;
+    totalFailed?: number; total_failed?: number;
   };
   templates: {
     total: number;
   };
-  recent_campaigns: Array<{
+  recentCampaigns?: Array<{
     id: string;
     nom: string;
     sujet: string;
     status: string;
-    scheduled_at: string | null;
-    sent_at: string | null;
-    total_envoyes: number;
-    total_ouverts: number;
-    total_cliques: number;
+    scheduledAt?: string | null; scheduled_at?: string | null;
+    sentAt?: string | null; sent_at?: string | null;
+    totalEnvoyes?: number; total_envoyes?: number;
+    totalOuverts?: number; total_ouverts?: number;
+    totalCliques?: number; total_cliques?: number;
   }>;
-  avg_open_rate: number;
-  avg_click_rate: number;
+  recent_campaigns?: Array<{
+    id: string;
+    nom: string;
+    sujet: string;
+    status: string;
+    scheduledAt?: string | null; scheduled_at?: string | null;
+    sentAt?: string | null; sent_at?: string | null;
+    totalEnvoyes?: number; total_envoyes?: number;
+    totalOuverts?: number; total_ouverts?: number;
+    totalCliques?: number; total_cliques?: number;
+  }>;
+  avgOpenRate?: number; avg_open_rate?: number;
+  avgClickRate?: number; avg_click_rate?: number;
 }
 
 export default function NewsletterDashboardPage() {
@@ -61,13 +74,35 @@ export default function NewsletterDashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await apiClient.newsletter.getDashboard() as { success: boolean; data: { dashboard: Dashboard } };
-      if (res.success && res.data?.dashboard) {
-        setData(res.data.dashboard);
+      const res = await apiClient.newsletter.getDashboard() as Record<string, unknown>;
+      console.log('[Newsletter Dashboard] API response:', JSON.stringify(res));
+
+      // callWorkflowReturn peut renvoyer { success, data } ou le workflow peut échouer
+      if (!res.success) {
+        setError((res.error as string) || 'Erreur lors du chargement du dashboard');
+        return;
+      }
+
+      // La data peut être à plusieurs niveaux selon le wrapping de callWorkflowReturn
+      const apiData = res.data as Record<string, unknown> | undefined;
+
+      // Chercher le dashboard dans la réponse (peut être à data.dashboard ou directement data)
+      let dashboard: Dashboard | null = null;
+      if (apiData?.dashboard) {
+        dashboard = apiData.dashboard as Dashboard;
+      } else if (apiData && ('campaigns' in apiData || 'subscribers' in apiData)) {
+        // Le dashboard est directement dans data (pas de wrapper dashboard)
+        dashboard = apiData as unknown as Dashboard;
+      }
+
+      if (dashboard) {
+        setData(dashboard);
       } else {
-        setError('Impossible de charger le dashboard');
+        console.error('[Newsletter Dashboard] Structure inattendue:', JSON.stringify(res));
+        setError('Structure de réponse inattendue du dashboard');
       }
     } catch (err) {
+      console.error('[Newsletter Dashboard] Erreur:', err);
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
@@ -106,7 +141,26 @@ export default function NewsletterDashboardPage() {
   const d = data;
   const c = d?.campaigns;
   const s = d?.subscribers;
-  const sms = d?.sms;
+  const smsData = d?.sms;
+
+  // Helpers pour accéder aux données en camelCase ou snake_case
+  const cEnvoyes = c?.totalEnvoyes ?? c?.total_envoyes ?? 0;
+  const cOuverts = c?.totalOuverts ?? c?.total_ouverts ?? 0;
+  const cCliques = c?.totalCliques ?? c?.total_cliques ?? 0;
+  const cBounces = c?.totalBounces ?? c?.total_bounces ?? 0;
+  const cDesabonnes = c?.totalDesabonnes ?? c?.total_desabonnes ?? 0;
+  const sActive = s?.active ?? 0;
+  const sTotal = s?.total ?? 0;
+  const sNew30d = s?.newLast30Days ?? s?.new_last_30_days ?? 0;
+  const sLists = s?.totalLists ?? s?.total_lists ?? 0;
+  const sUnsubscribed = s?.unsubscribed ?? 0;
+  const sBounced = s?.bounced ?? 0;
+  const smsTotal = smsData?.total ?? 0;
+  const smsEnvoyes = smsData?.totalEnvoyes ?? smsData?.total_envoyes ?? 0;
+  const smsDelivered = smsData?.totalDelivered ?? smsData?.total_delivered ?? 0;
+  const avgOpen = d?.avgOpenRate ?? d?.avg_open_rate ?? 0;
+  const avgClick = d?.avgClickRate ?? d?.avg_click_rate ?? 0;
+  const recentCamps = d?.recentCampaigns ?? d?.recent_campaigns ?? [];
 
   return (
     <div className="min-h-screen bg-gray-900 p-6">
@@ -140,22 +194,22 @@ export default function NewsletterDashboardPage() {
           </div>
           <div className="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
             <p className="text-gray-400 text-xs uppercase tracking-wide">Emails envoyés</p>
-            <p className="text-3xl font-bold text-blue-400 mt-2">{(c?.total_envoyes || 0).toLocaleString('fr-FR')}</p>
-            <p className="text-gray-500 text-xs mt-1">{c?.total_bounces || 0} bounces</p>
+            <p className="text-3xl font-bold text-blue-400 mt-2">{cEnvoyes.toLocaleString('fr-FR')}</p>
+            <p className="text-gray-500 text-xs mt-1">{cBounces} bounces</p>
           </div>
           <div className="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
             <p className="text-gray-400 text-xs uppercase tracking-wide">Abonnés actifs</p>
-            <p className="text-3xl font-bold text-green-400 mt-2">{(s?.active || 0).toLocaleString('fr-FR')}</p>
-            <p className="text-gray-500 text-xs mt-1">{s?.new_last_30_days ? `+${s.new_last_30_days} ce mois` : `${s?.total_lists || 0} listes`}</p>
+            <p className="text-3xl font-bold text-green-400 mt-2">{sActive.toLocaleString('fr-FR')}</p>
+            <p className="text-gray-500 text-xs mt-1">{sNew30d ? `+${sNew30d} ce mois` : `${sLists} listes`}</p>
           </div>
           <div className="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
-            <p className="text-gray-400 text-xs uppercase tracking-wide">Taux d'ouverture</p>
-            <p className="text-3xl font-bold text-emerald-400 mt-2">{d?.avg_open_rate || 0}%</p>
+            <p className="text-gray-400 text-xs uppercase tracking-wide">Taux d&#39;ouverture</p>
+            <p className="text-3xl font-bold text-emerald-400 mt-2">{avgOpen}%</p>
             <p className="text-gray-500 text-xs mt-1">moyenne globale</p>
           </div>
           <div className="bg-gray-800/60 rounded-xl p-5 border border-gray-700">
             <p className="text-gray-400 text-xs uppercase tracking-wide">Taux de clic</p>
-            <p className="text-3xl font-bold text-purple-400 mt-2">{d?.avg_click_rate || 0}%</p>
+            <p className="text-3xl font-bold text-purple-400 mt-2">{avgClick}%</p>
             <p className="text-gray-500 text-xs mt-1">moyenne globale</p>
           </div>
         </div>
@@ -173,7 +227,7 @@ export default function NewsletterDashboardPage() {
             <span className="text-2xl">👥</span>
             <div>
               <p className="text-white text-sm font-medium group-hover:text-blue-400 transition">Contacts</p>
-              <p className="text-gray-500 text-xs">{s?.total || 0} abonnés</p>
+              <p className="text-gray-500 text-xs">{sTotal} abonnés</p>
             </div>
           </Link>
           <Link href="/newsletters/templates" className="flex items-center gap-3 bg-gray-800/40 hover:bg-gray-800/70 border border-gray-700 rounded-lg px-4 py-3.5 transition group">
@@ -187,7 +241,7 @@ export default function NewsletterDashboardPage() {
             <span className="text-2xl">💬</span>
             <div>
               <p className="text-white text-sm font-medium group-hover:text-blue-400 transition">SMS</p>
-              <p className="text-gray-500 text-xs">{sms?.total || 0} campagnes</p>
+              <p className="text-gray-500 text-xs">{smsTotal} campagnes</p>
             </div>
           </Link>
           <Link href="/newsletters/analytics" className="flex items-center gap-3 bg-gray-800/40 hover:bg-gray-800/70 border border-gray-700 rounded-lg px-4 py-3.5 transition group">
@@ -209,49 +263,49 @@ export default function NewsletterDashboardPage() {
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <span className="text-gray-400 text-sm">Ouverts</span>
-                  <span className="text-white font-medium text-sm">{(c?.total_ouverts || 0).toLocaleString('fr-FR')}</span>
+                  <span className="text-white font-medium text-sm">{cOuverts.toLocaleString('fr-FR')}</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2.5">
                   <div
                     className="bg-green-500 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${(c?.total_envoyes || 0) > 0 ? ((c?.total_ouverts || 0) / (c?.total_envoyes || 1) * 100) : 0}%` }}
+                    style={{ width: `${cEnvoyes > 0 ? (cOuverts / cEnvoyes * 100) : 0}%` }}
                   />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <span className="text-gray-400 text-sm">Cliqués</span>
-                  <span className="text-white font-medium text-sm">{(c?.total_cliques || 0).toLocaleString('fr-FR')}</span>
+                  <span className="text-white font-medium text-sm">{cCliques.toLocaleString('fr-FR')}</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2.5">
                   <div
                     className="bg-purple-500 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${(c?.total_envoyes || 0) > 0 ? ((c?.total_cliques || 0) / (c?.total_envoyes || 1) * 100) : 0}%` }}
+                    style={{ width: `${cEnvoyes > 0 ? (cCliques / cEnvoyes * 100) : 0}%` }}
                   />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <span className="text-gray-400 text-sm">Désabonnés</span>
-                  <span className="text-white font-medium text-sm">{c?.total_desabonnes || 0}</span>
+                  <span className="text-white font-medium text-sm">{cDesabonnes}</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2.5">
                   <div
                     className="bg-red-500 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${(c?.total_envoyes || 0) > 0 ? ((c?.total_desabonnes || 0) / (c?.total_envoyes || 1) * 100) : 0}%` }}
+                    style={{ width: `${cEnvoyes > 0 ? (cDesabonnes / cEnvoyes * 100) : 0}%` }}
                   />
                 </div>
               </div>
-              {(sms?.total || 0) > 0 && (
+              {smsTotal > 0 && (
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
                     <span className="text-gray-400 text-sm">SMS délivrés</span>
-                    <span className="text-white font-medium text-sm">{(sms?.total_delivered || 0).toLocaleString('fr-FR')}</span>
+                    <span className="text-white font-medium text-sm">{smsDelivered.toLocaleString('fr-FR')}</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2.5">
                     <div
                       className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
-                      style={{ width: `${(sms?.total_envoyes || 0) > 0 ? ((sms?.total_delivered || 0) / (sms?.total_envoyes || 1) * 100) : 0}%` }}
+                      style={{ width: `${smsEnvoyes > 0 ? (smsDelivered / smsEnvoyes * 100) : 0}%` }}
                     />
                   </div>
                 </div>
@@ -268,27 +322,27 @@ export default function NewsletterDashboardPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-900/50 rounded-lg p-3">
                 <p className="text-gray-400 text-xs">Actifs</p>
-                <p className="text-2xl font-bold text-green-400">{(s?.active || 0).toLocaleString('fr-FR')}</p>
+                <p className="text-2xl font-bold text-green-400">{sActive.toLocaleString('fr-FR')}</p>
               </div>
               <div className="bg-gray-900/50 rounded-lg p-3">
                 <p className="text-gray-400 text-xs">Désabonnés</p>
-                <p className="text-2xl font-bold text-red-400">{s?.unsubscribed || 0}</p>
+                <p className="text-2xl font-bold text-red-400">{sUnsubscribed}</p>
               </div>
               <div className="bg-gray-900/50 rounded-lg p-3">
                 <p className="text-gray-400 text-xs">Bounced</p>
-                <p className="text-2xl font-bold text-orange-400">{s?.bounced || 0}</p>
+                <p className="text-2xl font-bold text-orange-400">{sBounced}</p>
               </div>
               <div className="bg-gray-900/50 rounded-lg p-3">
                 <p className="text-gray-400 text-xs">Nouveaux (30j)</p>
-                <p className="text-2xl font-bold text-blue-400">{s?.new_last_30_days || 0}</p>
+                <p className="text-2xl font-bold text-blue-400">{sNew30d}</p>
               </div>
               <div className="bg-gray-900/50 rounded-lg p-3">
                 <p className="text-gray-400 text-xs">Listes</p>
-                <p className="text-2xl font-bold text-purple-400">{s?.total_lists || 0}</p>
+                <p className="text-2xl font-bold text-purple-400">{sLists}</p>
               </div>
               <div className="bg-gray-900/50 rounded-lg p-3">
                 <p className="text-gray-400 text-xs">Total</p>
-                <p className="text-2xl font-bold text-white">{(s?.total || 0).toLocaleString('fr-FR')}</p>
+                <p className="text-2xl font-bold text-white">{sTotal.toLocaleString('fr-FR')}</p>
               </div>
             </div>
           </div>
@@ -314,7 +368,7 @@ export default function NewsletterDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700/50">
-                {(!d?.recent_campaigns || d.recent_campaigns.length === 0) ? (
+                {recentCamps.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
                       <p className="text-lg mb-2">Aucune campagne</p>
@@ -322,15 +376,15 @@ export default function NewsletterDashboardPage() {
                     </td>
                   </tr>
                 ) : (
-                  d.recent_campaigns.map((camp) => (
+                  recentCamps.map((camp) => (
                     <tr key={camp.id} className="hover:bg-gray-800/40 transition">
                       <td className="px-6 py-3.5 text-white text-sm font-medium">{camp.nom}</td>
                       <td className="px-6 py-3.5 text-gray-400 text-sm truncate max-w-[200px]">{camp.sujet}</td>
                       <td className="px-6 py-3.5">{getStatusBadge(camp.status)}</td>
-                      <td className="px-6 py-3.5 text-gray-400 text-sm">{formatDate(camp.sent_at || camp.scheduled_at)}</td>
-                      <td className="px-6 py-3.5 text-center text-gray-300 text-sm">{camp.total_envoyes}</td>
-                      <td className="px-6 py-3.5 text-center text-gray-300 text-sm">{camp.total_ouverts}</td>
-                      <td className="px-6 py-3.5 text-center text-gray-300 text-sm">{camp.total_cliques}</td>
+                      <td className="px-6 py-3.5 text-gray-400 text-sm">{formatDate(camp.sentAt || camp.sent_at || camp.scheduledAt || camp.scheduled_at)}</td>
+                      <td className="px-6 py-3.5 text-center text-gray-300 text-sm">{camp.totalEnvoyes ?? camp.total_envoyes ?? 0}</td>
+                      <td className="px-6 py-3.5 text-center text-gray-300 text-sm">{camp.totalOuverts ?? camp.total_ouverts ?? 0}</td>
+                      <td className="px-6 py-3.5 text-center text-gray-300 text-sm">{camp.totalCliques ?? camp.total_cliques ?? 0}</td>
                     </tr>
                   ))
                 )}
