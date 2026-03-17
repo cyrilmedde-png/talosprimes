@@ -1,5 +1,5 @@
--- Ajouter le module "automatisations" dans la table modules_metier
-INSERT INTO modules_metier (id, code, "nom_affiché", description, categorie, "prix_par_mois", ordre_affichage, actif, created_at, updated_at)
+-- Ajouter le module "automatisations" dans la table module_metiers
+INSERT INTO module_metiers (id, code, "nom_affiché", description, categorie, "prix_par_mois", ordre_affichage, actif, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   'automatisations',
