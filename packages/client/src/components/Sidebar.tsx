@@ -49,6 +49,7 @@ import {
   PaperAirplaneIcon,
   UserGroupIcon,
   RectangleStackIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/auth-store';
 import { clearTokens } from '@/lib/auth';
@@ -87,6 +88,7 @@ const allNavGroups: NavGroup[] = [
       { name: 'Plans & Modules', href: '/plans', icon: BanknotesIcon },
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
       { name: 'Notifications', href: '/notifications', icon: BellIcon },
+      { name: 'Automatisations', href: '/automatisations', icon: BoltIcon },
       { name: 'CMS Landing Page', href: '/cms', icon: PencilSquareIcon },
     ],
   },
