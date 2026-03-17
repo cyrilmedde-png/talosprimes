@@ -18,7 +18,6 @@ import {
   PlayIcon,
   PauseIcon,
   Cog6ToothIcon,
-  EyeIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   PlusIcon,
