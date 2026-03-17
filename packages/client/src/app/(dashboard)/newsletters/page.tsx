@@ -121,7 +121,7 @@ export default function NewsletterDashboardPage() {
     return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${s.bg}`}>{s.label}</span>;
   };
 
-  const formatDate = (d: string | null) => {
+  const formatDate = (d: string | null | undefined) => {
     if (!d) return '—';
     try { return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }); }
     catch { return d; }
