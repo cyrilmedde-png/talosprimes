@@ -76,19 +76,37 @@ type NavGroup = {
 };
 
 const allNavGroups: NavGroup[] = [
-  // ─── Administration (Dashboard + Assistant IA + Admin) ───
+  // ─── Accès rapide (toujours visible, hors menu déroulant) ───
   {
-    label: 'Administration',
+    label: 'Dashboard',
     icon: HomeIcon,
     requiredModules: [],
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
       { name: 'Assistant IA', href: '/assistant', icon: SparklesIcon },
+    ],
+  },
+
+  // ─── Automatisations (module activable par client) ───
+  {
+    label: 'Automatisations',
+    icon: BoltIcon,
+    requiredModules: ['automatisations'],
+    items: [
+      { name: 'Automatisations', href: '/automatisations', icon: BoltIcon },
+    ],
+  },
+
+  // ─── Administration ───
+  {
+    label: 'Administration',
+    icon: Cog6ToothIcon,
+    requiredModules: [],
+    items: [
       { name: 'Paramètres', href: '/settings', icon: Cog6ToothIcon },
       { name: 'Plans & Modules', href: '/plans', icon: BanknotesIcon },
       { name: 'Logs', href: '/logs', icon: ClipboardDocumentListIcon },
       { name: 'Notifications', href: '/notifications', icon: BellIcon },
-      { name: 'Automatisations', href: '/automatisations', icon: BoltIcon },
       { name: 'CMS Landing Page', href: '/cms', icon: PencilSquareIcon },
     ],
   },
