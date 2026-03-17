@@ -262,9 +262,10 @@ export default function AutomatisationsPage() {
   const [selectedCategorie, setSelectedCategorie] = useState<string>('all');
 
   // Admin = toutes actives | Client = selon ses achats
+  // Les stats reelles (executionsToday, successRate) viendront de l'API EventLog
   const [automations] = useState<Automation[]>(() =>
     isAdmin
-      ? CATALOGUE.map(a => ({ ...a, status: 'actif' as const, successRate: 98, executionsToday: Math.floor(Math.random() * 50) + 5 }))
+      ? CATALOGUE.map(a => ({ ...a, status: 'actif' as const }))
       : CATALOGUE
   );
   const [stats, setStats] = useState<AutomationStats>({
@@ -287,8 +288,8 @@ export default function AutomatisationsPage() {
         totalAutomations: automations.length,
         actives: actives.length,
         executionsToday: totalExec,
-        tauxReussite: isAdmin ? 98 : 0,
-        erreurs24h: isAdmin ? 2 : 0,
+        tauxReussite: 0,
+        erreurs24h: 0,
       });
     } finally {
       setLoading(false);
