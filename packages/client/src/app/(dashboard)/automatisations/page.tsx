@@ -38,7 +38,7 @@ import { authenticatedFetch } from '@/lib/api-client';
 type AutomationComplexity = 'simple' | 'intermediaire' | 'avance';
 type AutomationStatus = 'actif' | 'inactif' | 'en_attente' | 'suspendue' | 'erreur';
 type PurchaseStatus = 'en_attente' | 'active' | 'suspendue' | 'annulee';
-type TabType = 'catalogue' | 'mes-automatisations' | 'logs' | 'admin';
+type TabType = 'dashboard' | 'catalogue' | 'mes-automatisations' | 'logs' | 'admin';
 
 /** Donnees de l'API — camelCase (transformKeys dans n8n.service.ts) */
 interface CatalogItem {
@@ -301,7 +301,7 @@ export default function AutomatisationsPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
-  const [activeTab, setActiveTab] = useState<TabType>('catalogue');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategorie, setSelectedCategorie] = useState<string>('all');
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -411,6 +411,7 @@ export default function AutomatisationsPage() {
   const categories = ['all', ...Array.from(new Set(automations.map(a => a.categorie)))];
 
   const tabs: Array<{ key: TabType; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; count?: number; adminOnly?: boolean }> = [
+    { key: 'dashboard', label: 'Dashboard', icon: ChartBarIcon },
     { key: 'catalogue', label: 'Catalogue', icon: CubeIcon, count: automations.length },
     { key: 'mes-automatisations', label: 'Mes Automatisations', icon: BoltIcon, count: activeAutomations.length },
     { key: 'logs', label: 'Historique', icon: ClockIcon },
@@ -509,6 +510,17 @@ export default function AutomatisationsPage() {
         </div>
       ) : (
         <>
+          {activeTab === 'dashboard' && (
+            <DashboardTab
+              automations={automations}
+              activeAutomations={activeAutomations}
+              stats={stats}
+              isAdmin={isAdmin}
+              n8nStatus={n8nStatus}
+              onNavigate={setActiveTab}
+            />
+          )}
+
           {activeTab === 'catalogue' && (
             <CatalogueTab
               automations={filteredAutomations}
@@ -585,6 +597,273 @@ export default function AutomatisationsPage() {
           onActivated={() => { setShowActivateModal(false); setActivateTarget(null); fetchData(); }}
         />
       )}
+    </div>
+  );
+}
+
+// ============================================
+// Tab: Dashboard
+// ============================================
+
+function DashboardTab({
+  automations,
+  activeAutomations,
+  stats,
+  isAdmin,
+  n8nStatus,
+  onNavigate,
+}: {
+  automations: Automation[];
+  activeAutomations: Automation[];
+  stats: AutomationStats;
+  isAdmin: boolean;
+  n8nStatus: N8nStatus | null;
+  onNavigate: (tab: TabType) => void;
+}) {
+  // Calculs business
+  const revenuMensuel = activeAutomations.reduce((sum, a) => sum + a.monthlyPrice, 0);
+  const revenuSetupTotal = activeAutomations.reduce((sum, a) => sum + a.setupPrice, 0);
+  const catalogueTotal = automations.length;
+  const nbActives = activeAutomations.length;
+  const nbEnAttente = automations.filter(a => a.status === 'en_attente').length;
+  const nbSuspendues = automations.filter(a => a.status === 'suspendue').length;
+  const tauxAdoption = catalogueTotal > 0 ? Math.round((nbActives / catalogueTotal) * 100) : 0;
+
+  // Repartition par categorie
+  const parCategorie = activeAutomations.reduce<Record<string, { count: number; revenu: number }>>((acc, a) => {
+    if (!acc[a.categorie]) acc[a.categorie] = { count: 0, revenu: 0 };
+    acc[a.categorie].count += 1;
+    acc[a.categorie].revenu += a.monthlyPrice;
+    return acc;
+  }, {});
+
+  // Repartition par complexite
+  const parComplexite = activeAutomations.reduce<Record<string, number>>((acc, a) => {
+    acc[a.complexity] = (acc[a.complexity] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Top automations par revenu
+  const topAutomations = [...activeAutomations]
+    .sort((a, b) => b.monthlyPrice - a.monthlyPrice)
+    .slice(0, 5);
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs principaux */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-green-900/40 to-green-800/20 rounded-xl p-5 border border-green-500/20">
+          <p className="text-green-400/70 text-xs uppercase tracking-wider font-medium">Revenus mensuels</p>
+          <p className="text-3xl font-bold text-green-400 mt-2">{fmtPrix(revenuMensuel)} €</p>
+          <p className="text-green-400/50 text-xs mt-1">{nbActives} automatisation{nbActives > 1 ? 's' : ''} active{nbActives > 1 ? 's' : ''}</p>
+        </div>
+        <div className="bg-gradient-to-br from-amber-900/40 to-amber-800/20 rounded-xl p-5 border border-amber-500/20">
+          <p className="text-amber-400/70 text-xs uppercase tracking-wider font-medium">Revenus setup cumules</p>
+          <p className="text-3xl font-bold text-amber-400 mt-2">{fmtPrix(revenuSetupTotal)} €</p>
+          <p className="text-amber-400/50 text-xs mt-1">Installations uniques</p>
+        </div>
+        <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 rounded-xl p-5 border border-blue-500/20">
+          <p className="text-blue-400/70 text-xs uppercase tracking-wider font-medium">Taux d&apos;adoption</p>
+          <p className="text-3xl font-bold text-blue-400 mt-2">{tauxAdoption}%</p>
+          <p className="text-blue-400/50 text-xs mt-1">{nbActives}/{catalogueTotal} du catalogue</p>
+        </div>
+        <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 rounded-xl p-5 border border-purple-500/20">
+          <p className="text-purple-400/70 text-xs uppercase tracking-wider font-medium">Workflows actifs</p>
+          <p className="text-3xl font-bold text-purple-400 mt-2">{activeAutomations.reduce((sum, a) => sum + a.workflowCount, 0)}</p>
+          <p className="text-purple-400/50 text-xs mt-1">Workflows n8n en production</p>
+        </div>
+      </div>
+
+      {/* Statut global + raccourcis */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Statut en temps reel */}
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
+            <SignalIcon className="h-4 w-4 text-gray-400" />
+            Statut en temps reel
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">n8n</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                n8nStatus?.success ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
+              }`}>
+                {n8nStatus?.success ? 'Connecte' : 'Deconnecte'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Actives</span>
+              <span className="text-green-400 font-medium text-sm">{nbActives}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">En attente</span>
+              <span className="text-yellow-400 font-medium text-sm">{nbEnAttente}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Suspendues</span>
+              <span className="text-orange-400 font-medium text-sm">{nbSuspendues}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Executions (24h)</span>
+              <span className="text-blue-400 font-medium text-sm">{stats.executionsToday}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">Erreurs (24h)</span>
+              <span className={`font-medium text-sm ${stats.erreurs24h > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                {stats.erreurs24h}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Repartition par categorie */}
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
+            <CubeIcon className="h-4 w-4 text-gray-400" />
+            Par categorie
+          </h3>
+          {Object.keys(parCategorie).length === 0 ? (
+            <p className="text-gray-500 text-sm">Aucune automatisation active</p>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries(parCategorie)
+                .sort((a, b) => b[1].revenu - a[1].revenu)
+                .map(([cat, data]) => {
+                  const CatIcon = CATEGORIE_ICONS[cat] || BoltIcon;
+                  return (
+                    <div key={cat} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CatIcon className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-300 text-sm">{CATEGORIE_LABELS[cat] || cat}</span>
+                        <span className="text-gray-500 text-xs">({data.count})</span>
+                      </div>
+                      <span className="text-amber-400 font-medium text-sm">{fmtPrix(data.revenu)} €/m</span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+
+        {/* Acces rapides */}
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
+            <BoltIcon className="h-4 w-4 text-gray-400" />
+            Acces rapides
+          </h3>
+          <div className="space-y-2">
+            <button
+              onClick={() => onNavigate('catalogue')}
+              className="w-full text-left px-4 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3 group"
+            >
+              <CubeIcon className="h-5 w-5 text-gray-400 group-hover:text-amber-400 transition-colors" />
+              <div>
+                <p className="text-white text-sm font-medium">Catalogue</p>
+                <p className="text-gray-500 text-xs">{catalogueTotal} automatisations disponibles</p>
+              </div>
+            </button>
+            <button
+              onClick={() => onNavigate('mes-automatisations')}
+              className="w-full text-left px-4 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3 group"
+            >
+              <BoltIcon className="h-5 w-5 text-gray-400 group-hover:text-green-400 transition-colors" />
+              <div>
+                <p className="text-white text-sm font-medium">Mes automatisations</p>
+                <p className="text-gray-500 text-xs">{nbActives} active{nbActives > 1 ? 's' : ''}</p>
+              </div>
+            </button>
+            <button
+              onClick={() => onNavigate('logs')}
+              className="w-full text-left px-4 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3 group"
+            >
+              <ClockIcon className="h-5 w-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
+              <div>
+                <p className="text-white text-sm font-medium">Historique</p>
+                <p className="text-gray-500 text-xs">Logs et executions</p>
+              </div>
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="w-full text-left px-4 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3 group"
+              >
+                <Cog6ToothIcon className="h-5 w-5 text-gray-400 group-hover:text-purple-400 transition-colors" />
+                <div>
+                  <p className="text-white text-sm font-medium">Administration</p>
+                  <p className="text-gray-500 text-xs">Gestion catalogue et clients</p>
+                </div>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Top automatisations + Complexite */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Top 5 par revenu */}
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <h3 className="text-white font-semibold text-sm mb-4">Top automatisations (revenu mensuel)</h3>
+          {topAutomations.length === 0 ? (
+            <p className="text-gray-500 text-sm">Aucune automatisation active</p>
+          ) : (
+            <div className="space-y-3">
+              {topAutomations.map((a, i) => {
+                const CatIcon = CATEGORIE_ICONS[a.categorie] || BoltIcon;
+                return (
+                  <div key={a.id} className="flex items-center gap-3">
+                    <span className="text-gray-500 text-xs font-mono w-4">{i + 1}.</span>
+                    <CatIcon className="h-4 w-4 text-gray-400" />
+                    <span className="text-gray-300 text-sm flex-1 truncate">{a.nom}</span>
+                    <span className="text-amber-400 font-medium text-sm">{fmtPrix(a.monthlyPrice)} €/m</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Repartition par complexite */}
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+          <h3 className="text-white font-semibold text-sm mb-4">Repartition par complexite</h3>
+          <div className="space-y-4">
+            {(['simple', 'intermediaire', 'avance'] as AutomationComplexity[]).map(c => {
+              const count = parComplexite[c] || 0;
+              const total = activeAutomations.length || 1;
+              const pct = Math.round((count / total) * 100);
+              const config = COMPLEXITY_LABELS[COMPLEXITY_MAP[c]];
+              return (
+                <div key={c}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm font-medium ${config.color}`}>{config.label}</span>
+                    <span className="text-gray-400 text-xs">{count} ({pct}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        c === 'simple' ? 'bg-green-500' : c === 'intermediaire' ? 'bg-amber-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Revenu potentiel si tout le catalogue est active */}
+          {isAdmin && (
+            <div className="mt-6 pt-4 border-t border-gray-700">
+              <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Revenu potentiel (catalogue complet)</p>
+              <p className="text-2xl font-bold text-green-400">
+                {fmtPrix(automations.reduce((sum, a) => sum + a.monthlyPrice, 0))} €/mois
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                + {fmtPrix(automations.reduce((sum, a) => sum + a.setupPrice, 0))} € en setup
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
