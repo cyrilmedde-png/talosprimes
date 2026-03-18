@@ -8,7 +8,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-activate",
+      "id": "webhook",
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -16,126 +16,59 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\nconst config = body.config || {};\n\nif (!tenantId || !automationId) {\n  return [{ json: { valid: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, config, valid: true } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\nconst config = body.config || {};\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, config, valid: true } }];"
       },
-      "id": "prepare-data",
-      "name": "02. Valider donnees",
+      "id": "validate",
+      "name": "02. Valider",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [470, 300]
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
-        }
-      },
-      "id": "check-valid",
-      "name": "03. Valide?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [690, 300]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ac.code, ac.nom, ac.setup_price, ac.monthly_price, ac.workflow_templates, t.nom_entreprise AS tenant_name FROM automation_catalog ac, tenants t WHERE ac.id = '{{ $('02. Valider donnees').first().json.automationId }}'::uuid AND t.id = '{{ $('02. Valider donnees').first().json.tenantId }}'::uuid",
+        "query": "SELECT ac.code, ac.nom, ac.setup_price, ac.monthly_price, t.nom_entreprise AS tenant_name FROM automation_catalog ac, tenants t WHERE ac.id = '{{ $json.automationId }}'::uuid AND t.id = '{{ $json.tenantId }}'::uuid",
         "options": {}
       },
-      "id": "lookup-catalog-tenant",
-      "name": "04. Chercher catalogue + tenant",
+      "id": "lookup",
+      "name": "03. Chercher infos",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [910, 200],
+      "position": [690, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, n8n_folder_id, n8n_folder_name, n8n_workflow_ids, status FROM automation_purchases WHERE tenant_id = '{{ $('02. Valider donnees').first().json.tenantId }}'::uuid AND automation_id = '{{ $('02. Valider donnees').first().json.automationId }}'::uuid LIMIT 1",
-        "options": {}
+        "jsCode": "const info = $input.first().json;\nconst data = $('02. Valider').first().json;\n\nif (!info || !info.code) {\n  return [{ json: { success: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  code: info.code,\n  nom: info.nom,\n  tenantName: info.tenant_name,\n  setupPrice: Number(info.setup_price) || 0,\n  monthlyPrice: Number(info.monthly_price) || 0,\n  config: data.config\n} }];"
       },
-      "id": "check-existing-purchase",
-      "name": "05. Verifier achat existant",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [1130, 200],
-      "credentials": { "postgres": { "name": "Supabase Postgres" } }
-    },
-    {
-      "parameters": {
-        "jsCode": "const catalogRow = $('04. Chercher catalogue + tenant').first().json;\nconst existingPurchase = $('05. Verifier achat existant').first().json;\nconst data = $('02. Valider donnees').first().json;\n\nif (!catalogRow || !catalogRow.code) {\n  return [{ json: { valid: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nconst tenantName = catalogRow.tenant_name || 'Client';\nconst automationCode = catalogRow.code;\nconst automationNom = catalogRow.nom;\nconst setupPrice = catalogRow.setup_price || 0;\nconst monthlyPrice = catalogRow.monthly_price || 0;\nconst clientTag = `client:${tenantName}`;\nconst existingWorkflowIds = existingPurchase?.n8n_workflow_ids || [];\n\nreturn [{ json: {\n  valid: true,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode,\n  automationNom,\n  tenantName,\n  setupPrice,\n  monthlyPrice,\n  config: data.config,\n  clientTag,\n  existingWorkflowIds\n} }];"
-      },
-      "id": "build-data",
-      "name": "06. Preparer donnees workflow",
+      "id": "prepare",
+      "name": "04. Preparer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1350, 200]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
-        }
-      },
-      "id": "check-build-valid",
-      "name": "07. Donnees valides?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [1570, 200]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ name: '[' + $('06. Preparer donnees workflow').first().json.tenantName + '] ' + $('06. Preparer donnees workflow').first().json.automationNom, nodes: [{ parameters: { rule: { interval: [{ field: 'hours', hoursInterval: 24 }] } }, id: 'schedule-node', name: 'Declencheur', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, position: [250, 300] }, { parameters: { jsCode: '// Auto: ' + $('06. Preparer donnees workflow').first().json.automationNom + ' | Client: ' + $('06. Preparer donnees workflow').first().json.tenantName + '\\nreturn [{ json: { status: \"ok\", timestamp: new Date().toISOString() } }];' }, id: 'code-node', name: 'Traitement', type: 'n8n-nodes-base.code', typeVersion: 2, position: [470, 300] }], connections: { Declencheur: { main: [[{ node: 'Traitement', type: 'main', index: 0 }]] } }, settings: { executionOrder: 'v1' } }) }}",
-        "options": {
-          "response": { "response": { "neverError": true } }
-        }
-      },
-      "id": "create-workflow",
-      "name": "08. Creer workflow n8n",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1790, 100],
-      "credentials": { "httpHeaderAuth": { "name": "n8n API Key" } }
-    },
-    {
-      "parameters": {
-        "jsCode": "const apiResult = $input.first().json;\nconst data = $('06. Preparer donnees workflow').first().json;\nconst workflowId = apiResult.id ? String(apiResult.id) : null;\nconst workflowName = apiResult.name || null;\nconst existingIds = data.existingWorkflowIds || [];\nconst allWorkflowIds = workflowId ? [...existingIds, workflowId] : existingIds;\n\nreturn [{ json: {\n  success: !!workflowId,\n  workflowId,\n  workflowName,\n  allWorkflowIds,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode: data.automationCode,\n  automationNom: data.automationNom,\n  tenantName: data.tenantName,\n  setupPrice: data.setupPrice,\n  monthlyPrice: data.monthlyPrice,\n  config: data.config,\n  clientTag: data.clientTag\n} }];"
-      },
-      "id": "check-result",
-      "name": "09. Verifier creation",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2010, 100]
+      "position": [910, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automation_purchases (tenant_id, automation_id, status, n8n_folder_id, n8n_folder_name, n8n_workflow_ids, setup_price_paid, monthly_price, config, activated_at, created_at, updated_at) VALUES ('{{ $json.tenantId }}'::uuid, '{{ $json.automationId }}'::uuid, 'active', '{{ $json.clientTag }}', '{{ $json.clientTag }}', '{{ JSON.stringify($json.allWorkflowIds) }}'::jsonb, {{ $json.setupPrice }}, {{ $json.monthlyPrice }}, '{{ JSON.stringify($json.config || {}) }}'::jsonb, NOW(), NOW(), NOW()) ON CONFLICT (tenant_id, automation_id) DO UPDATE SET status = 'active', n8n_folder_id = EXCLUDED.n8n_folder_id, n8n_folder_name = EXCLUDED.n8n_folder_name, n8n_workflow_ids = EXCLUDED.n8n_workflow_ids, config = EXCLUDED.config, activated_at = NOW(), suspended_at = NULL, cancelled_at = NULL, updated_at = NOW() RETURNING id, status",
+        "query": "INSERT INTO automation_purchases (tenant_id, automation_id, status, n8n_folder_id, n8n_folder_name, n8n_workflow_ids, setup_price_paid, monthly_price, config, activated_at, created_at, updated_at) VALUES ('{{ $json.tenantId }}'::uuid, '{{ $json.automationId }}'::uuid, 'active', 'tag:{{ $json.tenantName }}', 'client:{{ $json.tenantName }}', '[]'::jsonb, {{ $json.setupPrice }}, {{ $json.monthlyPrice }}, '{{ JSON.stringify($json.config) }}'::jsonb, NOW(), NOW(), NOW()) ON CONFLICT (tenant_id, automation_id) DO UPDATE SET status = 'active', setup_price_paid = EXCLUDED.setup_price_paid, monthly_price = EXCLUDED.monthly_price, config = EXCLUDED.config, activated_at = NOW(), suspended_at = NULL, cancelled_at = NULL, updated_at = NOW() RETURNING id, status",
         "options": {}
       },
-      "id": "upsert-purchase",
-      "name": "10. Enregistrer achat BDD",
+      "id": "upsert",
+      "name": "05. Enregistrer achat",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [2230, 100],
+      "position": [1130, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
-        "jsCode": "const data = $('09. Verifier creation').first().json;\nconst purchaseResult = $input.first().json;\n\nreturn [{ json: {\n  success: data.success,\n  workflowId: data.workflowId,\n  workflowName: data.workflowName,\n  clientTag: data.clientTag,\n  tenantId: data.tenantId,\n  automationCode: data.automationCode,\n  workflowIds: data.allWorkflowIds || [],\n  purchaseId: purchaseResult.id || null,\n  purchaseStatus: purchaseResult.status || 'active',\n  message: data.success\n    ? 'Workflow ' + data.workflowName + ' cree. Achat enregistre.'\n    : 'Erreur lors de la creation du workflow'\n} }];"
+        "jsCode": "const purchase = $input.first().json;\nconst data = $('04. Preparer').first().json;\n\nreturn [{ json: {\n  success: true,\n  workflowId: null,\n  workflowName: data.nom,\n  workflowIds: [],\n  folderId: null,\n  folderName: 'client:' + data.tenantName,\n  purchaseId: purchase.id,\n  purchaseStatus: purchase.status,\n  message: 'Automatisation ' + data.nom + ' activee pour ' + data.tenantName\n} }];"
       },
-      "id": "final-result",
-      "name": "11. Resultat final",
+      "id": "result",
+      "name": "06. Resultat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2450, 100]
+      "position": [1350, 300]
     },
     {
       "parameters": {
@@ -143,80 +76,32 @@
         "options": {}
       },
       "id": "respond",
-      "name": "12. Repondre",
+      "name": "07. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2670, 200]
-    },
-    {
-      "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {}
-      },
-      "id": "respond-err-validation",
-      "name": "03b. Erreur validation",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [910, 400]
-    },
-    {
-      "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {}
-      },
-      "id": "respond-err-build",
-      "name": "07b. Erreur build",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [1790, 400]
+      "position": [1570, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[{ "node": "02. Valider donnees", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]]
     },
-    "02. Valider donnees": {
-      "main": [[{ "node": "03. Valide?", "type": "main", "index": 0 }]]
+    "02. Valider": {
+      "main": [[{ "node": "03. Chercher infos", "type": "main", "index": 0 }]]
     },
-    "03. Valide?": {
-      "main": [
-        [{ "node": "04. Chercher catalogue + tenant", "type": "main", "index": 0 }],
-        [{ "node": "03b. Erreur validation", "type": "main", "index": 0 }]
-      ]
+    "03. Chercher infos": {
+      "main": [[{ "node": "04. Preparer", "type": "main", "index": 0 }]]
     },
-    "04. Chercher catalogue + tenant": {
-      "main": [[{ "node": "05. Verifier achat existant", "type": "main", "index": 0 }]]
+    "04. Preparer": {
+      "main": [[{ "node": "05. Enregistrer achat", "type": "main", "index": 0 }]]
     },
-    "05. Verifier achat existant": {
-      "main": [[{ "node": "06. Preparer donnees workflow", "type": "main", "index": 0 }]]
+    "05. Enregistrer achat": {
+      "main": [[{ "node": "06. Resultat", "type": "main", "index": 0 }]]
     },
-    "06. Preparer donnees workflow": {
-      "main": [[{ "node": "07. Donnees valides?", "type": "main", "index": 0 }]]
-    },
-    "07. Donnees valides?": {
-      "main": [
-        [{ "node": "08. Creer workflow n8n", "type": "main", "index": 0 }],
-        [{ "node": "07b. Erreur build", "type": "main", "index": 0 }]
-      ]
-    },
-    "08. Creer workflow n8n": {
-      "main": [[{ "node": "09. Verifier creation", "type": "main", "index": 0 }]]
-    },
-    "09. Verifier creation": {
-      "main": [[{ "node": "10. Enregistrer achat BDD", "type": "main", "index": 0 }]]
-    },
-    "10. Enregistrer achat BDD": {
-      "main": [[{ "node": "11. Resultat final", "type": "main", "index": 0 }]]
-    },
-    "11. Resultat final": {
-      "main": [[{ "node": "12. Repondre", "type": "main", "index": 0 }]]
+    "06. Resultat": {
+      "main": [[{ "node": "07. Repondre", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "tags": [
-    { "name": "talosprimes" },
-    { "name": "automations" }
-  ]
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
 }
