@@ -17,40 +17,40 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  -- Revenus\n  COALESCE(SUM(ap.monthly_price) FILTER (WHERE ap.status = 'active'), 0) AS revenu_mensuel,\n  COALESCE(SUM(ap.setup_price_paid) FILTER (WHERE ap.status = 'active'), 0) AS revenu_setup_total,\n  -- Compteurs\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'active') AS nb_actives,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'en_attente') AS nb_en_attente,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'suspendue') AS nb_suspendues,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'annulee') AS nb_annulees,\n  COUNT(DISTINCT ap.id) AS nb_total_achats,\n  -- Clients\n  COUNT(DISTINCT ap.tenant_id) FILTER (WHERE ap.status = 'active') AS nb_clients_actifs,\n  COUNT(DISTINCT ap.tenant_id) AS nb_clients_total,\n  -- Catalogue\n  (SELECT COUNT(*) FROM automation_catalog WHERE is_active = true) AS nb_catalogue,\n  (SELECT COALESCE(SUM(monthly_price), 0) FROM automation_catalog WHERE is_active = true) AS revenu_potentiel_mensuel,\n  (SELECT COALESCE(SUM(setup_price), 0) FROM automation_catalog WHERE is_active = true) AS revenu_potentiel_setup\nFROM automation_purchases ap",
+        "query": "SELECT\n  COALESCE(SUM(ap.monthly_price) FILTER (WHERE ap.status = 'active'), 0) AS revenu_mensuel,\n  COALESCE(SUM(ap.setup_price_paid) FILTER (WHERE ap.status = 'active'), 0) AS revenu_setup_total,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'active') AS nb_actives,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'en_attente') AS nb_en_attente,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'suspendue') AS nb_suspendues,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'annulee') AS nb_annulees,\n  COUNT(DISTINCT ap.id) AS nb_total_achats,\n  COUNT(DISTINCT ap.tenant_id) FILTER (WHERE ap.status = 'active') AS nb_clients_actifs,\n  COUNT(DISTINCT ap.tenant_id) AS nb_clients_total,\n  (SELECT COUNT(*) FROM automation_catalog WHERE is_active = true) AS nb_catalogue,\n  (SELECT COALESCE(SUM(monthly_price), 0) FROM automation_catalog WHERE is_active = true) AS revenu_potentiel_mensuel,\n  (SELECT COALESCE(SUM(setup_price), 0) FROM automation_catalog WHERE is_active = true) AS revenu_potentiel_setup\nFROM automation_purchases ap",
         "options": {}
       },
       "id": "db-globals",
       "name": "02. Stats globales",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [470, 200],
+      "position": [470, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  ac.categorie,\n  COUNT(ap.id) AS nb_actives,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nWHERE ap.status = 'active'\nGROUP BY ac.categorie\nORDER BY revenu_mensuel DESC",
+        "query": "SELECT\n  ac.categorie,\n  COUNT(ap.id)::int AS nb_actives,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nWHERE ap.status = 'active'\nGROUP BY ac.categorie\nORDER BY revenu_mensuel DESC",
         "options": {}
       },
       "id": "db-categories",
       "name": "03. Stats par categorie",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [470, 400],
+      "position": [690, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  ac.complexity,\n  COUNT(ap.id) AS nb_actives,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nWHERE ap.status = 'active'\nGROUP BY ac.complexity\nORDER BY ac.complexity",
+        "query": "SELECT\n  ac.complexity,\n  COUNT(ap.id)::int AS nb_actives,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nWHERE ap.status = 'active'\nGROUP BY ac.complexity",
         "options": {}
       },
       "id": "db-complexity",
       "name": "04. Stats par complexite",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [470, 600],
+      "position": [910, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
@@ -63,20 +63,20 @@
       "name": "05. Top automatisations",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [470, 800],
+      "position": [1130, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  t.id,\n  t.nom_entreprise,\n  COUNT(ap.id) AS nb_automations,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN tenants t ON t.id = ap.tenant_id\nWHERE ap.status = 'active'\nGROUP BY t.id, t.nom_entreprise\nORDER BY revenu_mensuel DESC\nLIMIT 10",
+        "query": "SELECT\n  t.id,\n  t.nom_entreprise,\n  COUNT(ap.id)::int AS nb_automations,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN tenants t ON t.id = ap.tenant_id\nWHERE ap.status = 'active'\nGROUP BY t.id, t.nom_entreprise\nORDER BY revenu_mensuel DESC\nLIMIT 10",
         "options": {}
       },
       "id": "db-clients",
       "name": "06. Top clients",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [470, 1000],
+      "position": [1350, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
@@ -87,7 +87,7 @@
       "name": "07. Formater",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [910, 500]
+      "position": [1570, 300]
     },
     {
       "parameters": {
@@ -98,24 +98,31 @@
       "name": "08. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1130, 500]
+      "position": [1790, 300]
     }
   ],
   "connections": {
     "01. Webhook": {
-      "main": [[
-        { "node": "02. Stats globales", "type": "main", "index": 0 },
-        { "node": "03. Stats par categorie", "type": "main", "index": 0 },
-        { "node": "04. Stats par complexite", "type": "main", "index": 0 },
-        { "node": "05. Top automatisations", "type": "main", "index": 0 },
-        { "node": "06. Top clients", "type": "main", "index": 0 }
-      ]]
+      "main": [[{ "node": "02. Stats globales", "type": "main", "index": 0 }]]
     },
-    "02. Stats globales": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
-    "03. Stats par categorie": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
-    "04. Stats par complexite": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
-    "05. Top automatisations": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
-    "06. Top clients": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] }
+    "02. Stats globales": {
+      "main": [[{ "node": "03. Stats par categorie", "type": "main", "index": 0 }]]
+    },
+    "03. Stats par categorie": {
+      "main": [[{ "node": "04. Stats par complexite", "type": "main", "index": 0 }]]
+    },
+    "04. Stats par complexite": {
+      "main": [[{ "node": "05. Top automatisations", "type": "main", "index": 0 }]]
+    },
+    "05. Top automatisations": {
+      "main": [[{ "node": "06. Top clients", "type": "main", "index": 0 }]]
+    },
+    "06. Top clients": {
+      "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]]
+    },
+    "07. Formater": {
+      "main": [[{ "node": "08. Repondre", "type": "main", "index": 0 }]]
+    }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
