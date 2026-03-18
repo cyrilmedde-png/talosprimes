@@ -49,7 +49,7 @@
       "position": [910, 200],
       "credentials": {
         "postgres": {
-          "name": "TalosPrimes DB"
+          "name": "Supabase Postgres"
         }
       }
     },

@@ -47,7 +47,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [910, 200],
-      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
@@ -70,7 +70,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1350, 200],
-      "credentials": { "postgres": { "name": "TalosPrimes DB" } }
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
