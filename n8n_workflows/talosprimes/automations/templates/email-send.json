@@ -1,0 +1,80 @@
+{
+  "name": "[{{ CLIENT_NAME }}] Email - Envoi",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client/{{ CLIENT_CODE }}/email-send",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst to = body.to;\nconst subject = body.subject;\nconst text = body.text || '';\nconst html = body.html || '';\nconst cc = body.cc || '';\nconst bcc = body.bcc || '';\n\nif (!to || !subject) {\n  return [{ json: { valid: false, error: 'Destinataire (to) et sujet (subject) requis' } }];\n}\n\nreturn [{ json: { to, subject, text, html, cc, bcc, valid: true } }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "text": "={{ $json.text }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "ccEmail": "={{ $json.cc }}",
+          "bccEmail": "={{ $json.bcc }}"
+        }
+      },
+      "id": "smtp",
+      "name": "03. Envoyer SMTP",
+      "type": "n8n-nodes-base.sendEmail",
+      "typeVersion": 2.1,
+      "position": [690, 300],
+      "credentials": {
+        "smtp": {
+          "name": "{{ CLIENT_NAME }} SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('02. Valider').first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    message: 'Email envoye avec succes',\n    to: data.to,\n    subject: data.subject\n  }\n} }];"
+      },
+      "id": "result",
+      "name": "04. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "05. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Envoyer SMTP", "type": "main", "index": 0 }]] },
+    "03. Envoyer SMTP": { "main": [[{ "node": "04. Resultat", "type": "main", "index": 0 }]] },
+    "04. Resultat": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }]
+}

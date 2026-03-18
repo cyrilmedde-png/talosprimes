@@ -1,0 +1,49 @@
+{
+  "name": "[{{ CLIENT_NAME }}] Email - Surveillance nouveaux messages",
+  "nodes": [
+    {
+      "parameters": {
+        "mailbox": "INBOX",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "imap-trigger",
+      "name": "01. Nouveau email recu",
+      "type": "n8n-nodes-base.imapEmail",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "credentials": {
+        "imap": {
+          "name": "{{ CLIENT_NAME }} IMAP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\n\nconst from = email.from?.text || email.from || '';\nconst to = email.to?.text || email.to || '';\nconst subject = email.subject || '(sans objet)';\nconst date = email.date || new Date().toISOString();\nconst textPlain = (email.text || '').substring(0, 1000);\nconst hasAttachments = (email.attachments || []).length > 0;\n\n// Ici on peut ajouter de la logique :\n// - Filtrer par expediteur\n// - Repondre automatiquement\n// - Transferer a un autre service\n// - Sauvegarder en BDD\n// - Notifier via Slack/Discord\n\nreturn [{ json: {\n  from,\n  to,\n  subject,\n  date,\n  textPlain,\n  hasAttachments,\n  action: 'received'\n} }];"
+      },
+      "id": "process",
+      "name": "02. Traiter email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Placeholder : enregistrer le log ou declencher une action\nconst data = $input.first().json;\nconsole.log(`[Email recu] De: ${data.from} | Sujet: ${data.subject}`);\n\nreturn [{ json: { ...data, logged: true, timestamp: new Date().toISOString() } }];"
+      },
+      "id": "action",
+      "name": "03. Action (a configurer)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    }
+  ],
+  "connections": {
+    "01. Nouveau email recu": { "main": [[{ "node": "02. Traiter email", "type": "main", "index": 0 }]] },
+    "02. Traiter email": { "main": [[{ "node": "03. Action (a configurer)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }]
+}
