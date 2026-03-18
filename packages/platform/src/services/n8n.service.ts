@@ -449,10 +449,14 @@ export class N8nService {
     }
 
     let rawData: unknown;
+    const responseText = await response.text();
     try {
-      rawData = await response.json();
+      rawData = JSON.parse(responseText);
     } catch {
-      logger.warn({ eventType, webhookPath }, '[n8n] Réponse non-JSON reçue du webhook');
+      logger.warn(
+        { eventType, webhookPath, status: response.status, contentType: response.headers.get('content-type'), bodyPreview: responseText.slice(0, 500) },
+        '[n8n] Réponse non-JSON reçue du webhook'
+      );
       return { success: false, data: {} as T, error: 'Réponse n8n invalide (non-JSON)' };
     }
     // respondWith: "allIncomingItems" retourne un tableau — dé-wrapper si un seul élément

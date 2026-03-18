@@ -64,10 +64,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const catalogRow = $('04. Chercher catalogue + tenant').first().json;\nconst existingPurchase = $('05. Verifier achat existant').first().json;\nconst data = $('02. Valider donnees').first().json;\n\nif (!catalogRow || !catalogRow.code) {\n  return [{ json: { valid: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nconst tenantName = catalogRow.tenant_name || 'Client';\nconst automationCode = catalogRow.code;\nconst automationNom = catalogRow.nom;\nconst setupPrice = catalogRow.setup_price || 0;\nconst monthlyPrice = catalogRow.monthly_price || 0;\n\n// Tag pour organiser dans n8n self-hosted\nconst clientTag = `client:${tenantName}`;\nconst existingWorkflowIds = existingPurchase?.n8n_workflow_ids || [];\n\n// Construire le workflow a creer pour ce client\nconst workflow = {\n  name: `[${tenantName}] ${automationNom}`,\n  tags: [clientTag, 'talosprimes', `auto:${automationCode}`],\n  nodes: [\n    {\n      parameters: {\n        rule: { interval: [{ field: 'hours', hoursInterval: 24 }] }\n      },\n      id: 'schedule-node',\n      name: 'Declencheur',\n      type: 'n8n-nodes-base.scheduleTrigger',\n      typeVersion: 1.2,\n      position: [250, 300]\n    },\n    {\n      parameters: {\n        jsCode: `// Automatisation: ${automationNom}\\n// Client: ${tenantName}\\n// Code: ${automationCode}\\n// Cree automatiquement par TalosPrimes\\nconst now = new Date().toISOString();\\nreturn [{ json: { client: '${tenantName}', automation: '${automationCode}', timestamp: now, status: 'ok' } }];`\n      },\n      id: 'code-node',\n      name: 'Traitement',\n      type: 'n8n-nodes-base.code',\n      typeVersion: 2,\n      position: [470, 300]\n    }\n  ],\n  connections: {\n    'Declencheur': { main: [[{ node: 'Traitement', type: 'main', index: 0 }]] }\n  },\n  settings: { executionOrder: 'v1' }\n};\n\nreturn [{ json: {\n  valid: true,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode,\n  automationNom,\n  tenantName,\n  setupPrice,\n  monthlyPrice,\n  config: data.config,\n  clientTag,\n  existingWorkflowIds,\n  workflow\n} }];"
+        "jsCode": "const catalogRow = $('04. Chercher catalogue + tenant').first().json;\nconst existingPurchase = $('05. Verifier achat existant').first().json;\nconst data = $('02. Valider donnees').first().json;\n\nif (!catalogRow || !catalogRow.code) {\n  return [{ json: { valid: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nconst tenantName = catalogRow.tenant_name || 'Client';\nconst automationCode = catalogRow.code;\nconst automationNom = catalogRow.nom;\nconst setupPrice = catalogRow.setup_price || 0;\nconst monthlyPrice = catalogRow.monthly_price || 0;\nconst clientTag = `client:${tenantName}`;\nconst existingWorkflowIds = existingPurchase?.n8n_workflow_ids || [];\n\nreturn [{ json: {\n  valid: true,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode,\n  automationNom,\n  tenantName,\n  setupPrice,\n  monthlyPrice,\n  config: data.config,\n  clientTag,\n  existingWorkflowIds\n} }];"
       },
-      "id": "build-workflow",
-      "name": "06. Construire workflow",
+      "id": "build-data",
+      "name": "06. Preparer donnees workflow",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1350, 200]
@@ -79,27 +79,37 @@
         }
       },
       "id": "check-build-valid",
-      "name": "07. Build valide?",
+      "name": "07. Donnees valides?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [1570, 200]
     },
     {
       "parameters": {
-        "jsCode": "// Creer les tags s'ils n'existent pas deja\nconst data = $('06. Construire workflow').first().json;\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst apiKey = $env.N8N_API_KEY || '';\nconst tagsToCreate = [data.clientTag, 'talosprimes', `auto:${data.automationCode}`];\nconst tagIds = [];\n\nfor (const tagName of tagsToCreate) {\n  try {\n    // Essayer de creer le tag\n    const createResp = await fetch(`${baseUrl}/api/v1/tags`, {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': apiKey },\n      body: JSON.stringify({ name: tagName })\n    });\n    const createData = await createResp.json();\n    if (createData.id) {\n      tagIds.push({ id: createData.id, name: tagName });\n    } else {\n      // Tag existe deja, le chercher\n      const listResp = await fetch(`${baseUrl}/api/v1/tags`, {\n        headers: { 'X-N8N-API-KEY': apiKey }\n      });\n      const allTags = await listResp.json();\n      const found = (allTags.data || allTags).find(t => t.name === tagName);\n      if (found) tagIds.push({ id: found.id, name: tagName });\n    }\n  } catch (err) {\n    // On continue meme si le tag echoue\n  }\n}\n\nreturn [{ json: { ...data, tagIds } }];"
+        "method": "POST",
+        "url": "={{ $env.N8N_API_URL || 'http://localhost:5678' }}/api/v1/workflows",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: '[' + $('06. Preparer donnees workflow').first().json.tenantName + '] ' + $('06. Preparer donnees workflow').first().json.automationNom, nodes: [{ parameters: { rule: { interval: [{ field: 'hours', hoursInterval: 24 }] } }, id: 'schedule-node', name: 'Declencheur', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, position: [250, 300] }, { parameters: { jsCode: '// Auto: ' + $('06. Preparer donnees workflow').first().json.automationNom + ' | Client: ' + $('06. Preparer donnees workflow').first().json.tenantName + '\\nreturn [{ json: { status: \"ok\", timestamp: new Date().toISOString() } }];' }, id: 'code-node', name: 'Traitement', type: 'n8n-nodes-base.code', typeVersion: 2, position: [470, 300] }], connections: { Declencheur: { main: [[{ node: 'Traitement', type: 'main', index: 0 }]] } }, settings: { executionOrder: 'v1' } }) }}",
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
       },
-      "id": "create-tags",
-      "name": "08. Creer tags n8n",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1790, 100]
+      "id": "create-workflow",
+      "name": "08. Creer workflow n8n",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1790, 100],
+      "credentials": { "httpHeaderAuth": { "name": "n8n API Key" } }
     },
     {
       "parameters": {
-        "jsCode": "// Creer le workflow avec les tags\nconst data = $input.first().json;\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst apiKey = $env.N8N_API_KEY || '';\n\n// Ajouter les tag IDs au workflow\nconst workflow = data.workflow;\nif (data.tagIds && data.tagIds.length > 0) {\n  workflow.tags = data.tagIds.map(t => ({ id: t.id }));\n}\n\ntry {\n  const resp = await fetch(`${baseUrl}/api/v1/workflows`, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': apiKey },\n    body: JSON.stringify(workflow)\n  });\n  const result = await resp.json();\n  const workflowId = result.id || null;\n  const workflowName = result.name || null;\n\n  // Fusionner le nouveau workflowId avec les existants\n  const existingIds = data.existingWorkflowIds || [];\n  const allWorkflowIds = workflowId ? [...existingIds, String(workflowId)] : existingIds;\n\n  return [{ json: {\n    success: !!workflowId,\n    workflowId,\n    workflowName,\n    allWorkflowIds,\n    tenantId: data.tenantId,\n    automationId: data.automationId,\n    automationCode: data.automationCode,\n    automationNom: data.automationNom,\n    tenantName: data.tenantName,\n    setupPrice: data.setupPrice,\n    monthlyPrice: data.monthlyPrice,\n    config: data.config,\n    clientTag: data.clientTag,\n    error: workflowId ? null : 'Erreur creation workflow'\n  } }];\n} catch (err) {\n  return [{ json: {\n    success: false,\n    workflowId: null,\n    workflowName: null,\n    allWorkflowIds: data.existingWorkflowIds || [],\n    tenantId: data.tenantId,\n    automationId: data.automationId,\n    automationCode: data.automationCode,\n    automationNom: data.automationNom,\n    tenantName: data.tenantName,\n    setupPrice: data.setupPrice,\n    monthlyPrice: data.monthlyPrice,\n    config: data.config,\n    clientTag: data.clientTag,\n    error: String(err)\n  } }];\n}"
+        "jsCode": "const apiResult = $input.first().json;\nconst data = $('06. Preparer donnees workflow').first().json;\nconst workflowId = apiResult.id ? String(apiResult.id) : null;\nconst workflowName = apiResult.name || null;\nconst existingIds = data.existingWorkflowIds || [];\nconst allWorkflowIds = workflowId ? [...existingIds, workflowId] : existingIds;\n\nreturn [{ json: {\n  success: !!workflowId,\n  workflowId,\n  workflowName,\n  allWorkflowIds,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationCode: data.automationCode,\n  automationNom: data.automationNom,\n  tenantName: data.tenantName,\n  setupPrice: data.setupPrice,\n  monthlyPrice: data.monthlyPrice,\n  config: data.config,\n  clientTag: data.clientTag\n} }];"
       },
-      "id": "create-workflow",
-      "name": "09. Creer workflow via API",
+      "id": "check-result",
+      "name": "09. Verifier creation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [2010, 100]
@@ -119,7 +129,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $('09. Creer workflow via API').first().json;\nconst purchaseResult = $input.first().json;\n\nreturn [{ json: {\n  success: data.success,\n  workflowId: data.workflowId,\n  workflowName: data.workflowName,\n  clientTag: data.clientTag,\n  tenantId: data.tenantId,\n  automationCode: data.automationCode,\n  workflowIds: data.allWorkflowIds || [],\n  purchaseId: purchaseResult.id || null,\n  purchaseStatus: purchaseResult.status || 'active',\n  message: data.success\n    ? `Workflow \"${data.workflowName}\" cree et tagge \"${data.clientTag}\". Achat enregistre.`\n    : data.error || 'Erreur lors de la creation du workflow'\n} }];"
+        "jsCode": "const data = $('09. Verifier creation').first().json;\nconst purchaseResult = $input.first().json;\n\nreturn [{ json: {\n  success: data.success,\n  workflowId: data.workflowId,\n  workflowName: data.workflowName,\n  clientTag: data.clientTag,\n  tenantId: data.tenantId,\n  automationCode: data.automationCode,\n  workflowIds: data.allWorkflowIds || [],\n  purchaseId: purchaseResult.id || null,\n  purchaseStatus: purchaseResult.status || 'active',\n  message: data.success\n    ? 'Workflow ' + data.workflowName + ' cree. Achat enregistre.'\n    : 'Erreur lors de la creation du workflow'\n} }];"
       },
       "id": "final-result",
       "name": "11. Resultat final",
@@ -129,8 +139,8 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
+        "respondWith": "allIncomingItems",
+        "options": {}
       },
       "id": "respond",
       "name": "12. Repondre",
@@ -140,8 +150,8 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: $('02. Valider donnees').first().json.error || 'Donnees invalides' }) }}"
+        "respondWith": "allIncomingItems",
+        "options": {}
       },
       "id": "respond-err-validation",
       "name": "03b. Erreur validation",
@@ -151,8 +161,8 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: false, error: $('06. Construire workflow').first().json.error || 'Automatisation introuvable' }) }}"
+        "respondWith": "allIncomingItems",
+        "options": {}
       },
       "id": "respond-err-build",
       "name": "07b. Erreur build",
@@ -178,21 +188,21 @@
       "main": [[{ "node": "05. Verifier achat existant", "type": "main", "index": 0 }]]
     },
     "05. Verifier achat existant": {
-      "main": [[{ "node": "06. Construire workflow", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "06. Preparer donnees workflow", "type": "main", "index": 0 }]]
     },
-    "06. Construire workflow": {
-      "main": [[{ "node": "07. Build valide?", "type": "main", "index": 0 }]]
+    "06. Preparer donnees workflow": {
+      "main": [[{ "node": "07. Donnees valides?", "type": "main", "index": 0 }]]
     },
-    "07. Build valide?": {
+    "07. Donnees valides?": {
       "main": [
-        [{ "node": "08. Creer tags n8n", "type": "main", "index": 0 }],
+        [{ "node": "08. Creer workflow n8n", "type": "main", "index": 0 }],
         [{ "node": "07b. Erreur build", "type": "main", "index": 0 }]
       ]
     },
-    "08. Creer tags n8n": {
-      "main": [[{ "node": "09. Creer workflow via API", "type": "main", "index": 0 }]]
+    "08. Creer workflow n8n": {
+      "main": [[{ "node": "09. Verifier creation", "type": "main", "index": 0 }]]
     },
-    "09. Creer workflow via API": {
+    "09. Verifier creation": {
       "main": [[{ "node": "10. Enregistrer achat BDD", "type": "main", "index": 0 }]]
     },
     "10. Enregistrer achat BDD": {
