@@ -39,7 +39,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ac.code, ac.nom, ac.setup_price, ac.monthly_price, ac.workflow_templates, t.name AS tenant_name FROM automation_catalog ac, tenants t WHERE ac.id = '{{ $('02. Valider donnees').first().json.automationId }}'::uuid AND t.id = '{{ $('02. Valider donnees').first().json.tenantId }}'::uuid",
+        "query": "SELECT ac.code, ac.nom, ac.setup_price, ac.monthly_price, ac.workflow_templates, t.nom_entreprise AS tenant_name FROM automation_catalog ac, tenants t WHERE ac.id = '{{ $('02. Valider donnees').first().json.automationId }}'::uuid AND t.id = '{{ $('02. Valider donnees').first().json.tenantId }}'::uuid",
         "options": {}
       },
       "id": "lookup-catalog-tenant",
