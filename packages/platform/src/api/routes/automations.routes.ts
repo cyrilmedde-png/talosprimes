@@ -144,6 +144,7 @@ interface FolderBody {
  * GET  /api/automations/purchases/:tenantId  → n8n: automation_purchases_list
  * PUT  /api/automations/folder/:tenantId     → n8n: automation_folder_update
  * GET  /api/automations/n8n/status           → n8n: automation_n8n_status
+ * GET  /api/automations/dashboard            → n8n: automation_dashboard_stats
  */
 export async function automationsRoutes(fastify: FastifyInstance) {
 
@@ -544,6 +545,29 @@ export async function automationsRoutes(fastify: FastifyInstance) {
         success: false,
         data: { success: false, message: 'n8n injoignable' },
       });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // GET /dashboard — KPIs business via n8n (admin)
+  // Revenus, clients actifs, top automatisations, repartition
+  // ──────────────────────────────────────────────
+  fastify.get('/dashboard', {
+    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    try {
+      const res = await n8nService.callWorkflowReturn<{ dashboard: Record<string, unknown> }>(
+        tenantId,
+        'automation_dashboard_stats',
+        {}
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/dashboard] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 }

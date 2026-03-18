@@ -1,0 +1,122 @@
+{
+  "name": "[TalosPrimes] Automations - Dashboard Stats",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/dashboard-stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  -- Revenus\n  COALESCE(SUM(ap.monthly_price) FILTER (WHERE ap.status = 'active'), 0) AS revenu_mensuel,\n  COALESCE(SUM(ap.setup_price_paid) FILTER (WHERE ap.status = 'active'), 0) AS revenu_setup_total,\n  -- Compteurs\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'active') AS nb_actives,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'en_attente') AS nb_en_attente,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'suspendue') AS nb_suspendues,\n  COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'annulee') AS nb_annulees,\n  COUNT(DISTINCT ap.id) AS nb_total_achats,\n  -- Clients\n  COUNT(DISTINCT ap.tenant_id) FILTER (WHERE ap.status = 'active') AS nb_clients_actifs,\n  COUNT(DISTINCT ap.tenant_id) AS nb_clients_total,\n  -- Catalogue\n  (SELECT COUNT(*) FROM automation_catalog WHERE is_active = true) AS nb_catalogue,\n  (SELECT COALESCE(SUM(monthly_price), 0) FROM automation_catalog WHERE is_active = true) AS revenu_potentiel_mensuel,\n  (SELECT COALESCE(SUM(setup_price), 0) FROM automation_catalog WHERE is_active = true) AS revenu_potentiel_setup\nFROM automation_purchases ap",
+        "options": {}
+      },
+      "id": "db-globals",
+      "name": "02. Stats globales",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 200],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ac.categorie,\n  COUNT(ap.id) AS nb_actives,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nWHERE ap.status = 'active'\nGROUP BY ac.categorie\nORDER BY revenu_mensuel DESC",
+        "options": {}
+      },
+      "id": "db-categories",
+      "name": "03. Stats par categorie",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 400],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ac.complexity,\n  COUNT(ap.id) AS nb_actives,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nWHERE ap.status = 'active'\nGROUP BY ac.complexity\nORDER BY ac.complexity",
+        "options": {}
+      },
+      "id": "db-complexity",
+      "name": "04. Stats par complexite",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 600],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ac.nom,\n  ac.code,\n  ac.categorie,\n  ac.complexity,\n  ap.monthly_price,\n  ap.setup_price_paid,\n  t.nom_entreprise AS client_name\nFROM automation_purchases ap\nJOIN automation_catalog ac ON ac.id = ap.automation_id\nJOIN tenants t ON t.id = ap.tenant_id\nWHERE ap.status = 'active'\nORDER BY ap.monthly_price DESC\nLIMIT 10",
+        "options": {}
+      },
+      "id": "db-top",
+      "name": "05. Top automatisations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 800],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  t.id,\n  t.nom_entreprise,\n  COUNT(ap.id) AS nb_automations,\n  COALESCE(SUM(ap.monthly_price), 0) AS revenu_mensuel\nFROM automation_purchases ap\nJOIN tenants t ON t.id = ap.tenant_id\nWHERE ap.status = 'active'\nGROUP BY t.id, t.nom_entreprise\nORDER BY revenu_mensuel DESC\nLIMIT 10",
+        "options": {}
+      },
+      "id": "db-clients",
+      "name": "06. Top clients",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 1000],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const globals = $('02. Stats globales').first().json;\nconst categories = $('03. Stats par categorie').all().map(i => i.json);\nconst complexity = $('04. Stats par complexite').all().map(i => i.json);\nconst topAutomations = $('05. Top automatisations').all().map(i => i.json);\nconst topClients = $('06. Top clients').all().map(i => i.json);\n\nconst nbCatalogue = Number(globals.nb_catalogue) || 0;\nconst nbActives = Number(globals.nb_actives) || 0;\nconst tauxAdoption = nbCatalogue > 0 ? Math.round((nbActives / nbCatalogue) * 100) : 0;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    dashboard: {\n      revenus: {\n        mensuel: Number(globals.revenu_mensuel) || 0,\n        setupTotal: Number(globals.revenu_setup_total) || 0,\n        potentielMensuel: Number(globals.revenu_potentiel_mensuel) || 0,\n        potentielSetup: Number(globals.revenu_potentiel_setup) || 0\n      },\n      compteurs: {\n        catalogue: nbCatalogue,\n        actives: nbActives,\n        enAttente: Number(globals.nb_en_attente) || 0,\n        suspendues: Number(globals.nb_suspendues) || 0,\n        annulees: Number(globals.nb_annulees) || 0,\n        totalAchats: Number(globals.nb_total_achats) || 0,\n        clientsActifs: Number(globals.nb_clients_actifs) || 0,\n        clientsTotal: Number(globals.nb_clients_total) || 0,\n        tauxAdoption\n      },\n      parCategorie: categories,\n      parComplexite: complexity,\n      topAutomations,\n      topClients\n    }\n  }\n} }];"
+      },
+      "id": "format",
+      "name": "07. Formater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "08. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 500]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [[
+        { "node": "02. Stats globales", "type": "main", "index": 0 },
+        { "node": "03. Stats par categorie", "type": "main", "index": 0 },
+        { "node": "04. Stats par complexite", "type": "main", "index": 0 },
+        { "node": "05. Top automatisations", "type": "main", "index": 0 },
+        { "node": "06. Top clients", "type": "main", "index": 0 }
+      ]]
+    },
+    "02. Stats globales": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
+    "03. Stats par categorie": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
+    "04. Stats par complexite": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
+    "05. Top automatisations": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] },
+    "06. Top clients": { "main": [[{ "node": "07. Formater", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}
