@@ -27,18 +27,16 @@
     {
       "parameters": {
         "mailbox": "={{ $json.folder }}",
-        "options": {
-          "allowUnauthorizedCerts": true
-        }
+        "options": {}
       },
       "id": "imap",
       "name": "03. Lire emails IMAP",
-      "type": "n8n-nodes-base.imapEmail",
+      "type": "n8n-nodes-base.emailReadImap",
       "typeVersion": 2,
       "position": [690, 300],
       "credentials": {
         "imap": {
-          "name": "{{ CLIENT_NAME }} IMAP"
+          "name": "Email IMAP"
         }
       }
     },

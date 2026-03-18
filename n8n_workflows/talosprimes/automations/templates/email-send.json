@@ -38,12 +38,12 @@
       },
       "id": "smtp",
       "name": "03. Envoyer SMTP",
-      "type": "n8n-nodes-base.sendEmail",
+      "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [690, 300],
       "credentials": {
         "smtp": {
-          "name": "{{ CLIENT_NAME }} SMTP"
+          "name": "Email SMTP"
         }
       }
     },
