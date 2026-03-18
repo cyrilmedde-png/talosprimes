@@ -40,7 +40,7 @@ type AutomationStatus = 'actif' | 'inactif' | 'en_attente' | 'suspendue' | 'erre
 type PurchaseStatus = 'en_attente' | 'active' | 'suspendue' | 'annulee';
 type TabType = 'catalogue' | 'mes-automatisations' | 'logs' | 'admin';
 
-/** Donnees brutes de l'API (snake_case depuis PostgreSQL) */
+/** Donnees de l'API — camelCase (transformKeys dans n8n.service.ts) */
 interface CatalogItem {
   id: string;
   code: string;
@@ -48,53 +48,53 @@ interface CatalogItem {
   description: string;
   categorie: string;
   icon: string;
-  setup_price: number | string;
-  monthly_price: number | string;
+  setupPrice: number | string;
+  monthlyPrice: number | string;
   complexity: AutomationComplexity;
-  workflow_count: number;
-  workflow_templates?: string[];
+  workflowCount: number;
+  workflowTemplates?: string[];
   features: string[];
-  is_active: boolean;
+  isActive: boolean;
   ordre: number;
 }
 
 interface PurchaseItem {
   id: string;
-  tenant_id: string;
-  automation_id: string;
+  tenantId: string;
+  automationId: string;
   status: PurchaseStatus;
-  n8n_folder_id: string | null;
-  n8n_folder_name: string | null;
-  n8n_workflow_ids: string[];
-  setup_price_paid: number | string;
-  monthly_price: number | string;
-  activated_at: string | null;
+  n8nFolderId: string | null;
+  n8nFolderName: string | null;
+  n8nWorkflowIds: string[];
+  setupPricePaid: number | string;
+  monthlyPrice: number | string;
+  activatedAt: string | null;
   config: Record<string, unknown>;
-  created_at: string;
+  createdAt: string;
   code: string;
   nom: string;
   description: string;
   categorie: string;
   icon: string;
   complexity: AutomationComplexity;
-  workflow_count: number;
+  workflowCount: number;
   features: string[];
 }
 
 interface TenantItem {
   id: string;
-  nom_entreprise: string;
+  nomEntreprise: string;
 }
 
 interface EventLogItem {
   id: string;
-  type_evenement: string;
-  entite_type: string | null;
-  entite_id: string | null;
-  statut_execution: string;
-  message_erreur: string | null;
-  workflow_n8n_id: string | null;
-  created_at: string;
+  typeEvenement: string;
+  entiteType: string | null;
+  entiteId: string | null;
+  statutExecution: string;
+  messageErreur: string | null;
+  workflowN8nId: string | null;
+  createdAt: string;
 }
 
 /** Donnees normalisees pour l'affichage */
@@ -261,20 +261,20 @@ function catalogToAutomation(item: CatalogItem, purchase?: PurchaseItem): Automa
     description: item.description,
     categorie: item.categorie,
     icon: item.icon,
-    setupPrice: Number(item.setup_price) || 0,
-    monthlyPrice: Number(item.monthly_price) || 0,
+    setupPrice: Number(item.setupPrice) || 0,
+    monthlyPrice: Number(item.monthlyPrice) || 0,
     complexity: item.complexity,
     complexityLevel: COMPLEXITY_MAP[item.complexity] || 1,
     status,
-    workflowCount: item.workflow_count || 0,
-    workflowTemplates: item.workflow_templates || [],
+    workflowCount: item.workflowCount || 0,
+    workflowTemplates: item.workflowTemplates || [],
     features: Array.isArray(item.features) ? item.features : [],
-    isActive: item.is_active,
+    isActive: item.isActive,
     ordre: item.ordre,
-    n8nFolderId: purchase?.n8n_folder_id || undefined,
-    n8nFolderName: purchase?.n8n_folder_name || undefined,
-    n8nWorkflowIds: purchase?.n8n_workflow_ids || undefined,
-    activatedAt: purchase?.activated_at || undefined,
+    n8nFolderId: purchase?.n8nFolderId || undefined,
+    n8nFolderName: purchase?.n8nFolderName || undefined,
+    n8nWorkflowIds: purchase?.n8nWorkflowIds || undefined,
+    activatedAt: purchase?.activatedAt || undefined,
     purchaseConfig: purchase?.config || undefined,
   };
 }
@@ -341,7 +341,7 @@ export default function AutomatisationsPage() {
 
         const purchaseMap = new Map<string, PurchaseItem>();
         for (const p of purchases) {
-          purchaseMap.set(p.automation_id, p);
+          purchaseMap.set(p.automationId, p);
         }
 
         const list = catalog.map(item => catalogToAutomation(item, purchaseMap.get(item.id)));
@@ -866,7 +866,7 @@ function LogsTab({ isAdmin }: { isAdmin: boolean }) {
           >
             <option value="">Tous les tenants</option>
             {tenants.map(t => (
-              <option key={t.id} value={t.id}>{t.nom_entreprise}</option>
+              <option key={t.id} value={t.id}>{t.nomEntreprise}</option>
             ))}
           </select>
           <button onClick={fetchLogs} className="p-2 text-gray-400 hover:text-white transition-colors">
@@ -910,28 +910,28 @@ function LogsTab({ isAdmin }: { isAdmin: boolean }) {
                 ) : (
                   logs.map(log => (
                     <tr key={log.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                      <td className="px-5 py-3 text-white text-sm font-mono">{log.type_evenement}</td>
+                      <td className="px-5 py-3 text-white text-sm font-mono">{log.typeEvenement}</td>
                       <td className="px-5 py-3 text-gray-300 text-sm">
-                        {log.entite_type ? `${log.entite_type}${log.entite_id ? ` #${log.entite_id.slice(0, 8)}` : ''}` : '-'}
+                        {log.entiteType ? `${log.entiteType}${log.entiteId ? ` #${log.entiteId.slice(0, 8)}` : ''}` : '-'}
                       </td>
                       <td className="px-5 py-3">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          log.statut_execution === 'succes' ? 'text-green-400 bg-green-900/30' :
-                          log.statut_execution === 'erreur' ? 'text-red-400 bg-red-900/30' :
+                          log.statutExecution === 'succes' ? 'text-green-400 bg-green-900/30' :
+                          log.statutExecution === 'erreur' ? 'text-red-400 bg-red-900/30' :
                           'text-yellow-400 bg-yellow-900/30'
                         }`}>
-                          {log.statut_execution === 'succes' ? 'Succes' : log.statut_execution === 'erreur' ? 'Erreur' : 'En attente'}
+                          {log.statutExecution === 'succes' ? 'Succes' : log.statutExecution === 'erreur' ? 'Erreur' : 'En attente'}
                         </span>
-                        {log.message_erreur && (
-                          <p className="text-red-400/70 text-xs mt-1 max-w-xs truncate" title={log.message_erreur}>
-                            {log.message_erreur}
+                        {log.messageErreur && (
+                          <p className="text-red-400/70 text-xs mt-1 max-w-xs truncate" title={log.messageErreur}>
+                            {log.messageErreur}
                           </p>
                         )}
                       </td>
                       <td className="px-5 py-3 text-gray-400 text-sm font-mono">
-                        {log.workflow_n8n_id || '-'}
+                        {log.workflowN8nId || '-'}
                       </td>
-                      <td className="px-5 py-3 text-gray-400 text-sm">{formatDate(log.created_at)}</td>
+                      <td className="px-5 py-3 text-gray-400 text-sm">{formatDate(log.createdAt)}</td>
                     </tr>
                   ))
                 )}
@@ -1054,7 +1054,7 @@ function AdminTab({
 
   const purchaseMap = new Map<string, PurchaseItem>();
   for (const p of tenantPurchases) {
-    purchaseMap.set(p.automation_id, p);
+    purchaseMap.set(p.automationId, p);
   }
 
   return (
@@ -1074,7 +1074,7 @@ function AdminTab({
           >
             <option value="">Selectionner un client...</option>
             {tenants.map(t => (
-              <option key={t.id} value={t.id}>{t.nom_entreprise}</option>
+              <option key={t.id} value={t.id}>{t.nomEntreprise}</option>
             ))}
           </select>
         </div>
@@ -1118,9 +1118,9 @@ function AdminTab({
                           <p className="text-gray-400 text-xs mt-0.5">
                             {auto.workflowCount} workflows · {auto.complexity}
                           </p>
-                          {purchase?.n8n_folder_name && (
+                          {purchase?.n8nFolderName && (
                             <p className="text-gray-500 text-xs mt-0.5">
-                              n8n: {purchase.n8n_folder_name}
+                              n8n: {purchase.n8nFolderName}
                             </p>
                           )}
                         </div>
@@ -1767,7 +1767,7 @@ function ActivateForClientModal({
             >
               <option value="">Selectionner un client...</option>
               {tenants.map(t => (
-                <option key={t.id} value={t.id}>{t.nom_entreprise}</option>
+                <option key={t.id} value={t.id}>{t.nomEntreprise}</option>
               ))}
             </select>
           </div>
