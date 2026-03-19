@@ -1,0 +1,51 @@
+{
+  "name": "[{{ CLIENT_NAME }}] Gmail - Surveillance nouveaux messages",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute" }]
+        },
+        "options": {
+          "labelIds": ["INBOX"]
+        }
+      },
+      "id": "gmail-trigger",
+      "name": "01. Nouveau email Gmail",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json;\n\nreturn [{ json: {\n  id: email.id || null,\n  threadId: email.threadId || null,\n  from: email.from || '',\n  to: email.to || '',\n  subject: email.subject || '(sans objet)',\n  date: email.date || new Date().toISOString(),\n  snippet: email.snippet || '',\n  textPlain: (email.textPlain || '').substring(0, 1000),\n  labels: email.labelIds || [],\n  hasAttachments: (email.attachments || []).length > 0,\n  action: 'received'\n} }];"
+      },
+      "id": "process",
+      "name": "02. Traiter email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Placeholder : ajouter la logique metier ici\n// Exemples :\n//   - Filtrer par expediteur / sujet\n//   - Repondre automatiquement\n//   - Transferer a un CRM\n//   - Creer une tache dans un outil de gestion\n//   - Notifier via Slack / Discord\n//   - Sauvegarder en base de donnees\n\nconst data = $input.first().json;\nconsole.log(`[Gmail] De: ${data.from} | Sujet: ${data.subject}`);\n\nreturn [{ json: { ...data, logged: true, timestamp: new Date().toISOString() } }];"
+      },
+      "id": "action",
+      "name": "03. Action (a configurer)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    }
+  ],
+  "connections": {
+    "01. Nouveau email Gmail": { "main": [[{ "node": "02. Traiter email", "type": "main", "index": 0 }]] },
+    "02. Traiter email": { "main": [[{ "node": "03. Action (a configurer)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "gmail" }]
+}

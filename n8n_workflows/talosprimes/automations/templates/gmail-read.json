@@ -1,0 +1,78 @@
+{
+  "name": "[{{ CLIENT_NAME }}] Gmail - Lecture boite de reception",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client/{{ CLIENT_CODE }}/gmail-read",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst limit = Number(body.limit) || 10;\nconst query = body.query || '';\nconst label = body.label || 'INBOX';\n\nreturn [{ json: { limit, query, label } }];"
+      },
+      "id": "params",
+      "name": "02. Parametres",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": "={{ $json.limit }}",
+        "options": {
+          "labelIds": ["={{ $json.label }}"],
+          "query": "={{ $json.query }}"
+        }
+      },
+      "id": "gmail-read",
+      "name": "03. Lire emails Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [690, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const emails = $input.all().map(item => {\n  const e = item.json;\n  return {\n    id: e.id || null,\n    threadId: e.threadId || null,\n    from: e.from || '',\n    to: e.to || '',\n    subject: e.subject || '(sans objet)',\n    date: e.date || null,\n    snippet: e.snippet || '',\n    textPlain: (e.textPlain || '').substring(0, 500),\n    labels: e.labelIds || [],\n    hasAttachments: (e.attachments || []).length > 0\n  };\n});\n\nreturn [{ json: {\n  success: true,\n  data: {\n    emails,\n    count: emails.length\n  }\n} }];"
+      },
+      "id": "format",
+      "name": "04. Formater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "05. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Parametres", "type": "main", "index": 0 }]] },
+    "02. Parametres": { "main": [[{ "node": "03. Lire emails Gmail", "type": "main", "index": 0 }]] },
+    "03. Lire emails Gmail": { "main": [[{ "node": "04. Formater", "type": "main", "index": 0 }]] },
+    "04. Formater": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "gmail" }]
+}
