@@ -605,9 +605,24 @@ export default function AutomatisationsPage() {
 // Tab: Dashboard
 // ============================================
 
+interface PendingRequest {
+  id: string;
+  tenantId: string;
+  automationId: string;
+  createdAt: string;
+  automationNom: string;
+  automationCode: string;
+  categorie: string;
+  complexity: string;
+  setupPrice: number;
+  monthlyPrice: number;
+  clientName: string;
+}
+
 interface DashboardData {
   revenus: { mensuel: number; setupTotal: number; potentielMensuel: number; potentielSetup: number };
   compteurs: { catalogue: number; actives: number; enAttente: number; suspendues: number; annulees: number; totalAchats: number; clientsActifs: number; clientsTotal: number; tauxAdoption: number };
+  demandesEnAttente: PendingRequest[];
   parCategorie: Array<{ categorie: string; nbActives: number; revenuMensuel: number }>;
   parComplexite: Array<{ complexity: string; nbActives: number; revenuMensuel: number }>;
   topAutomations: Array<{ nom: string; code: string; categorie: string; complexity: string; monthlyPrice: number; setupPricePaid: number; clientName: string }>;
@@ -645,6 +660,7 @@ function DashboardTab({
   const parComplexite = data?.parComplexite || [];
   const topAutomations = data?.topAutomations || [];
   const topClients = data?.topClients || [];
+  const demandesEnAttente = data?.demandesEnAttente || [];
 
   if (loading) {
     return (
@@ -702,6 +718,42 @@ function DashboardTab({
           </>
         )}
       </div>
+
+      {/* Demandes en attente (super_admin) */}
+      {isSuperAdmin && demandesEnAttente.length > 0 && (
+        <div className="bg-gradient-to-r from-yellow-900/20 to-amber-900/20 rounded-xl p-5 border border-yellow-500/30">
+          <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
+            <ClockIcon className="h-4 w-4 text-yellow-400" />
+            Demandes en attente
+            <span className="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full text-xs font-bold">{demandesEnAttente.length}</span>
+          </h3>
+          <div className="space-y-3">
+            {demandesEnAttente.map((d) => {
+              const CatIcon = CATEGORIE_ICONS[d.categorie] || BoltIcon;
+              return (
+                <div key={d.id} className="flex items-center justify-between bg-gray-800/50 rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <CatIcon className="h-5 w-5 text-yellow-400" />
+                    <div>
+                      <p className="text-white text-sm font-medium">{d.automationNom}</p>
+                      <p className="text-gray-400 text-xs">{d.clientName} &middot; {d.complexity} &middot; {formatDate(d.createdAt)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-amber-400 font-medium text-sm">{fmtPrix(Number(d.setupPrice))} € + {fmtPrix(Number(d.monthlyPrice))} €/m</p>
+                    <button
+                      onClick={() => onNavigate('admin')}
+                      className="text-yellow-400 hover:text-yellow-300 text-xs underline mt-1"
+                    >
+                      Activer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Statut global + raccourcis */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

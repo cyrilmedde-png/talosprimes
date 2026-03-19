@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId || null;\nconst isSuperAdmin = body.isSuperAdmin === 'true';\n\n// Si super_admin : pas de filtre tenant (voit tout)\n// Sinon : filtre par tenant_id du client\nconst tenantFilter = isSuperAdmin ? '' : `AND ap.tenant_id = '${tenantId}'::uuid`;\n\nreturn [{ json: { tenantId, isSuperAdmin, tenantFilter } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId || null;\nconst isSuperAdmin = body.isSuperAdmin === 'true';\nconst tenantFilter = isSuperAdmin ? '' : `AND ap.tenant_id = '${tenantId}'::uuid`;\n\nreturn [{ json: { tenantId, isSuperAdmin, tenantFilter } }];"
       },
       "id": "prepare",
       "name": "02. Preparer",
@@ -39,31 +39,42 @@
     },
     {
       "parameters": {
-        "jsCode": "const g = $input.first().json;\nconst isSuperAdmin = $('02. Preparer').first().json.isSuperAdmin;\n\nconst nbCatalogue = Number(g.nb_catalogue) || 0;\nconst nbActives = Number(g.nb_actives) || 0;\nconst tauxAdoption = nbCatalogue > 0 ? Math.round((nbActives / nbCatalogue) * 100) : 0;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    dashboard: {\n      revenus: {\n        mensuel: Number(g.revenu_mensuel) || 0,\n        setupTotal: Number(g.revenu_setup_total) || 0,\n        potentielMensuel: isSuperAdmin ? (Number(g.revenu_potentiel_mensuel) || 0) : 0,\n        potentielSetup: isSuperAdmin ? (Number(g.revenu_potentiel_setup) || 0) : 0\n      },\n      compteurs: {\n        catalogue: nbCatalogue,\n        actives: nbActives,\n        enAttente: Number(g.nb_en_attente) || 0,\n        suspendues: Number(g.nb_suspendues) || 0,\n        annulees: Number(g.nb_annulees) || 0,\n        totalAchats: Number(g.nb_total_achats) || 0,\n        clientsActifs: isSuperAdmin ? (Number(g.nb_clients_actifs) || 0) : 0,\n        clientsTotal: isSuperAdmin ? (Number(g.nb_clients_total) || 0) : 0,\n        tauxAdoption\n      },\n      parCategorie: [],\n      parComplexite: [],\n      topAutomations: [],\n      topClients: []\n    }\n  }\n} }];"
+        "operation": "executeQuery",
+        "query": "SELECT ap.id, ap.tenant_id, ap.automation_id, ap.created_at, ap.updated_at, ac.nom AS automation_nom, ac.code AS automation_code, ac.categorie, ac.complexity, ac.setup_price, ac.monthly_price, t.nom_entreprise AS client_name FROM automation_purchases ap JOIN automation_catalog ac ON ac.id = ap.automation_id JOIN tenants t ON t.id = ap.tenant_id WHERE ap.status = 'en_attente' {{ $('02. Preparer').first().json.tenantFilter }} ORDER BY ap.created_at DESC LIMIT 20",
+        "options": {}
       },
-      "id": "format",
-      "name": "04. Formater",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [910, 300]
+      "id": "db-pending",
+      "name": "04. Demandes en attente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {}
+        "jsCode": "const g = $('03. Query globale').first().json;\nconst pendingRows = $('04. Demandes en attente').all().map(i => i.json);\nconst isSuperAdmin = $('02. Preparer').first().json.isSuperAdmin;\n\nconst nbCatalogue = Number(g.nb_catalogue) || 0;\nconst nbActives = Number(g.nb_actives) || 0;\nconst tauxAdoption = nbCatalogue > 0 ? Math.round((nbActives / nbCatalogue) * 100) : 0;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    dashboard: {\n      revenus: {\n        mensuel: Number(g.revenu_mensuel) || 0,\n        setupTotal: Number(g.revenu_setup_total) || 0,\n        potentielMensuel: isSuperAdmin ? (Number(g.revenu_potentiel_mensuel) || 0) : 0,\n        potentielSetup: isSuperAdmin ? (Number(g.revenu_potentiel_setup) || 0) : 0\n      },\n      compteurs: {\n        catalogue: nbCatalogue,\n        actives: nbActives,\n        enAttente: Number(g.nb_en_attente) || 0,\n        suspendues: Number(g.nb_suspendues) || 0,\n        annulees: Number(g.nb_annulees) || 0,\n        totalAchats: Number(g.nb_total_achats) || 0,\n        clientsActifs: isSuperAdmin ? (Number(g.nb_clients_actifs) || 0) : 0,\n        clientsTotal: isSuperAdmin ? (Number(g.nb_clients_total) || 0) : 0,\n        tauxAdoption\n      },\n      demandesEnAttente: pendingRows,\n      parCategorie: [],\n      parComplexite: [],\n      topAutomations: [],\n      topClients: []\n    }\n  }\n} }];"
       },
+      "id": "format",
+      "name": "05. Formater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
       "id": "respond",
-      "name": "05. Repondre",
+      "name": "06. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1130, 300]
+      "position": [1350, 300]
     }
   ],
   "connections": {
     "01. Webhook": { "main": [[{ "node": "02. Preparer", "type": "main", "index": 0 }]] },
     "02. Preparer": { "main": [[{ "node": "03. Query globale", "type": "main", "index": 0 }]] },
-    "03. Query globale": { "main": [[{ "node": "04. Formater", "type": "main", "index": 0 }]] },
-    "04. Formater": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
+    "03. Query globale": { "main": [[{ "node": "04. Demandes en attente", "type": "main", "index": 0 }]] },
+    "04. Demandes en attente": { "main": [[{ "node": "05. Formater", "type": "main", "index": 0 }]] },
+    "05. Formater": { "main": [[{ "node": "06. Repondre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
