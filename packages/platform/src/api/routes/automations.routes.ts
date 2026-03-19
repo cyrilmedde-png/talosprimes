@@ -553,16 +553,21 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // Revenus, clients actifs, top automatisations, repartition
   // ──────────────────────────────────────────────
   fastify.get('/dashboard', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const isSuperAdmin = request.user?.role === 'super_admin';
 
     try {
       const res = await n8nService.callWorkflowReturn<{ dashboard: Record<string, unknown> }>(
         tenantId,
         'automation_dashboard_stats',
-        {}
+        {
+          tenantId,
+          isSuperAdmin: String(isSuperAdmin),
+        }
       );
       return reply.send(res);
     } catch (error) {

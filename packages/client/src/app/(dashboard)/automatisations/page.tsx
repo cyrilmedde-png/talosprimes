@@ -299,6 +299,7 @@ const EMPTY_FORM: CatalogFormData = {
 
 export default function AutomatisationsPage() {
   const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'super_admin';
   const isAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
@@ -415,7 +416,7 @@ export default function AutomatisationsPage() {
     { key: 'catalogue', label: 'Catalogue', icon: CubeIcon, count: automations.length },
     { key: 'mes-automatisations', label: 'Mes Automatisations', icon: BoltIcon, count: activeAutomations.length },
     { key: 'logs', label: 'Historique', icon: ClockIcon },
-    ...(isAdmin ? [{ key: 'admin' as TabType, label: 'Administration', icon: Cog6ToothIcon, adminOnly: true }] : []),
+    ...(isSuperAdmin ? [{ key: 'admin' as TabType, label: 'Administration', icon: Cog6ToothIcon, adminOnly: true }] : []),
   ];
 
   return (
@@ -434,8 +435,8 @@ export default function AutomatisationsPage() {
           </p>
         </div>
 
-        {/* Admin : statut n8n + bouton ajouter */}
-        {isAdmin && (
+        {/* Super admin : statut n8n + bouton ajouter */}
+        {isSuperAdmin && (
           <div className="flex items-center gap-3">
             {n8nStatus && (
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
@@ -544,7 +545,7 @@ export default function AutomatisationsPage() {
             <LogsTab isAdmin={isAdmin} />
           )}
 
-          {activeTab === 'admin' && isAdmin && (
+          {activeTab === 'admin' && isSuperAdmin && (
             <AdminTab
               automations={automations}
               onRefresh={fetchData}

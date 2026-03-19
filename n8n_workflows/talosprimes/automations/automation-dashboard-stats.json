@@ -16,9 +16,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Une seule grosse requete pour tout recuperer d'un coup\nconst items = $input.all();\n\n// On passe juste les donnees au noeud suivant\nreturn [{ json: { ready: true } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId || null;\nconst isSuperAdmin = body.isSuperAdmin === 'true';\n\n// Si super_admin : pas de filtre tenant (voit tout)\n// Sinon : filtre par tenant_id du client\nconst tenantFilter = isSuperAdmin ? '' : `AND ap.tenant_id = '${tenantId}'::uuid`;\n\nreturn [{ json: { tenantId, isSuperAdmin, tenantFilter } }];"
       },
-      "id": "pass",
+      "id": "prepare",
       "name": "02. Preparer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -27,7 +27,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH globals AS (\n  SELECT\n    COALESCE(SUM(ap.monthly_price) FILTER (WHERE ap.status = 'active'), 0) AS revenu_mensuel,\n    COALESCE(SUM(ap.setup_price_paid) FILTER (WHERE ap.status = 'active'), 0) AS revenu_setup_total,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'active') AS nb_actives,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'en_attente') AS nb_en_attente,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'suspendue') AS nb_suspendues,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'annulee') AS nb_annulees,\n    COUNT(DISTINCT ap.id) AS nb_total_achats,\n    COUNT(DISTINCT ap.tenant_id) FILTER (WHERE ap.status = 'active') AS nb_clients_actifs,\n    COUNT(DISTINCT ap.tenant_id) AS nb_clients_total\n  FROM automation_purchases ap\n),\ncatalogue AS (\n  SELECT\n    COUNT(*) AS nb_catalogue,\n    COALESCE(SUM(monthly_price), 0) AS revenu_potentiel_mensuel,\n    COALESCE(SUM(setup_price), 0) AS revenu_potentiel_setup\n  FROM automation_catalog\n  WHERE is_active = true\n)\nSELECT g.*, c.*\nFROM globals g, catalogue c",
+        "query": "WITH globals AS (\n  SELECT\n    COALESCE(SUM(ap.monthly_price) FILTER (WHERE ap.status = 'active'), 0) AS revenu_mensuel,\n    COALESCE(SUM(ap.setup_price_paid) FILTER (WHERE ap.status = 'active'), 0) AS revenu_setup_total,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'active') AS nb_actives,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'en_attente') AS nb_en_attente,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'suspendue') AS nb_suspendues,\n    COUNT(DISTINCT ap.id) FILTER (WHERE ap.status = 'annulee') AS nb_annulees,\n    COUNT(DISTINCT ap.id) AS nb_total_achats,\n    COUNT(DISTINCT ap.tenant_id) FILTER (WHERE ap.status = 'active') AS nb_clients_actifs,\n    COUNT(DISTINCT ap.tenant_id) AS nb_clients_total\n  FROM automation_purchases ap\n  WHERE 1=1 {{ $('02. Preparer').first().json.tenantFilter }}\n),\ncatalogue AS (\n  SELECT\n    COUNT(*) AS nb_catalogue,\n    COALESCE(SUM(monthly_price), 0) AS revenu_potentiel_mensuel,\n    COALESCE(SUM(setup_price), 0) AS revenu_potentiel_setup\n  FROM automation_catalog\n  WHERE is_active = true\n)\nSELECT g.*, c.*\nFROM globals g, catalogue c",
         "options": {}
       },
       "id": "db-all",
@@ -39,7 +39,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const g = $input.first().json;\n\nconst nbCatalogue = Number(g.nb_catalogue) || 0;\nconst nbActives = Number(g.nb_actives) || 0;\nconst tauxAdoption = nbCatalogue > 0 ? Math.round((nbActives / nbCatalogue) * 100) : 0;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    dashboard: {\n      revenus: {\n        mensuel: Number(g.revenu_mensuel) || 0,\n        setupTotal: Number(g.revenu_setup_total) || 0,\n        potentielMensuel: Number(g.revenu_potentiel_mensuel) || 0,\n        potentielSetup: Number(g.revenu_potentiel_setup) || 0\n      },\n      compteurs: {\n        catalogue: nbCatalogue,\n        actives: nbActives,\n        enAttente: Number(g.nb_en_attente) || 0,\n        suspendues: Number(g.nb_suspendues) || 0,\n        annulees: Number(g.nb_annulees) || 0,\n        totalAchats: Number(g.nb_total_achats) || 0,\n        clientsActifs: Number(g.nb_clients_actifs) || 0,\n        clientsTotal: Number(g.nb_clients_total) || 0,\n        tauxAdoption\n      },\n      parCategorie: [],\n      parComplexite: [],\n      topAutomations: [],\n      topClients: []\n    }\n  }\n} }];"
+        "jsCode": "const g = $input.first().json;\nconst isSuperAdmin = $('02. Preparer').first().json.isSuperAdmin;\n\nconst nbCatalogue = Number(g.nb_catalogue) || 0;\nconst nbActives = Number(g.nb_actives) || 0;\nconst tauxAdoption = nbCatalogue > 0 ? Math.round((nbActives / nbCatalogue) * 100) : 0;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    dashboard: {\n      revenus: {\n        mensuel: Number(g.revenu_mensuel) || 0,\n        setupTotal: Number(g.revenu_setup_total) || 0,\n        potentielMensuel: isSuperAdmin ? (Number(g.revenu_potentiel_mensuel) || 0) : 0,\n        potentielSetup: isSuperAdmin ? (Number(g.revenu_potentiel_setup) || 0) : 0\n      },\n      compteurs: {\n        catalogue: nbCatalogue,\n        actives: nbActives,\n        enAttente: Number(g.nb_en_attente) || 0,\n        suspendues: Number(g.nb_suspendues) || 0,\n        annulees: Number(g.nb_annulees) || 0,\n        totalAchats: Number(g.nb_total_achats) || 0,\n        clientsActifs: isSuperAdmin ? (Number(g.nb_clients_actifs) || 0) : 0,\n        clientsTotal: isSuperAdmin ? (Number(g.nb_clients_total) || 0) : 0,\n        tauxAdoption\n      },\n      parCategorie: [],\n      parComplexite: [],\n      topAutomations: [],\n      topClients: []\n    }\n  }\n} }];"
       },
       "id": "format",
       "name": "04. Formater",
@@ -60,18 +60,10 @@
     }
   ],
   "connections": {
-    "01. Webhook": {
-      "main": [[{ "node": "02. Preparer", "type": "main", "index": 0 }]]
-    },
-    "02. Preparer": {
-      "main": [[{ "node": "03. Query globale", "type": "main", "index": 0 }]]
-    },
-    "03. Query globale": {
-      "main": [[{ "node": "04. Formater", "type": "main", "index": 0 }]]
-    },
-    "04. Formater": {
-      "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]]
-    }
+    "01. Webhook": { "main": [[{ "node": "02. Preparer", "type": "main", "index": 0 }]] },
+    "02. Preparer": { "main": [[{ "node": "03. Query globale", "type": "main", "index": 0 }]] },
+    "03. Query globale": { "main": [[{ "node": "04. Formater", "type": "main", "index": 0 }]] },
+    "04. Formater": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
