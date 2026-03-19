@@ -642,6 +642,7 @@ function DashboardTab({
 }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setLoading(true);
@@ -649,9 +650,9 @@ function DashboardTab({
       .then(res => {
         if (res.success && res.data?.dashboard) setData(res.data.dashboard);
       })
-      .catch(() => { /* fallback silencieux */ })
+      .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   // Fallback pendant le chargement ou si pas de data
   const revenus = data?.revenus || { mensuel: 0, setupTotal: 0, potentielMensuel: 0, potentielSetup: 0 };
@@ -744,12 +745,20 @@ function DashboardTab({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={async () => {
-                          await authenticatedFetch('/api/automations/deactivate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ tenantId: d.tenantId, automationId: d.automationId, action: 'annuler' }),
-                          });
-                          window.location.reload();
+                          try {
+                            const res = await authenticatedFetch<ApiResponse<null>>('/api/automations/deactivate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ tenantId: d.tenantId, automationId: d.automationId, action: 'annuler' }),
+                            });
+                            if (res.success) {
+                              setRefreshKey(k => k + 1);
+                            } else {
+                              alert(res.error || 'Erreur lors de l\'annulation');
+                            }
+                          } catch {
+                            alert('Erreur de connexion');
+                          }
                         }}
                         className="text-red-400 hover:text-red-300 text-xs underline"
                       >

@@ -8,7 +8,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-deactivate",
+      "id": "webhook",
       "name": "01. Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -16,48 +16,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\nconst action = body.action || 'suspendre';\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, valid: false, error: 'tenantId et automationId requis' } }];\n}\n\nconst newStatus = action === 'annuler' ? 'annulee' : 'suspendue';\nconst dateField = action === 'annuler' ? 'cancelled_at' : 'suspended_at';\n\nreturn [{ json: { tenantId, automationId, newStatus, dateField, valid: true } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\nconst action = body.action || 'suspendre';\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, error: 'tenantId et automationId requis' } }];\n}\n\nconst newStatus = action === 'annuler' ? 'annulee' : 'suspendue';\nconst dateField = action === 'annuler' ? 'cancelled_at' : 'suspended_at';\n\nreturn [{ json: { tenantId, automationId, newStatus, dateField, valid: true } }];"
       },
-      "id": "prepare-data",
-      "name": "02. Preparer donnees",
+      "id": "prepare",
+      "name": "02. Preparer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [470, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
-        }
-      },
-      "id": "check-valid",
-      "name": "03. Valide?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [690, 300]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT n8n_workflow_ids, status FROM automation_purchases WHERE tenant_id = '{{ $('02. Preparer donnees').first().json.tenantId }}'::uuid AND automation_id = '{{ $('02. Preparer donnees').first().json.automationId }}'::uuid",
-        "options": {}
-      },
-      "id": "get-purchase",
-      "name": "04. Recuperer achat",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [910, 200],
-      "credentials": { "postgres": { "name": "Supabase Postgres" } }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Desactiver chaque workflow via PATCH (compatible self-hosted n8n)\nconst purchase = $input.first().json;\nconst data = $('02. Preparer donnees').first().json;\nconst workflowIds = purchase.n8n_workflow_ids || [];\nconst baseUrl = $env.N8N_API_URL || 'http://localhost:5678';\nconst apiKey = $env.N8N_API_KEY || '';\nconst results = [];\n\nfor (const wfId of workflowIds) {\n  try {\n    // PATCH /api/v1/workflows/{id} avec active: false\n    // C'est l'endpoint standard self-hosted pour desactiver\n    const resp = await fetch(`${baseUrl}/api/v1/workflows/${wfId}`, {\n      method: 'PATCH',\n      headers: {\n        'Content-Type': 'application/json',\n        'X-N8N-API-KEY': apiKey\n      },\n      body: JSON.stringify({ active: false })\n    });\n    const respData = await resp.json();\n    results.push({\n      workflowId: wfId,\n      success: resp.ok,\n      active: respData.active === false ? false : respData.active\n    });\n  } catch (err) {\n    results.push({ workflowId: wfId, success: false, error: String(err) });\n  }\n}\n\nconst successCount = results.filter(r => r.success).length;\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  deactivated: successCount,\n  total: workflowIds.length,\n  results\n} }];"
-      },
-      "id": "deactivate-workflows",
-      "name": "05. Desactiver workflows n8n",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1130, 200]
     },
     {
       "parameters": {
@@ -65,51 +30,37 @@
         "query": "UPDATE automation_purchases SET status = '{{ $json.newStatus }}', {{ $json.dateField }} = NOW(), updated_at = NOW() WHERE tenant_id = '{{ $json.tenantId }}'::uuid AND automation_id = '{{ $json.automationId }}'::uuid RETURNING id, status",
         "options": {}
       },
-      "id": "update-status",
-      "name": "06. Mettre a jour BDD",
+      "id": "update-db",
+      "name": "03. Mettre a jour BDD",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1350, 200],
+      "position": [690, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
-        "jsCode": "const data = $('05. Desactiver workflows n8n').first().json;\nconst status = $('02. Preparer donnees').first().json.newStatus;\nconst label = status === 'annulee' ? 'annulee' : 'suspendue';\nreturn [{ json: {\n  success: true,\n  message: `Automatisation ${label} (${data.deactivated}/${data.total} workflows desactives)`\n} }];"
+        "jsCode": "const result = $input.first().json;\nconst data = $('02. Preparer').first().json;\nconst label = data.newStatus === 'annulee' ? 'annulee' : 'suspendue';\n\nreturn [{ json: {\n  success: true,\n  message: 'Automatisation ' + label\n} }];"
       },
-      "id": "format-ok",
-      "name": "07. Succes",
+      "id": "result",
+      "name": "04. Resultat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1570, 200]
+      "position": [910, 300]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
       "id": "respond",
-      "name": "08. Repondre",
+      "name": "05. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1790, 300]
-    },
-    {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify({ success: false, error: $('02. Preparer donnees').first().json.error || 'Donnees invalides' }) }}" },
-      "id": "respond-err",
-      "name": "08b. Erreur",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [910, 400]
+      "position": [1130, 300]
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Preparer donnees", "type": "main", "index": 0 }]] },
-    "02. Preparer donnees": { "main": [[{ "node": "03. Valide?", "type": "main", "index": 0 }]] },
-    "03. Valide?": { "main": [
-      [{ "node": "04. Recuperer achat", "type": "main", "index": 0 }],
-      [{ "node": "08b. Erreur", "type": "main", "index": 0 }]
-    ]},
-    "04. Recuperer achat": { "main": [[{ "node": "05. Desactiver workflows n8n", "type": "main", "index": 0 }]] },
-    "05. Desactiver workflows n8n": { "main": [[{ "node": "06. Mettre a jour BDD", "type": "main", "index": 0 }]] },
-    "06. Mettre a jour BDD": { "main": [[{ "node": "07. Succes", "type": "main", "index": 0 }]] },
-    "07. Succes": { "main": [[{ "node": "08. Repondre", "type": "main", "index": 0 }]] }
+    "01. Webhook": { "main": [[{ "node": "02. Preparer", "type": "main", "index": 0 }]] },
+    "02. Preparer": { "main": [[{ "node": "03. Mettre a jour BDD", "type": "main", "index": 0 }]] },
+    "03. Mettre a jour BDD": { "main": [[{ "node": "04. Resultat", "type": "main", "index": 0 }]] },
+    "04. Resultat": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
