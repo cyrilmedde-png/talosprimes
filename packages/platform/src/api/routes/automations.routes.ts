@@ -113,6 +113,7 @@ interface ActivateBody {
 interface DeactivateBody {
   tenantId: string;
   automationId: string;
+  action?: 'suspendre' | 'annuler';
 }
 
 interface FolderBody {
@@ -289,6 +290,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
         {
           tenantId: body.tenantId,
           automationId: body.automationId,
+          action: body.action || 'suspendre',
         }
       );
       return reply.send(res);
