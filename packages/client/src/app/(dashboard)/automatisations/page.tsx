@@ -529,9 +529,9 @@ export default function AutomatisationsPage() {
               onCategorieChange={setSelectedCategorie}
               categories={categories}
               onSelect={setSelectedAutomation}
-              isAdmin={isAdmin}
+              isAdmin={isSuperAdmin}
               onEdit={(a) => { setEditingAutomation(a); setShowCatalogForm(true); }}
-              onActivateForClient={(a) => { setActivateTarget(a); setShowActivateModal(true); }}
+              onActivateForClient={(a) => { if (isSuperAdmin) { setActivateTarget(a); setShowActivateModal(true); } }}
             />
           )}
 
@@ -560,11 +560,11 @@ export default function AutomatisationsPage() {
         <AutomationDetailModal
           automation={selectedAutomation}
           onClose={() => { setSelectedAutomation(null); setRequestMessage(null); }}
-          isAdmin={isAdmin}
+          isAdmin={isSuperAdmin}
           onRequestActivation={handleRequestActivation}
           requestLoading={requestLoading}
           requestMessage={requestMessage}
-          onActivateForClient={(a) => { setSelectedAutomation(null); setActivateTarget(a); setShowActivateModal(true); }}
+          onActivateForClient={(a) => { if (isSuperAdmin) { setSelectedAutomation(null); setActivateTarget(a); setShowActivateModal(true); } }}
           onDeactivate={async (a) => {
             try {
               await authenticatedFetch<ApiResponse<null>>('/api/automations/deactivate', {
@@ -580,7 +580,7 @@ export default function AutomatisationsPage() {
       )}
 
       {/* Modal Formulaire Catalogue (admin) */}
-      {showCatalogForm && (
+      {isSuperAdmin && showCatalogForm && (
         <CatalogFormModal
           automation={editingAutomation}
           onClose={() => { setShowCatalogForm(false); setEditingAutomation(null); }}
@@ -588,8 +588,8 @@ export default function AutomatisationsPage() {
         />
       )}
 
-      {/* Modal Activation Client (admin) */}
-      {showActivateModal && activateTarget && (
+      {/* Modal Activation Client (super_admin uniquement) */}
+      {isSuperAdmin && showActivateModal && activateTarget && (
         <ActivateForClientModal
           automation={activateTarget}
           onClose={() => { setShowActivateModal(false); setActivateTarget(null); }}

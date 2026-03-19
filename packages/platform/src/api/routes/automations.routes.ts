@@ -246,7 +246,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // n8n cree le workflow, le dossier, et retourne les IDs
   // ──────────────────────────────────────────────
   fastify.post('/activate', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as ActivateBody;
     if (!body.tenantId || !body.automationId) {
@@ -275,7 +275,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // n8n desactive les workflows et met a jour la BDD
   // ──────────────────────────────────────────────
   fastify.post('/deactivate', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as DeactivateBody;
     if (!body.tenantId || !body.automationId) {
@@ -302,7 +302,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // POST /catalog — Admin ajoute au catalogue via n8n
   // ──────────────────────────────────────────────
   fastify.post('/catalog', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
@@ -341,7 +341,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // PUT /catalog/:id — Admin modifie un item via n8n
   // ──────────────────────────────────────────────
   fastify.put('/catalog/:id', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
@@ -366,7 +366,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // DELETE /catalog/:id — Admin supprime (soft-delete) via n8n
   // ──────────────────────────────────────────────
   fastify.delete('/catalog/:id', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
@@ -390,7 +390,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // GET /logs/:tenantId — Logs d'un tenant via n8n (admin)
   // ──────────────────────────────────────────────
   fastify.get('/logs/:tenantId', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const adminTenantId = request.tenantId;
     if (!adminTenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
@@ -447,7 +447,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // GET /tenants — Liste des tenants via n8n (admin)
   // ──────────────────────────────────────────────
   fastify.get('/tenants', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
@@ -469,7 +469,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // GET /purchases/:tenantId — Achats d'un tenant specifique via n8n (admin)
   // ──────────────────────────────────────────────
   fastify.get('/purchases/:tenantId', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const adminTenantId = request.tenantId;
     if (!adminTenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
@@ -493,7 +493,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // PUT /folder/:tenantId — Associer un dossier n8n via n8n (admin)
   // ──────────────────────────────────────────────
   fastify.put('/folder/:tenantId', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const adminTenantId = request.tenantId;
     if (!adminTenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
@@ -527,7 +527,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   // Si ce workflow repond, n8n est operationnel.
   // ──────────────────────────────────────────────
   fastify.get('/n8n/status', {
-    preHandler: [fastify.authenticate, requireRole('super_admin', 'admin')],
+    preHandler: [fastify.authenticate, requireRole('super_admin')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
