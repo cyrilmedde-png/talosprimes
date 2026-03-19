@@ -88,20 +88,25 @@
     },
     {
       "parameters": {
-        "fromEmail": "noreply@talosprimes.com",
-        "toEmail": "={{ $json.email }}",
-        "subject": "=Nouvelle demande : {{ $('04. Preparer').first().json.clientName }} - {{ $('04. Preparer').first().json.automationNom }}",
-        "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto\">\n<h2 style=\"color:#f59e0b\">Nouvelle demande d'activation</h2>\n<table style=\"width:100%;border-collapse:collapse\">\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Client</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">{{ $('04. Preparer').first().json.clientName }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Automatisation</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">{{ $('04. Preparer').first().json.automationNom }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Complexite</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.complexity }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Setup</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.setupPrice }} EUR</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Mensuel</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.monthlyPrice }} EUR/mois</td></tr>\n</table>\n<p style=\"margin-top:20px\"><a href=\"https://talosprimes.com/automatisations\" style=\"background:#f59e0b;color:white;padding:10px 20px;border-radius:6px;text-decoration:none\">Voir la demande</a></p>\n</div>",
-        "options": {}
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: 'TalosPrimes <noreply@talosprimes.com>', to: [$json.email], subject: 'Nouvelle demande : ' + $('04. Preparer').first().json.clientName + ' - ' + $('04. Preparer').first().json.automationNom, html: '<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto\"><h2 style=\"color:#f59e0b\">Nouvelle demande d\\'activation</h2><table style=\"width:100%;border-collapse:collapse\"><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Client</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">' + $('04. Preparer').first().json.clientName + '</td></tr><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Automatisation</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">' + $('04. Preparer').first().json.automationNom + '</td></tr><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Complexite</td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + $('04. Preparer').first().json.complexity + '</td></tr><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Setup</td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + $('04. Preparer').first().json.setupPrice + ' EUR</td></tr><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Mensuel</td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + $('04. Preparer').first().json.monthlyPrice + ' EUR/mois</td></tr></table><p style=\"margin-top:20px\"><a href=\"https://talosprimes.com/automatisations\" style=\"background:#f59e0b;color:white;padding:10px 20px;border-radius:6px;text-decoration:none\">Voir la demande</a></p></div>' }) }}",
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
       },
       "id": "send-email",
       "name": "08. Envoyer email admin",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [1790, 300],
       "credentials": {
-        "smtp": {
-          "name": "TalosPrimes SMTP"
+        "httpHeaderAuth": {
+          "name": "RESEND"
         }
       }
     },

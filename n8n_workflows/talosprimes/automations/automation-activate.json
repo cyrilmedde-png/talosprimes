@@ -88,20 +88,25 @@
     },
     {
       "parameters": {
-        "fromEmail": "noreply@talosprimes.com",
-        "toEmail": "={{ $json.email }}",
-        "subject": "=Votre automatisation {{ $('04. Preparer').first().json.nom }} est activee !",
-        "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto\">\n<h2 style=\"color:#22c55e\">Automatisation activee</h2>\n<p>Bonjour,</p>\n<p>Votre automatisation <strong>{{ $('04. Preparer').first().json.nom }}</strong> est maintenant active sur votre espace {{ $('04. Preparer').first().json.tenantName }}.</p>\n<table style=\"width:100%;border-collapse:collapse;margin:20px 0\">\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Automatisation</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">{{ $('04. Preparer').first().json.nom }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Setup</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.setupPrice }} EUR</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Abonnement</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.monthlyPrice }} EUR/mois</td></tr>\n</table>\n<p>Vous pouvez consulter vos automatisations depuis votre tableau de bord.</p>\n<p><a href=\"https://demo.talosprimes.com/automatisations\" style=\"background:#22c55e;color:white;padding:10px 20px;border-radius:6px;text-decoration:none\">Voir mes automatisations</a></p>\n</div>",
-        "options": {}
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: 'TalosPrimes <noreply@talosprimes.com>', to: [$json.email], subject: 'Votre automatisation ' + $('04. Preparer').first().json.nom + ' est activee !', html: '<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto\"><h2 style=\"color:#22c55e\">Automatisation activee</h2><p>Bonjour,</p><p>Votre automatisation <strong>' + $('04. Preparer').first().json.nom + '</strong> est maintenant active sur votre espace ' + $('04. Preparer').first().json.tenantName + '.</p><table style=\"width:100%;border-collapse:collapse;margin:20px 0\"><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Automatisation</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">' + $('04. Preparer').first().json.nom + '</td></tr><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Setup</td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + $('04. Preparer').first().json.setupPrice + ' EUR</td></tr><tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Abonnement</td><td style=\"padding:8px;border-bottom:1px solid #eee\">' + $('04. Preparer').first().json.monthlyPrice + ' EUR/mois</td></tr></table><p>Vous pouvez consulter vos automatisations depuis votre tableau de bord.</p><p><a href=\"https://demo.talosprimes.com/automatisations\" style=\"background:#22c55e;color:white;padding:10px 20px;border-radius:6px;text-decoration:none\">Voir mes automatisations</a></p></div>' }) }}",
+        "options": {
+          "response": { "response": { "neverError": true } }
+        }
       },
       "id": "send-email-client",
       "name": "08. Email client",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [1790, 300],
       "credentials": {
-        "smtp": {
-          "name": "TalosPrimes SMTP"
+        "httpHeaderAuth": {
+          "name": "RESEND"
         }
       }
     },
