@@ -575,4 +575,67 @@ export async function automationsRoutes(fastify: FastifyInstance) {
       return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
+
+  // ──────────────────────────────────────────────
+  // POST /config/get — Recuperer la config d'une automatisation client
+  // ──────────────────────────────────────────────
+  fastify.post('/config/get', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const body = request.body as { automationId: string };
+    if (!body.automationId) {
+      return reply.status(400).send({ success: false, error: 'automationId requis' });
+    }
+
+    try {
+      const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
+        tenantId,
+        'automation_config_get',
+        { tenantId, automationId: body.automationId }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/config/get] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
+
+  // ──────────────────────────────────────────────
+  // POST /config/update — Modifier la config (audit + notification admin)
+  // ──────────────────────────────────────────────
+  fastify.post('/config/update', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
+    const body = request.body as { automationId: string; config: Record<string, unknown> };
+    if (!body.automationId || !body.config) {
+      return reply.status(400).send({ success: false, error: 'automationId et config requis' });
+    }
+
+    try {
+      const res = await n8nService.callWorkflowReturn<Record<string, unknown>>(
+        tenantId,
+        'automation_config_update',
+        {
+          tenantId,
+          automationId: body.automationId,
+          config: body.config,
+          userId: request.user?.id || null,
+          userEmail: request.user?.email || 'inconnu',
+          userRole: request.user?.role || 'inconnu',
+          ipAddress: request.ip || '',
+          userAgent: request.headers['user-agent'] || '',
+        }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/config/update] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
+    }
+  });
 }

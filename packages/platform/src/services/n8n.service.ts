@@ -359,6 +359,8 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   automation_folder_update: 'automations/folder-update',
   automation_n8n_status: 'automations/n8n-status',
   automation_dashboard_stats: 'automations/dashboard-stats',
+  automation_config_get: 'automations/config-get',
+  automation_config_update: 'automations/config-update',
 };
 
 /**

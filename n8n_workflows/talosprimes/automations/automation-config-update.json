@@ -1,0 +1,164 @@
+{
+  "name": "[TalosPrimes] Automations - Config Client Update",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/config-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\nconst newConfig = body.config || {};\nconst userEmail = body.userEmail || 'inconnu';\nconst userRole = body.userRole || 'inconnu';\nconst userId = body.userId || null;\nconst ipAddress = body.ipAddress || '';\nconst userAgent = body.userAgent || '';\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, newConfig, userEmail, userRole, userId, ipAddress, userAgent, valid: true } }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ap.id, ap.config, ac.nom FROM automation_purchases ap JOIN automation_catalog ac ON ac.id = ap.automation_id WHERE ap.tenant_id = '{{ $json.tenantId }}'::uuid AND ap.automation_id = '{{ $json.automationId }}'::uuid",
+        "options": {}
+      },
+      "id": "get-current",
+      "name": "03. Config actuelle",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const current = $input.first().json;\nconst data = $('02. Valider').first().json;\nconst oldConfig = current.config || {};\nconst newConfig = data.newConfig;\n\n// Detecter les champs modifies\nconst changes = [];\nconst allKeys = new Set([...Object.keys(oldConfig), ...Object.keys(newConfig)]);\nfor (const key of allKeys) {\n  const oldVal = JSON.stringify(oldConfig[key] ?? null);\n  const newVal = JSON.stringify(newConfig[key] ?? null);\n  if (oldVal !== newVal) {\n    changes.push({ champ: key, ancien: oldConfig[key] ?? null, nouveau: newConfig[key] ?? null });\n  }\n}\n\nreturn [{ json: {\n  purchaseId: current.id,\n  automationNom: current.nom,\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  oldConfig,\n  newConfig,\n  changes,\n  userEmail: data.userEmail,\n  userRole: data.userRole,\n  userId: data.userId,\n  ipAddress: data.ipAddress,\n  userAgent: data.userAgent,\n  hasChanges: changes.length > 0\n} }];"
+      },
+      "id": "diff",
+      "name": "04. Calculer differences",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automation_purchases SET config = '{{ JSON.stringify($json.newConfig) }}'::jsonb, updated_at = NOW() WHERE id = '{{ $json.purchaseId }}'::uuid RETURNING id, config",
+        "options": {}
+      },
+      "id": "update-config",
+      "name": "05. Sauvegarder config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1130, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inserer un log pour CHAQUE champ modifie\nconst data = $('04. Calculer differences').first().json;\nconst changes = data.changes || [];\nconst logs = [];\n\nif (changes.length === 0) {\n  // Meme si pas de changement, loguer l'acces\n  logs.push({\n    purchaseId: data.purchaseId,\n    tenantId: data.tenantId,\n    action: 'access',\n    champ: null,\n    ancien: null,\n    nouveau: null\n  });\n} else {\n  for (const c of changes) {\n    logs.push({\n      purchaseId: data.purchaseId,\n      tenantId: data.tenantId,\n      action: 'update',\n      champ: c.champ,\n      ancien: JSON.stringify(c.ancien),\n      nouveau: JSON.stringify(c.nouveau)\n    });\n  }\n}\n\nreturn [{ json: { ...data, logs } }];"
+      },
+      "id": "prepare-logs",
+      "name": "06. Preparer logs audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.logs.map(l => `INSERT INTO automation_config_logs (tenant_id, automation_purchase_id, user_id, user_email, user_role, action, champ_modifie, ancienne_valeur, nouvelle_valeur, config_avant, config_apres, ip_address, user_agent, created_at) VALUES ('${$json.tenantId}'::uuid, '${l.purchaseId}'::uuid, ${$json.userId ? \"'\" + $json.userId + \"'::uuid\" : 'NULL'}, '${$json.userEmail}', '${$json.userRole}', '${l.action}', ${l.champ ? \"'\" + l.champ + \"'\" : 'NULL'}, ${l.ancien ? \"'\" + l.ancien.replace(/'/g, \"''\") + \"'\" : 'NULL'}, ${l.nouveau ? \"'\" + l.nouveau.replace(/'/g, \"''\") + \"'\" : 'NULL'}, '${JSON.stringify($json.oldConfig)}'::jsonb, '${JSON.stringify($json.newConfig)}'::jsonb, '${$json.ipAddress}', '${$json.userAgent.replace(/'/g, \"''\")}', NOW())`).join('; ') }}",
+        "options": {}
+      },
+      "id": "insert-logs",
+      "name": "07. Ecrire logs audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at) SELECT t.id, 'automation_config_modified', 'Config modifiee par client', '{{ $json.userEmail }} a modifie la config de {{ $json.automationNom }} ({{ $json.changes.length }} champ(s))', '{{ JSON.stringify({ tenantId: $json.tenantId, automationNom: $json.automationNom, userEmail: $json.userEmail, changes: $json.changes.length }) }}'::jsonb, false, NOW() FROM tenants t JOIN users u ON u.tenant_id = t.id WHERE u.role = 'super_admin' LIMIT 1",
+        "options": {}
+      },
+      "id": "notif-admin",
+      "name": "08. Notifier super admin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1790, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.email FROM users u WHERE u.role = 'super_admin' LIMIT 1",
+        "options": {}
+      },
+      "id": "get-admin-email",
+      "name": "09. Email admin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2010, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: 'TalosPrimes <noreply@talosprimes.com>', to: [$json.email], subject: 'Alerte config : ' + $('04. Calculer differences').first().json.userEmail + ' a modifie ' + $('04. Calculer differences').first().json.automationNom, html: '<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto\"><h2 style=\"color:#ef4444\">Modification de configuration</h2><p><strong>' + $('04. Calculer differences').first().json.userEmail + '</strong> (' + $('04. Calculer differences').first().json.userRole + ') a modifie la configuration de <strong>' + $('04. Calculer differences').first().json.automationNom + '</strong>.</p><p>Nombre de champs modifies : <strong>' + $('04. Calculer differences').first().json.changes.length + '</strong></p><p style=\"margin-top:20px\"><a href=\"https://talosprimes.com/automatisations\" style=\"background:#ef4444;color:white;padding:10px 20px;border-radius:6px;text-decoration:none\">Voir les details</a></p><p style=\"color:#666;font-size:12px;margin-top:20px\">Cet email est envoye automatiquement pour tracer les modifications de config client.</p></div>' }) }}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "send-email",
+      "name": "10. Email alerte admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2230, 300],
+      "credentials": { "httpHeaderAuth": { "name": "RESEND" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('04. Calculer differences').first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    message: data.hasChanges ? `Configuration mise a jour (${data.changes.length} champ(s) modifie(s)). L'administrateur a ete notifie.` : 'Aucune modification detectee.',\n    changes: data.changes,\n    hasChanges: data.hasChanges\n  }\n} }];"
+      },
+      "id": "result",
+      "name": "11. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond",
+      "name": "12. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2670, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Config actuelle", "type": "main", "index": 0 }]] },
+    "03. Config actuelle": { "main": [[{ "node": "04. Calculer differences", "type": "main", "index": 0 }]] },
+    "04. Calculer differences": { "main": [[{ "node": "05. Sauvegarder config", "type": "main", "index": 0 }]] },
+    "05. Sauvegarder config": { "main": [[{ "node": "06. Preparer logs audit", "type": "main", "index": 0 }]] },
+    "06. Preparer logs audit": { "main": [[{ "node": "07. Ecrire logs audit", "type": "main", "index": 0 }]] },
+    "07. Ecrire logs audit": { "main": [[{ "node": "08. Notifier super admin", "type": "main", "index": 0 }]] },
+    "08. Notifier super admin": { "main": [[{ "node": "09. Email admin", "type": "main", "index": 0 }]] },
+    "09. Email admin": { "main": [[{ "node": "10. Email alerte admin", "type": "main", "index": 0 }]] },
+    "10. Email alerte admin": { "main": [[{ "node": "11. Resultat", "type": "main", "index": 0 }]] },
+    "11. Resultat": { "main": [[{ "node": "12. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}

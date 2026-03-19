@@ -1,0 +1,70 @@
+{
+  "name": "[TalosPrimes] Automations - Config Client Get",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/config-get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ap.id, ap.config, ap.status, ap.activated_at, ap.updated_at, ac.nom, ac.code, ac.categorie, ac.complexity FROM automation_purchases ap JOIN automation_catalog ac ON ac.id = ap.automation_id WHERE ap.tenant_id = '{{ $json.body.tenantId || $json.tenantId }}'::uuid AND ap.automation_id = '{{ $json.body.automationId || $json.automationId }}'::uuid",
+        "options": {}
+      },
+      "id": "db-get",
+      "name": "02. Chercher config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, action, champ_modifie, ancienne_valeur, nouvelle_valeur, user_email, user_role, created_at FROM automation_config_logs WHERE automation_purchase_id = '{{ $json.id }}'::uuid ORDER BY created_at DESC LIMIT 20",
+        "options": {}
+      },
+      "id": "db-logs",
+      "name": "03. Historique modifications",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const purchase = $('02. Chercher config').first().json;\nconst logs = $('03. Historique modifications').all().map(i => i.json);\n\nreturn [{ json: {\n  success: true,\n  data: {\n    purchaseId: purchase.id,\n    automationNom: purchase.nom,\n    automationCode: purchase.code,\n    categorie: purchase.categorie,\n    complexity: purchase.complexity,\n    status: purchase.status,\n    config: purchase.config || {},\n    activatedAt: purchase.activated_at,\n    updatedAt: purchase.updated_at,\n    logs\n  }\n} }];"
+      },
+      "id": "format",
+      "name": "04. Formater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond",
+      "name": "05. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Chercher config", "type": "main", "index": 0 }]] },
+    "02. Chercher config": { "main": [[{ "node": "03. Historique modifications", "type": "main", "index": 0 }]] },
+    "03. Historique modifications": { "main": [[{ "node": "04. Formater", "type": "main", "index": 0 }]] },
+    "04. Formater": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
+}
