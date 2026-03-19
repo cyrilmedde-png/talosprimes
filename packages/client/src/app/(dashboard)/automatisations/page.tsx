@@ -514,6 +514,7 @@ export default function AutomatisationsPage() {
           {activeTab === 'dashboard' && (
             <DashboardTab
               isAdmin={isAdmin}
+              isSuperAdmin={isSuperAdmin}
               n8nStatus={n8nStatus}
               onNavigate={setActiveTab}
             />
@@ -614,10 +615,12 @@ interface DashboardData {
 
 function DashboardTab({
   isAdmin,
+  isSuperAdmin,
   n8nStatus,
   onNavigate,
 }: {
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   n8nStatus: N8nStatus | null;
   onNavigate: (tab: TabType) => void;
 }) {
@@ -654,27 +657,49 @@ function DashboardTab({
   return (
     <div className="space-y-6">
       {/* KPIs principaux */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-green-900/40 to-green-800/20 rounded-xl p-5 border border-green-500/20">
-          <p className="text-green-400/70 text-xs uppercase tracking-wider font-medium">Revenus mensuels</p>
-          <p className="text-3xl font-bold text-green-400 mt-2">{fmtPrix(revenus.mensuel)} €</p>
-          <p className="text-green-400/50 text-xs mt-1">{c.actives} automatisation{c.actives > 1 ? 's' : ''} active{c.actives > 1 ? 's' : ''}</p>
-        </div>
-        <div className="bg-gradient-to-br from-amber-900/40 to-amber-800/20 rounded-xl p-5 border border-amber-500/20">
-          <p className="text-amber-400/70 text-xs uppercase tracking-wider font-medium">Revenus setup cumules</p>
-          <p className="text-3xl font-bold text-amber-400 mt-2">{fmtPrix(revenus.setupTotal)} €</p>
-          <p className="text-amber-400/50 text-xs mt-1">Installations uniques</p>
-        </div>
-        <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 rounded-xl p-5 border border-blue-500/20">
-          <p className="text-blue-400/70 text-xs uppercase tracking-wider font-medium">Clients actifs</p>
-          <p className="text-3xl font-bold text-blue-400 mt-2">{c.clientsActifs}</p>
-          <p className="text-blue-400/50 text-xs mt-1">sur {c.clientsTotal} client{c.clientsTotal > 1 ? 's' : ''} total</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 rounded-xl p-5 border border-purple-500/20">
-          <p className="text-purple-400/70 text-xs uppercase tracking-wider font-medium">Taux d&apos;adoption</p>
-          <p className="text-3xl font-bold text-purple-400 mt-2">{c.tauxAdoption}%</p>
-          <p className="text-purple-400/50 text-xs mt-1">{c.actives}/{c.catalogue} du catalogue</p>
-        </div>
+      <div className={`grid grid-cols-2 ${isSuperAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
+        {isSuperAdmin ? (
+          <>
+            <div className="bg-gradient-to-br from-green-900/40 to-green-800/20 rounded-xl p-5 border border-green-500/20">
+              <p className="text-green-400/70 text-xs uppercase tracking-wider font-medium">Revenus mensuels</p>
+              <p className="text-3xl font-bold text-green-400 mt-2">{fmtPrix(revenus.mensuel)} €</p>
+              <p className="text-green-400/50 text-xs mt-1">{c.actives} automatisation{c.actives > 1 ? 's' : ''} active{c.actives > 1 ? 's' : ''}</p>
+            </div>
+            <div className="bg-gradient-to-br from-amber-900/40 to-amber-800/20 rounded-xl p-5 border border-amber-500/20">
+              <p className="text-amber-400/70 text-xs uppercase tracking-wider font-medium">Revenus setup cumules</p>
+              <p className="text-3xl font-bold text-amber-400 mt-2">{fmtPrix(revenus.setupTotal)} €</p>
+              <p className="text-amber-400/50 text-xs mt-1">Installations uniques</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 rounded-xl p-5 border border-blue-500/20">
+              <p className="text-blue-400/70 text-xs uppercase tracking-wider font-medium">Clients actifs</p>
+              <p className="text-3xl font-bold text-blue-400 mt-2">{c.clientsActifs}</p>
+              <p className="text-blue-400/50 text-xs mt-1">sur {c.clientsTotal} client{c.clientsTotal > 1 ? 's' : ''} total</p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 rounded-xl p-5 border border-purple-500/20">
+              <p className="text-purple-400/70 text-xs uppercase tracking-wider font-medium">Taux d&apos;adoption</p>
+              <p className="text-3xl font-bold text-purple-400 mt-2">{c.tauxAdoption}%</p>
+              <p className="text-purple-400/50 text-xs mt-1">{c.actives}/{c.catalogue} du catalogue</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="bg-gradient-to-br from-green-900/40 to-green-800/20 rounded-xl p-5 border border-green-500/20">
+              <p className="text-green-400/70 text-xs uppercase tracking-wider font-medium">Mes automatisations</p>
+              <p className="text-3xl font-bold text-green-400 mt-2">{c.actives}</p>
+              <p className="text-green-400/50 text-xs mt-1">active{c.actives > 1 ? 's' : ''} sur {c.catalogue} disponibles</p>
+            </div>
+            <div className="bg-gradient-to-br from-amber-900/40 to-amber-800/20 rounded-xl p-5 border border-amber-500/20">
+              <p className="text-amber-400/70 text-xs uppercase tracking-wider font-medium">Abonnement mensuel</p>
+              <p className="text-3xl font-bold text-amber-400 mt-2">{fmtPrix(revenus.mensuel)} €/mois</p>
+              <p className="text-amber-400/50 text-xs mt-1">Cout total de vos automatisations</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 rounded-xl p-5 border border-blue-500/20">
+              <p className="text-blue-400/70 text-xs uppercase tracking-wider font-medium">En attente</p>
+              <p className="text-3xl font-bold text-blue-400 mt-2">{c.enAttente}</p>
+              <p className="text-blue-400/50 text-xs mt-1">demande{c.enAttente > 1 ? 's' : ''} d&apos;activation</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Statut global + raccourcis */}
@@ -686,14 +711,16 @@ function DashboardTab({
             Statut en temps reel
           </h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-sm">n8n</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                n8nStatus?.success ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
-              }`}>
-                {n8nStatus?.success ? 'Connecte' : 'Deconnecte'}
-              </span>
-            </div>
+            {isSuperAdmin && (
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400 text-sm">n8n</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  n8nStatus?.success ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
+                }`}>
+                  {n8nStatus?.success ? 'Connecte' : 'Deconnecte'}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-gray-400 text-sm">Actives</span>
               <span className="text-green-400 font-medium text-sm">{c.actives}</span>
@@ -706,14 +733,18 @@ function DashboardTab({
               <span className="text-gray-400 text-sm">Suspendues</span>
               <span className="text-orange-400 font-medium text-sm">{c.suspendues}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-sm">Clients actifs</span>
-              <span className="text-blue-400 font-medium text-sm">{c.clientsActifs}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400 text-sm">Total achats</span>
-              <span className="text-gray-300 font-medium text-sm">{c.totalAchats}</span>
-            </div>
+            {isSuperAdmin && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Clients actifs</span>
+                  <span className="text-blue-400 font-medium text-sm">{c.clientsActifs}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-sm">Total achats</span>
+                  <span className="text-gray-300 font-medium text-sm">{c.totalAchats}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -782,7 +813,7 @@ function DashboardTab({
                 <p className="text-gray-500 text-xs">Logs et executions</p>
               </div>
             </button>
-            {isAdmin && (
+            {isSuperAdmin && (
               <button
                 onClick={() => onNavigate('admin')}
                 className="w-full text-left px-4 py-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3 group"
