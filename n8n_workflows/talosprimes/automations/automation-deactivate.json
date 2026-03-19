@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, valid: false, error: 'tenantId et automationId requis' } }];\n}\n\nreturn [{ json: { tenantId, automationId, valid: true } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst automationId = body.automationId;\nconst action = body.action || 'suspendre';\n\nif (!tenantId || !automationId) {\n  return [{ json: { success: false, valid: false, error: 'tenantId et automationId requis' } }];\n}\n\nconst newStatus = action === 'annuler' ? 'annulee' : 'suspendue';\nconst dateField = action === 'annuler' ? 'cancelled_at' : 'suspended_at';\n\nreturn [{ json: { tenantId, automationId, newStatus, dateField, valid: true } }];"
       },
       "id": "prepare-data",
       "name": "02. Preparer donnees",
@@ -62,7 +62,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE automation_purchases SET status = 'suspendue', suspended_at = NOW(), updated_at = NOW() WHERE tenant_id = '{{ $json.tenantId }}'::uuid AND automation_id = '{{ $json.automationId }}'::uuid RETURNING id, status",
+        "query": "UPDATE automation_purchases SET status = '{{ $json.newStatus }}', {{ $json.dateField }} = NOW(), updated_at = NOW() WHERE tenant_id = '{{ $json.tenantId }}'::uuid AND automation_id = '{{ $json.automationId }}'::uuid RETURNING id, status",
         "options": {}
       },
       "id": "update-status",
@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $('05. Desactiver workflows n8n').first().json;\nreturn [{ json: {\n  success: true,\n  message: `Automatisation suspendue (${data.deactivated}/${data.total} workflows desactives)`\n} }];"
+        "jsCode": "const data = $('05. Desactiver workflows n8n').first().json;\nconst status = $('02. Preparer donnees').first().json.newStatus;\nconst label = status === 'annulee' ? 'annulee' : 'suspendue';\nreturn [{ json: {\n  success: true,\n  message: `Automatisation ${label} (${data.deactivated}/${data.total} workflows desactives)`\n} }];"
       },
       "id": "format-ok",
       "name": "07. Succes",

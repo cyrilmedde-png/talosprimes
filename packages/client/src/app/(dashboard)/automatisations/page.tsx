@@ -739,14 +739,29 @@ function DashboardTab({
                       <p className="text-gray-400 text-xs">{d.clientName} &middot; {d.complexity} &middot; {formatDate(d.createdAt)}</p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end gap-1">
                     <p className="text-amber-400 font-medium text-sm">{fmtPrix(Number(d.setupPrice))} € + {fmtPrix(Number(d.monthlyPrice))} €/m</p>
-                    <button
-                      onClick={() => onNavigate('admin')}
-                      className="text-yellow-400 hover:text-yellow-300 text-xs underline mt-1"
-                    >
-                      Activer
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          await authenticatedFetch('/api/automations/deactivate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ tenantId: d.tenantId, automationId: d.automationId, action: 'annuler' }),
+                          });
+                          window.location.reload();
+                        }}
+                        className="text-red-400 hover:text-red-300 text-xs underline"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={() => onNavigate('admin')}
+                        className="text-yellow-400 hover:text-yellow-300 text-xs underline"
+                      >
+                        Activer
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
