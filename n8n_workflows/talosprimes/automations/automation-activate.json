@@ -27,7 +27,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ac.code, ac.nom, ac.setup_price, ac.monthly_price, t.nom_entreprise AS tenant_name FROM automation_catalog ac, tenants t WHERE ac.id = '{{ $json.automationId }}'::uuid AND t.id = '{{ $json.tenantId }}'::uuid",
+        "query": "SELECT ac.code, ac.nom, ac.setup_price, ac.monthly_price, ac.complexity, t.nom_entreprise AS tenant_name FROM automation_catalog ac, tenants t WHERE ac.id = '{{ $json.automationId }}'::uuid AND t.id = '{{ $json.tenantId }}'::uuid",
         "options": {}
       },
       "id": "lookup",
@@ -39,7 +39,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const info = $input.first().json;\nconst data = $('02. Valider').first().json;\n\nif (!info || !info.code) {\n  return [{ json: { success: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  code: info.code,\n  nom: info.nom,\n  tenantName: info.tenant_name,\n  setupPrice: Number(info.setup_price) || 0,\n  monthlyPrice: Number(info.monthly_price) || 0,\n  config: data.config\n} }];"
+        "jsCode": "const info = $input.first().json;\nconst data = $('02. Valider').first().json;\n\nif (!info || !info.code) {\n  return [{ json: { success: false, error: 'Automatisation ou tenant introuvable' } }];\n}\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  code: info.code,\n  nom: info.nom,\n  tenantName: info.tenant_name,\n  setupPrice: Number(info.setup_price) || 0,\n  monthlyPrice: Number(info.monthly_price) || 0,\n  complexity: info.complexity,\n  config: data.config\n} }];"
       },
       "id": "prepare",
       "name": "04. Preparer",
@@ -62,13 +62,58 @@
     },
     {
       "parameters": {
-        "jsCode": "const purchase = $input.first().json;\nconst data = $('04. Preparer').first().json;\n\nreturn [{ json: {\n  success: true,\n  workflowId: null,\n  workflowName: data.nom,\n  workflowIds: [],\n  folderId: null,\n  folderName: 'client:' + data.tenantName,\n  purchaseId: purchase.id,\n  purchaseStatus: purchase.status,\n  message: 'Automatisation ' + data.nom + ' activee pour ' + data.tenantName\n} }];"
+        "operation": "executeQuery",
+        "query": "INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at) VALUES ('{{ $('04. Preparer').first().json.tenantId }}'::uuid, 'automation_activated', 'Automatisation activee', 'Votre automatisation {{ $('04. Preparer').first().json.nom }} est maintenant active !', '{\"automationId\": \"{{ $('04. Preparer').first().json.automationId }}\", \"automationNom\": \"{{ $('04. Preparer').first().json.nom }}\"}'::jsonb, false, NOW())",
+        "options": {}
+      },
+      "id": "notif-client",
+      "name": "06. Notification client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.email FROM users u WHERE u.tenant_id = '{{ $('04. Preparer').first().json.tenantId }}'::uuid AND u.role IN ('admin', 'super_admin') LIMIT 1",
+        "options": {}
+      },
+      "id": "get-client-email",
+      "name": "07. Chercher email client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Votre automatisation {{ $('04. Preparer').first().json.nom }} est activee !",
+        "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto\">\n<h2 style=\"color:#22c55e\">Automatisation activee</h2>\n<p>Bonjour,</p>\n<p>Votre automatisation <strong>{{ $('04. Preparer').first().json.nom }}</strong> est maintenant active sur votre espace {{ $('04. Preparer').first().json.tenantName }}.</p>\n<table style=\"width:100%;border-collapse:collapse;margin:20px 0\">\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Automatisation</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">{{ $('04. Preparer').first().json.nom }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Setup</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.setupPrice }} EUR</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Abonnement</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.monthlyPrice }} EUR/mois</td></tr>\n</table>\n<p>Vous pouvez consulter vos automatisations depuis votre tableau de bord.</p>\n<p><a href=\"https://demo.talosprimes.com/automatisations\" style=\"background:#22c55e;color:white;padding:10px 20px;border-radius:6px;text-decoration:none\">Voir mes automatisations</a></p>\n</div>",
+        "options": {}
+      },
+      "id": "send-email-client",
+      "name": "08. Email client",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1790, 300],
+      "credentials": {
+        "smtp": {
+          "name": "TalosPrimes SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('04. Preparer').first().json;\nconst purchase = $('05. Enregistrer achat').first().json;\n\nreturn [{ json: {\n  success: true,\n  workflowId: null,\n  workflowName: data.nom,\n  workflowIds: [],\n  folderId: null,\n  folderName: 'client:' + data.tenantName,\n  purchaseId: purchase.id,\n  purchaseStatus: purchase.status,\n  message: 'Automatisation ' + data.nom + ' activee pour ' + data.tenantName + '. Le client a ete notifie.'\n} }];"
       },
       "id": "result",
-      "name": "06. Resultat",
+      "name": "09. Resultat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1350, 300]
+      "position": [2010, 300]
     },
     {
       "parameters": {
@@ -76,31 +121,22 @@
         "options": {}
       },
       "id": "respond",
-      "name": "07. Repondre",
+      "name": "10. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1570, 300]
+      "position": [2230, 300]
     }
   ],
   "connections": {
-    "01. Webhook": {
-      "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]]
-    },
-    "02. Valider": {
-      "main": [[{ "node": "03. Chercher infos", "type": "main", "index": 0 }]]
-    },
-    "03. Chercher infos": {
-      "main": [[{ "node": "04. Preparer", "type": "main", "index": 0 }]]
-    },
-    "04. Preparer": {
-      "main": [[{ "node": "05. Enregistrer achat", "type": "main", "index": 0 }]]
-    },
-    "05. Enregistrer achat": {
-      "main": [[{ "node": "06. Resultat", "type": "main", "index": 0 }]]
-    },
-    "06. Resultat": {
-      "main": [[{ "node": "07. Repondre", "type": "main", "index": 0 }]]
-    }
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Chercher infos", "type": "main", "index": 0 }]] },
+    "03. Chercher infos": { "main": [[{ "node": "04. Preparer", "type": "main", "index": 0 }]] },
+    "04. Preparer": { "main": [[{ "node": "05. Enregistrer achat", "type": "main", "index": 0 }]] },
+    "05. Enregistrer achat": { "main": [[{ "node": "06. Notification client", "type": "main", "index": 0 }]] },
+    "06. Notification client": { "main": [[{ "node": "07. Chercher email client", "type": "main", "index": 0 }]] },
+    "07. Chercher email client": { "main": [[{ "node": "08. Email client", "type": "main", "index": 0 }]] },
+    "08. Email client": { "main": [[{ "node": "09. Resultat", "type": "main", "index": 0 }]] },
+    "09. Resultat": { "main": [[{ "node": "10. Repondre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "automations" }]

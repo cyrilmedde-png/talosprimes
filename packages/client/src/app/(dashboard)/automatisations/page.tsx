@@ -386,7 +386,8 @@ export default function AutomatisationsPage() {
         body: JSON.stringify({ automationId }),
       });
       if (res.success) {
-        setRequestMessage('Demande envoyee ! Vous serez contacte pour l\'activation.');
+        const resData = res.data as { message?: string; delai?: string } | undefined;
+        setRequestMessage(resData?.message || 'Demande envoyee ! Vous serez recontacte sous 24 a 72h.');
         fetchData();
       } else {
         setRequestMessage(res.error || 'Erreur lors de l\'envoi');

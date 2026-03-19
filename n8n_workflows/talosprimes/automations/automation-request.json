@@ -26,79 +26,128 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
-        }
-      },
-      "id": "check",
-      "name": "03. Valide?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [690, 300]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, nom FROM automation_catalog WHERE id = '{{ $('02. Valider').first().json.automationId }}'::uuid AND is_active = true",
+        "query": "SELECT ac.id, ac.nom, ac.code, ac.complexity, ac.setup_price, ac.monthly_price, t.nom_entreprise AS client_name, t.id AS tid FROM automation_catalog ac, tenants t WHERE ac.id = '{{ $json.automationId }}'::uuid AND ac.is_active = true AND t.id = '{{ $json.tenantId }}'::uuid",
         "options": {}
       },
-      "id": "check-exists",
-      "name": "04. Verifier existence",
+      "id": "lookup",
+      "name": "03. Chercher infos",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [910, 200],
+      "position": [690, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
+        "jsCode": "const info = $input.first().json;\nconst data = $('02. Valider').first().json;\n\nif (!info || !info.nom) {\n  return [{ json: { success: false, error: 'Automatisation introuvable ou inactive' } }];\n}\n\n// Delai estime selon complexite\nconst delais = { simple: '24 heures', intermediaire: '48 heures', avance: '72 heures' };\nconst delai = delais[info.complexity] || '48 heures';\n\nreturn [{ json: {\n  tenantId: data.tenantId,\n  automationId: data.automationId,\n  automationNom: info.nom,\n  automationCode: info.code,\n  complexity: info.complexity,\n  setupPrice: info.setup_price,\n  monthlyPrice: info.monthly_price,\n  clientName: info.client_name,\n  delai,\n  valid: true\n} }];"
+      },
+      "id": "prepare",
+      "name": "04. Preparer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automation_purchases (tenant_id, automation_id, status, created_at, updated_at)\nVALUES ('{{ $('02. Valider').first().json.tenantId }}'::uuid, '{{ $('02. Valider').first().json.automationId }}'::uuid, 'en_attente', NOW(), NOW())\nON CONFLICT (tenant_id, automation_id) DO UPDATE SET status = 'en_attente', updated_at = NOW()\nRETURNING id",
+        "query": "INSERT INTO automation_purchases (tenant_id, automation_id, status, setup_price_paid, monthly_price, created_at, updated_at) VALUES ('{{ $json.tenantId }}'::uuid, '{{ $json.automationId }}'::uuid, 'en_attente', {{ $json.setupPrice }}, {{ $json.monthlyPrice }}, NOW(), NOW()) ON CONFLICT (tenant_id, automation_id) DO UPDATE SET status = 'en_attente', updated_at = NOW() RETURNING id",
         "options": {}
       },
       "id": "upsert",
       "name": "05. Creer demande",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1130, 200],
+      "position": [1130, 300],
       "credentials": { "postgres": { "name": "Supabase Postgres" } }
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { success: true, message: 'Demande envoyee' } }];"
+        "operation": "executeQuery",
+        "query": "INSERT INTO notifications (tenant_id, type, titre, message, donnees, lu, created_at) SELECT t.id, 'automation_request', 'Demande d''activation', '{{ $('04. Preparer').first().json.clientName }} demande l''activation de {{ $('04. Preparer').first().json.automationNom }}', '{\"automationId\": \"{{ $('04. Preparer').first().json.automationId }}\", \"clientName\": \"{{ $('04. Preparer').first().json.clientName }}\", \"complexity\": \"{{ $('04. Preparer').first().json.complexity }}\"}'::jsonb, false, NOW() FROM tenants t JOIN users u ON u.tenant_id = t.id WHERE u.role = 'super_admin' LIMIT 1",
+        "options": {}
       },
-      "id": "ok",
-      "name": "06. Succes",
+      "id": "notif",
+      "name": "06. Notification in-app",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.email FROM users u WHERE u.role = 'super_admin' LIMIT 1",
+        "options": {}
+      },
+      "id": "get-admin-email",
+      "name": "07. Email super admin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@talosprimes.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Nouvelle demande : {{ $('04. Preparer').first().json.clientName }} - {{ $('04. Preparer').first().json.automationNom }}",
+        "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto\">\n<h2 style=\"color:#f59e0b\">Nouvelle demande d'activation</h2>\n<table style=\"width:100%;border-collapse:collapse\">\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Client</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">{{ $('04. Preparer').first().json.clientName }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Automatisation</td><td style=\"padding:8px;border-bottom:1px solid #eee;font-weight:bold\">{{ $('04. Preparer').first().json.automationNom }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Complexite</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.complexity }}</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Setup</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.setupPrice }} EUR</td></tr>\n<tr><td style=\"padding:8px;border-bottom:1px solid #eee;color:#666\">Mensuel</td><td style=\"padding:8px;border-bottom:1px solid #eee\">{{ $('04. Preparer').first().json.monthlyPrice }} EUR/mois</td></tr>\n</table>\n<p style=\"margin-top:20px\"><a href=\"https://talosprimes.com/automatisations\" style=\"background:#f59e0b;color:white;padding:10px 20px;border-radius:6px;text-decoration:none\">Voir la demande</a></p>\n</div>",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "08. Envoyer email admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1790, 300],
+      "credentials": {
+        "smtp": {
+          "name": "TalosPrimes SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('04. Preparer').first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    message: `Demande envoyee ! Vous serez recontacte sous ${data.delai} pour l'activation de ${data.automationNom}.`,\n    delai: data.delai,\n    complexity: data.complexity,\n    automationNom: data.automationNom\n  }\n} }];"
+      },
+      "id": "result",
+      "name": "09. Resultat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1350, 200]
+      "position": [2010, 300]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}" },
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
       "id": "respond",
-      "name": "07. Repondre",
+      "name": "10. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1570, 300]
+      "position": [2230, 300]
     },
     {
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($('02. Valider').first().json) }}" },
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
       "id": "respond-err",
-      "name": "07b. Erreur",
+      "name": "10b. Erreur",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [910, 400]
+      "position": [690, 500]
     }
   ],
   "connections": {
     "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
-    "02. Valider": { "main": [[{ "node": "03. Valide?", "type": "main", "index": 0 }]] },
-    "03. Valide?": { "main": [
-      [{ "node": "04. Verifier existence", "type": "main", "index": 0 }],
-      [{ "node": "07b. Erreur", "type": "main", "index": 0 }]
-    ]},
-    "04. Verifier existence": { "main": [[{ "node": "05. Creer demande", "type": "main", "index": 0 }]] },
-    "05. Creer demande": { "main": [[{ "node": "06. Succes", "type": "main", "index": 0 }]] },
-    "06. Succes": { "main": [[{ "node": "07. Repondre", "type": "main", "index": 0 }]] }
+    "02. Valider": { "main": [[{ "node": "03. Chercher infos", "type": "main", "index": 0 }]] },
+    "03. Chercher infos": { "main": [[{ "node": "04. Preparer", "type": "main", "index": 0 }]] },
+    "04. Preparer": { "main": [[{ "node": "05. Creer demande", "type": "main", "index": 0 }]] },
+    "05. Creer demande": { "main": [[{ "node": "06. Notification in-app", "type": "main", "index": 0 }]] },
+    "06. Notification in-app": { "main": [[{ "node": "07. Email super admin", "type": "main", "index": 0 }]] },
+    "07. Email super admin": { "main": [[{ "node": "08. Envoyer email admin", "type": "main", "index": 0 }]] },
+    "08. Envoyer email admin": { "main": [[{ "node": "09. Resultat", "type": "main", "index": 0 }]] },
+    "09. Resultat": { "main": [[{ "node": "10. Repondre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "automations" }]
