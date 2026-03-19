@@ -625,7 +625,7 @@ export async function automationsRoutes(fastify: FastifyInstance) {
           tenantId,
           automationId: body.automationId,
           config: body.config,
-          userId: request.user?.id || null,
+          userId: request.user?.userId || null,
           userEmail: request.user?.email || 'inconnu',
           userRole: request.user?.role || 'inconnu',
           ipAddress: request.ip || '',
