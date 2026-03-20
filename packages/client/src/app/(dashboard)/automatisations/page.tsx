@@ -752,7 +752,11 @@ function DashboardTab({
                               body: JSON.stringify({ tenantId: d.tenantId, automationId: d.automationId, action: 'annuler' }),
                             });
                             if (res.success) {
-                              setRefreshKey(k => k + 1);
+                              setData(prev => prev ? {
+                                ...prev,
+                                demandesEnAttente: prev.demandesEnAttente.filter(x => x.id !== d.id),
+                                compteurs: { ...prev.compteurs, enAttente: Math.max(0, prev.compteurs.enAttente - 1) }
+                              } : prev);
                             } else {
                               alert(res.error || 'Erreur lors de l\'annulation');
                             }
