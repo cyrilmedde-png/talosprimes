@@ -138,7 +138,12 @@ ALTER TABLE "email_ai_rules" ENABLE ROW LEVEL SECURITY;
 -- ═══════════════════════════════════════════════════════════
 -- 3. Ajouter l'automatisation "Agent IA Email" au catalogue
 -- ═══════════════════════════════════════════════════════════
-INSERT INTO "automation_catalog" ("id", "code", "nom", "description", "categorie", "icon", "config_schema", "prix_mensuel", "actif", "created_at", "updated_at")
+INSERT INTO "automation_catalog" (
+  "id", "code", "nom", "description", "categorie", "icon",
+  "setup_price", "monthly_price", "complexity", "workflow_count",
+  "workflow_templates", "features", "is_active", "ordre",
+  "created_at", "updated_at"
+)
 VALUES (
   gen_random_uuid(),
   'email-ai-agent',
@@ -146,26 +151,32 @@ VALUES (
   'Agent intelligent qui lit, classifie et repond automatiquement aux emails. Reponses autonomes pour les cas simples (FAQ, accuse de reception), file d''attente pour validation humaine sur les cas complexes. Modele IA configurable par client.',
   'email',
   'brain',
-  '{
-    "type": "object",
-    "properties": {
-      "openaiApiKey": { "type": "string", "title": "Cle API OpenAI", "description": "Votre cle API OpenAI pour la generation de reponses" },
-      "model": { "type": "string", "title": "Modele IA", "enum": ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"], "default": "gpt-4o-mini" },
-      "businessContext": { "type": "string", "title": "Contexte entreprise", "description": "Decrivez votre activite pour que l''IA adapte ses reponses" },
-      "faq": { "type": "string", "title": "FAQ / Reponses types", "description": "Questions-reponses frequentes que l''IA peut utiliser" },
-      "signature": { "type": "string", "title": "Signature email", "description": "Signature ajoutee a chaque reponse" },
-      "tone": { "type": "string", "title": "Ton des reponses", "enum": ["professionnel", "amical", "formel", "decontracte"], "default": "professionnel" },
-      "language": { "type": "string", "title": "Langue", "enum": ["fr", "en", "es", "de", "it"], "default": "fr" },
-      "maxReplyLength": { "type": "integer", "title": "Longueur max reponse", "default": 500, "minimum": 100, "maximum": 2000 }
-    },
-    "required": ["openaiApiKey", "businessContext"]
-  }'::jsonb,
+  0,
   29.00,
+  'advanced',
+  5,
+  '[
+    "email-ai-classify",
+    "email-ai-reply",
+    "email-ai-orchestrator",
+    "email-ai-queue",
+    "email-ai-rules-crud"
+  ]'::jsonb,
+  '[
+    "Classification IA des emails entrants (categorie, priorite, sentiment)",
+    "Reponse automatique intelligente pour les cas simples (FAQ, accuse reception)",
+    "File d''attente de validation humaine pour les cas complexes",
+    "Regles de reponse automatique configurables par client",
+    "Historique complet des emails traites avec metriques",
+    "Modele IA configurable par tenant (GPT-4o-mini, GPT-4o, GPT-4-turbo)",
+    "Compatible Gmail OAuth2 et IMAP/SMTP generique"
+  ]'::jsonb,
   true,
+  50,
   NOW(),
   NOW()
 )
-ON CONFLICT DO NOTHING;
+ON CONFLICT (code) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════
 -- Enregistrer la migration
