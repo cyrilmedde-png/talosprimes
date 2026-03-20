@@ -38,7 +38,7 @@ import { authenticatedFetch } from '@/lib/api-client';
 type AutomationComplexity = 'simple' | 'intermediaire' | 'avance';
 type AutomationStatus = 'actif' | 'inactif' | 'en_attente' | 'suspendue' | 'erreur';
 type PurchaseStatus = 'en_attente' | 'active' | 'suspendue' | 'annulee';
-type TabType = 'dashboard' | 'catalogue' | 'mes-automatisations' | 'logs' | 'admin';
+type TabType = 'dashboard' | 'catalogue' | 'mes-automatisations' | 'configuration' | 'logs' | 'admin';
 
 /** Donnees de l'API — camelCase (transformKeys dans n8n.service.ts) */
 interface CatalogItem {
@@ -416,6 +416,7 @@ export default function AutomatisationsPage() {
     { key: 'dashboard', label: 'Dashboard', icon: ChartBarIcon },
     { key: 'catalogue', label: 'Catalogue', icon: CubeIcon, count: automations.length },
     { key: 'mes-automatisations', label: 'Mes Automatisations', icon: BoltIcon, count: activeAutomations.length },
+    ...(activeAutomations.length > 0 ? [{ key: 'configuration' as TabType, label: 'Configuration', icon: Cog6ToothIcon }] : []),
     { key: 'logs', label: 'Historique', icon: ClockIcon },
     ...(isSuperAdmin ? [{ key: 'admin' as TabType, label: 'Administration', icon: Cog6ToothIcon, adminOnly: true }] : []),
   ];
@@ -541,6 +542,10 @@ export default function AutomatisationsPage() {
               automations={activeAutomations}
               onSelect={setSelectedAutomation}
             />
+          )}
+
+          {activeTab === 'configuration' && (
+            <ConfigurationTab automations={activeAutomations} />
           )}
 
           {activeTab === 'logs' && (
@@ -1212,6 +1217,244 @@ function MesAutomatisationsTab({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ============================================
+// ============================================
+// Tab: Configuration
+// ============================================
+
+interface ConfigField {
+  key: string;
+  label: string;
+  type: 'text' | 'email' | 'password' | 'select' | 'number';
+  placeholder?: string;
+  options?: string[];
+  required?: boolean;
+}
+
+const EMAIL_CONFIG_FIELDS: ConfigField[] = [
+  { key: 'provider', label: 'Fournisseur email', type: 'select', options: ['gmail', 'outlook', 'imap_smtp'], required: true },
+  { key: 'email', label: 'Adresse email', type: 'email', placeholder: 'contact@votredomaine.com', required: true },
+  { key: 'imapHost', label: 'Serveur IMAP', type: 'text', placeholder: 'imap.votrefournisseur.com' },
+  { key: 'imapPort', label: 'Port IMAP', type: 'number', placeholder: '993' },
+  { key: 'smtpHost', label: 'Serveur SMTP', type: 'text', placeholder: 'smtp.votrefournisseur.com' },
+  { key: 'smtpPort', label: 'Port SMTP', type: 'number', placeholder: '587' },
+  { key: 'password', label: 'Mot de passe', type: 'password', placeholder: 'Mot de passe du compte email' },
+  { key: 'fromName', label: 'Nom expediteur', type: 'text', placeholder: 'Mon Entreprise' },
+  { key: 'signature', label: 'Signature email', type: 'text', placeholder: 'Cordialement, ...' },
+];
+
+const CONFIG_FIELDS_BY_CATEGORY: Record<string, ConfigField[]> = {
+  email: EMAIL_CONFIG_FIELDS,
+  sms: [
+    { key: 'provider', label: 'Fournisseur SMS', type: 'select', options: ['twilio', 'vonage', 'ovh'], required: true },
+    { key: 'phoneNumber', label: 'Numero expediteur', type: 'text', placeholder: '+33 6 ...', required: true },
+    { key: 'apiKey', label: 'Cle API', type: 'password', placeholder: 'Votre cle API', required: true },
+  ],
+  marketing: [
+    { key: 'facebookPageId', label: 'Page Facebook ID', type: 'text' },
+    { key: 'instagramAccountId', label: 'Compte Instagram ID', type: 'text' },
+    { key: 'tiktokAccountId', label: 'Compte TikTok ID', type: 'text' },
+  ],
+  telephonie: [
+    { key: 'provider', label: 'Fournisseur', type: 'select', options: ['twilio', 'vonage'], required: true },
+    { key: 'phoneNumber', label: 'Numero principal', type: 'text', required: true },
+    { key: 'apiKey', label: 'Cle API', type: 'password', required: true },
+  ],
+  facturation: [
+    { key: 'stripeKey', label: 'Cle Stripe', type: 'password' },
+    { key: 'defaultCurrency', label: 'Devise', type: 'select', options: ['EUR', 'USD', 'GBP'] },
+    { key: 'invoicePrefix', label: 'Prefixe facture', type: 'text', placeholder: 'FAC-' },
+  ],
+  crm: [
+    { key: 'provider', label: 'CRM', type: 'select', options: ['interne', 'hubspot', 'pipedrive'] },
+    { key: 'apiKey', label: 'Cle API CRM', type: 'password' },
+    { key: 'autoAssign', label: 'Attribution auto', type: 'select', options: ['oui', 'non'] },
+  ],
+  comptabilite: [
+    { key: 'logiciel', label: 'Logiciel comptable', type: 'select', options: ['interne', 'sage', 'cegid', 'quadratus'] },
+    { key: 'exportFormat', label: 'Format export', type: 'select', options: ['FEC', 'CSV', 'PDF'] },
+  ],
+  stock: [
+    { key: 'alerteSeuilBas', label: 'Seuil alerte stock bas', type: 'number', placeholder: '10' },
+    { key: 'multiSites', label: 'Multi-sites', type: 'select', options: ['oui', 'non'] },
+  ],
+};
+
+function ConfigurationTab({ automations }: { automations: Automation[] }) {
+  const [selectedAutomation, setSelectedAutomation] = useState<Automation | null>(automations[0] || null);
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [originalConfig, setOriginalConfig] = useState<Record<string, string>>({});
+  const [logs, setLogs] = useState<Array<{ champModifie: string; ancienneValeur: string; nouvelleValeur: string; userEmail: string; createdAt: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedAutomation) return;
+    setLoading(true);
+    setMessage(null);
+    authenticatedFetch<ApiResponse<{ config: Record<string, string>; logs: Array<{ champModifie: string; ancienneValeur: string; nouvelleValeur: string; userEmail: string; createdAt: string }> }>>('/api/automations/config/get', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ automationId: selectedAutomation.id }),
+    })
+      .then(res => {
+        if (res.success && res.data) {
+          const c = res.data.config || {};
+          const stringConfig: Record<string, string> = {};
+          for (const [k, v] of Object.entries(c)) {
+            stringConfig[k] = String(v ?? '');
+          }
+          setConfig(stringConfig);
+          setOriginalConfig(stringConfig);
+          setLogs(res.data.logs || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [selectedAutomation]);
+
+  const handleSave = async () => {
+    if (!selectedAutomation) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await authenticatedFetch<ApiResponse<{ message: string; changes: Array<{ champ: string }> }>>('/api/automations/config/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ automationId: selectedAutomation.id, config }),
+      });
+      if (res.success && res.data) {
+        setMessage(res.data.message);
+        setOriginalConfig({ ...config });
+      } else {
+        setMessage(res.error || 'Erreur lors de la sauvegarde');
+      }
+    } catch {
+      setMessage('Erreur de connexion');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasChanges = JSON.stringify(config) !== JSON.stringify(originalConfig);
+  const fields = CONFIG_FIELDS_BY_CATEGORY[selectedAutomation?.categorie || ''] || EMAIL_CONFIG_FIELDS;
+
+  return (
+    <div className="space-y-6">
+      {/* Selecteur d'automatisation */}
+      {automations.length > 1 && (
+        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+          <label className="text-gray-400 text-xs uppercase tracking-wider mb-2 block">Automatisation a configurer</label>
+          <select
+            value={selectedAutomation?.id || ''}
+            onChange={(e) => setSelectedAutomation(automations.find(a => a.id === e.target.value) || null)}
+            className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-600"
+          >
+            {automations.map(a => (
+              <option key={a.id} value={a.id}>{a.nom} ({a.categorie})</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <ArrowPathIcon className="h-6 w-6 text-gray-400 animate-spin" />
+          <span className="ml-2 text-gray-400 text-sm">Chargement...</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Formulaire de config */}
+          <div className="lg:col-span-2 bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <h3 className="text-white font-semibold text-sm mb-1">
+              Configuration — {selectedAutomation?.nom}
+            </h3>
+            <p className="text-gray-500 text-xs mb-6">Toute modification est tracee et notifiee a l&apos;administrateur.</p>
+
+            <div className="space-y-4">
+              {fields.map(field => (
+                <div key={field.key}>
+                  <label className="text-gray-400 text-xs uppercase tracking-wider mb-1 block">
+                    {field.label} {field.required && <span className="text-red-400">*</span>}
+                  </label>
+                  {field.type === 'select' ? (
+                    <select
+                      value={config[field.key] || ''}
+                      onChange={(e) => setConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-600 focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="">-- Choisir --</option>
+                      {field.options?.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type}
+                      value={config[field.key] || ''}
+                      onChange={(e) => setConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      placeholder={field.placeholder}
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-600 focus:border-amber-500 focus:outline-none placeholder-gray-500"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Message + bouton sauvegarder */}
+            {message && (
+              <div className={`mt-4 p-3 rounded-lg text-sm ${message.includes('Erreur') ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'}`}>
+                {message}
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-between">
+              <p className="text-gray-500 text-xs">
+                {hasChanges ? 'Modifications non sauvegardees' : 'Aucune modification'}
+              </p>
+              <button
+                onClick={handleSave}
+                disabled={!hasChanges || saving}
+                className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {saving && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
+                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </button>
+            </div>
+          </div>
+
+          {/* Historique des modifications */}
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
+              <ClockIcon className="h-4 w-4 text-gray-400" />
+              Historique modifications
+            </h3>
+            {logs.length === 0 ? (
+              <p className="text-gray-500 text-sm">Aucune modification</p>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {logs.map((log, i) => (
+                  <div key={i} className="border-l-2 border-gray-600 pl-3 py-1">
+                    <p className="text-white text-xs font-medium">{log.champModifie || 'Configuration'}</p>
+                    {log.ancienneValeur && (
+                      <p className="text-red-400/70 text-xs line-through">{log.ancienneValeur}</p>
+                    )}
+                    {log.nouvelleValeur && (
+                      <p className="text-green-400/70 text-xs">{log.nouvelleValeur}</p>
+                    )}
+                    <p className="text-gray-500 text-xs mt-1">{log.userEmail} &middot; {formatDate(log.createdAt)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
