@@ -642,7 +642,6 @@ function DashboardTab({
 }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setLoading(true);
@@ -652,7 +651,7 @@ function DashboardTab({
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [refreshKey]);
+  }, []);
 
   // Fallback pendant le chargement ou si pas de data
   const revenus = data?.revenus || { mensuel: 0, setupTotal: 0, potentielMensuel: 0, potentielSetup: 0 };
