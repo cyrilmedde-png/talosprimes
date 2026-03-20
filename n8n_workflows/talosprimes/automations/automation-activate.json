@@ -71,7 +71,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1350, 300],
-      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -84,7 +85,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [1570, 300],
-      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "alwaysOutputData": true
     },
     {
       "parameters": {

@@ -1,10 +1,10 @@
 {
-  "name": "[{{ CLIENT_NAME }}] Gmail - Envoi",
+  "name": "[TalosPrimes] Email - Envoi (multi-tenant)",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "client/{{ CLIENT_CODE }}/gmail-send",
+        "path": "automations/email-send",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst to = body.to;\nconst subject = body.subject;\nconst message = body.message || body.text || '';\nconst html = body.html || '';\nconst cc = body.cc || '';\nconst bcc = body.bcc || '';\n\nif (!to || !subject) {\n  return [{ json: { success: false, error: 'Destinataire (to) et sujet (subject) requis' } }];\n}\n\nreturn [{ json: { to, subject, message, html, cc, bcc, valid: true } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst to = body.to;\nconst subject = body.subject;\nconst message = body.message || body.text || '';\nconst html = body.html || '';\nconst cc = body.cc || '';\nconst bcc = body.bcc || '';\n\nif (!tenantId || !to || !subject) {\n  return [{ json: { success: false, error: 'tenantId, to et subject requis' } }];\n}\n\nreturn [{ json: { tenantId, to, subject, message, html, cc, bcc, valid: true } }];"
       },
       "id": "validate",
       "name": "02. Valider",
@@ -26,9 +26,33 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ap.config FROM automation_purchases ap JOIN automation_catalog ac ON ac.id = ap.automation_id WHERE ap.tenant_id = '{{ $json.tenantId }}'::uuid AND ac.categorie = 'email' AND ap.status = 'active' LIMIT 1",
+        "options": {}
+      },
+      "id": "get-config",
+      "name": "03. Config client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('02. Valider').first().json;\nconst configRow = $input.first().json;\nconst config = configRow?.config || {};\nconst fromName = config.fromName || 'TalosPrimes';\nconst fromEmail = config.email || '';\nconst signature = config.signature || '';\nconst fullMessage = signature ? data.message + '\\n\\n' + signature : data.message;\n\nreturn [{ json: { ...data, fromName, fromEmail, signature, fullMessage, config } }];"
+      },
+      "id": "prepare",
+      "name": "04. Preparer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
         "sendTo": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
-        "message": "={{ $json.message }}",
+        "message": "={{ $json.fullMessage }}",
         "options": {
           "ccList": "={{ $json.cc }}",
           "bccList": "={{ $json.bcc }}",
@@ -36,10 +60,10 @@
         }
       },
       "id": "gmail-send",
-      "name": "03. Envoyer Gmail",
+      "name": "05. Envoyer Gmail",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [690, 300],
+      "position": [1130, 300],
       "credentials": {
         "gmailOAuth2": {
           "name": "Gmail account"
@@ -48,32 +72,31 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $('02. Valider').first().json;\nconst result = $input.first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    message: 'Email envoye avec succes via Gmail',\n    messageId: result.id || null,\n    threadId: result.threadId || null,\n    to: data.to,\n    subject: data.subject\n  }\n} }];"
+        "jsCode": "const data = $('04. Preparer').first().json;\nconst result = $input.first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    message: 'Email envoye avec succes',\n    messageId: result.id || null,\n    to: data.to,\n    subject: data.subject\n  }\n} }];"
       },
       "id": "result",
-      "name": "04. Resultat",
+      "name": "06. Resultat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [910, 300]
+      "position": [1350, 300]
     },
     {
-      "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {}
-      },
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
       "id": "respond",
-      "name": "05. Repondre",
+      "name": "07. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1130, 300]
+      "position": [1570, 300]
     }
   ],
   "connections": {
     "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
-    "02. Valider": { "main": [[{ "node": "03. Envoyer Gmail", "type": "main", "index": 0 }]] },
-    "03. Envoyer Gmail": { "main": [[{ "node": "04. Resultat", "type": "main", "index": 0 }]] },
-    "04. Resultat": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
+    "02. Valider": { "main": [[{ "node": "03. Config client", "type": "main", "index": 0 }]] },
+    "03. Config client": { "main": [[{ "node": "04. Preparer", "type": "main", "index": 0 }]] },
+    "04. Preparer": { "main": [[{ "node": "05. Envoyer Gmail", "type": "main", "index": 0 }]] },
+    "05. Envoyer Gmail": { "main": [[{ "node": "06. Resultat", "type": "main", "index": 0 }]] },
+    "06. Resultat": { "main": [[{ "node": "07. Repondre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "gmail" }]
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }]
 }

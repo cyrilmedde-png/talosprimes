@@ -1,10 +1,10 @@
 {
-  "name": "[{{ CLIENT_NAME }}] Gmail - Lecture boite de reception",
+  "name": "[TalosPrimes] Email - Lecture (multi-tenant)",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "client/{{ CLIENT_CODE }}/gmail-read",
+        "path": "automations/email-read",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -16,10 +16,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst limit = Number(body.limit) || 10;\nconst query = body.query || '';\nconst label = body.label || 'INBOX';\n\nreturn [{ json: { limit, query, label } }];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst limit = Number(body.limit) || 10;\nconst query = body.query || '';\nconst label = body.label || 'INBOX';\n\nif (!tenantId) {\n  return [{ json: { success: false, error: 'tenantId requis' } }];\n}\n\nreturn [{ json: { tenantId, limit, query, label, valid: true } }];"
       },
-      "id": "params",
-      "name": "02. Parametres",
+      "id": "validate",
+      "name": "02. Valider",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [470, 300]
@@ -43,11 +43,12 @@
         "gmailOAuth2": {
           "name": "Gmail account"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const emails = $input.all().map(item => {\n  const e = item.json;\n  return {\n    id: e.id || null,\n    threadId: e.threadId || null,\n    from: e.from || '',\n    to: e.to || '',\n    subject: e.subject || '(sans objet)',\n    date: e.date || null,\n    snippet: e.snippet || '',\n    textPlain: (e.textPlain || '').substring(0, 500),\n    labels: e.labelIds || [],\n    hasAttachments: (e.attachments || []).length > 0\n  };\n});\n\nreturn [{ json: {\n  success: true,\n  data: {\n    emails,\n    count: emails.length\n  }\n} }];"
+        "jsCode": "const emails = $input.all().map(item => {\n  const e = item.json;\n  if (!e.id) return null;\n  return {\n    id: e.id || null,\n    threadId: e.threadId || null,\n    from: e.from || '',\n    to: e.to || '',\n    subject: e.subject || '(sans objet)',\n    date: e.date || null,\n    snippet: e.snippet || '',\n    textPlain: (e.textPlain || '').substring(0, 500),\n    labels: e.labelIds || [],\n    hasAttachments: (e.attachments || []).length > 0\n  };\n}).filter(Boolean);\n\nreturn [{ json: {\n  success: true,\n  data: {\n    emails,\n    count: emails.length\n  }\n} }];"
       },
       "id": "format",
       "name": "04. Formater",
@@ -56,10 +57,7 @@
       "position": [910, 300]
     },
     {
-      "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {}
-      },
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
       "id": "respond",
       "name": "05. Repondre",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -68,11 +66,11 @@
     }
   ],
   "connections": {
-    "01. Webhook": { "main": [[{ "node": "02. Parametres", "type": "main", "index": 0 }]] },
-    "02. Parametres": { "main": [[{ "node": "03. Lire emails Gmail", "type": "main", "index": 0 }]] },
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Lire emails Gmail", "type": "main", "index": 0 }]] },
     "03. Lire emails Gmail": { "main": [[{ "node": "04. Formater", "type": "main", "index": 0 }]] },
     "04. Formater": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "gmail" }]
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }]
 }

@@ -361,6 +361,9 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   automation_dashboard_stats: 'automations/dashboard-stats',
   automation_config_get: 'automations/config-get',
   automation_config_update: 'automations/config-update',
+  // Email multi-tenant
+  automation_email_send: 'automations/email-send',
+  automation_email_read: 'automations/email-read',
 };
 
 /**
