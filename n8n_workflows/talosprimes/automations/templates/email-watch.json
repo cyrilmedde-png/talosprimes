@@ -29,18 +29,45 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconsole.log(`[Email recu] De: ${data.from} | Sujet: ${data.subject}`);\n\nreturn [{ json: { ...data, logged: true, timestamp: new Date().toISOString() } }];"
+        "jsCode": "const data = $input.first().json;\nconst tenantId = '{{ TENANT_ID }}';\n\nconsole.log(`[Email recu] De: ${data.from} | Sujet: ${data.subject}`);\n\nreturn [{ json: { ...data, tenantId, provider: 'imap', timestamp: new Date().toISOString() } }];"
       },
-      "id": "action",
-      "name": "03. Action (a configurer)",
+      "id": "add-tenant",
+      "name": "03. Ajouter tenantId",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/automations/email-ai-process",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": { "timeout": 90000 }
+      },
+      "id": "call-orchestrator",
+      "name": "04. Envoyer a l'agent IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconsole.log(`[Agent IA] Resultat: ${JSON.stringify(result.data || result)}`);\nreturn [{ json: result }];"
+      },
+      "id": "log-result",
+      "name": "05. Logger resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 300]
     }
   ],
   "connections": {
     "01. Nouveau email recu": { "main": [[{ "node": "02. Traiter email", "type": "main", "index": 0 }]] },
-    "02. Traiter email": { "main": [[{ "node": "03. Action (a configurer)", "type": "main", "index": 0 }]] }
+    "02. Traiter email": { "main": [[{ "node": "03. Ajouter tenantId", "type": "main", "index": 0 }]] },
+    "03. Ajouter tenantId": { "main": [[{ "node": "04. Envoyer a l'agent IA", "type": "main", "index": 0 }]] },
+    "04. Envoyer a l'agent IA": { "main": [[{ "node": "05. Logger resultat", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }]

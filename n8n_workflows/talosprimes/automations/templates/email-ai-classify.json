@@ -1,0 +1,171 @@
+{
+  "name": "[TalosPrimes] Email IA - Classification (multi-tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/email-ai-classify",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst from = body.from || '';\nconst to = body.to || '';\nconst subject = body.subject || '';\nconst textPlain = body.textPlain || '';\nconst threadId = body.threadId || null;\nconst emailId = body.emailId || null;\nconst hasAttachments = body.hasAttachments || false;\n\nif (!tenantId || !from) {\n  return [{ json: { success: false, error: 'tenantId et from requis' } }];\n}\n\nreturn [{ json: {\n  tenantId, from, to, subject, textPlain,\n  threadId, emailId, hasAttachments,\n  valid: true\n} }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ac.config AS ai_config,\n  ar.id AS rule_id,\n  ar.nom,\n  ar.type_rule,\n  ar.conditions,\n  ar.action_type,\n  ar.action_config,\n  ar.priorite\nFROM automation_purchases ap\nJOIN automation_catalog cat ON cat.id = ap.automation_id\nLEFT JOIN email_ai_rules ar ON ar.tenant_id = ap.tenant_id AND ar.actif = true\nWHERE ap.tenant_id = '{{ $json.tenantId }}'::uuid\n  AND cat.code = 'email-ai-agent'\n  AND ap.status = 'active'\nORDER BY ar.priorite ASC NULLS LAST",
+        "options": {}
+      },
+      "id": "get-config-rules",
+      "name": "03. Config + Regles client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('02. Valider').first().json;\nconst rows = $input.all().map(r => r.json);\nconst aiConfig = rows[0]?.ai_config || {};\nconst rules = rows.filter(r => r.rule_id).map(r => ({\n  id: r.rule_id,\n  nom: r.nom,\n  type: r.type_rule,\n  conditions: r.conditions,\n  actionType: r.action_type,\n  actionConfig: r.action_config,\n  priorite: r.priorite\n}));\n\n// --- Etape 1 : Matcher les regles statiques ---\nlet matchedRule = null;\nfor (const rule of rules) {\n  const cond = rule.conditions || {};\n  let match = true;\n\n  if (cond.from_contains && !email.from.toLowerCase().includes(cond.from_contains.toLowerCase())) match = false;\n  if (cond.subject_contains && !email.subject.toLowerCase().includes(cond.subject_contains.toLowerCase())) match = false;\n  if (cond.body_contains && !email.textPlain.toLowerCase().includes(cond.body_contains.toLowerCase())) match = false;\n  if (cond.from_domain) {\n    const domain = email.from.split('@')[1]?.split('>')[0] || '';\n    if (domain.toLowerCase() !== cond.from_domain.toLowerCase()) match = false;\n  }\n\n  if (match && rule.type === 'static') {\n    matchedRule = rule;\n    break;\n  }\n}\n\nreturn [{ json: {\n  ...email,\n  aiConfig,\n  rules,\n  matchedRule,\n  needsAI: !matchedRule,\n  aiModel: aiConfig.model || 'gpt-4o-mini',\n  aiApiKey: aiConfig.openaiApiKey || '',\n  businessContext: aiConfig.businessContext || '',\n  language: aiConfig.language || 'fr',\n  tone: aiConfig.tone || 'professionnel'\n} }];"
+      },
+      "id": "check-rules",
+      "name": "04. Verifier regles statiques",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "needs-ai",
+              "leftValue": "={{ $json.needsAI }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "switch",
+      "name": "05. Regle trouvee ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.aiApiKey }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.aiModel }}\",\n  \"temperature\": 0.3,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un assistant de classification d'emails pour une entreprise. Analyse l'email et reponds en JSON.\\n\\nContexte entreprise: {{ $json.businessContext }}\\n\\nClassifie l'email selon :\\n- categorie: support | commercial | facturation | spam | newsletter | personnel | autre\\n- priorite: urgent | haute | normale | basse\\n- sentiment: positif | neutre | negatif | en_colere\\n- intention: question | demande_info | reclamation | commande | devis | remerciement | relance | autre\\n- auto_repondable: true si c'est un cas simple (accuse reception, FAQ basique, remerciement), false si complexe\\n- resume: resume en 1 phrase du contenu de l'email\\n- tags: tableau de mots-cles pertinents (max 5)\\n\\nReponds UNIQUEMENT en JSON valide avec ces champs.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"De: {{ $json.from }}\\nSujet: {{ $json.subject }}\\nContenu:\\n{{ $json.textPlain }}\"\n    }\n  ]\n}"
+      },
+      "id": "openai-classify",
+      "name": "06. Classifier par IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('04. Verifier regles statiques').first().json;\nconst aiResponse = $input.first().json;\n\nlet classification = {};\ntry {\n  const content = aiResponse.choices?.[0]?.message?.content || '{}';\n  classification = JSON.parse(content);\n} catch (e) {\n  classification = {\n    categorie: 'autre',\n    priorite: 'normale',\n    sentiment: 'neutre',\n    intention: 'autre',\n    auto_repondable: false,\n    resume: 'Classification echouee',\n    tags: []\n  };\n}\n\nconst action = classification.auto_repondable ? 'auto_reply' : 'queue_human';\n\nreturn [{ json: {\n  ...email,\n  classification,\n  action,\n  source: 'ai',\n  tokensUsed: aiResponse.usage?.total_tokens || 0\n} }];"
+      },
+      "id": "parse-ai",
+      "name": "07. Parser resultat IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('04. Verifier regles statiques').first().json;\nconst rule = email.matchedRule;\n\nreturn [{ json: {\n  ...email,\n  classification: {\n    categorie: rule.actionConfig?.categorie || 'autre',\n    priorite: rule.actionConfig?.priorite || 'normale',\n    sentiment: 'neutre',\n    intention: rule.actionConfig?.intention || 'autre',\n    auto_repondable: rule.actionType === 'auto_reply',\n    resume: `Regle appliquee: ${rule.nom}`,\n    tags: rule.actionConfig?.tags || []\n  },\n  action: rule.actionType,\n  source: 'rule',\n  matchedRuleId: rule.id,\n  tokensUsed: 0\n} }];"
+      },
+      "id": "apply-rule",
+      "name": "06b. Appliquer regle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_incoming_logs (tenant_id, email_id, thread_id, from_address, to_address, subject, body_preview, has_attachments, classification, action, source, matched_rule_id, tokens_used, created_at)\nVALUES (\n  '{{ $json.tenantId }}'::uuid,\n  {{ $json.emailId ? \"'\" + $json.emailId + \"'\" : 'NULL' }},\n  {{ $json.threadId ? \"'\" + $json.threadId + \"'\" : 'NULL' }},\n  '{{ $json.from }}',\n  '{{ $json.to }}',\n  '{{ $json.subject.replace(/'/g, \"''\") }}',\n  '{{ $json.textPlain.substring(0, 500).replace(/'/g, \"''\").replace(/\\n/g, ' ') }}',\n  {{ $json.hasAttachments }},\n  '{{ JSON.stringify($json.classification).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.action }}',\n  '{{ $json.source }}',\n  {{ $json.matchedRuleId ? \"'\" + $json.matchedRuleId + \"'::uuid\" : 'NULL' }},\n  {{ $json.tokensUsed || 0 }},\n  NOW()\n)\nRETURNING id",
+        "options": {}
+      },
+      "id": "save-log",
+      "name": "08. Sauvegarder en BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1790, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('07. Parser resultat IA').first()?.json || $('06b. Appliquer regle').first()?.json;\nconst saved = $input.first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    incomingLogId: saved.id || null,\n    action: prev.action,\n    classification: prev.classification,\n    source: prev.source,\n    tenantId: prev.tenantId,\n    from: prev.from,\n    subject: prev.subject,\n    emailId: prev.emailId,\n    threadId: prev.threadId\n  }\n} }];"
+      },
+      "id": "result",
+      "name": "09. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2010, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "10. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2230, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Config + Regles client", "type": "main", "index": 0 }]] },
+    "03. Config + Regles client": { "main": [[{ "node": "04. Verifier regles statiques", "type": "main", "index": 0 }]] },
+    "04. Verifier regles statiques": { "main": [[{ "node": "05. Regle trouvee ?", "type": "main", "index": 0 }]] },
+    "05. Regle trouvee ?": {
+      "main": [
+        [{ "node": "06. Classifier par IA", "type": "main", "index": 0 }],
+        [{ "node": "06b. Appliquer regle", "type": "main", "index": 0 }]
+      ]
+    },
+    "06. Classifier par IA": { "main": [[{ "node": "07. Parser resultat IA", "type": "main", "index": 0 }]] },
+    "07. Parser resultat IA": { "main": [[{ "node": "08. Sauvegarder en BDD", "type": "main", "index": 0 }]] },
+    "06b. Appliquer regle": { "main": [[{ "node": "08. Sauvegarder en BDD", "type": "main", "index": 0 }]] },
+    "08. Sauvegarder en BDD": { "main": [[{ "node": "09. Resultat", "type": "main", "index": 0 }]] },
+    "09. Resultat": { "main": [[{ "node": "10. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
+}

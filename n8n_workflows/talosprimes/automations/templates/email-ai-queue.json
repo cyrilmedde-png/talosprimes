@@ -1,0 +1,196 @@
+{
+  "name": "[TalosPrimes] Email IA - File d'attente & validation (multi-tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "=GET",
+        "path": "automations/email-ai-queue",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-list",
+      "name": "01. Lister file d'attente",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id, email_id, thread_id, from_address, to_address, subject,\n  body_preview, has_attachments, classification,\n  reply_subject, reply_body, reply_html, reply_confidence,\n  reply_action, source, matched_rule_id,\n  tokens_used, created_at, reply_generated_at\nFROM email_incoming_logs\nWHERE tenant_id = '{{ $json.query.tenantId }}'::uuid\n  AND reply_action = 'queue_human'\n  AND reply_sent_at IS NULL\nORDER BY\n  CASE WHEN classification->>'priorite' = 'urgent' THEN 0\n       WHEN classification->>'priorite' = 'haute' THEN 1\n       WHEN classification->>'priorite' = 'normale' THEN 2\n       ELSE 3 END,\n  created_at ASC\nLIMIT {{ $json.query.limit || 20 }}\nOFFSET {{ $json.query.offset || 0 }}",
+        "options": {}
+      },
+      "id": "fetch-queue",
+      "name": "02. Recuperer emails en attente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 200],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(r => r.json);\nconst count = rows.length;\n\nconst emails = rows.map(r => ({\n  id: r.id,\n  emailId: r.email_id,\n  threadId: r.thread_id,\n  from: r.from_address,\n  to: r.to_address,\n  subject: r.subject,\n  bodyPreview: r.body_preview,\n  hasAttachments: r.has_attachments,\n  classification: r.classification,\n  suggestedReply: {\n    subject: r.reply_subject,\n    bodyText: r.reply_body,\n    bodyHtml: r.reply_html,\n    confidence: r.reply_confidence\n  },\n  source: r.source,\n  tokensUsed: r.tokens_used,\n  receivedAt: r.created_at,\n  replyGeneratedAt: r.reply_generated_at\n}));\n\nreturn [{ json: { success: true, data: { count, emails } } }];"
+      },
+      "id": "format-list",
+      "name": "03. Formater liste",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 200]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond-list",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/email-ai-queue-approve",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-approve",
+      "name": "10. Approuver / Modifier / Rejeter",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst incomingLogId = body.incomingLogId;\nconst tenantId = body.tenantId;\nconst action = body.action; // 'approve', 'edit_and_send', 'reject'\nconst editedSubject = body.editedSubject || null;\nconst editedBody = body.editedBody || null;\nconst editedHtml = body.editedHtml || null;\n\nif (!incomingLogId || !tenantId || !action) {\n  return [{ json: { success: false, error: 'incomingLogId, tenantId et action requis' } }];\n}\n\nreturn [{ json: {\n  incomingLogId, tenantId, action,\n  editedSubject, editedBody, editedHtml,\n  valid: true\n} }];"
+      },
+      "id": "validate-action",
+      "name": "11. Valider action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id, from_address, to_address, subject,\n  reply_subject, reply_body, reply_html,\n  thread_id, email_id\nFROM email_incoming_logs\nWHERE id = '{{ $json.incomingLogId }}'::uuid\n  AND tenant_id = '{{ $json.tenantId }}'::uuid",
+        "options": {}
+      },
+      "id": "get-email-log",
+      "name": "12. Recuperer email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 500],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const action = $('11. Valider action').first().json;\nconst emailLog = $input.first().json;\n\nconst subject = action.editedSubject || emailLog.reply_subject;\nconst bodyText = action.editedBody || emailLog.reply_body;\nconst bodyHtml = action.editedHtml || emailLog.reply_html;\nconst to = emailLog.from_address;\n\nreturn [{ json: {\n  ...action,\n  to,\n  replySubject: subject,\n  replyText: bodyText,\n  replyHtml: bodyHtml,\n  emailLog\n} }];"
+      },
+      "id": "prepare-action",
+      "name": "13. Preparer action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "not-reject",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "reject",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "check-reject",
+      "name": "14. Rejet ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1130, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/automations/email-send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenantId\": \"{{ $json.tenantId }}\",\n  \"to\": \"{{ $json.to }}\",\n  \"subject\": \"{{ $json.replySubject }}\",\n  \"text\": {{ JSON.stringify($json.replyText || '') }},\n  \"html\": {{ JSON.stringify($json.replyHtml || '') }}\n}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "send-approved",
+      "name": "15. Envoyer email approuve",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_incoming_logs SET\n  reply_subject = '{{ $('13. Preparer action').first().json.replySubject.replace(/'/g, \"''\") }}',\n  reply_body = '{{ $('13. Preparer action').first().json.replyText.replace(/'/g, \"''\").replace(/\\n/g, ' ') }}',\n  reply_action = 'sent_approved',\n  reply_sent_at = NOW(),\n  updated_at = NOW()\nWHERE id = '{{ $('13. Preparer action').first().json.incomingLogId }}'::uuid",
+        "options": {}
+      },
+      "id": "mark-approved-sent",
+      "name": "16. Marquer envoye (approuve)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 400],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_incoming_logs SET\n  reply_action = 'rejected',\n  updated_at = NOW()\nWHERE id = '{{ $json.incomingLogId }}'::uuid",
+        "options": {}
+      },
+      "id": "mark-rejected",
+      "name": "15b. Marquer rejete",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1350, 600],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const action = $('13. Preparer action').first().json;\nconst finalAction = action.action === 'reject' ? 'rejected' : 'sent_approved';\n\nreturn [{ json: {\n  success: true,\n  data: {\n    incomingLogId: action.incomingLogId,\n    action: finalAction,\n    to: action.to,\n    subject: action.replySubject\n  }\n} }];"
+      },
+      "id": "result-action",
+      "name": "17. Resultat action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1790, 500]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond-action",
+      "name": "18. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2010, 500]
+    }
+  ],
+  "connections": {
+    "01. Lister file d'attente": { "main": [[{ "node": "02. Recuperer emails en attente", "type": "main", "index": 0 }]] },
+    "02. Recuperer emails en attente": { "main": [[{ "node": "03. Formater liste", "type": "main", "index": 0 }]] },
+    "03. Formater liste": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] },
+    "10. Approuver / Modifier / Rejeter": { "main": [[{ "node": "11. Valider action", "type": "main", "index": 0 }]] },
+    "11. Valider action": { "main": [[{ "node": "12. Recuperer email", "type": "main", "index": 0 }]] },
+    "12. Recuperer email": { "main": [[{ "node": "13. Preparer action", "type": "main", "index": 0 }]] },
+    "13. Preparer action": { "main": [[{ "node": "14. Rejet ?", "type": "main", "index": 0 }]] },
+    "14. Rejet ?": {
+      "main": [
+        [{ "node": "15. Envoyer email approuve", "type": "main", "index": 0 }],
+        [{ "node": "15b. Marquer rejete", "type": "main", "index": 0 }]
+      ]
+    },
+    "15. Envoyer email approuve": { "main": [[{ "node": "16. Marquer envoye (approuve)", "type": "main", "index": 0 }]] },
+    "16. Marquer envoye (approuve)": { "main": [[{ "node": "17. Resultat action", "type": "main", "index": 0 }]] },
+    "15b. Marquer rejete": { "main": [[{ "node": "17. Resultat action", "type": "main", "index": 0 }]] },
+    "17. Resultat action": { "main": [[{ "node": "18. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
+}

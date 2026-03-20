@@ -1,0 +1,130 @@
+{
+  "name": "[TalosPrimes] Email IA - Generation reponse (multi-tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/email-ai-reply",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst incomingLogId = body.incomingLogId;\nconst from = body.from || '';\nconst subject = body.subject || '';\nconst textPlain = body.textPlain || '';\nconst classification = body.classification || {};\nconst threadId = body.threadId || null;\nconst emailId = body.emailId || null;\n\nif (!tenantId || !from) {\n  return [{ json: { success: false, error: 'tenantId et from requis' } }];\n}\n\nreturn [{ json: {\n  tenantId, incomingLogId, from, subject, textPlain,\n  classification, threadId, emailId, valid: true\n} }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ap.config AS ai_config,\n  t.nom AS tenant_name,\n  t.email AS tenant_email,\n  t.telephone AS tenant_phone,\n  t.adresse AS tenant_address,\n  t.siret,\n  (\n    SELECT json_agg(json_build_object('subject', eil.subject, 'from', eil.from_address, 'body_preview', eil.body_preview, 'reply_sent', eil.reply_body IS NOT NULL, 'created_at', eil.created_at))\n    FROM (\n      SELECT subject, from_address, body_preview, reply_body, created_at\n      FROM email_incoming_logs\n      WHERE tenant_id = '{{ $json.tenantId }}'::uuid\n        AND from_address = '{{ $json.from }}'\n      ORDER BY created_at DESC\n      LIMIT 5\n    ) eil\n  ) AS email_history\nFROM automation_purchases ap\nJOIN automation_catalog cat ON cat.id = ap.automation_id\nJOIN tenants t ON t.id = ap.tenant_id\nWHERE ap.tenant_id = '{{ $json.tenantId }}'::uuid\n  AND cat.code = 'email-ai-agent'\n  AND ap.status = 'active'\nLIMIT 1",
+        "options": {}
+      },
+      "id": "get-context",
+      "name": "03. Contexte client + historique",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('02. Valider').first().json;\nconst ctx = $input.first().json;\nconst aiConfig = ctx.ai_config || {};\nconst history = ctx.email_history || [];\n\nconst historyText = history.length > 0\n  ? history.map((h, i) => `[${i+1}] Sujet: ${h.subject} | De: ${h.from} | Repondu: ${h.reply_sent ? 'oui' : 'non'} | Date: ${h.created_at}`).join('\\n')\n  : 'Aucun historique avec cet expediteur.';\n\nconst businessInfo = [\n  ctx.tenant_name ? `Entreprise: ${ctx.tenant_name}` : '',\n  ctx.tenant_email ? `Email: ${ctx.tenant_email}` : '',\n  ctx.tenant_phone ? `Tel: ${ctx.tenant_phone}` : '',\n  ctx.tenant_address ? `Adresse: ${ctx.tenant_address}` : '',\n  aiConfig.businessContext ? `Activite: ${aiConfig.businessContext}` : '',\n  aiConfig.faq ? `FAQ: ${aiConfig.faq}` : '',\n  aiConfig.signature ? `Signature: ${aiConfig.signature}` : ''\n].filter(Boolean).join('\\n');\n\nreturn [{ json: {\n  ...email,\n  aiConfig,\n  businessInfo,\n  historyText,\n  tenantName: ctx.tenant_name || 'Notre entreprise',\n  tenantEmail: ctx.tenant_email || '',\n  signature: aiConfig.signature || `Cordialement,\\n${ctx.tenant_name || ''}`,\n  model: aiConfig.model || 'gpt-4o-mini',\n  apiKey: aiConfig.openaiApiKey || '',\n  language: aiConfig.language || 'fr',\n  tone: aiConfig.tone || 'professionnel',\n  maxLength: aiConfig.maxReplyLength || 500\n} }];"
+      },
+      "id": "prepare-context",
+      "name": "04. Preparer contexte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.apiKey }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"temperature\": 0.4,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es l'assistant email IA de l'entreprise ci-dessous. Tu rediges des reponses professionnelles aux emails recus.\\n\\n--- INFORMATIONS ENTREPRISE ---\\n{{ $json.businessInfo }}\\n\\n--- HISTORIQUE AVEC CET EXPEDITEUR ---\\n{{ $json.historyText }}\\n\\n--- REGLES ---\\n- Langue: {{ $json.language }}\\n- Ton: {{ $json.tone }}\\n- Longueur max: {{ $json.maxLength }} caracteres\\n- NE reponds JAMAIS a un spam ou newsletter\\n- Si l'email est une reclamation, sois empathique et propose une solution\\n- Si c'est une demande de devis/prix, invite a prendre contact\\n- Si c'est un remerciement, reponds brievement\\n- Termine toujours par la signature de l'entreprise\\n\\nReponds en JSON avec :\\n- subject: sujet de la reponse (Re: sujet original)\\n- body_text: reponse en texte brut\\n- body_html: reponse en HTML simple (paragraphes, pas de CSS complexe)\\n- confidence: score de 0 a 1 sur ta confiance dans la reponse\\n- needs_human_review: true si tu penses qu'un humain devrait verifier\\n- reason: raison si needs_human_review est true\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Email recu :\\nDe: {{ $json.from }}\\nSujet: {{ $json.subject }}\\nClassification: {{ JSON.stringify($json.classification) }}\\n\\nContenu:\\n{{ $json.textPlain }}\"\n    }\n  ]\n}"
+      },
+      "id": "openai-reply",
+      "name": "05. Generer reponse IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('04. Preparer contexte').first().json;\nconst aiResponse = $input.first().json;\n\nlet reply = {};\ntry {\n  const content = aiResponse.choices?.[0]?.message?.content || '{}';\n  reply = JSON.parse(content);\n} catch (e) {\n  reply = {\n    subject: `Re: ${email.subject}`,\n    body_text: '',\n    body_html: '',\n    confidence: 0,\n    needs_human_review: true,\n    reason: 'Erreur parsing reponse IA'\n  };\n}\n\n// Ajouter signature si pas deja presente\nif (email.signature && reply.body_text && !reply.body_text.includes(email.tenantName)) {\n  reply.body_text += '\\n\\n' + email.signature;\n  reply.body_html += '<br><br>' + email.signature.replace(/\\n/g, '<br>');\n}\n\nconst action = reply.needs_human_review ? 'queue_human' : 'send_auto';\n\nreturn [{ json: {\n  tenantId: email.tenantId,\n  incomingLogId: email.incomingLogId,\n  from: email.from,\n  originalSubject: email.subject,\n  threadId: email.threadId,\n  emailId: email.emailId,\n  reply,\n  action,\n  tokensUsed: aiResponse.usage?.total_tokens || 0,\n  tenantEmail: email.tenantEmail\n} }];"
+      },
+      "id": "parse-reply",
+      "name": "06. Parser reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_incoming_logs SET\n  reply_subject = '{{ $json.reply.subject.replace(/'/g, \"''\") }}',\n  reply_body = '{{ $json.reply.body_text.replace(/'/g, \"''\").replace(/\\n/g, ' ') }}',\n  reply_html = '{{ $json.reply.body_html.replace(/'/g, \"''\").replace(/\\n/g, ' ') }}',\n  reply_confidence = {{ $json.reply.confidence || 0 }},\n  reply_action = '{{ $json.action }}',\n  reply_generated_at = NOW(),\n  tokens_used = COALESCE(tokens_used, 0) + {{ $json.tokensUsed || 0 }},\n  updated_at = NOW()\nWHERE id = '{{ $json.incomingLogId }}'::uuid\nRETURNING id, reply_action",
+        "options": {}
+      },
+      "id": "save-reply",
+      "name": "07. Sauvegarder reponse",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1570, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('06. Parser reponse').first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    incomingLogId: data.incomingLogId,\n    action: data.action,\n    replySubject: data.reply.subject,\n    confidence: data.reply.confidence,\n    needsHumanReview: data.reply.needs_human_review,\n    reason: data.reply.reason || null,\n    to: data.from,\n    tenantId: data.tenantId,\n    replyText: data.reply.body_text,\n    replyHtml: data.reply.body_html\n  }\n} }];"
+      },
+      "id": "result",
+      "name": "08. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1790, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "09. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2010, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Contexte client + historique", "type": "main", "index": 0 }]] },
+    "03. Contexte client + historique": { "main": [[{ "node": "04. Preparer contexte", "type": "main", "index": 0 }]] },
+    "04. Preparer contexte": { "main": [[{ "node": "05. Generer reponse IA", "type": "main", "index": 0 }]] },
+    "05. Generer reponse IA": { "main": [[{ "node": "06. Parser reponse", "type": "main", "index": 0 }]] },
+    "06. Parser reponse": { "main": [[{ "node": "07. Sauvegarder reponse", "type": "main", "index": 0 }]] },
+    "07. Sauvegarder reponse": { "main": [[{ "node": "08. Resultat", "type": "main", "index": 0 }]] },
+    "08. Resultat": { "main": [[{ "node": "09. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
+}

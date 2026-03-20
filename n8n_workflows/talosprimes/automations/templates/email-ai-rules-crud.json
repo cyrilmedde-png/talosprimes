@@ -1,0 +1,220 @@
+{
+  "name": "[TalosPrimes] Email IA - CRUD Regles auto-reponse (multi-tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "=GET",
+        "path": "automations/email-ai-rules",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-list",
+      "name": "01. Lister regles",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, nom, description, type_rule, conditions, action_type, action_config, priorite, actif, created_at, updated_at\nFROM email_ai_rules\nWHERE tenant_id = '{{ $json.query.tenantId }}'::uuid\nORDER BY priorite ASC, created_at DESC",
+        "options": {}
+      },
+      "id": "fetch-rules",
+      "name": "02. Recuperer regles",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 100],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(r => r.json);\nreturn [{ json: { success: true, data: { count: rows.length, rules: rows } } }];"
+      },
+      "id": "format-rules",
+      "name": "03. Formater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 100]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond-list",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 100]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/email-ai-rules",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-create",
+      "name": "10. Creer regle",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 350]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst nom = body.nom;\nconst description = body.description || '';\nconst typeRule = body.typeRule || 'static'; // static | ai_override\nconst conditions = body.conditions || {};\nconst actionType = body.actionType || 'auto_reply'; // auto_reply | queue_human | ignore | forward\nconst actionConfig = body.actionConfig || {};\nconst priorite = body.priorite || 100;\n\nif (!tenantId || !nom) {\n  return [{ json: { success: false, error: 'tenantId et nom requis' } }];\n}\n\nreturn [{ json: { tenantId, nom, description, typeRule, conditions, actionType, actionConfig, priorite } }];"
+      },
+      "id": "validate-create",
+      "name": "11. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_ai_rules (tenant_id, nom, description, type_rule, conditions, action_type, action_config, priorite, actif, created_at, updated_at)\nVALUES (\n  '{{ $json.tenantId }}'::uuid,\n  '{{ $json.nom.replace(/'/g, \"''\") }}',\n  '{{ $json.description.replace(/'/g, \"''\") }}',\n  '{{ $json.typeRule }}',\n  '{{ JSON.stringify($json.conditions).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.actionType }}',\n  '{{ JSON.stringify($json.actionConfig).replace(/'/g, \"''\") }}'::jsonb,\n  {{ $json.priorite }},\n  true,\n  NOW(), NOW()\n)\nRETURNING *",
+        "options": {}
+      },
+      "id": "insert-rule",
+      "name": "12. Inserer en BDD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 350],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rule = $input.first().json;\nreturn [{ json: { success: true, data: rule } }];"
+      },
+      "id": "result-create",
+      "name": "13. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 350]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond-create",
+      "name": "14. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 350]
+    },
+    {
+      "parameters": {
+        "httpMethod": "PUT",
+        "path": "automations/email-ai-rules",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-update",
+      "name": "20. Modifier regle",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst sets = [];\nif (body.nom !== undefined) sets.push(`nom = '${body.nom.replace(/'/g, \"''\")}'`);\nif (body.description !== undefined) sets.push(`description = '${body.description.replace(/'/g, \"''\")}'`);\nif (body.conditions !== undefined) sets.push(`conditions = '${JSON.stringify(body.conditions).replace(/'/g, \"''\")}'::jsonb`);\nif (body.actionType !== undefined) sets.push(`action_type = '${body.actionType}'`);\nif (body.actionConfig !== undefined) sets.push(`action_config = '${JSON.stringify(body.actionConfig).replace(/'/g, \"''\")}'::jsonb`);\nif (body.priorite !== undefined) sets.push(`priorite = ${body.priorite}`);\nif (body.actif !== undefined) sets.push(`actif = ${body.actif}`);\nsets.push(`updated_at = NOW()`);\n\nreturn [{ json: { ruleId: body.ruleId, tenantId: body.tenantId, setClause: sets.join(', ') } }];"
+      },
+      "id": "build-update",
+      "name": "21. Construire UPDATE",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE email_ai_rules SET {{ $json.setClause }}\nWHERE id = '{{ $json.ruleId }}'::uuid AND tenant_id = '{{ $json.tenantId }}'::uuid\nRETURNING *",
+        "options": {}
+      },
+      "id": "exec-update",
+      "name": "22. Executer UPDATE",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 600],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rule = $input.first().json;\nreturn [{ json: { success: true, data: rule } }];"
+      },
+      "id": "result-update",
+      "name": "23. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 600]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond-update",
+      "name": "24. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 600]
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "automations/email-ai-rules",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-delete",
+      "name": "30. Supprimer regle",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 850]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM email_ai_rules\nWHERE id = '{{ ($input.first().json.body || $input.first().json).ruleId }}'::uuid\n  AND tenant_id = '{{ ($input.first().json.body || $input.first().json).tenantId }}'::uuid\nRETURNING id",
+        "options": {}
+      },
+      "id": "exec-delete",
+      "name": "31. Supprimer",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 850],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const deleted = $input.first().json;\nreturn [{ json: { success: true, data: { deleted: !!deleted.id, id: deleted.id } } }];"
+      },
+      "id": "result-delete",
+      "name": "32. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 850]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond-delete",
+      "name": "33. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 850]
+    }
+  ],
+  "connections": {
+    "01. Lister regles": { "main": [[{ "node": "02. Recuperer regles", "type": "main", "index": 0 }]] },
+    "02. Recuperer regles": { "main": [[{ "node": "03. Formater", "type": "main", "index": 0 }]] },
+    "03. Formater": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] },
+    "10. Creer regle": { "main": [[{ "node": "11. Valider", "type": "main", "index": 0 }]] },
+    "11. Valider": { "main": [[{ "node": "12. Inserer en BDD", "type": "main", "index": 0 }]] },
+    "12. Inserer en BDD": { "main": [[{ "node": "13. Resultat", "type": "main", "index": 0 }]] },
+    "13. Resultat": { "main": [[{ "node": "14. Repondre", "type": "main", "index": 0 }]] },
+    "20. Modifier regle": { "main": [[{ "node": "21. Construire UPDATE", "type": "main", "index": 0 }]] },
+    "21. Construire UPDATE": { "main": [[{ "node": "22. Executer UPDATE", "type": "main", "index": 0 }]] },
+    "22. Executer UPDATE": { "main": [[{ "node": "23. Resultat", "type": "main", "index": 0 }]] },
+    "23. Resultat": { "main": [[{ "node": "24. Repondre", "type": "main", "index": 0 }]] },
+    "30. Supprimer regle": { "main": [[{ "node": "31. Supprimer", "type": "main", "index": 0 }]] },
+    "31. Supprimer": { "main": [[{ "node": "32. Resultat", "type": "main", "index": 0 }]] },
+    "32. Resultat": { "main": [[{ "node": "33. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
+}
