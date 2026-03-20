@@ -153,7 +153,7 @@ VALUES (
   'brain',
   0,
   29.00,
-  'advanced',
+  'avance',
   5,
   '[
     "email-ai-classify",
