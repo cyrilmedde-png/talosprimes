@@ -17,7 +17,7 @@ const N8N_API_KEY = process.env.N8N_API_KEY || '';
 const PROJECT_DIR = process.env.PROJECT_DIR || '/var/www/talosprimes';
 
 // DB Pool
-const pool = DATABASE_URL ? new Pool({ connectionString: DATABASE_URL }) : null;
+const pool = DATABASE_URL ? new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 
 const app = express();
 app.use(cors());
