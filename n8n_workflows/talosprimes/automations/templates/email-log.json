@@ -1,0 +1,67 @@
+{
+  "name": "[TalosPrimes] Email - Log entrant (multi-tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/email-log",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst fromAddress = body.fromAddress || '';\nconst toAddress = body.toAddress || '';\nconst subject = body.subject || '';\nconst bodyPreview = (body.bodyPreview || '').substring(0, 500);\n\nif (!tenantId || !fromAddress) {\n  return [{ json: { success: false, error: 'tenantId et fromAddress requis' } }];\n}\n\nconst classification = typeof body.classification === 'string' ? JSON.parse(body.classification) : (body.classification || {});\n\nreturn [{ json: {\n  tenantId,\n  emailId: body.emailId || null,\n  threadId: body.threadId || null,\n  fromAddress,\n  toAddress,\n  subject,\n  bodyPreview,\n  hasAttachments: body.hasAttachments === true || body.hasAttachments === 'true',\n  provider: body.provider || 'gmail',\n  classification: JSON.stringify(classification),\n  action: body.action || 'queued',\n  source: body.source || 'ai-agent',\n  matchedRuleId: body.matchedRuleId || null,\n  replySubject: body.replySubject || null,\n  replyBody: body.replyBody || null,\n  replyHtml: body.replyHtml || null,\n  replyConfidence: Number(body.replyConfidence) || 0,\n  replyAction: body.replyAction || 'none',\n  tokensUsed: Number(body.tokensUsed) || 0,\n  valid: true\n} }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_incoming_logs (tenant_id, email_id, thread_id, from_address, to_address, subject, body_preview, has_attachments, provider, classification, action, source, matched_rule_id, reply_subject, reply_body, reply_html, reply_confidence, reply_action, tokens_used) VALUES ('{{ $json.tenantId }}'::uuid, {{ $json.emailId ? \"'\" + $json.emailId + \"'\" : 'NULL' }}, {{ $json.threadId ? \"'\" + $json.threadId + \"'\" : 'NULL' }}, '{{ $json.fromAddress }}', '{{ $json.toAddress }}', '{{ $json.subject.replace(/'/g, \"''\") }}', '{{ $json.bodyPreview.replace(/'/g, \"''\") }}', {{ $json.hasAttachments }}, '{{ $json.provider }}', '{{ $json.classification }}'::jsonb, '{{ $json.action }}', '{{ $json.source }}', {{ $json.matchedRuleId ? \"'\" + $json.matchedRuleId + \"'::uuid\" : 'NULL' }}, {{ $json.replySubject ? \"'\" + $json.replySubject.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $json.replyBody ? \"'\" + $json.replyBody.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $json.replyHtml ? \"'\" + $json.replyHtml.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $json.replyConfidence }}, '{{ $json.replyAction }}', {{ $json.tokensUsed }}) RETURNING id, created_at",
+        "options": {}
+      },
+      "id": "insert-log",
+      "name": "03. Inserer en base",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inserted = $input.first().json;\n\nreturn [{ json: {\n  success: true,\n  data: {\n    message: 'Email log enregistre',\n    logId: inserted.id || null,\n    createdAt: inserted.created_at || new Date().toISOString()\n  }\n} }];"
+      },
+      "id": "result",
+      "name": "04. Resultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond",
+      "name": "05. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Inserer en base", "type": "main", "index": 0 }]] },
+    "03. Inserer en base": { "main": [[{ "node": "04. Resultat", "type": "main", "index": 0 }]] },
+    "04. Resultat": { "main": [[{ "node": "05. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
+}
