@@ -29,22 +29,31 @@ export function SectionsManager({ sections, setSections, api, showToast, refresh
   const editingSection = sections.find(s => s.id === editingId);
 
   // Drag & drop handlers
-  const handleDragStart = (index: number) => {
+  const handleDragStart = (e: React.DragEvent, index: number) => {
     dragItem.current = index;
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     dragOverItem.current = index;
   };
 
   const handleDrop = async () => {
     if (dragItem.current === null || dragOverItem.current === null) return;
     if (dragItem.current === dragOverItem.current) return;
+    await moveSection(dragItem.current, dragOverItem.current);
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
 
+  // Move section by index (used by both drag-drop and arrow buttons)
+  const moveSection = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
     const items = [...sections];
-    const dragged = items.splice(dragItem.current, 1)[0];
-    items.splice(dragOverItem.current, 0, dragged);
+    const [moved] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, moved);
 
     const reordered = items.map((s, i) => ({ ...s, ordre: i + 1 }));
     setSections(reordered);
@@ -56,9 +65,6 @@ export function SectionsManager({ sections, setSections, api, showToast, refresh
     } catch {
       showToast('error', 'Erreur réordonnancement');
     }
-
-    dragItem.current = null;
-    dragOverItem.current = null;
   };
 
   // Toggle active
@@ -151,11 +157,11 @@ export function SectionsManager({ sections, setSections, api, showToast, refresh
               {/* Section card */}
               <div
                 draggable
-                onDragStart={() => handleDragStart(index)}
+                onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={handleDrop}
                 onClick={() => setEditingId(isEditing ? null : section.id)}
-                className={`group flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
+                className={`group flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                   isEditing
                     ? 'bg-blue-600/10 border-blue-500/30 shadow-lg shadow-blue-500/5'
                     : section.actif
@@ -163,11 +169,29 @@ export function SectionsManager({ sections, setSections, api, showToast, refresh
                       : 'bg-slate-900/20 border-slate-800/50 opacity-50'
                 }`}
               >
-                {/* Drag handle */}
-                <div className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 transition">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24">
-                    <path stroke="currentColor" strokeWidth="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01" strokeLinecap="round" />
-                  </svg>
+                {/* Move up/down + drag handle */}
+                <div className="flex flex-col items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => moveSection(index, index - 1)}
+                    disabled={index === 0}
+                    className="p-0.5 rounded text-slate-600 hover:text-white hover:bg-slate-700 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                    title="Monter"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <div className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 transition">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <path stroke="currentColor" strokeWidth="2" d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <button
+                    onClick={() => moveSection(index, index + 1)}
+                    disabled={index === sections.length - 1}
+                    className="p-0.5 rounded text-slate-600 hover:text-white hover:bg-slate-700 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                    title="Descendre"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
                 </div>
 
                 {/* Type icon */}
