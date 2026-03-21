@@ -75,8 +75,8 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
         }
 
         const countResult = await prisma.$queryRawUnsafe(
-          `SELECT COUNT(*) as count FROM email_incoming_logs ${where}`, ...params
-        ) as [{ count: bigint }];
+          `SELECT COUNT(*)::int as count FROM email_incoming_logs ${where}`, ...params
+        ) as [{ count: number }];
 
         params.push(parseInt(limit as string) || 50);
         params.push(parseInt(offset as string) || 0);
@@ -621,31 +621,31 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
           // Total emails
           prisma.$queryRawUnsafe(
             `SELECT
-              COUNT(*) as total,
-              COUNT(*) FILTER (WHERE reply_action = 'queue_human' AND reply_sent_at IS NULL) as queue,
-              COUNT(*) FILTER (WHERE reply_action = 'sent_auto') as auto,
-              COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) as today
+              COUNT(*)::int as total,
+              COUNT(*) FILTER (WHERE reply_action = 'queue_human' AND reply_sent_at IS NULL)::int as queue,
+              COUNT(*) FILTER (WHERE reply_action = 'sent_auto')::int as auto,
+              COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int as today
              FROM email_incoming_logs WHERE tenant_id = $1::uuid`,
             tenantId
-          ) as Promise<[{ total: bigint; queue: bigint; auto: bigint; today: bigint }]>,
+          ) as Promise<[{ total: number; queue: number; auto: number; today: number }]>,
           // Par action
           prisma.$queryRawUnsafe(
-            `SELECT action, COUNT(*) as count
+            `SELECT action, COUNT(*)::int as count
              FROM email_incoming_logs WHERE tenant_id = $1::uuid
              GROUP BY action ORDER BY count DESC`,
             tenantId
           ),
           // Par catégorie
           prisma.$queryRawUnsafe(
-            `SELECT classification->>'category' as category, COUNT(*) as count
+            `SELECT classification->>'category' as category, COUNT(*)::int as count
              FROM email_incoming_logs WHERE tenant_id = $1::uuid AND classification IS NOT NULL
              GROUP BY classification->>'category' ORDER BY count DESC`,
             tenantId
           ),
           // Par jour (14 derniers jours)
           prisma.$queryRawUnsafe(
-            `SELECT DATE(created_at) as day, COUNT(*) as count,
-                    COUNT(*) FILTER (WHERE reply_action = 'sent_auto') as auto_count
+            `SELECT DATE(created_at) as day, COUNT(*)::int as count,
+                    COUNT(*) FILTER (WHERE reply_action = 'sent_auto')::int as auto_count
              FROM email_incoming_logs WHERE tenant_id = $1::uuid AND created_at >= CURRENT_DATE - 14
              GROUP BY DATE(created_at) ORDER BY day DESC`,
             tenantId
