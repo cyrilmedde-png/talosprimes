@@ -39,7 +39,7 @@ import { authenticatedFetch } from '@/lib/api-client';
 type AutomationComplexity = 'simple' | 'intermediaire' | 'avance';
 type AutomationStatus = 'actif' | 'inactif' | 'en_attente' | 'suspendue' | 'erreur';
 type PurchaseStatus = 'en_attente' | 'active' | 'suspendue' | 'annulee';
-type TabType = 'dashboard' | 'catalogue' | 'mes-automatisations' | 'configuration' | 'logs' | 'admin';
+type TabType = 'dashboard' | 'catalogue' | 'mes-automatisations' | 'configuration' | 'logs' | 'admin' | 'gestion-email';
 
 /** Donnees de l'API — camelCase (transformKeys dans n8n.service.ts) */
 interface CatalogItem {
@@ -418,6 +418,7 @@ export default function AutomatisationsPage() {
     { key: 'catalogue', label: 'Catalogue', icon: CubeIcon, count: automations.length },
     { key: 'mes-automatisations', label: 'Mes Automatisations', icon: BoltIcon, count: activeAutomations.length },
     ...(activeAutomations.length > 0 ? [{ key: 'configuration' as TabType, label: 'Configuration', icon: Cog6ToothIcon }] : []),
+    ...(activeAutomations.some(a => a.categorie === 'email') ? [{ key: 'gestion-email' as TabType, label: 'Gestion Email', icon: EnvelopeIcon }] : []),
     { key: 'logs', label: 'Historique', icon: ClockIcon },
     ...(isSuperAdmin ? [{ key: 'admin' as TabType, label: 'Administration', icon: Cog6ToothIcon, adminOnly: true }] : []),
   ];
@@ -549,6 +550,10 @@ export default function AutomatisationsPage() {
             <ConfigurationTab automations={activeAutomations} />
           )}
 
+          {activeTab === 'gestion-email' && (
+            <EmailManagementPanel />
+          )}
+
           {activeTab === 'logs' && (
             <LogsTab isAdmin={isAdmin} />
           )}
@@ -583,9 +588,13 @@ export default function AutomatisationsPage() {
               fetchData();
             } catch { /* handled */ }
           }}
-          onNavigateToDashboard={() => {
+          onNavigateToDashboard={(a) => {
             setSelectedAutomation(null);
-            setActiveTab('configuration');
+            // Chaque catégorie a son propre onglet dédié
+            const categoryTabMap: Record<string, TabType> = {
+              email: 'gestion-email',
+            };
+            setActiveTab(categoryTabMap[a.categorie] || 'configuration');
           }}
         />
       )}
@@ -1461,12 +1470,6 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
         </div>
       )}
 
-      {/* Panel de gestion des emails — affiché uniquement pour les automatisations de catégorie email */}
-      {selectedAutomation?.categorie === 'email' && (
-        <div className="mt-8">
-          <EmailManagementPanel />
-        </div>
-      )}
     </div>
   );
 }
