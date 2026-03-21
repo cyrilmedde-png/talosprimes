@@ -410,22 +410,35 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
             <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
             <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Autoplay"><select className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white" value={String(get('autoplay')) === 'false' ? 'false' : 'true'} onChange={(e) => set('autoplay', e.target.value === 'true')}><option value="true">Oui</option><option value="false">Non</option></select></Field>
+              <Field label="Autoplay">
+                <select className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white" value={String(get('autoplay')) === 'false' ? 'false' : 'true'} onChange={(e) => set('autoplay', e.target.value === 'true')}>
+                  <option value="true">Oui</option>
+                  <option value="false">Non</option>
+                </select>
+              </Field>
               <Field label="Intervalle (ms)"><TextInput value={String(get('interval') || 5000)} onChange={(v) => set('interval', parseInt(v) || 5000)} /></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Cadre navigateur">
+                <select className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white" value={String(get('showBrowserFrame')) === 'false' ? 'false' : 'true'} onChange={(e) => set('showBrowserFrame', e.target.value === 'true')}>
+                  <option value="true">Oui</option>
+                  <option value="false">Non</option>
+                </select>
+              </Field>
+              <Field label="URL affichée"><TextInput value={(get('browserUrl') as string) || ''} onChange={(v) => set('browserUrl', v)} placeholder="app.talosprimes.com" /></Field>
             </div>
             <ArrayManager
               items={getArr('slides')}
               onChange={(items) => set('slides', items)}
-              defaultItem={{ id: `slide-${Date.now()}`, title: '', subtitle: '', icon: 'Sparkles', features: [] }}
-              label="Slides"
+              defaultItem={{ image: '', title: '', subtitle: '' }}
+              label="Slides (images)"
               renderItem={(item, _i, update) => (
                 <div className="space-y-2">
+                  <ImageField label="Image du slide" value={(item.image as string) || ''} onChange={(v) => update('image', v)} />
                   <div className="grid grid-cols-2 gap-2">
-                    <TextInput value={(item.title as string) || ''} onChange={(v) => update('title', v)} placeholder="Titre" />
-                    <TextInput value={(item.icon as string) || ''} onChange={(v) => update('icon', v)} placeholder="Icône (ex: Bot, Users)" />
+                    <TextInput value={(item.title as string) || ''} onChange={(v) => update('title', v)} placeholder="Titre (optionnel)" />
+                    <TextInput value={(item.subtitle as string) || ''} onChange={(v) => update('subtitle', v)} placeholder="Sous-titre (optionnel)" />
                   </div>
-                  <TextInput value={(item.subtitle as string) || ''} onChange={(v) => update('subtitle', v)} placeholder="Sous-titre" />
-                  <ImageField label="Image (optionnel)" value={(item.image as string) || ''} onChange={(v) => update('image', v)} />
                 </div>
               )}
             />
