@@ -126,11 +126,19 @@
       "typeVersion": 4.3,
       "position": [1040, 720],
       "parameters": {
-        "toolDescription": "Sauvegarder un log d'email entrant dans la base de donnees (table email_incoming_logs). POST. Body JSON :\n{\"tenantId\":\"UUID_TENANT\",\"fromAddress\":\"expediteur@email.com\",\"toAddress\":\"destinataire@email.com\",\"subject\":\"Sujet\",\"bodyPreview\":\"Apercu du contenu\",\"hasAttachments\":false,\"provider\":\"imap\",\"classification\":{\"categorie\":\"prospect|client|support|facturation|spam|notification|urgent|autre\",\"priorite\":\"haute|moyenne|basse\",\"intention\":\"demande_info|reclamation|remerciement|confirmation|relance|autre\",\"confiance\":0.85},\"action\":\"auto_reply|queued|ignored\",\"replySubject\":\"Sujet de la reponse si auto_reply\",\"replyBody\":\"Corps de la reponse si auto_reply\",\"replyConfidence\":0.85,\"replyAction\":\"sent|queued|none\"}\nTous les champs de classification sont importants pour le suivi.",
+        "toolDescription": "Sauvegarder un log d'email entrant dans la base de donnees via l'API platform (table email_incoming_logs). Si replyAction est 'sent_auto', l'API enverra aussi l'email automatiquement via SMTP. POST. Body JSON :\n{\"tenantId\":\"UUID_TENANT\",\"fromAddress\":\"expediteur@email.com\",\"toAddress\":\"destinataire@email.com\",\"subject\":\"Sujet\",\"bodyPreview\":\"Apercu du contenu\",\"hasAttachments\":false,\"provider\":\"imap\",\"classification\":{\"categorie\":\"prospect|client|support|facturation|spam|notification|urgent|autre\",\"priorite\":\"haute|moyenne|basse\",\"intention\":\"demande_info|reclamation|remerciement|confirmation|relance|autre\",\"confiance\":0.85},\"action\":\"auto_reply|queued|ignored\",\"replySubject\":\"Sujet de la reponse si auto_reply\",\"replyBody\":\"Corps de la reponse si auto_reply\",\"replyHtml\":\"Corps HTML de la reponse\",\"replyConfidence\":0.85,\"replyAction\":\"sent_auto|queue_human|none\"}\nIMPORTANT: utilise replyAction='sent_auto' quand tu es confiant (>=0.8) et que l'email merite une reponse auto. Utilise 'queue_human' pour mettre en file d'attente.",
         "method": "POST",
-        "url": "https://n8n.talosprimes.com/webhook/automations/email-log",
+        "url": "={{ $env.PLATFORM_API_URL || 'https://api.talosprimes.com' }}/api/email-agent/ingest",
         "sendBody": true,
         "specifyBody": "json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-n8n-secret", "value": "={{ $env.N8N_SHARED_SECRET }}" },
+            { "name": "x-tenant-id", "value": "={{ $fromAI(\"tenantId\", \"UUID du tenant\") }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
         "options": {
           "response": {
             "response": {
@@ -138,7 +146,7 @@
             }
           }
         },
-        "jsonBody": "={{ JSON.stringify({tenantId: $fromAI(\"tenantId\", \"UUID du tenant\"), fromAddress: $fromAI(\"fromAddress\", \"Adresse email de l'expediteur\"), toAddress: $fromAI(\"toAddress\", \"Adresse email du destinataire\"), subject: $fromAI(\"subject\", \"Sujet de l'email\"), bodyPreview: $fromAI(\"bodyPreview\", \"Apercu du contenu de l'email, max 500 caracteres\"), hasAttachments: $fromAI(\"hasAttachments\", \"true ou false\"), provider: \"imap\", classification: JSON.parse($fromAI(\"classification\", \"Objet JSON avec categorie, priorite, intention et confiance\")), action: $fromAI(\"action\", \"Action effectuee: auto_reply, queued, ou ignored\"), replySubject: $fromAI(\"replySubject\", \"Sujet de la reponse automatique, vide si pas de reponse\"), replyBody: $fromAI(\"replyBody\", \"Corps de la reponse automatique, vide si pas de reponse\"), replyConfidence: Number($fromAI(\"replyConfidence\", \"Score de confiance entre 0 et 1\")) || 0, replyAction: $fromAI(\"replyAction\", \"sent, queued, ou none\")}) }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: $fromAI(\"tenantId\", \"UUID du tenant\"), fromAddress: $fromAI(\"fromAddress\", \"Adresse email de l'expediteur\"), toAddress: $fromAI(\"toAddress\", \"Adresse email du destinataire\"), subject: $fromAI(\"subject\", \"Sujet de l'email\"), bodyPreview: $fromAI(\"bodyPreview\", \"Apercu du contenu de l'email, max 500 caracteres\"), hasAttachments: $fromAI(\"hasAttachments\", \"true ou false\"), provider: \"imap\", classification: JSON.parse($fromAI(\"classification\", \"Objet JSON avec categorie, priorite, intention et confiance. Ex: {\\\"categorie\\\":\\\"prospect\\\",\\\"priorite\\\":\\\"moyenne\\\",\\\"intention\\\":\\\"demande_info\\\",\\\"confiance\\\":0.85}\")), action: $fromAI(\"action\", \"Action effectuee: auto_reply, queued, ou ignored\"), replySubject: $fromAI(\"replySubject\", \"Sujet de la reponse automatique, vide si pas de reponse\"), replyBody: $fromAI(\"replyBody\", \"Corps de la reponse automatique en texte brut, vide si pas de reponse\"), replyHtml: $fromAI(\"replyHtml\", \"Corps de la reponse en HTML professionnel, vide si pas de reponse\"), replyConfidence: Number($fromAI(\"replyConfidence\", \"Score de confiance entre 0 et 1\")) || 0, replyAction: $fromAI(\"replyAction\", \"sent_auto pour reponse auto, queue_human pour file d'attente, none pour ignorer\")}) }}"
       }
     },
     {

@@ -13,6 +13,25 @@ import { getAgentConfigForTenant } from '../../services/agent-config.service.js'
 // - Stats / Analytics
 // ============================================
 
+// Helper : envoi d'email avec retry (max 3 tentatives, backoff exponentiel)
+async function sendEmailWithRetry(
+  payload: { to: string; subject: string; html?: string; text?: string },
+  emailConfig: any,
+  maxRetries = 3
+): Promise<{ success?: boolean; error?: string }> {
+  let lastError = '';
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const result = await sendEmail(payload, emailConfig);
+    if (result.success || !result.error) return result;
+    lastError = result.error;
+    if (attempt < maxRetries) {
+      // Backoff exponentiel : 1s, 2s, 4s
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+    }
+  }
+  return { error: `Échec après ${maxRetries} tentatives : ${lastError}` };
+}
+
 export async function emailAgentRoutes(fastify: FastifyInstance) {
 
   // ──────────────────────────────────────────
@@ -169,8 +188,8 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
         // Récupérer la config email du tenant pour SMTP
         const agentConfig = await getAgentConfigForTenant(tenantId);
 
-        // Envoyer l'email via SMTP
-        const sendResult = await sendEmail(
+        // Envoyer l'email via SMTP (avec retry)
+        const sendResult = await sendEmailWithRetry(
           {
             to: recipientAddress,
             subject: finalSubject,
@@ -227,6 +246,121 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
           id, tenantId
         );
         return reply.send({ success: true, message: 'Réponse rejetée' });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ──────────────────────────────────────────
+  // ACTIONS EN MASSE (Bulk)
+  // ──────────────────────────────────────────
+
+  // POST /api/email-agent/queue/bulk-approve — Approuver plusieurs emails
+  fastify.post(
+    '/api/email-agent/queue/bulk-approve',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: any, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+      const { ids } = request.body as { ids: string[] };
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return reply.code(400).send({ success: false, error: 'Liste d\'IDs requise' });
+      }
+
+      try {
+        const agentConfig = await getAgentConfigForTenant(tenantId);
+        const results: { id: string; status: 'sent' | 'failed'; error?: string }[] = [];
+
+        for (const id of ids) {
+          try {
+            const rows = await prisma.$queryRawUnsafe(
+              `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 AND reply_action = 'queue_human' AND reply_sent_at IS NULL LIMIT 1`,
+              id, tenantId
+            ) as Record<string, unknown>[];
+
+            if (!rows.length) {
+              results.push({ id, status: 'failed', error: 'Non trouvé ou déjà traité' });
+              continue;
+            }
+
+            const email = rows[0];
+            const body = (email.reply_html as string) || (email.reply_body as string);
+            const subj = (email.reply_subject as string) || `Re: ${email.subject as string}`;
+            const recipient = email.from_address as string;
+
+            if (!recipient || !body) {
+              results.push({ id, status: 'failed', error: 'Données manquantes' });
+              continue;
+            }
+
+            const sendResult = await sendEmailWithRetry(
+              { to: recipient, subject: subj, html: body, text: body.replace(/<[^>]*>/g, '') },
+              agentConfig.email
+            );
+
+            if (sendResult.error) {
+              results.push({ id, status: 'failed', error: sendResult.error });
+              continue;
+            }
+
+            await prisma.$queryRawUnsafe(
+              `UPDATE email_incoming_logs
+               SET reply_action = 'sent_approved', reply_sent_at = NOW(), action = 'approved'
+               WHERE id = $1 AND tenant_id = $2`,
+              id, tenantId
+            );
+            results.push({ id, status: 'sent' });
+          } catch (err) {
+            results.push({ id, status: 'failed', error: 'Erreur interne' });
+          }
+        }
+
+        const sent = results.filter(r => r.status === 'sent').length;
+        const failed = results.filter(r => r.status === 'failed').length;
+
+        return reply.send({
+          success: true,
+          message: `${sent} envoyé(s), ${failed} échoué(s)`,
+          data: results,
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // POST /api/email-agent/queue/bulk-reject — Rejeter plusieurs emails
+  fastify.post(
+    '/api/email-agent/queue/bulk-reject',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: any, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+      const { ids } = request.body as { ids: string[] };
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return reply.code(400).send({ success: false, error: 'Liste d\'IDs requise' });
+      }
+
+      try {
+        // Utiliser une seule requête pour rejeter en masse
+        const placeholders = ids.map((_, i) => `$${i + 2}`).join(', ');
+        await prisma.$queryRawUnsafe(
+          `UPDATE email_incoming_logs
+           SET reply_action = 'rejected', reply_sent_at = NOW(), action = 'rejected'
+           WHERE tenant_id = $1
+             AND reply_action = 'queue_human'
+             AND reply_sent_at IS NULL
+             AND id IN (${placeholders})`,
+          tenantId,
+          ...ids
+        );
+
+        return reply.send({ success: true, message: `${ids.length} email(s) rejeté(s)` });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -400,7 +534,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
         // Si reply_action === 'sent_auto' et que la confiance est suffisante, envoyer directement
         if (reply_action === 'sent_auto' && from_address && (reply_body || reply_html)) {
           const agentConfig = await getAgentConfigForTenant(tenantId);
-          const sendResult = await sendEmail(
+          const sendResult = await sendEmailWithRetry(
             {
               to: from_address as string,
               subject: (reply_subject as string) || `Re: ${subject as string}`,

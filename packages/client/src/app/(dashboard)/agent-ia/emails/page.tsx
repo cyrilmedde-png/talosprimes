@@ -92,6 +92,8 @@ export default function EmailAgentPage() {
   const [showNewRule, setShowNewRule] = useState(false);
   const [ruleForm, setRuleForm] = useState({ nom: '', description: '', action_type: 'queue_human', priorite: 10, conditions: '{}' });
   const [filter, setFilter] = useState({ search: '', action: '', category: '' });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // ─── Fetchers ───
   const fetchStats = useCallback(async () => {
@@ -185,6 +187,60 @@ export default function EmailAgentPage() {
     if (!confirm('Supprimer cette règle ?')) return;
     await fetch(`${API}/api/email-agent/rules/${id}`, { method: 'DELETE', headers: headers() });
     fetchRules();
+  };
+
+  // ─── Bulk Actions ───
+  const toggleSelectAll = () => {
+    if (selectedIds.size === queue.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(queue.map(e => e.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const bulkApprove = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Approuver et envoyer ${selectedIds.size} email(s) ?`)) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch(`${API}/api/email-agent/queue/bulk-approve`, {
+        method: 'POST', headers: headers(),
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const sent = json.data?.filter((r: { status: string }) => r.status === 'sent').length || 0;
+        const failed = json.data?.filter((r: { status: string }) => r.status === 'failed').length || 0;
+        alert(`${sent} envoyé(s)${failed > 0 ? `, ${failed} échoué(s)` : ''}`);
+      }
+    } catch { /* */ }
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    fetchQueue();
+    fetchStats();
+  };
+
+  const bulkReject = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Rejeter ${selectedIds.size} email(s) ?`)) return;
+    setBulkLoading(true);
+    try {
+      await fetch(`${API}/api/email-agent/queue/bulk-reject`, {
+        method: 'POST', headers: headers(),
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+    } catch { /* */ }
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    fetchQueue();
+    fetchStats();
   };
 
   const formatDate = (d: string) => {
@@ -406,35 +462,79 @@ export default function EmailAgentPage() {
             <div className="grid lg:grid-cols-2 gap-6">
               {/* Queue list */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-white mb-3">
-                  {queue.length} email{queue.length > 1 ? 's' : ''} en attente de validation
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">
+                    {queue.length} email{queue.length > 1 ? 's' : ''} en attente de validation
+                  </h3>
+                  {queue.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-400 hover:text-white transition">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.size === queue.length && queue.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500/30"
+                        />
+                        Tout
+                      </label>
+                      {selectedIds.size > 0 && (
+                        <>
+                          <button
+                            onClick={bulkApprove}
+                            disabled={bulkLoading}
+                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-500 transition disabled:opacity-40"
+                          >
+                            {bulkLoading ? '...' : `✓ Approuver (${selectedIds.size})`}
+                          </button>
+                          <button
+                            onClick={bulkReject}
+                            disabled={bulkLoading}
+                            className="px-3 py-1.5 bg-red-600/20 text-red-400 text-xs font-medium rounded-lg hover:bg-red-600/30 border border-red-500/20 transition disabled:opacity-40"
+                          >
+                            {bulkLoading ? '...' : `✕ Rejeter (${selectedIds.size})`}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {queue.map(email => (
                   <div
                     key={email.id}
-                    onClick={() => { setSelectedEmail(email); setEditReply(email.reply_body || ''); }}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                       selectedEmail?.id === email.id
                         ? 'bg-blue-600/10 border-blue-500/30'
                         : 'bg-slate-900/60 border-slate-800 hover:border-slate-600'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-white">{email.from_address}</span>
-                      <span className="text-[10px] text-slate-500">{formatDate(email.created_at)}</span>
-                    </div>
-                    <div className="text-xs text-slate-400 truncate">{email.subject}</div>
-                    {email.reply_confidence !== null && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-slate-800 rounded-full">
-                          <div
-                            className={`h-full rounded-full ${email.reply_confidence >= 0.8 ? 'bg-emerald-500' : email.reply_confidence >= 0.5 ? 'bg-amber-500' : 'bg-red-500'}`}
-                            style={{ width: `${email.reply_confidence * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-slate-500">{Math.round(email.reply_confidence * 100)}%</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(email.id)}
+                      onChange={(e) => { e.stopPropagation(); toggleSelect(email.id); }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500/30 shrink-0"
+                    />
+                    <div
+                      className="flex-1 min-w-0"
+                      onClick={() => { setSelectedEmail(email); setEditReply(email.reply_body || ''); }}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-white">{email.from_address}</span>
+                        <span className="text-[10px] text-slate-500">{formatDate(email.created_at)}</span>
                       </div>
-                    )}
+                      <div className="text-xs text-slate-400 truncate">{email.subject}</div>
+                      {email.reply_confidence !== null && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-slate-800 rounded-full">
+                            <div
+                              className={`h-full rounded-full ${email.reply_confidence >= 0.8 ? 'bg-emerald-500' : email.reply_confidence >= 0.5 ? 'bg-amber-500' : 'bg-red-500'}`}
+                              style={{ width: `${email.reply_confidence * 100}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-500">{Math.round(email.reply_confidence * 100)}%</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
                 {queue.length === 0 && (
