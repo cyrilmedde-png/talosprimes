@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/store/auth-store';
 import { CMSLayout } from '@/components/cms';
 
 export default function CMSPage() {

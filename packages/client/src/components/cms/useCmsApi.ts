@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from '@/store/auth-store';
 import type { LandingSection, GlobalConfig, Testimonial, CMSPage, ContactMessage } from './types';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
