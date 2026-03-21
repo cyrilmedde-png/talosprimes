@@ -1,0 +1,63 @@
+{
+  "name": "[TalosPrimes] Automations - Categories Liste",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/categories-list",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, code, label, icon, color, description, ordre, actif\nFROM automation_categories\nWHERE CASE WHEN '{{ $json.body.activeOnly }}' = 'false' THEN true ELSE actif = true END\nORDER BY ordre ASC, label ASC",
+        "options": {}
+      },
+      "id": "db-query",
+      "name": "02. Query Categories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\nreturn [{ json: { success: true, data: { categories: rows } } }];"
+      },
+      "id": "format",
+      "name": "03. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Query Categories", "type": "main", "index": 0 }]] },
+    "02. Query Categories": { "main": [[{ "node": "03. Formater reponse", "type": "main", "index": 0 }]] },
+    "03. Formater reponse": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }, { "name": "categories" }]
+}

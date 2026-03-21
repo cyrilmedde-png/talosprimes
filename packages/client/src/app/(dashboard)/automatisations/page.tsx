@@ -162,8 +162,6 @@ interface ApiResponse<T> {
 // Constantes
 // ============================================
 
-const CATEGORIES_FALLBACK = ['email', 'sms', 'marketing', 'telephonie', 'comptabilite', 'stock', 'crm', 'facturation'] as const;
-
 interface CategoryDB {
   id: string;
   code: string;
@@ -436,10 +434,7 @@ export default function AutomatisationsPage() {
   }
 
   const activeAutomations = automations.filter(a => a.status === 'actif');
-  const categories = ['all', ...(dynamicCategories.length > 0
-    ? dynamicCategories.map(c => c.code)
-    : Array.from(new Set(automations.map(a => a.categorie)))
-  )];
+  const categories = ['all', ...dynamicCategories.map(c => c.code)];
 
   const tabs: Array<{ key: TabType; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; count?: number; adminOnly?: boolean }> = [
     { key: 'dashboard', label: 'Dashboard', icon: ChartBarIcon },
@@ -2301,14 +2296,9 @@ function CatalogFormModal({
                     onChange={(e) => { updateField('categorie', e.target.value); updateField('icon', e.target.value); }}
                     className="flex-1 bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                   >
-                    {dbCategories.length > 0
-                      ? dbCategories.map(c => (
-                          <option key={c.code} value={c.code}>{c.label}</option>
-                        ))
-                      : CATEGORIES_FALLBACK.map(c => (
-                          <option key={c} value={c}>{CATEGORIE_LABELS[c] || c}</option>
-                        ))
-                    }
+                    {dbCategories.map(c => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
                   </select>
                   <button
                     type="button"

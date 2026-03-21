@@ -1,0 +1,63 @@
+{
+  "name": "[TalosPrimes] Automations - Categories Modifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/categories-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automation_categories\nSET label = COALESCE(NULLIF('{{ $json.body.label }}', ''), label),\n    icon = COALESCE(NULLIF('{{ $json.body.icon }}', ''), icon),\n    color = COALESCE(NULLIF('{{ $json.body.color }}', ''), color),\n    description = COALESCE(NULLIF('{{ $json.body.description }}', ''), description),\n    ordre = COALESCE(NULLIF('{{ $json.body.ordre }}', '')::int, ordre),\n    actif = COALESCE(NULLIF('{{ $json.body.actif }}', '')::boolean, actif),\n    updated_at = NOW()\nWHERE id = '{{ $json.body.id }}'::uuid\nRETURNING id, code, label",
+        "options": {}
+      },
+      "id": "db-update",
+      "name": "02. Update Category",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { success: true, data: { message: 'Catégorie mise à jour : ' + (row.label || row.id) } } }];"
+      },
+      "id": "format",
+      "name": "03. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Update Category", "type": "main", "index": 0 }]] },
+    "02. Update Category": { "main": [[{ "node": "03. Formater reponse", "type": "main", "index": 0 }]] },
+    "03. Formater reponse": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }, { "name": "categories" }]
+}

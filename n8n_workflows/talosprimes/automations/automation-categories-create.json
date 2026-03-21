@@ -1,0 +1,63 @@
+{
+  "name": "[TalosPrimes] Automations - Categories Creer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/categories-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_categories (code, label, icon, color, description, ordre)\nVALUES (\n  '{{ $json.body.code }}',\n  '{{ $json.body.label }}',\n  '{{ $json.body.icon }}',\n  '{{ $json.body.color }}',\n  '{{ $json.body.description }}',\n  {{ $json.body.ordre }}\n)\nRETURNING id, code, label",
+        "options": {}
+      },
+      "id": "db-insert",
+      "name": "02. Insert Category",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [470, 300],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { success: true, data: { id: row.id, message: 'Catégorie créée : ' + row.label } } }];"
+      },
+      "id": "format",
+      "name": "03. Formater reponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "04. Repondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Insert Category", "type": "main", "index": 0 }]] },
+    "02. Insert Category": { "main": [[{ "node": "03. Formater reponse", "type": "main", "index": 0 }]] },
+    "03. Formater reponse": { "main": [[{ "node": "04. Repondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "automations" }, { "name": "categories" }]
+}

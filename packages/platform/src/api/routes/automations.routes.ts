@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { requireRole } from '../../middleware/auth.middleware.js';
 import { n8nService } from '../../services/n8n.service.js';
-import { prisma } from '../../config/database.js';
 
 // ============================================
 // Types stricts — zero any, zero prisma
@@ -122,6 +121,35 @@ interface FolderBody {
   folderName?: string;
 }
 
+interface CategoryItem {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  color: string;
+  description: string;
+  ordre: number;
+  actif: boolean;
+}
+
+interface CategoryCreateBody {
+  code: string;
+  label: string;
+  icon?: string;
+  color?: string;
+  description?: string;
+  ordre?: number;
+}
+
+interface CategoryUpdateBody {
+  label?: string;
+  icon?: string;
+  color?: string;
+  description?: string;
+  ordre?: number;
+  actif?: boolean;
+}
+
 /**
  * Routes automatisations — 100% n8n, zero prisma, zero fallback.
  *
@@ -147,6 +175,13 @@ interface FolderBody {
  * PUT  /api/automations/folder/:tenantId     → n8n: automation_folder_update
  * GET  /api/automations/n8n/status           → n8n: automation_n8n_status
  * GET  /api/automations/dashboard            → n8n: automation_dashboard_stats
+ *
+ * === CATEGORIES ===
+ * GET  /api/automations/categories           → n8n: automation_categories_list (actives)
+ * GET  /api/automations/categories/all       → n8n: automation_categories_list (toutes)
+ * POST /api/automations/categories           → n8n: automation_categories_create
+ * PUT  /api/automations/categories/:id       → n8n: automation_categories_update
+ * DELETE /api/automations/categories/:id     → n8n: automation_categories_delete
  */
 export async function automationsRoutes(fastify: FastifyInstance) {
 
@@ -643,121 +678,123 @@ export async function automationsRoutes(fastify: FastifyInstance) {
   });
 
   // ──────────────────────────────────────────────
-  // CATEGORIES — CRUD direct SQL (pas n8n)
+  // CATEGORIES — CRUD via n8n
   // ──────────────────────────────────────────────
 
-  // GET /categories — Liste toutes les catégories actives
+  // GET /categories — Liste les catégories actives via n8n
   fastify.get('/categories', {
     preHandler: [fastify.authenticate],
-  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
     try {
-      const rows = await prisma.$queryRawUnsafe(
-        `SELECT id, code, label, icon, color, description, ordre, actif
-         FROM automation_categories
-         WHERE actif = true
-         ORDER BY ordre ASC, label ASC`
-      ) as any[];
-      return reply.send({ success: true, data: { categories: rows } });
+      const res = await n8nService.callWorkflowReturn<{ categories: CategoryItem[] }>(
+        tenantId,
+        'automation_categories_list',
+        { activeOnly: true }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/categories] Erreur SQL');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      fastify.log.error(error, '[automations/categories] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
-  // GET /categories/all — Liste toutes les catégories (admin, y compris inactives)
+  // GET /categories/all — Liste toutes les catégories y compris inactives (super_admin)
   fastify.get('/categories/all', {
     preHandler: [fastify.authenticate, requireRole('super_admin')],
-  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
     try {
-      const rows = await prisma.$queryRawUnsafe(
-        `SELECT id, code, label, icon, color, description, ordre, actif
-         FROM automation_categories
-         ORDER BY ordre ASC, label ASC`
-      ) as any[];
-      return reply.send({ success: true, data: { categories: rows } });
+      const res = await n8nService.callWorkflowReturn<{ categories: CategoryItem[] }>(
+        tenantId,
+        'automation_categories_list',
+        { activeOnly: false }
+      );
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/categories/all] Erreur SQL');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      fastify.log.error(error, '[automations/categories/all] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
-  // POST /categories — Créer une catégorie (super_admin)
+  // POST /categories — Créer une catégorie via n8n (super_admin)
   fastify.post('/categories', {
     preHandler: [fastify.authenticate, requireRole('super_admin')],
-  }, async (request: any, reply: FastifyReply) => {
-    const body = request.body as { code: string; label: string; icon?: string; color?: string; description?: string; ordre?: number };
-    const { code, label, icon, color, description, ordre } = body;
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
 
-    if (!code || !label) {
-      return reply.status(400).send({ success: false, error: 'Code et label requis' });
+    const body = request.body as CategoryCreateBody;
+    if (!body.code || !body.label) {
+      return reply.status(400).send({ success: false, error: 'code et label requis' });
     }
 
     try {
-      const rows = await prisma.$queryRawUnsafe(
-        `INSERT INTO automation_categories (code, label, icon, color, description, ordre)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id`,
-        code.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-        label,
-        icon || 'general',
-        color || 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-        description || null,
-        ordre || 0
-      ) as any[];
-      return reply.send({ success: true, data: { id: rows[0]?.id, message: 'Catégorie créée' } });
-    } catch (error: any) {
-      if (error?.code === '23505') {
-        return reply.status(409).send({ success: false, error: 'Ce code de catégorie existe déjà' });
-      }
-      fastify.log.error(error, '[automations/categories/create] Erreur SQL');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      const res = await n8nService.callWorkflowReturn<{ message: string; id: string }>(
+        tenantId,
+        'automation_categories_create',
+        {
+          code: body.code,
+          label: body.label,
+          icon: body.icon || 'general',
+          color: body.color || 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+          description: body.description || '',
+          ordre: body.ordre || 0,
+        }
+      );
+      return reply.send(res);
+    } catch (error) {
+      fastify.log.error(error, '[automations/categories/create] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
-  // PUT /categories/:id — Modifier une catégorie (super_admin)
+  // PUT /categories/:id — Modifier une catégorie via n8n (super_admin)
   fastify.put('/categories/:id', {
     preHandler: [fastify.authenticate, requireRole('super_admin')],
-  }, async (request: any, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
     const { id } = request.params as { id: string };
-    const { label, icon, color, description, ordre, actif } = request.body as {
-      label?: string; icon?: string; color?: string; description?: string; ordre?: number; actif?: boolean;
-    };
+    const body = request.body as CategoryUpdateBody;
 
     try {
-      await prisma.$queryRawUnsafe(
-        `UPDATE automation_categories
-         SET label = COALESCE($2, label),
-             icon = COALESCE($3, icon),
-             color = COALESCE($4, color),
-             description = COALESCE($5, description),
-             ordre = COALESCE($6, ordre),
-             actif = COALESCE($7, actif),
-             updated_at = NOW()
-         WHERE id = $1::uuid`,
-        id, label || null, icon || null, color || null, description || null, ordre ?? null, actif ?? null
+      const res = await n8nService.callWorkflowReturn<{ message: string }>(
+        tenantId,
+        'automation_categories_update',
+        { id, ...body }
       );
-      return reply.send({ success: true, data: { message: 'Catégorie mise à jour' } });
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/categories/update] Erreur SQL');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      fastify.log.error(error, '[automations/categories/update] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 
-  // DELETE /categories/:id — Supprimer (désactiver) une catégorie (super_admin)
+  // DELETE /categories/:id — Désactiver une catégorie via n8n (super_admin)
   fastify.delete('/categories/:id', {
     preHandler: [fastify.authenticate, requireRole('super_admin')],
-  }, async (request: any, reply: FastifyReply) => {
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ success: false, error: 'Non autorise' });
+
     const { id } = request.params as { id: string };
 
     try {
-      await prisma.$queryRawUnsafe(
-        `UPDATE automation_categories SET actif = false, updated_at = NOW() WHERE id = $1::uuid`,
-        id
+      const res = await n8nService.callWorkflowReturn<{ message: string }>(
+        tenantId,
+        'automation_categories_delete',
+        { id }
       );
-      return reply.send({ success: true, data: { message: 'Catégorie désactivée' } });
+      return reply.send(res);
     } catch (error) {
-      fastify.log.error(error, '[automations/categories/delete] Erreur SQL');
-      return reply.status(500).send({ success: false, error: 'Erreur serveur' });
+      fastify.log.error(error, '[automations/categories/delete] Erreur n8n');
+      return reply.status(502).send({ success: false, error: 'Erreur communication n8n' });
     }
   });
 }
