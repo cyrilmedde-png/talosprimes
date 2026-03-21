@@ -551,7 +551,7 @@ export default function AutomatisationsPage() {
           )}
 
           {activeTab === 'gestion-email' && (
-            <EmailManagementPanel />
+            <EmailManagementPanel isAdmin={isAdmin} />
           )}
 
           {activeTab === 'logs' && (

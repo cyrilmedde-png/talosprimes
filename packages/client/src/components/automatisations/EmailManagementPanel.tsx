@@ -85,7 +85,7 @@ const ruleActionLabels: Record<string, string> = {
  * Panel de gestion des emails — s'intègre dans l'onglet Automatisations
  * quand le client a souscrit à une automatisation de catégorie "email".
  */
-export default function EmailManagementPanel() {
+export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: boolean }) {
   const [tab, setTab] = useState<EmailTab>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [emails, setEmails] = useState<EmailLog[]>([]);
@@ -254,7 +254,7 @@ export default function EmailManagementPanel() {
     { id: 'overview', label: 'Vue d\'ensemble', icon: '📊' },
     { id: 'inbox', label: 'Emails reçus', icon: '📨', badge: emailTotal },
     { id: 'queue', label: 'File d\'attente', icon: '⏳', badge: stats?.queue || 0 },
-    { id: 'rules', label: 'Règles', icon: '⚙️' },
+    ...(isAdmin ? [{ id: 'rules' as EmailTab, label: 'Règles', icon: '⚙️' }] : []),
   ];
 
   return (
