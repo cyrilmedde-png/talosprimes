@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuthStore } from '@/store/auth-store';
 import { getAccessToken } from '@/lib/auth';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -81,7 +80,6 @@ const ruleActionLabels: Record<string, string> = {
 };
 
 export default function EmailAgentPage() {
-  const { user } = useAuthStore();
   const [tab, setTab] = useState<Tab>('dashboard');
   const [stats, setStats] = useState<Stats | null>(null);
   const [emails, setEmails] = useState<EmailLog[]>([]);
