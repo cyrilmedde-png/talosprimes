@@ -802,7 +802,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       const { type, titre, config, ordre, actif } = request.body;
       if (!type) return ApiError.badRequest(reply, 'Le type de section est requis');
 
-      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations', 'dashboard_showcase'];
+      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations', 'dashboard_showcase', 'carousel'];
       if (!validTypes.includes(type)) return ApiError.badRequest(reply, `Type invalide. Types autorisés: ${validTypes.join(', ')}`);
 
       try {
@@ -1167,7 +1167,7 @@ export async function landingRoutes(fastify: FastifyInstance) {
       const { type, titre, config, ordre, actif } = request.body;
       if (!type) return ApiError.badRequest(reply, 'Le type de section est requis');
 
-      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations', 'dashboard_showcase'];
+      const validTypes = ['hero', 'stats', 'modules', 'agent_ia', 'how_it_works', 'testimonials', 'upcoming', 'cta', 'contact', 'trust_badges', 'custom_html', 'integrations', 'dashboard_showcase', 'carousel'];
       if (!validTypes.includes(type)) return ApiError.badRequest(reply, `Type invalide. Types autorisés: ${validTypes.join(', ')}`);
 
       try {
