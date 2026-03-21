@@ -5,6 +5,10 @@ import { n8nService } from '../../services/n8n.service.js';
 import { ApiError } from '../../utils/api-errors.js';
 import type { InputJsonValue } from '../../types/prisma-helpers.js';
 import { n8nOrAuthMiddleware, requireRole } from '../../middleware/auth.middleware.js';
+import { writeFile, mkdir } from 'fs/promises';
+import { join, extname } from 'path';
+import { randomUUID } from 'crypto';
+import { env } from '../../config/env.js';
 
 // Templates pour génération IA
 const legalTemplates = {
@@ -1773,6 +1777,58 @@ export async function landingRoutes(fastify: FastifyInstance) {
       return ApiError.internal(reply);
     }
   });
+
+  // ── POST /api/landing/upload — Upload d'image pour le CMS ──────
+  const CMS_UPLOADS_DIR = join(process.cwd(), 'uploads', 'cms');
+  const CMS_ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']);
+  const CMS_ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']);
+
+  fastify.post(
+    '/api/landing/upload',
+    { preHandler: [n8nOrAuthMiddleware], bodyLimit: 5 * 1024 * 1024 },
+    async (request: any, reply) => {
+      try {
+        const file = await request.file();
+        if (!file) return ApiError.badRequest(reply, 'Aucun fichier envoyé');
+
+        if (!CMS_ALLOWED_MIME.has(file.mimetype)) {
+          return ApiError.badRequest(reply, 'Type non autorisé. Acceptés : JPG, PNG, GIF, WebP, SVG');
+        }
+
+        const ext = extname(file.filename).toLowerCase();
+        if (!CMS_ALLOWED_EXT.has(ext)) {
+          return ApiError.badRequest(reply, `Extension non autorisée`);
+        }
+
+        const buffer = await file.toBuffer();
+        if (buffer.length > 5 * 1024 * 1024) {
+          return ApiError.badRequest(reply, 'Fichier trop volumineux (max 5 Mo)');
+        }
+
+        await mkdir(CMS_UPLOADS_DIR, { recursive: true });
+        const uniqueName = `${randomUUID()}${ext}`;
+        await writeFile(join(CMS_UPLOADS_DIR, uniqueName), buffer);
+
+        const baseUrl = env.NODE_ENV === 'production'
+          ? 'https://api.talosprimes.com'
+          : `http://localhost:${env.PORT}`;
+
+        return reply.send({
+          success: true,
+          url: `${baseUrl}/uploads/cms/${uniqueName}`,
+          data: {
+            url: `${baseUrl}/uploads/cms/${uniqueName}`,
+            filename: file.filename,
+            size: buffer.length,
+            mimetype: file.mimetype,
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply, 'Erreur upload');
+      }
+    }
+  );
 
   // GET /api/landing/catalog/:code — Détail d'une automatisation par code
   fastify.get<{ Params: { code: string } }>('/api/landing/catalog/:code', async (request, reply) => {

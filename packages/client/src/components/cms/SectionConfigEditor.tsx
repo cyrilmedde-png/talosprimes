@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { SECTION_TYPES } from './types';
 import type { LandingSection } from './types';
+import { RichTextEditor } from './RichTextEditor';
 
 interface Props {
   section: LandingSection;
@@ -41,6 +42,58 @@ function TextArea({ value, onChange, placeholder, rows = 3 }: { value: string; o
       rows={rows}
       className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 outline-none resize-none"
     />
+  );
+}
+
+// Toggle between simple text and rich editor
+function RichField({ label, value, onChange, placeholder, minHeight = '120px' }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; minHeight?: string;
+}) {
+  const [mode, setMode] = useState<'rich' | 'code'>('rich');
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-slate-400">{label}</label>
+        <div className="flex gap-1">
+          <button
+            onClick={() => setMode('rich')}
+            className={`text-[10px] px-2 py-0.5 rounded ${mode === 'rich' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-500'}`}
+          >
+            Visuel
+          </button>
+          <button
+            onClick={() => setMode('code')}
+            className={`text-[10px] px-2 py-0.5 rounded ${mode === 'code' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-500'}`}
+          >
+            HTML
+          </button>
+        </div>
+      </div>
+      {mode === 'rich' ? (
+        <RichTextEditor content={value || ''} onChange={onChange} placeholder={placeholder} minHeight={minHeight} />
+      ) : (
+        <TextArea value={value || ''} onChange={onChange} placeholder={placeholder} rows={6} />
+      )}
+    </div>
+  );
+}
+
+// Image field with preview
+function ImageField({ label, value, onChange, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-slate-400">{label}</label>
+      <div className="flex gap-2">
+        <TextInput value={value} onChange={onChange} placeholder={placeholder || 'URL de l\'image'} />
+      </div>
+      {value && (
+        <div className="mt-1 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 p-1">
+          <img src={value} alt="preview" className="max-h-20 rounded object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -107,7 +160,8 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
               <Field label="Titre principal"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
               <Field label="Titre en surbrillance"><TextInput value={get('titleHighlight') as string} onChange={(v) => set('titleHighlight', v)} /></Field>
             </div>
-            <Field label="Sous-titre"><TextArea value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} placeholder="Description du hero..." />
+            <ImageField label="Image d'arrière-plan" value={get('bgImage') as string} onChange={(v) => set('bgImage', v)} />
             <div className="grid grid-cols-2 gap-4">
               <Field label="Badge texte"><TextInput value={(config.badge as Record<string, string>)?.text || ''} onChange={(v) => set('badge', { ...(config.badge as Record<string, unknown> || {}), text: v })} /></Field>
               <Field label="Gradient fond"><TextInput value={get('bgGradient') as string} onChange={(v) => set('bgGradient', v)} placeholder="from-slate-950 via-purple-950/50 to-slate-950" /></Field>
@@ -158,7 +212,7 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
             <ArrayManager
               items={getArr('modules')}
               onChange={(items) => set('modules', items)}
-              defaultItem={{ icon: 'Zap', titre: '', description: '', features: [] }}
+              defaultItem={{ icon: 'Zap', titre: '', description: '', features: [], image: '' }}
               label="Modules"
               renderItem={(item, _i, update) => (
                 <div className="space-y-2">
@@ -167,7 +221,8 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
                     <TextInput value={(item.titre as string) || ''} onChange={(v) => update('titre', v)} placeholder="Titre" />
                     <TextInput value={(item.couleur as string) || ''} onChange={(v) => update('couleur', v)} placeholder="Couleur" />
                   </div>
-                  <TextArea value={(item.description as string) || ''} onChange={(v) => update('description', v)} placeholder="Description" rows={2} />
+                  <RichField label="Description" value={(item.description as string) || ''} onChange={(v) => update('description', v)} placeholder="Description du module..." minHeight="80px" />
+                  <ImageField label="Image du module" value={(item.image as string) || ''} onChange={(v) => update('image', v)} />
                   <TextInput value={((item.features as string[]) || []).join(', ')} onChange={(v) => update('features', v.split(',').map(s => s.trim()).filter(Boolean))} placeholder="Features (séparées par virgule)" />
                 </div>
               )}
@@ -185,7 +240,7 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
             <ArrayManager
               items={getArr('steps')}
               onChange={(items) => set('steps', items)}
-              defaultItem={{ title: '', description: '', icon: 'Zap' }}
+              defaultItem={{ title: '', description: '', icon: 'Zap', image: '' }}
               label="Étapes"
               renderItem={(item, _i, update) => (
                 <div className="space-y-2">
@@ -193,7 +248,8 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
                     <TextInput value={(item.title as string) || ''} onChange={(v) => update('title', v)} placeholder="Titre de l'étape" />
                     <TextInput value={(item.icon as string) || ''} onChange={(v) => update('icon', v)} placeholder="Icône" />
                   </div>
-                  <TextArea value={(item.description as string) || ''} onChange={(v) => update('description', v)} placeholder="Description" rows={2} />
+                  <RichField label="Description" value={(item.description as string) || ''} onChange={(v) => update('description', v)} placeholder="Description de l'étape..." minHeight="80px" />
+                  <ImageField label="Image" value={(item.image as string) || ''} onChange={(v) => update('image', v)} />
                 </div>
               )}
             />
@@ -204,7 +260,7 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
         return (
           <div className="space-y-4">
             <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
-            <Field label="Sous-titre"><TextArea value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
           </div>
         );
 
@@ -212,7 +268,7 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
         return (
           <div className="space-y-4">
             <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
-            <Field label="Sous-titre"><TextArea value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
             <div className="flex items-center gap-3">
               <label className="text-xs text-slate-400">Rappel IA activé</label>
               <button
@@ -229,8 +285,9 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
         return (
           <div className="space-y-4">
             <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
-            <Field label="Sous-titre"><TextArea value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
             <Field label="Gradient fond"><TextInput value={get('bgGradient') as string} onChange={(v) => set('bgGradient', v)} placeholder="from-slate-950 via-slate-900 to-slate-950" /></Field>
+            <ImageField label="Image de fond" value={get('bgImage') as string} onChange={(v) => set('bgImage', v)} />
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
                 <span className="text-xs font-medium text-slate-400 block mb-2">CTA Principal</span>
@@ -257,7 +314,7 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
               <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
               <Field label="Titre en surbrillance"><TextInput value={get('titleHighlight') as string} onChange={(v) => set('titleHighlight', v)} /></Field>
             </div>
-            <Field label="Sous-titre"><TextArea value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
             <Field label="Gradient fond"><TextInput value={get('bgGradient') as string} onChange={(v) => set('bgGradient', v)} /></Field>
             <ArrayManager
               items={getArr('features')}
@@ -315,10 +372,42 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
           />
         );
 
+      case 'dashboard_showcase':
+        return (
+          <div className="space-y-4">
+            <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
+            <ImageField label="Image de la démo" value={get('demoImage') as string} onChange={(v) => set('demoImage', v)} />
+          </div>
+        );
+
+      case 'upcoming':
+        return (
+          <div className="space-y-4">
+            <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
+            <ArrayManager
+              items={getArr('items')}
+              onChange={(items) => set('items', items)}
+              defaultItem={{ icon: 'Zap', title: '', description: '' }}
+              label="Éléments à venir"
+              renderItem={(item, _i, update) => (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <TextInput value={(item.title as string) || ''} onChange={(v) => update('title', v)} placeholder="Titre" />
+                    <TextInput value={(item.icon as string) || ''} onChange={(v) => update('icon', v)} placeholder="Icône" />
+                  </div>
+                  <RichField label="Description" value={(item.description as string) || ''} onChange={(v) => update('description', v)} minHeight="60px" />
+                </div>
+              )}
+            />
+          </div>
+        );
+
       case 'custom_html':
         return (
           <div className="space-y-4">
-            <Field label="HTML"><TextArea value={get('html') as string} onChange={(v) => set('html', v)} rows={10} placeholder="<div>...</div>" /></Field>
+            <RichField label="Contenu" value={get('html') as string} onChange={(v) => set('html', v)} minHeight="300px" placeholder="Contenu de la section..." />
             <Field label="Couleur de fond"><TextInput value={get('bgColor') as string} onChange={(v) => set('bgColor', v)} placeholder="#1e293b" /></Field>
           </div>
         );

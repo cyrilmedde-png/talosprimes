@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture - Module Automatisations TalosPrimes</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; min-height: 100vh; }
+  h1 { text-align: center; font-size: 28px; margin-bottom: 8px; color: #60a5fa; }
+  .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 32px; }
+
+  .architecture { display: flex; flex-direction: column; gap: 24px; max-width: 1100px; margin: 0 auto; }
+
+  .layer { background: #1e293b; border-radius: 16px; padding: 20px; border: 1px solid #334155; position: relative; }
+  .layer-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .layer-title .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .boxes { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .box { background: #0f172a; border-radius: 12px; padding: 16px; border: 1px solid #475569; flex: 1; min-width: 140px; max-width: 220px; text-align: center; transition: all 0.2s; }
+  .box:hover { border-color: #60a5fa; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(96,165,250,0.15); }
+  .box-icon { font-size: 28px; margin-bottom: 8px; }
+  .box-title { font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+  .box-desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+
+  .arrow-down { text-align: center; font-size: 24px; color: #475569; margin: -8px 0; }
+
+  /* Color themes per layer */
+  .layer-client .dot { background: #60a5fa; }
+  .layer-client .box { border-color: #1e40af; }
+  .layer-client .box-title { color: #93c5fd; }
+
+  .layer-api .dot { background: #34d399; }
+  .layer-api .box { border-color: #065f46; }
+  .layer-api .box-title { color: #6ee7b7; }
+
+  .layer-engine .dot { background: #f59e0b; }
+  .layer-engine .box { border-color: #92400e; }
+  .layer-engine .box-title { color: #fcd34d; }
+
+  .layer-data .dot { background: #a78bfa; }
+  .layer-data .box { border-color: #5b21b6; }
+  .layer-data .box-title { color: #c4b5fd; }
+
+  .layer-external .dot { background: #f87171; }
+  .layer-external .box { border-color: #991b1b; }
+  .layer-external .box-title { color: #fca5a5; }
+
+  .flow-section { margin-top: 32px; background: #1e293b; border-radius: 16px; padding: 24px; border: 1px solid #334155; max-width: 1100px; margin-left: auto; margin-right: auto; }
+  .flow-title { font-size: 16px; font-weight: 700; color: #60a5fa; margin-bottom: 16px; }
+  .flow-steps { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .flow-step { background: #0f172a; border-radius: 8px; padding: 10px 16px; border: 1px solid #475569; font-size: 12px; font-weight: 600; }
+  .flow-arrow { color: #60a5fa; font-size: 18px; font-weight: 700; }
+
+  .security-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; max-width: 1100px; margin-left: auto; margin-right: auto; }
+  .sec-card { background: #1e293b; border-radius: 12px; padding: 16px; border: 1px solid #334155; }
+  .sec-card-title { font-size: 13px; font-weight: 700; color: #34d399; margin-bottom: 6px; }
+  .sec-card-desc { font-size: 11px; color: #94a3b8; line-height: 1.5; }
+
+  .legend { margin-top: 24px; text-align: center; color: #64748b; font-size: 11px; max-width: 1100px; margin-left: auto; margin-right: auto; }
+</style>
+</head>
+<body>
+
+<h1>Architecture Technique - Module Automatisations</h1>
+<p class="subtitle">TalosPrimes - Gestion independante par client (multi-tenant)</p>
+
+<div class="architecture">
+
+  <!-- LAYER 1: CLIENT -->
+  <div class="layer layer-client">
+    <div class="layer-title"><span class="dot"></span> COUCHE CLIENT (Frontend)</div>
+    <div class="boxes">
+      <div class="box">
+        <div class="box-icon">📊</div>
+        <div class="box-title">Dashboard</div>
+        <div class="box-desc">KPIs, historique executions, alertes, graphiques performance</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🔑</div>
+        <div class="box-title">Configuration</div>
+        <div class="box-desc">Credentials SMTP, Meta, Twilio, Webhooks, APIs tierces</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">📦</div>
+        <div class="box-title">Catalogue</div>
+        <div class="box-desc">Automatisations disponibles, activation en 1 clic</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">⚙️</div>
+        <div class="box-title">Mes Automatisations</div>
+        <div class="box-desc">Workflows actifs, toggle on/off, parametrage</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">💳</div>
+        <div class="box-title">Abonnement</div>
+        <div class="box-desc">Plan actuel, quotas, achats a la carte, factures</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">▼ HTTPS / JWT Auth ▼</div>
+
+  <!-- LAYER 2: API -->
+  <div class="layer layer-api">
+    <div class="layer-title"><span class="dot"></span> COUCHE API (Backend Fastify)</div>
+    <div class="boxes">
+      <div class="box">
+        <div class="box-icon">🔒</div>
+        <div class="box-title">Auth Middleware</div>
+        <div class="box-desc">JWT validation, extraction tenantId, rate limiting</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🏢</div>
+        <div class="box-title">Tenant Isolation</div>
+        <div class="box-desc">Row-Level Security, scope par tenant sur chaque requete</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🔐</div>
+        <div class="box-title">Crypto Service</div>
+        <div class="box-desc">AES-256-GCM, cle derivee HKDF par tenant</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">📡</div>
+        <div class="box-title">API Routes</div>
+        <div class="box-desc">/automations/*, /credentials/*, /catalog/*, /subscriptions/*</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🔗</div>
+        <div class="box-title">n8n Service</div>
+        <div class="box-desc">callWorkflowReturn, gestion webhooks, clone templates</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">▼ Webhook HTTP ▼</div>
+
+  <!-- LAYER 3: ENGINE -->
+  <div class="layer layer-engine">
+    <div class="layer-title"><span class="dot"></span> MOTEUR D'ORCHESTRATION (n8n Self-Hosted)</div>
+    <div class="boxes">
+      <div class="box">
+        <div class="box-icon">🌐</div>
+        <div class="box-title">Webhooks</div>
+        <div class="box-desc">Points d'entree par tenant: /webhook/automations/{tenant}/{workflow}</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">⏱️</div>
+        <div class="box-title">Scheduler</div>
+        <div class="box-desc">Cron jobs, executions programmees, retries auto</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🔄</div>
+        <div class="box-title">Workflow Engine</div>
+        <div class="box-desc">Execution des nodes, branchements, transformations</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">📋</div>
+        <div class="box-title">Template Manager</div>
+        <div class="box-desc">Clone template par tenant, config dynamique</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">📝</div>
+        <div class="box-title">Execution Logger</div>
+        <div class="box-desc">Log chaque execution: statut, duree, I/O, erreurs</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">▼ SQL / Connexions ▼</div>
+
+  <!-- LAYER 4: DATA -->
+  <div class="layer layer-data">
+    <div class="layer-title"><span class="dot"></span> COUCHE DONNEES</div>
+    <div class="boxes">
+      <div class="box">
+        <div class="box-icon">🐘</div>
+        <div class="box-title">PostgreSQL</div>
+        <div class="box-desc">Credentials chiffres, workflows, executions, catalogue, abonnements</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">⚡</div>
+        <div class="box-title">Redis</div>
+        <div class="box-desc">Cache sessions, rate limiting, file d'attente executions</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🗄️</div>
+        <div class="box-title">Supabase</div>
+        <div class="box-desc">RLS policies, realtime subscriptions, storage</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">▼ APIs Externes ▼</div>
+
+  <!-- LAYER 5: EXTERNAL -->
+  <div class="layer layer-external">
+    <div class="layer-title"><span class="dot"></span> SERVICES EXTERNES (Credentials du Client)</div>
+    <div class="boxes">
+      <div class="box">
+        <div class="box-icon">📧</div>
+        <div class="box-title">Email / SMTP</div>
+        <div class="box-desc">SendGrid, Mailgun, SES, SMTP custom</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">📱</div>
+        <div class="box-title">Social Media</div>
+        <div class="box-desc">Meta API, TikTok API, LinkedIn, X/Twitter</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">📞</div>
+        <div class="box-title">Telephonie</div>
+        <div class="box-desc">Twilio, Vonage, OVH SMS</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">💰</div>
+        <div class="box-title">Paiement</div>
+        <div class="box-desc">Stripe, PayPal, GoCardless</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">🛒</div>
+        <div class="box-title">E-commerce</div>
+        <div class="box-desc">Shopify, WooCommerce, PrestaShop</div>
+      </div>
+      <div class="box">
+        <div class="box-icon">📊</div>
+        <div class="box-title">CRM & Outils</div>
+        <div class="box-desc">HubSpot, Salesforce, Google Sheets, Slack</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FLUX -->
+<div class="flow-section">
+  <div class="flow-title">Flux d'execution d'une automatisation</div>
+  <div class="flow-steps">
+    <div class="flow-step" style="border-color:#1e40af;">Client (Browser)</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#1e40af;">Next.js Frontend</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#065f46;">Fastify API + JWT</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#065f46;">Tenant Isolation</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#92400e;">n8n Webhook</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#92400e;">Workflow Execution</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#991b1b;">Service Externe</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#5b21b6;">Log en BDD</div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step" style="border-color:#1e40af;">Resultat au Client</div>
+  </div>
+</div>
+
+<!-- SECURITY -->
+<div style="max-width:1100px; margin: 24px auto 0;">
+  <div style="font-size:16px; font-weight:700; color:#34d399; margin-bottom:12px;">Securite & Isolation</div>
+</div>
+<div class="security-grid">
+  <div class="sec-card">
+    <div class="sec-card-title">Chiffrement Credentials</div>
+    <div class="sec-card-desc">AES-256-GCM avec cle derivee HKDF unique par tenant. Jamais stocke en clair. Dechiffrement uniquement en memoire au moment de l'execution.</div>
+  </div>
+  <div class="sec-card">
+    <div class="sec-card-title">Isolation BDD</div>
+    <div class="sec-card-desc">Row-Level Security (RLS) PostgreSQL. Chaque requete est filtree par tenant_id automatiquement. Zero visibilite cross-tenant.</div>
+  </div>
+  <div class="sec-card">
+    <div class="sec-card-title">Auth JWT</div>
+    <div class="sec-card-desc">Token JWT signe avec tenantId embed. Validation a chaque requete. Refresh token automatique. Rate limiting par tenant.</div>
+  </div>
+  <div class="sec-card">
+    <div class="sec-card-title">Audit Trail</div>
+    <div class="sec-card-desc">Chaque acces aux credentials, chaque execution, chaque modification est loggee avec timestamp, IP, et user_id.</div>
+  </div>
+  <div class="sec-card">
+    <div class="sec-card-title">Transport</div>
+    <div class="sec-card-desc">TLS 1.3 obligatoire. Toutes les communications internes et externes transitent en HTTPS. Pas de donnee sensible en clair.</div>
+  </div>
+</div>
+
+<div class="legend">
+  TalosPrimes - Architecture Module Automatisations Independantes - Version 1.0 - Mars 2026 - Confidentiel
+</div>
+
+</body>
+</html>

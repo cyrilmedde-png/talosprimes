@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CMSPage } from './types';
+import { RichTextEditor } from './RichTextEditor';
 
 interface Props {
   pages: CMSPage[];
@@ -138,13 +139,12 @@ export function PagesManager({ pages, setPages, api, showToast }: Props) {
               </div>
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Contenu (Markdown)</label>
-              <textarea
-                value={form.contenu}
-                onChange={(e) => setForm({ ...form, contenu: e.target.value })}
-                rows={16}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white font-mono outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
-                placeholder="# Titre&#10;&#10;Contenu de votre page..."
+              <label className="text-xs text-slate-400 block mb-1">Contenu</label>
+              <RichTextEditor
+                content={form.contenu}
+                onChange={(html) => setForm({ ...form, contenu: html })}
+                placeholder="Commencez à rédiger votre page..."
+                minHeight="350px"
               />
             </div>
             <div className="flex items-center gap-3">
