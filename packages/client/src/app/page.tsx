@@ -285,7 +285,7 @@ export default async function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 antialiased">
+    <div className="min-h-screen bg-slate-950 text-slate-200 antialiased">
       {/* ─── HEADER dynamique ─── */}
       <DynamicLandingHeader config={globalConfig.navbar} />
 

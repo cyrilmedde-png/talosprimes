@@ -51,6 +51,8 @@ export function LandingContactForm({ className }: ContactFormProps) {
     }
   };
 
+  const inputClass = "px-4 py-2.5 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 bg-slate-900/80";
+
   return (
     <>
       {showToast && <Toast type={toastType} message={toastMessage} onClose={() => setShowToast(false)} />}
@@ -62,7 +64,7 @@ export function LandingContactForm({ className }: ContactFormProps) {
             required
             value={contactForm.prenom}
             onChange={(e) => setContactForm({ ...contactForm, prenom: e.target.value })}
-            className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
+            className={inputClass}
           />
           <input
             type="text"
@@ -70,7 +72,7 @@ export function LandingContactForm({ className }: ContactFormProps) {
             required
             value={contactForm.nom}
             onChange={(e) => setContactForm({ ...contactForm, nom: e.target.value })}
-            className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
+            className={inputClass}
           />
         </div>
         <input
@@ -79,7 +81,7 @@ export function LandingContactForm({ className }: ContactFormProps) {
           required
           value={contactForm.email}
           onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-          className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
+          className={`w-full ${inputClass}`}
         />
         <div className="grid grid-cols-2 gap-3">
           <input
@@ -87,14 +89,14 @@ export function LandingContactForm({ className }: ContactFormProps) {
             placeholder="Téléphone"
             value={contactForm.telephone}
             onChange={(e) => setContactForm({ ...contactForm, telephone: e.target.value })}
-            className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
+            className={inputClass}
           />
           <input
             type="text"
             placeholder="Entreprise"
             value={contactForm.entreprise}
             onChange={(e) => setContactForm({ ...contactForm, entreprise: e.target.value })}
-            className="px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 bg-white"
+            className={inputClass}
           />
         </div>
         <textarea
@@ -103,12 +105,12 @@ export function LandingContactForm({ className }: ContactFormProps) {
           rows={4}
           value={contactForm.message}
           onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-          className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 resize-none bg-white"
+          className={`w-full ${inputClass} resize-none`}
         />
         <button
           type="submit"
           disabled={contactStatus === 'sending'}
-          className="w-full px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition disabled:opacity-50 shadow-sm"
+          className="w-full px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition disabled:opacity-50 shadow-sm"
         >
           {contactStatus === 'sending' ? (
             <span className="flex items-center justify-center gap-2">

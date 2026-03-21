@@ -13,9 +13,9 @@ export function TrustBadgesSection({ config }: { config: TrustBadgesConfig; them
   if (items.length === 0) return null;
 
   return (
-    <section className={`py-6 ${config.bgColor || 'bg-slate-50'} border-y border-slate-100`}>
+    <section className="py-6 bg-slate-900/50 border-y border-slate-800">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm text-slate-400">
+        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm text-slate-500">
           {items.map((item, i) => {
             const Icon = iconMap[item.icon] || Shield;
             return (

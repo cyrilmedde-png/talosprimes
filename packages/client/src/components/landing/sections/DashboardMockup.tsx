@@ -407,7 +407,7 @@ export function FloatingDashboardHero() {
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-300 ${
               i === activeIndex
                 ? 'bg-slate-900 text-white shadow-md'
-                : 'bg-white text-slate-400 border border-slate-200 hover:text-slate-600 hover:border-slate-300'
+                : 'bg-slate-900/50 text-slate-400 border border-slate-700 hover:text-slate-300 hover:border-slate-600'
             }`}
           >
             <span className={i === activeIndex ? 'text-amber-400' : 'text-slate-400'}>{slide.icon}</span>
@@ -419,7 +419,7 @@ export function FloatingDashboardHero() {
       {/* Progress bar */}
       <div className="flex justify-center gap-1.5 mt-3">
         {carouselSlides.map((_, i) => (
-          <div key={i} className="h-1 rounded-full overflow-hidden bg-slate-200 w-8">
+          <div key={i} className="h-1 rounded-full overflow-hidden bg-slate-800 w-8">
             <div
               className={`h-full rounded-full transition-all ${
                 i === activeIndex
@@ -436,42 +436,42 @@ export function FloatingDashboardHero() {
 
       {/* Floating mini cards */}
       <div className="absolute -left-8 top-1/3 animate-float-slow hidden lg:block">
-        <div className="bg-white rounded-xl shadow-xl shadow-slate-200/50 p-3 border border-slate-100">
+        <div className="bg-slate-900/90 backdrop-blur rounded-xl shadow-xl shadow-black/30 p-3 border border-slate-700">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
             <div>
               <div className="text-[10px] text-slate-400">Revenus</div>
-              <div className="text-sm font-bold text-slate-900">+34%</div>
+              <div className="text-sm font-bold text-emerald-400">+34%</div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="absolute -right-6 top-1/4 animate-float-medium hidden lg:block">
-        <div className="bg-white rounded-xl shadow-xl shadow-slate-200/50 p-3 border border-slate-100">
+        <div className="bg-slate-900/90 backdrop-blur rounded-xl shadow-xl shadow-black/30 p-3 border border-slate-700">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
             <div>
               <div className="text-[10px] text-slate-400">Clients actifs</div>
-              <div className="text-sm font-bold text-slate-900">342</div>
+              <div className="text-sm font-bold text-blue-400">342</div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="absolute -right-4 bottom-16 animate-float-fast hidden lg:block">
-        <div className="bg-white rounded-xl shadow-xl shadow-slate-200/50 p-2.5 border border-slate-100">
+        <div className="bg-slate-900/90 backdrop-blur rounded-xl shadow-xl shadow-black/30 p-2.5 border border-slate-700">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            <div className="text-[10px] text-slate-600">Agent IA actif</div>
+            <div className="text-[10px] text-slate-400">Agent IA actif</div>
           </div>
         </div>
       </div>

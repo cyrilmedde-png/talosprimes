@@ -50,10 +50,10 @@ function AnimatedStat({ value, label, suffix, prefix }: { value: string; label: 
     : value;
 
   return (
-    <div ref={ref} className="group relative text-center p-6 rounded-2xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-lg transition-all duration-500">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-transparent to-violet-50/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <div ref={ref} className="group relative text-center p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-slate-700 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-500">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-violet-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <div className="relative">
-        <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-2">
+        <div className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent mb-2">
           {displayValue}
         </div>
         <div className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</div>
@@ -68,7 +68,6 @@ export function StatsSection({ config }: { config: StatsConfig; theme?: Record<s
 
   return (
     <section className="py-16 px-6 relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-50/30 to-transparent" />
       <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
         {items.map((stat, i) => (
           <AnimatedStat key={i} value={stat.value} label={stat.label} suffix={stat.suffix} prefix={stat.prefix} />

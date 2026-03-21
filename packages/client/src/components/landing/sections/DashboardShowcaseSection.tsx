@@ -26,22 +26,22 @@ export function DashboardShowcaseSection({ config }: { config: ShowcaseConfig; t
   const BadgeIcon = config.badge?.icon ? (iconMap[config.badge.icon] || Sparkles) : Sparkles;
 
   return (
-    <section className="py-24 px-6 bg-gradient-to-b from-white via-slate-50/50 to-white overflow-hidden">
+    <section className="py-24 px-6 overflow-hidden">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
           {config.badge && (
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-50 text-violet-600 text-xs font-medium mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 text-violet-400 text-xs font-medium mb-4 border border-violet-500/20">
               <BadgeIcon className="w-3.5 h-3.5" />
               {config.badge.text}
             </div>
           )}
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight mb-4">
             {config.title || (
-              <>Découvrez <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">l&apos;interface</span></>
+              <>Découvrez <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">l&apos;interface</span></>
             )}
           </h2>
-          <p className="text-slate-500 text-base max-w-xl mx-auto">
+          <p className="text-slate-400 text-base max-w-xl mx-auto">
             {config.subtitle || 'Une plateforme pensée pour la productivité. Chaque module est conçu pour vous faire gagner du temps.'}
           </p>
         </div>
@@ -57,11 +57,11 @@ export function DashboardShowcaseSection({ config }: { config: ShowcaseConfig; t
                 onClick={() => setActiveTab(tab.id)}
                 className={`group flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
-                    : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-700 hover:shadow-sm'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                    : 'bg-slate-900/50 text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-slate-300'
                 }`}
               >
-                <TabIcon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <TabIcon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-500 group-hover:text-slate-400'}`} />
                 {tab.label}
               </button>
             );
@@ -69,7 +69,7 @@ export function DashboardShowcaseSection({ config }: { config: ShowcaseConfig; t
         </div>
 
         {/* Description */}
-        <p className="text-center text-slate-500 text-sm mb-8 max-w-lg mx-auto min-h-[40px]">
+        <p className="text-center text-slate-400 text-sm mb-8 max-w-lg mx-auto min-h-[40px]">
           {activeTabData?.description}
         </p>
 
