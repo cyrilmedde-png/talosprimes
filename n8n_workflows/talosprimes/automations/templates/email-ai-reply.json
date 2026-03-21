@@ -1,0 +1,105 @@
+{
+  "name": "[TalosPrimes] Email IA - Génération de réponse (multi-tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/email-ai-reply",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst fromAddress = body.fromAddress || '';\nconst subject = body.subject || '';\nconst bodyText = (body.bodyText || '').substring(0, 3000);\nconst classification = body.classification || {};\n\nif (!tenantId) {\n  return [{ json: { valid: false, error: 'tenantId requis' } }];\n}\n\nreturn [{ json: { tenantId, fromAddress, subject, bodyText, classification, valid: true } }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT content, title FROM agent_knowledge_base WHERE tenant_id = '{{ $json.tenantId }}'::uuid AND active = true ORDER BY priority DESC LIMIT 10",
+        "options": {}
+      },
+      "id": "load-knowledge",
+      "name": "03. Base de connaissances",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [690, 300],
+      "credentials": { "postgres": { "name": "Supabase Postgres" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('02. Valider').first().json;\nconst knowledgeRows = $input.all().map(i => i.json);\n\nlet knowledgeContext = '';\nif (knowledgeRows.length > 0 && knowledgeRows[0].content) {\n  knowledgeContext = '\\n\\nBase de connaissances disponible :\\n' + knowledgeRows.map(k => `- ${k.title || 'Info'}: ${k.content}`).join('\\n');\n}\n\nreturn [{ json: { ...email, knowledgeContext } }];"
+      },
+      "id": "prepare-context",
+      "name": "04. Préparer contexte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "Tu es un assistant email professionnel pour une entreprise. Tu dois rédiger une réponse professionnelle, courtoise et utile à l'email reçu.\n\nRègles :\n- Réponds en français\n- Sois concis mais complet\n- Adapte le ton à la catégorie de l'email (formel pour facturation/devis, empathique pour réclamation, informatif pour demande d'info)\n- Ne fais pas de promesses que tu ne peux pas tenir\n- Si c'est une demande complexe, indique que l'équipe reviendra avec plus de détails\n- Termine par une formule de politesse appropriée\n- Signe avec \"L'équipe\" (pas de nom spécifique)\n{{ $json.knowledgeContext }}\n\nRetourne un JSON avec:\n- subject: l'objet de la réponse (avec Re: devant)\n- text: la réponse en texte brut\n- html: la réponse en HTML simple (paragraphes, gras si besoin)\n- confidence: score de confiance de 0 à 1 sur la qualité de ta réponse\n- tokensUsed: nombre estimé de tokens utilisés\n\nRéponds UNIQUEMENT avec le JSON, sans markdown ni explication.",
+              "role": "system"
+            },
+            {
+              "content": "=Catégorie: {{ $json.classification.category || 'general' }}\nPriorité: {{ $json.classification.priority || 'normale' }}\nDe: {{ $json.fromAddress }}\nObjet: {{ $json.subject }}\n\n{{ $json.bodyText }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": { "temperature": 0.3, "maxTokens": 1000 }
+      },
+      "id": "ai-reply",
+      "name": "05. Générer réponse IA",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1130, 300],
+      "credentials": { "openAiApi": { "name": "OpenAI" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = $input.first().json;\nlet parsed;\ntry {\n  const text = aiResponse.message?.content || aiResponse.text || JSON.stringify(aiResponse);\n  const jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n  parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};\n} catch (e) {\n  parsed = {};\n}\n\nconst email = $('02. Valider').first().json;\n\nreturn [{ json: {\n  data: {\n    subject: parsed.subject || ('Re: ' + email.subject),\n    text: parsed.text || 'Nous avons bien reçu votre message et reviendrons vers vous dans les plus brefs délais.',\n    html: parsed.html || ('<p>' + (parsed.text || 'Nous avons bien reçu votre message et reviendrons vers vous dans les plus brefs délais.') + '</p>'),\n    confidence: Math.min(1, Math.max(0, Number(parsed.confidence) || 0.6)),\n    tokensUsed: Number(parsed.tokensUsed) || 0\n  }\n} }];"
+      },
+      "id": "parse-reply",
+      "name": "06. Parser réponse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond",
+      "name": "07. Répondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1570, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Base de connaissances", "type": "main", "index": 0 }]] },
+    "03. Base de connaissances": { "main": [[{ "node": "04. Préparer contexte", "type": "main", "index": 0 }]] },
+    "04. Préparer contexte": { "main": [[{ "node": "05. Générer réponse IA", "type": "main", "index": 0 }]] },
+    "05. Générer réponse IA": { "main": [[{ "node": "06. Parser réponse", "type": "main", "index": 0 }]] },
+    "06. Parser réponse": { "main": [[{ "node": "07. Répondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
+}

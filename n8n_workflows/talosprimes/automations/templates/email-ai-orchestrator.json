@@ -1,0 +1,156 @@
+{
+  "name": "[TalosPrimes] Email IA - Orchestrateur (multi-tenant)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automations/email-ai-orchestrator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\nconst fromAddress = body.fromAddress || '';\nconst toAddress = body.toAddress || '';\nconst subject = body.subject || '';\nconst bodyText = body.bodyText || '';\nconst bodyHtml = body.bodyHtml || '';\nconst emailId = body.emailId || null;\n\nif (!tenantId || !fromAddress) {\n  return [{ json: { valid: false, error: 'tenantId et fromAddress requis' } }];\n}\n\nreturn [{ json: {\n  tenantId,\n  emailId,\n  fromAddress,\n  toAddress,\n  subject,\n  bodyText,\n  bodyHtml,\n  bodyPreview: bodyText.substring(0, 500),\n  valid: true\n} }];"
+      },
+      "id": "validate",
+      "name": "02. Valider",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.N8N_WEBHOOK_URL }}/webhook/automations/email-ai-classify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, fromAddress: $json.fromAddress, subject: $json.subject, bodyText: $json.bodyText }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "classify",
+      "name": "03. Classifier (IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('02. Valider').first().json;\nconst classifyResult = $input.first().json;\nconst classification = classifyResult.data || classifyResult;\nconst category = classification.category || 'general';\nconst priority = classification.priority || 'normal';\nconst intent = classification.intent || 'unknown';\nconst confidenceThreshold = 0.85;\n\n// Décider de l'action\nlet replyAction = 'queue_human'; // par défaut\nif (classification.autoReplyEligible === true && (classification.confidence || 0) >= confidenceThreshold) {\n  replyAction = 'sent_auto';\n}\n\nreturn [{ json: {\n  ...email,\n  classification: { category, priority, intent, confidence: classification.confidence || 0 },\n  replyAction,\n  needsReply: replyAction !== 'none'\n} }];"
+      },
+      "id": "decide",
+      "name": "04. Décider action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.needsReply }}", "value2": true }]
+        }
+      },
+      "id": "check-reply",
+      "name": "05. Besoin réponse ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.N8N_WEBHOOK_URL }}/webhook/automations/email-ai-reply",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, fromAddress: $json.fromAddress, subject: $json.subject, bodyText: $json.bodyText, classification: $json.classification }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "generate-reply",
+      "name": "06. Générer réponse (IA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('04. Décider action').first().json;\nconst replyResult = $input.first().json;\nconst replyData = replyResult.data || replyResult;\n\nreturn [{ json: {\n  tenantId: email.tenantId,\n  emailId: email.emailId,\n  fromAddress: email.fromAddress,\n  toAddress: email.toAddress,\n  subject: email.subject,\n  bodyPreview: email.bodyPreview,\n  classification: email.classification,\n  action: email.replyAction === 'sent_auto' ? 'auto_replied' : 'classified',\n  replySubject: replyData.subject || ('Re: ' + email.subject),\n  replyBody: replyData.text || '',\n  replyHtml: replyData.html || '',\n  replyConfidence: replyData.confidence || email.classification.confidence || 0,\n  replyAction: email.replyAction,\n  tokensUsed: replyData.tokensUsed || 0\n} }];"
+      },
+      "id": "prepare-log-reply",
+      "name": "07a. Préparer log (avec réponse)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1570, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('04. Décider action').first().json;\n\nreturn [{ json: {\n  tenantId: email.tenantId,\n  emailId: email.emailId,\n  fromAddress: email.fromAddress,\n  toAddress: email.toAddress,\n  subject: email.subject,\n  bodyPreview: email.bodyPreview,\n  classification: email.classification,\n  action: 'classified',\n  replyAction: 'none',\n  replyConfidence: 0,\n  tokensUsed: 0\n} }];"
+      },
+      "id": "prepare-log-noreply",
+      "name": "07b. Préparer log (sans réponse)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 450]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.PLATFORM_API_URL }}/api/email-agent/ingest",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-tenant-id", "value": "={{ $json.tenantId }}" },
+            { "name": "x-n8n-secret", "value": "={{ $env.N8N_SHARED_SECRET }}" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      },
+      "id": "log-to-api",
+      "name": "08. Logger via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1790, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const logResult = $input.first().json;\nreturn [{ json: { success: true, data: { message: 'Email traité', logId: logResult.data?.id || null } } }];"
+      },
+      "id": "result",
+      "name": "09. Résultat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2010, 300]
+    },
+    {
+      "parameters": { "respondWith": "allIncomingItems", "options": {} },
+      "id": "respond",
+      "name": "10. Répondre",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2230, 300]
+    }
+  ],
+  "connections": {
+    "01. Webhook": { "main": [[{ "node": "02. Valider", "type": "main", "index": 0 }]] },
+    "02. Valider": { "main": [[{ "node": "03. Classifier (IA)", "type": "main", "index": 0 }]] },
+    "03. Classifier (IA)": { "main": [[{ "node": "04. Décider action", "type": "main", "index": 0 }]] },
+    "04. Décider action": { "main": [[{ "node": "05. Besoin réponse ?", "type": "main", "index": 0 }]] },
+    "05. Besoin réponse ?": {
+      "main": [
+        [{ "node": "06. Générer réponse (IA)", "type": "main", "index": 0 }],
+        [{ "node": "07b. Préparer log (sans réponse)", "type": "main", "index": 0 }]
+      ]
+    },
+    "06. Générer réponse (IA)": { "main": [[{ "node": "07a. Préparer log (avec réponse)", "type": "main", "index": 0 }]] },
+    "07a. Préparer log (avec réponse)": { "main": [[{ "node": "08. Logger via API", "type": "main", "index": 0 }]] },
+    "07b. Préparer log (sans réponse)": { "main": [[{ "node": "08. Logger via API", "type": "main", "index": 0 }]] },
+    "08. Logger via API": { "main": [[{ "node": "09. Résultat", "type": "main", "index": 0 }]] },
+    "09. Résultat": { "main": [[{ "node": "10. Répondre", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
+}

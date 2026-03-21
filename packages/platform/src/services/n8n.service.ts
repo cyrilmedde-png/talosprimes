@@ -364,6 +364,12 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   // Email multi-tenant
   automation_email_send: 'automations/email-send',
   automation_email_read: 'automations/email-read',
+  // Email IA Agent
+  email_ai_orchestrator: 'automations/email-ai-orchestrator',
+  email_ai_classify: 'automations/email-ai-classify',
+  email_ai_reply: 'automations/email-ai-reply',
+  email_ai_log: 'automations/email-log',
+  email_ai_ingest: 'automations/email-ai-orchestrator',
 };
 
 /**

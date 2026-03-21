@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
+import { sendEmail } from '../../services/email-agent.service.js';
+import { getAgentConfigForTenant } from '../../services/agent-config.service.js';
 
 // ============================================
 // Routes pour l'Agent IA Email
@@ -53,9 +55,9 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
           paramIdx++;
         }
 
-        const countResult = await prisma.$queryRawUnsafe<[{ count: bigint }]>(
+        const countResult = await prisma.$queryRawUnsafe(
           `SELECT COUNT(*) as count FROM email_incoming_logs ${where}`, ...params
-        );
+        ) as [{ count: bigint }];
 
         params.push(parseInt(limit as string) || 50);
         params.push(parseInt(offset as string) || 0);
@@ -92,7 +94,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
       const { id } = request.params as { id: string };
 
       try {
-        const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
+        const rows = await prisma.$queryRawUnsafe(
           `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
           id, tenantId
         );
@@ -145,31 +147,60 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
       const { id } = request.params as { id: string };
-      const { editedReply } = (request.body as { editedReply?: string }) || {};
+      const { editedReply, editedSubject } = (request.body as { editedReply?: string; editedSubject?: string }) || {};
 
       try {
-        // Récupérer l'email
-        const rows = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
+        // Récupérer l'email en attente
+        const rows = await prisma.$queryRawUnsafe(
           `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 AND reply_action = 'queue_human' AND reply_sent_at IS NULL LIMIT 1`,
           id, tenantId
         );
         if (!rows.length) return ApiError.notFound(reply, 'Email non trouvé ou déjà traité');
 
         const email = rows[0];
-        const finalReply = editedReply || email.reply_body;
+        const finalBody = editedReply || (email.reply_html as string) || (email.reply_body as string);
+        const finalSubject = editedSubject || (email.reply_subject as string) || `Re: ${email.subject as string}`;
+        const recipientAddress = email.from_address as string;
 
-        // Mettre à jour le statut
+        if (!recipientAddress) {
+          return reply.code(400).send({ success: false, error: 'Adresse destinataire manquante' });
+        }
+
+        // Récupérer la config email du tenant pour SMTP
+        const agentConfig = await getAgentConfigForTenant(tenantId);
+
+        // Envoyer l'email via SMTP
+        const sendResult = await sendEmail(
+          {
+            to: recipientAddress,
+            subject: finalSubject,
+            html: finalBody,
+            text: finalBody?.replace(/<[^>]*>/g, '') || '',
+          },
+          agentConfig.email
+        );
+
+        if (sendResult.error) {
+          fastify.log.error(`Échec envoi email approuvé ${id}: ${sendResult.error}`);
+          return reply.code(500).send({
+            success: false,
+            error: `Échec de l'envoi : ${sendResult.error}`,
+          });
+        }
+
+        // Mettre à jour le statut seulement si l'envoi a réussi
         await prisma.$queryRawUnsafe(
           `UPDATE email_incoming_logs
            SET reply_action = 'sent_approved',
                reply_body = $3,
+               reply_subject = $4,
                reply_sent_at = NOW(),
                action = 'approved'
            WHERE id = $1 AND tenant_id = $2`,
-          id, tenantId, finalReply
+          id, tenantId, finalBody, finalSubject
         );
 
-        return reply.send({ success: true, message: 'Réponse approuvée et envoyée' });
+        return reply.send({ success: true, message: 'Réponse approuvée et envoyée avec succès' });
       } catch (error) {
         fastify.log.error(error);
         return ApiError.internal(reply);
@@ -322,6 +353,127 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   // STATISTIQUES
   // ──────────────────────────────────────────
 
+  // ──────────────────────────────────────────
+  // INGESTION (appelé par n8n ou webhook)
+  // ──────────────────────────────────────────
+
+  // POST /api/email-agent/ingest — Recevoir et logger un email entrant depuis n8n
+  fastify.post(
+    '/api/email-agent/ingest',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: any, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+
+      const {
+        email_id, from_address, to_address, subject, body_preview,
+        classification, action, reply_subject, reply_body, reply_html,
+        reply_confidence, reply_action, tokens_used,
+      } = request.body as Record<string, unknown>;
+
+      try {
+        const rows = await prisma.$queryRawUnsafe(
+          `INSERT INTO email_incoming_logs
+           (tenant_id, email_id, from_address, to_address, subject, body_preview,
+            classification, action, reply_subject, reply_body, reply_html,
+            reply_confidence, reply_action, tokens_used)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14)
+           RETURNING id, reply_action`,
+          tenantId,
+          email_id || null,
+          from_address || '',
+          to_address || '',
+          subject || '(sans objet)',
+          body_preview || '',
+          classification ? JSON.stringify(classification) : '{}',
+          action || 'classified',
+          reply_subject || null,
+          reply_body || null,
+          reply_html || null,
+          reply_confidence != null ? Number(reply_confidence) : null,
+          reply_action || 'queue_human',
+          tokens_used != null ? Number(tokens_used) : null,
+        );
+
+        const inserted = (rows as Record<string, unknown>[])[0];
+
+        // Si reply_action === 'sent_auto' et que la confiance est suffisante, envoyer directement
+        if (reply_action === 'sent_auto' && from_address && (reply_body || reply_html)) {
+          const agentConfig = await getAgentConfigForTenant(tenantId);
+          const sendResult = await sendEmail(
+            {
+              to: from_address as string,
+              subject: (reply_subject as string) || `Re: ${subject as string}`,
+              html: (reply_html as string) || (reply_body as string),
+              text: ((reply_body as string) || '').replace(/<[^>]*>/g, ''),
+            },
+            agentConfig.email
+          );
+
+          if (sendResult.success) {
+            await prisma.$queryRawUnsafe(
+              `UPDATE email_incoming_logs SET reply_sent_at = NOW(), action = 'auto_replied' WHERE id = $1`,
+              inserted?.id
+            );
+          } else {
+            fastify.log.warn(`Auto-reply failed for ${inserted?.id}: ${sendResult.error}`);
+            // Fallback : mettre en queue humaine
+            await prisma.$queryRawUnsafe(
+              `UPDATE email_incoming_logs SET reply_action = 'queue_human', action = 'auto_reply_failed' WHERE id = $1`,
+              inserted?.id
+            );
+          }
+        }
+
+        return reply.code(201).send({ success: true, data: inserted });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // GET /api/email-agent/config-check — Vérifier si SMTP/IMAP est configuré
+  fastify.get(
+    '/api/email-agent/config-check',
+    { preHandler: [n8nOrAuthMiddleware] },
+    async (request: any, reply: FastifyReply) => {
+      const tenantId = request.tenantId;
+      if (!tenantId) return ApiError.unauthorized(reply);
+
+      try {
+        const agentConfig = await getAgentConfigForTenant(tenantId);
+        const smtpReady = !!(
+          (agentConfig.email?.smtpHost) &&
+          (agentConfig.email?.smtpUser) &&
+          (agentConfig.email?.smtpPassword)
+        );
+        const imapReady = !!(
+          (agentConfig.email?.imapHost) &&
+          (agentConfig.email?.imapUser) &&
+          (agentConfig.email?.imapPassword)
+        );
+
+        return reply.send({
+          success: true,
+          data: {
+            smtpConfigured: smtpReady,
+            imapConfigured: imapReady,
+            smtpHost: agentConfig.email?.smtpHost || null,
+            imapHost: agentConfig.email?.imapHost || null,
+          },
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return ApiError.internal(reply);
+      }
+    }
+  );
+
+  // ──────────────────────────────────────────
+  // STATISTIQUES
+  // ──────────────────────────────────────────
+
   // GET /api/email-agent/stats — Stats globales email
   fastify.get(
     '/api/email-agent/stats',
@@ -333,7 +485,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
       try {
         const [totals, byAction, byCategory, byDay, avgConfidence] = await Promise.all([
           // Total emails
-          prisma.$queryRawUnsafe<[{ total: bigint; queue: bigint; auto: bigint; today: bigint }]>(
+          prisma.$queryRawUnsafe(
             `SELECT
               COUNT(*) as total,
               COUNT(*) FILTER (WHERE reply_action = 'queue_human' AND reply_sent_at IS NULL) as queue,
@@ -341,7 +493,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
               COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) as today
              FROM email_incoming_logs WHERE tenant_id = $1`,
             tenantId
-          ),
+          ) as Promise<[{ total: bigint; queue: bigint; auto: bigint; today: bigint }]>,
           // Par action
           prisma.$queryRawUnsafe(
             `SELECT action, COUNT(*) as count
@@ -365,14 +517,14 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
             tenantId
           ),
           // Confiance moyenne
-          prisma.$queryRawUnsafe<[{ avg: number | null }]>(
+          prisma.$queryRawUnsafe(
             `SELECT AVG(reply_confidence) as avg
              FROM email_incoming_logs WHERE tenant_id = $1 AND reply_confidence IS NOT NULL`,
             tenantId
-          ),
+          ) as Promise<[{ avg: number | null }]>,
         ]);
 
-        const t = totals[0];
+        const t = (totals as any)[0];
         return reply.send({
           success: true,
           data: {
@@ -380,7 +532,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
             queue: Number(t?.queue || 0),
             autoReplied: Number(t?.auto || 0),
             today: Number(t?.today || 0),
-            avgConfidence: avgConfidence[0]?.avg ? Math.round(Number(avgConfidence[0].avg) * 100) : 0,
+            avgConfidence: (avgConfidence as any)[0]?.avg ? Math.round(Number((avgConfidence as any)[0].avg) * 100) : 0,
             byAction,
             byCategory,
             byDay,
