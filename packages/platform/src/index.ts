@@ -50,6 +50,7 @@ import { stockManagementRoutes } from './api/routes/stock-management.routes.js';
 import { marketingRoutes } from './api/routes/marketing.routes.js';
 import { newsletterRoutes } from './api/routes/newsletter.routes.js';
 import { automationsRoutes } from './api/routes/automations.routes.js';
+import { emailAgentRoutes } from './api/routes/email-agent.routes.js';
 
 // Créer l'instance Fastify
 const fastify = Fastify({
@@ -400,6 +401,11 @@ await fastify.register(async (fastify) => {
 // Enregistrer les routes automatisations
 await fastify.register(async (fastify) => {
   await fastify.register(automationsRoutes, { prefix: '/api/automations' });
+});
+
+// Enregistrer les routes agent email IA
+await fastify.register(async (fastify) => {
+  await fastify.register(emailAgentRoutes);
 });
 
 // Route de test
