@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { prisma } from '../../config/database.js';
 import { n8nOrAuthMiddleware } from '../../middleware/auth.middleware.js';
 import { ApiError } from '../../utils/api-errors.js';
@@ -11,11 +11,6 @@ import { ApiError } from '../../utils/api-errors.js';
 // - Stats / Analytics
 // ============================================
 
-interface AuthRequest extends FastifyRequest {
-  user?: { id: string; tenantId: string; role: string };
-  tenantId?: string;
-}
-
 export async function emailAgentRoutes(fastify: FastifyInstance) {
 
   // ──────────────────────────────────────────
@@ -26,7 +21,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/email-agent/logs',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
 
@@ -91,7 +86,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/email-agent/logs/:id',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
       const { id } = request.params as { id: string };
@@ -118,7 +113,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/email-agent/queue',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
 
@@ -146,7 +141,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/email-agent/queue/:id/approve',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
       const { id } = request.params as { id: string };
@@ -186,7 +181,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/email-agent/queue/:id/reject',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
       const { id } = request.params as { id: string };
@@ -216,7 +211,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/email-agent/rules',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
 
@@ -240,7 +235,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/email-agent/rules',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
 
@@ -268,7 +263,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.put(
     '/api/email-agent/rules/:id',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
       const { id } = request.params as { id: string };
@@ -305,7 +300,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.delete(
     '/api/email-agent/rules/:id',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
       const { id } = request.params as { id: string };
@@ -331,7 +326,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/email-agent/stats',
     { preHandler: [n8nOrAuthMiddleware] },
-    async (request: AuthRequest, reply: FastifyReply) => {
+    async (request: any, reply: FastifyReply) => {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
 
