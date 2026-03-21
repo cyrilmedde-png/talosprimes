@@ -28,6 +28,7 @@ import {
   SignalIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
+import EmailManagementPanel from '@/components/automatisations/EmailManagementPanel';
 import { useAuthStore } from '@/store/auth-store';
 import { authenticatedFetch } from '@/lib/api-client';
 
@@ -1453,6 +1454,13 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Panel de gestion des emails — affiché uniquement pour les automatisations de catégorie email */}
+      {selectedAutomation?.categorie === 'email' && (
+        <div className="mt-8">
+          <EmailManagementPanel />
         </div>
       )}
     </div>
