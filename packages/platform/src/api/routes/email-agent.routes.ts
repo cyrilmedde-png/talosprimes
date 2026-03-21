@@ -97,7 +97,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
         const rows = await prisma.$queryRawUnsafe(
           `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
           id, tenantId
-        );
+        ) as Record<string, unknown>[];
         if (!rows.length) return ApiError.notFound(reply, 'Email non trouvé');
         return reply.send({ success: true, data: rows[0] });
       } catch (error) {
@@ -154,7 +154,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
         const rows = await prisma.$queryRawUnsafe(
           `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 AND reply_action = 'queue_human' AND reply_sent_at IS NULL LIMIT 1`,
           id, tenantId
-        );
+        ) as Record<string, unknown>[];
         if (!rows.length) return ApiError.notFound(reply, 'Email non trouvé ou déjà traité');
 
         const email = rows[0];
