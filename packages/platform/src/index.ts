@@ -127,6 +127,7 @@ fastify.setErrorHandler((error, request, reply) => {
 // Plugins de sécurité
 await fastify.register(helmet, {
   contentSecurityPolicy: false, // Désactivé car on gère CORS séparément
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 });
 
 // CORS - Autoriser le domaine frontend + sous-domaines clients
