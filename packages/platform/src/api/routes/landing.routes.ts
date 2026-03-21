@@ -1751,4 +1751,45 @@ export async function landingRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ═══ CATALOGUE AUTOMATISATIONS (PUBLIC) ═══
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // GET /api/landing/catalog — Liste publique du catalogue d'automatisations
+  fastify.get('/api/landing/catalog', async (_request, reply) => {
+    try {
+      const rows = await prisma.$queryRawUnsafe(`
+        SELECT code, nom, description, categorie, icon, setup_price, monthly_price,
+               complexity, workflow_count, features, is_active
+        FROM automation_catalog
+        WHERE is_active = true
+        ORDER BY ordre ASC
+      `) as Array<Record<string, unknown>>;
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+      return reply.send(rows);
+    } catch (error) {
+      fastify.log.error(error);
+      return ApiError.internal(reply);
+    }
+  });
+
+  // GET /api/landing/catalog/:code — Détail d'une automatisation par code
+  fastify.get<{ Params: { code: string } }>('/api/landing/catalog/:code', async (request, reply) => {
+    try {
+      const rows = await prisma.$queryRawUnsafe(`
+        SELECT code, nom, description, categorie, icon, setup_price, monthly_price,
+               complexity, workflow_count, features, workflow_templates, is_active
+        FROM automation_catalog
+        WHERE code = $1 AND is_active = true
+        LIMIT 1
+      `, request.params.code) as Array<Record<string, unknown>>;
+      if (rows.length === 0) return ApiError.notFound(reply, 'Automatisation non trouvée');
+      reply.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400');
+      return reply.send(rows[0]);
+    } catch (error) {
+      fastify.log.error(error);
+      return ApiError.internal(reply);
+    }
+  });
 }
