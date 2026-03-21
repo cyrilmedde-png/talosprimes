@@ -41,20 +41,20 @@ export function CMSLayout() {
   const refreshPreview = useCallback(() => setPreviewKey(k => k + 1), []);
 
   // Load data based on active tab
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (tab: CMSTab) => {
     setLoading(true);
     try {
-      if (activeTab === 'sections' || activeTab === 'design') {
+      if (tab === 'sections' || tab === 'design') {
         const [s, g] = await Promise.all([api.fetchSections(), api.fetchGlobalConfig()]);
         setSections(s);
         setGlobalConfig(g);
-      } else if (activeTab === 'testimonials') {
+      } else if (tab === 'testimonials') {
         setTestimonials(await api.fetchTestimonials());
-      } else if (activeTab === 'pages') {
+      } else if (tab === 'pages') {
         setPages(await api.fetchPages());
-      } else if (activeTab === 'messages') {
+      } else if (tab === 'messages') {
         setMessages(await api.fetchMessages());
-      } else if (activeTab === 'seo') {
+      } else if (tab === 'seo') {
         setGlobalConfig(await api.fetchGlobalConfig());
       }
     } catch (err) {
@@ -62,9 +62,9 @@ export function CMSLayout() {
       console.error(err);
     }
     setLoading(false);
-  }, [activeTab, api, showToast]);
+  }, [api, showToast]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(activeTab); }, [activeTab, loadData]);
 
   const siteUrl = typeof window !== 'undefined'
     ? window.location.origin.replace('app.', '').replace(':3000', ':3000')
