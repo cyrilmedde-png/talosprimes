@@ -583,6 +583,10 @@ export default function AutomatisationsPage() {
               fetchData();
             } catch { /* handled */ }
           }}
+          onNavigateToDashboard={() => {
+            setSelectedAutomation(null);
+            setActiveTab('configuration');
+          }}
         />
       )}
 
@@ -1900,6 +1904,7 @@ function AutomationDetailModal({
   requestMessage,
   onActivateForClient,
   onDeactivate,
+  onNavigateToDashboard,
 }: {
   automation: Automation;
   onClose: () => void;
@@ -1909,6 +1914,7 @@ function AutomationDetailModal({
   requestMessage: string | null;
   onActivateForClient: (a: Automation) => void;
   onDeactivate: (a: Automation) => void;
+  onNavigateToDashboard?: (a: Automation) => void;
 }) {
   const CatIcon = CATEGORIE_ICONS[automation.categorie] || BoltIcon;
   const catColor = CATEGORIE_COLORS[automation.categorie] || CATEGORIE_COLORS.general;
@@ -2041,9 +2047,12 @@ function AutomationDetailModal({
             </div>
           ) : automation.status === 'actif' ? (
             <div className="flex gap-3">
-              <button className="flex-1 py-2.5 bg-green-600/20 text-green-400 rounded-lg text-sm flex items-center justify-center gap-2 cursor-default">
-                <CheckCircleIcon className="h-4 w-4" />
-                Active
+              <button
+                onClick={() => onNavigateToDashboard?.(automation)}
+                className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm flex items-center justify-center gap-2 transition-colors font-medium"
+              >
+                <Cog6ToothIcon className="h-4 w-4" />
+                Dashboard
               </button>
             </div>
           ) : automation.status === 'en_attente' ? (
