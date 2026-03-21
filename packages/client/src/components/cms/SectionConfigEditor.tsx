@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { SECTION_TYPES } from './types';
 import type { LandingSection } from './types';
 import { RichTextEditor } from './RichTextEditor';
+import { getAccessToken } from '@/lib/auth';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface Props {
   section: LandingSection;
@@ -78,19 +81,73 @@ function RichField({ label, value, onChange, placeholder, minHeight = '120px' }:
   );
 }
 
-// Image field with preview
+// Image field with upload + URL + preview
 function ImageField({ label, value, onChange, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const token = getAccessToken();
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API}/api/landing/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const json = await res.json();
+      if (json.success && json.url) {
+        onChange(json.url);
+      } else {
+        alert(json.error || 'Erreur upload');
+      }
+    } catch {
+      alert('Erreur lors de l\'upload');
+    }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
   return (
     <div className="space-y-1">
       <label className="text-xs font-medium text-slate-400">{label}</label>
-      <div className="flex gap-2">
-        <TextInput value={value} onChange={onChange} placeholder={placeholder || 'URL de l\'image'} />
+      <div className="flex gap-2 items-center">
+        <div className="flex-1">
+          <TextInput value={value} onChange={onChange} placeholder={placeholder || 'URL de l\'image'} />
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          onChange={handleUpload}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="shrink-0 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-500 transition disabled:opacity-50"
+        >
+          {uploading ? '⏳' : '📤 Upload'}
+        </button>
       </div>
       {value && (
-        <div className="mt-1 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 p-1">
-          <img src={value} alt="preview" className="max-h-20 rounded object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <div className="mt-1 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 p-1 flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="preview" className="max-h-24 rounded object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 transition"
+          >
+            ✕ Supprimer
+          </button>
         </div>
       )}
     </div>
