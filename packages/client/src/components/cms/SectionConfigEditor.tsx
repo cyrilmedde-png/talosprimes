@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { SECTION_TYPES } from './types';
 import type { LandingSection } from './types';
 
 interface Props {

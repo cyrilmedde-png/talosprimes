@@ -6,12 +6,12 @@ import { useAuthStore } from '@/store/auth-store';
 import { CMSLayout } from '@/components/cms';
 
 export default function CMSPage() {
-  const { user, token } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!token) {
+    if (!isAuthenticated) {
       router.push('/login');
       return;
     }
@@ -20,7 +20,7 @@ export default function CMSPage() {
     } else {
       router.push('/dashboard');
     }
-  }, [user, token, router]);
+  }, [user, isAuthenticated, router]);
 
   if (!authorized) {
     return (

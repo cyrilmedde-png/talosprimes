@@ -1,13 +1,13 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useAuthStore } from '@/store/auth-store';
+import { getAccessToken } from '@/lib/auth';
 import type { LandingSection, GlobalConfig, Testimonial, CMSPage, ContactMessage } from './types';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 function useHeaders() {
-  const { token } = useAuthStore();
+  const token = getAccessToken();
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
