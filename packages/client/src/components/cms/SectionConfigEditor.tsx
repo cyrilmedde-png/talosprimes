@@ -404,6 +404,34 @@ export function SectionConfigEditor({ section, onSave, saving }: Props) {
           </div>
         );
 
+      case 'carousel':
+        return (
+          <div className="space-y-4">
+            <Field label="Titre"><TextInput value={get('title') as string} onChange={(v) => set('title', v)} /></Field>
+            <RichField label="Sous-titre" value={get('subtitle') as string} onChange={(v) => set('subtitle', v)} />
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Autoplay"><select className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white" value={String(get('autoplay')) === 'false' ? 'false' : 'true'} onChange={(e) => set('autoplay', e.target.value === 'true')}><option value="true">Oui</option><option value="false">Non</option></select></Field>
+              <Field label="Intervalle (ms)"><TextInput value={String(get('interval') || 5000)} onChange={(v) => set('interval', parseInt(v) || 5000)} /></Field>
+            </div>
+            <ArrayManager
+              items={getArr('slides')}
+              onChange={(items) => set('slides', items)}
+              defaultItem={{ id: `slide-${Date.now()}`, title: '', subtitle: '', icon: 'Sparkles', features: [] }}
+              label="Slides"
+              renderItem={(item, _i, update) => (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <TextInput value={(item.title as string) || ''} onChange={(v) => update('title', v)} placeholder="Titre" />
+                    <TextInput value={(item.icon as string) || ''} onChange={(v) => update('icon', v)} placeholder="Icône (ex: Bot, Users)" />
+                  </div>
+                  <TextInput value={(item.subtitle as string) || ''} onChange={(v) => update('subtitle', v)} placeholder="Sous-titre" />
+                  <ImageField label="Image (optionnel)" value={(item.image as string) || ''} onChange={(v) => update('image', v)} />
+                </div>
+              )}
+            />
+          </div>
+        );
+
       case 'custom_html':
         return (
           <div className="space-y-4">

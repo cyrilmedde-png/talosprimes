@@ -10,4 +10,5 @@ export { ContactSection } from './ContactSection';
 export { CTASection } from './CTASection';
 export { CustomHTMLSection } from './CustomHTMLSection';
 export { DashboardShowcaseSection } from './DashboardShowcaseSection';
+export { CarouselSection } from './CarouselSection';
 export { iconMap } from './iconMap';

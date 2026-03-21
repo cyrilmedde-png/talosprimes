@@ -15,6 +15,7 @@ import {
   CTASection,
   CustomHTMLSection,
   DashboardShowcaseSection,
+  CarouselSection,
 } from '@/components/landing/sections';
 
 // ─── Types ───
@@ -226,6 +227,9 @@ function renderSection(
       break;
     case 'dashboard_showcase':
       inner = <DashboardShowcaseSection config={config} theme={theme} />;
+      break;
+    case 'carousel':
+      inner = <CarouselSection config={config} theme={theme} />;
       break;
     default:
       return null;

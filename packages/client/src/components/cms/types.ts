@@ -97,4 +97,5 @@ export const SECTION_TYPES: Record<string, { label: string; icon: string; descri
   dashboard_showcase: { label: 'Démo Dashboard', icon: '💻', description: 'Mockup interactif du dashboard' },
   custom_html: { label: 'HTML Custom', icon: '🧩', description: 'Bloc HTML personnalisé' },
   upcoming: { label: 'À venir', icon: '🔜', description: 'Fonctionnalités à venir' },
+  carousel: { label: 'Carrousel', icon: '🎠', description: 'Carrousel de slides avec défilement auto' },
 };
