@@ -162,7 +162,18 @@ interface ApiResponse<T> {
 // Constantes
 // ============================================
 
-const CATEGORIES = ['email', 'sms', 'marketing', 'telephonie', 'comptabilite', 'stock', 'crm', 'facturation'] as const;
+const CATEGORIES_FALLBACK = ['email', 'sms', 'marketing', 'telephonie', 'comptabilite', 'stock', 'crm', 'facturation'] as const;
+
+interface CategoryDB {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  color: string;
+  description: string | null;
+  ordre: number;
+  actif: boolean;
+}
 
 const CATEGORIE_ICONS: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   email: EnvelopeIcon,
@@ -325,15 +336,21 @@ export default function AutomatisationsPage() {
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [activateTarget, setActivateTarget] = useState<Automation | null>(null);
   const [n8nStatus, setN8nStatus] = useState<N8nStatus | null>(null);
+  const [dynamicCategories, setDynamicCategories] = useState<CategoryDB[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [catalogRes, purchasesRes, statsRes] = await Promise.all([
+      const [catalogRes, purchasesRes, statsRes, catRes] = await Promise.all([
         authenticatedFetch<ApiResponse<{ catalog: CatalogItem[] }>>('/api/automations/catalog'),
         authenticatedFetch<ApiResponse<{ purchases: PurchaseItem[] }>>('/api/automations/purchases'),
         authenticatedFetch<ApiResponse<{ stats: AutomationStats }>>('/api/automations/stats'),
+        authenticatedFetch<ApiResponse<{ categories: CategoryDB[] }>>('/api/automations/categories'),
       ]);
+
+      if (catRes.success && catRes.data?.categories) {
+        setDynamicCategories(catRes.data.categories);
+      }
 
       if (catalogRes.success && catalogRes.data) {
         const catalog = catalogRes.data.catalog || [];
@@ -410,8 +427,19 @@ export default function AutomatisationsPage() {
     return matchSearch && matchCategorie && matchActive;
   });
 
+  // Enrichir les lookups statiques avec les catégories dynamiques
+  const dynLabels: Record<string, string> = { ...CATEGORIE_LABELS };
+  const dynColors: Record<string, string> = { ...CATEGORIE_COLORS };
+  for (const cat of dynamicCategories) {
+    dynLabels[cat.code] = cat.label;
+    dynColors[cat.code] = cat.color;
+  }
+
   const activeAutomations = automations.filter(a => a.status === 'actif');
-  const categories = ['all', ...Array.from(new Set(automations.map(a => a.categorie)))];
+  const categories = ['all', ...(dynamicCategories.length > 0
+    ? dynamicCategories.map(c => c.code)
+    : Array.from(new Set(automations.map(a => a.categorie)))
+  )];
 
   const tabs: Array<{ key: TabType; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; count?: number; adminOnly?: boolean }> = [
     { key: 'dashboard', label: 'Dashboard', icon: ChartBarIcon },
@@ -605,6 +633,8 @@ export default function AutomatisationsPage() {
           automation={editingAutomation}
           onClose={() => { setShowCatalogForm(false); setEditingAutomation(null); }}
           onSaved={() => { setShowCatalogForm(false); setEditingAutomation(null); fetchData(); }}
+          categories={dynamicCategories}
+          onCategoryCreated={fetchData}
         />
       )}
 
@@ -2099,12 +2129,58 @@ function CatalogFormModal({
   automation,
   onClose,
   onSaved,
+  categories: dbCategories,
+  onCategoryCreated,
 }: {
   automation: Automation | null;
   onClose: () => void;
   onSaved: () => void;
+  categories: CategoryDB[];
+  onCategoryCreated: () => void;
 }) {
   const isEdit = !!automation;
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCatCode, setNewCatCode] = useState('');
+  const [newCatLabel, setNewCatLabel] = useState('');
+  const [newCatColor, setNewCatColor] = useState('bg-gray-500/20 text-gray-400 border-gray-500/30');
+  const [savingCat, setSavingCat] = useState(false);
+
+  const COLOR_PRESETS = [
+    { label: 'Bleu', value: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+    { label: 'Vert', value: 'bg-green-500/20 text-green-400 border-green-500/30' },
+    { label: 'Violet', value: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+    { label: 'Ambre', value: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+    { label: 'Teal', value: 'bg-teal-500/20 text-teal-400 border-teal-500/30' },
+    { label: 'Orange', value: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+    { label: 'Indigo', value: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
+    { label: 'Rose', value: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
+    { label: 'Cyan', value: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+    { label: 'Gris', value: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+  ];
+
+  const handleCreateCategory = async () => {
+    if (!newCatLabel.trim()) return;
+    setSavingCat(true);
+    try {
+      const code = newCatCode.trim() || newCatLabel.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+      await authenticatedFetch<ApiResponse<{ id: string }>>('/api/automations/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, label: newCatLabel.trim(), color: newCatColor }),
+      });
+      updateField('categorie', code);
+      updateField('icon', code);
+      setShowNewCategory(false);
+      setNewCatCode('');
+      setNewCatLabel('');
+      onCategoryCreated();
+    } catch {
+      setError('Erreur lors de la création de la catégorie');
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
   const [form, setForm] = useState<CatalogFormData>(() => {
     if (automation) {
       return {
@@ -2218,15 +2294,80 @@ function CatalogFormModal({
             {/* Categorie */}
             <div>
               <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Categorie *</label>
-              <select
-                value={form.categorie}
-                onChange={(e) => { updateField('categorie', e.target.value); updateField('icon', e.target.value); }}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-              >
-                {CATEGORIES.map(c => (
-                  <option key={c} value={c}>{CATEGORIE_LABELS[c] || c}</option>
-                ))}
-              </select>
+              {!showNewCategory ? (
+                <div className="flex gap-2">
+                  <select
+                    value={form.categorie}
+                    onChange={(e) => { updateField('categorie', e.target.value); updateField('icon', e.target.value); }}
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  >
+                    {dbCategories.length > 0
+                      ? dbCategories.map(c => (
+                          <option key={c.code} value={c.code}>{c.label}</option>
+                        ))
+                      : CATEGORIES_FALLBACK.map(c => (
+                          <option key={c} value={c}>{CATEGORIE_LABELS[c] || c}</option>
+                        ))
+                    }
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCategory(true)}
+                    className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm transition-colors"
+                    title="Nouvelle catégorie"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2 p-3 bg-gray-900/80 border border-amber-500/30 rounded-lg">
+                  <p className="text-amber-400 text-xs font-medium">Nouvelle catégorie</p>
+                  <input
+                    value={newCatLabel}
+                    onChange={(e) => setNewCatLabel(e.target.value)}
+                    placeholder="Nom (ex: Gestion RH)"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  />
+                  <input
+                    value={newCatCode}
+                    onChange={(e) => setNewCatCode(e.target.value)}
+                    placeholder="Code (ex: rh) — auto-généré si vide"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  />
+                  <div>
+                    <p className="text-gray-500 text-xs mb-1">Couleur</p>
+                    <div className="flex flex-wrap gap-1">
+                      {COLOR_PRESETS.map(cp => (
+                        <button
+                          key={cp.value}
+                          type="button"
+                          onClick={() => setNewCatColor(cp.value)}
+                          className={`px-2 py-1 rounded text-xs border transition-all ${cp.value} ${newCatColor === cp.value ? 'ring-2 ring-white/50 scale-105' : 'opacity-60 hover:opacity-100'}`}
+                        >
+                          {cp.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      disabled={!newCatLabel.trim() || savingCat}
+                      className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors"
+                    >
+                      {savingCat ? 'Création...' : 'Créer'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategory(false)}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-xs transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
