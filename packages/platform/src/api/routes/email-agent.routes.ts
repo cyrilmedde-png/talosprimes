@@ -49,7 +49,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
       const { action, category, priority, limit = '50', offset = '0', search } = request.query as Record<string, string>;
 
       try {
-        let where = `WHERE tenant_id = $1`;
+        let where = `WHERE tenant_id = $1::uuid`;
         const params: unknown[] = [tenantId];
         let paramIdx = 2;
 
@@ -114,7 +114,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
 
       try {
         const rows = await prisma.$queryRawUnsafe(
-          `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+          `SELECT * FROM email_incoming_logs WHERE id = $1::uuid AND tenant_id = $2::uuid LIMIT 1`,
           id, tenantId
         ) as Record<string, unknown>[];
         if (!rows.length) return ApiError.notFound(reply, 'Email non trouvé');
@@ -144,7 +144,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
                   classification, reply_subject, reply_body, reply_confidence,
                   reply_action, created_at
            FROM email_incoming_logs
-           WHERE tenant_id = $1
+           WHERE tenant_id = $1::uuid
              AND reply_action = 'queue_human'
              AND reply_sent_at IS NULL
            ORDER BY created_at DESC`,
@@ -171,7 +171,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
       try {
         // Récupérer l'email en attente
         const rows = await prisma.$queryRawUnsafe(
-          `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 AND reply_action = 'queue_human' AND reply_sent_at IS NULL LIMIT 1`,
+          `SELECT * FROM email_incoming_logs WHERE id = $1::uuid AND tenant_id = $2::uuid AND reply_action = 'queue_human' AND reply_sent_at IS NULL LIMIT 1`,
           id, tenantId
         ) as Record<string, unknown>[];
         if (!rows.length) return ApiError.notFound(reply, 'Email non trouvé ou déjà traité');
@@ -215,7 +215,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
                reply_subject = $4,
                reply_sent_at = NOW(),
                action = 'approved'
-           WHERE id = $1 AND tenant_id = $2`,
+           WHERE id = $1::uuid AND tenant_id = $2::uuid`,
           id, tenantId, finalBody, finalSubject
         );
 
@@ -242,7 +242,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
            SET reply_action = 'rejected',
                reply_sent_at = NOW(),
                action = 'rejected'
-           WHERE id = $1 AND tenant_id = $2 AND reply_action = 'queue_human'`,
+           WHERE id = $1::uuid AND tenant_id = $2::uuid AND reply_action = 'queue_human'`,
           id, tenantId
         );
         return reply.send({ success: true, message: 'Réponse rejetée' });
@@ -277,7 +277,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
         for (const id of ids) {
           try {
             const rows = await prisma.$queryRawUnsafe(
-              `SELECT * FROM email_incoming_logs WHERE id = $1 AND tenant_id = $2 AND reply_action = 'queue_human' AND reply_sent_at IS NULL LIMIT 1`,
+              `SELECT * FROM email_incoming_logs WHERE id = $1::uuid AND tenant_id = $2::uuid AND reply_action = 'queue_human' AND reply_sent_at IS NULL LIMIT 1`,
               id, tenantId
             ) as Record<string, unknown>[];
 
@@ -309,7 +309,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
             await prisma.$queryRawUnsafe(
               `UPDATE email_incoming_logs
                SET reply_action = 'sent_approved', reply_sent_at = NOW(), action = 'approved'
-               WHERE id = $1 AND tenant_id = $2`,
+               WHERE id = $1::uuid AND tenant_id = $2::uuid`,
               id, tenantId
             );
             results.push({ id, status: 'sent' });
@@ -348,11 +348,11 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
 
       try {
         // Utiliser une seule requête pour rejeter en masse
-        const placeholders = ids.map((_, i) => `$${i + 2}`).join(', ');
+        const placeholders = ids.map((_, i) => `$${i + 2}::uuid`).join(', ');
         await prisma.$queryRawUnsafe(
           `UPDATE email_incoming_logs
            SET reply_action = 'rejected', reply_sent_at = NOW(), action = 'rejected'
-           WHERE tenant_id = $1
+           WHERE tenant_id = $1::uuid
              AND reply_action = 'queue_human'
              AND reply_sent_at IS NULL
              AND id IN (${placeholders})`,
@@ -384,7 +384,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
         const rows = await prisma.$queryRawUnsafe(
           `SELECT id, nom, description, type_rule, conditions, action_type, action_config, priorite, actif, created_at
            FROM email_ai_rules
-           WHERE tenant_id = $1
+           WHERE tenant_id = $1::uuid
            ORDER BY priorite ASC, created_at DESC`,
           tenantId
         );
@@ -410,7 +410,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
       try {
         const rows = await prisma.$queryRawUnsafe(
           `INSERT INTO email_ai_rules (tenant_id, nom, description, type_rule, conditions, action_type, action_config, priorite)
-           VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8)
+           VALUES ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8)
            RETURNING *`,
           tenantId, nom, description || '', type_rule || 'static',
           JSON.stringify(conditions || {}), action_type || 'queue_human',
@@ -446,7 +446,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
                action_config = COALESCE($8::jsonb, action_config),
                priorite = COALESCE($9, priorite),
                actif = COALESCE($10, actif)
-           WHERE id = $1 AND tenant_id = $2`,
+           WHERE id = $1::uuid AND tenant_id = $2::uuid`,
           id, tenantId, nom, description, type_rule,
           conditions ? JSON.stringify(conditions) : null,
           action_type,
@@ -472,7 +472,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
 
       try {
         await prisma.$queryRawUnsafe(
-          `DELETE FROM email_ai_rules WHERE id = $1 AND tenant_id = $2`,
+          `DELETE FROM email_ai_rules WHERE id = $1::uuid AND tenant_id = $2::uuid`,
           id, tenantId
         );
         return reply.send({ success: true, message: 'Règle supprimée' });
@@ -511,7 +511,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
            (tenant_id, email_id, from_address, to_address, subject, body_preview,
             classification, action, reply_subject, reply_body, reply_html,
             reply_confidence, reply_action, tokens_used)
-           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14)
+           VALUES ($1::uuid, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14)
            RETURNING id, reply_action`,
           tenantId,
           email_id || null,
@@ -546,14 +546,14 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
 
           if (sendResult.success) {
             await prisma.$queryRawUnsafe(
-              `UPDATE email_incoming_logs SET reply_sent_at = NOW(), action = 'auto_replied' WHERE id = $1`,
+              `UPDATE email_incoming_logs SET reply_sent_at = NOW(), action = 'auto_replied' WHERE id = $1::uuid`,
               inserted?.id
             );
           } else {
             fastify.log.warn(`Auto-reply failed for ${inserted?.id}: ${sendResult.error}`);
             // Fallback : mettre en queue humaine
             await prisma.$queryRawUnsafe(
-              `UPDATE email_incoming_logs SET reply_action = 'queue_human', action = 'auto_reply_failed' WHERE id = $1`,
+              `UPDATE email_incoming_logs SET reply_action = 'queue_human', action = 'auto_reply_failed' WHERE id = $1::uuid`,
               inserted?.id
             );
           }
@@ -625,20 +625,20 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
               COUNT(*) FILTER (WHERE reply_action = 'queue_human' AND reply_sent_at IS NULL) as queue,
               COUNT(*) FILTER (WHERE reply_action = 'sent_auto') as auto,
               COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) as today
-             FROM email_incoming_logs WHERE tenant_id = $1`,
+             FROM email_incoming_logs WHERE tenant_id = $1::uuid`,
             tenantId
           ) as Promise<[{ total: bigint; queue: bigint; auto: bigint; today: bigint }]>,
           // Par action
           prisma.$queryRawUnsafe(
             `SELECT action, COUNT(*) as count
-             FROM email_incoming_logs WHERE tenant_id = $1
+             FROM email_incoming_logs WHERE tenant_id = $1::uuid
              GROUP BY action ORDER BY count DESC`,
             tenantId
           ),
           // Par catégorie
           prisma.$queryRawUnsafe(
             `SELECT classification->>'category' as category, COUNT(*) as count
-             FROM email_incoming_logs WHERE tenant_id = $1 AND classification IS NOT NULL
+             FROM email_incoming_logs WHERE tenant_id = $1::uuid AND classification IS NOT NULL
              GROUP BY classification->>'category' ORDER BY count DESC`,
             tenantId
           ),
@@ -646,14 +646,14 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
           prisma.$queryRawUnsafe(
             `SELECT DATE(created_at) as day, COUNT(*) as count,
                     COUNT(*) FILTER (WHERE reply_action = 'sent_auto') as auto_count
-             FROM email_incoming_logs WHERE tenant_id = $1 AND created_at >= CURRENT_DATE - 14
+             FROM email_incoming_logs WHERE tenant_id = $1::uuid AND created_at >= CURRENT_DATE - 14
              GROUP BY DATE(created_at) ORDER BY day DESC`,
             tenantId
           ),
           // Confiance moyenne
           prisma.$queryRawUnsafe(
             `SELECT AVG(reply_confidence) as avg
-             FROM email_incoming_logs WHERE tenant_id = $1 AND reply_confidence IS NOT NULL`,
+             FROM email_incoming_logs WHERE tenant_id = $1::uuid AND reply_confidence IS NOT NULL`,
             tenantId
           ) as Promise<[{ avg: number | null }]>,
         ]);

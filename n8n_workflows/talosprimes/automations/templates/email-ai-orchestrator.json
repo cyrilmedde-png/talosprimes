@@ -103,8 +103,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-tenant-id", "value": "={{ $json.tenantId }}" },
-            { "name": "x-n8n-secret", "value": "={{ $env.N8N_SHARED_SECRET }}" }
+            { "name": "x-talosprimes-n8n-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" }
           ]
         },
         "options": { "timeout": 15000 }
