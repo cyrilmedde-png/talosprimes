@@ -42,7 +42,7 @@ export function useCmsApi() {
   }, []);
 
   const reorderSections = useCallback(async (orderedIds: { id: string; ordre: number }[]) => {
-    const res = await fetch(`${API}/api/landing/sections/reorder`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify({ sections: orderedIds }) });
+    const res = await fetch(`${API}/api/landing/sections/reorder`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify({ items: orderedIds }) });
     if (!res.ok) throw new Error('Erreur réordonnancement');
     return res.json();
   }, []);
