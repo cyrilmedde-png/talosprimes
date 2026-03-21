@@ -347,32 +347,43 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
                 </div>
               </div>
 
-              {stats.byDay.length > 0 && (
-                <div className="p-5 rounded-xl bg-gray-800/60 border border-gray-700">
-                  <h4 className="text-sm font-semibold text-white mb-4">Activité (14 derniers jours)</h4>
-                  <div className="flex items-end gap-1 h-32">
-                    {stats.byDay.slice(0, 14).reverse().map((d, i) => {
-                      const maxCount = Math.max(...stats.byDay.map(x => parseInt(x.count)));
-                      const pct = maxCount > 0 ? (parseInt(d.count) / maxCount) * 100 : 0;
-                      const autoPct = maxCount > 0 ? (parseInt(d.auto_count) / maxCount) * 100 : 0;
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${d.day}: ${d.count} emails`}>
-                          <div className="w-full flex flex-col items-stretch" style={{ height: '100px' }}>
-                            <div className="flex-1" />
-                            <div className="bg-amber-400 rounded-t" style={{ height: `${pct}%`, minHeight: pct > 0 ? '4px' : '0' }} />
-                            <div className="bg-emerald-400 rounded-b" style={{ height: `${autoPct}%`, minHeight: autoPct > 0 ? '2px' : '0' }} />
-                          </div>
-                          <span className="text-[8px] text-gray-600">{new Date(d.day).getDate()}</span>
-                        </div>
-                      );
-                    })}
+              {stats.byDay.length > 0 && (() => {
+                const days = stats.byDay.slice(0, 14).reverse();
+                const maxCount = Math.max(...days.map(x => parseInt(x.count)), 1);
+                const chartH = 100;
+                const points = days.map((d, i) => {
+                  const x = days.length > 1 ? (i / (days.length - 1)) * 100 : 50;
+                  const y = chartH - (parseInt(d.count) / maxCount) * chartH;
+                  const yAuto = chartH - (parseInt(d.auto_count) / maxCount) * chartH;
+                  return { x, y, yAuto, day: d.day, count: d.count, auto: d.auto_count };
+                });
+                const line = points.map(p => `${p.x},${p.y}`).join(' ');
+                const lineAuto = points.map(p => `${p.x},${p.yAuto}`).join(' ');
+                return (
+                  <div className="p-5 rounded-xl bg-gray-800/60 border border-gray-700">
+                    <h4 className="text-sm font-semibold text-white mb-4">Activité (14 derniers jours)</h4>
+                    <svg viewBox={`0 0 100 ${chartH}`} className="w-full h-32" preserveAspectRatio="none">
+                      <polyline points={line} fill="none" stroke="#22d3ee" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+                      <polyline points={lineAuto} fill="none" stroke="#a78bfa" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+                      {points.map((p, i) => (
+                        <g key={i}>
+                          <circle cx={p.x} cy={p.y} r="1.5" fill="#22d3ee" vectorEffect="non-scaling-stroke" />
+                          <circle cx={p.x} cy={p.yAuto} r="1.5" fill="#a78bfa" vectorEffect="non-scaling-stroke" />
+                        </g>
+                      ))}
+                    </svg>
+                    <div className="flex justify-between mt-1 text-[9px] text-gray-600">
+                      {points.map((p, i) => (
+                        <span key={i}>{new Date(p.day).getDate()}</span>
+                      ))}
+                    </div>
+                    <div className="flex gap-4 mt-3 text-[10px] text-gray-500">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ backgroundColor: '#22d3ee' }} /> Total</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ backgroundColor: '#a78bfa' }} /> Auto-réponses</span>
+                    </div>
                   </div>
-                  <div className="flex gap-4 mt-3 text-[10px] text-gray-500">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-400" /> Total</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-400" /> Auto-réponses</span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
