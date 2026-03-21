@@ -359,8 +359,8 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
                         <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${d.day}: ${d.count} emails`}>
                           <div className="w-full flex flex-col items-stretch" style={{ height: '100px' }}>
                             <div className="flex-1" />
-                            <div className="bg-blue-500/30 rounded-t" style={{ height: `${pct}%`, minHeight: pct > 0 ? '4px' : '0' }} />
-                            <div className="bg-emerald-500/50 rounded-b" style={{ height: `${autoPct}%`, minHeight: autoPct > 0 ? '2px' : '0' }} />
+                            <div className="bg-amber-400 rounded-t" style={{ height: `${pct}%`, minHeight: pct > 0 ? '4px' : '0' }} />
+                            <div className="bg-emerald-400 rounded-b" style={{ height: `${autoPct}%`, minHeight: autoPct > 0 ? '2px' : '0' }} />
                           </div>
                           <span className="text-[8px] text-gray-600">{new Date(d.day).getDate()}</span>
                         </div>
@@ -368,8 +368,8 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
                     })}
                   </div>
                   <div className="flex gap-4 mt-3 text-[10px] text-gray-500">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-500/30" /> Total</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/50" /> Auto-réponses</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-400" /> Total</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-400" /> Auto-réponses</span>
                   </div>
                 </div>
               )}
