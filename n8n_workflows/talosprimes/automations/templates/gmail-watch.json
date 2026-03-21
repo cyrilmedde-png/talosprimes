@@ -33,46 +33,139 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst tenantId = '{{ TENANT_ID }}';\n\nconsole.log(`[Gmail recu] De: ${data.from} | Sujet: ${data.subject}`);\n\nreturn [{ json: { ...data, tenantId, provider: 'gmail', timestamp: new Date().toISOString() } }];"
+        "promptType": "define",
+        "text": "=Nouvel email recu :\nDe: {{ $json.from }}\nA: {{ $json.to }}\nSujet: {{ $json.subject }}\nDate: {{ $json.date }}\nContenu: {{ $json.textPlain }}\nPieces jointes: {{ $json.hasAttachments ? 'Oui' : 'Non' }}\nThread ID: {{ $json.threadId }}\n\nAnalyse cet email et decide de l'action a effectuer selon tes instructions.",
+        "options": {
+          "systemMessage": "Tu es un agent IA specialise dans la gestion automatique des emails pour les clients de TalosPrimes.\n\n═══ TON ROLE ═══\nTu recois les emails entrants et tu dois :\n1. CLASSIFIER l'email (categorie + priorite + intention)\n2. DECIDER de l'action : repondre automatiquement OU mettre en file d'attente pour validation humaine\n3. EXECUTER l'action choisie\n4. TOUJOURS LOGGER l'email et l'action dans la base de donnees\n\n═══ CLASSIFICATION ═══\nCategories possibles :\n- prospect : demande d'information, premier contact\n- client : email d'un client existant\n- support : demande d'aide, probleme technique\n- facturation : question sur facture, paiement, devis\n- spam : publicite, newsletter non souhaitee\n- notification : email automatique (confirmation, alerte)\n- urgent : demande urgente necessitant une reponse rapide\n- autre : tout ce qui ne rentre pas dans les categories ci-dessus\n\nPriorites : haute, moyenne, basse\n\nIntentions : demande_info, reclamation, remerciement, confirmation, relance, candidature, partenariat, autre\n\n═══ REGLES DE REPONSE AUTOMATIQUE ═══\nTu PEUX repondre automatiquement (confiance >= 0.8) pour :\n- Accuses de reception (\"Nous avons bien recu votre email...\")\n- Reponses FAQ simples (horaires, coordonnees, services proposes)\n- Remerciements polis\n- Notifications de spam (ignorer, ne pas repondre)\n\nTu DOIS mettre en file d'attente (confiance < 0.8) pour :\n- Demandes commerciales specifiques (devis, tarifs personnalises)\n- Reclamations ou plaintes\n- Questions techniques complexes\n- Tout email ambigu ou necessitant un contexte metier\n\n═══ FORMAT DE REPONSE EMAIL ═══\nQuand tu reponds automatiquement, utilise toujours du HTML professionnel :\n<div style=\"font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px;\">\n  <p>Bonjour,</p>\n  <p>[Corps du message]</p>\n  <p style=\"margin-top: 30px;\">Cordialement,<br><strong>[Nom entreprise]</strong></p>\n</div>\n\n═══ WORKFLOW ═══\n1. Analyse l'email recu\n2. Utilise l'outil sauvegarder_log pour enregistrer l'email et ta classification dans la base\n3. Si reponse automatique : utilise envoyer_email pour repondre, puis mets a jour le log\n4. Si file d'attente : le log suffit, un humain traitera\n\n═══ IMPORTANT ═══\n- TOUJOURS sauvegarder le log en base, meme pour les spams\n- Ne reponds JAMAIS aux spams ou newsletters\n- Sois professionnel et courtois dans tes reponses\n- Si tu doutes, mets en file d'attente plutot que de repondre mal\n- Le tenantId sera fourni par la configuration du workflow"
+        }
       },
-      "id": "add-tenant",
-      "name": "03. Ajouter tenantId",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "ai-agent",
+      "name": "03. Agent IA Email",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
       "position": [690, 300]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.N8N_WEBHOOK_URL || 'http://localhost:5678' }}/webhook/automations/email-ai-process",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": { "timeout": 90000 }
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
       },
-      "id": "call-orchestrator",
-      "name": "04. Envoyer a l'agent IA",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [910, 300]
+      "id": "openai-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [540, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "MmpYHYAt746xfTrB",
+          "name": "OpenAi account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const result = $input.first().json;\nconsole.log(`[Agent IA Gmail] Resultat: ${JSON.stringify(result.data || result)}`);\nreturn [{ json: result }];"
+        "sessionIdType": "customKey",
+        "sessionKey": "=email-{{ $json.from || 'unknown' }}",
+        "contextWindowLength": 20
       },
-      "id": "log-result",
-      "name": "05. Logger resultat",
+      "id": "memory",
+      "name": "Memory Email",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [840, 520]
+    },
+    {
+      "id": "tool-lire-emails",
+      "name": "lire_emails",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [540, 720],
+      "parameters": {
+        "toolDescription": "Lire les derniers emails de la boite de reception Gmail. POST. Body JSON :\n{\"tenantId\":\"UUID_TENANT\",\"limit\":5,\"query\":\"terme de recherche optionnel\"}\nRetourne la liste des emails recents avec from, to, subject, snippet, date.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/automations/email-read",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({tenantId: $fromAI(\"tenantId\", \"UUID du tenant\"), limit: Number($fromAI(\"limit\", \"Nombre d'emails a lire, defaut 5\")) || 5, query: $fromAI(\"query\", \"Terme de recherche optionnel, vide par defaut\")}) }}"
+      }
+    },
+    {
+      "id": "tool-envoyer-email",
+      "name": "envoyer_email",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [790, 720],
+      "parameters": {
+        "toolDescription": "Envoyer un email via Gmail. POST. Body JSON obligatoire :\n{\"tenantId\":\"UUID_TENANT\",\"to\":\"destinataire@email.com\",\"subject\":\"Sujet de l'email\",\"message\":\"Corps du message en texte\",\"html\":\"<div>Corps HTML optionnel</div>\"}\nLes champs tenantId, to et subject sont obligatoires.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/automations/email-send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({tenantId: $fromAI(\"tenantId\", \"UUID du tenant\"), to: $fromAI(\"to\", \"Adresse email du destinataire\"), subject: $fromAI(\"subject\", \"Sujet de l'email\"), message: $fromAI(\"message\", \"Corps du message en texte brut\"), html: $fromAI(\"html\", \"Corps du message en HTML professionnel\")}) }}"
+      }
+    },
+    {
+      "id": "tool-sauvegarder-log",
+      "name": "sauvegarder_log",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [1040, 720],
+      "parameters": {
+        "toolDescription": "Sauvegarder un log d'email entrant dans la base de donnees (table email_incoming_logs). POST. Body JSON :\n{\"tenantId\":\"UUID_TENANT\",\"emailId\":\"ID_EMAIL\",\"threadId\":\"ID_THREAD\",\"fromAddress\":\"expediteur@email.com\",\"toAddress\":\"destinataire@email.com\",\"subject\":\"Sujet\",\"bodyPreview\":\"Apercu du contenu\",\"hasAttachments\":false,\"provider\":\"gmail\",\"classification\":{\"categorie\":\"prospect|client|support|facturation|spam|notification|urgent|autre\",\"priorite\":\"haute|moyenne|basse\",\"intention\":\"demande_info|reclamation|remerciement|confirmation|relance|autre\",\"confiance\":0.85},\"action\":\"auto_reply|queued|ignored\",\"replySubject\":\"Sujet de la reponse si auto_reply\",\"replyBody\":\"Corps de la reponse si auto_reply\",\"replyConfidence\":0.85,\"replyAction\":\"sent|queued|none\"}\nTous les champs de classification sont importants pour le suivi.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/automations/email-log",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({tenantId: $fromAI(\"tenantId\", \"UUID du tenant\"), emailId: $fromAI(\"emailId\", \"ID unique de l'email\"), threadId: $fromAI(\"threadId\", \"ID du thread email\"), fromAddress: $fromAI(\"fromAddress\", \"Adresse email de l'expediteur\"), toAddress: $fromAI(\"toAddress\", \"Adresse email du destinataire\"), subject: $fromAI(\"subject\", \"Sujet de l'email\"), bodyPreview: $fromAI(\"bodyPreview\", \"Apercu du contenu de l'email, max 500 caracteres\"), hasAttachments: $fromAI(\"hasAttachments\", \"true ou false, l'email a-t-il des pieces jointes\"), provider: \"gmail\", classification: JSON.parse($fromAI(\"classification\", \"Objet JSON avec categorie, priorite, intention et confiance\")), action: $fromAI(\"action\", \"Action effectuee: auto_reply, queued, ou ignored\"), replySubject: $fromAI(\"replySubject\", \"Sujet de la reponse automatique, vide si pas de reponse\"), replyBody: $fromAI(\"replyBody\", \"Corps de la reponse automatique, vide si pas de reponse\"), replyConfidence: Number($fromAI(\"replyConfidence\", \"Score de confiance de la reponse entre 0 et 1\")) || 0, replyAction: $fromAI(\"replyAction\", \"sent, queued, ou none\")}) }}"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json;\nconsole.log('[Agent IA Email] Traitement termine:', JSON.stringify(output).substring(0, 200));\n\nreturn [{ json: {\n  success: true,\n  agentOutput: output.output || output.text || 'Traitement effectue',\n  timestamp: new Date().toISOString()\n} }];"
+      },
+      "id": "result",
+      "name": "04. Resultat",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1130, 300]
+      "position": [910, 300]
     }
   ],
   "connections": {
     "01. Nouveau email Gmail": { "main": [[{ "node": "02. Traiter email", "type": "main", "index": 0 }]] },
-    "02. Traiter email": { "main": [[{ "node": "03. Ajouter tenantId", "type": "main", "index": 0 }]] },
-    "03. Ajouter tenantId": { "main": [[{ "node": "04. Envoyer a l'agent IA", "type": "main", "index": 0 }]] },
-    "04. Envoyer a l'agent IA": { "main": [[{ "node": "05. Logger resultat", "type": "main", "index": 0 }]] }
+    "02. Traiter email": { "main": [[{ "node": "03. Agent IA Email", "type": "main", "index": 0 }]] },
+    "03. Agent IA Email": { "main": [[{ "node": "04. Resultat", "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model": { "ai_languageModel": [[{ "node": "03. Agent IA Email", "type": "ai_languageModel", "index": 0 }]] },
+    "Memory Email": { "ai_memory": [[{ "node": "03. Agent IA Email", "type": "ai_memory", "index": 0 }]] },
+    "lire_emails": { "ai_tool": [[{ "node": "03. Agent IA Email", "type": "ai_tool", "index": 0 }]] },
+    "envoyer_email": { "ai_tool": [[{ "node": "03. Agent IA Email", "type": "ai_tool", "index": 0 }]] },
+    "sauvegarder_log": { "ai_tool": [[{ "node": "03. Agent IA Email", "type": "ai_tool", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }]
+  "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
 }
