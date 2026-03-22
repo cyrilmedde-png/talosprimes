@@ -132,7 +132,7 @@
       "parameters": {
         "toolDescription": "Sauvegarder un log d'email entrant dans la base de donnees via l'API platform (table email_incoming_logs). Si replyAction est 'sent_auto', l'API enverra aussi l'email automatiquement via SMTP. POST. Body JSON :\n{\"tenantId\":\"UUID_TENANT\",\"emailId\":\"ID_EMAIL\",\"threadId\":\"ID_THREAD\",\"fromAddress\":\"expediteur@email.com\",\"toAddress\":\"destinataire@email.com\",\"subject\":\"Sujet\",\"bodyPreview\":\"Apercu du contenu\",\"hasAttachments\":false,\"provider\":\"gmail\",\"classification\":{\"categorie\":\"prospect|client|support|facturation|spam|notification|urgent|autre\",\"priorite\":\"haute|moyenne|basse\",\"intention\":\"demande_info|reclamation|remerciement|confirmation|relance|autre\",\"confiance\":0.85},\"action\":\"auto_reply|queued|ignored\",\"replySubject\":\"Sujet de la reponse si auto_reply\",\"replyBody\":\"Corps de la reponse si auto_reply\",\"replyHtml\":\"Corps HTML de la reponse\",\"replyConfidence\":0.85,\"replyAction\":\"sent_auto|queue_human|none\"}\nIMPORTANT: utilise replyAction='sent_auto' quand tu es confiant (>=0.8) et que l'email merite une reponse auto. Utilise 'queue_human' pour mettre en file d'attente.",
         "method": "POST",
-        "url": "https://api.talosprimes.com/api/email-agent/ingest?n8nSecret=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+        "url": "=https://api.talosprimes.com/api/email-agent/ingest?n8nSecret=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9&tenantId={{ $('02. Traiter email').first().json.tenantId }}",
         "sendBody": true,
         "specifyBody": "json",
         "sendHeaders": true,
