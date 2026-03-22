@@ -1649,6 +1649,8 @@ export const apiClient = {
       authenticatedFetch<{ success: boolean; data: unknown }>(`/api/newsletters/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteTemplate: (id: string) =>
       authenticatedFetch<{ success: boolean }>(`/api/newsletters/templates/${id}`, { method: 'DELETE' }),
+    seedTemplates: () =>
+      authenticatedFetch<{ success: boolean; data: unknown }>('/api/newsletters/templates/seed', { method: 'POST' }),
     // Campaigns
     listCampaigns: (params?: { limit?: number; offset?: number; status?: string }) => {
       const q = new URLSearchParams();

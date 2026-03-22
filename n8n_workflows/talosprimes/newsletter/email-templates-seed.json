@@ -1,0 +1,201 @@
+{
+  "name": "Email Templates Seed",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "newsletter/email-templates-seed",
+        "responseMode": "responseNode",
+        "httpMethod": "POST"
+      },
+      "id": "01. Webhook",
+      "name": "01. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst tenantId = body.tenantId;\n\nif (!tenantId) {\n  return { error: 'tenantId requis', sql: '' };\n}\n\nfunction esc(v) {\n  return v == null ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nconst templates = [\n  {\n    nom: 'Bienvenue',\n    sujet: 'Bienvenue chez {{entreprise}} !',\n    categorie: 'bienvenue',\n    variables: ['prenom', 'entreprise', 'lien_espace'],\n    contenuHtml: '<div style=\"font-family:\\'Segoe UI\\',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;\"><div style=\"background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:40px 30px;text-align:center;\"><h1 style=\"color:#ffffff;margin:0;font-size:28px;\">Bienvenue !</h1></div><div style=\"padding:30px;\"><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Bonjour {{prenom}},</p><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Nous sommes ravis de vous accueillir chez <strong>{{entreprise}}</strong>. Votre compte est maintenant actif et pret a utiliser.</p><div style=\"text-align:center;margin:30px 0;\"><a href=\"{{lien_espace}}\" style=\"display:inline-block;padding:14px 32px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;\">Acceder a mon espace</a></div><p style=\"color:#6b7280;font-size:14px;line-height:1.6;\">Si vous avez des questions, n\\'hesitez pas a nous contacter. Nous sommes la pour vous aider.</p></div><div style=\"background:#f9fafb;padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;\"><p style=\"color:#9ca3af;font-size:12px;margin:0;\">{{entreprise}} — Cet email a ete envoye automatiquement</p></div></div>',\n    contenuText: 'Bonjour {{prenom}},\\n\\nBienvenue chez {{entreprise}} ! Votre compte est actif.\\n\\nAccedez a votre espace : {{lien_espace}}\\n\\nCordialement,\\n{{entreprise}}'\n  },\n  {\n    nom: 'Newsletter mensuelle',\n    sujet: 'Les actualites du mois — {{entreprise}}',\n    categorie: 'newsletter',\n    variables: ['prenom', 'entreprise', 'mois', 'contenu_principal', 'lien_desabonnement'],\n    contenuHtml: '<div style=\"font-family:\\'Segoe UI\\',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;\"><div style=\"background:#1e293b;padding:30px;text-align:center;\"><h1 style=\"color:#ffffff;margin:0;font-size:24px;\">Newsletter {{mois}}</h1><p style=\"color:#94a3b8;margin:8px 0 0;font-size:14px;\">{{entreprise}}</p></div><div style=\"padding:30px;\"><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Bonjour {{prenom}},</p><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Voici les dernieres actualites de ce mois.</p><div style=\"margin:20px 0;padding:20px;background:#f8fafc;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;\"><p style=\"color:#374151;font-size:15px;line-height:1.6;margin:0;\">{{contenu_principal}}</p></div></div><div style=\"background:#f9fafb;padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;\"><p style=\"color:#9ca3af;font-size:12px;margin:0;\"><a href=\"{{lien_desabonnement}}\" style=\"color:#9ca3af;\">Se desabonner</a> | {{entreprise}}</p></div></div>',\n    contenuText: 'Bonjour {{prenom}},\\n\\nNewsletter {{mois}} — {{entreprise}}\\n\\n{{contenu_principal}}\\n\\nSe desabonner : {{lien_desabonnement}}'\n  },\n  {\n    nom: 'Relance facture',\n    sujet: 'Rappel : Facture {{numero_facture}} en attente',\n    categorie: 'relance',\n    variables: ['prenom', 'entreprise', 'numero_facture', 'montant', 'date_echeance', 'lien_paiement'],\n    contenuHtml: '<div style=\"font-family:\\'Segoe UI\\',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;\"><div style=\"background:#f59e0b;padding:25px 30px;\"><h1 style=\"color:#ffffff;margin:0;font-size:22px;\">Rappel de paiement</h1></div><div style=\"padding:30px;\"><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Bonjour {{prenom}},</p><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Nous vous rappelons que la facture <strong>{{numero_facture}}</strong> d\\'un montant de <strong>{{montant}}</strong> est arrivee a echeance le <strong>{{date_echeance}}</strong>.</p><div style=\"background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:20px;margin:20px 0;text-align:center;\"><p style=\"color:#92400e;font-size:18px;font-weight:700;margin:0;\">{{montant}}</p><p style=\"color:#b45309;font-size:13px;margin:4px 0 0;\">Echeance : {{date_echeance}}</p></div><div style=\"text-align:center;margin:25px 0;\"><a href=\"{{lien_paiement}}\" style=\"display:inline-block;padding:14px 32px;background:#f59e0b;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;\">Regler ma facture</a></div><p style=\"color:#6b7280;font-size:14px;line-height:1.6;\">Si le paiement a deja ete effectue, veuillez ignorer ce message.</p></div><div style=\"background:#f9fafb;padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;\"><p style=\"color:#9ca3af;font-size:12px;margin:0;\">{{entreprise}}</p></div></div>',\n    contenuText: 'Bonjour {{prenom}},\\n\\nRappel : La facture {{numero_facture}} de {{montant}} est arrivee a echeance le {{date_echeance}}.\\n\\nRegler : {{lien_paiement}}\\n\\nSi deja paye, ignorez ce message.\\n\\n{{entreprise}}'\n  },\n  {\n    nom: 'Relance devis',\n    sujet: 'Votre devis {{numero_devis}} — toujours interesse ?',\n    categorie: 'relance',\n    variables: ['prenom', 'entreprise', 'numero_devis', 'montant', 'date_devis', 'lien_devis'],\n    contenuHtml: '<div style=\"font-family:\\'Segoe UI\\',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;\"><div style=\"background:#8b5cf6;padding:25px 30px;\"><h1 style=\"color:#ffffff;margin:0;font-size:22px;\">Suivi de votre devis</h1></div><div style=\"padding:30px;\"><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Bonjour {{prenom}},</p><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Nous revenons vers vous concernant le devis <strong>{{numero_devis}}</strong> du <strong>{{date_devis}}</strong> d\\'un montant de <strong>{{montant}}</strong>.</p><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Nous restons a votre disposition pour toute question ou modification.</p><div style=\"text-align:center;margin:25px 0;\"><a href=\"{{lien_devis}}\" style=\"display:inline-block;padding:14px 32px;background:#8b5cf6;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;\">Voir le devis</a></div></div><div style=\"background:#f9fafb;padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;\"><p style=\"color:#9ca3af;font-size:12px;margin:0;\">{{entreprise}}</p></div></div>',\n    contenuText: 'Bonjour {{prenom}},\\n\\nSuivi de votre devis {{numero_devis}} du {{date_devis}} ({{montant}}).\\n\\nVoir le devis : {{lien_devis}}\\n\\nCordialement,\\n{{entreprise}}'\n  },\n  {\n    nom: 'Promotion',\n    sujet: '{{titre_promo}} — Offre speciale {{entreprise}}',\n    categorie: 'promotion',\n    variables: ['prenom', 'entreprise', 'titre_promo', 'description_promo', 'code_promo', 'date_fin', 'lien_offre', 'lien_desabonnement'],\n    contenuHtml: '<div style=\"font-family:\\'Segoe UI\\',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;\"><div style=\"background:linear-gradient(135deg,#059669,#047857);padding:35px 30px;text-align:center;\"><h1 style=\"color:#ffffff;margin:0;font-size:26px;\">{{titre_promo}}</h1><p style=\"color:#a7f3d0;margin:8px 0 0;font-size:14px;\">Offre limitee</p></div><div style=\"padding:30px;\"><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Bonjour {{prenom}},</p><p style=\"color:#374151;font-size:16px;line-height:1.6;\">{{description_promo}}</p><div style=\"background:#ecfdf5;border:2px dashed #059669;border-radius:8px;padding:20px;margin:20px 0;text-align:center;\"><p style=\"color:#065f46;font-size:13px;margin:0 0 5px;\">Votre code promo</p><p style=\"color:#059669;font-size:28px;font-weight:700;margin:0;letter-spacing:3px;\">{{code_promo}}</p><p style=\"color:#6b7280;font-size:12px;margin:5px 0 0;\">Valable jusqu\\'au {{date_fin}}</p></div><div style=\"text-align:center;margin:25px 0;\"><a href=\"{{lien_offre}}\" style=\"display:inline-block;padding:14px 32px;background:#059669;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;\">Profiter de l\\'offre</a></div></div><div style=\"background:#f9fafb;padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;\"><p style=\"color:#9ca3af;font-size:12px;margin:0;\"><a href=\"{{lien_desabonnement}}\" style=\"color:#9ca3af;\">Se desabonner</a> | {{entreprise}}</p></div></div>',\n    contenuText: 'Bonjour {{prenom}},\\n\\n{{titre_promo}}\\n\\n{{description_promo}}\\n\\nCode promo : {{code_promo}} (valable jusqu\\'au {{date_fin}})\\n\\nProfiter de l\\'offre : {{lien_offre}}\\n\\nSe desabonner : {{lien_desabonnement}}\\n{{entreprise}}'\n  },\n  {\n    nom: 'Confirmation de commande',\n    sujet: 'Confirmation de votre commande {{numero_commande}}',\n    categorie: 'transactionnel',\n    variables: ['prenom', 'entreprise', 'numero_commande', 'montant', 'date_commande', 'lien_suivi'],\n    contenuHtml: '<div style=\"font-family:\\'Segoe UI\\',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;\"><div style=\"background:#2563eb;padding:30px;text-align:center;\"><div style=\"width:60px;height:60px;background:rgba(255,255,255,0.2);border-radius:50%;margin:0 auto 15px;display:flex;align-items:center;justify-content:center;\"><span style=\"font-size:30px;\">&#10003;</span></div><h1 style=\"color:#ffffff;margin:0;font-size:24px;\">Commande confirmee</h1></div><div style=\"padding:30px;\"><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Bonjour {{prenom}},</p><p style=\"color:#374151;font-size:16px;line-height:1.6;\">Votre commande <strong>{{numero_commande}}</strong> du <strong>{{date_commande}}</strong> a bien ete enregistree.</p><div style=\"background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:20px;margin:20px 0;\"><table style=\"width:100%;border-collapse:collapse;\"><tr><td style=\"color:#6b7280;font-size:14px;padding:4px 0;\">Commande</td><td style=\"color:#1e293b;font-size:14px;font-weight:600;text-align:right;\">{{numero_commande}}</td></tr><tr><td style=\"color:#6b7280;font-size:14px;padding:4px 0;\">Montant</td><td style=\"color:#1e293b;font-size:14px;font-weight:600;text-align:right;\">{{montant}}</td></tr><tr><td style=\"color:#6b7280;font-size:14px;padding:4px 0;\">Date</td><td style=\"color:#1e293b;font-size:14px;text-align:right;\">{{date_commande}}</td></tr></table></div><div style=\"text-align:center;margin:25px 0;\"><a href=\"{{lien_suivi}}\" style=\"display:inline-block;padding:14px 32px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;\">Suivre ma commande</a></div></div><div style=\"background:#f9fafb;padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;\"><p style=\"color:#9ca3af;font-size:12px;margin:0;\">{{entreprise}}</p></div></div>',\n    contenuText: 'Bonjour {{prenom}},\\n\\nVotre commande {{numero_commande}} du {{date_commande}} est confirmee.\\nMontant : {{montant}}\\n\\nSuivre : {{lien_suivi}}\\n\\n{{entreprise}}'\n  }\n];\n\n// Build INSERT SQL with multiple VALUES\nconst values = templates.map(t => {\n  const vars = t.variables.map(v => esc(v)).join(',');\n  return `(gen_random_uuid()::uuid, ${esc(tenantId)}, ${esc(t.nom)}, ${esc(t.sujet)}, ${esc(t.contenuHtml)}, ${esc(t.contenuText)}, ARRAY[${vars}], ${esc(t.categorie)}, NOW(), NOW())`;\n}).join(',\\n');\n\n// Check if templates already exist for this tenant\nconst checkSql = `SELECT COUNT(*)::int AS count FROM email_templates WHERE tenant_id = ${esc(tenantId)}`;\n\nreturn { checkSql, insertSql: `INSERT INTO email_templates (id, tenant_id, nom, sujet, contenu_html, contenu_text, variables, categorie, created_at, updated_at) VALUES ${values} RETURNING id, nom, categorie`, templateCount: templates.length };"
+      },
+      "id": "02. Parser",
+      "name": "02. Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "check-tenant", "leftValue": "={{ $('02. Parser').first().json.insertSql }}", "operator": {"type": "string", "operation": "notEmpty"}}],
+          "combinator": "and"
+        }
+      },
+      "id": "03. Valider",
+      "name": "03. Valider",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('02. Parser').first().json.checkSql }}",
+        "options": {}
+      },
+      "id": "04. Check Existants",
+      "name": "04. Check Existants",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [700, 180],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst count = rows[0]?.json?.count ?? rows[0]?.json?.Count ?? 0;\nconst existingCount = typeof count === 'string' ? parseInt(count, 10) : count;\n\n// Si des templates existent deja, ne pas re-seeder\nif (existingCount > 0) {\n  return { skip: true, message: `${existingCount} templates existent deja`, existingCount };\n}\n\nreturn { skip: false, existingCount: 0 };"
+      },
+      "id": "05. Deja Seede?",
+      "name": "05. Deja Seede?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "check-skip", "leftValue": "={{ $('05. Deja Seede?').first().json.skip }}", "operator": {"type": "boolean", "operation": "false"}}],
+          "combinator": "and"
+        }
+      },
+      "id": "06. Skip?",
+      "name": "06. Skip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 180]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('02. Parser').first().json.insertSql }}",
+        "options": {}
+      },
+      "id": "07. Insert Templates",
+      "name": "07. Insert Templates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1300, 160],
+      "credentials": {
+        "postgres": {
+          "id": "OGqj65ZoFRileCck",
+          "name": "Supabase Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst inserted = rows.filter(r => r.json?.id).map(r => ({ id: r.json.id, nom: r.json.nom, categorie: r.json.categorie }));\n\nreturn {\n  success: true,\n  message: `${inserted.length} templates crees avec succes`,\n  templates: inserted\n};"
+      },
+      "id": "08. Formater Succes",
+      "name": "08. Formater Succes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('05. Deja Seede?').first().json;\nreturn {\n  success: true,\n  message: data.message || 'Templates deja presents',\n  skipped: true,\n  existingCount: data.existingCount || 0\n};"
+      },
+      "id": "09. Formater Skip",
+      "name": "09. Formater Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}"
+      },
+      "id": "10. Respond",
+      "name": "10. Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $('02. Parser').first().json.error || 'tenantId manquant' }) }}"
+      },
+      "id": "11. Respond Erreur",
+      "name": "11. Respond Erreur",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 340]
+    }
+  ],
+  "connections": {
+    "01. Webhook": {
+      "main": [
+        [{"node": "02. Parser", "type": "main", "index": 0}]
+      ]
+    },
+    "02. Parser": {
+      "main": [
+        [{"node": "03. Valider", "type": "main", "index": 0}]
+      ]
+    },
+    "03. Valider": {
+      "main": [
+        [{"node": "04. Check Existants", "type": "main", "index": 0}],
+        [{"node": "11. Respond Erreur", "type": "main", "index": 0}]
+      ]
+    },
+    "04. Check Existants": {
+      "main": [
+        [{"node": "05. Deja Seede?", "type": "main", "index": 0}]
+      ]
+    },
+    "05. Deja Seede?": {
+      "main": [
+        [{"node": "06. Skip?", "type": "main", "index": 0}]
+      ]
+    },
+    "06. Skip?": {
+      "main": [
+        [{"node": "07. Insert Templates", "type": "main", "index": 0}],
+        [{"node": "09. Formater Skip", "type": "main", "index": 0}]
+      ]
+    },
+    "07. Insert Templates": {
+      "main": [
+        [{"node": "08. Formater Succes", "type": "main", "index": 0}]
+      ]
+    },
+    "08. Formater Succes": {
+      "main": [
+        [{"node": "10. Respond", "type": "main", "index": 0}]
+      ]
+    },
+    "09. Formater Skip": {
+      "main": [
+        [{"node": "10. Respond", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {"name": "talosprimes"},
+    {"name": "newsletter"}
+  ]
+}

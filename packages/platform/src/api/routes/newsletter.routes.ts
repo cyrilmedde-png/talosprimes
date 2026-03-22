@@ -158,6 +158,24 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
 
   // ===== EMAIL TEMPLATES =====
 
+  // Seed : génère les templates par défaut pour un tenant
+  fastify.post('/templates/seed', async (request, reply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
+
+    try {
+      const res = await n8nService.callWorkflowReturn(tenantId, 'email_templates_seed', {});
+
+      const data = res.data as Record<string, unknown> | undefined;
+      return reply.send({ success: true, data });
+    } catch (error) {
+      return reply.status(200).send({
+        success: false,
+        error: `Erreur n8n: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+      });
+    }
+  });
+
   fastify.get('/templates', async (request, reply) => {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });

@@ -328,6 +328,7 @@ const WEBHOOK_PATH_ALIASES: Record<string, string> = {
   email_templates_create: 'newsletter/email-templates-create',
   email_templates_update: 'newsletter/email-templates-update',
   email_templates_delete: 'newsletter/email-templates-delete',
+  email_templates_seed: 'newsletter/email-templates-seed',
   newsletter_campaigns_list: 'newsletter/campaigns-list',
   newsletter_campaigns_get: 'newsletter/campaigns-get',
   newsletter_campaigns_create: 'newsletter/campaigns-create',

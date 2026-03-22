@@ -236,6 +236,18 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
   };
 
   // ─── Template Actions ───
+  const handleSeedTemplates = async () => {
+    try {
+      setTemplateLoading(true);
+      await apiClient.newsletter.seedTemplates();
+      await fetchTemplates();
+    } catch (err) {
+      console.warn('[Templates] Erreur seed:', err instanceof Error ? err.message : err);
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -884,7 +896,15 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
                   {emailTemplates.length === 0 && !showCreateTemplate && (
                     <div className="col-span-full text-center py-16 text-gray-500">
                       <span className="text-4xl block mb-3">📝</span>
-                      Aucun template. Créez votre premier template email.
+                      <p className="mb-4">Aucun template.</p>
+                      <button
+                        onClick={handleSeedTemplates}
+                        disabled={templateLoading}
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-xl transition font-medium disabled:opacity-50"
+                      >
+                        {templateLoading ? 'Génération...' : 'Générer les templates par défaut'}
+                      </button>
+                      <p className="text-xs text-gray-600 mt-2">6 templates professionnels (bienvenue, newsletter, relance, promotion...)</p>
                     </div>
                   )}
                 </div>
