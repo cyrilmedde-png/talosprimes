@@ -25,8 +25,12 @@ export function isN8nInternalRequest(request: FastifyRequest): boolean {
   const secret = env.N8N_WEBHOOK_SECRET;
   if (!secret) return false;
 
+  // Verifier le header OU le query param (fallback pour httpRequestTool n8n)
   const header = request.headers['x-talosprimes-n8n-secret'];
-  const provided = typeof header === 'string' ? header : '';
+  const query = request.query as Record<string, string | undefined>;
+  const fromHeader = typeof header === 'string' ? header : '';
+  const fromQuery = typeof query?.n8nSecret === 'string' ? query.n8nSecret : '';
+  const provided = fromHeader || fromQuery;
 
   if (!provided || provided.length !== secret.length) return false;
 
