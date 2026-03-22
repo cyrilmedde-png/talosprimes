@@ -1331,6 +1331,7 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [locked, setLocked] = useState(true); // Formulaire verrouille par defaut
 
   useEffect(() => {
     if (!selectedAutomation) return;
@@ -1365,12 +1366,17 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
           const agentRes = await authenticatedFetch<{ success: boolean; data: { email: Record<string, unknown> } }>('/api/agent/config');
           if (agentRes.success && agentRes.data?.email) {
             const e = agentRes.data.email;
-            // Mapper les champs agent → champs formulaire (sans ecraser ce qui existe deja)
-            if (!stringConfig.imapHost && e.imapHost) stringConfig.imapHost = String(e.imapHost);
-            if (!stringConfig.imapPort && e.imapPort) stringConfig.imapPort = String(e.imapPort);
-            if (!stringConfig.smtpHost && e.smtpHost) stringConfig.smtpHost = String(e.smtpHost);
-            if (!stringConfig.smtpPort && e.smtpPort) stringConfig.smtpPort = String(e.smtpPort);
-            if (!stringConfig.email && e.imapUser) stringConfig.email = String(e.imapUser);
+            // Mapper les champs agent → champs formulaire
+            // Priorite : agent config ecrase les valeurs vides du n8n config
+            if (e.imapHost) stringConfig.imapHost = String(e.imapHost);
+            if (e.imapPort) stringConfig.imapPort = String(e.imapPort);
+            if (e.smtpHost) stringConfig.smtpHost = String(e.smtpHost);
+            if (e.smtpPort) stringConfig.smtpPort = String(e.smtpPort);
+            if (e.imapUser) stringConfig.email = String(e.imapUser);
+            // Detecter le provider depuis le host
+            if (stringConfig.imapHost?.includes('gmail')) stringConfig.provider = 'gmail';
+            else if (stringConfig.imapHost?.includes('outlook')) stringConfig.provider = 'outlook';
+            else if (stringConfig.imapHost) stringConfig.provider = 'imap_smtp';
             // Ne pas pre-remplir le mot de passe (masque cote serveur)
           }
         } catch {
@@ -1381,6 +1387,7 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
       setConfig(stringConfig);
       setOriginalConfig(stringConfig);
       setLogs(configLogs);
+      setLocked(true); // Verrouiller apres chargement
       setLoading(false);
     };
 
@@ -1401,6 +1408,7 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
 
       // 2. Si c'est une automation email, synchroniser aussi vers TenantAgentConfig
       //    (table utilisee par l'agent email pour lire/envoyer les mails)
+      let agentSaved = false;
       if (selectedAutomation.categorie === 'email') {
         const emailPatch: Record<string, unknown> = {
           imapHost: config.imapHost || undefined,
@@ -1412,33 +1420,33 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
           smtpPort: config.smtpPort ? Number(config.smtpPort) : undefined,
           smtpUser: config.email || undefined,           // meme identifiant pour SMTP
           smtpPassword: config.password || undefined,    // meme mot de passe pour SMTP
-          smtpFrom: config.fromName ? `${config.fromName} <${config.email}>` : config.email || undefined,
+          smtpFrom: config.email || undefined,           // email simple (validation zod)
         };
         // Nettoyer les undefined
         Object.keys(emailPatch).forEach(k => { if (emailPatch[k] === undefined) delete emailPatch[k]; });
         try {
-          await authenticatedFetch('/api/agent/config', {
+          const agentRes = await authenticatedFetch<{ success: boolean }>('/api/agent/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: emailPatch }),
           });
+          agentSaved = agentRes.success === true;
         } catch {
-          // Ne pas bloquer si la synchro echoue
-          console.warn('Synchro agent config echouee');
+          console.warn('[ConfigurationTab] Synchro agent config echouee');
         }
       }
 
       if (res.success && res.data) {
         setMessage(res.data.message || 'Configuration sauvegardee avec succes');
         setOriginalConfig({ ...config });
+        setLocked(true);
+      } else if (agentSaved) {
+        // n8n echoue mais agent config sauvee = OK pour les emails
+        setMessage('Configuration email sauvegardee');
+        setOriginalConfig({ ...config });
+        setLocked(true);
       } else {
-        // Meme si n8n echoue, la config agent a ete sauvee pour les emails
-        if (selectedAutomation.categorie === 'email') {
-          setMessage('Configuration email sauvegardee (agent configure)');
-          setOriginalConfig({ ...config });
-        } else {
-          setMessage(res.error || 'Erreur lors de la sauvegarde');
-        }
+        setMessage(res.error || 'Erreur lors de la sauvegarde');
       }
     } catch {
       setMessage('Erreur de connexion');
@@ -1482,7 +1490,24 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
             </h3>
             <p className="text-gray-500 text-xs mb-6">Toute modification est tracee et notifiee a l&apos;administrateur.</p>
 
-            <div className="space-y-4">
+            {/* Bandeau verrouillage */}
+            {locked && (
+              <div className="mb-6 flex items-center justify-between bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                <div className="flex items-center gap-2">
+                  <ShieldCheckIcon className="h-5 w-5 text-green-400" />
+                  <span className="text-gray-300 text-sm">Configuration verrouill&eacute;e</span>
+                </div>
+                <button
+                  onClick={() => { setLocked(false); setMessage(null); }}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Modifier la configuration
+                </button>
+              </div>
+            )}
+
+            <div className={`space-y-4 ${locked ? 'opacity-60 pointer-events-none' : ''}`}>
               {fields.map(field => (
                 <div key={field.key}>
                   <label className="text-gray-400 text-xs uppercase tracking-wider mb-1 block">
@@ -1492,7 +1517,8 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
                     <select
                       value={config[field.key] || ''}
                       onChange={(e) => setConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
-                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-600 focus:border-amber-500 focus:outline-none"
+                      disabled={locked}
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-600 focus:border-amber-500 focus:outline-none disabled:opacity-50"
                     >
                       <option value="">-- Choisir --</option>
                       {field.options?.map(opt => (
@@ -1505,33 +1531,44 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
                       value={config[field.key] || ''}
                       onChange={(e) => setConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
-                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-600 focus:border-amber-500 focus:outline-none placeholder-gray-500"
+                      disabled={locked}
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 text-sm border border-gray-600 focus:border-amber-500 focus:outline-none placeholder-gray-500 disabled:opacity-50"
                     />
                   )}
                 </div>
               ))}
             </div>
 
-            {/* Message + bouton sauvegarder */}
+            {/* Message + boutons */}
             {message && (
               <div className={`mt-4 p-3 rounded-lg text-sm ${message.includes('Erreur') ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'}`}>
                 {message}
               </div>
             )}
 
-            <div className="mt-6 flex items-center justify-between">
-              <p className="text-gray-500 text-xs">
-                {hasChanges ? 'Modifications non sauvegardees' : 'Aucune modification'}
-              </p>
-              <button
-                onClick={handleSave}
-                disabled={!hasChanges || saving}
-                className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                {saving && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
-                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-              </button>
-            </div>
+            {!locked && (
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => { setConfig({ ...originalConfig }); setLocked(true); setMessage(null); }}
+                    className="px-4 py-2.5 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <p className="text-gray-500 text-xs">
+                    {hasChanges ? 'Modifications non sauvegardees' : 'Aucune modification'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleSave}
+                  disabled={!hasChanges || saving}
+                  className="px-6 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {saving && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
+                  {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Historique des modifications */}
