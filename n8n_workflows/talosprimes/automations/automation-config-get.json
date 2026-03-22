@@ -42,7 +42,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const purchase = $('02. Chercher config').first().json;\nconst logs = $('03. Historique modifications').all().map(i => i.json);\n\nreturn [{ json: {\n  success: true,\n  data: {\n    purchaseId: purchase.id,\n    automationNom: purchase.nom,\n    automationCode: purchase.code,\n    categorie: purchase.categorie,\n    complexity: purchase.complexity,\n    status: purchase.status,\n    config: purchase.config || {},\n    activatedAt: purchase.activated_at,\n    updatedAt: purchase.updated_at,\n    logs\n  }\n} }];"
+        "jsCode": "const items = $('02. Chercher config').all();\nif (!items || items.length === 0 || !items[0].json || !items[0].json.id) {\n  return [{ json: { success: false, error: 'Automation non trouvee ou non achetee' } }];\n}\nconst purchase = items[0].json;\nlet logs = [];\ntry { logs = $('03. Historique modifications').all().map(i => i.json); } catch(e) { logs = []; }\n\nreturn [{ json: {\n  success: true,\n  data: {\n    purchaseId: purchase.id,\n    automationNom: purchase.nom,\n    automationCode: purchase.code,\n    categorie: purchase.categorie,\n    complexity: purchase.complexity,\n    status: purchase.status,\n    config: purchase.config || {},\n    activatedAt: purchase.activated_at,\n    updatedAt: purchase.updated_at,\n    logs\n  }\n} }];"
       },
       "id": "format",
       "name": "04. Formater",

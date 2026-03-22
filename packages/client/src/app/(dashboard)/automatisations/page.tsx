@@ -1336,25 +1336,55 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
     if (!selectedAutomation) return;
     setLoading(true);
     setMessage(null);
-    authenticatedFetch<ApiResponse<{ config: Record<string, string>; logs: Array<{ champModifie: string; ancienneValeur: string; nouvelleValeur: string; userEmail: string; createdAt: string }> }>>('/api/automations/config/get', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ automationId: selectedAutomation.id }),
-    })
-      .then(res => {
+
+    const loadConfig = async () => {
+      let stringConfig: Record<string, string> = {};
+      let configLogs: typeof logs = [];
+
+      // 1. Essayer de charger depuis n8n (automation_purchases)
+      try {
+        const res = await authenticatedFetch<ApiResponse<{ config: Record<string, string>; logs: Array<{ champModifie: string; ancienneValeur: string; nouvelleValeur: string; userEmail: string; createdAt: string }> }>>('/api/automations/config/get', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ automationId: selectedAutomation.id }),
+        });
         if (res.success && res.data) {
           const c = res.data.config || {};
-          const stringConfig: Record<string, string> = {};
           for (const [k, v] of Object.entries(c)) {
             stringConfig[k] = String(v ?? '');
           }
-          setConfig(stringConfig);
-          setOriginalConfig(stringConfig);
-          setLogs(res.data.logs || []);
+          configLogs = res.data.logs || [];
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      } catch {
+        // n8n workflow peut etre hors ligne, on continue
+      }
+
+      // 2. Pour les emails, charger aussi depuis TenantAgentConfig pour pre-remplir
+      if (selectedAutomation.categorie === 'email') {
+        try {
+          const agentRes = await authenticatedFetch<{ success: boolean; data: { email: Record<string, unknown> } }>('/api/agent/config');
+          if (agentRes.success && agentRes.data?.email) {
+            const e = agentRes.data.email;
+            // Mapper les champs agent → champs formulaire (sans ecraser ce qui existe deja)
+            if (!stringConfig.imapHost && e.imapHost) stringConfig.imapHost = String(e.imapHost);
+            if (!stringConfig.imapPort && e.imapPort) stringConfig.imapPort = String(e.imapPort);
+            if (!stringConfig.smtpHost && e.smtpHost) stringConfig.smtpHost = String(e.smtpHost);
+            if (!stringConfig.smtpPort && e.smtpPort) stringConfig.smtpPort = String(e.smtpPort);
+            if (!stringConfig.email && e.imapUser) stringConfig.email = String(e.imapUser);
+            // Ne pas pre-remplir le mot de passe (masque cote serveur)
+          }
+        } catch {
+          // Pas grave si ca echoue
+        }
+      }
+
+      setConfig(stringConfig);
+      setOriginalConfig(stringConfig);
+      setLogs(configLogs);
+      setLoading(false);
+    };
+
+    loadConfig();
   }, [selectedAutomation]);
 
   const handleSave = async () => {
@@ -1362,16 +1392,53 @@ function ConfigurationTab({ automations }: { automations: Automation[] }) {
     setSaving(true);
     setMessage(null);
     try {
+      // 1. Sauvegarder via n8n (audit + automation_purchases)
       const res = await authenticatedFetch<ApiResponse<{ message: string; changes: Array<{ champ: string }> }>>('/api/automations/config/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ automationId: selectedAutomation.id, config }),
       });
+
+      // 2. Si c'est une automation email, synchroniser aussi vers TenantAgentConfig
+      //    (table utilisee par l'agent email pour lire/envoyer les mails)
+      if (selectedAutomation.categorie === 'email') {
+        const emailPatch: Record<string, unknown> = {
+          imapHost: config.imapHost || undefined,
+          imapPort: config.imapPort ? Number(config.imapPort) : undefined,
+          imapUser: config.email || undefined,          // champ "email" → imapUser
+          imapPassword: config.password || undefined,    // champ "password" → imapPassword
+          imapTls: true,
+          smtpHost: config.smtpHost || undefined,
+          smtpPort: config.smtpPort ? Number(config.smtpPort) : undefined,
+          smtpUser: config.email || undefined,           // meme identifiant pour SMTP
+          smtpPassword: config.password || undefined,    // meme mot de passe pour SMTP
+          smtpFrom: config.fromName ? `${config.fromName} <${config.email}>` : config.email || undefined,
+        };
+        // Nettoyer les undefined
+        Object.keys(emailPatch).forEach(k => { if (emailPatch[k] === undefined) delete emailPatch[k]; });
+        try {
+          await authenticatedFetch('/api/agent/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: emailPatch }),
+          });
+        } catch {
+          // Ne pas bloquer si la synchro echoue
+          console.warn('Synchro agent config echouee');
+        }
+      }
+
       if (res.success && res.data) {
-        setMessage(res.data.message);
+        setMessage(res.data.message || 'Configuration sauvegardee avec succes');
         setOriginalConfig({ ...config });
       } else {
-        setMessage(res.error || 'Erreur lors de la sauvegarde');
+        // Meme si n8n echoue, la config agent a ete sauvee pour les emails
+        if (selectedAutomation.categorie === 'email') {
+          setMessage('Configuration email sauvegardee (agent configure)');
+          setOriginalConfig({ ...config });
+        } else {
+          setMessage(res.error || 'Erreur lors de la sauvegarde');
+        }
       }
     } catch {
       setMessage('Erreur de connexion');

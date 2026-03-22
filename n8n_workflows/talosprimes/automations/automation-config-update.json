@@ -50,7 +50,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE automation_purchases SET config = '{{ JSON.stringify($json.newConfig) }}'::jsonb, updated_at = NOW() WHERE id = '{{ $json.purchaseId }}'::uuid RETURNING id, config",
+        "query": "UPDATE automation_purchases SET config = '{{ JSON.stringify($json.newConfig).replace(/'/g, \"''\") }}'::jsonb, updated_at = NOW() WHERE id = '{{ $json.purchaseId }}'::uuid RETURNING id, config",
         "options": {}
       },
       "id": "update-config",
