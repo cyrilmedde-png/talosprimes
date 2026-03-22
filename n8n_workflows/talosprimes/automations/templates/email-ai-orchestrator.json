@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_WEBHOOK_URL }}/webhook/automations/email-ai-classify",
+        "url": "https://n8n.talosprimes.com/webhook/automations/email-ai-classify",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, fromAddress: $json.fromAddress, subject: $json.subject, bodyText: $json.bodyText }) }}",
@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.N8N_WEBHOOK_URL }}/webhook/automations/email-ai-reply",
+        "url": "https://n8n.talosprimes.com/webhook/automations/email-ai-reply",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ tenantId: $json.tenantId, fromAddress: $json.fromAddress, subject: $json.subject, bodyText: $json.bodyText, classification: $json.classification }) }}",
@@ -96,14 +96,14 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.PLATFORM_API_URL }}/api/email-agent/ingest",
+        "url": "https://api.talosprimes.com/api/email-agent/ingest",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-talosprimes-n8n-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" }
+            { "name": "x-talosprimes-n8n-secret", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" }
           ]
         },
         "options": { "timeout": 15000 }
