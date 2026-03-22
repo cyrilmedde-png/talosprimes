@@ -66,7 +66,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json;\nconst formatted = {\n  templates: Array.isArray(rows) ? rows : []\n};\nreturn formatted;"
+        "jsCode": "const rows = $input.all().map(item => item.json);\nconst hasData = rows.length > 0 && rows[0].id;\nconst formatted = { templates: hasData ? rows : [] };\nreturn formatted;"
       },
       "id": "06. Format Response",
       "name": "06. Format Response",

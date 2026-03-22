@@ -120,6 +120,7 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [templateForm, setTemplateForm] = useState({ nom: '', sujet: '', contenuHtml: '', contenuText: '', categorie: 'newsletter' });
   const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateMessage, setTemplateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
 
@@ -163,14 +164,20 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
   const fetchTemplates = useCallback(async () => {
     try {
       setTemplateLoading(true);
-      const res = await apiClient.newsletter.listTemplates() as { success: boolean; data?: { templates?: EmailTemplate[] } };
-      if (res.success && res.data?.templates) {
-        setEmailTemplates(res.data.templates);
+      const res = await apiClient.newsletter.listTemplates() as { success: boolean; data?: { templates?: EmailTemplate[] } | EmailTemplate[] };
+      if (res.success && res.data) {
+        // data peut être { templates: [...] } ou directement un tableau
+        const templates = Array.isArray(res.data)
+          ? res.data
+          : (res.data as { templates?: EmailTemplate[] }).templates || [];
+        setEmailTemplates(templates as EmailTemplate[]);
       } else {
         setEmailTemplates([]);
       }
     } catch (err) {
-      console.warn('[Templates] Erreur chargement:', err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.warn('[Templates] Erreur chargement:', msg);
+      setTemplateMessage({ type: 'error', text: `Impossible de charger les templates : ${msg}` });
       setEmailTemplates([]);
     } finally {
       setTemplateLoading(false);
@@ -239,10 +246,19 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
   const handleSeedTemplates = async () => {
     try {
       setTemplateLoading(true);
-      await apiClient.newsletter.seedTemplates();
+      setTemplateMessage(null);
+      const seedRes = await apiClient.newsletter.seedTemplates() as { success: boolean; error?: string };
+      if (!seedRes.success) {
+        setTemplateMessage({ type: 'error', text: `Erreur seed: ${seedRes.error || 'Workflow indisponible'}` });
+        return;
+      }
+      setTemplateMessage({ type: 'success', text: 'Templates générés ! Chargement...' });
       await fetchTemplates();
+      setTemplateMessage({ type: 'success', text: '6 templates professionnels créés avec succès !' });
     } catch (err) {
-      console.warn('[Templates] Erreur seed:', err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.warn('[Templates] Erreur seed:', msg);
+      setTemplateMessage({ type: 'error', text: `Erreur: ${msg}. Vérifiez que les workflows n8n sont actifs.` });
     } finally {
       setTemplateLoading(false);
     }
@@ -893,6 +909,15 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
                       </div>
                     </div>
                   ))}
+                  {templateMessage && (
+                    <div className={`col-span-full mb-4 px-4 py-3 rounded-xl text-sm ${
+                      templateMessage.type === 'success'
+                        ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                        : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                    }`}>
+                      {templateMessage.text}
+                    </div>
+                  )}
                   {emailTemplates.length === 0 && !showCreateTemplate && (
                     <div className="col-span-full text-center py-16 text-gray-500">
                       <span className="text-4xl block mb-3">📝</span>

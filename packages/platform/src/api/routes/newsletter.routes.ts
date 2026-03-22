@@ -169,7 +169,7 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
       const data = res.data as Record<string, unknown> | undefined;
       return reply.send({ success: true, data });
     } catch (error) {
-      return reply.status(200).send({
+      return reply.status(502).send({
         success: false,
         error: `Erreur n8n: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
       });
@@ -180,17 +180,20 @@ export async function newsletterRoutes(fastify: FastifyInstance) {
     const tenantId = request.tenantId;
     if (!tenantId) return reply.status(401).send({ error: 'Non autorisé' });
 
-    const { categorie } = request.query as any;
+    const { categorie } = (request.query || {}) as Record<string, string | undefined>;
 
     try {
       const res = await n8nService.callWorkflowReturn(tenantId, 'email_templates_list', {
-        categorie
+        ...(categorie ? { categorie } : {}),
       });
 
-      const data = res.data as any;
-      return reply.send({ success: true, data });
+      if (!res.success) {
+        return reply.status(502).send({ success: false, error: res.error || 'Workflow indisponible' });
+      }
+
+      return reply.send({ success: true, data: res.data });
     } catch (error) {
-      return reply.status(200).send({
+      return reply.status(502).send({
         success: false,
         error: `Erreur n8n: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
       });
