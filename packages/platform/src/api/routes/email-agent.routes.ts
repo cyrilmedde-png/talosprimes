@@ -499,11 +499,21 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
       const tenantId = request.tenantId;
       if (!tenantId) return ApiError.unauthorized(reply);
 
-      const {
-        email_id, from_address, to_address, subject, body_preview,
-        classification, action, reply_subject, reply_body, reply_html,
-        reply_confidence, reply_action, tokens_used,
-      } = request.body as Record<string, unknown>;
+      // Accepter les deux formats : snake_case (n8n orchestrateur) et camelCase (agent IA)
+      const b = request.body as Record<string, unknown>;
+      const email_id = b.email_id ?? b.emailId ?? null;
+      const from_address = b.from_address ?? b.fromAddress ?? '';
+      const to_address = b.to_address ?? b.toAddress ?? '';
+      const subject = b.subject ?? '(sans objet)';
+      const body_preview = b.body_preview ?? b.bodyPreview ?? '';
+      const classification = b.classification ?? {};
+      const action = b.action ?? 'classified';
+      const reply_subject = b.reply_subject ?? b.replySubject ?? null;
+      const reply_body = b.reply_body ?? b.replyBody ?? null;
+      const reply_html = b.reply_html ?? b.replyHtml ?? null;
+      const reply_confidence = b.reply_confidence ?? b.replyConfidence ?? null;
+      const reply_action = b.reply_action ?? b.replyAction ?? 'queue_human';
+      const tokens_used = b.tokens_used ?? b.tokensUsed ?? null;
 
       try {
         const rows = await prisma.$queryRawUnsafe(
