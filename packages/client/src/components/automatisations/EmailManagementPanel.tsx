@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getAccessToken } from '@/lib/auth';
+import { apiClient } from '@/lib/api-client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -53,7 +54,21 @@ interface Stats {
   byDay: { day: string; count: string; auto_count: string }[];
 }
 
-type EmailTab = 'overview' | 'inbox' | 'queue' | 'rules';
+interface EmailTemplate {
+  id: string;
+  tenantId: string;
+  nom: string;
+  sujet: string;
+  contenuHtml: string;
+  contenuText?: string;
+  variables?: string[];
+  categorie: string;
+  thumbnail?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+type EmailTab = 'overview' | 'inbox' | 'queue' | 'rules' | 'templates';
 
 // ─── Badge helpers ───
 const priorityColors: Record<string, string> = {
@@ -98,6 +113,13 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
   const [showNewRule, setShowNewRule] = useState(false);
   const [ruleForm, setRuleForm] = useState({ nom: '', description: '', action_type: 'queue_human', priorite: 10, conditions: '{}' });
   const [filter, setFilter] = useState({ search: '', action: '', category: '' });
+
+  // ─── Templates state ───
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
+  const [selectedTemplatePreview, setSelectedTemplatePreview] = useState<EmailTemplate | null>(null);
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  const [templateForm, setTemplateForm] = useState({ nom: '', sujet: '', contenuHtml: '', contenuText: '', categorie: 'newsletter' });
+  const [templateLoading, setTemplateLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
 
@@ -138,6 +160,23 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
     } catch { /* */ }
   }, []);
 
+  const fetchTemplates = useCallback(async () => {
+    try {
+      setTemplateLoading(true);
+      const res = await apiClient.newsletter.listTemplates() as { success: boolean; data?: { templates?: EmailTemplate[] } };
+      if (res.success && res.data?.templates) {
+        setEmailTemplates(res.data.templates);
+      } else {
+        setEmailTemplates([]);
+      }
+    } catch (err) {
+      console.warn('[Templates] Erreur chargement:', err instanceof Error ? err.message : err);
+      setEmailTemplates([]);
+    } finally {
+      setTemplateLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     const load = async () => {
@@ -145,10 +184,11 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
       else if (tab === 'inbox') await fetchEmails();
       else if (tab === 'queue') await fetchQueue();
       else if (tab === 'rules') await fetchRules();
+      else if (tab === 'templates') await fetchTemplates();
       setLoading(false);
     };
     load();
-  }, [tab, fetchStats, fetchEmails, fetchQueue, fetchRules]);
+  }, [tab, fetchStats, fetchEmails, fetchQueue, fetchRules, fetchTemplates]);
 
   // ─── Actions ───
   const approveEmail = async (id: string) => {
@@ -193,6 +233,53 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
     if (!confirm('Supprimer cette règle ?')) return;
     await fetch(`${API}/api/email-agent/rules/${id}`, { method: 'DELETE', headers: headers() });
     fetchRules();
+  };
+
+  // ─── Template Actions ───
+  const handleCreateTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiClient.newsletter.createTemplate({
+        nom: templateForm.nom,
+        sujet: templateForm.sujet,
+        contenuHtml: templateForm.contenuHtml,
+        contenuText: templateForm.contenuText || undefined,
+        categorie: templateForm.categorie,
+      });
+      setTemplateForm({ nom: '', sujet: '', contenuHtml: '', contenuText: '', categorie: 'newsletter' });
+      setShowCreateTemplate(false);
+      fetchTemplates();
+    } catch (err) {
+      console.warn('[Templates] Erreur création:', err instanceof Error ? err.message : err);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!confirm('Supprimer ce template ?')) return;
+    try {
+      await apiClient.newsletter.deleteTemplate(id);
+      fetchTemplates();
+    } catch (err) {
+      console.warn('[Templates] Erreur suppression:', err instanceof Error ? err.message : err);
+    }
+  };
+
+  const templateCategoryColors: Record<string, string> = {
+    newsletter: 'bg-blue-500/20 text-blue-400',
+    promotion: 'bg-orange-500/20 text-orange-400',
+    transactionnel: 'bg-gray-700 text-gray-300',
+    relance: 'bg-amber-500/20 text-amber-400',
+    bienvenue: 'bg-emerald-500/20 text-emerald-400',
+    evenement: 'bg-purple-500/20 text-purple-400',
+  };
+
+  const templateCategoryLabels: Record<string, string> = {
+    newsletter: 'Newsletter',
+    promotion: 'Promotion',
+    transactionnel: 'Transactionnel',
+    relance: 'Relance',
+    bienvenue: 'Bienvenue',
+    evenement: 'Événement',
   };
 
   // ─── Bulk Actions ───
@@ -254,6 +341,7 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
     { id: 'overview', label: 'Vue d\'ensemble', icon: '📊' },
     { id: 'inbox', label: 'Emails reçus', icon: '📨', badge: emailTotal },
     { id: 'queue', label: 'File d\'attente', icon: '⏳', badge: stats?.queue || 0 },
+    { id: 'templates', label: 'Templates', icon: '📝', badge: emailTemplates.length || undefined },
     ...(isAdmin ? [{ id: 'rules' as EmailTab, label: 'Règles', icon: '⚙️' }] : []),
   ];
 
@@ -671,7 +759,166 @@ export default function EmailManagementPanel({ isAdmin = false }: { isAdmin?: bo
               </div>
             </div>
           )}
+
+          {/* ═══ TEMPLATES ═══ */}
+          {tab === 'templates' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-400">{emailTemplates.length} template{emailTemplates.length > 1 ? 's' : ''}</p>
+                <button
+                  onClick={() => setShowCreateTemplate(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-xl transition font-medium"
+                >
+                  + Nouveau template
+                </button>
+              </div>
+
+              {/* Create template form */}
+              {showCreateTemplate && (
+                <form onSubmit={handleCreateTemplate} className="p-5 rounded-xl bg-gray-800/60 border border-gray-700 space-y-4">
+                  <h4 className="text-white font-medium">Nouveau template</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">Nom</label>
+                      <input
+                        type="text"
+                        required
+                        value={templateForm.nom}
+                        onChange={e => setTemplateForm({ ...templateForm, nom: e.target.value })}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white outline-none focus:border-blue-500"
+                        placeholder="Newsletter mensuelle"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 block mb-1">Sujet</label>
+                      <input
+                        type="text"
+                        required
+                        value={templateForm.sujet}
+                        onChange={e => setTemplateForm({ ...templateForm, sujet: e.target.value })}
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white outline-none focus:border-blue-500"
+                        placeholder="Sujet de l'email"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 block mb-1">Catégorie</label>
+                    <select
+                      value={templateForm.categorie}
+                      onChange={e => setTemplateForm({ ...templateForm, categorie: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white outline-none focus:border-blue-500"
+                    >
+                      <option value="newsletter">Newsletter</option>
+                      <option value="promotion">Promotion</option>
+                      <option value="transactionnel">Transactionnel</option>
+                      <option value="relance">Relance</option>
+                      <option value="bienvenue">Bienvenue</option>
+                      <option value="evenement">Événement</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 block mb-1">Contenu HTML</label>
+                    <textarea
+                      required
+                      value={templateForm.contenuHtml}
+                      onChange={e => setTemplateForm({ ...templateForm, contenuHtml: e.target.value })}
+                      rows={8}
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white font-mono outline-none focus:border-blue-500 resize-none"
+                      placeholder="<div>Contenu de votre email...</div>"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 block mb-1">Contenu texte (optionnel)</label>
+                    <textarea
+                      value={templateForm.contenuText}
+                      onChange={e => setTemplateForm({ ...templateForm, contenuText: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white outline-none focus:border-blue-500 resize-none"
+                      placeholder="Version texte brut de l'email"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="submit" className="px-5 py-2 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-500 transition">Créer</button>
+                    <button type="button" onClick={() => setShowCreateTemplate(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Annuler</button>
+                  </div>
+                </form>
+              )}
+
+              {/* Templates list */}
+              {templateLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {emailTemplates.map(tpl => (
+                    <div key={tpl.id} className="p-5 rounded-xl bg-gray-800/60 border border-gray-700 hover:border-gray-600 transition group">
+                      <div className="flex items-start justify-between mb-3">
+                        <h4 className="text-sm font-medium text-white truncate flex-1">{tpl.nom}</h4>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ml-2 whitespace-nowrap ${templateCategoryColors[tpl.categorie] || 'bg-gray-700 text-gray-300'}`}>
+                          {templateCategoryLabels[tpl.categorie] || tpl.categorie}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-3 truncate">{tpl.sujet}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gray-600">
+                          {new Date(tpl.createdAt).toLocaleDateString('fr-FR')}
+                        </span>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            onClick={() => setSelectedTemplatePreview(tpl)}
+                            className="px-2.5 py-1 text-[11px] bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 transition"
+                          >
+                            Aperçu
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTemplate(tpl.id)}
+                            className="px-2.5 py-1 text-[11px] bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {emailTemplates.length === 0 && !showCreateTemplate && (
+                    <div className="col-span-full text-center py-16 text-gray-500">
+                      <span className="text-4xl block mb-3">📝</span>
+                      Aucun template. Créez votre premier template email.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </>
+      )}
+
+      {/* Template preview modal */}
+      {selectedTemplatePreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedTemplatePreview(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-[700px] max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-700">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-lg font-semibold text-white truncate">{selectedTemplatePreview.nom}</h4>
+                <p className="text-xs text-gray-400 mt-0.5">{selectedTemplatePreview.sujet}</p>
+              </div>
+              <div className="flex items-center gap-2 ml-3">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${templateCategoryColors[selectedTemplatePreview.categorie] || 'bg-gray-700 text-gray-300'}`}>
+                  {templateCategoryLabels[selectedTemplatePreview.categorie] || selectedTemplatePreview.categorie}
+                </span>
+                <button onClick={() => setSelectedTemplatePreview(null)} className="text-gray-400 hover:text-white text-xl font-bold ml-2">✕</button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-1">
+              <iframe
+                srcDoc={selectedTemplatePreview.contenuHtml}
+                title="Template Preview"
+                className="w-full h-[500px] border-none bg-white rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Email detail modal (inbox) */}
