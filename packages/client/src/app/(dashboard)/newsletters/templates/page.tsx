@@ -9,7 +9,10 @@ interface Template {
   sujet: string;
   categorie: 'newsletter' | 'promotion' | 'transactionnel' | 'relance' | 'bienvenue' | 'evenement';
   contenuHtml: string;
-  dateCreation: string;
+  contenuText?: string;
+  variables?: string[];
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export default function TemplatesPage() {
@@ -174,7 +177,7 @@ export default function TemplatesPage() {
                       {getCategoryLabel(template.categorie)}
                     </span>
                     <span className="text-gray-500 text-xs">
-                      {new Date(template.dateCreation).toLocaleDateString('fr-FR')}
+                      {new Date(template.createdAt).toLocaleDateString('fr-FR')}
                     </span>
                   </div>
                   <div className="flex gap-2">
