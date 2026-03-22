@@ -110,7 +110,7 @@
       "parameters": {
         "toolDescription": "Envoyer un email via Gmail. POST. Body JSON obligatoire :\n{\"tenantId\":\"UUID_TENANT\",\"to\":\"destinataire@email.com\",\"subject\":\"Sujet de l'email\",\"message\":\"Corps du message en texte\",\"html\":\"<div>Corps HTML optionnel</div>\"}\nLes champs tenantId, to et subject sont obligatoires.",
         "method": "POST",
-        "url": "https://n8n.talosprimes.com/webhook/automations/email-send",
+        "url": "https://n8n.talosprimes.com/webhook/client/talosprimes/gmail-send",
         "sendBody": true,
         "specifyBody": "json",
         "options": {
