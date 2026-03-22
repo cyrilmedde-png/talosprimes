@@ -131,6 +131,7 @@
     },
     {
       "parameters": {
+        "authentication": "none",
         "method": "POST",
         "url": "https://api.talosprimes.com/api/email-agent/ingest",
         "sendHeaders": true,
