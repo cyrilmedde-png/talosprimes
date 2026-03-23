@@ -633,7 +633,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
             `SELECT
               COUNT(*)::int as total,
               COUNT(*) FILTER (WHERE reply_action = 'queue_human' AND reply_sent_at IS NULL)::int as queue,
-              COUNT(*) FILTER (WHERE reply_action = 'sent_auto')::int as auto,
+              COUNT(*) FILTER (WHERE reply_action IN ('sent_auto', 'sent_agent'))::int as auto,
               COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int as today
              FROM email_incoming_logs WHERE tenant_id = $1::uuid`,
             tenantId
@@ -655,7 +655,7 @@ export async function emailAgentRoutes(fastify: FastifyInstance) {
           // Par jour (14 derniers jours)
           prisma.$queryRawUnsafe(
             `SELECT DATE(created_at) as day, COUNT(*)::int as count,
-                    COUNT(*) FILTER (WHERE reply_action = 'sent_auto')::int as auto_count
+                    COUNT(*) FILTER (WHERE reply_action IN ('sent_auto', 'sent_agent'))::int as auto_count
              FROM email_incoming_logs WHERE tenant_id = $1::uuid AND created_at >= CURRENT_DATE - 14
              GROUP BY DATE(created_at) ORDER BY day DESC`,
             tenantId

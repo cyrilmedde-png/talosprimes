@@ -40,7 +40,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $('02. Valider').first().json;\nconst configRow = $input.first().json;\nconst config = configRow?.config || {};\nconst fromName = config.fromName || 'TalosPrimes';\nconst fromEmail = config.email || '';\nconst signature = config.signature || '';\nconst fullMessage = signature ? data.message + '\\n\\n' + signature : data.message;\n\n// Generer le HTML professionnel a partir du texte brut\nconst textContent = data.message || '';\nconst paragraphs = textContent.split(/\\n\\n|\\n/).filter(p => p.trim()).map(p => '<p style=\"margin:0 0 16px;font-size:15px;color:#2d3748;line-height:1.7;\">' + p.trim() + '</p>').join('');\n\nconst htmlEmail = '<div style=\"margin:0;padding:0;background-color:#f4f6f9;font-family:Segoe UI,Roboto,Arial,sans-serif;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#f4f6f9;padding:30px 0;\"><tr><td align=\"center\"><table role=\"presentation\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);\"><tr><td style=\"background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);padding:28px 40px;text-align:center;\"><h1 style=\"margin:0;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:1px;\">' + fromName + '</h1><p style=\"margin:4px 0 0;font-size:12px;color:#8b9cc7;letter-spacing:2px;text-transform:uppercase;\">Gestion d\\'entreprise intelligente</p></td></tr><tr><td style=\"padding:36px 40px 28px;\">' + paragraphs + '</td></tr><tr><td style=\"padding:0 40px 30px;\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"border-top:1px solid #e8ecf1;padding-top:24px;\"><p style=\"margin:0 0 4px;font-size:14px;font-weight:600;color:#1a1a2e;\">L\\'equipe ' + fromName + '</p><p style=\"margin:0;font-size:12px;color:#6b7c93;\">' + (fromEmail || 'direction@talosprimes.com') + ' | talosprimes.com</p></td></tr></table></td></tr><tr><td style=\"background-color:#f8f9fb;padding:16px 40px;text-align:center;border-top:1px solid #e8ecf1;\"><p style=\"margin:0;font-size:11px;color:#9ba8b7;\">Ce message a ete envoye automatiquement. Pour toute question, repondez directement a cet email.</p></td></tr></table></td></tr></table></div>';\n\n// Si l'appelant a deja fourni du HTML custom, l'utiliser; sinon generer depuis le texte\nconst finalHtml = data.html || htmlEmail;\n\nreturn [{ json: { ...data, fromName, fromEmail, signature, fullMessage, htmlBody: finalHtml, config } }];"
+        "jsCode": "const data = $('02. Valider').first().json;\nconst configRow = $input.first().json;\nconst config = configRow?.config || {};\nconst fromName = config.fromName || 'TalosPrimes';\nconst fromEmail = config.email || '';\nconst signature = config.signature || '';\nconst fullMessage = signature ? data.message + '\\n\\n' + signature : data.message;\n\nreturn [{ json: { ...data, fromName, fromEmail, signature, fullMessage, config } }];"
       },
       "id": "prepare",
       "name": "04. Preparer",
@@ -52,8 +52,7 @@
       "parameters": {
         "sendTo": "={{ $json.to }}",
         "subject": "={{ $json.subject }}",
-        "emailType": "html",
-        "message": "={{ $json.htmlBody }}",
+        "message": "={{ $json.fullMessage }}",
         "options": {
           "ccList": "={{ $json.cc }}",
           "bccList": "={{ $json.bcc }}",
