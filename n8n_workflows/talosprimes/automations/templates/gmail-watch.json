@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const email = $input.first().json;\n\n// Gmail Trigger v1.2 renvoie les champs en MAJUSCULE : From, To, Subject\n// On normalise pour gerer les deux formats\nconst fromRaw = email.from || email.From || '';\nconst toRaw = email.to || email.To || '';\nconst subjectRaw = email.subject || email.Subject || '(sans objet)';\nconst dateRaw = email.date || email.Date || email.internalDate || new Date().toISOString();\nconst snippetRaw = email.snippet || email.Snippet || '';\nconst textRaw = email.textPlain || email.TextPlain || email.text || snippetRaw || '';\n\n// Extraire les adresses email de maniere robuste\nfunction extractEmail(field) {\n  if (!field) return '';\n  if (typeof field === 'string') return field;\n  if (field.text) return field.text;\n  if (field.value && Array.isArray(field.value)) return field.value.map(v => v.address || v.name || '').join(', ');\n  if (Array.isArray(field)) return field.map(f => typeof f === 'string' ? f : (f.address || f.text || '')).join(', ');\n  if (field.address) return field.address;\n  return JSON.stringify(field);\n}\n\nconst fromStr = extractEmail(fromRaw);\nconst toStr = extractEmail(toRaw);\n\nconsole.log('[02] fromStr:', fromStr);\nconsole.log('[02] toStr:', toStr);\n\n// Chercher le tenantId dans toutes les adresses\nconst TENANT_MAP = {\n  'direction@talosprimes.com': 'efbf3d9e-6ccc-44a3-ad41-dc4093ecc227'\n};\n\nconst allAddresses = (fromStr + ' ' + toStr + ' ' + JSON.stringify(email)).toLowerCase();\n\nlet tenantId = null;\nfor (const [addr, tid] of Object.entries(TENANT_MAP)) {\n  if (allAddresses.includes(addr.toLowerCase())) { tenantId = tid; break; }\n}\n\nif (!tenantId) {\n  throw new Error('[02] TENANT_MAP: aucun match. From=' + fromStr + ' To=' + toStr + '. Ajouter l adresse dans TENANT_MAP.');\n}\n\nreturn [{ json: {\n  id: email.id || email.messageId || null,\n  threadId: email.threadId || null,\n  from: fromStr,\n  to: toStr,\n  subject: subjectRaw,\n  date: dateRaw,\n  snippet: snippetRaw,\n  textPlain: textRaw.substring(0, 1000),\n  labels: email.labelIds || [],\n  hasAttachments: (email.attachments || []).length > 0,\n  tenantId: tenantId,\n  action: 'received'\n} }];"
+        "jsCode": "const email = $input.first().json;\n\n// Gmail Trigger v1.2 renvoie les champs en MAJUSCULE : From, To, Subject\n// On normalise pour gerer les deux formats\nconst fromRaw = email.from || email.From || '';\nconst toRaw = email.to || email.To || '';\nconst subjectRaw = email.subject || email.Subject || '(sans objet)';\nconst dateRaw = email.date || email.Date || email.internalDate || new Date().toISOString();\nconst snippetRaw = email.snippet || email.Snippet || '';\nconst textRaw = email.textPlain || email.TextPlain || email.text || snippetRaw || '';\n\n// Extraire les adresses email de maniere robuste\nfunction extractEmail(field) {\n  if (!field) return '';\n  if (typeof field === 'string') return field;\n  if (field.text) return field.text;\n  if (field.value && Array.isArray(field.value)) return field.value.map(v => v.address || v.name || '').join(', ');\n  if (Array.isArray(field)) return field.map(f => typeof f === 'string' ? f : (f.address || f.text || '')).join(', ');\n  if (field.address) return field.address;\n  return JSON.stringify(field);\n}\n\nconst fromStr = extractEmail(fromRaw);\nconst toStr = extractEmail(toRaw);\n\nconsole.log('[02] fromStr:', fromStr);\nconsole.log('[02] toStr:', toStr);\n\n// ═══ FILTRE ANTI-BOUCLE ═══\n// Exclure les emails envoyes PAR le systeme (evite de traiter nos propres reponses)\nconst SYSTEM_ADDRESSES = ['direction@talosprimes.com', 'noreply@talosprimes.com', 'contact@talosprimes.com'];\nconst fromLower = fromStr.toLowerCase();\nconst isFromSystem = SYSTEM_ADDRESSES.some(addr => fromLower.includes(addr));\n\n// Aussi verifier le label SENT\nconst labels = email.labelIds || [];\nconst isSentMail = labels.includes('SENT') || labels.includes('SENT_MAIL');\n\nif (isFromSystem || isSentMail) {\n  console.log('[02] SKIP: email envoye par le systeme (from=' + fromStr + ', labels=' + labels.join(',') + ')');\n  return [{ json: { skip: true, reason: 'Email envoye par le systeme — ignore pour eviter boucle' } }];\n}\n\n// Chercher le tenantId dans toutes les adresses\nconst TENANT_MAP = {\n  'direction@talosprimes.com': 'efbf3d9e-6ccc-44a3-ad41-dc4093ecc227'\n};\n\nconst allAddresses = (fromStr + ' ' + toStr + ' ' + JSON.stringify(email)).toLowerCase();\n\nlet tenantId = null;\nfor (const [addr, tid] of Object.entries(TENANT_MAP)) {\n  if (allAddresses.includes(addr.toLowerCase())) { tenantId = tid; break; }\n}\n\nif (!tenantId) {\n  throw new Error('[02] TENANT_MAP: aucun match. From=' + fromStr + ' To=' + toStr + '. Ajouter l adresse dans TENANT_MAP.');\n}\n\nreturn [{ json: {\n  id: email.id || email.messageId || null,\n  threadId: email.threadId || null,\n  from: fromStr,\n  to: toStr,\n  subject: subjectRaw,\n  date: dateRaw,\n  snippet: snippetRaw,\n  textPlain: textRaw.substring(0, 1000),\n  labels: email.labelIds || [],\n  hasAttachments: (email.attachments || []).length > 0,\n  tenantId: tenantId,\n  action: 'received'\n} }];"
       },
       "id": "process",
       "name": "02. Traiter email",
@@ -150,11 +150,27 @@
           "id": "OGqj65ZoFRileCck"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": ""},
+          "conditions": [{"id": "not-skip", "leftValue": "={{ $json.skip }}", "operator": {"type": "boolean", "operation": "notTrue"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-skip",
+      "name": "02b. Est un vrai email ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [580, 300]
     }
   ],
   "connections": {
     "01. Nouveau email Gmail": { "main": [[{ "node": "02. Traiter email", "type": "main", "index": 0 }]] },
-    "02. Traiter email": { "main": [[{ "node": "03. Agent IA Email", "type": "main", "index": 0 }]] },
+    "02. Traiter email": { "main": [[{ "node": "02b. Est un vrai email ?", "type": "main", "index": 0 }]] },
+    "02b. Est un vrai email ?": { "main": [[{ "node": "03. Agent IA Email", "type": "main", "index": 0 }], []] },
     "03. Agent IA Email": { "main": [[{ "node": "04. Resultat", "type": "main", "index": 0 }]] },
     "04. Resultat": { "main": [[{ "node": "05. Sauvegarder Log", "type": "main", "index": 0 }]] },
     "OpenAI Chat Model": { "ai_languageModel": [[{ "node": "03. Agent IA Email", "type": "ai_languageModel", "index": 0 }]] },
