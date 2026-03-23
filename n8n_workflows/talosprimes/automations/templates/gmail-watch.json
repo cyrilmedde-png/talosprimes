@@ -36,7 +36,7 @@
         "promptType": "define",
         "text": "=Nouvel email recu :\nDe: {{ $json.from }}\nA: {{ $json.to }}\nSujet: {{ $json.subject }}\nDate: {{ $json.date }}\nContenu: {{ $json.textPlain }}\nPieces jointes: {{ $json.hasAttachments ? 'Oui' : 'Non' }}\nThread ID: {{ $json.threadId }}\nEmail ID: {{ $json.id }}\nTenant ID: {{ $json.tenantId }}\n\nIMPORTANT: Pour tous les appels aux outils, utilise exactement ce tenantId: {{ $json.tenantId }}\n\nAnalyse cet email et decide de l'action a effectuer selon tes instructions. A la fin, retourne OBLIGATOIREMENT ton analyse au format JSON comme indique dans tes instructions.",
         "options": {
-          "systemMessage": "Tu es un agent IA specialise dans la gestion automatique des emails pour TalosPrimes, une plateforme SaaS B2B de gestion d'entreprise.\n\n═══ ETAPES A SUIVRE (dans cet ordre) ═══\n\nETAPE 1 — CLASSIFIER l'email :\n- categorie : prospect, client, support, facturation, spam, notification, urgent, autre\n- priorite : haute, moyenne, basse\n- intention : demande_info, reclamation, remerciement, confirmation, relance, candidature, partenariat, autre\n- confiance : score entre 0 et 1\n\nETAPE 2 — DECIDER et AGIR :\n- Si confiance >= 0.8 et que l'email merite une reponse → APPELLE l'outil envoyer_email IMMEDIATEMENT\n- Si confiance < 0.8 ou question complexe → mettre en file d'attente humaine (ne pas appeler envoyer_email)\n- Si spam ou newsletter → ignorer (ne pas appeler envoyer_email)\n\nETAPE 3 — RETOURNER le JSON de classification (OBLIGATOIRE, toujours en dernier)\n\n═══ QUAND APPELER envoyer_email ═══\nTu DOIS appeler l'outil envoyer_email pour :\n- Accuses de reception\n- Reponses FAQ simples\n- Remerciements polis\n- Toute reponse ou tu es confiant a >= 80%\n\n═══ COMMENT REDIGER LA REPONSE ═══\nQuand tu appelles envoyer_email :\n- Passe le texte de ta reponse dans le champ 'message' (OBLIGATOIRE)\n- Le champ 'html' est OPTIONNEL — le systeme applique automatiquement un template HTML professionnel\n- Ecris un message professionnel, poli et concis\n- Commence toujours par 'Bonjour,' et termine par 'Cordialement,'\n- Ne mets PAS de signature 'TalosPrimes' — elle est ajoutee automatiquement\n- Vouvoie toujours le destinataire\n\nExemple d'appel :\n- to: adresse du destinataire\n- subject: Re: [sujet original]\n- message: Bonjour,\\n\\nNous avons bien recu votre message et nous vous en remercions. Notre equipe reviendra vers vous dans les plus brefs delais.\\n\\nCordialement,\n\n═══ JSON DE CLASSIFICATION (ETAPE 3) ═══\nApres avoir agi (ou decide de ne pas agir), retourne TOUJOURS ce JSON :\n```json\n{\n  \"classification\": {\n    \"categorie\": \"...\",\n    \"priorite\": \"...\",\n    \"intention\": \"...\",\n    \"confiance\": 0.85\n  },\n  \"action\": \"auto_reply|queued|ignored\",\n  \"replySubject\": \"Sujet de la reponse ou null\",\n  \"replyBody\": \"Corps texte brut de la reponse ou null\",\n  \"replyConfidence\": 0.85,\n  \"replyAction\": \"sent_agent|queue_human|none\"\n}\n```\nreplyAction :\n- sent_agent = tu as appele envoyer_email avec succes\n- queue_human = en attente de validation humaine\n- none = ignore (spam)\n\n═══ RAPPEL IMPORTANT ═══\n- APPELLE envoyer_email AVANT de retourner le JSON si tu decides de repondre\n- Le JSON final sert uniquement a la classification, PAS a l'envoi\n- Ne reponds JAMAIS aux spams\n- Si tu doutes, mets en file d'attente (queue_human)\n- Le champ 'message' est OBLIGATOIRE dans l'appel envoyer_email — c'est le texte de ta reponse"
+          "systemMessage": "Tu es un agent IA specialise dans la gestion automatique des emails pour TalosPrimes, une plateforme SaaS B2B de gestion d'entreprise.\n\n═══ ETAPES A SUIVRE (dans cet ordre) ═══\n\nETAPE 1 — CLASSIFIER l'email :\n- categorie : prospect, client, support, facturation, spam, notification, urgent, autre\n- priorite : haute, moyenne, basse\n- intention : demande_info, reclamation, remerciement, confirmation, relance, candidature, partenariat, autre\n- confiance : score entre 0 et 1\n\nETAPE 2 — DECIDER et AGIR :\n- Si confiance >= 0.8 et que l'email merite une reponse → APPELLE l'outil envoyer_email IMMEDIATEMENT\n- Si confiance < 0.8 ou question complexe → mettre en file d'attente humaine (ne pas appeler envoyer_email)\n- Si spam ou newsletter → ignorer (ne pas appeler envoyer_email)\n\nETAPE 3 — RETOURNER le JSON de classification (OBLIGATOIRE, toujours en dernier)\n\n═══ QUAND APPELER envoyer_email ═══\nTu DOIS appeler l'outil envoyer_email pour :\n- Accuses de reception\n- Reponses FAQ simples\n- Remerciements polis\n- Demandes de devis (apres avoir consulte les tarifs)\n- Toute reponse ou tu es confiant a >= 80%\n\n═══ DEMANDES DE DEVIS / TARIFS ═══\nSi l'email concerne une demande de devis, de prix ou d'informations sur nos services :\n1. APPELLE d'abord l'outil consulter_tarifs avec le mot-cle pertinent (email, telephone, crm, etc.)\n2. Utilise les tarifs obtenus pour rediger une reponse personnalisee et precise\n3. Inclus dans ta reponse : le prix setup + abonnement mensuel, les fonctionnalites incluses, les delais de livraison\n4. Demande les informations necessaires a la configuration si elles ne sont pas fournies\n5. Propose de planifier une demonstration gratuite\n6. APPELLE envoyer_email avec la reponse detaillee\n\n═══ COMMENT REDIGER LA REPONSE ═══\nQuand tu appelles envoyer_email :\n- Passe le texte de ta reponse dans le champ 'message' (OBLIGATOIRE)\n- Le champ 'html' est OPTIONNEL — le systeme applique automatiquement un template HTML professionnel\n- Ecris un message professionnel, poli et concis\n- Commence toujours par 'Bonjour,' et termine par 'Cordialement,'\n- Ne mets PAS de signature 'TalosPrimes' — elle est ajoutee automatiquement\n- Vouvoie toujours le destinataire\n\nExemple d'appel :\n- to: adresse du destinataire\n- subject: Re: [sujet original]\n- message: Bonjour,\\n\\nNous avons bien recu votre message et nous vous en remercions. Notre equipe reviendra vers vous dans les plus brefs delais.\\n\\nCordialement,\n\n═══ JSON DE CLASSIFICATION (ETAPE 3) ═══\nApres avoir agi (ou decide de ne pas agir), retourne TOUJOURS ce JSON :\n```json\n{\n  \"classification\": {\n    \"categorie\": \"...\",\n    \"priorite\": \"...\",\n    \"intention\": \"...\",\n    \"confiance\": 0.85\n  },\n  \"action\": \"auto_reply|queued|ignored\",\n  \"replySubject\": \"Sujet de la reponse ou null\",\n  \"replyBody\": \"Corps texte brut de la reponse ou null\",\n  \"replyConfidence\": 0.85,\n  \"replyAction\": \"sent_agent|queue_human|none\"\n}\n```\nreplyAction :\n- sent_agent = tu as appele envoyer_email avec succes\n- queue_human = en attente de validation humaine\n- none = ignore (spam)\n\n═══ RAPPEL IMPORTANT ═══\n- APPELLE envoyer_email AVANT de retourner le JSON si tu decides de repondre\n- Le JSON final sert uniquement a la classification, PAS a l'envoi\n- Ne reponds JAMAIS aux spams\n- Si tu doutes, mets en file d'attente (queue_human)\n- Le champ 'message' est OBLIGATOIRE dans l'appel envoyer_email — c'est le texte de ta reponse"
         }
       },
       "id": "ai-agent",
@@ -108,9 +108,9 @@
       "typeVersion": 4.3,
       "position": [790, 720],
       "parameters": {
-        "toolDescription": "Envoyer un email via Gmail. POST. Body JSON obligatoire :\n{\"tenantId\":\"UUID_TENANT\",\"to\":\"destinataire@email.com\",\"subject\":\"Sujet de l'email\",\"message\":\"Corps du message en texte\",\"html\":\"<div>Corps HTML optionnel</div>\"}\nLes champs tenantId, to et subject sont obligatoires.",
+        "toolDescription": "Envoyer un email via Gmail. POST. Body JSON obligatoire :\n{\"tenantId\":\"UUID_TENANT\",\"to\":\"destinataire@email.com\",\"subject\":\"Sujet de l'email\",\"message\":\"Corps du message en texte brut (OBLIGATOIRE)\"}\nLes champs tenantId, to, subject et message sont obligatoires. Le systeme applique automatiquement un template HTML professionnel.",
         "method": "POST",
-        "url": "https://n8n.talosprimes.com/webhook/client/talosprimes/gmail-send",
+        "url": "https://n8n.talosprimes.com/webhook/automations/email-send",
         "sendBody": true,
         "specifyBody": "json",
         "options": {
@@ -120,7 +120,29 @@
             }
           }
         },
-        "jsonBody": "={{ JSON.stringify({tenantId: $fromAI(\"tenantId\", \"UUID du tenant\"), to: $fromAI(\"to\", \"Adresse email du destinataire\"), subject: $fromAI(\"subject\", \"Sujet de l'email\"), message: $fromAI(\"message\", \"Corps du message en texte brut\"), html: $fromAI(\"html\", \"Corps du message en HTML professionnel\")}) }}"
+        "jsonBody": "={{ JSON.stringify({tenantId: $fromAI(\"tenantId\", \"UUID du tenant\"), to: $fromAI(\"to\", \"Adresse email du destinataire\"), subject: $fromAI(\"subject\", \"Sujet de l'email\"), message: $fromAI(\"message\", \"Corps du message en texte brut — OBLIGATOIRE\")}) }}"
+      }
+    },
+    {
+      "id": "tool-tarifs",
+      "name": "consulter_tarifs",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [1040, 720],
+      "parameters": {
+        "toolDescription": "Consulter les tarifs, formules et informations commerciales de TalosPrimes. Utilise cet outil quand un prospect demande un devis, des prix, des informations sur les modules ou les conditions.\nPOST. Body JSON: {\"query\": \"mot-cle optionnel: email, telephone, crm, comptabilite, marketing, ou vide pour tout\"}\nRetourne les tarifs (setup + abonnement), delais de livraison, informations necessaires a la configuration, et conditions generales.",
+        "method": "POST",
+        "url": "https://n8n.talosprimes.com/webhook/automations/tarifs-lookup",
+        "sendBody": true,
+        "specifyBody": "json",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        },
+        "jsonBody": "={{ JSON.stringify({query: $fromAI(\"query\", \"Mot-cle de recherche optionnel: email, telephone, crm, comptabilite, marketing. Vide pour tout le catalogue.\")}) }}"
       }
     },
     {
@@ -176,7 +198,8 @@
     "OpenAI Chat Model": { "ai_languageModel": [[{ "node": "03. Agent IA Email", "type": "ai_languageModel", "index": 0 }]] },
     "Memory Email": { "ai_memory": [[{ "node": "03. Agent IA Email", "type": "ai_memory", "index": 0 }]] },
     "lire_emails": { "ai_tool": [[{ "node": "03. Agent IA Email", "type": "ai_tool", "index": 0 }]] },
-    "envoyer_email": { "ai_tool": [[{ "node": "03. Agent IA Email", "type": "ai_tool", "index": 0 }]] }
+    "envoyer_email": { "ai_tool": [[{ "node": "03. Agent IA Email", "type": "ai_tool", "index": 0 }]] },
+    "consulter_tarifs": { "ai_tool": [[{ "node": "03. Agent IA Email", "type": "ai_tool", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [{ "name": "talosprimes" }, { "name": "auto-email" }, { "name": "ai-agent" }]
