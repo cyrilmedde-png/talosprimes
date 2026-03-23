@@ -155,7 +155,7 @@
       "parameters": {
         "conditions": {
           "options": {"caseSensitive": true, "leftValue": ""},
-          "conditions": [{"id": "not-skip", "leftValue": "={{ $json.skip }}", "operator": {"type": "boolean", "operation": "notTrue"}}],
+          "conditions": [{"id": "has-tenant", "leftValue": "={{ $json.tenantId }}", "operator": {"type": "string", "operation": "notEmpty"}}],
           "combinator": "and"
         },
         "options": {}
